@@ -1,0 +1,1 @@
+import{r as a,j as e}from"./app-CyEtsbiA.js";import{c as s}from"./utils-CtR4rN6D.js";const c=a.forwardRef(function({children:t,className:r},o){return e.jsx("div",{ref:o,className:s(r,"px-4 py-4 !mt-0"),children:t})});export{c as default};

@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { Deferred, Link, router, usePage } from "@inertiajs/react";
 import { Dialog, DialogTrigger } from "@/Components/ui/dialog";
 import {
+  FileTextIcon,
   MessageSquare,
   Paperclip,
   Plus,
@@ -18,22 +19,22 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { cleanedQuillOutput, cn, isNullOrWhitespace } from "@/lib/utils";
-
-import AppLayout from "@/Layouts/AppLayout";
-import { Button } from "@/Components/ui/button";
-import LoadingIcon from "@/Components/LoadingIcon";
-import { ReactQuill } from "@/Components/ReactQuill";
-import Tags from "./Components/Tags";
-import UploadDialog from "./Components/UploadDialog";
-import moment from "moment-timezone";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
+import { cleanedQuillOutput, cn, isNullOrWhitespace } from "@/lib/utils";
+
+import AppLayout from "@/Layouts/AppLayout";
+import { Button } from "@/Components/ui/button";
 import FormPageContent from "./Components/FormPageContent";
+import LoadingIcon from "@/Components/LoadingIcon";
+import { ReactQuill } from "@/Components/ReactQuill";
+import Tags from "./Components/Tags";
+import UploadDialog from "./Components/UploadDialog";
+import moment from "moment-timezone";
 
 export default function FormPage({
   title,
@@ -191,9 +192,19 @@ export default function FormPage({
                         >
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <span className="flex-1 overflow-hidden text-sm truncate">
-                                {name}
-                              </span>
+                              <div className="flex items-center flex-1 overflow-hidden gap-x-2">
+                                <Link href={route("files.edit", id)}>
+                                  <FileTextIcon className="size-5" />{" "}
+                                </Link>
+                                <a
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  href={route("files.show", id)}
+                                  className="hover:underline"
+                                >
+                                  <p className="text-sm truncate ">{name}</p>
+                                </a>
+                              </div>
                             </TooltipTrigger>
                             <TooltipContent align="start">
                               {name}

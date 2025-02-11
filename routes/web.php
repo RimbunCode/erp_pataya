@@ -42,6 +42,9 @@ Route::controller(\App\Http\Controllers\Core\LanguageController::class)->group(f
   Route::get('/lang', 'index')->name('lang.index');
   Route::post('/lang', 'set')->name('lang.set');
 });
+
+// Route for Preview Image
+Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'show'])->name('files.show');
 Route::middleware(['auth', 'lang'])->group(function () {
   // Dashboard
   Route::get('/dashboard', function () {
@@ -51,7 +54,6 @@ Route::middleware(['auth', 'lang'])->group(function () {
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);
   // Files
-  Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'show'])->name('files.show');
   Route::resourceDetail('files', 'file', \App\Http\Controllers\Core\FileController::class);
   // Users
   Route::resourceDetail('users', 'user', \App\Http\Controllers\User\UserController::class);
