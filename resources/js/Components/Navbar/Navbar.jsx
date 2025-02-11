@@ -1,0 +1,126 @@
+import {
+  Breadcrumb,
+  BreadcrumbEllipsis,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/Components/ui/breadcrumb";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../ui/dropdown-menu";
+import { Link, usePage } from "@inertiajs/react";
+
+import { Button } from "@/Components/ui/button";
+import { Fragment } from "react";
+import Notifications from "./Notifications";
+import { Separator } from "@/Components/ui/separator";
+import { SidebarTrigger } from "@/Components/ui/sidebar";
+import ToggleTheme from "@/Components/ToggleTheme";
+import UserInfo from "./UserInfo";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/Hooks/use-mobile";
+
+function Navbar({ setShowSearch }) {
+  const breadcrumbs = usePage().props.breadcrumbs;
+  const isMobile = useIsMobile();
+  return (
+    <header className=" border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+      <div className="flex items-center gap-2 px-4">
+        <SidebarTrigger className="-ml-1" />
+        <Separator orientation="vertical" className="h-4 mr-2" />
+        {breadcrumbs && (
+          <Breadcrumb>
+            <BreadcrumbList>
+              {breadcrumbs.length > 1 &&
+              (isMobile || breadcrumbs.length > 3) ? (
+                <>
+                  <BreadcrumbItem>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger className="flex items-center gap-1">
+                        <BreadcrumbEllipsis className="w-4 h-4" />
+                        <span className="sr-only">Toggle menu</span>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {breadcrumbs.map((breadcrumb, index) => {
+                          if (index === breadcrumbs.length - 1) return null;
+                          return (
+                            <DropdownMenuItem
+                              asChild
+                              key={breadcrumb.name + index + "dropdown"}
+                            >
+                              <Link href={breadcrumb.link}>
+                                {breadcrumb.name}
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="" />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>
+                      {breadcrumbs[breadcrumbs.length - 1].name}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              ) : (
+                breadcrumbs.map((breadcrumb, index) =>
+                  index < breadcrumbs.length - 1 ? (
+                    <Fragment key={breadcrumb.name + index}>
+                      <BreadcrumbItem className="hidden md:block">
+                        <BreadcrumbLink asChild>
+                          <Link href={breadcrumb.link}>{breadcrumb.name}</Link>
+                        </BreadcrumbLink>
+                      </BreadcrumbItem>
+                      <BreadcrumbSeparator className="hidden md:block" />
+                    </Fragment>
+                  ) : (
+                    <BreadcrumbItem key={breadcrumb.name + index}>
+                      <BreadcrumbPage> {breadcrumb.name}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  ),
+                )
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
+        )}
+      </div>
+      <div className="flex items-center gap-2 px-4">
+        <Button
+          onClick={() => setShowSearch((open) => !open)}
+          variant="outline"
+          className={cn(
+            "relative h-9 w-fit !px-2 md:!px-4  justify-start rounded-[0.5rem] lg:bg-muted/50 text-sm font-normal text-muted-foreground shadow-none lg:w-56 xl:w-64",
+          )}
+        >
+          <span className="hidden lg:inline-flex">Search ...</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            className="size-4 lg:hidden"
+          >
+            <path
+              fill="currentColor"
+              d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5l-1.5 1.5l-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16A6.5 6.5 0 0 1 3 9.5A6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14S14 12 14 9.5S12 5 9.5 5"
+            />
+          </svg>
+          <kbd className="pointer-events-none absolute right-[0.3rem] top-[0.3rem] hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 lg:flex">
+            <span className="text-xs">Ctrl + J</span>
+          </kbd>
+        </Button>
+        <ToggleTheme className="size-4" />
+
+        <Notifications />
+        <UserInfo />
+      </div>
+    </header>
+  );
+}
+
+export default Navbar;

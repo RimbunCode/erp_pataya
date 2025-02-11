@@ -1,18 +1,22 @@
-import ApplicationLogo from '@/Components/ApplicationLogo';
-import { Link } from '@inertiajs/react';
+import ApplicationLogo from "@/Components/ApplicationLogo";
+import { Card } from "@/Components/ui/card";
+import { Link } from "@inertiajs/react";
+import MasterLayout from "./MasterLayout";
+import { cn } from "@/lib/utils";
 
-export default function GuestLayout({ children }) {
-    return (
-        <div className="flex min-h-screen flex-col items-center bg-gray-100 pt-6 sm:justify-center sm:pt-0 dark:bg-gray-900">
-            <div>
-                <Link href="/">
-                    <ApplicationLogo className="h-20 w-20 fill-current text-gray-500" />
-                </Link>
-            </div>
-
-            <div className="mt-6 w-full overflow-hidden bg-white px-6 py-4 shadow-md sm:max-w-md sm:rounded-lg dark:bg-gray-800">
-                {children}
-            </div>
+export default function GuestLayout({ className, children }) {
+  return (
+    <MasterLayout>
+      <div className="flex flex-col items-center min-h-screen pt-6 bg-gray-100 sm:justify-center sm:pt-0 dark:bg-gray-900">
+        <div>
+          <Link href="/">
+            <ApplicationLogo className="w-20 h-20 text-gray-500 fill-current" />
+          </Link>
         </div>
-    );
+        <Card className={cn("w-full max-w-md mt-4", className)}>
+          {children}
+        </Card>
+      </div>
+    </MasterLayout>
+  );
 }

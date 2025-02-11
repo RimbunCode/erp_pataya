@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  table.resizeable-table {
+    @apply w-full h-fit max-w-full grid overflow-x-auto overflow-y-hidden grid-rows-none  border-collapse;
+
+    thead,
+    tbody,
+    tr {
+      @apply contents;
+    }
+    thead tr:first-child th {
+      @apply bg-muted;
+    }
+
+    th {
+      @apply relative;
+    }
+
+    th {
+      @apply text-left py-0.5 px-5 flex justify-center flex-col text-foreground/80 text-sm;
+    }
+    td {
+      @apply text-left py-2 px-5 flex justify-center flex-col text-foreground/90 text-sm;
+    }
+
+    th span,
+    td span {
+      @apply whitespace-nowrap overflow-hidden block;
+    }
+    thead tr th {
+      @apply border-b  border-muted-foreground/25;
+    }
+
+    tr td {
+      @apply border-b   border-muted-foreground/25;
+    }
+    tr td span {
+      @apply text-ellipsis;
+    }
+  }
+  .resize-handle {
+    display: block;
+    position: absolute;
+    cursor: col-resize;
+    width: 7px;
+    right: 0;
+    top: 0;
+    z-index: 1;
+    border-right: 2px solid transparent;
+  }
+
+  .resize-handle:hover {
+    border-color: #ccc;
+  }
+
+  .resize-handle.active {
+    border-color: #517ea5;
+  }
+}
