@@ -76,7 +76,12 @@ export const SingleChildContainer = ({ children, ...props }) => {
 };
 
 export function cleanedQuillOutput(str) {
+  const route = window.route;
   str = str.replace(/href="(?!https?:\/\/)([^"]*)"/g, 'href="https://$1"');
+  str = str.replace(
+    /<span([^>]*)data-id="(\d+)"([^>]*)data-value="([^"]+)"([^>]*)>.*?<\/span>/g,
+    `<a$1 data-id="$2"$3 data-value="$4"$5 href="${route("users.index")}/$2" target="_blank" rel="noreferrer">@\$4</a>`,
+  );
   const list = str.split("<p>");
 
   let startIndex = 0;

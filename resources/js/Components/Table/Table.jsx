@@ -35,12 +35,31 @@ import { usePage } from "@inertiajs/react";
 
 const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
-
+const convertColWidth = (colWidth) => {
+  if (colWidth) {
+    switch (colWidth) {
+      case "grow":
+        return "1fr";
+      case "fit":
+        return "max-content";
+      default:
+        return colWidth;
+    }
+  } else {
+    return "minmax(0px, 1fr)";
+  }
+};
 const createHeaders = (headers) => {
   const columnsMap = new Map(
     headers.map((col) => [
       col.name,
-      { ...col, sort: null, show: col.show ?? true, ref: useRef() },
+      {
+        ...col,
+        sort: null,
+        show: col.show ?? true,
+        ref: useRef(),
+        size: convertColWidth(col.width),
+      },
     ]),
   );
 
@@ -169,7 +188,11 @@ function Table({
         if (newIndex < freezeColumn) return items;
 
         const oldIndex = newItems.indexOf(active.id);
-        return arrayMove(items, oldIndex, newIndex);
+        const newColumn = arrayMove(items, oldIndex, newIndex);
+        tableElement.current.style.gridTemplateColumns = newColumn
+          .map((x) => x.size)
+          .join(" ");
+        return newColumn;
       });
     }
   }
@@ -184,9 +207,10 @@ function Table({
 
   const mouseMove = useCallback(
     (e) => {
-      const ori = tableElement.current.style.gridTemplateColumns
-        .split(" ")
-        .filter((x) => x.startsWith("minmax") || x.indexOf("px") >= 0);
+      // const ori = tableElement.current.style.gridTemplateColumns
+      //   .split(" ")
+      //   .filter((x) => x.startsWith("minmax") || x.indexOf("px") >= 0);
+      const newColumns = [];
       const gridColumns = columns.map((col, i) => {
         if (i === activeIndex) {
           const width = e.clientX - col.ref.current.offsetLeft;
@@ -195,10 +219,20 @@ function Table({
             return `${width}px`;
           }
         }
-        if (i < activeIndex) return `${col.ref.current.offsetWidth}px`;
-        return ori[i].startsWith("minmax")
-          ? "minmax(0px, 1fr)"
-          : `${col.ref.current.offsetWidth}px`;
+        let size = "";
+        if (i < activeIndex) {
+          size = `${col.ref.current.offsetWidth}px`;
+        } else {
+          if (col.size?.startsWith("minmax")) {
+            size = "minmax(0px, 1fr)";
+          } else if (col.size == "1fr" || col.size == "max-content") {
+            size = col.size;
+          } else {
+            size = `${col.ref.current.offsetWidth}px`;
+          }
+        }
+        newColumns.push({ ...col, size });
+        return size;
       });
 
       tableElement.current.style.gridTemplateColumns = `${gridColumns.join(
@@ -261,24 +295,16 @@ function Table({
               className={cn("resizeable-table")}
               ref={tableElement}
               style={{
+                gridTemplateRows: [
+                  "auto",
+                  ...data.map(() => "auto"),
+                  "1fr",
+                ].join(" "),
                 gridTemplateColumns:
                   (selectable ? "max-content " : "") +
                   (actions ? "max-content " : "") +
                   showedColumns
-                    .map((col) => {
-                      if (col.width) {
-                        switch (col.width) {
-                          case "grow":
-                            return "1fr";
-                          case "fit":
-                            return "max-content";
-                          default:
-                            return col.width;
-                        }
-                      } else {
-                        return "minmax(0px, 1fr)";
-                      }
-                    })
+                    .map((col) => convertColWidth(col.width))
                     .join(" "),
               }}
             >
@@ -409,26 +435,37 @@ function Table({
                     </td>
                   </tr>
                 ) : (
-                  data.map((row, i) => (
-                    <tr key={i}>
-                      {selectable && (
-                        <td className="!py-2 !px-2 items-center">
-                          <Checkbox
-                            checked={row.isSelected ?? false}
-                            onCheckedChange={(check) => checklist(row, check)}
-                          />
-                        </td>
-                      )}
-                      {actions && (
-                        <td className="w-full">{actions({ row })}</td>
-                      )}
-                      {showedColumns.map(({ cell, name }) => (
-                        <td key={name}>
-                          {cell ? cell({ row }) : <span>{row[name]}</span>}
-                        </td>
-                      ))}
+                  <>
+                    {data.map((row, i) => (
+                      <tr key={i}>
+                        {selectable && (
+                          <td className="!py-2 !px-2 items-center">
+                            <Checkbox
+                              checked={row.isSelected ?? false}
+                              onCheckedChange={(check) => checklist(row, check)}
+                            />
+                          </td>
+                        )}
+                        {actions && (
+                          <td className="w-full">{actions({ row })}</td>
+                        )}
+                        {showedColumns.map(({ cell, name }) => (
+                          <td key={name}>
+                            {cell ? cell({ row }) : <span>{row[name]}</span>}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+
+                    <tr>
+                      <td
+                        className="!border-b-0 items-center justify-center row-auto h-full"
+                        style={{
+                          gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
+                        }}
+                      />
                     </tr>
-                  ))
+                  </>
                 )}
               </tbody>
             </table>

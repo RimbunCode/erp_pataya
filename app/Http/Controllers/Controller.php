@@ -19,13 +19,17 @@ abstract class Controller {
   public function addComment(CommentRequest $request, $param) {
     $request->validated();
 
-    Log::create(([
+    preg_match_all('/data-id="([^"]+)"/',  $request->comment, $matches);
+
+    $dataIds = $matches[1];
+
+    Log::create([
       'user_id' => $request->user()->id,
       'loggable_id' => $param,
       'loggable_type' => $this->model,
       'type' => 'comment',
       'activity' => $request->comment,
-    ]));
+    ]);
 
     return back();
   }

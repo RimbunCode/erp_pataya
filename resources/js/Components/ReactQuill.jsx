@@ -1,6 +1,5 @@
 import "@/../css/quill.snow.css";
 import "@/../css/quill.bubble.css";
-import "quill-mention/autoregister";
 
 import Quill from "quill";
 import React from "react";

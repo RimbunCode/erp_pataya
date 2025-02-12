@@ -1,4 +1,5 @@
-// import "quill/dist/quill.bubble.css";
+import "quill/dist/quill.bubble.css";
+import "quill-mention/autoregister";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { Deferred, Link, router, usePage } from "@inertiajs/react";
@@ -31,9 +32,12 @@ import AppLayout from "@/Layouts/AppLayout";
 import { Button } from "@/Components/ui/button";
 import FormPageContent from "./Components/FormPageContent";
 import LoadingIcon from "@/Components/LoadingIcon";
+import QueryString from "qs";
 import { ReactQuill } from "@/Components/ReactQuill";
 import Tags from "./Components/Tags";
 import UploadDialog from "./Components/UploadDialog";
+import axios from "axios";
+import { debounce } from "lodash";
 import moment from "moment-timezone";
 
 export default function FormPage({
@@ -122,6 +126,42 @@ export default function FormPage({
 
     ["clean"], // remove formatting button
   ];
+  const mention = {
+    allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
+    mentionDenotationChars: ["@"],
+    source: debounce(async function (searchTerm, renderList, mentionChar) {
+      console.log(searchTerm);
+      const data = await axios
+        .get(
+          `${route("users.index")}?${QueryString.stringify({
+            search: searchTerm,
+            limit: 10,
+            // excepts: tags?.map((t) => t.name),
+          })}`,
+        )
+        .then((res) => {
+          const data = res.data.map((x) => ({ id: x.id, value: x.name }));
+          return data;
+          // if (data.findIndex((t) => t.name === search) === -1) {
+          //   data.unshift({
+          //     id: generateRandom(8),
+          //     name: search,
+          //     isNew: true,
+          //   });
+          // }
+          // setListTags(data);
+        })
+        .catch((err) => {
+          console.log(err);
+        });
+      renderList(data, searchTerm);
+    }, 500),
+  };
+  const uniqueChildren = React.Children.toArray(children).filter(
+    (child, index, self) =>
+      child.props.value !== undefined &&
+      self.findIndex((c) => c.props.value === child.props.value) === index,
+  );
   return (
     <AppLayout>
       <div className="flex items-center justify-between gap-x-4">
@@ -237,11 +277,14 @@ export default function FormPage({
             "flex flex-col order-1 max-w-full  border rounded-xl lg:col-start-1 border-muted-foreground/25",
           )}
         >
-          {Children.count(children) > 1 ? (
-            <Tabs defaultValue={defaultMenu ?? children[0].props.value}>
+          {uniqueChildren.length > 1 ? (
+            <Tabs
+              defaultValue={defaultMenu ?? children[0].props.value}
+              className="[&_:not(div[role=content])_+_div[role=content]]:border-t-0 [&_div[role=content]]:border-t"
+            >
               <TabsList className="w-full !p-0 h-auto items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b rounded-none">
-                {Children.map(children, (child) => {
-                  if (child.type == FormPageContent) {
+                {Children.map(uniqueChildren, (child) => {
+                  if (child.type.render.name == FormPageContent.render.name) {
                     return (
                       <TabsTrigger
                         value={child.props.value}
@@ -259,7 +302,7 @@ export default function FormPage({
                 })}
               </TabsList>
               {Children.map(children, (child) => {
-                if (child.type == FormPageContent) {
+                if (child.type.render.name == FormPageContent.render.name) {
                   return (
                     <TabsContent value={child.props.value} asChild>
                       {child}
@@ -302,6 +345,7 @@ export default function FormPage({
                 onChange={setComment}
                 modules={{
                   toolbar: toolbarOptions,
+                  mention,
                 }}
                 onFocus={() => setFocusedOnComment(true)}
                 onBlur={() => setFocusedOnComment(false)}

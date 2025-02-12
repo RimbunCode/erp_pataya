@@ -1,7 +1,7 @@
 import { Button } from "@/Components/ui/button";
 import FormPage from "@/Pages/Core/FormPage";
-import { SaveIcon } from "lucide-react";
 import FormPageContent from "@/Pages/Core/Components/FormPageContent";
+import { SaveIcon } from "lucide-react";
 
 function Show({ user }) {
   return (
@@ -17,6 +17,9 @@ function Show({ user }) {
     >
       <FormPageContent title="User Details" value="user_details">
         Account
+      </FormPageContent>
+      <FormPageContent title="More Information" value="more_information">
+        Password
       </FormPageContent>
       <FormPageContent title="More Information" value="more_information">
         Password

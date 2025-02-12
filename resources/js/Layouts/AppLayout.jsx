@@ -117,7 +117,9 @@ function AppLayout({ children }) {
               </CommandGroup>
             </CommandList>
           </CommandDialog>
-          <div className="flex flex-col flex-1 px-8 py-4">{children}</div>
+          <div className="relative flex flex-col flex-1 max-h-full px-8 py-4 overflow-y-auto ">
+            {children}
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </MasterLayout>

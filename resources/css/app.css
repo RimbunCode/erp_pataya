@@ -87,6 +87,21 @@
 @layer components {
   .ql-container {
     @apply !font-sans !text-base;
+    a.mention {
+      @apply hover:!underline !no-underline underline-offset-4;
+    }
+    .mention {
+      @apply inline-flex items-center rounded-full px-2.5 py-1  font-medium bg-muted text-foreground;
+    }
+    .ql-mention-list-container {
+      @apply rounded-lg border border-muted shadow-md z-50 bg-popover p-1 text-popover-foreground;
+      li {
+        @apply pl-2  relative flex select-none items-center rounded-sm py-1.5 pr-2 text-base outline-none transition-colors focus:bg-accent focus:text-accent-foreground cursor-pointer gap-x-2;
+        &.selected {
+          @apply bg-accent text-accent-foreground;
+        }
+      }
+    }
   }
   .ql-editor.ql-blank::before {
     @apply !text-muted-foreground;

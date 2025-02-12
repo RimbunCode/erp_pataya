@@ -39,9 +39,9 @@ function Index({ data, sort, show }) {
     },
     {
       name: "status",
+      width: "fit",
       title: "Status",
       searchType: ["invited", "active", "inactive"],
-      sortable: false,
       cell: ({ row }) => (
         <button
           className="capitalize badge success w-fit"
@@ -58,6 +58,7 @@ function Index({ data, sort, show }) {
       name: "created_at",
       title: "Created at",
       searchType: "date",
+      width: "fit",
       sortable: true,
       cell: ({ row }) => (
         <span>{moment.utc(row.created_at).local().format("DD-MM-YYYY")}</span>

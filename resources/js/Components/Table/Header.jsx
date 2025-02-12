@@ -121,13 +121,17 @@ export default memo(
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        {resizeable && (
-          <div
-            style={{ height: tableHeight }}
-            onMouseDown={mouseDown}
-            className={`resize-handle ${active ? "active" : "idle"}`}
-          />
-        )}
+        <div
+          style={{ height: tableHeight }}
+          onMouseDown={(e) => {
+            if (resizeable) mouseDown(e);
+          }}
+          className={cn(
+            active ? "active" : "idle",
+            resizeable ? "cursor-col-resize" : "cursor-default",
+            `resize-handle !border-muted-foreground/30`,
+          )}
+        />
       </th>
     );
   }),

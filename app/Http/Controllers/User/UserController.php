@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
 use App\Models\User\User;
+use App\Utils;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -30,6 +31,13 @@ class UserController extends Controller {
    * Display a listing of the resource.
    */
   public function index(Request $request) {
+    if (!Utils::isInertiaRequest($request)) {
+      $users = User::query();
+      if ($request->has('search')) {
+        $users->whereAny(['name', 'email', 'username'], 'like', "%{$request->search}%");
+      }
+      return response()->json($users->get());
+    }
     $this->setBreadcrumbs();
     // dd(json_decode(stripslashes($_COOKIE['datatable_columns'])));
     $options = $request->query();

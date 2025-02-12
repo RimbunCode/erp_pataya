@@ -6,7 +6,7 @@ export default forwardRef(function FormPageContent(
   ref,
 ) {
   return (
-    <div ref={ref} className={cn(className, "px-4 py-4 !mt-0")}>
+    <div ref={ref} className={cn(className, "px-4 py-4 !mt-0")} role="content">
       {children}
     </div>
   );

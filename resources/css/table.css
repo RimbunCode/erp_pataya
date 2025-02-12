@@ -4,7 +4,7 @@
 
 @layer components {
   table.resizeable-table {
-    @apply w-full h-fit max-w-full grid overflow-x-auto overflow-y-hidden grid-rows-none  border-collapse;
+    @apply w-full h-full max-w-full grid overflow-x-auto overflow-y-hidden grid-rows-none  border-collapse;
 
     thead,
     tbody,
@@ -44,7 +44,6 @@
   .resize-handle {
     display: block;
     position: absolute;
-    cursor: col-resize;
     width: 7px;
     right: 0;
     top: 0;
