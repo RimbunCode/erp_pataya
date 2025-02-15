@@ -5,16 +5,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/Components/ui/command";
-import { Deferred, Link, router, usePage } from "@inertiajs/react";
+import { Deferred, router, usePage } from "@inertiajs/react";
 import { Plus, TagsIcon, X } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { cn, generateRandom, isNullOrWhitespace } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
+import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
 import QueryString from "qs";
 import axios from "axios";
 import { useDetectClickOutside } from "react-detect-click-outside";
+import useDidMountEffect from "@/Hooks/useDidMountEffect";
 
 function Tags() {
   const route = window.route;
@@ -81,7 +83,7 @@ function Tags() {
     });
   }, []);
 
-  useEffect(() => {
+  useDidMountEffect(() => {
     const reloadData = setTimeout(() => {
       setOpen(!isNullOrWhitespace(search) || listTags.length > 0);
       axios
@@ -165,7 +167,7 @@ function Tags() {
         </div>
       )}
       <Deferred
-        data="tags"
+        data={["tags"]}
         fallback={
           <div className="mb-3 first:mt-2 ms-6">
             <div className="!text-base font-normal text-foreground flex gap-x-4">

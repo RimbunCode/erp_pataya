@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
 use App\Models\User\User;
 use App\Utils;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class UserController extends Controller {
@@ -40,21 +42,19 @@ class UserController extends Controller {
     }
     $this->setBreadcrumbs();
     // dd(json_decode(stripslashes($_COOKIE['datatable_columns'])));
-    $options = $request->query();
-    $optionsSort = isset($options['sort']) ?? "-created_at" ? explode("-", $options['sort']) : [""];
-    $optionsSortKey = end($optionsSort);
-    $optionsSortOrder = $optionsSort[0] === $optionsSortKey ? "asc" : "desc";
-
-    $options['show'] = isset($options['show']) ?? 25;
-
-    $users = User::paginate(25);
-    return Inertia::render('Users/ManageUsers/Index', [
-      'data' => Inertia::merge($users),
-      'sort' => '-created_at',
-      'show' => 25,
-    ]);
+    User::dataTable($request);
+    return Inertia::render('Users/ManageUsers/Index',);
   }
-  public function data(Request $request) {
+  public function image(Request $request, User $user) {
+    DB::beginTransaction();
+    File::uploadFile($request, 'ImageProfile', function ($file) use ($user) {
+      $user->update([
+        'image' => $file->id,
+      ]);
+    });
+    DB::commit();
+
+    return back();
   }
 
   /**
@@ -82,23 +82,9 @@ class UserController extends Controller {
    */
   public function edit(User $user) {
     $this->setBreadcrumbs($user);
-    return Inertia::render('Users/ManageUsers/Show', [
+    $user->showDetail();
+    return Inertia::render('Users/ManageUsers/Edit', [
       'user' => $user,
-      'logs' => Inertia::defer(function () use ($user) {
-        return Log::with('user')
-          ->where('loggable_type', $this->model)
-          ->where('loggable_id', operator: $user->id)
-          ->orderByDesc('created_at')
-          ->get();
-      }),
-      'tags' => Inertia::defer(function () use ($user) {
-        return $user->tags()
-          ->get(['id', 'name']);
-      }),
-      'attachments' => Inertia::defer(function () use ($user) {
-        return $user->files()
-          ->get(['id', 'name']);
-      })
     ]);
   }
 

@@ -29,22 +29,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
+import QueryString from "qs";
 import React from "react";
 import Table from "@/Components/Table/Table";
 import { cn } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default forwardRef(function DataTable(
-  { data, defaultSort, columns, actions, title, buttonAdd },
+  { columns, actions, title, buttonAdd },
   ref,
 ) {
+  const { t } = useLaravelReactI18n();
   const route = window.route;
   const query = usePage().props.ziggy.query;
+  const { data, defaultSort } = usePage().props;
   const [options, setOptions] = useState({
     sort: query?.sort ?? defaultSort,
     f: query?.f ?? [],
@@ -52,12 +61,16 @@ export default forwardRef(function DataTable(
   });
 
   const loadData = () => {
-    router.get(route(route().current()), options, {
-      reset: ["data", "ziggy"],
-      preserveScroll: true,
-      preserveState: true,
-      replace: true,
-    });
+    router.get(
+      route(route().current()) + "?" + QueryString.stringify(options),
+      {},
+      {
+        reset: ["data", "ziggy"],
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+      },
+    );
   };
   const optionsSort = (options.sort ?? "").split("-");
   const optionsSortKey = optionsSort[optionsSort.length - 1];
@@ -97,6 +110,7 @@ export default forwardRef(function DataTable(
   useImperativeHandle(ref, () => ({
     addFilter(key, operator, value) {
       const filters = options.f;
+      value = value.toString();
       if (
         filters.find((x) => x[0] === key && x[1] === operator && x[2] === value)
       )
@@ -119,9 +133,9 @@ export default forwardRef(function DataTable(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={loadData}>
                   <RefreshCw />
-                  <span>Refresh</span>
+                  <span>{t("core.datatable.reload")}</span>
                 </DropdownMenuItem>
                 <FilterTable
                   columns={columns}
@@ -156,14 +170,14 @@ export default forwardRef(function DataTable(
                                 showDot={true}
                                 value={`${name}-asc`}
                               >
-                                Ascending
+                                {t("core.datatable.sorting.ascending")}
                               </DropdownMenuRadioItem>
                               <DropdownMenuRadioItem
                                 className="cursor-pointer"
                                 showDot={true}
                                 value={`${name}-desc`}
                               >
-                                Descending
+                                {t("core.datatable.sorting.descending")}
                               </DropdownMenuRadioItem>
                             </DropdownMenuRadioGroup>
                           </DropdownMenuSubContent>
@@ -175,40 +189,63 @@ export default forwardRef(function DataTable(
             </DropdownMenu>
           </div>
           <div className="items-center hidden lg:flex gap-x-4 ">
-            <Button
-              variant="secondary"
-              className="!p-2 size-fit "
-              onClick={loadData}
-            >
-              <RefreshCw />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="secondary"
+                  className="!p-2 size-fit "
+                  onClick={loadData}
+                >
+                  <RefreshCw />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {t("core.datatable.reload")}
+              </TooltipContent>
+            </Tooltip>
             <div className="inline-flex overflow-hidden rounded-lg">
               <FilterTable
                 columns={columns}
                 onApply={onApplyFilters}
                 initialFilters={options.f}
               />
-              <Button
-                className="!py-0 h-8 !px-2 rounded-l-none"
-                variant="secondary"
-                onClick={() => setOptions({ ...options, f: {} })}
-              >
-                <X />
-              </Button>
+              {Object.keys(options.f).length > 0 && (
+                <Button
+                  className="!py-0 h-8 !px-2 rounded-l-none"
+                  variant="secondary"
+                  onClick={() =>
+                    setOptions({
+                      ...options,
+                      f: [],
+                    })
+                  }
+                >
+                  <X />
+                </Button>
+              )}
             </div>
 
             <div className="inline-flex overflow-hidden rounded-lg">
-              <Button
-                className="!py-0 h-8 !px-2 rounded-r-none border-r  border-muted-foreground/50"
-                variant="secondary"
-                onClick={() => setSort(optionsSortKey)}
-              >
-                {optionsSortOrder == "asc" ? (
-                  <ArrowUpNarrowWide />
-                ) : (
-                  <ArrowDownWideNarrow />
-                )}
-              </Button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    className="!py-0 h-8 !px-2 rounded-r-none border-r  border-muted-foreground/50"
+                    variant="secondary"
+                    onClick={() => setSort(optionsSortKey)}
+                  >
+                    {optionsSortOrder == "asc" ? (
+                      <ArrowUpNarrowWide />
+                    ) : (
+                      <ArrowDownWideNarrow />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent align="center" side="bottom">
+                  {optionsSortOrder == "asc"
+                    ? t("core.datatable.sorting.ascending")
+                    : t("core.datatable.sorting.descending")}
+                </TooltipContent>
+              </Tooltip>
               <Select
                 value={optionsSortKey}
                 onValueChange={(val) => setSort(val, optionsSortOrder)}

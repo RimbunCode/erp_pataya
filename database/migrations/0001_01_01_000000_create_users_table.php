@@ -16,8 +16,11 @@ return new class extends Migration {
       $table->string('email');
       $table->timestamp('email_verified_at')->nullable();
       $table->string('password')->nullable();
-      $table->string('image')->nullable();
+      $table->foreignUlid('image')->references('id')->on('files')->cascadeOnDelete();
       $table->enum('status', ['invited', 'active', 'inactive'])->default('active');
+      $table->enum('gender', ['male', 'female'])->nullable();
+      $table->date('birthdate')->nullable();
+      $table->string('phone')->nullable();
       $table->rememberToken();
       $table->timestamps();
       $table->softDeletes();

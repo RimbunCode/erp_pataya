@@ -17,7 +17,7 @@ export default memo(function FolderItem({ id, name, open, isRoot }) {
   const route = window.route;
   const [_files, _setFiles] = useState([]);
   const [files, setFiles] = useState([]);
-  const { search, resultSearch } = useLibrary();
+  const { search, resultSearch, imageOnly } = useLibrary();
   const [isLoading, setIsLoading] = useState(isNullOrWhitespace(search));
 
   const loadFiles = useCallback(() => {
@@ -26,6 +26,7 @@ export default memo(function FolderItem({ id, name, open, isRoot }) {
       .get(
         `${route("files.index")}?${QueryString.stringify({
           folder: id,
+          imageOnly: imageOnly ?? false,
         })}`,
       )
       .then((res) => {

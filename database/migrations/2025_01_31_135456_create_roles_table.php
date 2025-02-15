@@ -12,12 +12,11 @@ return new class extends Migration {
     Schema::create('roles', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->string('name');
-      $table->string('slug');
       $table->string('default_home')->nullable();
       $table->boolean('is_disabled')->default(false);
       $table->timestamps();
       $table->softDeletes();
-      $table->unique(['slug', 'deleted_at']);
+      $table->unique(['name', 'deleted_at']);
     });
   }
 

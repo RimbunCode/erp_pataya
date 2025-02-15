@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Preference;
+use App\Models\Core\Preference;
 use Closure;
 use Illuminate\Http\Request;
 use Inertia\Middleware;

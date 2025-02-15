@@ -1,17 +1,19 @@
-import ToggleTheme from "@/Components/ToggleTheme";
 import {
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/Components/ui/card";
-import { Skeleton } from "@/Components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/Components/ui/tabs";
+
 import GuestLayout from "@/Layouts/GuestLayout";
-import { cn } from "@/lib/utils";
-import { Head, Link } from "@inertiajs/react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
+import { Head } from "@inertiajs/react";
+import Link from "@/Components/Link";
 import React from "react";
+import { Skeleton } from "@/Components/ui/skeleton";
+import ToggleTheme from "@/Components/ToggleTheme";
+import { cn } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function Index({ lang, locales }) {
   const route = window.route;

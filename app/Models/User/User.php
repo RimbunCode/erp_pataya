@@ -7,6 +7,7 @@ namespace App\Models\User;
 use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
+use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -15,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable {
   /** @use HasFactory<\Database\Factories\UserFactory> */
-  use HasFactory, Notifiable, HasUlids, SoftDeletes;
+  use HasFactory, Notifiable, HasUlids, SoftDeletes, DataTable;
 
   /**
    * The attributes that are mass assignable.
@@ -27,6 +28,7 @@ class User extends Authenticatable {
     'username',
     'email',
     'password',
+    'image'
   ];
 
   /**
@@ -49,18 +51,6 @@ class User extends Authenticatable {
       'email_verified_at' => 'datetime',
       'password' => 'hashed',
     ];
-  }
-  public function logs() {
-    return $this->morphMany(Log::class, 'loggable');
-  }
-  public function tags() {
-    return $this->morphToMany(Tag::class, 'taggable')
-      ->whereNull('taggables.deleted_at');
-  }
-
-  public function files() {
-    return $this->morphToMany(File::class, 'fileable')
-      ->whereNull('fileables.deleted_at');
   }
   public function roles() {
     return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id');

@@ -5,66 +5,85 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/Components/ui/dialog";
-import React, { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import DataTable from "@/Pages/Core/DataTable";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import { Link } from "@inertiajs/react";
-import moment from "moment-timezone";
+import Link from "@/Components/Link";
+import { TZDate } from "@date-fns/tz";
+import { format } from "date-fns";
+import { getLocaleDate } from "@/lib/utils";
 
-function Index({ data, sort, show }) {
-  const [openNewUser, setOpenNewUser] = React.useState(false);
+function Index({ lang }) {
+  const [openNewUser, setOpenNewUser] = useState(false);
   const tableRef = useRef();
-  const columns = [
-    {
-      name: "name",
-      title: "Name",
-      searchType: "text",
-      sortable: true,
-      resizeable: true,
-      cell: ({ row }) => (
-        // eslint-disable-next-line no-undef
-        <Link className="hover:underline" href={route("users.edit", row.id)}>
-          {row.name}
-        </Link>
-      ),
-    },
-    {
-      name: "email",
-      title: "Email",
-      searchType: "text",
-      sortable: true,
-      resizeable: true,
-    },
-    {
-      name: "status",
-      width: "fit",
-      title: "Status",
-      searchType: ["invited", "active", "inactive"],
-      cell: ({ row }) => (
-        <button
-          className="capitalize badge success w-fit"
-          type="button"
-          onClick={() => {
-            tableRef.current.addFilter("status", "eq", row.status);
-          }}
-        >
-          {row.status.replace(/(\-|\_)/g, " ")}
-        </button>
-      ),
-    },
-    {
-      name: "created_at",
-      title: "Created at",
-      searchType: "date",
-      width: "fit",
-      sortable: true,
-      cell: ({ row }) => (
-        <span>{moment.utc(row.created_at).local().format("DD-MM-YYYY")}</span>
-      ),
-    },
-  ];
+  const columns = useMemo(
+    () => [
+      {
+        name: "name",
+        title: "Name",
+        searchType: "text",
+        sortable: true,
+        resizeable: true,
+        cell: ({ dataRow }) => (
+          <Link
+            className="hover:underline"
+            // eslint-disable-next-line no-undef
+            href={route("users.edit", dataRow.id)}
+          >
+            {dataRow.name}
+          </Link>
+        ),
+      },
+      {
+        name: "email",
+        title: "Email",
+        searchType: "text",
+        sortable: true,
+        resizeable: true,
+      },
+      {
+        name: "status",
+        width: "fit",
+        title: "Status",
+        searchType: ["invited", "active", "inactive"],
+        parse: {
+          invited: "Invitedd",
+          active: "Actived",
+          inactive: "Inactived",
+        },
+        cell: ({ dataRow }) => (
+          <button
+            className="capitalize badge success w-fit"
+            type="button"
+            onClick={() => {
+              tableRef.current.addFilter("status", "eq", dataRow.status);
+            }}
+          >
+            {dataRow.status.replace(/(\-|\_)/g, " ")}
+          </button>
+        ),
+      },
+      {
+        name: "created_at",
+        title: "Created at",
+        searchType: "date",
+        width: "fit",
+        sortable: true,
+        cell: ({ dataRow }) => {
+          return (
+            <span>
+              {format(new TZDate(dataRow.created_at, "UTC"), "PPPp", {
+                locale: getLocaleDate(lang),
+              })}
+            </span>
+          );
+        },
+      },
+    ],
+    [lang],
+  );
   return (
     <Dialog open={openNewUser} onOpenChange={setOpenNewUser}>
       <DataTable
@@ -76,9 +95,6 @@ function Index({ data, sort, show }) {
             setOpenNewUser(true);
           },
         }}
-        data={data}
-        defaultSort={sort}
-        defaultShow={show}
         columns={columns}
       />
       <DialogContent className="max-w-lg">

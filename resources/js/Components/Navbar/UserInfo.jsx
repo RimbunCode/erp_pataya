@@ -1,5 +1,4 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { Bell, LogOut, UserCog2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,9 +8,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import { Link, usePage } from "@inertiajs/react";
+import { LogOut, UserCog2 } from "lucide-react";
 
-function UserInfo() {
+import Link from "../Link";
+import { memo } from "react";
+import { usePage } from "@inertiajs/react";
+
+export default memo(function UserInfo() {
   const route = window.route;
   const user = usePage().props.auth.user;
   const alias = user.name
@@ -24,7 +27,13 @@ function UserInfo() {
     <DropdownMenu>
       <DropdownMenuTrigger className="inline-flex items-center border-gray-200 rounded-md lg:mx-2 gap-x-2 dark:border-gray-700">
         <Avatar className="rounded-lg size-9">
-          <AvatarImage src={user.image} alt={user.name} />
+          <AvatarImage
+            src={
+              route("files.show", user.image) +
+              `?v=${new Date(user.updated_at).getTime()}`
+            }
+            alt={user.name}
+          />
           <AvatarFallback className="text-base font-semibold rounded-full">
             {alias}
           </AvatarFallback>
@@ -37,9 +46,15 @@ function UserInfo() {
         sideOffset={4}
       >
         <DropdownMenuLabel className="p-0 font-normal">
-          <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
+          <div className="flex items-center gap-3 px-1 py-1.5 text-left text-sm">
             <Avatar className="rounded-lg size-12">
-              <AvatarImage src={user.image} alt={user.name} />
+              <AvatarImage
+                src={
+                  route("files.show", user.image) +
+                  `?v=${new Date(user.updated_at).getTime()}`
+                }
+                alt={user.name}
+              />
               <AvatarFallback className="text-xl font-semibold rounded-lg">
                 {alias}
               </AvatarFallback>
@@ -49,7 +64,7 @@ function UserInfo() {
               <span className="text-sm truncate text-foreground/80">
                 {user.username}
               </span>
-              <div className="flex p-0.5  rounded-full gap-x-0.5 text-foreground/80  bg-muted">
+              <div className="flex p-0.5  rounded-full gap-x-1 items-center text-foreground/80  bg-muted">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -67,9 +82,15 @@ function UserInfo() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <UserCog2 />
-            Manage Account
+          <DropdownMenuItem asChild>
+            <Link
+              href={route("users.edit", user.id)}
+              as="button"
+              className="w-full"
+            >
+              <UserCog2 />
+              Manage Account
+            </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuItem asChild>
@@ -86,6 +107,4 @@ function UserInfo() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-export default UserInfo;
+});

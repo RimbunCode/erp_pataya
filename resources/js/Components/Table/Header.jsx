@@ -18,6 +18,7 @@ import { Button } from "../ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { DialogTrigger } from "../ui/dialog";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useSortable } from "@dnd-kit/sortable";
 
 export default memo(
@@ -26,8 +27,10 @@ export default memo(
       id,
       title,
       name,
+      isEmpty,
       tableHeight,
       onResize,
+      onResetSize,
       freezeColumn,
       resizeable,
       sortable,
@@ -36,6 +39,7 @@ export default memo(
     },
     ref,
   ) {
+    const { t } = useLaravelReactI18n();
     const mouseUp = useCallback(() => {
       setActive(false);
     }, []);
@@ -60,16 +64,19 @@ export default memo(
       setActive(true);
       onResize(e);
     };
+    const doubleClick = (e) => {
+      onResetSize(e);
+    };
     return (
       <th
         ref={mergeRefs(setNodeRef, ref)}
         style={!freezeColumn ? style : {}}
-        className="group"
+        className="!pr-3 group/header"
       >
         <div
           className={cn(
             !freezeColumn && "!-ml-5",
-            "flex justify-between gap-x-2",
+            "flex justify-between gap-x-2 group",
           )}
         >
           <div className="flex items-center">
@@ -101,21 +108,22 @@ export default memo(
                 <>
                   <DropdownMenuItem onClick={() => setSort(name, "asc")}>
                     <ArrowUpAZ absoluteStrokeWidth />
-                    Sort Ascending
+                    {t("core.datatable.sorting.sort_ascending")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setSort(name, "desc")}>
                     <ArrowDownZA />
-                    Sort Descending
+                    {t("core.datatable.sorting.sort_descending")}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={resetSorting}>
                     <ListRestart />
-                    Reset Sorting
+                    {t("core.datatable.sorting.reset_sorting")}
                   </DropdownMenuItem>
                 </>
               )}
               <DialogTrigger asChild>
                 <DropdownMenuItem>
-                  <Columns3 /> Show/Hide Columns
+                  <Columns3 />
+                  {t("core.datatable.columns.trigger")}
                 </DropdownMenuItem>
               </DialogTrigger>
             </DropdownMenuContent>
@@ -124,14 +132,30 @@ export default memo(
         <div
           style={{ height: tableHeight }}
           onMouseDown={(e) => {
+            e.stopPropagation();
             if (resizeable) mouseDown(e);
           }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (resizeable) doubleClick(e);
+          }}
           className={cn(
-            active ? "active" : "idle",
+            style.transform ? "opacity-0" : "opacity-100",
             resizeable ? "cursor-col-resize" : "cursor-default",
-            `resize-handle !border-muted-foreground/30`,
+            isEmpty ? "hidden" : "flex",
+            ` transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-[1] group group-last/header:hidden`,
           )}
-        />
+        >
+          <div
+            className={cn(
+              active
+                ? "border-foreground border-r-[3px]"
+                : "border-r border-muted-foreground/15",
+              resizeable ? " group-hover:border-muted-foreground" : "",
+              "h-full   w-[1px]",
+            )}
+          ></div>
+        </div>
       </th>
     );
   }),

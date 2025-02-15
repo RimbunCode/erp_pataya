@@ -1,5 +1,5 @@
 import { CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
-import { Head, Link, useForm } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 
 import { Button } from "@/Components/ui/button";
 import { CardDescription } from "@/Components/ui/card";
@@ -7,6 +7,7 @@ import GuestLayout from "@/Layouts/GuestLayout";
 import { Input } from "@/Components/ui/input";
 import InputError from "@/Components/InputError";
 import { Label } from "@/Components/ui/label";
+import Link from "@/Components/Link";
 import { Skeleton } from "@/Components/ui/skeleton";
 import ToggleTheme from "@/Components/ToggleTheme";
 import { useLaravelReactI18n } from "laravel-react-i18n";

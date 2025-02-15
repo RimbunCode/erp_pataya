@@ -1,67 +1,144 @@
 import * as React from "react";
-import { Clock } from "lucide-react";
 
-import { TimePickerInput } from "../custom/time-picker/time-picker-input";
+import { CalendarIcon, Clock } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { cn, getLocaleDate } from "@/lib/utils";
+
+import { Button } from "./ui/button";
 import { Calendar } from "./ui/calendar";
+import { TimePickerInput } from "./TimePicker/time-picker-input";
+import { format } from "date-fns";
+import { usePage } from "@inertiajs/react";
 
-function DatetimePicker({ className, setDate: setGlobalDate, ...props }) {
-  const minuteRef = React.useRef < HTMLInputElement > null;
-  const hourRef = React.useRef < HTMLInputElement > null;
-  const { selected: selectedDate } = props;
+export default React.memo(function DatetimePicker({
+  className,
+  type = "datetime",
+  disabled,
+  value: valueProps,
+  onValueChange,
+}) {
+  const lang = usePage().props.lang;
+  const [_value, _setValue] = React.useState();
+  const minuteRef = React.useRef();
+  const hourRef = React.useRef();
+
+  const value = valueProps ?? _value;
+  const setValue = (value) => {
+    if (valueProps != null) {
+      onValueChange(value);
+      return;
+    }
+    _setValue(value);
+  };
+
   const setDate = (dateInput) => {
-    const date = new Date(selectedDate);
+    const date = new Date(value);
+    console.log(date);
     date.setDate(dateInput.getDate());
     date.setMonth(dateInput.getMonth());
     date.setFullYear(dateInput.getFullYear());
-    setGlobalDate(date);
+    setValue(date, value);
   };
   const setTime = (dateInput) => {
     if (!dateInput) return;
-    const time = new Date(selectedDate);
+    const time = new Date(value);
     time.setHours(dateInput.getHours());
     time.setMinutes(dateInput.getMinutes());
-    setGlobalDate(time);
+    setValue(time);
   };
+
   return (
-    <>
-      <Calendar
-        mode="single"
-        defaultMonth={Date.now()}
-        selected={selectedDate}
-        onSelect={setDate}
-        numberOfMonths={1}
-        className={className}
-      />
-      <hr className="my-0" />
-      <div className="flex justify-between px-2 mt-4">
-        <div className="flex items-center gap-2 text-gray-700">
-          <Clock className="w-5 h-5" />
-          <p className="text-sm font-medium">Time</p>
-        </div>
-        <div className="font-medium">
-          <div className="flex items-center gap-2">
-            <TimePickerInput
-              picker="hours"
-              date={selectedDate}
-              setDate={setTime}
-              ref={hourRef}
-              onRightFocus={() => minuteRef.current?.focus()}
-            />
-            <span>:</span>
-            <TimePickerInput
-              picker="minutes"
-              date={selectedDate}
-              setDate={setTime}
-              ref={minuteRef}
-              onLeftFocus={() => hourRef.current?.focus()}
-            />
-          </div>
-        </div>
-      </div>
-    </>
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          disabled={disabled}
+          id="date"
+          variant={"outline"}
+          className={cn(
+            "h-8 w-auto justify-start bg-muted text-left font-normal overflow-hidden truncate",
+            !value && "text-muted-foreground",
+            className,
+          )}
+        >
+          <CalendarIcon />
+          <span className="truncate">
+            {(() => {
+              switch (type) {
+                case "daterange": {
+                  return value?.from ? (
+                    value.to ? (
+                      <>
+                        {format(value.from, "PPP", {
+                          locale: getLocaleDate(lang),
+                        })}{" "}
+                        -{" "}
+                        {format(value.to, "PPP", {
+                          locale: getLocaleDate(lang),
+                        })}
+                      </>
+                    ) : (
+                      format(value.from, "PPP", { locale: getLocaleDate(lang) })
+                    )
+                  ) : (
+                    "Pick a date"
+                  );
+                }
+                case "date": {
+                  return value
+                    ? format(value, "PPP", { locale: getLocaleDate(lang) })
+                    : "Pick a date";
+                }
+                case "datetime": {
+                  return value
+                    ? format(value, "PPPp", { locale: getLocaleDate(lang) })
+                    : "Pick a date";
+                }
+              }
+            })()}
+          </span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="end">
+        <Calendar
+          mode={type == "daterange" ? "range" : "single"}
+          defaultMonth={Date.now()}
+          selected={value}
+          onSelect={(val) => {
+            type == "daterange" ? setValue(val) : setDate(val);
+          }}
+          numberOfMonths={1}
+        />
+        {type == "datetime" && (
+          <>
+            <hr className="my-0" />
+            <div className="flex justify-between px-3 py-2">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Clock className="w-5 h-5" />
+                <p className="text-sm font-medium">Time</p>
+              </div>
+              <div className="font-medium">
+                <div className="flex items-center gap-2">
+                  <TimePickerInput
+                    picker="hours"
+                    date={value}
+                    setDate={setTime}
+                    ref={hourRef}
+                    onRightFocus={() => minuteRef.current?.focus()}
+                  />
+                  <span>:</span>
+                  <TimePickerInput
+                    picker="minutes"
+                    date={value}
+                    setDate={setTime}
+                    ref={minuteRef}
+                    onLeftFocus={() => hourRef.current?.focus()}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
-}
-
-DatetimePicker.displayName = "DatetimePicker";
-
-export { DatetimePicker as DatetimePicker };
+});

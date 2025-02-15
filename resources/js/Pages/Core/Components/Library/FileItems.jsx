@@ -66,7 +66,7 @@ export default memo(function FileItems({ files, folderId = null }) {
                   className="flex  items-center overflow-hidden  !py-2 text-sm [&>svg]:size-5 font-normal transition-all hover:underline gap-x-2 group cursor-pointer"
                 >
                   <FileTextIcon />
-                  <span className="truncate">{file.name}</span>
+                  <span className="truncate">{file.fullname}</span>
                 </label>
                 <Button
                   variant="ghost"

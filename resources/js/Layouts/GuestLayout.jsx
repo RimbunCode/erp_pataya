@@ -1,6 +1,6 @@
 import ApplicationLogo from "@/Components/ApplicationLogo";
 import { Card } from "@/Components/ui/card";
-import { Link } from "@inertiajs/react";
+import Link from "@/Components/Link";
 import MasterLayout from "./MasterLayout";
 import { cn } from "@/lib/utils";
 

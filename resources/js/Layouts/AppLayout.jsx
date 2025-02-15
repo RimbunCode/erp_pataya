@@ -13,9 +13,10 @@ import { AppSidebar } from "@/Components/Sidebar/AppSidebar";
 import MasterLayout from "./MasterLayout";
 import Navbar from "@/Components/Navbar/Navbar";
 import React from "react";
+import { cn } from "@/lib/utils";
 import useTheme from "@/Hooks/useTheme";
 
-function AppLayout({ children }) {
+function AppLayout({ className, children }) {
   const { setTheme } = useTheme();
   const [showSearch, setShowSearch] = React.useState(false);
   React.useEffect(() => {
@@ -117,7 +118,12 @@ function AppLayout({ children }) {
               </CommandGroup>
             </CommandList>
           </CommandDialog>
-          <div className="relative flex flex-col flex-1 max-h-full px-8 py-4 overflow-y-auto ">
+          <div
+            className={cn(
+              "relative flex flex-col flex-1 max-h-full px-8 py-4 overflow-y-auto ",
+              className,
+            )}
+          >
             {children}
           </div>
         </SidebarInset>

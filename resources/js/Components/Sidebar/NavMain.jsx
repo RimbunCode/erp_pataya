@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/sidebar";
 
 import { ChevronRight } from "lucide-react";
-import { Link } from "@inertiajs/react";
+import Link from "../Link";
 import { checkUrlPath } from "@/lib/utils";
 
 export function NavMain({ items }) {

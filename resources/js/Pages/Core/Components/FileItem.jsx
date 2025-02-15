@@ -1,23 +1,11 @@
 import { FileText, Trash2 } from "lucide-react";
 import React, { useCallback, useId, useState } from "react";
+import { checkFileType, formatBytes } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
 import { Input } from "@/Components/ui/input";
-import { formatBytes } from "@/lib/utils";
 
-const checkFileType = (patternType, fileType) => {
-  const patern = "^"
-    .concat(patternType)
-    .replaceAll("/**", "/.*")
-    .replaceAll("/*/", "/[^/]*/")
-    .replaceAll("/*", "/.*")
-    .replaceAll("/", "\\/?")
-    .concat("$");
-
-  const rgx = new RegExp(patern, "g");
-  return rgx.test(fileType);
-};
 function FileItem({
   id,
   onRemove,
@@ -84,7 +72,7 @@ function FileItem({
               name: e.target.value,
             });
           }}
-          className="focus-visible:mb-2 focus-visible:ring-1  border-none !pointer-events-auto text-base focus-visible:px-2 px-0 !py-1 !h-fit font-semibold truncate overflow-clip"
+          className="!bg-background focus-visible:!bg-muted focus-visible:mb-2 focus-visible:ring-1  border-none !pointer-events-auto text-base focus-visible:px-2 px-0 !py-1 !h-fit font-semibold truncate overflow-clip"
         />
         {/* <h1 className="text-base font-semibold truncate overflow-clip">
           {file.name}

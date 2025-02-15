@@ -36,7 +36,6 @@ class DatabaseSeeder extends Seeder {
     // Create Role For Admin
     $roleAdmin = Role::create([
       'name' => 'Admin',
-      'slug' => 'admin'
     ]);
 
     // Attach Admin User To Admin Role

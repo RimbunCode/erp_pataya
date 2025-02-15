@@ -1,4 +1,5 @@
 import { Children, cloneElement } from "react";
+import { enUS, id as idLocale } from "date-fns/locale";
 
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -79,7 +80,7 @@ export function cleanedQuillOutput(str) {
   const route = window.route;
   str = str.replace(/href="(?!https?:\/\/)([^"]*)"/g, 'href="https://$1"');
   str = str.replace(
-    /<span([^>]*)data-id="(\d+)"([^>]*)data-value="([^"]+)"([^>]*)>.*?<\/span>/g,
+    /<span([^>]*)data-id="([^"]+)"([^>]*)data-value="([^"]+)"([^>]*)>.*?<\/span>/g,
     `<a$1 data-id="$2"$3 data-value="$4"$5 href="${route("users.index")}/$2" target="_blank" rel="noreferrer">@\$4</a>`,
   );
   const list = str.split("<p>");
@@ -120,7 +121,12 @@ export function getCookieByName(name) {
   }
   return null;
 }
-
+export function removeCookie(name, path) {
+  setCookie(name, "", {
+    days: -1,
+    path: path,
+  });
+}
 export function setCookie(name, value, { days = 1, path = "/", sameSite }) {
   let expires = "";
   if (days) {
@@ -134,4 +140,25 @@ export function setCookie(name, value, { days = 1, path = "/", sameSite }) {
   }
 
   document.cookie = cookie;
+}
+export const checkFileType = (patternType, fileType) => {
+  const patern = "^"
+    .concat(patternType)
+    .replaceAll("/**", "/.*")
+    .replaceAll("/*/", "/[^/]*/")
+    .replaceAll("/*", "/.*")
+    .replaceAll("/", "\\/?")
+    .concat("$");
+
+  const rgx = new RegExp(patern, "g");
+  return rgx.test(fileType);
+};
+
+export function getLocaleDate(locale) {
+  switch (locale) {
+    case "id":
+      return idLocale;
+    default:
+      return enUS;
+  }
 }

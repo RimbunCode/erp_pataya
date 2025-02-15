@@ -2,29 +2,52 @@
 
 namespace App\Traits;
 
+use App\Models\Core\File;
+use App\Models\Core\Log;
+use App\Models\Core\Tag;
+use App\Models\Scopes\DataTableScope;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Request;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
 
+/**
+ * @method static void dataTable(\Illuminate\Http\Request $request)
+ * @method void dataTable(\Illuminate\Http\Request $request)
+ */
 trait DataTable {
-  public static function dataTable(Builder $query, Request $request) {
-    // Sort
-    $sort = $request->input('sort', '-created_at');
-    $sortArr = explode("-", $sort);
-    $sortKey = end($sortArr);
-    $sortDirection = $sortArr[0] === $sortKey ? "asc" : "desc";
-    $query = $query->orderBy($sortKey, $sortDirection);
+  public static function bootDataTable() {
+    static::addGlobalScope(new DataTableScope);
+  }
 
-    // Filter
-    if ($request->has('f')) {
-      $filter = $request->input('f');
-      $filter->each(function ($value, $key) use ($query) {
-      });
-      if (is_array($filter)) {
-        $operator = $filter[0];
-        $value = $filter[1];
-      }
-    }
+  public function showDetail() {
+    Inertia::share([
+      'logs' => Inertia::defer(function () {
+        return Log::with('user')
+          ->where('loggable_type', static::class)
+          ->where('loggable_id', operator: $this->id)
+          ->orderByDesc('created_at')
+          ->get();
+      }, 'logs'),
+      'tags' => Inertia::defer(function () {
+        return $this->tags()
+          ->get(['id', 'name']);
+      }, 'tags'),
+      'attachments' => Inertia::defer(function () {
+        return $this->files()
+          ->get(['id', 'name']);
+      }, 'attachments')
+    ]);
+  }
 
-    return $query;
+  public function logs() {
+    return $this->morphMany(Log::class, 'loggable');
+  }
+  public function tags() {
+    return $this->morphToMany(Tag::class, 'taggable')
+      ->whereNull('taggables.deleted_at');
+  }
+  public function files() {
+    return $this->morphToMany(File::class, 'fileable')
+      ->whereNull('fileables.deleted_at');
   }
 }

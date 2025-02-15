@@ -1,6 +1,18 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 import { memo, useEffect } from "react";
 
 import Toasts from "@/Components/Toasts";
+import { useAlertDraftForm } from "@/Hooks/useDraftFrom";
+import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 import useTheme from "@/Hooks/useTheme";
@@ -71,10 +83,68 @@ const MasterLayout = memo(({ children }) => {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, []);
+
+  const {
+    showAlert: showAlertDrafForm,
+    setShowAlert: setShowAlertDrafForm,
+    cancel: cancelDraftForm,
+    continue: continueDraftForm,
+  } = useAlertDraftForm();
+  const {
+    showAlert: showAlertDirtyForm,
+    setShowAlert: setShowAlertDirtyForm,
+    cancel: cancelDirtyForm,
+    continue: continueDirtyForm,
+  } = useIsDirtyForm();
   return (
     <>
       {children}
       <Toasts />
+      <AlertDialog
+        open={showAlertDirtyForm}
+        onOpenChange={setShowAlertDirtyForm}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Leave Page</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to leave this page?
+            </AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="h-8" onClick={cancelDirtyForm}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction className="h-8" onClick={continueDirtyForm}>
+                Leave
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={showAlertDrafForm} onOpenChange={setShowAlertDrafForm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unfinished Form</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have an unfinished draft of this form. Would you like to
+              continue?
+            </AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                className="h-8"
+                variant="destructive"
+                onClick={cancelDraftForm}
+              >
+                Ignore
+              </AlertDialogCancel>
+              <AlertDialogAction className="h-8" onClick={continueDraftForm}>
+                Continue
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 });

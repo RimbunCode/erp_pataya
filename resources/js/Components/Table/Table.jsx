@@ -30,6 +30,7 @@ import Header from "./Header";
 import { Label } from "../ui/label";
 import NoDataImg from "./NoDataImg";
 import Pagination from "./Pagination";
+import { debounce } from "lodash";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { usePage } from "@inertiajs/react";
 
@@ -216,7 +217,9 @@ function Table({
           const width = e.clientX - col.ref.current.offsetLeft;
 
           if (width >= minCellWidth) {
-            return `${width}px`;
+            const size = `${width}px`;
+            newColumns.push({ ...col, size });
+            return size;
           }
         }
         let size = "";
@@ -235,12 +238,30 @@ function Table({
         return size;
       });
 
+      debounce(() => setColumns(newColumns), 500)();
+
       tableElement.current.style.gridTemplateColumns = `${gridColumns.join(
         " ",
       )}`;
     },
     [activeIndex, columns, minCellWidth],
   );
+  const resetSizeHeader = (index) => {
+    const newColumns = [];
+    const gridColumns = columns.map((col, i) => {
+      if (i === index) {
+        const size = convertColWidth(col.width);
+        newColumns.push({ ...col, size });
+        return size;
+      }
+      newColumns.push({ ...col, size: col.size });
+      return col.size;
+    });
+
+    debounce(() => setColumns(newColumns), 500)();
+
+    tableElement.current.style.gridTemplateColumns = `${gridColumns.join(" ")}`;
+  };
 
   const removeListeners = useCallback(() => {
     window.removeEventListener("mousemove", mouseMove);
@@ -329,6 +350,7 @@ function Table({
                     )}
                     {showedColumns.map(({ ref, resizeable, ...props }, i) => (
                       <Header
+                        isEmpty={!data || data.length === 0}
                         setSort={setSort}
                         resetSorting={resetSorting}
                         options={options}
@@ -340,6 +362,7 @@ function Table({
                         resizeable={resizeable && i < showedColumns.length - 1}
                         {...props}
                         onResize={() => mouseDown(i)}
+                        onResetSize={() => resetSizeHeader(i)}
                         tableHeight={tableHeight}
                       />
                     ))}
@@ -449,11 +472,26 @@ function Table({
                         {actions && (
                           <td className="w-full">{actions({ row })}</td>
                         )}
-                        {showedColumns.map(({ cell, name }) => (
-                          <td key={name}>
-                            {cell ? cell({ row }) : <span>{row[name]}</span>}
-                          </td>
-                        ))}
+                        {showedColumns.map(({ cell, name, parse }) => {
+                          return (
+                            <td key={name}>
+                              {cell ? (
+                                cell({
+                                  dataRow: row,
+                                  valueCell: parse
+                                    ? parse[row[name].toString()]
+                                    : row[name],
+                                })
+                              ) : (
+                                <span>
+                                  {parse
+                                    ? parse[row[name].toString()]
+                                    : row[name]}
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
                       </tr>
                     ))}
 

@@ -50,13 +50,15 @@ Route::middleware(['auth', 'lang'])->group(function () {
   Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
   })->name('dashboard');
-
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);
   // Files
   Route::resourceDetail('files', 'file', \App\Http\Controllers\Core\FileController::class);
   // Users
+  Route::post('/users/{user}/image', [\App\Http\Controllers\User\UserController::class, 'image'])->name('users.image');
   Route::resourceDetail('users', 'user', \App\Http\Controllers\User\UserController::class);
+  // Roles
+  Route::resourceDetail('roles', 'role', \App\Http\Controllers\User\RoleController::class);
 });
 
 require __DIR__ . '/auth.php';

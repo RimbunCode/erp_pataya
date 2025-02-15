@@ -1,7 +1,8 @@
-import { Head, Link, useForm } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 
 import { CardContent } from "@/Components/ui/card";
 import GuestLayout from "@/Layouts/GuestLayout";
+import Link from "@/Components/Link";
 import PrimaryButton from "@/Components/PrimaryButton";
 
 export default function VerifyEmail({ status }) {

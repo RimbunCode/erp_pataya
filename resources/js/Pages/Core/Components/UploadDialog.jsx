@@ -7,7 +7,7 @@ import {
 } from "@/Components/ui/dialog";
 import { Laptop2, LibraryIcon } from "lucide-react";
 import React, { useCallback, useId, useRef, useState } from "react";
-import { cn, formatBytes, generateRandom } from "@/lib/utils";
+import { checkFileType, cn, formatBytes, generateRandom } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import FileItem from "./FileItem";
@@ -17,7 +17,12 @@ import { Transition } from "@headlessui/react";
 import { router } from "@inertiajs/react";
 import { useIsMobile } from "@/Hooks/use-mobile";
 
-function UploadDialog({ onClose }) {
+function UploadDialog({
+  onClose,
+  single = false,
+  imageOnly = false,
+  options: { route: routeProp, ...optionsProp } = {},
+}) {
   const route = window.route;
   const isMobile = useIsMobile();
   const [menu, setMenu] = useState("home");
@@ -28,17 +33,23 @@ function UploadDialog({ onClose }) {
   const libraryRef = useRef();
   const id = useId();
 
-  const addFile = useCallback((file) => {
-    setFiles((prev) => {
-      return [
-        ...prev,
-        {
-          id: generateRandom(8),
-          file: file,
-        },
-      ];
-    });
-  }, []);
+  const addFile = useCallback(
+    (file) => {
+      if (imageOnly && checkFileType("image/*", file.type)) {
+        return;
+      }
+      setFiles((prev) => {
+        return [
+          ...prev,
+          {
+            id: generateRandom(8),
+            file: file,
+          },
+        ];
+      });
+    },
+    [imageOnly],
+  );
   const updateFile = useCallback((id, payload) => {
     setFiles((prev) => {
       const updatedFiles = prev.map((f) => {
@@ -73,36 +84,38 @@ function UploadDialog({ onClose }) {
   }, []);
 
   const onAttach = useCallback((menu, files) => {
+    const formData = new FormData();
     if (menu == "library") {
-      libraryRef.current.onAttach();
-      return;
+      files.forEach((id) => {
+        formData.append(`filesId[]`, id);
+      });
     } else {
-      const formData = new FormData();
       files.forEach((file, index) => {
         formData.append(`files[${index}]`, file.file);
         formData.append(`isPublic[${index}]`, file.isPublic ?? false);
         formData.append(`name[${index}]`, file.name || file.file.name);
       });
-      router.post(
-        route(route().current(), route().params) + "/file",
-        formData,
-        {
-          reset: ["attachments"],
-          forceFormData: true,
-          replace: true,
-          preserveState: true,
-          preserveScroll: true,
-          showProgress: true,
-          onProgress: (e) => {
-            setProgress(e);
-          },
-          onSuccess: () => {
-            setFiles([]);
-            onClose();
-          },
-        },
-      );
     }
+    router.post(
+      routeProp ?? route(route().current(), route().params) + "/file",
+      formData,
+      {
+        reset: ["attachments"],
+        forceFormData: true,
+        replace: true,
+        preserveState: true,
+        preserveScroll: true,
+        showProgress: true,
+        ...optionsProp,
+        onProgress: (e) => {
+          setProgress(e);
+        },
+        onSuccess: () => {
+          setFiles([]);
+          onClose();
+        },
+      },
+    );
   }, []);
 
   const getMenu = () => {
@@ -119,7 +132,10 @@ function UploadDialog({ onClose }) {
               e.preventDefault();
               setHover(false);
             }}
-            onDrop={onDrop}
+            onDrop={(e) => {
+              if (single && files.length > 0) return false;
+              return onDrop(e);
+            }}
           >
             {/* Files To Upload */}
             {files.length > 0 && (
@@ -221,6 +237,7 @@ function UploadDialog({ onClose }) {
                 <input
                   id={id}
                   type="file"
+                  accept={imageOnly ? "image/*" : "*"}
                   className="hidden"
                   multiple
                   onChange={(e) => {
@@ -248,6 +265,8 @@ function UploadDialog({ onClose }) {
           <Library
             ref={libraryRef}
             setMenu={setMenu}
+            single={single}
+            imageOnly={imageOnly}
             checklistFile={checklistFile}
             setChecklistFile={setChecklistFile}
           />
@@ -318,7 +337,9 @@ function UploadDialog({ onClose }) {
             menu == "home" ? files.length <= 0 : checklistFile.size <= 0
           }
           size="sm"
-          onClick={() => onAttach(menu, files)}
+          onClick={() =>
+            onAttach(menu, menu == "library" ? checklistFile : files)
+          }
         >
           Attach
         </Button>

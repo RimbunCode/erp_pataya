@@ -1,7 +1,3 @@
-import * as React from "react";
-
-import { CalendarIcon, X } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import {
   Select,
   SelectContent,
@@ -9,89 +5,201 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
+import { useCallback, useMemo, useState } from "react";
 
 import { Button } from "../ui/button";
-import { Calendar } from "../ui/calendar";
+import DatetimePicker from "../DatetimePicker";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { X } from "lucide-react";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
-import { useState } from "react";
-import moment from "moment-timezone";
-
-const operatorsGeneral = [
-  { title: "Equals", name: "eq" },
-  { title: "Not Equals", name: "!eq" },
-  { title: "Like", name: "like", description: "Use % as wildcard" },
-  { title: "Not Like", name: "!like", description: "Use % as wildcard" },
-  { title: "In", name: "in", description: "Values separated by commas" },
-  { title: "Not In", name: "!in", description: "Values separated by commas" },
-];
-const operatorsNumber = [
-  { title: "Greater Than", name: ">" },
-  { title: "Less Than", name: "<" },
-  { title: "Greater Than or Equals", name: ">=" },
-  { title: "Less Than or Equals", name: "<=" },
-  {
-    title: "Between",
-    name: "between",
-    description: "Values separated by commas",
-  },
-  {
-    title: "Not Between",
-    name: "!between",
-    description: "Values separated by commas",
-  },
-];
-const operatorsDate = [
-  { title: "Equals", name: "eq", searchType: "date" },
-  { title: "Not Equals", name: "!eq", searchType: "date" },
-  { title: "Greater Than", name: ">", searchType: "date" },
-  { title: "Less Than", name: "<", searchType: "date" },
-  { title: "Greater Than or Equals", name: ">=", searchType: "date" },
-  { title: "Less Than or Equals", name: "<=", searchType: "date" },
-  {
-    title: "Between",
-    name: "between",
-    searchType: "daterange",
-  },
-  {
-    title: "Not Between",
-    name: "!between",
-    searchType: "daterange",
-  },
-];
-const changeOperators = (columns, column) => {
-  if (!column || !columns) return [];
-  const columnType = columns.find((c) => c.name === column).searchType;
-  if (Array.isArray(columnType))
-    return [
-      { title: "Equals", name: "eq", options: columnType },
-      { title: "Not Equals", name: "!eq", options: columnType },
-      ...operatorsGeneral.filter((x) => ["eq", "!eq"].indexOf(x.name) < 0),
-    ];
-  switch (columnType) {
-    case "text":
-      return [...operatorsGeneral];
-    case "number":
-      return [...operatorsGeneral, ...operatorsNumber].map((x) => ({
-        ...x,
-        searchType: "number",
-      }));
-    case "date":
-      return [...operatorsDate];
-    default:
-      return [...operatorsGeneral];
-  }
-};
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
 function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
+  const { t } = useLaravelReactI18n();
+  const lang = usePage().props.lang;
+  const operatorsGeneral = useMemo(
+    () => [
+      { title: t("core.datatable.filter.operator.equals"), name: "eq" },
+      { title: t("core.datatable.filter.operator.not_equals"), name: "!eq" },
+      {
+        title: t("core.datatable.filter.operator.like"),
+        name: "like",
+        description: t("core.datatable.filter.operator.like.description"),
+      },
+      {
+        title: t("core.datatable.filter.operator.not_like"),
+        name: "!like",
+        description: t("core.datatable.filter.operator.like.description"),
+      },
+      {
+        title: t("core.datatable.filter.operator.in"),
+        name: "in",
+        description: t("core.datatable.filter.operator.in.description"),
+      },
+      {
+        title: t("core.datatable.filter.operator.not_in"),
+        name: "!in",
+        description: t("core.datatable.filter.operator.in.description"),
+      },
+    ],
+    [lang],
+  );
+  const operatorsNumber = useMemo(
+    () => [
+      { title: t("core.datatable.filter.operator.greater_than"), name: ">" },
+      {
+        title: t("core.datatable.filter.operator.less_than"),
+        name: "<",
+      },
+      {
+        title: t("core.datatable.filter.operator.greater_than_or_equals"),
+        name: ">=",
+      },
+      {
+        title: t("core.datatable.filter.operator.less_than_or_equals"),
+        name: "<=",
+      },
+      {
+        title: t("core.datatable.filter.operator.in"),
+        name: "in",
+        description: t("core.datatable.filter.operator.in.description"),
+      },
+      {
+        title: t("core.datatable.filter.operator.not_in"),
+        name: "!in",
+        description: t("core.datatable.filter.operator.in.description"),
+      },
+      {
+        title: t("core.datatable.filter.operator.between"),
+        name: "between",
+        description: t("core.datatable.filter.operator.between.description"),
+      },
+      {
+        title: t("core.datatable.filter.operator.not_between"),
+        name: "!between",
+        description: t("core.datatable.filter.operator.between.description"),
+      },
+    ],
+    [lang],
+  );
+  const operatorsDate = useMemo(
+    () => [
+      {
+        title: t("core.datatable.filter.operator.equals"),
+        name: "eq",
+        searchType: "date",
+      },
+      {
+        title: t("core.datatable.filter.operator.not_equals"),
+        name: "!eq",
+        searchType: "date",
+      },
+      {
+        title: t("core.datatable.filter.operator.greater_than"),
+        name: ">",
+        searchType: "date",
+      },
+      {
+        title: t("core.datatable.filter.operator.less_than"),
+        name: "<",
+        searchType: "date",
+      },
+      {
+        title: t("core.datatable.filter.operator.greater_than_or_equals"),
+        name: ">=",
+        searchType: "date",
+      },
+      {
+        title: t("core.datatable.filter.operator.less_than_or_equals"),
+        name: "<=",
+        searchType: "date",
+      },
+      {
+        title: t("core.datatable.filter.operator.between"),
+        name: "between",
+        searchType: "daterange",
+      },
+      {
+        title: t("core.datatable.filter.operator.not_between"),
+        name: "!between",
+        searchType: "daterange",
+      },
+    ],
+    [lang],
+  );
+
+  const changeOperators = useCallback(
+    (columns, columnName) => {
+      if (!columnName || !columns) return [];
+      const column = columns.find((c) => c.name === columnName);
+      if (Array.isArray(column.searchType)) {
+        const options = column.parse
+          ? column.searchType.map((x) => {
+              return {
+                title: column.parse[x],
+                value: x,
+              };
+            })
+          : column.searchType;
+        return [
+          {
+            title: t("core.datatable.filter.operator.equals"),
+            name: "eq",
+            options,
+          },
+          {
+            title: t("core.datatable.filter.operator.not_equals"),
+            name: "!eq",
+            options,
+          },
+          ...operatorsGeneral.filter((x) => ["eq", "!eq"].indexOf(x.name) < 0),
+        ];
+      }
+      switch (column.searchType) {
+        case "boolean": {
+          const options = column.parse
+            ? [
+                { title: column.parse["true"], value: "true" },
+                { title: column.parse["false"], value: "false" },
+              ]
+            : ["true", "false"];
+          return [
+            {
+              title: t("core.datatable.filter.operator.equals"),
+              name: "eq",
+              options,
+            },
+            {
+              title: t("core.datatable.filter.operator.not_equals"),
+              name: "!eq",
+              options,
+            },
+          ];
+        }
+        case "text":
+          return [...operatorsGeneral];
+        case "number":
+          return [...operatorsGeneral, ...operatorsNumber].map((x) => ({
+            ...x,
+            searchType: "number",
+          }));
+        case "date":
+          return [...operatorsDate];
+        default:
+          return [...operatorsGeneral];
+      }
+    },
+    [operatorsGeneral, operatorsNumber, operatorsDate],
+  );
   const [operators, setOperators] = useState(
     changeOperators(columns, props.column) ?? [],
   );
   const [operator, setOperator] = useState(
     operators.filter((x) => x.name === props.operator).at(0) ?? {},
   );
+
   const onFilterChanged = (payload) => {
     onChanged(id, payload);
   };
@@ -122,10 +230,10 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
     onFilterChanged({ value: val });
   };
   return (
-    <div className="relative flex flex-col col-span-4 p-3 pr-10 border rounded-lg border-muted-foreground/30 gap-y-3 sm:p-0 sm:border-0 sm:grid grid-cols-subgrid sm:gap-x-2">
+    <div className="relative flex flex-col col-span-4 p-3 pr-10 border rounded-lg border-muted-foreground/30 gap-y-3 md:p-0 md:border-0 md:grid grid-cols-subgrid md:gap-x-2">
       <Select value={props.column} onValueChange={onColumnChanged}>
-        <SelectTrigger className="">
-          <SelectValue placeholder="Select Column" />
+        <SelectTrigger className="m-1">
+          <SelectValue placeholder={t("core.datatable.filter.select_column")} />
         </SelectTrigger>
         <SelectContent>
           <ScrollArea className="max-h-56">
@@ -144,8 +252,10 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
         value={props.operator}
         onValueChange={onOperatorsChanged}
       >
-        <SelectTrigger className="">
-          <SelectValue placeholder="Select Operator" />
+        <SelectTrigger className="m-1">
+          <SelectValue
+            placeholder={t("core.datatable.filter.select_operator")}
+          />
         </SelectTrigger>
         <SelectContent>
           <ScrollArea className="max-h-56">
@@ -165,16 +275,26 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
               value={props.value}
               onValueChange={onValueChanged}
             >
-              <SelectTrigger className="capitalize ">
-                <SelectValue placeholder={`Select ${props.column}`} />
+              <SelectTrigger className="m-1 capitalize">
+                <SelectValue
+                  placeholder={t("core.datatable.filter.select_value", {
+                    name: props.column,
+                  })}
+                />
               </SelectTrigger>
               <SelectContent>
                 <ScrollArea className="max-h-56">
-                  {operator.options.map((val) => (
-                    <SelectItem key={val} value={val} className="capitalize">
-                      {val.replace(/(\-|\_)/g, " ")}
-                    </SelectItem>
-                  ))}
+                  {operator.options.map((val) =>
+                    typeof val == "string" ? (
+                      <SelectItem key={val} value={val} className="capitalize">
+                        {val.replace(/(\-|\_)/g, " ")}
+                      </SelectItem>
+                    ) : (
+                      <SelectItem key={val.value} value={val.value}>
+                        {val.title}
+                      </SelectItem>
+                    ),
+                  )}
                 </ScrollArea>
               </SelectContent>
             </Select>
@@ -185,54 +305,17 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
           operator?.searchType == "date"
         ) {
           return (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  disabled={!operator.name}
-                  id="date"
-                  variant={"outline"}
-                  className={cn(
-                    "w-auto justify-start text-left font-normal",
-                    !props.value && "text-muted-foreground",
-                  )}
-                >
-                  <CalendarIcon />
-                  {operator?.searchType == "daterange" ? (
-                    props.value?.from ? (
-                      props.value.to ? (
-                        <>
-                          {moment(props.value.from).format("LL")} -{" "}
-                          {moment(props.value.to).format("LL")}
-                        </>
-                      ) : (
-                        moment(props.value.from).format("LL")
-                      )
-                    ) : (
-                      <span>Pick a date</span>
-                    )
-                  ) : props.value ? (
-                    moment(props.value).format("LL")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  initialFocus
-                  mode={operator.searchType == "date" ? "single" : "range"}
-                  defaultMonth={Date.now()}
-                  selected={props.value}
-                  onSelect={onValueChanged}
-                  numberOfMonths={1}
-                />
-              </PopoverContent>
-            </Popover>
+            <DatetimePicker
+              type={operator?.searchType}
+              value={props.value}
+              onValueChange={onValueChanged}
+              className="m-1 min-w-32"
+            />
           );
         }
         return (
           <Input
-            className="min-w-32"
+            className="m-1 min-w-32"
             disabled={!operator?.name}
             type={operator?.searchType == "number" ? "number" : "text"}
             value={props.value}
@@ -241,7 +324,7 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
         );
       })()}
       <Button
-        className="absolute px-2 sm:static right-1 top-1"
+        className="absolute px-2 md:static right-1 top-1"
         variant="ghost"
         onClick={() => removeFilter(id)}
       >

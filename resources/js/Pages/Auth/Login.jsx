@@ -4,16 +4,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/Components/ui/card";
-import { Head, Link, useForm } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
 import GuestLayout from "@/Layouts/GuestLayout";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
+import Link from "@/Components/Link";
+import { Skeleton } from "@/Components/ui/skeleton";
 import ToggleTheme from "@/Components/ToggleTheme";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { Skeleton } from "@/Components/ui/skeleton";
 
 export default function Login() {
   const { t, loading } = useLaravelReactI18n();

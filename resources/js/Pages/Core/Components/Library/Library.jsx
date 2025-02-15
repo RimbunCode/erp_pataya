@@ -12,7 +12,13 @@ import { isNullOrWhitespace } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 
 const Library = forwardRef(function Library(
-  { setMenu, checklistFile, setChecklistFile: _setChecklistFile },
+  {
+    setMenu,
+    checklistFile,
+    setChecklistFile: _setChecklistFile,
+    single,
+    imageOnly,
+  },
   ref,
 ) {
   const [search, setSearch] = useState("");
@@ -20,23 +26,18 @@ const Library = forwardRef(function Library(
   const [files, setFiles] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  useImperativeHandle(
-    ref,
-    () => ({
-      onAttach() {},
-    }),
-    [checklistFile],
-  );
-
   const setChecklistFile = useCallback(
     (idFile, val) => {
-      const filesId = new Set(checklistFile);
-      console.log(filesId, val);
-
-      if (!val) {
-        filesId.delete(idFile);
+      let filesId = [];
+      if (single) {
+        filesId = new Set([idFile]);
       } else {
-        filesId.add(idFile);
+        filesId = new Set(checklistFile);
+        if (!val) {
+          filesId.delete(idFile);
+        } else {
+          filesId.add(idFile);
+        }
       }
       _setChecklistFile(filesId);
     },
@@ -73,9 +74,18 @@ const Library = forwardRef(function Library(
   }, [search]);
   return (
     <LibraryContext.Provider
-      value={{ search, resultSearch: files, checklistFile, setChecklistFile }}
+      value={{
+        search,
+        resultSearch: files,
+        checklistFile,
+        setChecklistFile,
+        imageOnly,
+      }}
     >
-      <div className="flex flex-col items-start overflow-y-auto gap-y-2">
+      <div
+        ref={ref}
+        className="flex flex-col items-start overflow-y-auto gap-y-2"
+      >
         <Button
           variant="ghost"
           className="px-2 !py-1 size-auto"

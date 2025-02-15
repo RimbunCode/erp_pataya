@@ -18,7 +18,7 @@ class FileController extends Controller {
       $files = File::query();
       if ($request->has('search')) {
         $files->where('mime_type', 'folder')
-          ->orwhere('name', 'like', '%' . $request->search . '%');
+          ->orWhereAny(['name', 'extension'], 'like', "%{$request->search}%");
       } else {
         $files->where('folder_id', $request->folder ?? null);
       }

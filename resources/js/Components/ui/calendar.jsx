@@ -81,7 +81,7 @@ function Calendar({ className, classNames, showOutsideDays = true, ...props }) {
                 handleChange(value);
               }}
             >
-              <SelectTrigger className="pr-1.5 focus:ring-0 !py-1">
+              <SelectTrigger className="pr-1.5 focus:ring-0 !py-1 bg-inherit">
                 <SelectValue>{selected?.props?.children}</SelectValue>
               </SelectTrigger>
               <SelectContent position="popper">

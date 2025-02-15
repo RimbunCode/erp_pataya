@@ -1,4 +1,4 @@
-import "@/../css/quill.snow.css";
+// import "@/../css/quill.snow.css";
 import "@/../css/quill.bubble.css";
 
 import Quill from "quill";

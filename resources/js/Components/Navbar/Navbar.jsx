@@ -13,10 +13,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
-import { Link, usePage } from "@inertiajs/react";
+import { Fragment, memo, useMemo } from "react";
 
 import { Button } from "@/Components/ui/button";
-import { Fragment } from "react";
+import Link from "../Link";
 import Notifications from "./Notifications";
 import { Separator } from "@/Components/ui/separator";
 import { SidebarTrigger } from "@/Components/ui/sidebar";
@@ -24,72 +24,74 @@ import ToggleTheme from "@/Components/ToggleTheme";
 import UserInfo from "./UserInfo";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/Hooks/use-mobile";
+import { usePage } from "@inertiajs/react";
 
-function Navbar({ setShowSearch }) {
+export default memo(function Navbar({ setShowSearch }) {
   const breadcrumbs = usePage().props.breadcrumbs;
   const isMobile = useIsMobile();
+  const breadcrumbsMenu = useMemo(() => {
+    if (!breadcrumbs) return null;
+    return (
+      <Breadcrumb>
+        <BreadcrumbList>
+          {breadcrumbs.length > 1 && (isMobile || breadcrumbs.length > 3) ? (
+            <>
+              <BreadcrumbItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger className="flex items-center gap-1">
+                    <BreadcrumbEllipsis className="w-4 h-4" />
+                    <span className="sr-only">Toggle menu</span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {breadcrumbs.map((breadcrumb, index) => {
+                      if (index === breadcrumbs.length - 1) return null;
+                      return (
+                        <DropdownMenuItem
+                          asChild
+                          key={breadcrumb.name + index + "dropdown"}
+                        >
+                          <Link href={breadcrumb.link}>{breadcrumb.name}</Link>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator className="" />
+              <BreadcrumbItem>
+                <BreadcrumbPage>
+                  {breadcrumbs[breadcrumbs.length - 1].name}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          ) : (
+            breadcrumbs.map((breadcrumb, index) =>
+              index < breadcrumbs.length - 1 ? (
+                <Fragment key={breadcrumb.name + index}>
+                  <BreadcrumbItem className="hidden md:block">
+                    <BreadcrumbLink asChild>
+                      <Link href={breadcrumb.link}>{breadcrumb.name}</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator className="hidden md:block" />
+                </Fragment>
+              ) : (
+                <BreadcrumbItem key={breadcrumb.name + index}>
+                  <BreadcrumbPage> {breadcrumb.name}</BreadcrumbPage>
+                </BreadcrumbItem>
+              ),
+            )
+          )}
+        </BreadcrumbList>
+      </Breadcrumb>
+    );
+  }, [breadcrumbs, isMobile]);
   return (
     <header className="sticky top-0 bg-background z-10  w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
       <div className="flex items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="h-4 mr-2" />
-        {breadcrumbs && (
-          <Breadcrumb>
-            <BreadcrumbList>
-              {breadcrumbs.length > 1 &&
-              (isMobile || breadcrumbs.length > 3) ? (
-                <>
-                  <BreadcrumbItem>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger className="flex items-center gap-1">
-                        <BreadcrumbEllipsis className="w-4 h-4" />
-                        <span className="sr-only">Toggle menu</span>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start">
-                        {breadcrumbs.map((breadcrumb, index) => {
-                          if (index === breadcrumbs.length - 1) return null;
-                          return (
-                            <DropdownMenuItem
-                              asChild
-                              key={breadcrumb.name + index + "dropdown"}
-                            >
-                              <Link href={breadcrumb.link}>
-                                {breadcrumb.name}
-                              </Link>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator className="" />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>
-                      {breadcrumbs[breadcrumbs.length - 1].name}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </>
-              ) : (
-                breadcrumbs.map((breadcrumb, index) =>
-                  index < breadcrumbs.length - 1 ? (
-                    <Fragment key={breadcrumb.name + index}>
-                      <BreadcrumbItem className="hidden md:block">
-                        <BreadcrumbLink asChild>
-                          <Link href={breadcrumb.link}>{breadcrumb.name}</Link>
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator className="hidden md:block" />
-                    </Fragment>
-                  ) : (
-                    <BreadcrumbItem key={breadcrumb.name + index}>
-                      <BreadcrumbPage> {breadcrumb.name}</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  ),
-                )
-              )}
-            </BreadcrumbList>
-          </Breadcrumb>
-        )}
+        {breadcrumbsMenu}
       </div>
       <div className="flex items-center gap-2 px-4">
         <Button
@@ -121,6 +123,4 @@ function Navbar({ setShowSearch }) {
       </div>
     </header>
   );
-}
-
-export default Navbar;
+});

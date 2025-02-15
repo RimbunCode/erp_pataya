@@ -14,14 +14,16 @@ import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
 import FilterItem from "./FilterItem";
 import React from "react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export const defaultFilter = {
+const defaultFilter = {
   id: "",
   column: "",
   operator: "",
   value: "",
 };
 function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
+  const { t } = useLaravelReactI18n();
   const [open, setOpen] = useState(false);
   const [filters, setFilters] = useState([
     { ...defaultFilter, id: generateRandom(8) },
@@ -93,7 +95,7 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
         {isMobile ? (
           <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
             <Filter />
-            Filter
+            {t("core.datatable.filter.filter")}
             {countFilters > 0 && (
               <span className="badge secondary !bg-background !py-0.5 !px-1.5 !h-auto !aspect-square rounded-full border border-muted-foreground/50 !text-xs">
                 {countFilters}
@@ -102,11 +104,14 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
           </div>
         ) : (
           <Button
-            className="flex-1 relative !py-0 h-8 !px-2 border-r rounded-r-none border-muted-foreground/50"
+            className={cn(
+              countFilters > 0 ? "border-r rounded-r-none" : "",
+              "flex-1 relative !py-0 h-8 !px-2  border-muted-foreground/50",
+            )}
             variant="secondary"
           >
             <Filter />
-            Filter
+            {t("core.datatable.filter.filter")}
             {countFilters > 0 && (
               <span className="badge secondary !bg-background !py-0.5 !px-1.5 !h-auto !aspect-square rounded-full border border-muted-foreground/50 !text-xs">
                 {countFilters}
@@ -115,10 +120,12 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
           </Button>
         )}
       </FilterTrigger>
-      <FilterContent className="flex flex-col w-fit">
+      <FilterContent className="flex flex-col w-auto max-w-full overflow-hidden">
         {isMobile && (
           <DialogHeader className="border-b border-muted-foreground/30">
-            <DialogTitle className="pb-2 ">Filter</DialogTitle>
+            <DialogTitle className="pb-2 ">
+              {t("core.datatable.filter.filter")}
+            </DialogTitle>
             <DialogDescription className="sr-only">
               Filter Table
             </DialogDescription>
@@ -127,7 +134,7 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
         <div
           className={cn(
             !isMobile && "max-h-64",
-            "grid flex-1 overflow-y-auto grid-cols-[max-content_max-content_1fr_max-content] gap-y-2 mb-4 [&>div.grid:first-child]:border-t-0 [&>div.grid:first-child]:pt-0 [&>div.grid]:pt-2 [&>div.grid]:border-t [&>div.grid]:border-muted-foreground/30",
+            "grid max-w-full flex-1 overflow-y-auto grid-cols-[max-content_max-content_auto_max-content] gap-y-2 mb-4 [&>div.grid:first-child]:border-t-0 [&>div.grid:first-child]:pt-0 [&>div.grid]:pt-2 [&>div.grid]:border-t [&>div.grid]:border-muted-foreground/30",
           )}
         >
           {filters.map(({ id, ...props }) => (
@@ -144,7 +151,7 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
         <div className="flex items-center justify-between py-2 border-t gap-x-6 border-muted-foreground/50">
           <Button variant="outline" className="h-8 !px-2" onClick={addFilter}>
             <Plus />
-            Add Filter
+            {t("core.datatable.filter.add_filter")}
           </Button>
 
           <div className="flex gap-x-2 ">
@@ -155,10 +162,10 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
                 setFilters([{ ...defaultFilter, id: generateRandom(8) }])
               }
             >
-              Clear Filters
+              {t("core.datatable.filter.clear_filters")}
             </Button>
             <Button className="h-8 !px-2" onClick={applyFilters}>
-              Apply Filters
+              {t("core.datatable.filter.apply_filters")}
             </Button>
           </div>
         </div>
