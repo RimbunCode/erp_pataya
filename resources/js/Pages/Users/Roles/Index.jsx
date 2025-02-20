@@ -20,7 +20,7 @@ export default function Index({ data, sort, show, lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("roles.edit", dataRow.id)}
+            href={route("roles.show", dataRow.id)}
           >
             {dataRow.name}
           </Link>

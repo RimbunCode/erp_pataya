@@ -260,7 +260,7 @@
   }
 
   /* toast style */
-  .toast {
+  /* .toast {
     @apply mb-4  block max-w-xs overflow-x-hidden rounded-lg border-0 p-0 text-sm shadow-md  dark:border;
     button {
       @apply focus:ring-2;
@@ -312,7 +312,7 @@
     button {
       @apply hover:bg-gray-200 focus:ring-gray-400 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white;
     }
-  }
+  } */
 
   .card {
     @apply rounded-lg bg-white p-4 shadow-md dark:bg-gray-800 sm:p-8;

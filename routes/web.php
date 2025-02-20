@@ -2,14 +2,14 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Route;
 
 Route::macro('resourceDetail', function ($uri, $name, $controller) {
   Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name) {
     Route::get("/", "index")->name("$uri.index");
     Route::post("/", "store")->name("$uri.store");
-    Route::get("/{{$name}}", "edit")->name("$uri.edit");
+    Route::get("/{{$name}}", "show")->name("$uri.show");
     Route::put("/{{$name}}", "update")->name("$uri.update");
     Route::delete("/{{$name}}", "destroy")->name("$uri.destroy");
 
@@ -44,12 +44,16 @@ Route::controller(\App\Http\Controllers\Core\LanguageController::class)->group(f
 });
 
 // Route for Preview Image
-Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'show'])->name('files.show');
+Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'preview'])->name('files.show');
 Route::middleware(['auth', 'lang'])->group(function () {
   // Dashboard
   Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
   })->name('dashboard');
+  // Settings
+  Route::prefix('/settings')->group(function () {
+    Route::resource('company', \App\Http\Controllers\Core\CompanyController::class)->only(['index', 'store']);
+  });
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);
   // Files
@@ -58,7 +62,10 @@ Route::middleware(['auth', 'lang'])->group(function () {
   Route::post('/users/{user}/image', [\App\Http\Controllers\User\UserController::class, 'image'])->name('users.image');
   Route::resourceDetail('users', 'user', \App\Http\Controllers\User\UserController::class);
   // Roles
+  Route::get('/roles/permissions', [\App\Http\Controllers\User\RoleController::class, 'permissions'])->name('roles.permissions');
   Route::resourceDetail('roles', 'role', \App\Http\Controllers\User\RoleController::class);
+
+  Route::resourceDetail('purchases', 'purchase', \App\Http\Controllers\User\RoleController::class);
 });
 
 require __DIR__ . '/auth.php';

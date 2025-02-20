@@ -14,6 +14,9 @@ class DatabaseSeeder extends Seeder {
    * Seed the application's database.
    */
   public function run(): void {
+    $this->call(PermissionSeeder::class);
+    // Currencies
+    $this->call(CurrencySeeder::class);
     // Create Random Tags
     Tag::factory(50)->create();
     // User::factory(10)->create();
@@ -35,7 +38,7 @@ class DatabaseSeeder extends Seeder {
 
     // Create Role For Admin
     $roleAdmin = Role::create([
-      'name' => 'Admin',
+      'name' => 'System Manager',
     ]);
 
     // Attach Admin User To Admin Role

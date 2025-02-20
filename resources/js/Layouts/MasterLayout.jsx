@@ -10,8 +10,9 @@ import {
 } from "@/Components/ui/alert-dialog";
 import { memo, useEffect } from "react";
 
+import { Toaster } from "@/Components/ui/sonner";
 import Toasts from "@/Components/Toasts";
-import { useAlertDraftForm } from "@/Hooks/useDraftFrom";
+import { useAlertDraftForm } from "@/Hooks/useDraftForm";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -99,7 +100,7 @@ const MasterLayout = memo(({ children }) => {
   return (
     <>
       {children}
-      <Toasts />
+      <Toaster />
       <AlertDialog
         open={showAlertDirtyForm}
         onOpenChange={setShowAlertDirtyForm}

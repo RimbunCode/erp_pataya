@@ -12,6 +12,7 @@ import {
   shouldIntercept,
 } from "@inertiajs/core";
 
+import { useAlertDraftForm } from "@/Hooks/useDraftForm";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 
 const noop = () => undefined;
@@ -72,13 +73,15 @@ const Link = forwardRef(
       headers,
       async,
     };
-    const { setContinue, isDirty, setShowAlert } = useIsDirtyForm();
+    const { setContinue, isDirty, setIsDirty, setShowAlert } = useIsDirtyForm();
+    const { cancel } = useAlertDraftForm();
 
     const onVisit = (href, visitParams) => {
       setContinue(() => {
-        console.log("continue");
         router.visit(href, visitParams);
         setShowAlert(false);
+        setIsDirty(false);
+        cancel();
       });
       console.log(isDirty);
       if (isDirty) {
