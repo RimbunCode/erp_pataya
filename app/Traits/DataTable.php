@@ -6,6 +6,7 @@ use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
 use App\Models\Scopes\DataTableScope;
+use App\Models\User\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;

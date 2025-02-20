@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Casts\Json;
+use App\Casts\LogContent;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -12,9 +13,9 @@ class Log extends Model {
   use HasUlids, SoftDeletes;
 
   protected $guarded = ['id'];
-  // protected $casts = [
-  //   'activity' => Json::class,
-  // ];
+  protected $casts = [
+    'activity' => LogContent::class,
+  ];
 
   public function user() {
     return $this->belongsTo(User::class);

@@ -30,7 +30,7 @@ function Index({ lang }) {
           <Link
             className="hover:underline"
             // eslint-disable-next-line no-undef
-            href={route("users.edit", dataRow.id)}
+            href={route("users.show", dataRow.id)}
           >
             {dataRow.name}
           </Link>

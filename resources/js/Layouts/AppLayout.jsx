@@ -7,16 +7,19 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/Components/ui/command";
+import React, { forwardRef } from "react";
 import { SidebarInset, SidebarProvider } from "@/Components/ui/sidebar";
 
 import { AppSidebar } from "@/Components/Sidebar/AppSidebar";
 import MasterLayout from "./MasterLayout";
 import Navbar from "@/Components/Navbar/Navbar";
-import React from "react";
 import { cn } from "@/lib/utils";
 import useTheme from "@/Hooks/useTheme";
 
-function AppLayout({ className, children }) {
+export default forwardRef(function AppLayout(
+  { className, children, ...props },
+  ref,
+) {
   const { setTheme } = useTheme();
   const [showSearch, setShowSearch] = React.useState(false);
   React.useEffect(() => {
@@ -119,6 +122,8 @@ function AppLayout({ className, children }) {
             </CommandList>
           </CommandDialog>
           <div
+            ref={ref}
+            {...props}
             className={cn(
               "relative flex flex-col flex-1 max-h-full px-8 py-4 overflow-y-auto ",
               className,
@@ -130,6 +135,4 @@ function AppLayout({ className, children }) {
       </SidebarProvider>
     </MasterLayout>
   );
-}
-
-export default AppLayout;
+});

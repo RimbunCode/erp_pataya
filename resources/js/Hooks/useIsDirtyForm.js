@@ -7,8 +7,6 @@ export const useIsDirtyForm = create((set) => ({
   setShowAlert: (value) => set({ showAlert: value }),
   cancel: () => {},
   setCancel: (value) => set({ cancel: value }),
-  continue: () => {
-    console.log("sadsd");
-  },
+  continue: () => {},
   setContinue: (value) => set({ continue: value }),
 }));

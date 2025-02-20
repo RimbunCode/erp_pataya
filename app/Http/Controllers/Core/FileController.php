@@ -73,7 +73,7 @@ class FileController extends Controller {
   /**
    * Display the specified resource.
    */
-  public function show(Request $request, File $file) {
+  public function preview(Request $request, File $file) {
     if (!$file->is_public && !Auth::check()) {
       abort(403);
     }
