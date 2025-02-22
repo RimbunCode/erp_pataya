@@ -19,18 +19,6 @@ class UserController extends Controller {
   public function __construct(Request $request) {
     parent::__construct($request, User::class);
   }
-  private function setBreadcrumbs(User $user = null) {
-    $breadcrumbs = $user ? [
-      ['name' => 'Manage Users', 'link' => route('users.index')],
-      ['name' => $user->name],
-    ] : [
-      ['name' => 'Manage Users'],
-    ];
-
-    Inertia::share([
-      'breadcrumbs' => $breadcrumbs,
-    ]);
-  }
   /**
    * Display a listing of the resource.
    */

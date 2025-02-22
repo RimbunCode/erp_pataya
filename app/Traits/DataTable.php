@@ -19,7 +19,9 @@ trait DataTable {
   public static function bootDataTable() {
     static::addGlobalScope(new DataTableScope);
   }
-
+  public static function getTableName() {
+    return with(new static)->getTable();
+  }
   public function showDetail() {
     Inertia::share([
       'logs' => Inertia::defer(function () {

@@ -9,9 +9,8 @@ return new class extends Migration {
    * Run the migrations.
    */
   public function up(): void {
-    Schema::create('currencies', function (Blueprint $table) {
-      $table->ulid('id')->primary();
-      $table->string('code');
+    Schema::create('countries', function (Blueprint $table) {
+      $table->string('code')->primary();
       $table->string('name');
       $table->timestamps();
     });
@@ -21,6 +20,6 @@ return new class extends Migration {
    * Reverse the migrations.
    */
   public function down(): void {
-    Schema::dropIfExists('currencies');
+    Schema::dropIfExists('countries');
   }
 };
