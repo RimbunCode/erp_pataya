@@ -15,11 +15,49 @@ use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 abstract class Controller {
   protected string $model;
   protected $permissions;
+
+
+  /**
+   * Summary of setBreadcrumbs
+   * @param \Illuminate\Database\Eloquent\Model[] $models
+   * @return void
+   */
+  protected function setBreadcrumbs(Model ...$models) {
+    if (empty($models)) {
+      $tableName = $this->model::getTableName();
+      $breadcrumbs = [['name' => Str::title($tableName)]];
+    } else {
+      $breadcrumbs = [];
+      /**
+       *  @var \Illuminate\Database\Eloquent\Model $model
+       */
+      foreach ($models as $key => $model) {
+        $tableName = $model->getTable();
+        if ($key == 0) {
+          $breadcrumbs[] = ['name' => Str::title($tableName), 'link' => route("{$tableName}.index")];
+          $breadcrumbs[] = ($key == (count($breadcrumbs) - 1)) ?
+            ['name' => $model->name] :
+            ['name' => $model->name, 'link' => route("{$tableName}.edit")];
+          continue;
+        }
+
+        preg_match('/([^\\\\]+)$/',  \get_class($model), $className);
+        $breadcrumbs[] = ($key == (count($breadcrumbs) - 1)) ?
+          ['name' => "{$className[1]}: {$model->name}"] :
+          ['name' => "{$className[1]}: {$model->name}", 'link' => route("{$tableName}.edit")];
+      }
+    }
+
+    Inertia::share([
+      'breadcrumbs' => $breadcrumbs,
+    ]);
+  }
 
   public function __construct(Request $request, string $model = null) {
     if (!$model)
@@ -30,7 +68,7 @@ abstract class Controller {
       ->join('user_role', 'user_role.role_id', '=', 'roles.id')
       ->where('user_role.user_id', $request->user()->id)
       ->where('model', $this->model)
-      ->first()->permissions;
+      ->first()?->permissions;
     Inertia::share('permissions', $this->permissions);
   }
   protected function guard($operation) {

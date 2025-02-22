@@ -14,36 +14,12 @@ class DatabaseSeeder extends Seeder {
    * Seed the application's database.
    */
   public function run(): void {
-    $this->call(PermissionSeeder::class);
-    // Currencies
+    $this->call(ErrorLensConfigurationSeeder::class);
+    $this->call(PreferenceSeeder::class);
     $this->call(CurrencySeeder::class);
+    $this->call(CountrySeeder::class);
+    $this->call(AdministratorSeeder::class);
     // Create Random Tags
     Tag::factory(50)->create();
-    // User::factory(10)->create();
-    Preference::create([
-      'key' => 'num_per_page',
-      'value' => 25,
-    ]);
-    Preference::create([
-      'key' => 'per_page_options',
-      'value' => json_encode([10, 25, 50, 100]),
-    ]);
-    // Create Admin User
-    $adminUser = User::factory()->create([
-      'name' => 'Administrator',
-      'username' => 'admin',
-      'email' => 'test@example.com',
-      'password' => bcrypt('admin'),
-    ]);
-
-    // Create Role For Admin
-    $roleAdmin = Role::create([
-      'name' => 'System Manager',
-    ]);
-
-    // Attach Admin User To Admin Role
-    $adminUser->roles()->attach($roleAdmin->id);
-
-    // Create Role Permission For Admin
   }
 }

@@ -51,7 +51,7 @@ export default function Company({ preferences, currencies }) {
   return (
     <FormPage
       disabled={processing}
-      title={t("setting.company.title")}
+      title={t("core.company.title")}
       onSubmit={onSubmit}
       badge={
         isDirty && (
@@ -77,11 +77,11 @@ export default function Company({ preferences, currencies }) {
 
       <FormPageContent
         value="company_details"
-        title={t("setting.company.company_details.title")}
+        title={t("core.company.company_details.title")}
       >
         <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
           <FormInput
-            label={t("setting.company.company_details.name")}
+            label={t("core.company.company_details.name")}
             required={true}
           >
             <Input
@@ -90,7 +90,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.company_details.email")}
+            label={t("core.company.company_details.email")}
             required={true}
           >
             <Input
@@ -100,7 +100,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.company_details.phone")}
+            label={t("core.company.company_details.phone")}
             required={true}
           >
             <Input
@@ -109,7 +109,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.company_details.street")}
+            label={t("core.company.company_details.street")}
             required={true}
             className="col-span-full"
           >
@@ -119,7 +119,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.company_details.city")}
+            label={t("core.company.company_details.city")}
             required={true}
           >
             <Input
@@ -128,7 +128,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.company_details.state")}
+            label={t("core.company.company_details.state")}
             required={true}
           >
             <Input
@@ -137,7 +137,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.company_details.zip_code")}
+            label={t("core.company.company_details.zip_code")}
             required={true}
           >
             <Input
@@ -146,7 +146,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.company_details.country")}
+            label={t("core.company.company_details.country")}
             required={true}
           >
             <Input
@@ -158,11 +158,11 @@ export default function Company({ preferences, currencies }) {
       </FormPageContent>
       <FormPageContent
         value="email_setup"
-        title={t("setting.company.email_setup.title")}
+        title={t("core.company.email_setup.title")}
       >
         <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
           <FormInput
-            label={t("setting.company.email_setup.protocol")}
+            label={t("core.company.email_setup.protocol")}
             required={true}
             className=""
           >
@@ -173,7 +173,7 @@ export default function Company({ preferences, currencies }) {
               <SelectTrigger>
                 <SelectValue
                   placeholder={t(
-                    "setting.company.email_setup.protocol.placeholder",
+                    "core.company.email_setup.protocol.placeholder",
                   )}
                 />
               </SelectTrigger>
@@ -183,7 +183,7 @@ export default function Company({ preferences, currencies }) {
             </Select>
           </FormInput>
           <FormInput
-            label={t("setting.company.email_setup.encryption")}
+            label={t("core.company.email_setup.encryption")}
             required={true}
             className=""
           >
@@ -193,7 +193,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.email_setup.host")}
+            label={t("core.company.email_setup.host")}
             required={true}
             className=""
           >
@@ -203,7 +203,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.email_setup.port")}
+            label={t("core.company.email_setup.port")}
             required={true}
             className=""
           >
@@ -214,7 +214,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.email_setup.username")}
+            label={t("core.company.email_setup.username")}
             required={true}
             className=""
           >
@@ -224,7 +224,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.email_setup.password")}
+            label={t("core.company.email_setup.password")}
             required={true}
             className=""
           >
@@ -234,7 +234,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.email_setup.from_address")}
+            label={t("core.company.email_setup.from_address")}
             required={true}
             className=""
           >
@@ -244,7 +244,7 @@ export default function Company({ preferences, currencies }) {
             />
           </FormInput>
           <FormInput
-            label={t("setting.company.email_setup.from_name")}
+            label={t("core.company.email_setup.from_name")}
             required={true}
             className=""
           >
@@ -257,11 +257,11 @@ export default function Company({ preferences, currencies }) {
       </FormPageContent>
       <FormPageContent
         value="preferences"
-        title={t("setting.company.preferences.title")}
+        title={t("core.company.preferences.title")}
       >
         <div className="flex flex-col w-full max-w-lg gap-y-4">
           <FormInput
-            label={t("setting.company.preferences.default_currency")}
+            label={t("core.company.preferences.default_currency")}
             required={true}
             className=""
           >
@@ -269,7 +269,7 @@ export default function Company({ preferences, currencies }) {
               options={currencies}
               value={data.default_currency}
               placeholder={t(
-                "setting.company.preferences.default_currency.placeholder",
+                "core.company.preferences.default_currency.placeholder",
               )}
               templateTrigger={(currency_code) => {
                 const currency = currencies.find(

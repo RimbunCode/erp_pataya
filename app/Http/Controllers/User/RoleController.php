@@ -13,27 +13,15 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class RoleController extends Controller {
-  public function __construct() {
-    $this->model = Role::class;
-  }
-  private function setBreadcrumbs(Role $role = null) {
-    $breadcrumbs = $role ? [
-      ['name' => 'Roles', 'link' => route('roles.index')],
-      ['name' => $role->name],
-    ] : [
-      ['name' => 'Roles'],
-    ];
-
-    Inertia::share([
-      'breadcrumbs' => $breadcrumbs,
-    ]);
+  public function __construct(Request $request) {
+    parent::__construct($request, Role::class);
   }
   /**
    * Display a listing of the resource.
    */
   public function index(Request $request) {
     $this->setBreadcrumbs();
-    Role::orderBy('name')->dataTable($request);
+    Role::dataTable($request);
     return Inertia::render('Users/Roles/Index',);
   }
   public function permissions(Request $request) {

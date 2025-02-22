@@ -52,7 +52,10 @@ Route::middleware(['auth', 'lang'])->group(function () {
   })->name('dashboard');
   // Settings
   Route::prefix('/settings')->group(function () {
+    // Company
     Route::resource('company', \App\Http\Controllers\Core\CompanyController::class)->only(['index', 'store']);
+    // Branches
+    Route::resourceDetail('branches', 'branch', \App\Http\Controllers\Core\BranchController::class);
   });
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);

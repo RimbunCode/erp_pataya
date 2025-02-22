@@ -13,6 +13,8 @@ import { usePage } from "@inertiajs/react";
 export default React.memo(function DatetimePicker({
   className,
   type = "datetime",
+  fromYear,
+  toYear,
   disabled,
   value: valueProps,
   onValueChange,
@@ -100,6 +102,8 @@ export default React.memo(function DatetimePicker({
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="end">
         <Calendar
+          fromYear={fromYear}
+          toYear={toYear}
           mode={type == "daterange" ? "range" : "single"}
           defaultMonth={Date.now()}
           selected={value}

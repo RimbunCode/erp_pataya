@@ -136,12 +136,7 @@ export default function Edit({ role }) {
       </FormPageContent>
       <FormPageContent title="Permission Manager" value="permission_manager">
         <div className="grid gap-x-4 grid-cols-[minmax(auto,512px)_max-content_minmax(auto,512px)_max-content] text-sm  [&>div>*]:px-4 max-w-full overflow-hidden">
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-            }}
-            className="grid col-span-4 grid-cols-subgrid [&_label]:!text-base mb-4 [&>*]:!px-0 [&_[role=forminput]]:!gap-y-0.5 border-b pb-4  border-muted-foreground/25"
-          >
+          <div className="grid col-span-4 grid-cols-subgrid [&_label]:!text-base mb-4 [&>*]:!px-0 [&_[role=forminput]]:!gap-y-0.5 border-b pb-4  border-muted-foreground/25">
             <div className="col-span-4 pb-1 mb-2 border-b border-muted-foreground/25">
               <h1 className="text-base font-bold">New Rule</h1>
             </div>
@@ -212,7 +207,7 @@ export default function Edit({ role }) {
                 </Button>
               </FormInput>
             </div>
-          </form>
+          </div>
           {/* Rules */}
           <div className="grid grid-cols-subgrid col-span-4 rounded-md py-2 bg-muted [&>div]:font-bold [&>div]:text-sm">
             <div>Model</div>

@@ -56,7 +56,7 @@ const data = {
           urlPattern: "/users/*",
         },
         {
-          title: "Role",
+          title: "Roles",
           url: "/roles",
           urlPattern: "/roles/*",
         },
@@ -72,9 +72,9 @@ const data = {
           urlPattern: "/settings/company/*",
         },
         {
-          title: "Branch",
-          url: "/settings/branch",
-          urlPattern: "/settings/branch/*",
+          title: "Branches",
+          url: "/settings/branches",
+          urlPattern: "/settings/branches/*",
         },
         {
           title: "Warehouse",

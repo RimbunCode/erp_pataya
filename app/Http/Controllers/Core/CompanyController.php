@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Core;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\Branch;
 use App\Models\Core\Currency;
 use App\Models\Core\Preference;
 use Illuminate\Http\Request;
@@ -20,6 +21,9 @@ class CompanyController extends Controller {
     return Inertia::render('Settings/Company', [
       'preferences' => $preferences->toArray(),
       'currencies' => fn() => Currency::all()->toArray(),
+      'breadcrumbs' => [
+        ['name' => 'Company Details'],
+      ],
     ]);
   }
 
@@ -32,6 +36,28 @@ class CompanyController extends Controller {
     foreach ($preferences as $key => $value) {
       Preference::updateOrCreate(['key' => $key], ['value' => $value]);
     }
+    Branch::updateOrCreate(
+      [
+        'branchable_id' => null,
+        'branchable_type' => null,
+        'is_main_branch' => true,
+      ],
+      [
+        'name' => $preferences['company_name'] ?? '',
+        'email' => $preferences['email'] ?? '',
+        'phone' => $preferences['phone'] ?? '',
+        'billing_street' => $preferences['street'] ?? '',
+        'billing_city' => $preferences['city'] ?? '',
+        'billing_state' => $preferences['state'] ?? '',
+        'billing_zip' => $preferences['zip_code'] ?? '',
+        'billing_country' => $preferences['country'] ?? '',
+        'shipping_street' => $preferences['street'] ?? '',
+        'shipping_city' => $preferences['city'] ?? '',
+        'shipping_state' => $preferences['state'] ?? '',
+        'shipping_zip' => $preferences['zip_code'] ?? '',
+        'shipping_country' => $preferences['country'] ?? '',
+      ]
+    );
     DB::commit();
     return back();
   }
