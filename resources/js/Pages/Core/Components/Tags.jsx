@@ -119,10 +119,10 @@ function Tags() {
     <div ref={ref}>
       <div className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
         <TagsIcon />
-        <span className="flex-1">Tags</span>
+        <span className="flex-1">{t("core.form.tags")}</span>
         <Button
           variant="ghost"
-          className="rounded-full !p-0"
+          className="rounded-full !p-0 group-data-[disabled=true]/form:hidden"
           size="icon"
           onClick={() => setShowSearch(!showSearch)}
         >
@@ -194,7 +194,7 @@ function Tags() {
                 </Link>
                 <Button
                   variant="ghost"
-                  className="rounded-full !p-0 !m-0 w-auto h-auto"
+                  className="rounded-full !p-0 !m-0 w-auto h-auto group-data-[disabled=true]/form:hidden"
                   size="icon"
                   onClick={() => {
                     if (!isLoading) removeTag(id);

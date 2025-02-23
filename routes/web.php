@@ -9,6 +9,7 @@ Route::macro('resourceDetail', function ($uri, $name, $controller) {
   Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name) {
     Route::get("/", "index")->name("$uri.index");
     Route::post("/", "store")->name("$uri.store");
+    Route::get("/{{$name}}", "create")->name("$uri.create");
     Route::get("/{{$name}}", "show")->name("$uri.show");
     Route::put("/{{$name}}", "update")->name("$uri.update");
     Route::delete("/{{$name}}", "destroy")->name("$uri.destroy");
@@ -68,7 +69,7 @@ Route::middleware(['auth', 'lang'])->group(function () {
   Route::get('/roles/permissions', [\App\Http\Controllers\User\RoleController::class, 'permissions'])->name('roles.permissions');
   Route::resourceDetail('roles', 'role', \App\Http\Controllers\User\RoleController::class);
 
-  Route::resourceDetail('purchases', 'purchase', \App\Http\Controllers\User\RoleController::class);
+  Route::resourceDetail('suppliers', 'supplier', \App\Http\Controllers\Purchase\SupplierController::class);
 });
 
 require __DIR__ . '/auth.php';

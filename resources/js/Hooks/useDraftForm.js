@@ -3,6 +3,7 @@ import { useCallback, useEffect } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 
 import { create } from "zustand";
+import { isDirty } from "zod";
 import useDidMountEffect from "./useDidMountEffect";
 import { useIsDirtyForm } from "./useIsDirtyForm";
 
@@ -14,7 +15,26 @@ export const useAlertDraftForm = create((set) => ({
   continue: () => {},
   setContinue: (value) => set({ continue: value }),
 }));
-export const useDraftForm = (key, initialData, expiredDays = 1) => {
+/**
+ *
+ * @callback onContinue
+ * @returns {void}
+ */
+
+/**
+ * @param {string} key kunci untuk menyimpan data pada cookie
+ * @param {object} initialData
+ * @typedef {object} OptionsProps
+ * @property {number=} expiredDays jumlah hari berlaku cookie
+ * @property {onContinue} onContinue callback ketika data berhasil disimpan
+ * @param {OptionsProps} options
+ * @returns {import("@inertiajs/react").InertiaFormProps<any>}
+ */
+export const useDraftForm = (
+  key,
+  initialData,
+  { expiredDays = 1, onContinue } = {},
+) => {
   const { setShowAlert, setCancel, setContinue } = useAlertDraftForm();
   const { setIsDirty } = useIsDirtyForm();
   const user = usePage().props.auth.user;
@@ -55,11 +75,13 @@ export const useDraftForm = (key, initialData, expiredDays = 1) => {
     const dataCookie = getCookieByName(key);
     if (dataCookie != null) {
       setCancel(() => {
+        console.log("remove cookie");
         removeCookie(key, window.location.pathname);
       });
       setContinue(() => {
         form.setData(JSON.parse(dataCookie));
         removeCookie(key, window.location.pathname);
+        onContinue?.();
       });
       setShowAlert(true);
     }
@@ -75,6 +97,18 @@ export const useDraftForm = (key, initialData, expiredDays = 1) => {
         onSuccess: (e) => {
           form.setDefaults(e.props.role);
           if (options?.onSuccess) options.onSuccess(e);
+        },
+        onBefore: (e) => {
+          removeCookie(key, window.location.pathname);
+          if (options?.onBefore) options.onBefore(e);
+        },
+        onError: (e) => {
+          setCookie(key, JSON.stringify(form.data), {
+            days: expiredDays,
+            path: window.location.pathname,
+            sameSite: "lax",
+          });
+          if (options?.onError) options.onError(e);
         },
       };
     },

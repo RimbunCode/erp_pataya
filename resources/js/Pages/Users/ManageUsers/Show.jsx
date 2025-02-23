@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import {
   Dialog,
@@ -12,13 +13,7 @@ import {
   FormPageContentTitle,
   FormPageSidebar,
 } from "@/Pages/Core/FormPage";
-import React, {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { SaveIcon, Trash2, UploadIcon } from "lucide-react";
 import {
   Select,
@@ -42,9 +37,8 @@ import UploadDialog from "@/Pages/Core/Components/UploadDialog";
 import axios from "axios";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
-function Edit({ user, roles, auth }) {
+export default function Show({ user, roles, auth }) {
   const { t } = useLaravelReactI18n();
   const { data, setData, put, processing, errors, reset, isDirty } =
     useDraftForm("user", user);
@@ -321,5 +315,3 @@ function Edit({ user, roles, auth }) {
     </>
   );
 }
-
-export default Edit;
