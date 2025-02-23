@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   PaginationButton,
