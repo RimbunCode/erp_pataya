@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import "@/../css/table.css";
 
 import {
@@ -8,14 +9,13 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import React, { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "../ui/select";
+import React, {
+  cloneElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   SortableContext,
   arrayMove,
@@ -27,12 +27,9 @@ import { Checkbox } from "../ui/checkbox";
 import ColumnsFilter from "./ColumnsFilter";
 import { Dialog } from "../ui/dialog";
 import Header from "./Header";
-import { Label } from "../ui/label";
 import NoDataImg from "./NoDataImg";
-import Pagination from "./Pagination";
 import { debounce } from "lodash";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
-import { usePage } from "@inertiajs/react";
 
 const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
@@ -94,29 +91,10 @@ function Table({
   onOptionsChanged,
   options: initialOptions = {},
   data: initialData = [],
-  totalPages = 1,
   setSort,
   resetSorting,
-  reload,
 }) {
   const route = window.route;
-  const { num_per_page: numPerPage, per_page_options: perPageOptions } =
-    usePage().props?.preferences ?? {
-      num_per_page: 25,
-      per_page_options: [25, 50, 100],
-    };
-  const [show, setShow] = useState(
-    getCookieByName("datatable_show") ?? numPerPage,
-  );
-  const setShowNumber = useCallback((value) => {
-    setShow(value);
-    setCookie("datatable_show", value, {
-      days: DATATABLE_COLUMNS_EXPIRED,
-      path: route(route().current(), [], false),
-      sameSite: "lax",
-    });
-    reload();
-  }, []);
   const [data, setData] = useState(initialData);
   useDidMountEffect(() => {
     setData(initialData);
@@ -206,15 +184,16 @@ function Table({
     setActiveIndex(index);
   };
 
+  const showedColumns = columns.filter((x) => x.show);
   const mouseMove = useCallback(
     (e) => {
       // const ori = tableElement.current.style.gridTemplateColumns
       //   .split(" ")
       //   .filter((x) => x.startsWith("minmax") || x.indexOf("px") >= 0);
       const newColumns = [];
-      const gridColumns = columns.map((col, i) => {
+      const gridColumns = showedColumns.map((col, i) => {
         if (i === activeIndex) {
-          const width = e.clientX - col.ref.current.offsetLeft;
+          const width = e.clientX - col.ref.current?.offsetLeft;
 
           if (width >= minCellWidth) {
             const size = `${width}px`;
@@ -224,14 +203,14 @@ function Table({
         }
         let size = "";
         if (i < activeIndex) {
-          size = `${col.ref.current.offsetWidth}px`;
+          size = `${col.ref.current?.offsetWidth}px`;
         } else {
           if (col.size?.startsWith("minmax")) {
             size = "minmax(0px, 1fr)";
           } else if (col.size == "1fr" || col.size == "max-content") {
             size = col.size;
           } else {
-            size = `${col.ref.current.offsetWidth}px`;
+            size = `${col.ref.current?.offsetWidth}px`;
           }
         }
         newColumns.push({ ...col, size });
@@ -244,7 +223,7 @@ function Table({
         " ",
       )}`;
     },
-    [activeIndex, columns, minCellWidth],
+    [activeIndex, showedColumns, minCellWidth],
   );
   const resetSizeHeader = (index) => {
     const newColumns = [];
@@ -302,7 +281,6 @@ function Table({
       return newData;
     });
   };
-  const showedColumns = columns.filter((x) => x.show);
   return (
     <div className={cn(className, "flex flex-col gap-x-2")}>
       <DndContext
@@ -356,8 +334,8 @@ function Table({
                         options={options}
                         setOptions={setOptions}
                         freezeColumn={i < freezeColumn}
-                        id={props.title}
-                        key={props.title}
+                        id={props.name}
+                        key={props.name}
                         ref={ref}
                         resizeable={resizeable && i < showedColumns.length - 1}
                         {...props}
@@ -368,82 +346,6 @@ function Table({
                     ))}
                   </SortableContext>
                 </tr>
-                {/* <tr>
-                {selectable && <th className="!py-2 !px-2 items-center"></th>}
-                {actions && (
-                  <th className="">
-                    <div className="w-full h-8 rounded-full cursor-not-allowed bg-muted border-muted"></div>
-                  </th>
-                )}
-                {columns.map(({ title, name, search }) =>
-                  search ? (
-                    <th key={title} className="!py-2 !px-2">
-                      {(() => {
-                        if (Array.isArray(search)) {
-                          return (
-                            <Select
-                              value={options.search?.[name] ?? ""}
-                              onValueChange={(val) => setSearch(name, val)}
-                            >
-                              <SelectTrigger className="w-full capitalize">
-                                <SelectValue
-                                  placeholder={search && `Search ${title}`}
-                                />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {search.map((x) => (
-                                  <SelectItem
-                                    key={x}
-                                    value={x.toString()}
-                                    className="capitalize"
-                                  >
-                                    {x}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          );
-                        }
-                        switch (search) {
-                          case "boolean":
-                            return (
-                              <div className="flex items-center justify-center w-full space-x-2">
-                                <Checkbox
-                                  id={`search-${name}`}
-                                  onChange={(e) =>
-                                    setSearch(name, e.current.value)
-                                  }
-                                />
-                              </div>
-                            );
-
-                          case "number":
-                          case "text":
-                            return (
-                              <Input
-                                type={search}
-                                value={options.search?.[name] ?? ""}
-                                onChange={(e) =>
-                                  setSearch(name, e.current.value)
-                                }
-                                variant="secondary"
-                                className="!h-8 !px-2 !rounded-full focus:!ring-1 bg-muted font-normal"
-                                placeholder={search && `Search ${title}`}
-                              />
-                            );
-
-                          default:
-                            break;
-                        }
-                      })()}
-                    </th>
-                  ) : (
-                    <th key={title}>
-                      <div className="w-full h-8 rounded-full cursor-not-allowed bg-muted border-muted"></div>
-                    </th>
-                  ),
-                )}
-              </tr> */}
               </thead>
               <tbody>
                 {!data || data.length === 0 ? (
@@ -470,25 +372,39 @@ function Table({
                           </td>
                         )}
                         {actions && (
-                          <td className="w-full">{actions({ row })}</td>
+                          <td className="w-full">
+                            {actions({ dataRow: row })}
+                          </td>
                         )}
                         {showedColumns.map(({ cell, name, parse }) => {
                           return (
                             <td key={name}>
-                              {cell ? (
-                                cell({
-                                  dataRow: row,
-                                  valueCell: parse
-                                    ? parse[row[name].toString()]
-                                    : row[name],
-                                })
-                              ) : (
-                                <span>
-                                  {parse
-                                    ? parse[row[name].toString()]
-                                    : row[name]}
-                                </span>
-                              )}
+                              {(() => {
+                                if (typeof cell == "function") {
+                                  const child = cell({
+                                    dataRow: row,
+                                    valueCell: parse
+                                      ? (parse[row[name]?.toString()] ?? "")
+                                      : row[name],
+                                  });
+                                  if (child) {
+                                    return cloneElement(child, {
+                                      ...child.props,
+                                      className: cn(
+                                        child.props.className,
+                                        "text-ellipsis truncate",
+                                      ),
+                                    });
+                                  }
+                                }
+                                return (
+                                  <span>
+                                    {parse
+                                      ? (parse[row[name]?.toString()] ?? "")
+                                      : row[name]}
+                                  </span>
+                                );
+                              })()}
                             </td>
                           );
                         })}
@@ -518,32 +434,6 @@ function Table({
           />
         </Dialog>
       </DndContext>
-      <div className="flex justify-between px-4 py-4 border-t border-muted-foreground/25 gap-x-4">
-        <div className="flex items-center gap-x-2">
-          <Label>Show</Label>
-          <Select value={`${show}`} onValueChange={(e) => setShowNumber(e)}>
-            <SelectTrigger className="!w-fit gap-x-2">
-              <SelectValue placeholder="Show"></SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {perPageOptions.map((x) => (
-                <SelectItem key={x} value={x.toString()}>
-                  {x}
-                </SelectItem>
-              ))}
-              {/* <SelectItem value="25">25</SelectItem>
-              <SelectItem value="50">50</SelectItem>
-              <SelectItem value="100">100</SelectItem> */}
-            </SelectContent>
-          </Select>
-        </div>
-        <Pagination
-          currentPage={options.page}
-          totalPages={Math.floor(totalPages / show) + 1}
-          onPageChanged={(page) => setOptions({ ...options, page })}
-          className="justify-end"
-        />
-      </div>
     </div>
   );
 }

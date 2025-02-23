@@ -5,9 +5,10 @@ namespace App\Models\User;
 use App\Casts\Json;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RolePermission extends Model {
-  use HasUlids;
+  use HasUlids, SoftDeletes;
 
   protected $guarded = ['id'];
   protected $casts = [

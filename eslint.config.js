@@ -1,9 +1,9 @@
 import { FlatCompat } from "@eslint/eslintrc";
 import { fileURLToPath } from "url";
 import globals from "globals";
+import jsdoc from "eslint-plugin-jsdoc";
 import path from "path";
 import pluginJs from "@eslint/js";
-
 /** @type {import('eslint').Linter.Config[]} */
 
 // mimic CommonJS variables -- not needed if using CommonJS
@@ -16,6 +16,17 @@ export default [
   { files: ["**/*.{js,mjs,cjs,jsx}"] },
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
   pluginJs.configs.recommended,
+  jsdoc.configs["flat/recommended"],
+  {
+    plugins: { jsdoc },
+    rules: {
+      "jsdoc/require-param-description": "off",
+      "jsdoc/require-returns-description": "off",
+      "jsdoc/require-property-description": "off",
+      "jsdoc/require-description": "off",
+      "jsdoc/require-description-complete-sentence": "off",
+    },
+  },
   ...compat.config({
     env: { browser: true, es2021: true },
     extends: [

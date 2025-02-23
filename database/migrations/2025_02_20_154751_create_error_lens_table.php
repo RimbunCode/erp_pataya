@@ -1,0 +1,84 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        if (!Schema::hasTable('error_logs')) {
+            Schema::create('error_logs', function (Blueprint $table) {
+                $table->uuid('id')->primary();
+                $table->string('method');
+                $table->string('url', 191);
+                $table->integer('status')->default('0');
+                $table->text('message');
+                $table->text('error_file')->nullable();
+                $table->smallInteger('error_line')->nullable();
+                $table->json('error')->nullable();
+                $table->json('trace')->nullable();
+                $table->text('stack')->nullable();
+                $table->smallInteger('stack_start')->nullable();
+                $table->smallInteger('stack_end')->nullable();
+                $table->string('email', 100)->nullable();
+                $table->string('ip_address', 30)->nullable();
+                $table->string('guard', 30)->nullable();
+                $table->string('browser', 30)->nullable();
+                $table->json('request_data')->nullable();
+                $table->uuid('repeated')->nullable();
+                $table->json('headers')->nullable();
+                $table->string('previous_url', 191)->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (!Schema::hasTable('error_log_configs')) {
+            Schema::create('error_log_configs', function (Blueprint $table) {
+                $table->id();
+                $table->string('key', 191)->unique();
+                $table->text('value');
+                $table->timestamps();
+            });
+        }
+
+        if (!Schema::hasTable('error_logs_archived')) {
+            Schema::create('error_logs_archived', function (Blueprint $table) {
+                $table->uuid('id')->primary();
+                $table->string('method');
+                $table->string('url', 191);
+                $table->integer('status')->default('0');
+                $table->text('message');
+                $table->text('error_file')->nullable();
+                $table->smallInteger('error_line')->nullable();
+                $table->json('error')->nullable();
+                $table->json('trace')->nullable();
+                $table->text('stack')->nullable();
+                $table->smallInteger('stack_start')->nullable();
+                $table->smallInteger('stack_end')->nullable();
+                $table->string('email', 100)->nullable();
+                $table->string('ip_address', 30)->nullable();
+                $table->string('guard', 30)->nullable();
+                $table->string('browser', 30)->nullable();
+                $table->json('request_data')->nullable();
+                $table->uuid('repeated')->nullable();
+                $table->json('headers')->nullable();
+                $table->string('previous_url', 191)->nullable();
+                $table->timestamps();
+            });
+        }
+
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('error_logs');
+    }
+};

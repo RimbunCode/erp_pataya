@@ -56,22 +56,47 @@ const data = {
           urlPattern: "/users/*",
         },
         {
-          title: "Role",
+          title: "Roles",
           url: "/roles",
           urlPattern: "/roles/*",
-        },
-        {
-          title: "Role Permission",
-          url: "/role-permissions",
-          urlPattern: "/role-permissions/*",
         },
       ],
     },
     {
       title: "Settings",
-      url: "/test",
-      urlPattern: "/test/*",
       icon: <Settings2 />,
+      items: [
+        {
+          title: "Company",
+          url: "/settings/company",
+          urlPattern: "/settings/company/*",
+        },
+        {
+          title: "Branches",
+          url: "/settings/branches",
+          urlPattern: "/settings/branches/*",
+        },
+        {
+          title: "Warehouse",
+          url: "/settings/warehouse",
+          urlPattern: "/settings/warehouse/*",
+        },
+        {
+          title: "Category",
+          url: "/settings/category",
+          urlPattern: "/settings/category/*",
+        },
+        {
+          title: "Units",
+          url: "/settings/units",
+          urlPattern: "/settings/units/*",
+        },
+        {
+          title: "Database Backup",
+          url: "/settings/backup",
+          urlPattern: "/settings/backup/*",
+        },
+      ],
     },
   ],
 };

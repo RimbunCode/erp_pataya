@@ -17,9 +17,11 @@ import QueryString from "qs";
 import axios from "axios";
 import { useDetectClickOutside } from "react-detect-click-outside";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function Tags() {
   const route = window.route;
+  const { t } = useLaravelReactI18n();
   const inputRef = useRef();
   const [tags, setTags] = useState([]);
   const { tags: _tags } = usePage().props;
@@ -117,10 +119,10 @@ function Tags() {
     <div ref={ref}>
       <div className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
         <TagsIcon />
-        <span className="flex-1">Tags</span>
+        <span className="flex-1">{t("core.form.tags")}</span>
         <Button
           variant="ghost"
-          className="rounded-full !p-0"
+          className="rounded-full !p-0 group-data-[disabled=true]/form:hidden"
           size="icon"
           onClick={() => setShowSearch(!showSearch)}
         >
@@ -144,13 +146,13 @@ function Tags() {
               value={search}
               onValueChange={setSearch}
               showIcon={false}
-              placeholder="Type tag name"
-              className="my-2"
+              placeholder={t("core.form.tag.search")}
+              className="my-2 !border focus:`!ring-1 bg-muted h-8"
             />
             <div className="relative w-full">
               {open && (
                 <CommandList className="absolute top-0 z-10 w-full border rounded-md shadow-md outline-none visi bg-popover text-popover-foreground animate-in">
-                  <CommandEmpty>No results found.</CommandEmpty>
+                  <CommandEmpty>{t("core.form.tag.not_found")}</CommandEmpty>
                   {listTags?.map((tag) => (
                     <CommandItem
                       key={tag.id}
@@ -172,7 +174,7 @@ function Tags() {
           <div className="mb-3 first:mt-2 ms-6">
             <div className="!text-base font-normal text-foreground flex gap-x-4">
               <LoadingIcon className="size-4" />
-              <span>Loading ...</span>
+              <span>{t("core.form.loading")} ...</span>
             </div>
           </div>
         }
@@ -185,14 +187,14 @@ function Tags() {
                 className="flex items-center px-2 py-1 text-sm rounded-lg gap-x-2 bg-muted"
               >
                 <Link
-                  href={route("tags.edit", { tag: id })}
+                  href={route("tags.show", { tag: id })}
                   className="hover:underline"
                 >
                   {name}
                 </Link>
                 <Button
                   variant="ghost"
-                  className="rounded-full !p-0 !m-0 w-auto h-auto"
+                  className="rounded-full !p-0 !m-0 w-auto h-auto group-data-[disabled=true]/form:hidden"
                   size="icon"
                   onClick={() => {
                     if (!isLoading) removeTag(id);

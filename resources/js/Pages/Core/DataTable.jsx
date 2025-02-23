@@ -34,22 +34,95 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
-import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
+import {
+  cloneElement,
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useState,
+} from "react";
 import { router, usePage } from "@inertiajs/react";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
 import QueryString from "qs";
 import React from "react";
+import { ScrollArea } from "@/Components/ui/scroll-area";
 import Table from "@/Components/Table/Table";
-import { cn } from "@/lib/utils";
+import { cn, getCookieByName, setCookie } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { Label } from "@/Components/ui/label";
+import Pagination from "@/Components/Table/Pagination";
+import { useIsMobile } from "@/Hooks/use-mobile";
 
+const DATATABLE_COLUMNS_EXPIRED = 7; //days
+/**
+ * @namespace DataTable
+ */
+/**
+ * @typedef {object} CellProps
+ * @property {object} dataRow
+ * @property {string} valueCell
+ * @callback CellCallback
+ * @param {CellProps} props
+ * @returns {React.JSX.Element}
+ */
+/**
+ * @typedef {object} ActionProps
+ * @property {object} dataRow
+ * @callback ActionCallback
+ * @param {ActionProps} props
+ * @returns {React.JSX.Element}
+ */
+/**
+ * @typedef {object} TemplateItemProps
+ * @property {object} dataRow
+ * @callback TemplateItemCallback
+ * @param {ActionProps} props
+ * @returns {React.JSX.Element}
+ */
+/**
+ * @typedef {object} ColumnProps
+ * @property {string} name Cocokan saja dengan nama column pada database
+ * @property {string} titleTrans
+ * @property {'text' | 'number' | 'boolean' | 'date' | string[]} searchType
+ * @property {boolean} sortable
+ * @property {boolean} resizeable
+ * @property {boolean} show default is true
+ * @property {object?} parse untuk konversi value sebelum ditampilkan
+ * - contoh: { true: "Enabled", false: "Disabled" }
+ * - Ini dapat berdampak pada filter jika searchType berupa boolean atau string[]
+ * - Ini dapat berdampak pada valueCell yang ada pada CellCallback
+ * @property {CellCallback} cell
+ */
+/**
+ * @typedef {object} ActionProps
+ * @property {object} row
+ */
+/**
+ * @typedef {object} AddButtonProps
+ * @property {string} title
+ * @property {React.MouseEvent} onClick
+ */
+
+/**
+ * @typedef {object} props
+ * @property {ColumnProps[]} columns
+ * @property {ActionCallback} actions
+ * @property {TemplateItemCallback} templateItem akan ditampilkan saat mode mobile
+ * @property {string} title
+ * @property {AddButtonProps} addButton
+ */
+
+/**
+ * @type {React.ForwardRefRenderFunction<HTMLDivElement, props>}
+ */
 export default forwardRef(function DataTable(
-  { columns, actions, title, buttonAdd },
+  { columns, actions, title, addButton, templateItem },
   ref,
 ) {
+  const isMobile = useIsMobile();
   const { t } = useLaravelReactI18n();
   const route = window.route;
   const query = usePage().props.ziggy.query;
@@ -119,6 +192,23 @@ export default forwardRef(function DataTable(
       setOptions((prev) => ({ ...prev, f: filters }));
     },
   }));
+  const { num_per_page: numPerPage, per_page_options: perPageOptions } =
+    usePage().props?.preferences ?? {
+      num_per_page: 25,
+      per_page_options: [25, 50, 100],
+    };
+  const [show, setShow] = useState(
+    getCookieByName("datatable_show") ?? numPerPage,
+  );
+  const setShowNumber = useCallback((value) => {
+    setShow(value);
+    setCookie("datatable_show", value, {
+      days: DATATABLE_COLUMNS_EXPIRED,
+      path: route(route().current(), [], false),
+      sameSite: "lax",
+    });
+    loadData();
+  }, []);
 
   return (
     <AppLayout>
@@ -133,58 +223,86 @@ export default forwardRef(function DataTable(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem onClick={loadData}>
-                  <RefreshCw />
-                  <span>{t("core.datatable.reload")}</span>
-                </DropdownMenuItem>
-                <FilterTable
-                  columns={columns}
-                  onApply={onApplyFilters}
-                  initialFilters={options.f}
-                  isMobile={true}
-                />
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel>Sorting</DropdownMenuLabel>
-                  {columns
-                    .filter((x) => x.sortable)
-                    .map(({ name, title }) => (
-                      <DropdownMenuSub key={name}>
-                        <DropdownMenuSubTrigger
-                          className={cn(
-                            optionsSortKey == name ? "bg-accent" : "",
-                          )}
-                        >
-                          {title}
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuPortal>
-                          <DropdownMenuSubContent>
-                            <DropdownMenuRadioGroup
-                              value={`${optionsSortKey}-${optionsSortOrder}`}
-                              onValueChange={(val) =>
-                                setSort(name, val.replace(`${name}-`, ""))
-                              }
-                            >
+                <ScrollArea className="max-h-56">
+                  <DropdownMenuItem onClick={loadData}>
+                    <RefreshCw />
+                    <span>{t("core.datatable.reload")}</span>
+                  </DropdownMenuItem>
+                  <FilterTable
+                    columns={columns}
+                    onApply={onApplyFilters}
+                    initialFilters={options.f}
+                    isMobile={true}
+                  />
+                  {isMobile && (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        {t("core.datatable.show")}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuRadioGroup
+                            value={`${show}`}
+                            onValueChange={(val) => setShowNumber(val)}
+                          >
+                            {perPageOptions.map((x) => (
                               <DropdownMenuRadioItem
+                                key={x}
+                                value={x.toString()}
                                 className="cursor-pointer"
                                 showDot={true}
-                                value={`${name}-asc`}
                               >
-                                {t("core.datatable.sorting.ascending")}
+                                {x}
                               </DropdownMenuRadioItem>
-                              <DropdownMenuRadioItem
-                                className="cursor-pointer"
-                                showDot={true}
-                                value={`${name}-desc`}
+                            ))}
+                          </DropdownMenuRadioGroup>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Sorting</DropdownMenuLabel>
+                    {columns
+                      .filter((x) => x.sortable)
+                      .map(({ name, titleTrans }) => (
+                        <DropdownMenuSub key={name}>
+                          <DropdownMenuSubTrigger
+                            className={cn(
+                              optionsSortKey == name ? "bg-accent" : "",
+                            )}
+                          >
+                            {t(titleTrans)}
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuPortal>
+                            <DropdownMenuSubContent>
+                              <DropdownMenuRadioGroup
+                                value={`${optionsSortKey}-${optionsSortOrder}`}
+                                onValueChange={(val) =>
+                                  setSort(name, val.replace(`${name}-`, ""))
+                                }
                               >
-                                {t("core.datatable.sorting.descending")}
-                              </DropdownMenuRadioItem>
-                            </DropdownMenuRadioGroup>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                      </DropdownMenuSub>
-                    ))}
-                </DropdownMenuGroup>
+                                <DropdownMenuRadioItem
+                                  className="cursor-pointer"
+                                  showDot={true}
+                                  value={`${name}-asc`}
+                                >
+                                  {t("core.datatable.sorting.ascending")}
+                                </DropdownMenuRadioItem>
+                                <DropdownMenuRadioItem
+                                  className="cursor-pointer"
+                                  showDot={true}
+                                  value={`${name}-desc`}
+                                >
+                                  {t("core.datatable.sorting.descending")}
+                                </DropdownMenuRadioItem>
+                              </DropdownMenuRadioGroup>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                      ))}
+                  </DropdownMenuGroup>
+                </ScrollArea>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -263,36 +381,79 @@ export default forwardRef(function DataTable(
                     .filter((x) => x.sortable)
                     .map((column) => (
                       <SelectItem key={column.name} value={column.name}>
-                        {column.title}
+                        {t(column.titleTrans)}
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
-          {buttonAdd?.title && (
-            <Button className="!p-2 size- fit h-8" onClick={buttonAdd.onClick}>
+          {addButton?.title && (
+            <Button className="!p-2 size- fit h-8" onClick={addButton.onClick}>
               <Plus />
-              {buttonAdd.title}
+              {addButton.title}
             </Button>
           )}
         </div>
       </div>
       <div className="flex flex-col flex-1 max-w-full mt-4 border rounded-lg border-muted-foreground/25">
-        <Table
-          reload={loadData}
-          className="flex-1"
-          actions={actions}
-          columns={columns}
-          data={data.data}
-          totalPages={data.total}
-          options={options}
-          setSort={setSort}
-          resetSorting={resetSorting}
-          onOptionsChanged={(opt) => {
-            setOptions(opt);
-          }}
-        />
+        {isMobile ? (
+          <div className="flex flex-col flex-1">
+            {data?.data &&
+              data.data.map((x) => {
+                const item = templateItem?.({ dataRow: x });
+                if (!item) return null;
+                return cloneElement(item, { key: x.id, ...item.props });
+              })}
+          </div>
+        ) : (
+          <Table
+            reload={loadData}
+            className="flex-1"
+            actions={actions}
+            columns={columns}
+            data={data.data}
+            totalPages={data.total}
+            options={options}
+            setSort={setSort}
+            resetSorting={resetSorting}
+            onOptionsChanged={(opt) => {
+              setOptions(opt);
+            }}
+          />
+        )}
+        <div
+          className={cn(
+            !isMobile || Math.floor(data.total / show) + 1 > 1
+              ? "flex"
+              : "hidden",
+            " justify-between px-4 py-4 border-t border-muted-foreground/25 gap-x-4",
+          )}
+        >
+          {!isMobile && (
+            <div className="flex items-center gap-x-2">
+              <Label>{t("core.datatable.show")}</Label>
+              <Select value={`${show}`} onValueChange={(e) => setShowNumber(e)}>
+                <SelectTrigger className="!w-fit gap-x-2">
+                  <SelectValue placeholder="Show"></SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {perPageOptions.map((x) => (
+                    <SelectItem key={x} value={x.toString()}>
+                      {x}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          <Pagination
+            currentPage={options.page}
+            totalPages={Math.floor(data.total / show) + 1}
+            onPageChanged={(page) => setOptions({ ...options, page })}
+            className="justify-end"
+          />
+        </div>
       </div>
     </AppLayout>
   );

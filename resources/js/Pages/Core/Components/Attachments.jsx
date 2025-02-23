@@ -13,9 +13,11 @@ import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
 import UploadDialog from "./UploadDialog";
 import { cn } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function Attachments() {
   const route = window.route;
+  const { t } = useLaravelReactI18n();
   const attachments = usePage().props.attachments;
   const [openAttachment, setOpenAttachment] = useState(false);
 
@@ -31,10 +33,13 @@ export default memo(function Attachments() {
     <>
       <div className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
         <Paperclip />
-        <span className="flex-1">Attachments</span>
+        <span className="flex-1">{t("core.form.attachments")}</span>
 
         <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
-          <DialogTrigger asChild>
+          <DialogTrigger
+            asChild
+            className="group-data-[disabled=true]/form:hidden"
+          >
             <Button variant="ghost" className="rounded-full !p-0" size="icon">
               <Plus />
             </Button>
@@ -53,7 +58,7 @@ export default memo(function Attachments() {
           <div className="mb-3 first:mt-2 ms-6">
             <div className="!text-base font-normal text-foreground flex gap-x-4">
               <LoadingIcon className="size-4" />
-              <span>Loading ...</span>
+              <span>{t("core.form.loading")} ...</span>
             </div>
           </div>
         }
@@ -75,7 +80,7 @@ export default memo(function Attachments() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex items-center flex-1 overflow-hidden gap-x-2">
-                        <Link href={route("files.edit", id)}>
+                        <Link href={route("files.show", id)}>
                           <FileTextIcon className="size-5" />{" "}
                         </Link>
                         <a
@@ -93,7 +98,7 @@ export default memo(function Attachments() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="rounded-full !p-0"
+                    className="rounded-full !p-0 group-data-[disabled=true]/form:hidden"
                     onClick={() => {
                       removeFile(id);
                     }}
