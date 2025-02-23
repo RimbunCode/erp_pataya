@@ -17,11 +17,9 @@ import QueryString from "qs";
 import axios from "axios";
 import { useDetectClickOutside } from "react-detect-click-outside";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
-import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function Tags() {
   const route = window.route;
-  const { t } = useLaravelReactI18n();
   const inputRef = useRef();
   const [tags, setTags] = useState([]);
   const { tags: _tags } = usePage().props;
@@ -146,13 +144,13 @@ function Tags() {
               value={search}
               onValueChange={setSearch}
               showIcon={false}
-              placeholder={t("core.form.tag.search")}
-              className="my-2 !border focus:`!ring-1 bg-muted h-8"
+              placeholder="Type tag name"
+              className="my-2"
             />
             <div className="relative w-full">
               {open && (
                 <CommandList className="absolute top-0 z-10 w-full border rounded-md shadow-md outline-none visi bg-popover text-popover-foreground animate-in">
-                  <CommandEmpty>{t("core.form.tag.not_found")}</CommandEmpty>
+                  <CommandEmpty>No results found.</CommandEmpty>
                   {listTags?.map((tag) => (
                     <CommandItem
                       key={tag.id}
@@ -174,7 +172,7 @@ function Tags() {
           <div className="mb-3 first:mt-2 ms-6">
             <div className="!text-base font-normal text-foreground flex gap-x-4">
               <LoadingIcon className="size-4" />
-              <span>{t("core.form.loading")} ...</span>
+              <span>Loading ...</span>
             </div>
           </div>
         }
@@ -187,7 +185,7 @@ function Tags() {
                 className="flex items-center px-2 py-1 text-sm rounded-lg gap-x-2 bg-muted"
               >
                 <Link
-                  href={route("tags.show", { tag: id })}
+                  href={route("tags.edit", { tag: id })}
                   className="hover:underline"
                 >
                   {name}

@@ -8,28 +8,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./select";
-import { cn, getLocaleDate } from "@/lib/utils";
 
 import { DayPicker } from "react-day-picker";
 import { ScrollArea } from "./scroll-area";
 import { buttonVariants } from "@/components/ui/button";
-import { usePage } from "@inertiajs/react";
+import { cn } from "@/lib/utils";
 
-function Calendar({
-  fromYear = 1945,
-  toYear,
-  className,
-  classNames,
-  showOutsideDays = true,
-  ...props
-}) {
-  const lang = usePage().props.lang;
+function Calendar({ className, classNames, showOutsideDays = true, ...props }) {
   return (
     <DayPicker
-      locale={getLocaleDate(lang)}
       captionLayout="dropdown-buttons"
-      fromYear={fromYear}
-      toYear={toYear ?? new Date().getFullYear() + 5}
+      fromYear={1960}
+      toYear={2030}
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       classNames={{

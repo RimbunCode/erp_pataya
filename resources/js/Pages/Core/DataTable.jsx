@@ -41,7 +41,6 @@ import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
 import QueryString from "qs";
 import React from "react";
-import { ScrollArea } from "@/Components/ui/scroll-area";
 import Table from "@/Components/Table/Table";
 import { cn } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -134,60 +133,58 @@ export default forwardRef(function DataTable(
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <ScrollArea className="max-h-56">
-                  <DropdownMenuItem onClick={loadData}>
-                    <RefreshCw />
-                    <span>{t("core.datatable.reload")}</span>
-                  </DropdownMenuItem>
-                  <FilterTable
-                    columns={columns}
-                    onApply={onApplyFilters}
-                    initialFilters={options.f}
-                    isMobile={true}
-                  />
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel>Sorting</DropdownMenuLabel>
-                    {columns
-                      .filter((x) => x.sortable)
-                      .map(({ name, title }) => (
-                        <DropdownMenuSub key={name}>
-                          <DropdownMenuSubTrigger
-                            className={cn(
-                              optionsSortKey == name ? "bg-accent" : "",
-                            )}
-                          >
-                            {title}
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuPortal>
-                            <DropdownMenuSubContent>
-                              <DropdownMenuRadioGroup
-                                value={`${optionsSortKey}-${optionsSortOrder}`}
-                                onValueChange={(val) =>
-                                  setSort(name, val.replace(`${name}-`, ""))
-                                }
+                <DropdownMenuItem onClick={loadData}>
+                  <RefreshCw />
+                  <span>{t("core.datatable.reload")}</span>
+                </DropdownMenuItem>
+                <FilterTable
+                  columns={columns}
+                  onApply={onApplyFilters}
+                  initialFilters={options.f}
+                  isMobile={true}
+                />
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Sorting</DropdownMenuLabel>
+                  {columns
+                    .filter((x) => x.sortable)
+                    .map(({ name, title }) => (
+                      <DropdownMenuSub key={name}>
+                        <DropdownMenuSubTrigger
+                          className={cn(
+                            optionsSortKey == name ? "bg-accent" : "",
+                          )}
+                        >
+                          {title}
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent>
+                            <DropdownMenuRadioGroup
+                              value={`${optionsSortKey}-${optionsSortOrder}`}
+                              onValueChange={(val) =>
+                                setSort(name, val.replace(`${name}-`, ""))
+                              }
+                            >
+                              <DropdownMenuRadioItem
+                                className="cursor-pointer"
+                                showDot={true}
+                                value={`${name}-asc`}
                               >
-                                <DropdownMenuRadioItem
-                                  className="cursor-pointer"
-                                  showDot={true}
-                                  value={`${name}-asc`}
-                                >
-                                  {t("core.datatable.sorting.ascending")}
-                                </DropdownMenuRadioItem>
-                                <DropdownMenuRadioItem
-                                  className="cursor-pointer"
-                                  showDot={true}
-                                  value={`${name}-desc`}
-                                >
-                                  {t("core.datatable.sorting.descending")}
-                                </DropdownMenuRadioItem>
-                              </DropdownMenuRadioGroup>
-                            </DropdownMenuSubContent>
-                          </DropdownMenuPortal>
-                        </DropdownMenuSub>
-                      ))}
-                  </DropdownMenuGroup>
-                </ScrollArea>
+                                {t("core.datatable.sorting.ascending")}
+                              </DropdownMenuRadioItem>
+                              <DropdownMenuRadioItem
+                                className="cursor-pointer"
+                                showDot={true}
+                                value={`${name}-desc`}
+                              >
+                                {t("core.datatable.sorting.descending")}
+                              </DropdownMenuRadioItem>
+                            </DropdownMenuRadioGroup>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
+                    ))}
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>

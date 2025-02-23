@@ -11,13 +11,10 @@ return new class extends Migration {
   public function up(): void {
     Schema::create('permissions', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->string('module');
-      $table->string('name');
-      $table->text('model');
+      $table->string('name')->unique();
       $table->json('permissions')->nullable();
       $table->timestamps();
       $table->softDeletes();
-      $table->unique(['module', 'name', 'deleted_at']);
     });
   }
 

@@ -75,7 +75,7 @@ export default memo(function Attachments() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex items-center flex-1 overflow-hidden gap-x-2">
-                        <Link href={route("files.show", id)}>
+                        <Link href={route("files.edit", id)}>
                           <FileTextIcon className="size-5" />{" "}
                         </Link>
                         <a

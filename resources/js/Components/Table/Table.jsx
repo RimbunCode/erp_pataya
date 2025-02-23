@@ -479,13 +479,13 @@ function Table({
                                 cell({
                                   dataRow: row,
                                   valueCell: parse
-                                    ? (parse[row[name]?.toString()] ?? "")
+                                    ? parse[row[name].toString()]
                                     : row[name],
                                 })
                               ) : (
                                 <span>
                                   {parse
-                                    ? (parse[row[name]?.toString()] ?? "")
+                                    ? parse[row[name].toString()]
                                     : row[name]}
                                 </span>
                               )}
