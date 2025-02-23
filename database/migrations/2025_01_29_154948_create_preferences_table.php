@@ -10,7 +10,8 @@ return new class extends Migration {
    */
   public function up(): void {
     Schema::create('preferences', function (Blueprint $table) {
-      $table->string('key')->primary();
+      $table->id();
+      $table->string('key')->unique();
       $table->text('value');
       $table->timestamps();
     });

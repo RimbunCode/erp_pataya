@@ -10,9 +10,8 @@ import {
 } from "@/Components/ui/alert-dialog";
 import { memo, useEffect } from "react";
 
-import { Toaster } from "@/Components/ui/sonner";
 import Toasts from "@/Components/Toasts";
-import { useAlertDraftForm } from "@/Hooks/useDraftForm";
+import { useAlertDraftForm } from "@/Hooks/useDraftFrom";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -20,7 +19,7 @@ import useTheme from "@/Hooks/useTheme";
 
 const MasterLayout = memo(({ children }) => {
   const lang = usePage().props.lang ?? "";
-  const { t, setLocale } = useLaravelReactI18n();
+  const { setLocale } = useLaravelReactI18n();
   const { theme, currentTheme, setCurrentTheme } = useTheme();
   const isDebug = usePage().props.debug;
   // const isDebug = true;
@@ -100,23 +99,23 @@ const MasterLayout = memo(({ children }) => {
   return (
     <>
       {children}
-      <Toaster />
+      <Toasts />
       <AlertDialog
         open={showAlertDirtyForm}
         onOpenChange={setShowAlertDirtyForm}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("core.form.leave.title")}</AlertDialogTitle>
+            <AlertDialogTitle>Leave Page</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("core.form.leave.subtitle")}
+              Are you sure you want to leave this page?
             </AlertDialogDescription>
             <AlertDialogFooter>
               <AlertDialogCancel className="h-8" onClick={cancelDirtyForm}>
-                {t("core.form.leave.cancel")}
+                Cancel
               </AlertDialogCancel>
               <AlertDialogAction className="h-8" onClick={continueDirtyForm}>
-                {t("core.form.leave.leave")}
+                Leave
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogHeader>
@@ -126,11 +125,10 @@ const MasterLayout = memo(({ children }) => {
       <AlertDialog open={showAlertDrafForm} onOpenChange={setShowAlertDrafForm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("core.form.unfinished.title")}
-            </AlertDialogTitle>
+            <AlertDialogTitle>Unfinished Form</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("core.form.unfinished.subtitle")}
+              You have an unfinished draft of this form. Would you like to
+              continue?
             </AlertDialogDescription>
             <AlertDialogFooter>
               <AlertDialogCancel
@@ -138,10 +136,10 @@ const MasterLayout = memo(({ children }) => {
                 variant="destructive"
                 onClick={cancelDraftForm}
               >
-                {t("core.form.unfinished.ignore")}
+                Ignore
               </AlertDialogCancel>
               <AlertDialogAction className="h-8" onClick={continueDraftForm}>
-                {t("core.form.unfinished.continue")}
+                Continue
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogHeader>
