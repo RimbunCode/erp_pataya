@@ -68,8 +68,8 @@ Route::middleware(['auth', 'lang'])->group(function () {
   // Roles
   Route::get('/roles/permissions', [\App\Http\Controllers\User\RoleController::class, 'permissions'])->name('roles.permissions');
   Route::resourceDetail('roles', 'role', \App\Http\Controllers\User\RoleController::class);
-
-  Route::resourceDetail('purchases', 'purchase', \App\Http\Controllers\User\RoleController::class);
+  // Supplier
+  Route::resourceDetail('suppliers', 'supplier', \App\Http\Controllers\Purchase\SupplierController::class);
 });
 
 require __DIR__ . '/auth.php';
