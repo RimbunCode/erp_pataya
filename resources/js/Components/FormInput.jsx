@@ -2,6 +2,7 @@ import React, { Children, cloneElement, useEffect, useId } from "react";
 
 import InputError from "./InputError";
 import { Label } from "./ui/label";
+<<<<<<< HEAD
 import { cn } from "@/lib/utils";
 import { useFormPage } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -36,11 +37,20 @@ function FormInput({
   const _required = required || child.props?.required;
   const _name = name || child.props?.name;
   const _value = child.props?.value;
+=======
+
+function FormInput({ label, required, name, errors, children }) {
+  const id = useId();
+  const child = Children.only(children);
+  const _required = required || child.props.required;
+  const _name = name || child.props.name;
+>>>>>>> origin/dev
   return (
-    <div className={cn("flex flex-col gap-y-2", className)} role="forminput">
+    <div className="grid gap-y-2">
       <Label htmlFor={id}>
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>
+<<<<<<< HEAD
       {typeof child == "function"
         ? child({ id, required: _required })
         : cloneElement(child, {
@@ -67,6 +77,13 @@ function FormInput({
       ) : (
         description
       )}
+=======
+      {cloneElement(child, {
+        id,
+        required: _required,
+      })}
+      <InputError message={errors?.[_name]} className="mt-2" />
+>>>>>>> origin/dev
     </div>
   );
 }

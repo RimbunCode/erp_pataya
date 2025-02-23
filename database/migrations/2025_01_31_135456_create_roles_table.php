@@ -12,7 +12,7 @@ return new class extends Migration {
     Schema::create('roles', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->string('name');
-      $table->longText('description')->nullable();
+      $table->string('default_home')->nullable();
       $table->boolean('is_disabled')->default(false);
       $table->timestamps();
       $table->softDeletes();

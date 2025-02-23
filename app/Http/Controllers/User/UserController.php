@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\User\UserRequest;
 use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
-use App\Models\User\RolePermission;
 use App\Models\User\User;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -16,8 +14,20 @@ use Inertia\Inertia;
 
 class UserController extends Controller {
 
-  public function __construct(Request $request) {
-    parent::__construct($request, User::class);
+  public function __construct() {
+    $this->model = User::class;
+  }
+  private function setBreadcrumbs(User $user = null) {
+    $breadcrumbs = $user ? [
+      ['name' => 'Manage Users', 'link' => route('users.index')],
+      ['name' => $user->name],
+    ] : [
+      ['name' => 'Manage Users'],
+    ];
+
+    Inertia::share([
+      'breadcrumbs' => $breadcrumbs,
+    ]);
   }
   /**
    * Display a listing of the resource.
@@ -64,38 +74,25 @@ class UserController extends Controller {
   /**
    * Display the specified resource.
    */
-  public function show(Request $request, User $user) {
-    if ($request->user()->id != $user->id) {
-      $this->guard('read');
-    }
+  public function show(User $user) {
+  }
+
+  /**
+   * Show the form for editing the specified resource.
+   */
+  public function edit(User $user) {
     $this->setBreadcrumbs($user);
     $user->showDetail();
-    $user->roles = $user->roles()->pluck('id');
     return Inertia::render('Users/ManageUsers/Edit', [
       'user' => $user,
-      'roles' => Inertia::defer(function () {
-        return \App\Models\User\Role::all();
-      })
     ]);
   }
 
   /**
    * Update the specified resource in storage.
    */
-  public function update(UserRequest $request, User $user) {
-    $data = $request->validated();
-    DB::beginTransaction();
-    $user->update($data);
-    $user->roles()->sync($data['roles']);
-    $user->logs()->create([
-      'user_id' => $user->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
-    DB::commit();
-    return back();
+  public function update(Request $request, string $id) {
+    //
   }
 
   /**

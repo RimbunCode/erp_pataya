@@ -38,7 +38,12 @@ function Index({ lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
+<<<<<<< HEAD
             href={route("users.show", dataRow.id)}
+=======
+            // eslint-disable-next-line no-undef
+            href={route("users.edit", dataRow.id)}
+>>>>>>> origin/dev
           >
             {dataRow.name}
           </Link>

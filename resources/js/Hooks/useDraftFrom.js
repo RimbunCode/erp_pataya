@@ -1,10 +1,10 @@
 import { getCookieByName, removeCookie, setCookie } from "@/lib/utils";
-import { useCallback, useEffect } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 
 import { create } from "zustand";
 import { isDirty } from "zod";
 import useDidMountEffect from "./useDidMountEffect";
+import { useEffect } from "react";
 import { useIsDirtyForm } from "./useIsDirtyForm";
 
 export const useAlertDraftForm = create((set) => ({
@@ -15,6 +15,7 @@ export const useAlertDraftForm = create((set) => ({
   continue: () => {},
   setContinue: (value) => set({ continue: value }),
 }));
+<<<<<<< HEAD:resources/js/Hooks/useDraftForm.js
 /**
  *
  * @callback onContinue
@@ -35,41 +36,28 @@ export const useDraftForm = (
   initialData,
   { expiredDays = 1, onContinue } = {},
 ) => {
+=======
+export const useDraftFrom = (key, initialData, expiredDays = 1) => {
+>>>>>>> origin/dev:resources/js/Hooks/useDraftFrom.js
   const { setShowAlert, setCancel, setContinue } = useAlertDraftForm();
   const { setIsDirty } = useIsDirtyForm();
   const user = usePage().props.auth.user;
   key = user ? `${key}_${user.id}` : null;
-  const {
-    submit: submitForm,
-    get: getForm,
-    patch: patchForm,
-    post: postForm,
-    put: putForm,
-    delete: deleteForm,
-    ...form
-  } = useForm(initialData);
-
-  useDidMountEffect(() => {
-    setIsDirty(form.isDirty);
-    if (!form.isDirty) {
-      removeCookie(key, window.location.pathname);
-    }
-  }, [form.isDirty]);
+  const { ...form } = useForm(initialData);
 
   useEffect(() => {
-    if (form.recentlySuccessful) {
-      form.reset();
-    }
-  }, [initialData]);
+    setIsDirty(form.isDirty);
+  }, [form.isDirty]);
+
   useDidMountEffect(() => {
-    if (key != null && form.isDirty) {
+    if (key != null) {
       setCookie(key, JSON.stringify(form.data), {
         days: expiredDays,
         path: window.location.pathname,
         sameSite: "lax",
       });
     }
-  }, [form.data, form.isDirty, key, expiredDays]);
+  }, [form.data, key, expiredDays]);
 
   useEffect(() => {
     const dataCookie = getCookieByName(key);
@@ -87,6 +75,7 @@ export const useDraftForm = (
     }
   }, []);
 
+<<<<<<< HEAD:resources/js/Hooks/useDraftForm.js
   const getOptions = useCallback(
     (options) => {
       return {
@@ -115,26 +104,10 @@ export const useDraftForm = (
     [form],
   );
 
+=======
+>>>>>>> origin/dev:resources/js/Hooks/useDraftFrom.js
   return {
     ...form,
-    submit(method, url, options) {
-      submitForm(method, url, getOptions(options));
-    },
-    get(url, options) {
-      getForm(url, getOptions(options));
-    },
-    patch(url, options) {
-      patchForm(url, getOptions(options));
-    },
-    post(url, options) {
-      postForm(url, getOptions(options));
-    },
-    put(url, options) {
-      putForm(url, getOptions(options));
-    },
-    delete(url, options) {
-      deleteForm(url, getOptions(options));
-    },
   };
 
   // return {

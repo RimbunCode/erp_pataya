@@ -1,24 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTrigger,
-} from "@/Components/ui/dialog";
-import { DialogDescription, DialogTitle } from "@radix-ui/react-dialog";
+import { Dialog, DialogTrigger } from "@/Components/ui/dialog";
 import {
   FormPage,
   FormPageContent,
-  FormPageContentTitle,
   FormPageSidebar,
 } from "@/Pages/Core/FormPage";
-import React, {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { Fragment, useMemo, useState } from "react";
 import { SaveIcon, Trash2, UploadIcon } from "lucide-react";
 import {
   Select,
@@ -34,49 +21,25 @@ import {
 } from "@/Components/ui/tooltip";
 
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/Checkbox";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
-import axios from "axios";
-import { useDraftForm } from "@/Hooks/useDraftForm";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
+import { useDraftFrom } from "@/Hooks/useDraftFrom";
+import { useForm } from "@inertiajs/react";
 
-function Edit({ user, roles, auth }) {
-  const { t } = useLaravelReactI18n();
+function Edit({ user }) {
   const { data, setData, put, processing, errors, reset, isDirty } =
-    useDraftForm("user", user);
+    useDraftFrom("user", user);
   const route = window.route;
   const [openAttachment, setOpenAttachment] = useState(false);
-  const [openDetailRole, setOpenDetailRole] = useState(false);
-  const [detailsRole, setDetailsRole] = useState();
   const alias = user.name
     .split(" ")
     .slice(0, 2)
     .map((n) => n.charAt(0))
     .join("");
-  const onSubmit = (e) => {
-    e.preventDefault();
-
-    put(route("users.update", user.id));
-  };
-
-  const getDetailsRole = useCallback((id) => {
-    axios
-      .get(route("roles.show", id))
-      .then(({ data }) => {
-        setDetailsRole(data);
-        setOpenDetailRole(true);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-  }, []);
-
   const avatar = useMemo(() => {
-    if (!user.image) return null;
+    console.log("check");
     return (
       <AvatarImage
         src={
@@ -87,87 +50,78 @@ function Edit({ user, roles, auth }) {
         className=" transition-[filter] group-hover:blur-sm"
       />
     );
-  }, [user.image]);
+  }, []);
   return (
-    <>
-      <FormPage
-        disabled={processing}
-        title={user.name}
-        badge={
-          isDirty && (
-            <span className="text-sm badge warning">
-              {t("core.form.not_saved")}
-            </span>
-          )
-        }
-        controls={
-          <Button
-            role="save"
-            className="!p-2 size-fit h-8"
-            onClick={onSubmit}
-            disabled={processing}
-          >
-            <SaveIcon />
-            {t("core.form.save")}
-          </Button>
-        }
-      >
-        <FormPageSidebar>
-          {(defaultComp) => (
-            <>
-              <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
-                <Avatar className="relative w-full h-auto border rounded-xl aspect-square max-w-64 group">
-                  {avatar}
-                  <AvatarFallback className="rounded-lg ">
-                    <p className="w-full font-semibold text-center text-muted-foreground text-9xl  transition-[filter]">
-                      {alias}
-                    </p>
-                  </AvatarFallback>
-                  <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
+    <FormPage
+      className="overflow-hidden"
+      title={user.name}
+      badge={
+        isDirty && <span className="text-sm badge warning">Not Saved</span>
+      }
+      controls={
+        <Button className="!p-2 size-fit h-8">
+          <SaveIcon />
+          Save
+        </Button>
+      }
+    >
+      <FormPageSidebar>
+        {(defaultComp) => (
+          <>
+            <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
+              <Avatar className="relative w-full h-auto border rounded-xl aspect-square max-w-64 group">
+                {avatar}
+                <AvatarFallback className="rounded-lg ">
+                  <p className="w-full font-semibold text-center text-muted-foreground text-9xl  transition-[filter]">
+                    {alias}
+                  </p>
+                </AvatarFallback>
+                <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DialogTrigger asChild>
+                        <Button variant="default" size="icon">
+                          <UploadIcon className="!size-5" />
+                        </Button>
+                      </DialogTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent align="center">Upload</TooltipContent>
+                  </Tooltip>
+                  {user.image && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <DialogTrigger asChild>
-                          <Button variant="default" size="icon">
-                            <UploadIcon className="!size-5" />
-                          </Button>
-                        </DialogTrigger>
+                        <Button variant="destructive" size="icon">
+                          <Trash2 className="!size-5" />
+                        </Button>
                       </TooltipTrigger>
-                      <TooltipContent align="center">Upload</TooltipContent>
+                      <TooltipContent align="center">Remove</TooltipContent>
                     </Tooltip>
-                    {user.image && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="destructive" size="icon">
-                            <Trash2 className="!size-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent align="center">Remove</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                </Avatar>
-                <UploadDialog
-                  open={openAttachment}
-                  imageOnly
-                  options={{
-                    route: route(route().current(), route().params) + "/image",
-                    reset: ["user", "auth"],
-                  }}
-                  onClose={() => {
-                    setOpenAttachment(false);
-                  }}
-                />
-              </Dialog>
-              {defaultComp}
-            </>
-          )}
-        </FormPageSidebar>
-        <FormPageContent title={t("user.user.basic_info")} value="basic_info">
-          {/* <FormPageTitle>Test</FormPageTitle>
+                  )}
+                </div>
+              </Avatar>
+              <UploadDialog
+                open={openAttachment}
+                imageOnly
+                options={{
+                  route: route(route().current(), route().params) + "/image",
+                  reset: ["user"],
+                }}
+                onClose={() => {
+                  setOpenAttachment(false);
+                }}
+              />
+            </Dialog>
+            {defaultComp}
+          </>
+        )}
+      </FormPageSidebar>
+      <FormPageContent title="Basic Info" value="basic_info">
+        {/* <FormPageTitle>Test</FormPageTitle>
         <FormPageDescription>
           Lorem ipsum dolor sit amet consectetur adipisicing elit. Dolore,
           maiores.
         </FormPageDescription> */}
+<<<<<<< HEAD
           <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
             <FormInput label={t("user.user.columns.email")} required={true}>
               <Input
@@ -319,6 +273,62 @@ function Edit({ user, roles, auth }) {
         </DialogContent>
       </Dialog>
     </>
+=======
+        <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+          <FormInput label="Email" required={true}>
+            <Input
+              type="email"
+              value={data.email}
+              onChange={(e) => setData("email", e.target.value)}
+            />
+          </FormInput>
+          <FormInput label="Username" required={true}>
+            <Input
+              value={data.username}
+              onChange={(e) => setData("username", e.target.value)}
+            />
+          </FormInput>
+          <FormInput label="Full Name" required={true}>
+            <Input
+              value={data.name}
+              onChange={(e) => setData("name", e.target.value)}
+            />
+          </FormInput>
+          <FormInput label="Gender">
+            <Select
+              value={data.gender}
+              onValueChange={(val) => setData("gender", val)}
+            >
+              <SelectTrigger className="">
+                <SelectValue placeholder="Gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormInput>
+          <FormInput label="Mobile No">
+            <Input
+              type="text"
+              value={data.phone}
+              onChange={(e) => setData("phone", e.target.value)}
+            />
+          </FormInput>
+          <FormInput label="Birth Date">
+            <DatetimePicker
+              type="date"
+              value={data.birthdate}
+              onValueChange={(val) => setData("birthdate", val)}
+            />
+          </FormInput>
+        </div>
+      </FormPageContent>
+      <FormPageContent title="Role & Permissions" value="roles_and_permissions">
+        Password
+      </FormPageContent>
+    </FormPage>
+>>>>>>> origin/dev
   );
 }
 

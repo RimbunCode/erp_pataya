@@ -379,6 +379,7 @@ function Table({
                         {showedColumns.map(({ cell, name, parse }) => {
                           return (
                             <td key={name}>
+<<<<<<< HEAD
                               {(() => {
                                 if (typeof cell == "function") {
                                   const child = cell({
@@ -405,6 +406,22 @@ function Table({
                                   </span>
                                 );
                               })()}
+=======
+                              {cell ? (
+                                cell({
+                                  dataRow: row,
+                                  valueCell: parse
+                                    ? parse[row[name].toString()]
+                                    : row[name],
+                                })
+                              ) : (
+                                <span>
+                                  {parse
+                                    ? parse[row[name].toString()]
+                                    : row[name]}
+                                </span>
+                              )}
+>>>>>>> origin/dev
                             </td>
                           );
                         })}
