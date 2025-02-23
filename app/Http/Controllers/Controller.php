@@ -21,14 +21,15 @@ use Inertia\Inertia;
 abstract class Controller {
   protected string $model;
   protected $permissions;
+  protected string $lang;
 
 
   /**
    * Summary of setBreadcrumbs
-   * @param \Illuminate\Database\Eloquent\Model[] $models
+   * @param (\Illuminate\Database\Eloquent\Model|string)[] $models
    * @return void
    */
-  protected function setBreadcrumbs(Model ...$models) {
+  protected function setBreadcrumbs(Model|string ...$models) {
     if (empty($models)) {
       $tableName = $this->model::getTableName();
       $breadcrumbs = [['name' => Str::title($tableName)]];
@@ -38,6 +39,12 @@ abstract class Controller {
        *  @var \Illuminate\Database\Eloquent\Model $model
        */
       foreach ($models as $key => $model) {
+        if (\gettype($model) == 'string') {
+          $tableName = $this->model::getTableName();
+          $breadcrumbs[] = ['name' => Str::title($tableName), 'link' => route("{$tableName}.index")];
+          $breadcrumbs[] = ['name' => $model];
+          break;
+        }
         $tableName = $model->getTable();
         if ($key == 0) {
           $breadcrumbs[] = ['name' => Str::title($tableName), 'link' => route("{$tableName}.index")];
@@ -62,6 +69,7 @@ abstract class Controller {
   public function __construct(Request $request, string $model = null) {
     if (!$model)
       return;
+    $this->lang = $request->cookie('lang') ?? 'en';
     $this->model = $model;
     $this->permissions = RolePermission::select('role_permissions.permissions')
       ->join('roles', 'roles.id', '=', 'role_permissions.role_id')

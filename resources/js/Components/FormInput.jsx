@@ -1,21 +1,38 @@
-import React, { Children, cloneElement, useId } from "react";
+import React, { Children, cloneElement, useEffect, useId } from "react";
 
 import InputError from "./InputError";
 import { Label } from "./ui/label";
 import { cn } from "@/lib/utils";
+import { useFormPage } from "@/Pages/Core/FormPage";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
+/**
+ *
+ * @typedef FormInputProps
+ * @property {string} label
+ * @property {boolean} required
+ * @property {string} className
+ * @property {string} name
+ * @property {object} errors
+ * @property {string} description
+ * @param {FormInputProps} props
+ * @returns {React.JSX.Element}
+ */
 function FormInput({
   label,
   required,
   className,
   name,
-  errors,
+  errors: errorsProps,
   children,
   description,
 }) {
+  const form = useFormPage();
   const id = useId();
+  const { t } = useLaravelReactI18n();
   const child =
     typeof children == "function" ? children : Children.only(children);
+  const errors = errorsProps ?? form?.errors ?? {};
   const _required = required || child.props?.required;
   const _name = name || child.props?.name;
   const _value = child.props?.value;
@@ -32,7 +49,17 @@ function FormInput({
             value: _value ?? "",
           })}
       {_name in (errors ?? {}) ? (
-        <InputError message={errors?.[_name]} className="mt-2" />
+        <InputError
+          message={
+            form.fieldNameTrans
+              ? errors?.[_name].replace(
+                  _name,
+                  t(`${form.fieldNameTrans}.${_name}`),
+                )
+              : errors?.[_name]
+          }
+          className=""
+        />
       ) : typeof description == "string" ? (
         <p className="text-sm font-normal text-muted-foreground">
           {description}

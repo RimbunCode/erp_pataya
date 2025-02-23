@@ -39,14 +39,45 @@ class RoleController extends Controller {
    * Show the form for creating a new resource.
    */
   public function create() {
-    //
+    $this->setBreadcrumbs("__(user.role.new)");
+    return Inertia::render('Users/Roles/Show');
   }
 
   /**
    * Store a newly created resource in storage.
    */
-  public function store(Request $request) {
-    //
+  public function store(RoleRequest $request) {
+    $data = $request->validated();
+    DB::beginTransaction();
+    $role = Role::create([
+      'name' => $data['name'],
+      'description' => $data['description'] ?? '',
+      'is_disabled' => $data['is_disabled'] ?? '',
+    ]);
+
+    $permissions = array_map(fn($permission) => $permission['permission_id'], $data['rules'] ?? []);
+    $permissions = Permission::whereIn('id', $permissions)->get()
+      ->mapWithKeys(fn($permission) => [$permission->id => $permission]);
+
+    foreach ($data['rules'] ?? [] as $rule) {
+      $permission = $permissions[$rule['permission_id']];
+      RolePermission::updateOrCreate([
+        'role_id' => $role->id,
+        'permission_id' => $permission->id,
+      ], values: [
+        'name' => $permission->name,
+        'model' => $permission->model,
+        'level' => $rule['level'],
+        'only_creator' => $rule['only_creator'],
+        'permissions' => collect($permission->permissions)->mapWithKeys(function ($permission) use ($rule) {
+          return [$permission => $rule['permissions'][$permission] ?? false];
+        }),
+      ]);
+    }
+
+    DB::commit();
+
+    return redirect()->route('roles.show', $role);
   }
 
   /**
@@ -59,7 +90,7 @@ class RoleController extends Controller {
     }
     $this->setBreadcrumbs($role);
     $role->showDetail();
-    return Inertia::render('Users/Roles/Edit', [
+    return Inertia::render('Users/Roles/Show', [
       'role' => function () use ($role) {
         $role->load('rules');
         return $role;
@@ -76,7 +107,7 @@ class RoleController extends Controller {
     $role->update([
       'name' => $data['name'],
       'description' => $data['description'] ?? '',
-      'is_disabled' => $data['is_disabled'],
+      'is_disabled' => $data['is_disabled'] ?? '',
     ]);
 
     $permissions = array_map(fn($permission) => $permission['permission_id'], $data['rules']);

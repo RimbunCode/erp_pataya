@@ -49,13 +49,13 @@ class CompanyController extends Controller {
         'billing_street' => $preferences['street'] ?? '',
         'billing_city' => $preferences['city'] ?? '',
         'billing_state' => $preferences['state'] ?? '',
-        'billing_zip' => $preferences['zip_code'] ?? '',
-        'billing_country' => $preferences['country'] ?? '',
+        'billing_zip_code' => $preferences['zip_code'] ?? '',
+        'billing_country' => $preferences['country_id'] ?? '',
         'shipping_street' => $preferences['street'] ?? '',
         'shipping_city' => $preferences['city'] ?? '',
         'shipping_state' => $preferences['state'] ?? '',
-        'shipping_zip' => $preferences['zip_code'] ?? '',
-        'shipping_country' => $preferences['country'] ?? '',
+        'shipping_zip_code' => $preferences['zip_code'] ?? '',
+        'shipping_country' => $preferences['country_id'] ?? '',
       ]
     );
     DB::commit();

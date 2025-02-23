@@ -18,9 +18,11 @@ import { TZDate } from "@date-fns/tz";
 import axios from "axios";
 import { debounce } from "lodash";
 import { format } from "date-fns";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function Comments() {
   const { logs, lang } = usePage().props;
+  const { t } = useLaravelReactI18n();
   const commentRef = useRef();
   const route = window.route;
   const [comment, setComment] = useState("");
@@ -113,7 +115,7 @@ export default memo(function Comments() {
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex flex-col gap-y-2">
-        <h1 className="text-xl font-bold">Comments</h1>
+        <h1 className="text-xl font-bold">{t("core.form.comments")}</h1>
         <div
           className="flex w-full max-w-full gap-x-3"
           onKeyDown={(e) => {
@@ -161,7 +163,7 @@ export default memo(function Comments() {
         </div>
       </div>
       <div className="flex flex-col gap-y-2">
-        <h1 className="text-xl font-bold">Activity</h1>
+        <h1 className="text-xl font-bold">{t("core.form.activity")}</h1>
         <ol className="relative ml-3.5 border-muted border-s-2 ">
           <Deferred
             data={["logs"]}
@@ -169,7 +171,7 @@ export default memo(function Comments() {
               <li className="mb-3 first:mt-2 ms-6">
                 <div className="!text-base font-normal text-foreground flex gap-x-4">
                   <LoadingIcon className="size-4" />
-                  <span>Loading ...</span>
+                  <span>{t("core.form.loading")} ...</span>
                 </div>
               </li>
             }
@@ -215,7 +217,7 @@ export default memo(function Comments() {
                           >
                             {user.name}
                           </Link>{" "}
-                          <span>commented</span>
+                          <span>{t("core.form.commented")}</span>
                           <span className="mx-2 text-muted-foreground">●</span>
                           <span className="text-muted-foreground">
                             {format(new TZDate(created_at, "UTC"), "PPPp", {

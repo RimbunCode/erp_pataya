@@ -150,8 +150,8 @@ export default function Company({ preferences, currencies }) {
             required={true}
           >
             <Input
-              value={data.country}
-              onChange={(e) => setData("country", e.target.value)}
+              value={data.country_id}
+              onChange={(e) => setData("country_id", e.target.value)}
             />
           </FormInput>
         </div>
@@ -267,7 +267,7 @@ export default function Company({ preferences, currencies }) {
           >
             <Combobox
               options={currencies}
-              value={data.default_currency}
+              value={data.default_currency_id}
               placeholder={t(
                 "core.company.preferences.default_currency.placeholder",
               )}
@@ -289,7 +289,7 @@ export default function Company({ preferences, currencies }) {
                     value={`${currency.name} ${currency.code}`}
                     keywords={[currency.code, currency.name]}
                     onSelect={() => {
-                      setData("default_currency", currency.code);
+                      setData("default_currency_id", currency.code);
                     }}
                     className="block px-4 "
                   >

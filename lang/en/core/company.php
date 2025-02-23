@@ -12,6 +12,7 @@ return [
     'state' => 'State',
     'zip_code' => 'Zip Code',
     'country' => 'Country',
+    'country.placeholder' => 'Select a country',
     'logo' => 'Company Logo',
   ],
   'preferences' => [

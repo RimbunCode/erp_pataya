@@ -9,6 +9,7 @@ Route::macro('resourceDetail', function ($uri, $name, $controller) {
   Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name) {
     Route::get("/", "index")->name("$uri.index");
     Route::post("/", "store")->name("$uri.store");
+    Route::get("/create", "create")->name("$uri.create");
     Route::get("/{{$name}}", "show")->name("$uri.show");
     Route::put("/{{$name}}", "update")->name("$uri.update");
     Route::delete("/{{$name}}", "destroy")->name("$uri.destroy");

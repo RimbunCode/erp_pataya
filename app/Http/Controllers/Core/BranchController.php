@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Core;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Core\BranchRequest;
 use App\Models\Core\Branch;
+use App\Models\Core\Country;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class BranchController extends Controller {
@@ -17,7 +20,9 @@ class BranchController extends Controller {
    */
   public function index(Request $request) {
     $this->setBreadcrumbs();
-    Branch::dataTable($request);
+    Branch::whereNull('branchable_type')
+      ->whereNull('branchable_id')
+      ->dataTable($request);
     return Inertia::render('Settings/Branches/Index');
   }
 
@@ -39,21 +44,33 @@ class BranchController extends Controller {
    * Display the specified resource.
    */
   public function show(Branch $branch) {
-    //
+    $this->setBreadcrumbs($branch);
+    $branch->showDetail();
+    return Inertia::render('Settings/Branches/Show', [
+      'branch' => $branch,
+      'countries' => Inertia::defer(function () {
+        return Country::all();
+      })
+    ]);
   }
 
-  /**
-   * Show the form for editing the specified resource.
-   */
-  public function edit(Branch $branch) {
-    //
-  }
 
   /**
    * Update the specified resource in storage.
    */
-  public function update(Request $request, Branch $branch) {
-    //
+  public function update(BranchRequest $request, Branch $branch) {
+    $data = $request->validated();
+    DB::beginTransaction();
+    $branch->update($data);
+    $branch->logs()->create([
+      'user_id' => $branch->id,
+      'activity' => [
+        'en' => ':user updated this',
+        'id' => ':user memperbarui ini'
+      ]
+    ]);
+    DB::commit();
+    return back();
   }
 
   /**

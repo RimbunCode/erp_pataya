@@ -29,8 +29,8 @@ class PreferenceSeeder extends Seeder {
       "city" => "Surabaya",
       "state" => "Jawa Timur",
       "zip_code" => "60293",
-      "country" => "IDN",
-      "default_currency" => "idr"
+      "country_id" => "IDN",
+      "default_currency_id" => "idr"
     ];
     $preferences = collect($preferencesArr)->map(fn($value, $key) => [
       'key' => $key,
@@ -42,16 +42,12 @@ class PreferenceSeeder extends Seeder {
       'is_main_branch' => true,
       'email' => $preferencesArr['email'],
       'phone' => $preferencesArr['phone'],
-      'billing_street' => $preferencesArr['street'],
-      'billing_city' => $preferencesArr['city'],
-      'billing_state' => $preferencesArr['state'],
-      'billing_zip' => $preferencesArr['zip_code'],
-      'billing_country' => $preferencesArr['country'],
       'shipping_street' => $preferencesArr['street'],
       'shipping_city' => $preferencesArr['city'],
       'shipping_state' => $preferencesArr['state'],
-      'shipping_zip' => $preferencesArr['zip_code'],
-      'shipping_country' => $preferencesArr['country'],
+      'shipping_zip_code' => $preferencesArr['zip_code'],
+      'shipping_country_id' => $preferencesArr['country_id'],
+      'billing_address' => 'same_shipping',
     ]);
   }
 }

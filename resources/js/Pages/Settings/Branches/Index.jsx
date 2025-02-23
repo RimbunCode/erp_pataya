@@ -1,20 +1,27 @@
 import { cn, getLocaleDate } from "@/lib/utils";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import DataTable from "@/Pages/Core/DataTable";
 import Link from "@/Components/Link";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { Dialog, DialogContent } from "@/Components/ui/dialog";
 
+// eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ lang }) {
   const route = window.route;
-  const { t, loading } = useLaravelReactI18n();
+  const { t } = useLaravelReactI18n();
   const tableRef = useRef();
+  const [showNewForm, setShowNewForm] = useState(false);
+  /**
+   * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
+   * @type {ColumnProps[]}
+   */
   const columns = useMemo(
     () => [
       {
-        title: t("core.branch.columns.name"),
+        titleTrans: "core.branch.columns.name",
         name: "name",
         searchType: "text",
         sortable: true,
@@ -22,14 +29,14 @@ export default function Index({ lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("roles.show", dataRow.id)}
+            href={route("branches.show", dataRow.id)}
           >
             {dataRow.name}
           </Link>
         ),
       },
       {
-        title: t("core.branch.columns.email"),
+        titleTrans: "core.branch.columns.email",
         name: "email",
         searchType: "text",
         sortable: true,
@@ -37,7 +44,7 @@ export default function Index({ lang }) {
         show: false,
       },
       {
-        title: t("core.branch.columns.phone"),
+        titleTrans: "core.branch.columns.phone",
         name: "phone",
         searchType: "text",
         sortable: true,
@@ -45,7 +52,7 @@ export default function Index({ lang }) {
         show: false,
       },
       {
-        title: t("core.branch.columns.billing_address"),
+        titleTrans: "core.branch.columns.address",
         name: "billing_address",
         sortable: false,
         resizeable: true,
@@ -53,31 +60,15 @@ export default function Index({ lang }) {
         cell: ({ dataRow }) => {
           return (
             <span>
-              {dataRow.billing_street}, {dataRow.billing_city},{" "}
-              {dataRow.billing_state}, {dataRow.billing_zip},{" "}
-              {dataRow.billing_country}
-            </span>
-          );
-        },
-      },
-      {
-        title: t("core.branch.columns.shipping_address"),
-        name: "shipping_address",
-        sortable: false,
-        resizeable: true,
-        show: true,
-        cell: ({ dataRow }) => {
-          return (
-            <span>
               {dataRow.shipping_street}, {dataRow.shipping_city},{" "}
-              {dataRow.shipping_state}, {dataRow.shipping_zip},{" "}
-              {dataRow.shipping_country}
+              {dataRow.shipping_state}, {dataRow.shipping_zip_code},{" "}
+              {dataRow.shipping_country.name}
             </span>
           );
         },
       },
       {
-        title: t("core.branch.columns.billing_street"),
+        titleTrans: "core.branch.columns.street",
         name: "billing_street",
         searchType: "text",
         sortable: true,
@@ -85,7 +76,7 @@ export default function Index({ lang }) {
         show: false,
       },
       {
-        title: t("core.branch.columns.billing_city"),
+        titleTrans: "core.branch.columns.city",
         name: "billing_city",
         searchType: "text",
         sortable: true,
@@ -93,7 +84,7 @@ export default function Index({ lang }) {
         show: false,
       },
       {
-        title: t("core.branch.columns.billing_state"),
+        titleTrans: "core.branch.columns.state",
         name: "billing_state",
         searchType: "text",
         sortable: true,
@@ -101,56 +92,16 @@ export default function Index({ lang }) {
         show: false,
       },
       {
-        title: t("core.branch.columns.billing_zip"),
-        name: "billing_zip",
+        titleTrans: "core.branch.columns.zip_code",
+        name: "billing_zip_code",
         searchType: "text",
         sortable: true,
         resizeable: true,
         show: false,
       },
       {
-        title: t("core.branch.columns.billing_country"),
+        titleTrans: "core.branch.columns.country",
         name: "billing_country",
-        searchType: "text",
-        sortable: true,
-        resizeable: true,
-        show: false,
-      },
-      {
-        title: t("core.branch.columns.shipping_street"),
-        name: "shipping_street",
-        searchType: "text",
-        sortable: true,
-        resizeable: true,
-        show: false,
-      },
-      {
-        title: t("core.branch.columns.shipping_city"),
-        name: "shipping_city",
-        searchType: "text",
-        sortable: true,
-        resizeable: true,
-        show: false,
-      },
-      {
-        title: t("core.branch.columns.shipping_state"),
-        name: "shipping_state",
-        searchType: "text",
-        sortable: true,
-        resizeable: true,
-        show: false,
-      },
-      {
-        title: t("core.branch.columns.shipping_zip"),
-        name: "shipping_zip",
-        searchType: "text",
-        sortable: true,
-        resizeable: true,
-        show: false,
-      },
-      {
-        title: t("core.branch.columns.shipping_country"),
-        name: "shipping_country",
         searchType: "text",
         sortable: true,
         resizeable: true,
@@ -159,7 +110,7 @@ export default function Index({ lang }) {
       {
         name: "is_disabled",
         width: "fit",
-        title: t("core.branch.columns.is_disabled"),
+        titleTrans: "core.branch.columns.is_disabled",
         sortable: true,
         searchType: "boolean",
         parse: {
@@ -189,7 +140,7 @@ export default function Index({ lang }) {
       },
       {
         name: "created_at",
-        title: "Created at",
+        titleTrans: "core.branch.columns.created_at",
         searchType: "date",
         width: "fit",
         sortable: true,
@@ -205,18 +156,42 @@ export default function Index({ lang }) {
         },
       },
     ],
-    [lang, loading],
+    [lang],
   );
   return (
-    <DataTable
-      title={t("core.branch.title")}
-      buttonAdd={{
-        title: "Add Branch",
-        onClick: () => {
-          // setOpenNewUser(true);
-        },
-      }}
-      columns={columns}
-    />
+    <Dialog open={showNewForm} onOpenChange={setShowNewForm}>
+      <DataTable
+        title={t("core.branch.title")}
+        addButton={{
+          title: t("core.branch.add_branch"),
+          onClick: () => {
+            setShowNewForm(true);
+          },
+        }}
+        templateItem={({ dataRow }) => (
+          <Link
+            as="button"
+            href={route("branches.show", dataRow.id)}
+            className="items-center block p-4 border-b border-muted-foreground/25"
+          >
+            <p className="flex items-center font-semibold text-left">
+              {dataRow.name}
+              {dataRow.is_main_branch && (
+                <span className="py-1 ml-4 text-xs badge primary">
+                  {t("core.branch.columns.is_main_branch")}
+                </span>
+              )}
+            </p>
+            <p className="text-sm text-left text-muted-foreground">
+              {dataRow.shipping_street}, {dataRow.shipping_city},{" "}
+              {dataRow.shipping_state}, {dataRow.shipping_zip_code},{" "}
+              {dataRow.shipping_country.name}
+            </p>
+          </Link>
+        )}
+        columns={columns}
+      />
+      <DialogContent className="w-fit"></DialogContent>
+    </Dialog>
   );
 }

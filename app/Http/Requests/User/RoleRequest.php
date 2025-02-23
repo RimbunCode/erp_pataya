@@ -18,17 +18,10 @@ class RoleRequest extends FormRequest {
    * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
    */
   public function rules(): array {
-    $defaultRules = [
-      'name' => ['required', 'string', 'max:255'],
+    return [
+      'name' => ['required', 'string', 'min:3', 'max:255'],
       'description' => ['nullable', 'string'],
       'is_disabled' => ['nullable', 'boolean'],
-    ];
-
-    if ($this->isMethod('POST')) {
-      return $defaultRules;
-    }
-    return [
-      ...$defaultRules,
       'rules' => ['nullable', 'array'],
       'rules.*.permission_id' => ['required', 'string', 'exists:permissions,id'],
       'rules.*.level' => ['required', 'integer'],

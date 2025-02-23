@@ -1,6 +1,7 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import { FormPage, FormPageContent } from "@/Pages/Core/FormPage";
 import { PlusIcon, SaveIcon, Trash2Icon } from "lucide-react";
-import React, { useEffect } from "react";
+import React from "react";
 
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
@@ -16,12 +17,12 @@ import { toast } from "sonner";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useState } from "react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Edit({ role }) {
-  const { data, setData, put, processing, errors, isDirty } = useDraftForm(
-    "role",
-    role,
-  );
+export default function Show({ role }) {
+  const { data, setData, put, post, processing, errors, isDirty } =
+    useDraftForm("role", role);
+  const { t } = useLaravelReactI18n();
   const route = window.route;
   const [newRule, setNewRule] = useState({ level: 0, only_creator: false });
   const [models, setModels] = useState([]);
@@ -81,22 +82,29 @@ export default function Edit({ role }) {
   };
   const onSubmit = (e) => {
     e.preventDefault();
-
-    put(route("roles.update", role.id), {
-      reset: ["role"],
-    });
+    if (role) {
+      put(route("roles.update", role.id), {
+        reset: ["role"],
+      });
+    } else {
+      post(route("roles.store"));
+    }
   };
   return (
     <FormPage
+      isCreate={!role}
+      errors={errors}
+      fieldNameTrans="user.role.columns"
       disabled={processing}
-      title={role.name}
+      title={role?.name ?? t("user.role.new")}
+      onSubmit={onSubmit}
       badge={
         isDirty && <span className="text-sm badge warning">Not Saved</span>
       }
       controls={
         <Button
+          type="submit"
           className="!p-2 size-fit h-8"
-          onClick={onSubmit}
           disabled={processing}
         >
           <SaveIcon />
@@ -106,15 +114,15 @@ export default function Edit({ role }) {
     >
       <FormPageContent title="General" value="general">
         <div className="grid gap-y-4 gap-x-4">
-          <FormInput label="Name" required={true}>
+          <FormInput label="Name" required={true} name="name">
             <Input
-              value={data.name}
+              value={data?.name}
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
-          <FormInput label="Description">
+          <FormInput label="Description" name="description">
             <Textarea
-              value={data.description}
+              value={data?.description}
               onChange={(e) => setData("description", e.target.value)}
             />
           </FormInput>
@@ -122,7 +130,7 @@ export default function Edit({ role }) {
           <div role="forminput" className="flex items-center space-x-2">
             <Checkbox
               id="disabled"
-              checked={data.is_disabled}
+              checked={data?.is_disabled}
               onCheckedChange={(val) => setData("is_disabled", val)}
             />
             <label
@@ -138,15 +146,15 @@ export default function Edit({ role }) {
         <div className="grid gap-x-4 grid-cols-[minmax(auto,512px)_max-content_minmax(auto,512px)_max-content] text-sm  [&>div>*]:px-4 max-w-full overflow-hidden">
           <div className="grid col-span-4 grid-cols-subgrid [&_label]:!text-base mb-4 [&>*]:!px-0 [&_[role=forminput]]:!gap-y-0.5 border-b pb-4  border-muted-foreground/25">
             <div className="col-span-4 pb-1 mb-2 border-b border-muted-foreground/25">
-              <h1 className="text-base font-bold">New Rule</h1>
+              <h1 className="text-base font-bold">{t("user.role.new_rule")}</h1>
             </div>
-            <FormInput label="Model" required>
+            <FormInput label={t("user.role.model")} required>
               <Combobox
                 search={searchModel}
                 onSearchChange={setSearchModel}
                 options={models}
                 value={newRule.model}
-                placeholder="Select a model"
+                placeholder={t("user.role.model.placeholder")}
                 templateTrigger={(model) => {
                   return <>{model.name}</>;
                 }}
@@ -168,7 +176,7 @@ export default function Edit({ role }) {
                 }}
               />
             </FormInput>
-            <FormInput label="Level">
+            <FormInput label={t("user.role.level")}>
               <Input
                 type="number"
                 value={newRule.level}
@@ -181,7 +189,7 @@ export default function Edit({ role }) {
               />
             </FormInput>
             <div className="flex justify-between col-span-2 gap-x-4">
-              <FormInput label="Only Creator" className="w-fit">
+              <FormInput label={t("user.role.only_creator")} className="w-fit">
                 {(id) => (
                   <div className="flex items-center justify-center flex-1 w-full">
                     <Checkbox
@@ -203,19 +211,19 @@ export default function Edit({ role }) {
                   onClick={onAddPermission}
                 >
                   <PlusIcon className="size-5" />
-                  Add a new rule
+                  {t("user.role.add_rule")}
                 </Button>
               </FormInput>
             </div>
           </div>
           {/* Rules */}
           <div className="grid grid-cols-subgrid col-span-4 rounded-md py-2 bg-muted [&>div]:font-bold [&>div]:text-sm">
-            <div>Model</div>
-            <div>Level</div>
-            <div>Permissions</div>
+            <div>{t("user.role.model")}</div>
+            <div>{t("user.role.level")}</div>
+            <div>{t("user.role.only_creator")}</div>
           </div>
-          {data.rules && data.rules.length > 0 ? (
-            data.rules.map((rule) => {
+          {data?.rules && data?.rules.length > 0 ? (
+            data?.rules.map((rule) => {
               return (
                 <div
                   key={rule.id}
@@ -231,7 +239,7 @@ export default function Edit({ role }) {
                           onCheckedChange={(val) => {
                             setData(
                               "rules",
-                              data.rules.map((r) =>
+                              data?.rules.map((r) =>
                                 r.id === rule.id
                                   ? { ...r, only_creator: val }
                                   : r,
@@ -243,7 +251,7 @@ export default function Edit({ role }) {
                           htmlFor={rule.id + "_checked"}
                           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          Only Creator
+                          {t("user.role.only_creator")}
                         </label>
                       </div>
                     )}
@@ -263,7 +271,7 @@ export default function Edit({ role }) {
                               onCheckedChange={(val) =>
                                 setData(
                                   "rules",
-                                  data.rules.map((r) => {
+                                  data?.rules.map((r) => {
                                     if (r.id != rule.id) return r;
 
                                     return {
@@ -281,7 +289,7 @@ export default function Edit({ role }) {
                               htmlFor={`${rule.id}_${key}_checkbox`}
                               className="text-sm leading-none capitalize peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                             >
-                              {key}
+                              {t(`user.role.permissions.${key}`)}
                             </label>
                           </div>
                         );
@@ -296,7 +304,7 @@ export default function Edit({ role }) {
                       onClick={() => {
                         setData(
                           "rules",
-                          data.rules.filter((r) => r.id !== rule.id),
+                          data?.rules.filter((r) => r.id !== rule.id),
                         );
                       }}
                     >

@@ -83,7 +83,6 @@ const Link = forwardRef(
         setIsDirty(false);
         cancel();
       });
-      console.log(isDirty);
       if (isDirty) {
         setShowAlert(true);
       } else {

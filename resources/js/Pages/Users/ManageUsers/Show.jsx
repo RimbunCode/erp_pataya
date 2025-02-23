@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import {
   Dialog,
@@ -12,13 +13,7 @@ import {
   FormPageContentTitle,
   FormPageSidebar,
 } from "@/Pages/Core/FormPage";
-import React, {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { SaveIcon, Trash2, UploadIcon } from "lucide-react";
 import {
   Select,
@@ -42,9 +37,8 @@ import UploadDialog from "@/Pages/Core/Components/UploadDialog";
 import axios from "axios";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
-function Edit({ user, roles, auth }) {
+export default function Show({ user, roles, auth }) {
   const { t } = useLaravelReactI18n();
   const { data, setData, put, processing, errors, reset, isDirty } =
     useDraftForm("user", user);
@@ -169,26 +163,26 @@ function Edit({ user, roles, auth }) {
           maiores.
         </FormPageDescription> */}
           <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
-            <FormInput label={t("user.user.email")} required={true}>
+            <FormInput label={t("user.user.columns.email")} required={true}>
               <Input
                 type="email"
                 value={data.email}
                 onChange={(e) => setData("email", e.target.value)}
               />
             </FormInput>
-            <FormInput label={t("user.user.username")} required={true}>
+            <FormInput label={t("user.user.columns.username")} required={true}>
               <Input
                 value={data.username}
                 onChange={(e) => setData("username", e.target.value)}
               />
             </FormInput>
-            <FormInput label={t("user.user.name")} required={true}>
+            <FormInput label={t("user.user.columns.name")} required={true}>
               <Input
                 value={data.name}
                 onChange={(e) => setData("name", e.target.value)}
               />
             </FormInput>
-            <FormInput label={t("user.user.gender")}>
+            <FormInput label={t("user.user.columns.gender")}>
               <Select
                 value={data.gender}
                 onValueChange={(val) => setData("gender", val)}
@@ -202,14 +196,14 @@ function Edit({ user, roles, auth }) {
                 </SelectContent>
               </Select>
             </FormInput>
-            <FormInput label={t("user.user.phone")}>
+            <FormInput label={t("user.user.columns.phone")}>
               <Input
                 type="text"
                 value={data.phone}
                 onChange={(e) => setData("phone", e.target.value)}
               />
             </FormInput>
-            <FormInput label={t("user.user.birthdate")}>
+            <FormInput label={t("user.user.columns.birthdate")}>
               <DatetimePicker
                 type="date"
                 value={data.birthdate}
@@ -220,7 +214,7 @@ function Edit({ user, roles, auth }) {
         </FormPageContent>
         {auth.user.id != user.id && (
           <FormPageContent title={t("user.user.roles")} value="roles">
-            <FormPageContentTitle>Roles</FormPageContentTitle>
+            <FormPageContentTitle>{t("user.user.roles")}</FormPageContentTitle>
             <div className="columns-[15rem] gap-x-2 mt-2">
               {roles &&
                 roles.map((role) => (
@@ -321,5 +315,3 @@ function Edit({ user, roles, auth }) {
     </>
   );
 }
-
-export default Edit;

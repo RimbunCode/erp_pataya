@@ -25,8 +25,10 @@ import UserInfo from "./UserInfo";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { usePage } from "@inertiajs/react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function Navbar({ setShowSearch }) {
+  const { t, loading } = useLaravelReactI18n();
   const breadcrumbs = usePage().props.breadcrumbs;
   const isMobile = useIsMobile();
   const breadcrumbsMenu = useMemo(() => {
@@ -45,12 +47,15 @@ export default memo(function Navbar({ setShowSearch }) {
                   <DropdownMenuContent align="start">
                     {breadcrumbs.map((breadcrumb, index) => {
                       if (index === breadcrumbs.length - 1) return null;
+                      const name = t(
+                        breadcrumb.name.replace(/__\(\s*(.*?)\s*\)/g, "$1"),
+                      );
                       return (
                         <DropdownMenuItem
                           asChild
-                          key={breadcrumb.name + index + "dropdown"}
+                          key={name + index + "dropdown"}
                         >
-                          <Link href={breadcrumb.link}>{breadcrumb.name}</Link>
+                          <Link href={breadcrumb.link}>{name}</Link>
                         </DropdownMenuItem>
                       );
                     })}
@@ -60,7 +65,12 @@ export default memo(function Navbar({ setShowSearch }) {
               <BreadcrumbSeparator className="" />
               <BreadcrumbItem>
                 <BreadcrumbPage>
-                  {breadcrumbs[breadcrumbs.length - 1].name}
+                  {t(
+                    breadcrumbs[breadcrumbs.length - 1].name.replace(
+                      /__\(\s*(.*?)\s*\)/g,
+                      "$1",
+                    ),
+                  )}
                 </BreadcrumbPage>
               </BreadcrumbItem>
             </>
@@ -70,14 +80,18 @@ export default memo(function Navbar({ setShowSearch }) {
                 <Fragment key={breadcrumb.name + index}>
                   <BreadcrumbItem className="hidden md:block">
                     <BreadcrumbLink asChild>
-                      <Link href={breadcrumb.link}>{breadcrumb.name}</Link>
+                      <Link href={breadcrumb.link}>
+                        {t(breadcrumb.name.replace(/__\(\s*(.*?)\s*\)/g, "$1"))}
+                      </Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
                   <BreadcrumbSeparator className="hidden md:block" />
                 </Fragment>
               ) : (
                 <BreadcrumbItem key={breadcrumb.name + index}>
-                  <BreadcrumbPage> {breadcrumb.name}</BreadcrumbPage>
+                  <BreadcrumbPage>
+                    {t(breadcrumb.name.replace(/__\(\s*(.*?)\s*\)/g, "$1"))}
+                  </BreadcrumbPage>
                 </BreadcrumbItem>
               ),
             )
@@ -85,7 +99,7 @@ export default memo(function Navbar({ setShowSearch }) {
         </BreadcrumbList>
       </Breadcrumb>
     );
-  }, [breadcrumbs, isMobile]);
+  }, [breadcrumbs, isMobile, loading]);
   return (
     <header className="sticky top-0 bg-background z-10  w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
       <div className="flex items-center gap-2 px-4">

@@ -71,7 +71,7 @@ class UserController extends Controller {
     $this->setBreadcrumbs($user);
     $user->showDetail();
     $user->roles = $user->roles()->pluck('id');
-    return Inertia::render('Users/ManageUsers/Edit', [
+    return Inertia::render('Users/ManageUsers/Show', [
       'user' => $user,
       'roles' => Inertia::defer(function () {
         return \App\Models\User\Role::all();
