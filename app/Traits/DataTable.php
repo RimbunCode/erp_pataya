@@ -6,7 +6,6 @@ use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
 use App\Models\Scopes\DataTableScope;
-use App\Models\User\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,9 +18,7 @@ trait DataTable {
   public static function bootDataTable() {
     static::addGlobalScope(new DataTableScope);
   }
-  public static function getTableName() {
-    return with(new static)->getTable();
-  }
+
   public function showDetail() {
     Inertia::share([
       'logs' => Inertia::defer(function () {

@@ -241,7 +241,7 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
               ?.filter((x) => x.searchType)
               .map((col) => (
                 <SelectItem key={col.name} value={col.name}>
-                  {t(col.titleTrans)}
+                  {col.title}
                 </SelectItem>
               ))}
           </ScrollArea>
