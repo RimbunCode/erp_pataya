@@ -1,10 +1,9 @@
 import { getCookieByName, removeCookie, setCookie } from "@/lib/utils";
-import { useCallback, useEffect } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 
 import { create } from "zustand";
-import { isDirty } from "zod";
 import useDidMountEffect from "./useDidMountEffect";
+import { useEffect } from "react";
 import { useIsDirtyForm } from "./useIsDirtyForm";
 
 export const useAlertDraftForm = create((set) => ({
@@ -15,126 +14,43 @@ export const useAlertDraftForm = create((set) => ({
   continue: () => {},
   setContinue: (value) => set({ continue: value }),
 }));
-/**
- *
- * @callback onContinue
- * @returns {void}
- */
-
-/**
- * @param {string} key kunci untuk menyimpan data pada cookie
- * @param {object} initialData
- * @typedef {object} OptionsProps
- * @property {number=} expiredDays jumlah hari berlaku cookie
- * @property {onContinue} onContinue callback ketika data berhasil disimpan
- * @param {OptionsProps} options
- * @returns {import("@inertiajs/react").InertiaFormProps<any>}
- */
-export const useDraftForm = (
-  key,
-  initialData,
-  { expiredDays = 1, onContinue } = {},
-) => {
+export const useDraftFrom = (key, initialData, expiredDays = 1) => {
   const { setShowAlert, setCancel, setContinue } = useAlertDraftForm();
   const { setIsDirty } = useIsDirtyForm();
   const user = usePage().props.auth.user;
   key = user ? `${key}_${user.id}` : null;
-  const {
-    submit: submitForm,
-    get: getForm,
-    patch: patchForm,
-    post: postForm,
-    put: putForm,
-    delete: deleteForm,
-    ...form
-  } = useForm(initialData);
-
-  useDidMountEffect(() => {
-    setIsDirty(form.isDirty);
-    if (!form.isDirty) {
-      removeCookie(key, window.location.pathname);
-    }
-  }, [form.isDirty]);
+  const { ...form } = useForm(initialData);
 
   useEffect(() => {
-    if (form.recentlySuccessful) {
-      form.reset();
-    }
-  }, [initialData]);
+    setIsDirty(form.isDirty);
+  }, [form.isDirty]);
+
   useDidMountEffect(() => {
-    if (key != null && form.isDirty) {
+    if (key != null) {
       setCookie(key, JSON.stringify(form.data), {
         days: expiredDays,
         path: window.location.pathname,
         sameSite: "lax",
       });
     }
-  }, [form.data, form.isDirty, key, expiredDays]);
+  }, [form.data, key, expiredDays]);
 
   useEffect(() => {
     const dataCookie = getCookieByName(key);
     if (dataCookie != null) {
       setCancel(() => {
-        console.log("remove cookie");
         removeCookie(key, window.location.pathname);
       });
       setContinue(() => {
         form.setData(JSON.parse(dataCookie));
         removeCookie(key, window.location.pathname);
-        onContinue?.();
       });
       setShowAlert(true);
     }
   }, []);
 
-  const getOptions = useCallback(
-    (options) => {
-      return {
-        preserveState: true,
-        preverseScroll: true,
-        replace: true,
-        ...options,
-        onSuccess: (e) => {
-          form.setDefaults(e.props.role);
-          if (options?.onSuccess) options.onSuccess(e);
-        },
-        onBefore: (e) => {
-          removeCookie(key, window.location.pathname);
-          if (options?.onBefore) options.onBefore(e);
-        },
-        onError: (e) => {
-          setCookie(key, JSON.stringify(form.data), {
-            days: expiredDays,
-            path: window.location.pathname,
-            sameSite: "lax",
-          });
-          if (options?.onError) options.onError(e);
-        },
-      };
-    },
-    [form],
-  );
-
   return {
     ...form,
-    submit(method, url, options) {
-      submitForm(method, url, getOptions(options));
-    },
-    get(url, options) {
-      getForm(url, getOptions(options));
-    },
-    patch(url, options) {
-      patchForm(url, getOptions(options));
-    },
-    post(url, options) {
-      postForm(url, getOptions(options));
-    },
-    put(url, options) {
-      putForm(url, getOptions(options));
-    },
-    delete(url, options) {
-      deleteForm(url, getOptions(options));
-    },
   };
 
   // return {

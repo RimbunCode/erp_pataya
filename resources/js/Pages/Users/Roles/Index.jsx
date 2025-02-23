@@ -5,28 +5,22 @@ import DataTable from "@/Pages/Core/DataTable";
 import Link from "@/Components/Link";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
-import { router } from "@inertiajs/react";
 
-// eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ data, sort, show, lang }) {
   const route = window.route;
   const tableRef = useRef();
-  /**
-   * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
-   * @type {ColumnProps[]}
-   */
   const columns = useMemo(
     () => [
       {
         name: "name",
-        titleTrans: "user.role.columns.name",
+        title: "Name",
         searchType: "text",
         sortable: true,
         resizeable: true,
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("roles.show", dataRow.id)}
+            href={route("roles.edit", dataRow.id)}
           >
             {dataRow.name}
           </Link>
@@ -34,8 +28,8 @@ export default function Index({ data, sort, show, lang }) {
       },
       {
         name: "is_disabled",
-        titleTrans: "user.role.columns.is_disabled",
         width: "fit",
+        title: "Status",
         sortable: true,
         searchType: "boolean",
         parse: {
@@ -65,7 +59,7 @@ export default function Index({ data, sort, show, lang }) {
       },
       {
         name: "created_at",
-        titleTrans: "user.role.columns.created_at",
+        title: "Created at",
         searchType: "date",
         width: "fit",
         sortable: true,
@@ -86,29 +80,12 @@ export default function Index({ data, sort, show, lang }) {
     <DataTable
       ref={tableRef}
       title="Manage Users"
-      addButton={{
+      buttonAdd={{
         title: "Add Role",
         onClick: () => {
-          router.visit(route("roles.create"));
+          // setOpenNewUser(true);
         },
       }}
-      templateItem={({ dataRow }) => (
-        <Link
-          as="button"
-          href={route("roles.show", dataRow.id)}
-          className="flex items-center p-4 border-b gap-x-4 border-muted-foreground/25"
-        >
-          <p className="text-base font-medium text-left">{dataRow.name}</p>
-          <p
-            className={cn(
-              dataRow.is_disabled ? "error" : "primary",
-              "text-left badge",
-            )}
-          >
-            {dataRow.is_disabled ? "Disabled" : "Enabled"}
-          </p>
-        </Link>
-      )}
       data={data}
       defaultSort={sort}
       defaultShow={show}

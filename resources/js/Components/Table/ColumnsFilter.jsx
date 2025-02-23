@@ -10,10 +10,8 @@ import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import React from "react";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
-import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function ColumnsFilter({ columns: initColumn, onApply, open }) {
-  const { t } = useLaravelReactI18n();
   const [columns, setColumns] = React.useState(initColumn);
 
   useDidMountEffect(() => {
@@ -25,10 +23,10 @@ function ColumnsFilter({ columns: initColumn, onApply, open }) {
   return (
     <DialogContent className="max-w-full sm:max-w-sm w-fit min-w-64">
       <DialogHeader>
-        <DialogTitle>{t("core.datatable.columns.select_column")}</DialogTitle>
+        <DialogTitle>Select Column</DialogTitle>
         <DialogDescription className="sr-only">Select Column</DialogDescription>
       </DialogHeader>
-      {columns.map(({ name, titleTrans, show }) => (
+      {columns.map(({ name, title, show }) => (
         <div key={name} className="flex items-center space-x-2">
           <Checkbox
             id={name + "-checkbox"}
@@ -48,13 +46,13 @@ function ColumnsFilter({ columns: initColumn, onApply, open }) {
             htmlFor={name + "-checkbox"}
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
-            {t(titleTrans)}
+            {title}
           </label>
         </div>
       ))}
       <DialogFooter className="flex justify-end">
         <Button className="h-8 !px-2" onClick={_onApply}>
-          {t("core.datatable.columns.apply")}
+          Apply
         </Button>
       </DialogFooter>
     </DialogContent>
