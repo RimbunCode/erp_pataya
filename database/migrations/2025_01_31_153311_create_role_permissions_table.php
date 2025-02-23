@@ -11,14 +11,16 @@ return new class extends Migration {
   public function up(): void {
     Schema::create('role_permissions', function (Blueprint $table) {
       $table->ulid('id')->primary();
+      $table->foreignUlid('permission_id')->references('id')->on('permissions')->cascadeOnDelete();
       $table->string('name');
-      $table->string('slug');
-      $table->foreignUlid('role_id')->nullable()->references('id')->on('roles')->cascadeOnDelete();
+      $table->text('model');
+      $table->foreignUlid('role_id')->references('id')->on('roles')->cascadeOnDelete();
       $table->unsignedSmallInteger('level')->default(0);
+      $table->boolean('only_creator')->default(false);
       $table->json('permissions')->nullable();
       $table->timestamps();
       $table->softDeletes();
-      $table->unique(['slug', 'deleted_at']);
+      $table->unique(['role_id', 'permission_id', 'only_creator', 'deleted_at'], 'role_permissions_unique');
     });
   }
 

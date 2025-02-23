@@ -27,13 +27,15 @@ export default memo(function UserInfo() {
     <DropdownMenu>
       <DropdownMenuTrigger className="inline-flex items-center border-gray-200 rounded-md lg:mx-2 gap-x-2 dark:border-gray-700">
         <Avatar className="rounded-lg size-9">
-          <AvatarImage
-            src={
-              route("files.show", user.image) +
-              `?v=${new Date(user.updated_at).getTime()}`
-            }
-            alt={user.name}
-          />
+          {user.image && (
+            <AvatarImage
+              src={
+                route("files.show", user.image) +
+                `?v=${new Date(user.updated_at).getTime()}`
+              }
+              alt={user.name}
+            />
+          )}
           <AvatarFallback className="text-base font-semibold rounded-full">
             {alias}
           </AvatarFallback>
@@ -48,13 +50,15 @@ export default memo(function UserInfo() {
         <DropdownMenuLabel className="p-0 font-normal">
           <div className="flex items-center gap-3 px-1 py-1.5 text-left text-sm">
             <Avatar className="rounded-lg size-12">
-              <AvatarImage
-                src={
-                  route("files.show", user.image) +
-                  `?v=${new Date(user.updated_at).getTime()}`
-                }
-                alt={user.name}
-              />
+              {user.image && (
+                <AvatarImage
+                  src={
+                    route("files.show", user.image) +
+                    `?v=${new Date(user.updated_at).getTime()}`
+                  }
+                  alt={user.name}
+                />
+              )}
               <AvatarFallback className="text-xl font-semibold rounded-lg">
                 {alias}
               </AvatarFallback>
@@ -84,7 +88,7 @@ export default memo(function UserInfo() {
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
             <Link
-              href={route("users.edit", user.id)}
+              href={route("users.show", user.id)}
               as="button"
               className="w-full"
             >

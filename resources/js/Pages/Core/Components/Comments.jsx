@@ -4,6 +4,7 @@ import { MessageSquare, Paperclip, SendHorizonal, Trash2 } from "lucide-react";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
 import {
   cleanedQuillOutput,
+  cn,
   getLocaleDate,
   isNullOrWhitespace,
 } from "@/lib/utils";
@@ -17,9 +18,11 @@ import { TZDate } from "@date-fns/tz";
 import axios from "axios";
 import { debounce } from "lodash";
 import { format } from "date-fns";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function Comments() {
   const { logs, lang } = usePage().props;
+  const { t } = useLaravelReactI18n();
   const commentRef = useRef();
   const route = window.route;
   const [comment, setComment] = useState("");
@@ -97,20 +100,11 @@ export default memo(function Comments() {
           `${route("users.index")}?${QueryString.stringify({
             search: searchTerm,
             limit: 10,
-            // excepts: tags?.map((t) => t.name),
           })}`,
         )
         .then((res) => {
           const data = res.data.map((x) => ({ id: x.id, value: x.name }));
           return data;
-          // if (data.findIndex((t) => t.name === search) === -1) {
-          //   data.unshift({
-          //     id: generateRandom(8),
-          //     name: search,
-          //     isNew: true,
-          //   });
-          // }
-          // setListTags(data);
         })
         .catch((err) => {
           console.log(err);
@@ -121,7 +115,7 @@ export default memo(function Comments() {
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex flex-col gap-y-2">
-        <h1 className="text-xl font-bold">Comments</h1>
+        <h1 className="text-xl font-bold">{t("core.form.comments")}</h1>
         <div
           className="flex w-full max-w-full gap-x-3"
           onKeyDown={(e) => {
@@ -129,13 +123,15 @@ export default memo(function Comments() {
           }}
         >
           <Avatar className="rounded-full size-10">
-            <AvatarImage
-              src={
-                route("files.show", user.image) +
-                `?v=${new Date(user.updated_at).getTime()}`
-              }
-              alt={user.name}
-            />
+            {user.image && (
+              <AvatarImage
+                src={
+                  route("files.show", user.image) +
+                  `?v=${new Date(user.updated_at).getTime()}`
+                }
+                alt={user.name}
+              />
+            )}
             <AvatarFallback className="text-xl font-semibold rounded-lg">
               {alias}
             </AvatarFallback>
@@ -143,7 +139,7 @@ export default memo(function Comments() {
           <ReactQuill
             ref={commentRef}
             placeholder="Type a reply / comment"
-            className="relative [&_*]:!font-sans focus:!border-0 grid grid-cols-1 text-wrap w-full max-w-full flex-grow  basis-0  rounded-md border border-input bg-background  text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            className="bg-muted relative [&_*]:!font-sans focus:!border-0 grid grid-cols-1 text-wrap w-full max-w-full flex-grow  basis-0  rounded-lg border border-input  text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             theme="bubble"
             value={comment}
             onChange={setComment}
@@ -167,7 +163,7 @@ export default memo(function Comments() {
         </div>
       </div>
       <div className="flex flex-col gap-y-2">
-        <h1 className="text-xl font-bold">Activity</h1>
+        <h1 className="text-xl font-bold">{t("core.form.activity")}</h1>
         <ol className="relative ml-3.5 border-muted border-s-2 ">
           <Deferred
             data={["logs"]}
@@ -175,7 +171,7 @@ export default memo(function Comments() {
               <li className="mb-3 first:mt-2 ms-6">
                 <div className="!text-base font-normal text-foreground flex gap-x-4">
                   <LoadingIcon className="size-4" />
-                  <span>Loading ...</span>
+                  <span>{t("core.form.loading")} ...</span>
                 </div>
               </li>
             }
@@ -183,24 +179,31 @@ export default memo(function Comments() {
             {logs &&
               logs.map(({ id, type, activity, user, created_at }) => (
                 <li key={id} className="mb-3 first:mt-2 ms-6">
-                  <div className="p-2 -mt-0.5 size-[34px] -start-[18px] bg-muted border-[3px] border-muted flex justify-center items-center absolute rounded-full">
+                  <div
+                    className={cn(
+                      type == "log" ? "bg-inherit" : "bg-muted border-[3px]",
+                      "p-2 -mt-0.5 size-[34px] -start-[18px]   border-muted flex justify-center items-center absolute rounded-full",
+                    )}
+                  >
                     {type == "log" && (
-                      <span className="block rounded-full bg-muted-foreground size-2" />
+                      <span className="block rounded-full bg-accent-foreground size-2" />
                     )}
                     {type == "attachment" && <Paperclip className="size-4" />}
                     {type == "comment" && <MessageSquare className="size-4" />}
                   </div>
                   {type == "comment" ? (
-                    <div className="rounded-lg px-4 py-2 grid grid-cols-[auto_1fr] gap-x-4 border border-muted-foreground/30">
+                    <div className="rounded-lg px-4 py-1 grid grid-cols-[auto_1fr] gap-x-4 border border-muted-foreground/30">
                       <div className="flex items-center">
                         <Avatar className="rounded-full h-max size-10">
-                          <AvatarImage
-                            src={
-                              route("files.show", user.image) +
-                              `?v=${new Date(user.updated_at).getTime()}`
-                            }
-                            alt={user.name}
-                          />
+                          {user.image && (
+                            <AvatarImage
+                              src={
+                                route("files.show", user.image) +
+                                `?v=${new Date(user.updated_at).getTime()}`
+                              }
+                              alt={user.name}
+                            />
+                          )}
                           <AvatarFallback className="text-xl font-semibold rounded-lg">
                             {alias}
                           </AvatarFallback>
@@ -209,12 +212,12 @@ export default memo(function Comments() {
                       <div className="flex items-center border-b border-muted-foreground/30">
                         <div className="flex-1">
                           <Link
-                            href={route("users.edit", user.id)}
+                            href={route("users.show", user.id)}
                             className="hover:underline"
                           >
                             {user.name}
                           </Link>{" "}
-                          <span>commented</span>
+                          <span>{t("core.form.commented")}</span>
                           <span className="mx-2 text-muted-foreground">●</span>
                           <span className="text-muted-foreground">
                             {format(new TZDate(created_at, "UTC"), "PPPp", {
@@ -231,7 +234,7 @@ export default memo(function Comments() {
                           <Trash2 />
                         </Button>
                       </div>
-                      <div className="[&_pre]:!font-sans col-start-2 pt-2  font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
+                      <div className="[&_pre]:!font-sans col-start-2 pt-2 [&_*]:text-sm  font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
                         <div
                           className="ql-editor !p-0"
                           dangerouslySetInnerHTML={{
@@ -248,15 +251,15 @@ export default memo(function Comments() {
                             locale: getLocaleDate(lang),
                           })}
                         </span>
-                        {user && (
-                          <span className="font-bold"> by {user.name}</span>
-                        )}
                       </time>
-                      <div className="[&_pre]:!font-sans col-start-2 pt-2  font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
+                      <div className="[&_pre]:!font-sans col-start-2 pt-0 [&_*]:text-sm font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
                         <div
-                          className="ql-editor !p-0"
+                          className="ql-editor !p-0 hover:[&_*[role=noeditor]]:!underline [&_*[role=noeditor]]:!no-underline [&_*[role=noeditor]]:after:!content-none [&_*[role=noeditor]]:before:!content-none"
                           dangerouslySetInnerHTML={{
-                            __html: activity,
+                            __html: activity[lang].replace(
+                              ":user",
+                              `<a role="noeditor" href="${route("users.show", user.id)} rel="noopener noreferrer" target="_blank" >${user.name}</a>`,
+                            ),
                           }}
                         />
                       </div>

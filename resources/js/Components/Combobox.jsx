@@ -6,54 +6,82 @@ import {
   CommandItem,
   CommandList,
 } from "./ui/command";
+import { DialogHeader, DialogTitle } from "./ui/dialog";
+import { Drawer, DrawerContent, DrawerTrigger } from "./ui/drawer";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import React, { useEffect, useRef } from "react";
 
 import { Button } from "./ui/button";
-import React from "react";
+import { ChevronDown } from "lucide-react";
+import { DialogDescription } from "@radix-ui/react-dialog";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/Hooks/use-mobile";
 
 function Combobox({
   options = [],
   search: searchProps,
   onSearchChange,
-  option: optionProps,
-  onOptionChange,
+  value: optionProps,
+  onValueChange,
   templateTrigger,
   templateItem,
   placeholder,
   className,
 }) {
+  const commandRef = useRef();
+  const isMobile = useIsMobile();
   const [open, setOpen] = React.useState(false);
   const [_option, _setOption] = React.useState();
   const [_search, _setSearch] = React.useState();
 
   const option = optionProps || _option;
-  const setOption = onOptionChange || _setOption;
+  const setOption = onValueChange || _setOption;
   const search = searchProps || _search;
   const setSearch = onSearchChange || _setSearch;
 
+  useEffect(() => {
+    if (open) {
+      commandRef.current?.focus();
+    }
+  }, [open]);
+
+  const Parent = isMobile ? Drawer : Popover;
+  const ParentTrigger = isMobile ? DrawerTrigger : PopoverTrigger;
+  const ParentContent = isMobile ? DrawerContent : PopoverContent;
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <Parent open={open} onOpenChange={setOpen}>
+      <ParentTrigger asChild>
         <Button
           variant="outline"
           size="sm"
-          className={cn("flex justify-start w-full ", className)}
+          className={cn(
+            "flex justify-between w-full bg-accent h-8 ",
+            className,
+          )}
         >
           {option ? (
             templateTrigger ? (
-              React.Children.only(templateTrigger(option))
+              templateTrigger(option)
             ) : (
               <>option</>
             )
           ) : (
             <>{placeholder}</>
           )}
+          <ChevronDown className="w-4 h-4 ml-2" />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent className="p-0" side="right" align="start">
+      </ParentTrigger>
+      <ParentContent className="p-0" side="bottom" align="start">
+        {isMobile && (
+          <DialogHeader className="sr-only">
+            <DialogTitle>Choose an option</DialogTitle>
+            <DialogDescription></DialogDescription>
+          </DialogHeader>
+        )}
         <Command>
           <CommandInput
+            ref={commandRef}
             value={search}
             onValueChange={setSearch}
             placeholder="Search..."
@@ -69,6 +97,7 @@ function Combobox({
                     onSelect: (value) => {
                       child.props.onSelect?.(value);
                       setOpen(false);
+                      setSearch("");
                     },
                   });
                 }
@@ -88,8 +117,8 @@ function Combobox({
             </CommandGroup>
           </CommandList>
         </Command>
-      </PopoverContent>
-    </Popover>
+      </ParentContent>
+    </Parent>
   );
 }
 

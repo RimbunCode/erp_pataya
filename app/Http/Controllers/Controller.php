@@ -9,14 +9,89 @@ use App\Models\Core\Fileable;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
+use App\Models\User\RolePermission;
 use App\Models\User\User;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 abstract class Controller {
   protected string $model;
+  protected $permissions;
+  protected string $lang;
+
+
+  /**
+   * Summary of setBreadcrumbs
+   * @param (\Illuminate\Database\Eloquent\Model|string)[] $models
+   * @return void
+   */
+  protected function setBreadcrumbs(Model|string ...$models) {
+    if (empty($models)) {
+      $tableName = $this->model::getTableName();
+      $breadcrumbs = [['name' => Str::title($tableName)]];
+    } else {
+      $breadcrumbs = [];
+      /**
+       *  @var \Illuminate\Database\Eloquent\Model $model
+       */
+      foreach ($models as $key => $model) {
+        if (\gettype($model) == 'string') {
+          $tableName = $this->model::getTableName();
+          $breadcrumbs[] = ['name' => Str::title($tableName), 'link' => route("{$tableName}.index")];
+          $breadcrumbs[] = ['name' => $model];
+          break;
+        }
+        $tableName = $model->getTable();
+        if ($key == 0) {
+          $breadcrumbs[] = ['name' => Str::title($tableName), 'link' => route("{$tableName}.index")];
+          $breadcrumbs[] = ($key == (count($breadcrumbs) - 1)) ?
+            ['name' => $model->name] :
+            ['name' => $model->name, 'link' => route("{$tableName}.edit")];
+          continue;
+        }
+
+        preg_match('/([^\\\\]+)$/',  \get_class($model), $className);
+        $breadcrumbs[] = ($key == (count($breadcrumbs) - 1)) ?
+          ['name' => "{$className[1]}: {$model->name}"] :
+          ['name' => "{$className[1]}: {$model->name}", 'link' => route("{$tableName}.edit")];
+      }
+    }
+
+    Inertia::share([
+      'breadcrumbs' => $breadcrumbs,
+    ]);
+  }
+
+  public function __construct(Request $request, string $model = null) {
+    if (!$model)
+      return;
+    $this->lang = $request->cookie('lang') ?? 'en';
+    $this->model = $model;
+    $this->permissions = RolePermission::select('role_permissions.permissions')
+      ->join('roles', 'roles.id', '=', 'role_permissions.role_id')
+      ->join('user_role', 'user_role.role_id', '=', 'roles.id')
+      ->where('user_role.user_id', $request->user()->id)
+      ->where('model', $this->model)
+      ->first()?->permissions;
+    Inertia::share('permissions', $this->permissions);
+  }
+  protected function guard($operation) {
+    $isAllow = in_array($operation, $this->permissions);
+
+    if (!$isAllow) {
+      abort(403);
+    }
+  }
+
+  protected function isInertiaRequest(Request $request) {
+    if (!$request->ajax())
+      return true;
+    return $request->header('X-Inertia') == 'true' || $request->header('X-Inertia-Partial') == 'true';
+  }
   public function addComment(CommentRequest $request, $param) {
     $request->validated();
 
@@ -57,7 +132,11 @@ abstract class Controller {
         'name' => $request->name
       ]);
       $tag->logs()->create([
-        'activity' => '<p>:user created this</p>'
+        'user_id' => $request->user()->id,
+        'activity' => [
+          'en' => ':user created this',
+          'id' => ':user telah membuat ini'
+        ]
       ]);
     }
     $tag = $request->isNew ? Tag::create([

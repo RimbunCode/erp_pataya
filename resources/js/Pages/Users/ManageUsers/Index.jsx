@@ -14,23 +14,31 @@ import Link from "@/Components/Link";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { getLocaleDate } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { Avatar, AvatarImage, AvatarFallback } from "@/Components/ui/avatar";
 
+// eslint-disable-next-line jsdoc/require-jsdoc
 function Index({ lang }) {
+  const route = window.route;
+  const { t } = useLaravelReactI18n();
   const [openNewUser, setOpenNewUser] = useState(false);
   const tableRef = useRef();
+  /**
+   * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
+   * @type {ColumnProps[]}
+   */
   const columns = useMemo(
     () => [
       {
         name: "name",
-        title: "Name",
+        titleTrans: "user.user.columns.name",
         searchType: "text",
         sortable: true,
         resizeable: true,
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            // eslint-disable-next-line no-undef
-            href={route("users.edit", dataRow.id)}
+            href={route("users.show", dataRow.id)}
           >
             {dataRow.name}
           </Link>
@@ -38,15 +46,15 @@ function Index({ lang }) {
       },
       {
         name: "email",
-        title: "Email",
+        titleTrans: "user.user.columns.email",
         searchType: "text",
         sortable: true,
         resizeable: true,
       },
       {
         name: "status",
+        titleTrans: "user.user.columns.status",
         width: "fit",
-        title: "Status",
         searchType: ["invited", "active", "inactive"],
         parse: {
           invited: "Invitedd",
@@ -67,7 +75,7 @@ function Index({ lang }) {
       },
       {
         name: "created_at",
-        title: "Created at",
+        titleTrans: "user.user.columns.created_at",
         searchType: "date",
         width: "fit",
         sortable: true,
@@ -88,9 +96,42 @@ function Index({ lang }) {
     <Dialog open={openNewUser} onOpenChange={setOpenNewUser}>
       <DataTable
         ref={tableRef}
-        title="Manage Users"
-        buttonAdd={{
-          title: "Add User",
+        title={t("user.user.title")}
+        templateItem={({ dataRow: user }) => {
+          const alias = user.name
+            .split(" ")
+            .slice(0, 2)
+            .map((n) => n.charAt(0))
+            .join("");
+          return (
+            <Link
+              as="button"
+              href={route("users.show", user.id)}
+              className="flex justify-start gap-1 p-4 border-b gap-x-4 border-muted-foreground/25"
+            >
+              <Avatar className="rounded-lg size-12">
+                {user.image && (
+                  <AvatarImage
+                    src={
+                      route("files.show", user.image) +
+                      `?v=${new Date(user.updated_at).getTime()}`
+                    }
+                    alt={user.name}
+                  />
+                )}
+                <AvatarFallback className="text-xl font-semibold rounded-full">
+                  {alias}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <p className="font-semibold text-left">{user.name}</p>
+                <p className="text-sm text-left">{user.email}</p>
+              </div>
+            </Link>
+          );
+        }}
+        addButton={{
+          title: t("user.user.addButton"),
           onClick: () => {
             setOpenNewUser(true);
           },
