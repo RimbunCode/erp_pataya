@@ -106,7 +106,7 @@ function Index({ lang }) {
         addButton={{
           title: t("purchase.supplier.addButton"),
           onClick: () => {
-            router.visit(route("supplier.create"));
+            router.visit(route("suppliers.create"));
           },
         }}
         columns={columns}
