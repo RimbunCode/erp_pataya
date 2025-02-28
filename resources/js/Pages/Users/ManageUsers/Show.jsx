@@ -11,7 +11,6 @@ import {
   FormPage,
   FormPageContent,
   FormPageContentTitle,
-  FormPageSidebar,
 } from "@/Pages/Core/FormPage";
 import React, { useCallback, useMemo, useState } from "react";
 import { SaveIcon, Trash2, UploadIcon } from "lucide-react";
@@ -105,57 +104,55 @@ export default function Show({ user, roles, auth }) {
             {t("core.form.save")}
           </Button>
         }
-      >
-        <FormPageSidebar>
-          {(defaultComp) => (
-            <>
-              <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
-                <Avatar className="relative w-full h-auto border rounded-xl aspect-square max-w-64 group">
-                  {avatar}
-                  <AvatarFallback className="rounded-lg ">
-                    <p className="w-full font-semibold text-center text-muted-foreground text-9xl  transition-[filter]">
-                      {alias}
-                    </p>
-                  </AvatarFallback>
-                  <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
+        sidebarContent={(defaultComp) => (
+          <>
+            <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
+              <Avatar className="relative w-full h-auto border rounded-xl aspect-square max-w-64 group">
+                {avatar}
+                <AvatarFallback className="rounded-lg ">
+                  <p className="w-full font-semibold text-center text-muted-foreground text-9xl  transition-[filter]">
+                    {alias}
+                  </p>
+                </AvatarFallback>
+                <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DialogTrigger asChild>
+                        <Button variant="default" size="icon">
+                          <UploadIcon className="!size-5" />
+                        </Button>
+                      </DialogTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent align="center">Upload</TooltipContent>
+                  </Tooltip>
+                  {user.image && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <DialogTrigger asChild>
-                          <Button variant="default" size="icon">
-                            <UploadIcon className="!size-5" />
-                          </Button>
-                        </DialogTrigger>
+                        <Button variant="destructive" size="icon">
+                          <Trash2 className="!size-5" />
+                        </Button>
                       </TooltipTrigger>
-                      <TooltipContent align="center">Upload</TooltipContent>
+                      <TooltipContent align="center">Remove</TooltipContent>
                     </Tooltip>
-                    {user.image && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="destructive" size="icon">
-                            <Trash2 className="!size-5" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent align="center">Remove</TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                </Avatar>
-                <UploadDialog
-                  open={openAttachment}
-                  imageOnly
-                  options={{
-                    route: route(route().current(), route().params) + "/image",
-                    reset: ["user", "auth"],
-                  }}
-                  onClose={() => {
-                    setOpenAttachment(false);
-                  }}
-                />
-              </Dialog>
-              {defaultComp}
-            </>
-          )}
-        </FormPageSidebar>
+                  )}
+                </div>
+              </Avatar>
+              <UploadDialog
+                open={openAttachment}
+                imageOnly
+                options={{
+                  route: route(route().current(), route().params) + "/image",
+                  reset: ["user", "auth"],
+                }}
+                onClose={() => {
+                  setOpenAttachment(false);
+                }}
+              />
+            </Dialog>
+            {defaultComp}
+          </>
+        )}
+      >
         <FormPageContent title={t("user.user.basic_info")} value="basic_info">
           {/* <FormPageTitle>Test</FormPageTitle>
         <FormPageDescription>

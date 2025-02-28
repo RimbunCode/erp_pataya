@@ -40,7 +40,12 @@ export default memo(function Attachments() {
             asChild
             className="group-data-[disabled=true]/form:hidden"
           >
-            <Button variant="ghost" className="rounded-full !p-0" size="icon">
+            <Button
+              variant="ghost"
+              className="rounded-full !p-0"
+              size="icon"
+              type="button"
+            >
               <Plus />
             </Button>
           </DialogTrigger>

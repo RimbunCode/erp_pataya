@@ -124,6 +124,7 @@ function Tags() {
           variant="ghost"
           className="rounded-full !p-0 group-data-[disabled=true]/form:hidden"
           size="icon"
+          type="button"
           onClick={() => setShowSearch(!showSearch)}
         >
           {showSearch ? <X /> : <Plus />}

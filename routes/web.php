@@ -58,6 +58,8 @@ Route::middleware(['auth', 'lang'])->group(function () {
     Route::resource('company', \App\Http\Controllers\Core\CompanyController::class)->only(['index', 'store']);
     // Branches
     Route::resourceDetail('branches', 'branch', \App\Http\Controllers\Core\BranchController::class);
+    // Warehouse
+    Route::resourceDetail('warehouses', 'warehouse', \App\Http\Controllers\Inventory\WarehouseController::class);
   });
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);

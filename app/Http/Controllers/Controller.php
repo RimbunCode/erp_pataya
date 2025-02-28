@@ -71,6 +71,8 @@ abstract class Controller {
       return;
     $this->lang = $request->cookie('lang') ?? 'en';
     $this->model = $model;
+    if (!$model)
+      return;
     $this->permissions = RolePermission::select('role_permissions.permissions')
       ->join('roles', 'roles.id', '=', 'role_permissions.role_id')
       ->join('user_role', 'user_role.role_id', '=', 'roles.id')

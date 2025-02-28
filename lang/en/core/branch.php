@@ -1,9 +1,10 @@
 <?php
 
 return [
-  'title' => 'Company Settings',
+  'title' => 'Branches Company',
   'add_branch' => 'Add Branch',
   'branch_detail' => 'Branch Details',
+  'new' => 'New Branch',
   'columns' => [
     'name' => 'Name',
     'email' => 'Email',

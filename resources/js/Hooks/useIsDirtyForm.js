@@ -3,6 +3,10 @@ import { create } from "zustand";
 export const useIsDirtyForm = create((set) => ({
   isDirty: false,
   setIsDirty: (value) => set({ isDirty: value }),
+  processing: false,
+  setProcessing: (value) => set({ processing: value }),
+  recentlySuccessful: false,
+  setRecentlySuccessful: (value) => set({ recentlySuccessful: value }),
   showAlert: false,
   setShowAlert: (value) => set({ showAlert: value }),
   cancel: () => {},

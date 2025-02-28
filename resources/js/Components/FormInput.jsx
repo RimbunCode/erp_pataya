@@ -8,14 +8,14 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 /**
  *
- * @typedef FormInputProps
- * @property {string} label
- * @property {boolean} required
- * @property {string} className
- * @property {string} name
- * @property {object} errors
- * @property {string} description
- * @param {FormInputProps} props
+ * @param {object} props
+ * @param {string} props.label
+ * @param {boolean} props.required
+ * @param {string} props.className
+ * @param {string} props.name
+ * @param {object} props.errors
+ * @param {string} props.description
+ * @param {React.ReactNode} props.children
  * @returns {React.JSX.Element}
  */
 function FormInput({

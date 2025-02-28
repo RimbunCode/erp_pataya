@@ -20,6 +20,7 @@ return [
   'tags' => 'Tags',
   'not_saved' => 'Not Saved',
   'save' => 'Save',
+  'cancel' => 'Cancel',
   'loading' => 'Loading',
   'pick_date' => 'Pick a Date',
   'type_comment' => 'Type a reply / comment',

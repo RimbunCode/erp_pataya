@@ -17,6 +17,7 @@ return new class extends Migration {
       $table->foreignUlid('role_id')->references('id')->on('roles')->cascadeOnDelete();
       $table->unsignedSmallInteger('level')->default(0);
       $table->boolean('only_creator')->default(false);
+      $table->boolean('is_submittable')->default(false);
       $table->json('permissions')->nullable();
       $table->timestamps();
       $table->softDeletes();

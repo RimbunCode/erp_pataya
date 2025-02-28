@@ -7,6 +7,9 @@ import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { Dialog, DialogContent } from "@/Components/ui/dialog";
+import Form from "./Form";
+import { useDraftForm } from "@/Hooks/useDraftForm";
+import { FormPageDialog } from "@/Pages/Core/FormPage";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ lang }) {
@@ -14,6 +17,20 @@ export default function Index({ lang }) {
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
+  const { data, setData, post, processing, errors, isDirty } = useDraftForm(
+    "branch",
+    {},
+    {
+      onContinueDraft: () => {
+        setShowNewForm(true);
+      },
+    },
+  );
+  const onSubmit = (e) => {
+    e.preventDefault();
+
+    post(route("branches.store"));
+  };
   /**
    * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
    * @type {ColumnProps[]}
@@ -159,7 +176,7 @@ export default function Index({ lang }) {
     [lang],
   );
   return (
-    <Dialog open={showNewForm} onOpenChange={setShowNewForm}>
+    <>
       <DataTable
         title={t("core.branch.title")}
         addButton={{
@@ -191,7 +208,17 @@ export default function Index({ lang }) {
         )}
         columns={columns}
       />
-      <DialogContent className="w-fit"></DialogContent>
-    </Dialog>
+      <FormPageDialog
+        title={t("core.branch.new")}
+        disabled={processing}
+        errors={errors}
+        onSubmit={onSubmit}
+        open={showNewForm}
+        onOpenChange={setShowNewForm}
+        className="max-w-lg"
+      >
+        <Form data={data} setData={setData} />
+      </FormPageDialog>
+    </>
   );
 }
