@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Notifications\Channels\DatabaseChannel as IlluminateDatabaseChannel;
 use Illuminate\Notifications\Notification as IlluminateNotification;
 use Illuminate\Support\Facades\Vite;
@@ -23,5 +24,9 @@ class AppServiceProvider extends ServiceProvider {
 
     $this->app->instance(IlluminateDatabaseChannel::class, new \App\Channels\DatabaseChannel());
     $this->app->instance(IlluminateNotification::class, new \App\Notifications\BaseNotification());
+
+    \collect(\glob(base_path('/database/macros/*.php')))->each(function ($file) {
+      require $file;
+    });
   }
 }

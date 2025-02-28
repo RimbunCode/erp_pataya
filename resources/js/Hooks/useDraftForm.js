@@ -17,7 +17,7 @@ export const useAlertDraftForm = create((set) => ({
 }));
 /**
  *
- * @callback onContinue
+ * @callback onContinueDraft
  * @returns {void}
  */
 
@@ -26,17 +26,17 @@ export const useAlertDraftForm = create((set) => ({
  * @param {object} initialData
  * @typedef {object} OptionsProps
  * @property {number=} expiredDays jumlah hari berlaku cookie
- * @property {onContinue} onContinue callback ketika data berhasil disimpan
+ * @property {onContinueDraft} onContinueDraft callback ketika data berhasil disimpan
  * @param {OptionsProps} options
  * @returns {import("@inertiajs/react").InertiaFormProps<any>}
  */
 export const useDraftForm = (
   key,
   initialData,
-  { expiredDays = 1, onContinue } = {},
+  { expiredDays = 1, onContinueDraft } = {},
 ) => {
   const { setShowAlert, setCancel, setContinue } = useAlertDraftForm();
-  const { setIsDirty } = useIsDirtyForm();
+  const { setIsDirty, setProcessing, setRecentlySuccessful } = useIsDirtyForm();
   const user = usePage().props.auth.user;
   key = user ? `${key}_${user.id}` : null;
   const {
@@ -55,6 +55,12 @@ export const useDraftForm = (
       removeCookie(key, window.location.pathname);
     }
   }, [form.isDirty]);
+  useDidMountEffect(() => {
+    setProcessing(form.processing);
+  }, [form.processing]);
+  useDidMountEffect(() => {
+    setRecentlySuccessful(form.recentlySuccessful);
+  }, [form.recentlySuccessful]);
 
   useEffect(() => {
     if (form.recentlySuccessful) {
@@ -75,13 +81,12 @@ export const useDraftForm = (
     const dataCookie = getCookieByName(key);
     if (dataCookie != null) {
       setCancel(() => {
-        console.log("remove cookie");
         removeCookie(key, window.location.pathname);
       });
       setContinue(() => {
         form.setData(JSON.parse(dataCookie));
         removeCookie(key, window.location.pathname);
-        onContinue?.();
+        onContinueDraft?.();
       });
       setShowAlert(true);
     }

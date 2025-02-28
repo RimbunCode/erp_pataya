@@ -13,5 +13,6 @@ class Permission extends Model {
   protected $guarded = ['id'];
   protected $casts = [
     'permissions' => Json::class,
+    'is_submittable' => 'boolean',
   ];
 }

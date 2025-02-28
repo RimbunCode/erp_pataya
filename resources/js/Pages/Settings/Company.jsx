@@ -1,11 +1,5 @@
-import { ChevronDown, SaveIcon } from "lucide-react";
-import {
-  FormPage,
-  FormPageBottomBar,
-  FormPageContent,
-  FormPageSidebar,
-} from "../Core/FormPage";
-import React, { useEffect, useState } from "react";
+/* eslint-disable jsdoc/require-jsdoc */
+import { FormPage, FormPageContent } from "../Core/FormPage";
 import {
   Select,
   SelectContent,
@@ -20,8 +14,9 @@ import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
+import React from "react";
+import { SaveIcon } from "lucide-react";
 import { Textarea } from "@/Components/ui/textarea";
-import axios from "axios";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -71,10 +66,9 @@ export default function Company({ preferences, currencies }) {
           {t("core.form.save")}
         </Button>
       }
+      sidebarContent={false}
+      bottombarContent={false}
     >
-      <FormPageSidebar hidden />
-      <FormPageBottomBar hidden />
-
       <FormPageContent
         value="company_details"
         title={t("core.company.company_details.title")}
@@ -285,7 +279,7 @@ export default function Company({ preferences, currencies }) {
               templateItem={(currency) => {
                 return (
                   <CommandItem
-                    key={currency.id}
+                    key={currency.code}
                     value={`${currency.name} ${currency.code}`}
                     keywords={[currency.code, currency.name]}
                     onSelect={() => {

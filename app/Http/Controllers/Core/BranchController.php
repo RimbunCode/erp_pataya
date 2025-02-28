@@ -23,7 +23,11 @@ class BranchController extends Controller {
     Branch::whereNull('branchable_type')
       ->whereNull('branchable_id')
       ->dataTable($request);
-    return Inertia::render('Settings/Branches/Index');
+    return Inertia::render('Settings/Branches/Index', [
+      'countries' => Inertia::defer(function () {
+        return Country::all();
+      })
+    ]);
   }
 
   /**
@@ -36,8 +40,19 @@ class BranchController extends Controller {
   /**
    * Store a newly created resource in storage.
    */
-  public function store(Request $request) {
-    //
+  public function store(BranchRequest $request) {
+    $data = $request->validated();
+    DB::beginTransaction();
+    $branch = Branch::create($data);
+    $branch->logs()->create([
+      'user_id' => $request->user()->id,
+      'activity' => [
+        'en' => ':user created this',
+        'id' => ':user membuat ini'
+      ]
+    ]);
+    DB::commit();
+    return back();
   }
 
   /**
@@ -63,7 +78,7 @@ class BranchController extends Controller {
     DB::beginTransaction();
     $branch->update($data);
     $branch->logs()->create([
-      'user_id' => $branch->id,
+      'user_id' => $request->user()->id,
       'activity' => [
         'en' => ':user updated this',
         'id' => ':user memperbarui ini'

@@ -23,7 +23,6 @@ createServer((page) =>
           ...page.props.ziggy,
           location: new URL(page.props.ziggy.location),
         });
-      console.log(props);
       return (
         <LaravelReactI18nProvider
           locale={props.initialPage.props.lang}

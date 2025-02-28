@@ -26,37 +26,6 @@ function FileItem({
       <FileText className="p-3 border rounded-lg size-full text-muted-foreground" />
     ),
   );
-  //   axios
-  //     .post(
-  //       route("files.store"),
-  //       {
-  //         file: file,
-  //       },
-  //       {
-  //         headers: {
-  //           "Content-Type": "multipart/form-data",
-  //         },
-  //         onUploadProgress: (e) => {
-  //           setProgress(e.progress * 100);
-  //         },
-  //       },
-  //     )
-  //     .then(({ data }) => {
-  //       console.log(data);
-  //       setIsNew(false);
-  //     })
-  //     .catch((err) => {
-  //       console.log(err);
-  //     })
-  //     .finally(() => {
-  //       setProgress(false);
-  //     });
-  // }, []);
-  // useState(() => {
-  //   if (isNew) {
-  //     // uploadFile(file);
-  //   }
-  // }, [isNew]);
   const removeFile = useCallback((id) => {
     onRemove(id);
   });

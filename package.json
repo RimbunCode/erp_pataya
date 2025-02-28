@@ -72,6 +72,7 @@
     "react-day-picker": "^8.10.1",
     "react-detect-click-outside": "^1.1.7",
     "react-easy-crop": "^5.2.0",
+    "react-window": "^1.8.11",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
