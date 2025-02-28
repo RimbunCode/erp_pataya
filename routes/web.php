@@ -5,6 +5,7 @@ use Illuminate\Foundation\Application;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
+
 Route::macro('resourceDetail', function ($uri, $name, $controller) {
   Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name) {
     Route::get("/", "index")->name("$uri.index");
@@ -72,6 +73,7 @@ Route::middleware(['auth', 'lang'])->group(function () {
   Route::resourceDetail('roles', 'role', \App\Http\Controllers\User\RoleController::class);
 
   Route::resourceDetail('purchases', 'purchase', \App\Http\Controllers\User\RoleController::class);
+  Route::resourceDetail('suppliers', 'supplier', \App\Http\Controllers\Purchase\SupplierController::class);
 });
 
 require __DIR__ . '/auth.php';

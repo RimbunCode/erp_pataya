@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Settings2,
   Users2,
+  Boxes,
 } from "lucide-react";
 import {
   Sidebar,
@@ -45,6 +46,22 @@ const data = {
       url: "/dashboard",
       urlPattern: "/dashboard*",
       icon: <LayoutDashboard />,
+    },
+    {
+      title: "Purchase",
+      icon: <Boxes />,
+      items: [
+        {
+          title: "Supplier",
+          url: "/suppliers",
+          urlPattern: "/suppliers/*",
+        },
+        {
+          title: "Order",
+          url: "/orders",
+          urlPattern: "/orders/*",
+        },
+      ],
     },
     {
       title: "Users",
