@@ -41,20 +41,22 @@ import {
   useImperativeHandle,
   useState,
 } from "react";
+import { cn, getCookieByName, getLocaleDate, setCookie } from "@/lib/utils";
 import { router, usePage } from "@inertiajs/react";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
+import { Label } from "@/Components/ui/label";
+import Pagination from "@/Components/Table/Pagination";
 import QueryString from "qs";
 import React from "react";
 import { ScrollArea } from "@/Components/ui/scroll-area";
+import { TZDate } from "@date-fns/tz";
 import Table from "@/Components/Table/Table";
-import { cn, getCookieByName, setCookie } from "@/lib/utils";
+import { format } from "date-fns";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { Label } from "@/Components/ui/label";
-import Pagination from "@/Components/Table/Pagination";
 import { useIsMobile } from "@/Hooks/use-mobile";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
 /**
@@ -122,6 +124,7 @@ export default forwardRef(function DataTable(
   { columns, actions, title, addButton, templateItem },
   ref,
 ) {
+  const lang = usePage().props.lang;
   const isMobile = useIsMobile();
   const { t } = useLaravelReactI18n();
   const route = window.route;
@@ -132,6 +135,29 @@ export default forwardRef(function DataTable(
     f: query?.f ?? [],
     page: query?.page ?? 1,
   });
+  columns =
+    columns.findIndex((x) => x.name === "created_at") > -1
+      ? columns
+      : [
+          ...columns,
+          {
+            name: "created_at",
+            titleTrans: "user.user.columns.created_at",
+            searchType: "date",
+            width: "fit",
+            sortable: true,
+            show: false,
+            cell: ({ dataRow }) => {
+              return (
+                <span>
+                  {format(new TZDate(dataRow.created_at, "UTC"), "PPPp", {
+                    locale: getLocaleDate(lang),
+                  })}
+                </span>
+              );
+            },
+          },
+        ];
 
   const loadData = () => {
     router.get(

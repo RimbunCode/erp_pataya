@@ -4,6 +4,7 @@ import { useForm, usePage } from "@inertiajs/react";
 
 import { create } from "zustand";
 import { isDirty } from "zod";
+import { isEmpty } from "lodash";
 import useDidMountEffect from "./useDidMountEffect";
 import { useIsDirtyForm } from "./useIsDirtyForm";
 
@@ -39,6 +40,8 @@ export const useDraftForm = (
   const { setIsDirty, setProcessing, setRecentlySuccessful } = useIsDirtyForm();
   const user = usePage().props.auth.user;
   key = user ? `${key}_${user.id}` : null;
+  key =
+    !initialData || isEmpty(initialData) ? `${key}_create` : `${key}_update`;
   const {
     submit: submitForm,
     get: getForm,
@@ -47,7 +50,7 @@ export const useDraftForm = (
     put: putForm,
     delete: deleteForm,
     ...form
-  } = useForm(initialData);
+  } = useForm(initialData ?? {});
 
   useDidMountEffect(() => {
     setIsDirty(form.isDirty);

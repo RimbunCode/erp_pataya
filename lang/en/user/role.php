@@ -1,6 +1,8 @@
 <?php
 
 return [
+  'title' => 'Roles',
+  'add_role' => 'Add Role',
   'new' => 'Create Role',
   'new_rule' => 'New Rule',
   'add_rule' => 'Add a new rule',

@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Models\Core\Preference;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -19,23 +20,31 @@ class DataTableScope implements Scope {
     $this->addDataTable($builder);
   }
 
+  private function isTableIncluded($columnReference) {
+    return preg_match('/^\w+\.\w+$/', $columnReference);
+  }
 
   protected function addDataTable(Builder $builder) {
     $builder->macro('dataTable', function (Builder $query, Request $request) {
-      $show = ((int)($_COOKIE['datatable_show'] ?? 25));
+      $nameOfTable = $query->toBase()->from;
+      $query->addSelect("$nameOfTable.*");
+      $defaultShow = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
+      $show = (int) ($_COOKIE['datatable_show'] ?? $defaultShow);
       $show = $show <= 0 ? 25 : $show;
       // Sort
       $sort = $request->input('sort', '-created_at');
       $sortArr = explode("-", $sort);
       $sortKey = end($sortArr);
+      $sortKey = $this->isTableIncluded($sortKey) ? $sortKey : "$nameOfTable.$sortKey";
       $sortDirection = $sortArr[0] === $sortKey ? "asc" : "desc";
       $query = $query->orderBy($sortKey, $sortDirection);
 
       // Filter
       if ($request->has('f')) {
         $filter = $request->input('f');
-        $query->where(function (Builder $query) use ($filter) {
+        $query->where(function (Builder $query) use ($filter, $nameOfTable) {
           foreach ($filter as $key => $payload) {
+            $keyQuery = $this->isTableIncluded($payload[0]) ? $payload[0] : "$nameOfTable.$payload[0]";
             $operator = $payload[1];
             $value = match ($payload[2]) {
               'true' => true,
@@ -46,12 +55,12 @@ class DataTableScope implements Scope {
               $values = array_map(function ($val) {
                 return trim($val);
               },  explode(',', $value));
-              $query->whereIn($payload[0], $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
+              $query->whereIn($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
             } else if (in_array($operator, ['between', '!between'])) {
               $values = array_map(function ($val) {
                 return trim($val);
               },  explode(',', $value));
-              $query->whereBetween($payload[0], $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
+              $query->whereBetween($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
             } else {
               $operator = match ($payload[1]) {
                 'eq' => '=',
@@ -60,7 +69,7 @@ class DataTableScope implements Scope {
                 '!like' => 'not like',
                 default => $payload[1]
               };
-              $query->where($payload[0], $operator, $value, $key <= 0 ? 'and' : 'or');
+              $query->where($keyQuery, $operator, $value, $key <= 0 ? 'and' : 'or');
             }
           };
         });

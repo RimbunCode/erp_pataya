@@ -5,6 +5,10 @@ return [
   'add_branch' => 'Add Branch',
   'branch_detail' => 'Branch Details',
   'new' => 'New Branch',
+  'delete' => 'Delete Branch',
+  'delete.description' => 'Are you sure you want to delete this branch?',
+  'delete.confirm' => 'Delete',
+  'cancel' => 'Cancel',
   'columns' => [
     'name' => 'Name',
     'email' => 'Email',

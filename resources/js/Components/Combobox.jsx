@@ -50,7 +50,7 @@ function Combobox({
   const ParentContent = isMobile ? DrawerContent : PopoverContent;
 
   return (
-    <Parent open={open} onOpenChange={setOpen}>
+    <Parent open={open} onOpenChange={setOpen} modal={false}>
       <ParentTrigger asChild>
         <Button
           variant="outline"

@@ -20,7 +20,7 @@ import { Textarea } from "@/Components/ui/textarea";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Company({ preferences, currencies }) {
+export default function Company({ preferences, currencies, countries }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const { data, setData, post, processing, errors, isDirty } = useDraftForm(
@@ -143,9 +143,31 @@ export default function Company({ preferences, currencies }) {
             label={t("core.company.company_details.country")}
             required={true}
           >
-            <Input
+            <Combobox
+              options={countries}
               value={data.country_id}
-              onChange={(e) => setData("country_id", e.target.value)}
+              placeholder={t(
+                "core.company.company_details.country.placeholder",
+              )}
+              templateTrigger={(country_code) => {
+                const country = countries?.find((c) => c.code === country_code);
+                return <span>{country?.name}</span>;
+              }}
+              templateItem={(country) => {
+                return (
+                  <CommandItem
+                    key={country.code}
+                    value={`${country.name} ${country.code}`}
+                    keywords={[country.code, country.name]}
+                    onSelect={() => {
+                      setData("shipping_country_id", country.code);
+                    }}
+                    className="block px-4 "
+                  >
+                    {country.name}
+                  </CommandItem>
+                );
+              }}
             />
           </FormInput>
         </div>

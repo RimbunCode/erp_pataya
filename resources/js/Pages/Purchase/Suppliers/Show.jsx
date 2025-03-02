@@ -1,19 +1,13 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTrigger,
-} from "@/Components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader } from "@/Components/ui/dialog";
 import { DialogDescription, DialogTitle } from "@radix-ui/react-dialog";
 import {
   FormPage,
   FormPageContent,
   FormPageContentTitle,
-  FormPageSidebar,
 } from "@/Pages/Core/FormPage";
-import React, { useCallback, useMemo, useState } from "react";
-import { SaveIcon, Trash2, UploadIcon } from "lucide-react";
+import React, { useCallback, useState } from "react";
+import { SaveIcon } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -21,18 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/Components/ui/tooltip";
 
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/Checkbox";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import UploadDialog from "@/Pages/Core/Components/UploadDialog";
 import axios from "axios";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -92,38 +80,6 @@ export default function Show({ supplier, suppliers, auth }) {
           </Button>
         }
       >
-        <FormPageSidebar>
-          {(defaultComp) => (
-            <>
-              <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
-                <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DialogTrigger asChild>
-                        <Button variant="default" size="icon">
-                          <UploadIcon className="!size-5" />
-                        </Button>
-                      </DialogTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent align="center">Upload</TooltipContent>
-                  </Tooltip>
-                </div>
-                <UploadDialog
-                  open={openAttachment}
-                  imageOnly
-                  options={{
-                    route: route(route().current(), route().params) + "/image",
-                    reset: ["supplier", "auth"],
-                  }}
-                  onClose={() => {
-                    setOpenAttachment(false);
-                  }}
-                />
-              </Dialog>
-              {defaultComp}
-            </>
-          )}
-        </FormPageSidebar>
         <FormPageContent
           title={t("supplier.supplier.basic_info")}
           value="basic_info"

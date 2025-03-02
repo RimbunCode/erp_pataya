@@ -99,7 +99,7 @@ export default memo(
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="!px-1 !py-1">
+              <Button variant="ghost" size="sm" className="!px-1 !py-1 ">
                 <EllipsisVertical />
               </Button>
             </DropdownMenuTrigger>
@@ -142,8 +142,8 @@ export default memo(
           className={cn(
             style.transform ? "opacity-0" : "opacity-100",
             resizeable ? "cursor-col-resize" : "cursor-default",
-            isEmpty ? "hidden" : "flex",
-            ` transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-[1] group group-last/header:hidden`,
+            isEmpty ? "!h-[40px]" : "",
+            `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-[1] group group-last/header:hidden`,
           )}
         >
           <div
