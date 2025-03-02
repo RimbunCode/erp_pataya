@@ -32,13 +32,6 @@ Route::get('/', function () {
   return redirect()->route('dashboard');
 });
 
-
-Route::middleware('auth')->group(function () {
-  Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-  Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-  Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
-
 // Languages
 Route::controller(\App\Http\Controllers\Core\LanguageController::class)->group(function () {
   Route::get('/lang', 'index')->name('lang.index');
@@ -47,7 +40,9 @@ Route::controller(\App\Http\Controllers\Core\LanguageController::class)->group(f
 
 // Route for Preview Image
 Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'preview'])->name('files.show');
-Route::middleware(['auth', 'lang'])->group(function () {
+Route::middleware(['auth', 'lang', 'app'])->group(function () {
+  // Branch Switcher
+  Route::put('/switch_branch/{id}', [\App\Http\Controllers\Core\BranchController::class, 'switch'])->name('branch.switch');
   // Dashboard
   Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');

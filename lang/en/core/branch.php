@@ -1,6 +1,7 @@
 <?php
 
 return [
+  'branches' => 'Branches',
   'title' => 'Branches Company',
   'add_branch' => 'Add Branch',
   'branch_detail' => 'Branch Details',

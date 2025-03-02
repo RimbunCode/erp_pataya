@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Inventory;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class WarehouseRequest extends FormRequest {
   /**
@@ -20,8 +21,9 @@ class WarehouseRequest extends FormRequest {
   public function rules(): array {
     return [
       'branch_id' => ['required', 'string', 'exists:branches,id'],
-      'code' => ['required', 'string', 'min:2', 'max:20', 'regex:/^[\w\-\.]*$/', 'unique:warehouses,code'],
+      'code' => ['required', 'string', 'min:2', 'max:20', 'regex:/^[\w\-\.]*$/', Rule::unique('warehouses')->ignore($this->warehouse->id)],
       'name' => ['required', 'string', 'min:3', 'max:255'],
+      'user_id' => ['nullable', 'string', 'exists:users,id'],
     ];
   }
 }

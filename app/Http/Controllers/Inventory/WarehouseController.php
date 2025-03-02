@@ -21,8 +21,13 @@ class WarehouseController extends Controller {
     $this->setBreadcrumbs();
     Warehouse::query()
       ->leftJoin('branches', 'branches.id', '=', 'warehouses.branch_id')
+      ->leftJoin('users', 'users.id', '=', 'warehouses.user_id')
       ->select([
         'branches.name as branch_name',
+        'users.name as user_name',
+        'users.username as user_username',
+        'users.email as user_email',
+        'users.phone as user_phone',
       ])
       ->dataTable($request);
     return Inertia::render('Inventory/Warehouses/Index', [
@@ -67,7 +72,10 @@ class WarehouseController extends Controller {
     $this->setBreadcrumbs($warehouse);
     $warehouse->showDetail();
     return Inertia::render('Inventory/Warehouses/Show', [
-      'warehouse' => $warehouse,
+      'warehouse' => function () use ($warehouse) {
+        $warehouse->load('pic');
+        return $warehouse;
+      },
       'branches' => Inertia::defer(function () {
         return Branch::whereNull('branchable_type')
           ->whereNull('branchable_id')->get();

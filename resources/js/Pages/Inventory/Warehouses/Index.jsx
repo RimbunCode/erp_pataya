@@ -8,7 +8,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
 import DataTable from "@/Pages/Core/DataTable";
@@ -41,19 +42,19 @@ export default function Index({ lang }) {
     if (!showNewForm) {
       setData({});
     }
-  });
-  const onSubmit = (e) => {
+  }, [showNewForm]);
+  const onSubmit = useCallback((e) => {
     e.preventDefault();
 
     post(route("warehouses.store"));
-  };
-  const onDelete = (id) => {
+  }, []);
+  const onDelete = useCallback((id) => {
     router.delete(route("warehouses.destroy", id), {
       onSuccess: () => {
         setIdDelete(null);
       },
     });
-  };
+  }, []);
   /**
    * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
    * @type {ColumnProps[]}
@@ -64,6 +65,7 @@ export default function Index({ lang }) {
         name: "code",
         titleTrans: "inventory.warehouse.columns.code",
         searchType: "text",
+        width: "fit",
         sortable: true,
         resizeable: true,
         cell: ({ dataRow }) => (
@@ -91,7 +93,7 @@ export default function Index({ lang }) {
         ),
       },
       {
-        name: "branch_id",
+        name: "branches.name",
         titleTrans: "inventory.warehouse.columns.branch",
         searchType: "text",
         sortable: true,
@@ -101,15 +103,60 @@ export default function Index({ lang }) {
             className={cn("w-fit hover:underline")}
             type="button"
             onClick={() => {
-              tableRef.current.addFilter("branch_id", "eq", dataRow.branch_id);
+              tableRef.current.addFilter(
+                "branches.name",
+                "eq",
+                dataRow.branch_name,
+              );
             }}
           >
             {dataRow.branch_name}
           </button>
         ),
       },
+
+      {
+        name: "pic",
+        titleTrans: "inventory.warehouse.columns.pic",
+        resizeable: true,
+        cell: ({ dataRow }) => {
+          if (!dataRow.user_username) return <>-</>;
+
+          const alias = dataRow.user_name
+            .split(" ")
+            .slice(0, 2)
+            .map((n) => n.charAt(0))
+            .join("");
+          return (
+            <div className="flex items-center gap-3 text-sm text-left">
+              <Avatar className="rounded-lg size-10">
+                {dataRow.user_image && (
+                  <AvatarImage
+                    src={
+                      route("files.show", dataRow.user_image) +
+                      `?v=${new Date(dataRow.user_updated_at).getTime()}`
+                    }
+                    alt={dataRow.user_name}
+                  />
+                )}
+                <AvatarFallback className="text-xl font-semibold rounded-lg !flex">
+                  {alias}
+                </AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 text-base leading-tight text-left">
+                <span className="font-semibold truncate">
+                  {dataRow.user_name}
+                </span>
+                <span className="text-sm truncate text-foreground/80">
+                  {dataRow.user_email}
+                </span>
+              </div>
+            </div>
+          );
+        },
+      },
     ],
-    [lang],
+    [],
   );
   return (
     <>

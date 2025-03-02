@@ -11,6 +11,7 @@ import {
 } from "@dnd-kit/core";
 import React, {
   cloneElement,
+  memo,
   useCallback,
   useEffect,
   useRef,
@@ -168,8 +169,8 @@ function Table({
 
         const oldIndex = newItems.indexOf(active.id);
         const newColumn = arrayMove(items, oldIndex, newIndex);
-        console.log(newColumn);
         tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""}  ${newColumn
+          .filter((x) => x.show)
           .map((x) => x.size)
           .join(" ")}`;
         return newColumn;
@@ -228,7 +229,7 @@ function Table({
   );
   const resetSizeHeader = (index) => {
     const newColumns = [];
-    const gridColumns = columns.map((col, i) => {
+    const gridColumns = showedColumns.map((col, i) => {
       if (i === index) {
         const size = convertColWidth(col.width);
         newColumns.push({ ...col, size });
@@ -240,7 +241,9 @@ function Table({
 
     debounce(() => setColumns(newColumns), 500)();
 
-    tableElement.current.style.gridTemplateColumns = `${gridColumns.join(" ")}`;
+    tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""} ${gridColumns.join(
+      " ",
+    )}`;
   };
 
   const removeListeners = useCallback(() => {
@@ -452,4 +455,4 @@ function Table({
   );
 }
 
-export default Table;
+export default memo(Table);

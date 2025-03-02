@@ -10,7 +10,7 @@ import {
 import { Filter, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn, generateRandom } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 import { Button } from "../ui/button";
 import FilterItem from "./FilterItem";
@@ -175,4 +175,4 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
   );
 }
 
-export default FilterTable;
+export default memo(FilterTable);
