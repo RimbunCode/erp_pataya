@@ -1,15 +1,18 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import * as React from "react";
 
 import {
   AudioWaveform,
   BookOpen,
   Bot,
+  Boxes,
   Command,
   GalleryVerticalEnd,
   LayoutDashboard,
+  PackageIcon,
   Settings2,
   Users2,
-  Boxes,
+  WarehouseIcon,
 } from "lucide-react";
 import {
   Sidebar,
@@ -46,6 +49,17 @@ const data = {
       url: "/dashboard",
       urlPattern: "/dashboard*",
       icon: <LayoutDashboard />,
+    },
+    {
+      title: "Inventory",
+      icon: <PackageIcon />,
+      items: [
+        {
+          title: "Warehouse",
+          url: "/warehouses",
+          urlPattern: "/warehouses/*",
+        },
+      ],
     },
     {
       title: "Purchase",
@@ -92,11 +106,6 @@ const data = {
           title: "Branches",
           url: "/settings/branches",
           urlPattern: "/settings/branches/*",
-        },
-        {
-          title: "Warehouse",
-          url: "/settings/warehouse",
-          urlPattern: "/settings/warehouse/*",
         },
         {
           title: "Category",

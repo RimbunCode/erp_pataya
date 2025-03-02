@@ -6,51 +6,44 @@ import { SaveIcon } from "lucide-react";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ branch }) {
+export default function Show({ warehouse }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const { data, setData, put, processing, errors, isDirty } = useDraftForm(
-    "branch",
-    branch,
+    "warehouse",
+    warehouse,
   );
   const onSubmit = (e) => {
     e.preventDefault();
 
-    put(route("branches.update", branch.id));
+    put(route("warehouses.update", warehouse.id));
   };
   return (
     <FormPage
       errors={errors}
-      title={branch.name}
-      disabled={processing || branch.is_main_branch}
+      title={warehouse.name}
+      disabled={processing || warehouse.is_main_branch}
       onSubmit={(e) => {
         e.preventDefault();
-        if (branch.is_main_branch) return;
+        if (warehouse.is_main_branch) return;
         onSubmit(e);
       }}
       badge={
-        <>
-          {branch.is_main_branch && (
-            <span className="text-sm badge primary">
-              {t("core.branch.columns.is_main_branch")}
-            </span>
-          )}
-          {isDirty && (
-            <span className="text-sm badge warning">
-              {t("core.form.not_saved")}
-            </span>
-          )}
-        </>
+        isDirty && (
+          <span className="text-sm badge warning">
+            {t("core.form.not_saved")}
+          </span>
+        )
       }
       controls={
-        !branch.is_main_branch && (
+        !warehouse.is_main_branch && (
           <Button
             type="submit"
             className="!p-2 size-fit h-8"
             disabled={processing}
           >
             <SaveIcon />
-            Save
+            {t("core.form.save")}
           </Button>
         )
       }

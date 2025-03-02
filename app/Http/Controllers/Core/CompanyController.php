@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Core;
 
 use App\Http\Controllers\Controller;
 use App\Models\Core\Branch;
+use App\Models\Core\Country;
 use App\Models\Core\Currency;
 use App\Models\Core\Preference;
 use Illuminate\Http\Request;
@@ -21,6 +22,9 @@ class CompanyController extends Controller {
     return Inertia::render('Settings/Company', [
       'preferences' => $preferences->toArray(),
       'currencies' => fn() => Currency::all()->toArray(),
+      'countries' => Inertia::defer(function () {
+        return Country::all();
+      }),
       'breadcrumbs' => [
         ['name' => 'Company Details'],
       ],

@@ -58,8 +58,6 @@ Route::middleware(['auth', 'lang'])->group(function () {
     Route::resource('company', \App\Http\Controllers\Core\CompanyController::class)->only(['index', 'store']);
     // Branches
     Route::resourceDetail('branches', 'branch', \App\Http\Controllers\Core\BranchController::class);
-    // Warehouse
-    Route::resourceDetail('warehouses', 'warehouse', \App\Http\Controllers\Inventory\WarehouseController::class);
   });
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);
@@ -71,8 +69,9 @@ Route::middleware(['auth', 'lang'])->group(function () {
   // Roles
   Route::get('/roles/permissions', [\App\Http\Controllers\User\RoleController::class, 'permissions'])->name('roles.permissions');
   Route::resourceDetail('roles', 'role', \App\Http\Controllers\User\RoleController::class);
-
-  Route::resourceDetail('purchases', 'purchase', \App\Http\Controllers\User\RoleController::class);
+  // Warehouse
+  Route::resourceDetail('warehouses', 'warehouse', \App\Http\Controllers\Inventory\WarehouseController::class);
+  // Supplier
   Route::resourceDetail('suppliers', 'supplier', \App\Http\Controllers\Purchase\SupplierController::class);
 });
 

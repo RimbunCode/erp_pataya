@@ -6,10 +6,12 @@ import Link from "@/Components/Link";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { router } from "@inertiajs/react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ data, sort, show, lang }) {
   const route = window.route;
+  const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   /**
    * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
@@ -85,9 +87,9 @@ export default function Index({ data, sort, show, lang }) {
   return (
     <DataTable
       ref={tableRef}
-      title="Manage Users"
+      title={t("user.role.title")}
       addButton={{
-        title: "Add Role",
+        title: t("user.role.add_role"),
         onClick: () => {
           router.visit(route("roles.create"));
         },

@@ -92,6 +92,10 @@ class BranchController extends Controller {
    * Remove the specified resource from storage.
    */
   public function destroy(Branch $branch) {
-    //
+    if ($branch->is_main_branch) {
+      abort(403);
+    }
+    $branch->delete();
+    return back();
   }
 }

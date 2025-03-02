@@ -14,6 +14,7 @@ return Application::configure(dirname(__DIR__))
     $middleware->web(append: [
       \App\Http\Middleware\HandleInertiaRequests::class,
       \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+      \App\Http\Middleware\AppMiddleware::class
     ]);
     $middleware->alias([
       'app' => App\Http\Middleware\AppMiddleware::class,

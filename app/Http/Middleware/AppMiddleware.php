@@ -18,7 +18,7 @@ class AppMiddleware extends Middleware {
     return parent::handle($request, $next);
   }
   public function share(Request $request): array {
-    $preferences = Preference::get(['key', 'value']);
+    $preferences = Preference::get(['key', 'value'])->mapWithKeys(fn($pref) => [$pref->key => $pref->value]);
     return [
       ...parent::share($request),
       'preferences' => $preferences->toArray(),

@@ -1,11 +1,27 @@
 import "quill/dist/quill.bubble.css";
 import "quill-mention/autoregister";
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/Components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 import React, {
   Children,
+  Fragment,
   createContext,
   forwardRef,
-  Fragment,
   memo,
   useCallback,
   useContext,
@@ -15,32 +31,16 @@ import React, {
   useState,
 } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
+import { cn, generateRandom } from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
 import Attachments from "./Components/Attachments";
 import Comments from "./Components/Comments";
 import Tags from "./Components/Tags";
-import { cn, generateRandom } from "@/lib/utils";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import {
-  AlertDialog,
-  AlertDialogTitle,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-} from "@/Components/ui/alert-dialog";
 import { useAlertDraftForm } from "@/Hooks/useDraftForm";
-import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/Components/ui/accordion";
+import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 /**
  * @typedef {object} FormPageContentTitleProps
@@ -136,7 +136,7 @@ const FormPageContent = memo(
     const Content = collapsible ? AccordionContent : Fragment;
     return (
       <TabsContent value={value} className="mt-0">
-        <AccordionItem value={generateRandom(8)} asChild>
+        <AccordionItem value={generateRandom(8)} asChild className="border-b-0">
           <div
             ref={ref}
             className={cn(className, "px-4 py-4 !mt-0")}

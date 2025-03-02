@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +16,6 @@ import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { getLocaleDate } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { Avatar, AvatarImage, AvatarFallback } from "@/Components/ui/avatar";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
 function Index({ lang }) {
@@ -72,23 +72,7 @@ function Index({ lang }) {
             {dataRow.status.replace(/(\-|\_)/g, " ")}
           </button>
         ),
-      },
-      {
-        name: "created_at",
-        titleTrans: "user.user.columns.created_at",
-        searchType: "date",
-        width: "fit",
-        sortable: true,
-        cell: ({ dataRow }) => {
-          return (
-            <span>
-              {format(new TZDate(dataRow.created_at, "UTC"), "PPPp", {
-                locale: getLocaleDate(lang),
-              })}
-            </span>
-          );
-        },
-      },
+      }
     ],
     [lang],
   );
