@@ -8,7 +8,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
 import DataTable from "@/Pages/Core/DataTable";
@@ -41,19 +42,19 @@ export default function Index({ lang }) {
     if (!showNewForm) {
       setData({});
     }
-  });
-  const onSubmit = (e) => {
+  }, [showNewForm]);
+  const onSubmit = useCallback((e) => {
     e.preventDefault();
 
     post(route("warehouses.store"));
-  };
-  const onDelete = (id) => {
+  }, []);
+  const onDelete = useCallback((id) => {
     router.delete(route("warehouses.destroy", id), {
       onSuccess: () => {
         setIdDelete(null);
       },
     });
-  };
+  }, []);
   /**
    * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
    * @type {ColumnProps[]}
@@ -91,7 +92,7 @@ export default function Index({ lang }) {
         ),
       },
       {
-        name: "branch_id",
+        name: "branches.name",
         titleTrans: "inventory.warehouse.columns.branch",
         searchType: "text",
         sortable: true,
@@ -101,7 +102,11 @@ export default function Index({ lang }) {
             className={cn("w-fit hover:underline")}
             type="button"
             onClick={() => {
-              tableRef.current.addFilter("branch_id", "eq", dataRow.branch_id);
+              tableRef.current.addFilter(
+                "branches.name",
+                "eq",
+                dataRow.branch_name,
+              );
             }}
           >
             {dataRow.branch_name}
@@ -109,7 +114,7 @@ export default function Index({ lang }) {
         ),
       },
     ],
-    [lang],
+    [],
   );
   return (
     <>

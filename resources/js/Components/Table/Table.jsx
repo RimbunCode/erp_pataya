@@ -11,6 +11,7 @@ import {
 } from "@dnd-kit/core";
 import React, {
   cloneElement,
+  memo,
   useCallback,
   useEffect,
   useRef,
@@ -168,8 +169,8 @@ function Table({
 
         const oldIndex = newItems.indexOf(active.id);
         const newColumn = arrayMove(items, oldIndex, newIndex);
-        console.log(newColumn);
         tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""}  ${newColumn
+          .filter((x) => x.show)
           .map((x) => x.size)
           .join(" ")}`;
         return newColumn;
@@ -452,4 +453,4 @@ function Table({
   );
 }
 
-export default Table;
+export default memo(Table);

@@ -14,9 +14,10 @@ return new class extends Migration {
       $table->foreignUlid('branch_id')->references('id')->on('branches')->cascadeOnDelete();
       $table->string('name');
       $table->string('code');
+      $table->foreignUlid('user_id')->nullable()->references('id')->on('users')->nullOnDelete();
       $table->timestamps();
       $table->softDeletes();
-      $table->unique(['code', 'delete_at']);
+      $table->unique(['code', 'deleted_at']);
     });
   }
 

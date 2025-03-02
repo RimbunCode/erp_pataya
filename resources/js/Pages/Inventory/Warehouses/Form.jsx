@@ -1,14 +1,15 @@
+import React, { memo } from "react";
+
 /* eslint-disable jsdoc/require-jsdoc */
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { FormPageContent } from "@/Pages/Core/FormPage";
 import { Input } from "@/Components/ui/input";
-import React from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
-export default function Form({ data, setData }) {
+export default memo(function Form({ data, setData }) {
   const { branches } = usePage().props;
   const { t } = useLaravelReactI18n();
   return (
@@ -55,4 +56,4 @@ export default function Form({ data, setData }) {
       </div>
     </FormPageContent>
   );
-}
+});
