@@ -90,6 +90,7 @@ const DATATABLE_COLUMNS_EXPIRED = 7; //days
  * @property {string} name Cocokan saja dengan nama column pada database
  * @property {string} titleTrans
  * @property {'text' | 'number' | 'boolean' | 'date' | string[]} searchType
+ * @property {'grow' | 'fit' | string | null} width
  * @property {boolean} sortable
  * @property {boolean} resizeable
  * @property {boolean} show default is true

@@ -72,7 +72,10 @@ class WarehouseController extends Controller {
     $this->setBreadcrumbs($warehouse);
     $warehouse->showDetail();
     return Inertia::render('Inventory/Warehouses/Show', [
-      'warehouse' => $warehouse,
+      'warehouse' => function () use ($warehouse) {
+        $warehouse->load('pic');
+        return $warehouse;
+      },
       'branches' => Inertia::defer(function () {
         return Branch::whereNull('branchable_type')
           ->whereNull('branchable_id')->get();

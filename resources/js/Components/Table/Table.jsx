@@ -229,7 +229,7 @@ function Table({
   );
   const resetSizeHeader = (index) => {
     const newColumns = [];
-    const gridColumns = columns.map((col, i) => {
+    const gridColumns = showedColumns.map((col, i) => {
       if (i === index) {
         const size = convertColWidth(col.width);
         newColumns.push({ ...col, size });
@@ -241,7 +241,9 @@ function Table({
 
     debounce(() => setColumns(newColumns), 500)();
 
-    tableElement.current.style.gridTemplateColumns = `${gridColumns.join(" ")}`;
+    tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""} ${gridColumns.join(
+      " ",
+    )}`;
   };
 
   const removeListeners = useCallback(() => {

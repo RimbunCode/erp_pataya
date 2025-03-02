@@ -65,6 +65,7 @@ export default function Index({ lang }) {
         name: "code",
         titleTrans: "inventory.warehouse.columns.code",
         searchType: "text",
+        width: "fit",
         sortable: true,
         resizeable: true,
         cell: ({ dataRow }) => (
@@ -112,6 +113,47 @@ export default function Index({ lang }) {
             {dataRow.branch_name}
           </button>
         ),
+      },
+
+      {
+        name: "pic",
+        titleTrans: "inventory.warehouse.columns.pic",
+        resizeable: true,
+        cell: ({ dataRow }) => {
+          if (!dataRow.user_username) return <>-</>;
+
+          const alias = dataRow.user_name
+            .split(" ")
+            .slice(0, 2)
+            .map((n) => n.charAt(0))
+            .join("");
+          return (
+            <div className="flex items-center gap-3 text-sm text-left">
+              <Avatar className="rounded-lg size-10">
+                {dataRow.user_image && (
+                  <AvatarImage
+                    src={
+                      route("files.show", dataRow.user_image) +
+                      `?v=${new Date(dataRow.user_updated_at).getTime()}`
+                    }
+                    alt={dataRow.user_name}
+                  />
+                )}
+                <AvatarFallback className="text-xl font-semibold rounded-lg !flex">
+                  {alias}
+                </AvatarFallback>
+              </Avatar>
+              <div className="grid flex-1 text-base leading-tight text-left">
+                <span className="font-semibold truncate">
+                  {dataRow.user_name}
+                </span>
+                <span className="text-sm truncate text-foreground/80">
+                  {dataRow.user_email}
+                </span>
+              </div>
+            </div>
+          );
+        },
       },
     ],
     [],
