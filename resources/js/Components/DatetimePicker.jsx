@@ -35,7 +35,6 @@ export default React.memo(function DatetimePicker({
 
   const setDate = (dateInput) => {
     const date = new Date(value);
-    console.log(date);
     date.setDate(dateInput.getDate());
     date.setMonth(dateInput.getMonth());
     date.setFullYear(dateInput.getFullYear());

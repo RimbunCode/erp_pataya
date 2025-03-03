@@ -258,7 +258,7 @@ export default memo(function Comments() {
                           dangerouslySetInnerHTML={{
                             __html: activity[lang].replace(
                               ":user",
-                              `<a role="noeditor" href="${route("users.show", user.id)} rel="noopener noreferrer" target="_blank" >${user.name}</a>`,
+                              `<a role="noeditor" href="${route("users.show", user.id)}" rel="noopener noreferrer" target="_blank" >${user.name}</a>`,
                             ),
                           }}
                         />

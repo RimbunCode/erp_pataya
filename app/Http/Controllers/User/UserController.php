@@ -83,12 +83,15 @@ class UserController extends Controller {
    * Update the specified resource in storage.
    */
   public function update(UserRequest $request, User $user) {
+    if ($request->user()->id != $user->id) {
+      $this->guard('write');
+    }
     $data = $request->validated();
     DB::beginTransaction();
     $user->update($data);
     $user->roles()->sync($data['roles']);
     $user->logs()->create([
-      'user_id' => $user->id,
+      'user_id' => $request->user()->id,
       'activity' => [
         'en' => ':user updated this',
         'id' => ':user memperbarui ini'

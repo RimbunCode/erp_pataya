@@ -8,6 +8,7 @@ use App\Models\Core\Branch;
 use App\Models\Core\Country;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class BranchController extends Controller {
@@ -23,7 +24,17 @@ class BranchController extends Controller {
     Branch::whereNull('branchable_type')
       ->whereNull('branchable_id')
       ->dataTable($request);
-    return Inertia::render('Settings/Branches/Index');
+    return Inertia::render('Settings/Branches/Index', [
+      'countries' => Inertia::defer(function () {
+        return Country::all();
+      })
+    ]);
+  }
+
+  public function switch(Request $request, string $id) {
+    $request->session()->forget('currentBranch');
+    $request->session()->put('currentBranch', $id);
+    return redirect()->back();
   }
 
   /**
@@ -36,8 +47,19 @@ class BranchController extends Controller {
   /**
    * Store a newly created resource in storage.
    */
-  public function store(Request $request) {
-    //
+  public function store(BranchRequest $request) {
+    $data = $request->validated();
+    DB::beginTransaction();
+    $branch = Branch::create($data);
+    $branch->logs()->create([
+      'user_id' => $request->user()->id,
+      'activity' => [
+        'en' => ':user created this',
+        'id' => ':user membuat ini'
+      ]
+    ]);
+    DB::commit();
+    return back();
   }
 
   /**
@@ -63,7 +85,7 @@ class BranchController extends Controller {
     DB::beginTransaction();
     $branch->update($data);
     $branch->logs()->create([
-      'user_id' => $branch->id,
+      'user_id' => $request->user()->id,
       'activity' => [
         'en' => ':user updated this',
         'id' => ':user memperbarui ini'
@@ -77,6 +99,10 @@ class BranchController extends Controller {
    * Remove the specified resource from storage.
    */
   public function destroy(Branch $branch) {
-    //
+    if ($branch->is_main_branch) {
+      abort(403);
+    }
+    $branch->delete();
+    return back();
   }
 }

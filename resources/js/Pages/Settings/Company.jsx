@@ -1,11 +1,5 @@
-import { ChevronDown, SaveIcon } from "lucide-react";
-import {
-  FormPage,
-  FormPageBottomBar,
-  FormPageContent,
-  FormPageSidebar,
-} from "../Core/FormPage";
-import React, { useEffect, useState } from "react";
+/* eslint-disable jsdoc/require-jsdoc */
+import { FormPage, FormPageContent } from "../Core/FormPage";
 import {
   Select,
   SelectContent,
@@ -20,12 +14,13 @@ import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
+import React from "react";
+import { SaveIcon } from "lucide-react";
 import { Textarea } from "@/Components/ui/textarea";
-import axios from "axios";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Company({ preferences, currencies }) {
+export default function Company({ preferences, currencies, countries }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const { data, setData, post, processing, errors, isDirty } = useDraftForm(
@@ -71,10 +66,9 @@ export default function Company({ preferences, currencies }) {
           {t("core.form.save")}
         </Button>
       }
+      sidebarContent={false}
+      bottombarContent={false}
     >
-      <FormPageSidebar hidden />
-      <FormPageBottomBar hidden />
-
       <FormPageContent
         value="company_details"
         title={t("core.company.company_details.title")}
@@ -149,9 +143,31 @@ export default function Company({ preferences, currencies }) {
             label={t("core.company.company_details.country")}
             required={true}
           >
-            <Input
+            <Combobox
+              options={countries}
               value={data.country_id}
-              onChange={(e) => setData("country_id", e.target.value)}
+              placeholder={t(
+                "core.company.company_details.country.placeholder",
+              )}
+              templateTrigger={(country_code) => {
+                const country = countries?.find((c) => c.code === country_code);
+                return <span>{country?.name}</span>;
+              }}
+              templateItem={(country) => {
+                return (
+                  <CommandItem
+                    key={country.code}
+                    value={`${country.name} ${country.code}`}
+                    keywords={[country.code, country.name]}
+                    onSelect={() => {
+                      setData("shipping_country_id", country.code);
+                    }}
+                    className="block px-4 "
+                  >
+                    {country.name}
+                  </CommandItem>
+                );
+              }}
             />
           </FormInput>
         </div>
@@ -285,7 +301,7 @@ export default function Company({ preferences, currencies }) {
               templateItem={(currency) => {
                 return (
                   <CommandItem
-                    key={currency.id}
+                    key={currency.code}
                     value={`${currency.name} ${currency.code}`}
                     keywords={[currency.code, currency.name]}
                     onSelect={() => {

@@ -67,14 +67,22 @@ class RoleController extends Controller {
       ], values: [
         'name' => $permission->name,
         'model' => $permission->model,
-        'level' => $rule['level'],
-        'only_creator' => $rule['only_creator'],
+        'is_submittable' => $permission->is_submittable,
+        'level' => $permission->is_submittable ? $rule['level'] : 0,
+        'only_creator' => $permission->is_submittable ? $rule['only_creator'] : false,
         'permissions' => collect($permission->permissions)->mapWithKeys(function ($permission) use ($rule) {
           return [$permission => $rule['permissions'][$permission] ?? false];
         }),
       ]);
     }
 
+    $role->logs()->create([
+      'user_id' => $request->user()->id,
+      'activity' => [
+        'en' => ':user created this',
+        'id' => ':user telah membuat ini',
+      ]
+    ]);
     DB::commit();
 
     return redirect()->route('roles.show', $role);
@@ -129,6 +137,13 @@ class RoleController extends Controller {
         }),
       ]);
     }
+    $role->logs()->create([
+      'user_id' => $request->user()->id,
+      'activity' => [
+        'en' => ':user updated this',
+        'id' => ':user memperbarui ini'
+      ]
+    ]);
 
     DB::commit();
     return back();

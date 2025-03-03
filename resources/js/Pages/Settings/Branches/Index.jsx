@@ -1,12 +1,27 @@
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 import { cn, getLocaleDate } from "@/lib/utils";
 import { useMemo, useRef, useState } from "react";
 
+import { Button } from "@/Components/ui/button";
 import DataTable from "@/Pages/Core/DataTable";
+import Form from "./Form";
+import { FormPageDialog } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { TZDate } from "@date-fns/tz";
+import { Trash2Icon } from "lucide-react";
 import { format } from "date-fns";
+import { router } from "@inertiajs/react";
+import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { Dialog, DialogContent } from "@/Components/ui/dialog";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ lang }) {
@@ -14,6 +29,28 @@ export default function Index({ lang }) {
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
+  const [idDelete, setIdDelete] = useState(null);
+  const { data, setData, post, processing, errors, isDirty } = useDraftForm(
+    "branch",
+    {},
+    {
+      onContinueDraft: () => {
+        setShowNewForm(true);
+      },
+    },
+  );
+  const onSubmit = (e) => {
+    e.preventDefault();
+
+    post(route("branches.store"));
+  };
+  const onDelete = (id) => {
+    router.delete(route("branches.destroy", id), {
+      onSuccess: () => {
+        setIdDelete(null);
+      },
+    });
+  };
   /**
    * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
    * @type {ColumnProps[]}
@@ -159,8 +196,21 @@ export default function Index({ lang }) {
     [lang],
   );
   return (
-    <Dialog open={showNewForm} onOpenChange={setShowNewForm}>
+    <>
       <DataTable
+        actions={({ dataRow }) => {
+          if (dataRow.is_main_branch) return null;
+          return (
+            <Button
+              variant="destructive"
+              size="icon"
+              className="size-8"
+              onClick={() => setIdDelete(dataRow.id)}
+            >
+              <Trash2Icon />
+            </Button>
+          );
+        }}
         title={t("core.branch.title")}
         addButton={{
           title: t("core.branch.add_branch"),
@@ -191,7 +241,50 @@ export default function Index({ lang }) {
         )}
         columns={columns}
       />
-      <DialogContent className="w-fit"></DialogContent>
-    </Dialog>
+      <FormPageDialog
+        title={t("core.branch.new")}
+        disabled={processing}
+        errors={errors}
+        onSubmit={onSubmit}
+        open={showNewForm}
+        onOpenChange={setShowNewForm}
+        className="max-w-lg"
+      >
+        <Form data={data} setData={setData} />
+      </FormPageDialog>
+      <AlertDialog
+        open={idDelete}
+        onOpenChange={(v) => {
+          if (!v) {
+            setIdDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("core.branch.delete")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("core.branch.delete.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              disabled={processing}
+              onClick={() => setIdDelete(null)}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={processing}
+              onClick={() => {
+                onDelete(idDelete);
+              }}
+            >
+              {t("core.branch.delete.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

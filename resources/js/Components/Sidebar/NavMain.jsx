@@ -20,8 +20,10 @@ import {
 import { ChevronRight } from "lucide-react";
 import Link from "../Link";
 import { checkUrlPath } from "@/lib/utils";
+import { useIsMobile } from "@/Hooks/use-mobile";
 
 export function NavMain({ items }) {
+  const isMobile = useIsMobile();
   const { open } = useSidebar();
   return (
     <SidebarGroup>
@@ -44,7 +46,7 @@ export function NavMain({ items }) {
               >
                 <Popover asChild>
                   <SidebarMenuItem>
-                    {open ? (
+                    {open || isMobile ? (
                       <>
                         <CollapsibleTrigger asChild>
                           <SidebarMenuButton

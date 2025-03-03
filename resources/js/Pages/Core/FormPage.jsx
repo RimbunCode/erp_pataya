@@ -1,27 +1,46 @@
 import "quill/dist/quill.bubble.css";
 import "quill-mention/autoregister";
 
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/Components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 import React, {
   Children,
   Fragment,
-  cloneElement,
   createContext,
   forwardRef,
   memo,
+  useCallback,
   useContext,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useState,
 } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
+import { cn, generateRandom } from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
 import Attachments from "./Components/Attachments";
 import Comments from "./Components/Comments";
 import Tags from "./Components/Tags";
-import { cn } from "@/lib/utils";
+import { useAlertDraftForm } from "@/Hooks/useDraftForm";
+import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { Dialog, DialogContent } from "@/Components/ui/dialog";
 
 /**
  * @typedef {object} FormPageContentTitleProps
@@ -66,28 +85,39 @@ const FormPageContentDescription = memo(
     );
   }),
 );
+
 /**
  * @typedef {object} FormPageContentProps
  * @property {string} title
  * @property {string} value
- * @property {boolean} isSingle
  * @property {React.ReactNode} children
  * @property {string} className
+ * @property {boolean} collapsible
  */
 /**
  * @type {React.ForwardRefRenderFunction<HTMLHeadingElement, FormPageContentProps>}
  */
 const FormPageContent = memo(
   forwardRef(function FormPageContent(
-    { title, value, isSingle, children, className },
+    { title, value, children, className, collapsible = false },
     ref,
   ) {
+    const { menus, addMenu } = useFormPage();
+    const [id] = useState(generateRandom(8));
+    useEffect(() => {
+      addMenu({
+        id,
+        title,
+        value,
+      });
+    }, []);
     const headerChildren = Children.toArray(children).filter((child) => {
       return (
         child?.type == FormPageContentTitle ||
         child?.type == FormPageContentDescription
       );
     });
+    const isSingle = menus.length <= 1;
     if (headerChildren.length > 0 || isSingle) {
       var contentChildren = Children.toArray(children).filter((child) => {
         return !(
@@ -100,125 +130,39 @@ const FormPageContent = memo(
       Children.toArray(children).findIndex(
         (child) => child?.type == FormPageContentTitle,
       ) >= 0;
-
+    const Trigger = collapsible
+      ? AccordionTrigger
+      : (props) => <div {...props} />;
+    const Content = collapsible ? AccordionContent : Fragment;
     return (
-      <div
-        ref={ref}
-        className={cn(className, "px-4 py-4 !mt-0")}
-        role="content"
-      >
-        {headerChildren.length > 0 || isSingle ? (
-          <>
-            <div className="pb-1 mb-3 border-b border-muted-foreground/25">
-              {!haveTitle && (
-                <FormPageContentTitle>{title || value}</FormPageContentTitle>
-              )}
-              {headerChildren}
-            </div>
-            {contentChildren}
-          </>
-        ) : (
-          children
-        )}
-      </div>
+      <TabsContent value={value} className="mt-0">
+        <AccordionItem value={generateRandom(8)} asChild className="border-b-0">
+          <div
+            ref={ref}
+            className={cn(className, "px-4 py-4 !mt-0")}
+            role="content"
+          >
+            {headerChildren.length > 0 || isSingle ? (
+              <>
+                <Trigger className="pt-0 pb-1 mb-3 border-b border-muted-foreground/25">
+                  {!haveTitle && (
+                    <FormPageContentTitle>
+                      {title || value}
+                    </FormPageContentTitle>
+                  )}
+                  {headerChildren}
+                </Trigger>
+                <Content>{contentChildren}</Content>
+              </>
+            ) : (
+              children
+            )}
+          </div>
+        </AccordionItem>
+      </TabsContent>
     );
   }),
 );
-
-/**
- * @typedef {object} FormPageSidebarProps
- * @property {boolean} hidden
- * @property {React.ReactNode} children
- * @property {string} className
- */
-/**
- * @type {React.ForwardRefRenderFunction<HTMLHeadingElement, FormPageSidebarProps>}
- */
-const FormPageSidebar = memo(
-  forwardRef(function FormPageSidebar(
-    { hidden = false, children, className },
-    ref,
-  ) {
-    const defaultChildren = useMemo(() => {
-      return (
-        <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
-          <li role="forminput">
-            <Attachments />
-          </li>
-          <li role="forminput">
-            <Tags />
-          </li>
-        </ul>
-      );
-    }, []);
-    if (hidden) return null;
-
-    const sidebarChildren = !children
-      ? defaultChildren
-      : typeof children === "function"
-        ? children(defaultChildren)
-        : children;
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          className,
-          "flex flex-col order-2 lg:col-start-2 lg:row-span-2 h-fit  gap-y-4 lg:sticky lg:top-[73px]",
-        )}
-      >
-        {sidebarChildren}
-      </div>
-    );
-  }),
-);
-
-/**
- * @typedef {object} FormPageBottomBarProps
- * @property {boolean} hidden
- * @property {React.ReactNode} children
- * @property {string} className
- */
-/**
- * @type {React.ForwardRefRenderFunction<HTMLHeadingElement, FormPageBottomBarProps>}
- */
-const FormPageBottomBar = memo(
-  forwardRef(function FormPageBottomBar(
-    { hidden = false, children, className },
-    ref,
-  ) {
-    const defaultChildren = useMemo(() => {
-      return <Comments />;
-    }, []);
-    if (hidden) return null;
-
-    const bottomBarChildren = !children
-      ? defaultChildren
-      : typeof children === "function"
-        ? children(defaultChildren)
-        : children;
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          className,
-          "flex flex-col order-3 lg:col-start-1 gap-y-4",
-        )}
-      >
-        {bottomBarChildren}
-      </div>
-    );
-  }),
-);
-
-// const FormPageContentContext = createContext();
-
-// /**
-//  * @typedef FormPageContentContextProps
-//  * @property {string} menu
-//  * @property {React.Dispatch<string>} setMenuSelected
-//  * @returns {FormPageContentContextProps}
-//  */
-// const useFormPageContent = () => useContext(FormPageContentContext);
 
 /**
  * @typedef {object} FormPageBottomBarProps
@@ -235,7 +179,10 @@ const FormChildren = memo(
     { children, className, defaultMenu, showHeader },
     ref,
   ) {
+    const { menus } = useFormPage();
+    const { t } = useLaravelReactI18n();
     const [menuSelected, setMenuSelected] = useState(defaultMenu);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -243,74 +190,44 @@ const FormChildren = memo(
       }),
       [],
     );
-    const contentChildren = Children.toArray(children).filter((child) => {
-      return (
-        child?.type?.type?.render?.name == FormPageContent.type?.render?.name
-      );
-    });
-    const uniqueChildren = contentChildren.filter((child, index, self) => {
-      return (
-        child.props.value !== undefined &&
-        self.findIndex((c) => c.props.value === child.props.value) === index
-      );
-    });
     return (
-      <div
-        className={cn(
-          className,
-          "flex flex-col order-1 max-w-full  border rounded-xl lg:col-start-1 border-muted-foreground/25",
-          "[&_:not(div[role=content])_+_div[role=content]]:border-t-0 [&_div[role=content]:first-child]:!border-t-0 [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
-        )}
-      >
-        {uniqueChildren.length > 1 ? (
+      <Accordion type="multiple" className="w-full" asChild>
+        <div
+          className={cn(
+            className,
+            "flex flex-col order-1 max-w-full  border rounded-xl lg:col-start-1 border-muted-foreground/25",
+            "[&_:not(div[role=content])_+_div[role=content]]:border-t-0 [&_div[role=content]:first-child]:!border-t-0 [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
+          )}
+        >
           <Tabs
-            value={menuSelected ?? uniqueChildren[0].props.value}
+            value={menuSelected ?? menus?.[0]?.value}
             onValueChange={setMenuSelected}
           >
             <TabsList
               className={cn(
+                menus?.length <= 1 ? "hidden" : "",
                 showHeader ? "top-14" : "top-0",
                 "transition-[top] duration-300 ease-in-out sticky z-9 w-full !p-0 h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
               )}
             >
-              {Children.map(uniqueChildren, (child) => {
+              {menus.map((child) => {
                 return (
                   <TabsTrigger
-                    value={child.props.value}
+                    key={child.value}
+                    value={child.value}
                     className="text-base border-0 data-[state=active]:font-bold !p-0 !px-4 group rounded-none transition-colors "
                   >
                     <span className="pt-2 pb-1 border-transparent w-fit group-[[data-state=active]]:border-foreground border-b transition-colors duration-300 ">
-                      {child.props.title || child.props.value}
+                      {t(child.title || child.value)}
                     </span>
                   </TabsTrigger>
                 );
               })}
             </TabsList>
-            {Children.map(contentChildren, (child) => {
-              if (child?.type?.render?.name == FormPageContent?.render?.name) {
-                return (
-                  <TabsContent value={child.props.value} asChild>
-                    {child}
-                  </TabsContent>
-                );
-              }
-              throw Error("FormPage children only accepts FormPageContent ");
-            })}
+            {children}
           </Tabs>
-        ) : (
-          <>
-            {Children.map(contentChildren, (child) => {
-              if (child.type == FormPageContent) {
-                return cloneElement(child, {
-                  ...child.props,
-                  isSingle: true,
-                });
-              }
-              throw Error("FormPage children only accepts FormPageContent ");
-            })}
-          </>
-        )}
-      </div>
+        </div>
+      </Accordion>
     );
   }),
 );
@@ -325,6 +242,11 @@ const FormPageContext = createContext();
 const useFormPage = () => useContext(FormPageContext);
 
 /**
+ * @callback SidebarContent
+ * @property {React.JSX.Element} defaultComp
+ * @returns {React.JSX.Element}
+ */
+/**
  * @typedef {object} FormPageProps
  * @property {object} errors
  * @property {boolean} isCreate
@@ -332,14 +254,30 @@ const useFormPage = () => useContext(FormPageContext);
  * @property {string} fieldNameTrans untuk translate name attribute
  * @property {string} defaultMenu Menu yang pertama kali ditampilkan, Beri nilai value sesuai FormPageContent value yang ingin di pilih
  * @property {string} title
+ * @property {SidebarContent | React.JSX.Element} sidebarContent
+ * @property {SidebarContent | React.JSX.Element} bottombarContent
  * @property {React.JSX.Element?} badge jika lebih dari satu bungkus dengan <> </>
  * @property {React.JSX.Element?} controls jika lebih dari satu bungkus dengan <> </>
- * @property {React.ReactNode<FormPageContent | FormPageBottomBar | FormPageSidebar>} children
+ * @property {React.ReactNode<FormPageContent>} children
  * @property {React.FormEventHandler} onSubmit
  * @property {string} className
  */
 /**
  * @type {React.ForwardRefRenderFunction<HTMLHeadingElement, FormPageProps>}
+ * @param {object} props
+ * @param {object} props.errors
+ * @param {boolean} props.isCreate
+ * @param {boolean} props.disabled
+ * @param {string} props.fieldNameTrans untuk translate name attribute
+ * @param {string} props.defaultMenu Menu yang pertama kali ditampilkan, Beri nilai value sesuai FormPageContent value yang ingin di pilih
+ * @param {string} props.title
+ * @param {SidebarContent | React.JSX.Element} props.sidebarContent
+ * @param {SidebarContent | React.JSX.Element} props.bottombarContent
+ * @param {React.JSX.Element?} props.badge jika lebih dari satu bungkus dengan <> </>
+ * @param {React.JSX.Element?} props.controls jika lebih dari satu bungkus dengan <> </>
+ * @param {React.ReactNode<FormPageContent>} props.children
+ * @param {React.FormEventHandler} props.onSubmit
+ * @param {string} props.className
  */
 const FormPage = memo(
   forwardRef(function FormPage(
@@ -352,6 +290,8 @@ const FormPage = memo(
       badge,
       controls,
       defaultMenu,
+      sidebarContent,
+      bottombarContent,
       className,
       onSubmit,
       children,
@@ -374,22 +314,51 @@ const FormPage = memo(
         return position;
       });
     };
-    children =
-      children?.type == Fragment ? children?.props?.children : children;
-    const sidebarContent = useMemo(() => {
-      const sidebarChildren = Children.toArray(children).filter((child) => {
-        return child?.type == FormPageSidebar;
+    const [menus, setMenus] = useState([]);
+    const addMenu = useCallback((newItem) => {
+      setMenus((prev) => {
+        let newItems = [...(prev ?? [])];
+        const index = newItems?.findIndex(
+          (menu) => menu.value === newItem.value,
+        );
+        if (index < 0) {
+          newItems = [...newItems, newItem];
+        }
+        return newItems;
       });
-      if (sidebarChildren.length <= 0) return <FormPageSidebar />;
-      return Children.only(sidebarChildren[0]);
-    }, [children]);
-    const bottombarContent = useMemo(() => {
-      const bottombarChildren = Children.toArray(children).filter((child) => {
-        return child?.type == FormPageBottomBar;
-      });
-      if (bottombarChildren.length <= 0) return <FormPageBottomBar />;
-      return Children.only(bottombarChildren[0]);
-    }, [children]);
+    }, []);
+    const defaultSidebarChildren = useMemo(() => {
+      return (
+        <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
+          <li role="forminput">
+            <Attachments />
+          </li>
+          <li role="forminput">
+            <Tags />
+          </li>
+        </ul>
+      );
+    }, []);
+    const defaultBottombarChildren = useMemo(() => {
+      return <Comments />;
+    }, []);
+
+    const sidebarChildren =
+      sidebarContent === false
+        ? null
+        : !sidebarContent
+          ? defaultSidebarChildren
+          : typeof sidebarContent === "function"
+            ? sidebarContent?.(defaultSidebarChildren)
+            : sidebarContent;
+    const bottombarChildren =
+      bottombarContent === false
+        ? null
+        : !bottombarContent
+          ? defaultBottombarChildren
+          : typeof bottombarContent === "function"
+            ? bottombarContent?.(defaultBottombarChildren)
+            : bottombarContent;
 
     return (
       <AppLayout
@@ -397,7 +366,9 @@ const FormPage = memo(
         className="!pt-0 relative group/form"
         onScroll={handleScroll}
       >
-        <FormPageContext.Provider value={{ errors, fieldNameTrans }}>
+        <FormPageContext.Provider
+          value={{ errors, fieldNameTrans, menus, addMenu }}
+        >
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -441,7 +412,17 @@ const FormPage = memo(
                 "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
               )}
             >
-              {!isCreate && sidebarContent}
+              {!isCreate && sidebarChildren && (
+                <div
+                  ref={ref}
+                  className={cn(
+                    className,
+                    "flex flex-col order-2 lg:col-start-2 lg:row-span-2 h-fit  gap-y-4 lg:sticky lg:top-[73px]",
+                  )}
+                >
+                  {sidebarChildren}
+                </div>
+              )}
               <FormChildren
                 ref={ref}
                 defaultMenu={defaultMenu}
@@ -450,7 +431,17 @@ const FormPage = memo(
               >
                 {children}
               </FormChildren>
-              {!isCreate && bottombarContent}
+              {!isCreate && bottombarChildren && (
+                <div
+                  ref={ref}
+                  className={cn(
+                    className,
+                    "flex flex-col order-3 lg:col-start-1 gap-y-4",
+                  )}
+                >
+                  {bottombarChildren}
+                </div>
+              )}
             </div>
           </form>
         </FormPageContext.Provider>
@@ -458,56 +449,163 @@ const FormPage = memo(
     );
   }),
 );
-
+/**
+ * @typedef {object} FormPageProps
+ * @property {object} errors
+ * @property {boolean} disabled
+ * @property {string} fieldNameTrans untuk translate name attribute
+ * @property {string} defaultMenu Menu yang pertama kali ditampilkan, Beri nilai value sesuai FormPageContent value yang ingin di pilih
+ * @property {string} title
+ * @property {React.JSX.Element?} badge jika lebih dari satu bungkus dengan <> </>
+ * @property {React.ReactNode<FormPageContent>} children
+ * @property {React.FormEventHandler} onSubmit
+ * @property {boolean} open
+ * @property {React.Dispatch<React.SetStateAction<boolean>>} onOpenChange
+ * @property {string} className
+ */
+/**
+ * @type {React.ForwardRefRenderFunction<HTMLHeadingElement, FormPageProps>}
+ */
 const FormPageDialog = memo(
   forwardRef(function FormPageDialog(
     {
+      title,
+      errors,
       disabled,
+      fieldNameTrans,
       defaultMenu,
       className,
       onSubmit,
       open,
       onOpenChange,
       children,
+      badge,
     },
     ref,
   ) {
+    const { t } = useLaravelReactI18n();
+    const [menus, setMenus] = useState([]);
+    const {
+      setContinue,
+      isDirty,
+      setIsDirty,
+      recentlySuccessful,
+      setShowAlert,
+    } = useIsDirtyForm();
+    const { cancel } = useAlertDraftForm();
+
+    const onClose = (val) => {
+      if (val) return;
+      setContinue(() => {
+        onOpenChange(false);
+        setShowAlert(false);
+        setIsDirty(false);
+        cancel();
+      });
+      if (isDirty) {
+        setShowAlert(true);
+      } else {
+        setShowAlert(false);
+        onOpenChange(val);
+      }
+    };
+    useDidMountEffect(() => {
+      if (recentlySuccessful) {
+        onOpenChange(false);
+      }
+    }, [recentlySuccessful]);
+    const _onSubmit = (e) => {
+      onSubmit?.(e);
+    };
+    const addMenu = useCallback((newItem) => {
+      setMenus((prev) => {
+        let newItems = [...(prev ?? [])];
+        const index = newItems?.findIndex(
+          (menu) => menu.value === newItem.value,
+        );
+        if (index < 0) {
+          newItems = [...newItems, newItem];
+        }
+        return newItems;
+      });
+    }, []);
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={className}>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              onSubmit?.(e);
-            }}
-            disabled={disabled}
-            className={cn(
-              disabled &&
-                "[&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
-            )}
+      <AlertDialog open={open}>
+        <AlertDialogContent className={className}>
+          <FormPageContext.Provider
+            value={{ errors, fieldNameTrans, menus, addMenu }}
           >
-            <FormChildren
-              ref={ref}
-              defaultMenu={defaultMenu}
-              className={className}
-              showHeader={false}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                _onSubmit(e);
+              }}
+              disabled={disabled}
+              className={cn(
+                disabled &&
+                  "[&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
+              )}
             >
-              {children}
-            </FormChildren>
-          </form>
-        </DialogContent>
-      </Dialog>
+              <AlertDialogHeader className="mb-4 border-b border-muted-foreground/30">
+                <AlertDialogTitle className="flex items-center gap-x-2">
+                  {title}
+                  {badge}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="sr-only"></AlertDialogDescription>
+              </AlertDialogHeader>
+              {errors && Object.keys(errors).length > 0 && (
+                <div className="flex-col w-full mt-4 alert error">
+                  <h3 className="text-base font-semibold">
+                    {t("core.form.errors.title")}
+                  </h3>
+                  <ul className="block pl-5">
+                    {Object.entries(errors).map(([key, value]) => (
+                      <li key={key} className="list-disc">
+                        {fieldNameTrans
+                          ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                          : value}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <FormChildren
+                ref={ref}
+                defaultMenu={defaultMenu}
+                className={className}
+                showHeader={false}
+              >
+                {children}
+              </FormChildren>
+              <AlertDialogFooter className="mt-4">
+                <AlertDialogCancel
+                  className="h-8"
+                  onClick={() => onClose(false)}
+                >
+                  {t("core.form.cancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="h-8"
+                  type="submit"
+                  onClick={() => {}}
+                >
+                  {t("core.form.save")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </form>
+          </FormPageContext.Provider>
+        </AlertDialogContent>
+      </AlertDialog>
     );
   }),
 );
 
 export {
   FormPage,
-  FormPageSidebar,
   FormPageContent,
   FormPageContentTitle,
   FormPageContentDescription,
-  FormPageBottomBar,
+  FormPageDialog,
   useFormPage,
   // useFormPageContent,
 };

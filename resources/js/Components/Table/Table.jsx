@@ -11,6 +11,7 @@ import {
 } from "@dnd-kit/core";
 import React, {
   cloneElement,
+  memo,
   useCallback,
   useEffect,
   useRef,
@@ -161,16 +162,17 @@ function Table({
 
     if (active.id !== over.id) {
       setColumns((items) => {
-        const newItems = items.map((x) => x.title);
+        const newItems = items.map((x) => x.name);
 
         const newIndex = newItems.indexOf(over.id);
         if (newIndex < freezeColumn) return items;
 
         const oldIndex = newItems.indexOf(active.id);
         const newColumn = arrayMove(items, oldIndex, newIndex);
-        tableElement.current.style.gridTemplateColumns = newColumn
+        tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""}  ${newColumn
+          .filter((x) => x.show)
           .map((x) => x.size)
-          .join(" ");
+          .join(" ")}`;
         return newColumn;
       });
     }
@@ -219,7 +221,7 @@ function Table({
 
       debounce(() => setColumns(newColumns), 500)();
 
-      tableElement.current.style.gridTemplateColumns = `${gridColumns.join(
+      tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""} ${gridColumns.join(
         " ",
       )}`;
     },
@@ -227,7 +229,7 @@ function Table({
   );
   const resetSizeHeader = (index) => {
     const newColumns = [];
-    const gridColumns = columns.map((col, i) => {
+    const gridColumns = showedColumns.map((col, i) => {
       if (i === index) {
         const size = convertColWidth(col.width);
         newColumns.push({ ...col, size });
@@ -239,7 +241,9 @@ function Table({
 
     debounce(() => setColumns(newColumns), 500)();
 
-    tableElement.current.style.gridTemplateColumns = `${gridColumns.join(" ")}`;
+    tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""} ${gridColumns.join(
+      " ",
+    )}`;
   };
 
   const removeListeners = useCallback(() => {
@@ -310,11 +314,11 @@ function Table({
               <thead>
                 <tr>
                   <SortableContext
-                    items={showedColumns.map((x) => x.title)}
+                    items={showedColumns.map((x) => x.name)}
                     strategy={horizontalListSortingStrategy}
                   >
                     {selectable && (
-                      <th className="!py-2 !px-2 items-center">
+                      <th className="!py-2 !px-2 !pr-4 items-center">
                         <Checkbox
                           checked={data.every((x) => x.isSelected ?? false)}
                           onCheckedChange={checkAll}
@@ -322,8 +326,21 @@ function Table({
                       </th>
                     )}
                     {actions && (
-                      <th className="!py-2 !px-2 items-center">
+                      <th className="!py-2 !px-2 !pr-4 items-center">
                         <span>Action</span>
+                        <div
+                          style={{ height: tableHeight }}
+                          className={cn(
+                            !data || data.length === 0 ? "!h-[40px]" : "",
+                            `flex opacity-100 justify-center items-center absolute w-4 -right-2 top-0 z-[1]`,
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              "h-full border-r border-muted-foreground/15 w-[1px]",
+                            )}
+                          ></div>
+                        </div>
                       </th>
                     )}
                     {showedColumns.map(({ ref, resizeable, ...props }, i) => (
@@ -438,4 +455,4 @@ function Table({
   );
 }
 
-export default Table;
+export default memo(Table);
