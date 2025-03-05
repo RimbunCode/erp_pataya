@@ -26,14 +26,10 @@ export default React.memo(function BranchSwitcher() {
   const { branches, currentBranch } = usePage().props.branchSettings;
   const { t } = useLaravelReactI18n();
   const { isMobile } = useSidebar();
-  const [activeBranch, setActiveBranch] = React.useState({});
+  const [activeBranch, setActiveBranch] = React.useState(currentBranch);
 
   React.useEffect(() => {
-    setActiveBranch(
-      branches.find((branch) => branch.id === currentBranch) ??
-        branches[0] ??
-        {},
-    );
+    setActiveBranch(currentBranch);
   }, [branches, currentBranch]);
 
   React.useEffect(() => {
@@ -65,14 +61,14 @@ export default React.memo(function BranchSwitcher() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground "
             >
-              <div className="flex items-center justify-center rounded-lg aspect-square size-8 bg-sidebar-foreground text-sidebar-primary-foreground">
+              <div className="flex items-center justify-center rounded-lg aspect-square size-8 bg-sidebar-foreground dark:!text-muted text-sidebar-primary-foreground">
                 <Building2Icon className="size-5" />
               </div>
               <div className="grid flex-1 text-sm leading-tight text-left">
                 <span className="font-semibold truncate">
-                  {activeBranch.name}
+                  {activeBranch?.name}
                 </span>
               </div>
               <ChevronsUpDown className="ml-auto" />

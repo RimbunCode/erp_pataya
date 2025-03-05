@@ -99,7 +99,7 @@ export default function Index({ lang }) {
             <span>
               {dataRow.shipping_street}, {dataRow.shipping_city},{" "}
               {dataRow.shipping_state}, {dataRow.shipping_zip_code},{" "}
-              {dataRow.shipping_country.name}
+              {dataRow.shipping_country?.name}
             </span>
           );
         },
@@ -235,7 +235,7 @@ export default function Index({ lang }) {
             <p className="text-sm text-left text-muted-foreground">
               {dataRow.shipping_street}, {dataRow.shipping_city},{" "}
               {dataRow.shipping_state}, {dataRow.shipping_zip_code},{" "}
-              {dataRow.shipping_country.name}
+              {dataRow.shipping_country?.name}
             </p>
           </Link>
         )}
@@ -248,7 +248,7 @@ export default function Index({ lang }) {
         onSubmit={onSubmit}
         open={showNewForm}
         onOpenChange={setShowNewForm}
-        className="max-w-lg"
+        className="max-w-xl"
       >
         <Form data={data} setData={setData} />
       </FormPageDialog>

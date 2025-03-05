@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder {
    */
   public function run(): void {
     $this->call(ErrorLensConfigurationSeeder::class);
+    $this->call(UnitSeeder::class);
     $this->call(PreferenceSeeder::class);
     $this->call(CurrencySeeder::class);
     $this->call(CountrySeeder::class);

@@ -40,8 +40,6 @@ class PreferenceSeeder extends Seeder {
     Branch::create([
       'name' => $preferencesArr['company_name'],
       'is_main_branch' => true,
-      'email' => $preferencesArr['email'],
-      'phone' => $preferencesArr['phone'],
       'shipping_street' => $preferencesArr['street'],
       'shipping_city' => $preferencesArr['city'],
       'shipping_state' => $preferencesArr['state'],

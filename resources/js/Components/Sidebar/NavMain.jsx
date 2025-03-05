@@ -93,7 +93,7 @@ export function NavMain({ items }) {
                           align="start"
                           className="w-56 p-2 rounded-lg "
                         >
-                          <div className="px-2 pt-1 pb-2 mb-2 space-y-2 border-b border-muted-foreground/30">
+                          <div className="px-2 pt-1 pb-2 mb-1 space-y-2 border-b border-muted-foreground/30">
                             <h4 className="font-medium leading-none">
                               {item.title}
                             </h4>
@@ -103,6 +103,7 @@ export function NavMain({ items }) {
                               asChild
                               key={subItem.title}
                               isActive={subItem.isActive ?? false}
+                              className="mt-1"
                             >
                               <Link href={subItem.url}>
                                 <span>{subItem.title}</span>
