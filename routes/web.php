@@ -53,6 +53,10 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     Route::resource('company', \App\Http\Controllers\Core\CompanyController::class)->only(['index', 'store']);
     // Branches
     Route::resourceDetail('branches', 'branch', \App\Http\Controllers\Core\BranchController::class);
+    //Units
+    Route::get('/units/groups', [\App\Http\Controllers\Core\UnitController::class, 'getGroups']);
+    Route::get('/units/groups/{search}', [\App\Http\Controllers\Core\UnitController::class, 'getGroups'])->name('units.groups');
+    Route::resourceDetail('units', 'unit', \App\Http\Controllers\Core\UnitController::class);
   });
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);

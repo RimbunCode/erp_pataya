@@ -78,7 +78,7 @@ class DataTableScope implements Scope {
       // dd($query->toRawSql());
       Inertia::share([
         'defaultSort' => '-created_at',
-        'data' => Inertia::merge($query->paginate($show))
+        'data' => Inertia::merge(value: $query->paginate($show))
       ]);
     });
   }

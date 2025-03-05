@@ -48,6 +48,7 @@ import { router, usePage } from "@inertiajs/react";
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
 import { Label } from "@/Components/ui/label";
+import NoDataImg from "@/Components/Table/NoDataImg";
 import Pagination from "@/Components/Table/Pagination";
 import QueryString from "qs";
 import React from "react";
@@ -436,12 +437,15 @@ export default memo(
         <div className="flex flex-col flex-1 max-w-full mt-4 border rounded-lg border-muted-foreground/25">
           {isMobile ? (
             <div className="flex flex-col flex-1">
-              {data?.data &&
+              {data?.data && data.data.length > 0 ? (
                 data.data.map((x) => {
                   const item = templateItem?.({ dataRow: x });
                   if (!item) return null;
                   return cloneElement(item, { key: x.id, ...item.props });
-                })}
+                })
+              ) : (
+                <NoDataImg className="w-full max-w-sm self-center" />
+              )}
             </div>
           ) : (
             <Table

@@ -1,6 +1,5 @@
 import React, { memo } from "react";
 
-/* eslint-disable jsdoc/require-jsdoc */
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
@@ -18,7 +17,6 @@ export default memo(function Form({ data, setData }) {
   const { t } = useLaravelReactI18n();
   const [users, setUsers] = React.useState([]);
   const [searchUser, setSearchUser] = React.useState("");
-  console.log(data);
   useDidMountEffect(() => {
     const reloadModel = setTimeout(() => {
       axios

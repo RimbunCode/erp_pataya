@@ -30,4 +30,8 @@ class Branch extends Model {
   public function shippingCountry() {
     return $this->belongsTo(Country::class, 'shipping_country_id', 'code');
   }
+
+  public function users() {
+    return $this->belongsToMany(\App\Models\User\User::class, 'user_branches', 'branch_id', 'user_id');
+  }
 }

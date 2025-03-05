@@ -8,6 +8,7 @@ use App\Models\Core\Branch;
 use App\Models\Inventory\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class WarehouseController extends Controller {
@@ -19,7 +20,7 @@ class WarehouseController extends Controller {
    */
   public function index(Request $request) {
     $this->setBreadcrumbs();
-    Warehouse::query()
+    $warehouse = Warehouse::query()
       ->leftJoin('branches', 'branches.id', '=', 'warehouses.branch_id')
       ->leftJoin('users', 'users.id', '=', 'warehouses.user_id')
       ->select([
@@ -28,12 +29,28 @@ class WarehouseController extends Controller {
         'users.username as user_username',
         'users.email as user_email',
         'users.phone as user_phone',
-      ])
-      ->dataTable($request);
+      ]);
+
+    if (Session::has('currentBranch')) {
+      $branch = Branch::find(Session::get('currentBranch'));
+      if (!$branch->is_main_branch) {
+        $warehouse->where('warehouses.branch_id', $branch->id);
+      }
+    }
+    $warehouse->dataTable($request);
     return Inertia::render('Inventory/Warehouses/Index', [
       'branches' => Inertia::defer(function () {
-        return Branch::whereNull('branchable_type')
-          ->whereNull('branchable_id')->get();
+        $branches =  Branch::whereNull('branchable_type')
+          ->whereNull('branchable_id');
+
+        if (Session::has('currentBranch')) {
+          $branch = Branch::find(Session::get('currentBranch'));
+          if (!$branch->is_main_branch) {
+            $branches->where('id', $branch->id);
+          }
+        }
+
+        return $branches->get();
       })
     ]);
   }
@@ -77,8 +94,17 @@ class WarehouseController extends Controller {
         return $warehouse;
       },
       'branches' => Inertia::defer(function () {
-        return Branch::whereNull('branchable_type')
-          ->whereNull('branchable_id')->get();
+        $branches =  Branch::whereNull('branchable_type')
+          ->whereNull('branchable_id');
+
+        if (Session::has('currentBranch')) {
+          $branch = Branch::find(Session::get('currentBranch'));
+          if (!$branch->is_main_branch) {
+            $branches->where('id', $branch->id);
+          }
+        }
+
+        return $branches->get();
       })
     ]);
   }

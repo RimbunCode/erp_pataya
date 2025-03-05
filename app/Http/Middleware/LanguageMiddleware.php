@@ -19,6 +19,7 @@ class LanguageMiddleware {
    */
   public function handle(Request $request, Closure $next): Response {
     if ($request->hasCookie('lang')) {
+      App::setLocale($request->cookie('lang'));
       return $next($request)->withCookie(
         cookie('lang',  $request->cookie(key: 'lang'), 60 * 24 * 30)
       );

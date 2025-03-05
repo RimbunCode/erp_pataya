@@ -1,8 +1,4 @@
-/* eslint-disable jsdoc/require-jsdoc */
-import Combobox from "@/Components/Combobox";
-import FormInput from "@/Components/FormInput";
-import { CommandItem } from "@/Components/ui/command";
-import { Input } from "@/Components/ui/input";
+import { FormPageContent, FormPageContentTitle } from "@/Pages/Core/FormPage";
 import {
   Select,
   SelectContent,
@@ -10,12 +6,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
-import { Textarea } from "@/Components/ui/textarea";
-import { FormPageContent, FormPageContentTitle } from "@/Pages/Core/FormPage";
-import { usePage } from "@inertiajs/react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { memo } from "react";
+
+/* eslint-disable jsdoc/require-jsdoc */
+import Combobox from "@/Components/Combobox";
+import { CommandItem } from "@/Components/ui/command";
 import { FixedSizeList } from "react-window";
+import FormInput from "@/Components/FormInput";
+import { Input } from "@/Components/ui/input";
+import { Textarea } from "@/Components/ui/textarea";
+import { memo } from "react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 export default memo(function Form({ data, setData }) {
   const { branch, countries } = usePage().props;
   const { t } = useLaravelReactI18n();
@@ -34,19 +35,6 @@ export default memo(function Form({ data, setData }) {
             <Input
               value={data.name}
               onChange={(e) => setData("name", e.target.value)}
-            />
-          </FormInput>
-          <FormInput label={t("core.branch.columns.email")} required={true}>
-            <Input
-              type="email"
-              value={data.email}
-              onChange={(e) => setData("email", e.target.value)}
-            />
-          </FormInput>
-          <FormInput label={t("core.branch.columns.phone")} required={true}>
-            <Input
-              value={data.phone}
-              onChange={(e) => setData("phone", e.target.value)}
             />
           </FormInput>
           <FormInput

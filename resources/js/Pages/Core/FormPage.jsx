@@ -372,6 +372,7 @@ const FormPage = memo(
           <form
             onSubmit={(e) => {
               e.preventDefault();
+              if (disabled) return;
               onSubmit?.(e);
             }}
           >
@@ -469,6 +470,7 @@ const FormPage = memo(
 const FormPageDialog = memo(
   forwardRef(function FormPageDialog(
     {
+      setData,
       title,
       errors,
       disabled,
@@ -501,12 +503,14 @@ const FormPageDialog = memo(
         setShowAlert(false);
         setIsDirty(false);
         cancel();
+        setData({});
       });
       if (isDirty) {
         setShowAlert(true);
       } else {
         setShowAlert(false);
         onOpenChange(val);
+        setData({});
       }
     };
     useDidMountEffect(() => {
@@ -515,6 +519,8 @@ const FormPageDialog = memo(
       }
     }, [recentlySuccessful]);
     const _onSubmit = (e) => {
+      e.preventDefault();
+      if (disabled) return;
       onSubmit?.(e);
     };
     const addMenu = useCallback((newItem) => {
