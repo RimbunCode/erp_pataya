@@ -4,6 +4,7 @@ namespace App\Models\User;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Models\Core\Branch;
 use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
@@ -43,5 +44,9 @@ class User extends Authenticatable {
   }
   public function roles() {
     return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id');
+  }
+
+  public function branches() {
+    return $this->belongsToMany(Branch::class, 'user_branch', 'user_id', 'branch_id');
   }
 }

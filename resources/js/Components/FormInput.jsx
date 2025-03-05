@@ -19,6 +19,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * @returns {React.JSX.Element}
  */
 function FormInput({
+  ignoreDisabled = false,
   label,
   required,
   className,
@@ -37,7 +38,10 @@ function FormInput({
   const _name = name || child.props?.name;
   const _value = child.props?.value;
   return (
-    <div className={cn("flex flex-col gap-y-2", className)} role="forminput">
+    <div
+      className={cn("flex flex-col gap-y-2", className)}
+      role={!ignoreDisabled ? "forminput" : ""}
+    >
       <Label htmlFor={id}>
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>

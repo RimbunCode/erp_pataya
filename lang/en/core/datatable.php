@@ -5,6 +5,7 @@ return [
   'show' => 'Show',
   'previous' => 'Previous',
   'next' => 'Next',
+  'action' => 'Action',
   'filter' => [
     'filter' => "Filter",
     'add_filter' => 'Add Filter',

@@ -31,6 +31,7 @@ import Header from "./Header";
 import NoDataImg from "./NoDataImg";
 import { debounce } from "lodash";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
@@ -96,6 +97,7 @@ function Table({
   resetSorting,
 }) {
   const route = window.route;
+  const { t } = useLaravelReactI18n();
   const [data, setData] = useState(initialData);
   useDidMountEffect(() => {
     setData(initialData);
@@ -327,7 +329,7 @@ function Table({
                     )}
                     {actions && (
                       <th className="!py-2 !px-2 !pr-4 items-center">
-                        <span>Action</span>
+                        <span>{t("core.datatable.action")}</span>
                         <div
                           style={{ height: tableHeight }}
                           className={cn(

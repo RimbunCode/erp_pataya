@@ -21,16 +21,12 @@ class AppMiddleware extends Middleware {
   public function handle(Request $request, Closure $next): Response {
     if (Auth::check()) {
       $currentBranch = $request->session()->get('currentBranch');
+      $branches = $request->user()->branches()->get();
 
       Inertia::share([
         'branchSettings' => [
-          'branches' => function () {
-            return Branch::whereNull('branchable_type')
-              ->whereNull('branchable_id')
-              ->where('is_disabled', false)
-              ->get();
-          },
-          'currentBranch' => $currentBranch,
+          'branches' => $branches,
+          'currentBranch' => $branches->where('id', $currentBranch)->first() ?? $branches->where('id', $request->user()->default_branch_id)->first(),
         ]
       ]);
     }

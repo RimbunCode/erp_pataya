@@ -23,7 +23,7 @@ import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
-export default function Index({ lang }) {
+export default function Index({ lang, branchSettings }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
@@ -162,7 +162,7 @@ export default function Index({ lang }) {
     <>
       <DataTable
         ref={tableRef}
-        title={t("inventory.warehouse.title")}
+        title={`${branchSettings.currentBranch.name} ${t("inventory.warehouse.title")}`}
         addButton={{
           title: t("inventory.warehouse.add_warehouse"),
           onClick: () => {

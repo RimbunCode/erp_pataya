@@ -15,8 +15,6 @@ return new class extends Migration {
       $table->nullableUlidMorphs('branchable');
       $table->boolean('is_main_branch')->default(false);
       $table->boolean('is_disabled')->default(false);
-      $table->string('email')->nullable();
-      $table->string('phone')->nullable();
       $table->text('shipping_street')->nullable();
       $table->text('shipping_city')->nullable();
       $table->text('shipping_state')->nullable();

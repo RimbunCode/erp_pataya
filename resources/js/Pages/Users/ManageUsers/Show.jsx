@@ -29,6 +29,8 @@ import {
 
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/Checkbox";
+import Combobox from "@/Components/Combobox";
+import { CommandItem } from "@/Components/ui/command";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -37,7 +39,7 @@ import axios from "axios";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ user, roles, auth }) {
+export default function Show({ user, roles, branches, auth }) {
   const { t } = useLaravelReactI18n();
   const { data, setData, put, processing, errors, reset, isDirty } =
     useDraftForm("user", user);
@@ -84,6 +86,7 @@ export default function Show({ user, roles, auth }) {
   return (
     <>
       <FormPage
+        errors={errors}
         disabled={processing}
         title={user.name}
         badge={
@@ -209,39 +212,120 @@ export default function Show({ user, roles, auth }) {
             </FormInput>
           </div>
         </FormPageContent>
-        {auth.user.id != user.id && (
-          <FormPageContent title={t("user.user.roles")} value="roles">
-            <FormPageContentTitle>{t("user.user.roles")}</FormPageContentTitle>
-            <div className="columns-[15rem] gap-x-2 mt-2">
-              {roles &&
-                roles.map((role) => (
-                  <div className="flex items-center space-x-2" key={role.id}>
-                    <Checkbox
-                      id={role.id + "_Checkbox"}
-                      disabled={role.is_disabled}
-                      checked={data.roles.includes(role.id)}
-                      onCheckedChange={(val) => {
-                        if (val) {
-                          setData("roles", [...data.roles, role.id]);
-                        } else {
-                          setData(
-                            "roles",
-                            data.roles.filter((x) => x !== role.id),
-                          );
-                        }
-                      }}
-                    />
-                    <span
-                      onClick={() => getDetailsRole(role.id)}
-                      className="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+        {
+          <>
+            <FormPageContent
+              title={t("user.user.roles_and_permissions")}
+              value="roles_and_permissions"
+            >
+              <FormPageContentTitle>
+                {t("user.user.roles")}
+              </FormPageContentTitle>
+              <div className="columns-[15rem] gap-x-2 space-y-4 mt-2">
+                {roles &&
+                  roles.map((role) => (
+                    <div className="flex items-center space-x-2" key={role.id}>
+                      <Checkbox
+                        id={role.id + "_Checkbox"}
+                        disabled={role.is_disabled}
+                        checked={data.roles.includes(role.id)}
+                        onCheckedChange={(val) => {
+                          if (val) {
+                            setData("roles", [...data.roles, role.id]);
+                          } else {
+                            setData(
+                              "roles",
+                              data.roles.filter((x) => x !== role.id),
+                            );
+                          }
+                        }}
+                      />
+                      <span
+                        onClick={() => getDetailsRole(role.id)}
+                        className="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {role.name}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </FormPageContent>
+            <FormPageContent
+              title={t("user.user.roles_and_permissions")}
+              value="roles_and_permissions"
+            >
+              <FormPageContentTitle>
+                {t("user.user.branches")}
+              </FormPageContentTitle>
+              <div className="columns-[15rem] gap-x-2 space-y-4 mt-2">
+                {branches &&
+                  branches.map((branch) => (
+                    <div
+                      className="flex items-center space-x-2"
+                      key={branch.id}
                     >
-                      {role.name}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </FormPageContent>
-        )}
+                      <Checkbox
+                        id={branch.id + "_Checkbox"}
+                        disabled={branch.is_disabled}
+                        checked={data.branches?.includes(branch.id)}
+                        onCheckedChange={(val) => {
+                          if (val) {
+                            setData("branches", [...data.branches, branch.id]);
+                          } else {
+                            setData(
+                              "branches",
+                              data.branches?.filter((x) => x !== branch.id),
+                            );
+                            if (branch.id == data.default_branch_id) {
+                              setData("default_branch_id", null);
+                            }
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor={branch.id + "_Checkbox"}
+                        className="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {branch.name}
+                      </label>
+                    </div>
+                  ))}
+              </div>
+              <FormInput
+                className="max-w-sm mt-4"
+                label={t("user.user.default_branch")}
+                required={true}
+              >
+                <Combobox
+                  options={branches?.filter((branch) =>
+                    data.branches?.includes(branch.id),
+                  )}
+                  value={data.default_branch_id}
+                  placeholder={t("user.user.default_branch.placeholder")}
+                  templateTrigger={(branch_id) => {
+                    const branch = branches?.find((c) => c.id === branch_id);
+                    return <span>{branch?.name}</span>;
+                  }}
+                  templateItem={(branch) => {
+                    return (
+                      <CommandItem
+                        key={branch.id}
+                        value={`${branch.name} ${branch.id}`}
+                        keywords={[branch.id, branch.name]}
+                        onSelect={() => {
+                          setData("default_branch_id", branch.id);
+                        }}
+                        className="block px-4 "
+                      >
+                        {branch.name}
+                      </CommandItem>
+                    );
+                  }}
+                />
+              </FormInput>
+            </FormPageContent>
+          </>
+        }
       </FormPage>
       <Dialog open={openDetailRole} onOpenChange={setOpenDetailRole}>
         <DialogContent className="max-w-screen-lg border-muted-foreground/25">

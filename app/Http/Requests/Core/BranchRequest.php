@@ -20,8 +20,6 @@ class BranchRequest extends FormRequest {
   public function rules(): array {
     return [
       'name' => ['required', 'string', 'max:255'],
-      'email' => ['required', 'string', 'email:rfc', 'max:255'],
-      'phone' => ['required', 'string', 'max:255'],
       'is_disabled' => ['nullable', 'boolean'],
       'billing_street' => ['nullable', 'string', 'max:255'],
       'billing_city' => ['nullable', 'string', 'max:255'],

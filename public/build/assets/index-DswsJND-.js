@@ -1,1 +1,0 @@
-import{r as s,f as u}from"./app-CyEtsbiA.js";import{u as o}from"./createLucideIcon-BKGqLEZs.js";var n=u.useId||(()=>{}),d=0;function f(r){const[t,e]=s.useState(n());return o(()=>{e(a=>a??String(d++))},[r]),t?`radix-${t}`:""}export{f as u};
