@@ -57,6 +57,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     Route::get('/units/groups', [\App\Http\Controllers\Core\UnitController::class, 'getGroups']);
     Route::get('/units/groups/{search}', [\App\Http\Controllers\Core\UnitController::class, 'getGroups'])->name('units.groups');
     Route::resourceDetail('units', 'unit', \App\Http\Controllers\Core\UnitController::class);
+    // Categories
+    Route::resourceDetail('categories', 'category', \App\Http\Controllers\Core\CategoryController::class);
   });
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);

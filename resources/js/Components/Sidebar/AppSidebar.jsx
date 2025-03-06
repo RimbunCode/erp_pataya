@@ -84,9 +84,9 @@ const navList = [
         urlPattern: "/settings/branches/*",
       },
       {
-        title: "Category",
-        url: "/settings/category",
-        urlPattern: "/settings/category/*",
+        title: "Categories",
+        url: "/settings/categories",
+        urlPattern: "/settings/categories/*",
       },
       {
         title: "Units",
