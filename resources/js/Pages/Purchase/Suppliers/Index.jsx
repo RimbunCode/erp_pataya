@@ -15,12 +15,30 @@ import { format } from "date-fns";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { cn, getLocaleDate } from "@/lib/utils";
 import { router } from "@inertiajs/react";
+import { useDraftForm } from "@/Hooks/useDraftForm";
+import { FormPageDialog } from "@/Pages/Core/FormPage";
+import Form from "./Form";
 
 function Index({ lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
-  const [openNewSupplier, setOpenNewSupplier] = useState(false);
   const tableRef = useRef();
+  const [showNewForm, setShowNewForm] = useState(false);
+  const { data, setData, post, processing, errors, isDirty } = useDraftForm(
+    "supplier",
+    {},
+    {
+      onContinueDraft: () => {
+        setShowNewForm(true);
+      },
+    },
+  );
+  const onSubmit = (e) => {
+    e.preventDefault();
+
+    post(route("suppliers.store"));
+  };
+
   const columns = useMemo(
     () => [
       {
@@ -32,8 +50,9 @@ function Index({ lang }) {
         show: true,
         cell: ({ dataRow }) => (
           <Link
-            className="hover:underline"
+            as="button"
             href={route("suppliers.show", dataRow.id)}
+            className="items-center block p-4 border-b border-muted-foreground/25"
           >
             {dataRow.name}
           </Link>
@@ -71,8 +90,8 @@ function Index({ lang }) {
         show: true,
         searchType: "boolean",
         parse: {
-          true: "Active",
-          false: "Inactive",
+          false: "Active",
+          true: "Inactive",
         },
         cell: ({ dataRow, valueCell }) => {
           return (
@@ -99,79 +118,30 @@ function Index({ lang }) {
     [lang],
   );
   return (
-    <Dialog open={openNewSupplier} onOpenChange={setOpenNewSupplier}>
+    <>
       <DataTable
         ref={tableRef}
         title={t("purchase.supplier.title")}
         addButton={{
           title: t("purchase.supplier.addButton"),
           onClick: () => {
-            router.visit(route("suppliers.create"));
+            setShowNewForm(true);
           },
         }}
         columns={columns}
       />
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Add Supplier</DialogTitle>
-        </DialogHeader>
-        <FormInput label="Fullname">
-          <Input
-            required
-            name="name"
-            type="text"
-            placeholder="PT Pataya Sarana Niaga"
-          />
-        </FormInput>
-        <FormInput label="Email">
-          <Input
-            required
-            name="email"
-            type="email"
-            placeholder="ptpsn@gmail.com"
-          />
-        </FormInput>
-        <FormInput label="Phone">
-          <Input required name="phone" type="text" placeholder="081xxxxxxxx" />
-        </FormInput>
-        <FormInput label="Bank">
-          <Input
-            required
-            name="bank"
-            type="text"
-            placeholder="BCAa/n712xxxxxx"
-          />
-        </FormInput>
-        <FormInput label="Street">
-          <Input required name="street" type="text" placeholder="Taman Raya" />
-        </FormInput>
-        <FormInput label="City">
-          <Input
-            required
-            name="city"
-            type="text"
-            placeholder="Jakarta Selatan"
-          />
-        </FormInput>
-        <FormInput label="Province">
-          <Input
-            required
-            name="province"
-            type="text"
-            placeholder="DKI Jakarta"
-          />
-        </FormInput>
-        <FormInput label="Post Code">
-          <Input required name="zip_code" type="text" placeholder="61xxx" />
-        </FormInput>
-        <FormInput label="Country">
-          <Input required name="country" type="text" placeholder="Indonesia" />
-        </FormInput>
-        <FormInput label="Status">
-          <Input required placeholder="Active" />
-        </FormInput>
-      </DialogContent>
-    </Dialog>
+      <FormPageDialog
+        title={t("purchase.supplier.new")}
+        disabled={processing}
+        errors={errors}
+        onSubmit={onSubmit}
+        open={showNewForm}
+        onOpenChange={setShowNewForm}
+        className="max-w-lg"
+      >
+        <Form data={data} setData={setData} />
+      </FormPageDialog>
+    </>
   );
 }
 export default Index;
