@@ -52,13 +52,13 @@ class UserRequest extends FormRequest {
 
     return $results;
   }
-  public function attributes() {
-    dd($this->scanDirectory(\base_path('lang\en')));
-    dd(scandir(\base_path('lang\en')));
-    dd(include_once \base_path('lang\en\user\user'));
-    $locale = app()->getLocale();
-    return [
-      'default_branch_id' => $locale == 'id' ? 'test' : 'default branch',
-    ];
-  }
+  // public function attributes() {
+  //   dd($this->scanDirectory(\base_path('lang\en')));
+  //   dd(scandir(\base_path('lang\en')));
+  //   dd(include_once \base_path('lang\en\user\user'));
+  //   $locale = app()->getLocale();
+  //   return [
+  //     'default_branch_id' => $locale == 'id' ? 'test' : 'default branch',
+  //   ];
+  // }
 }

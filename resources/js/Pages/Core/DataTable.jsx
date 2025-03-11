@@ -139,7 +139,7 @@ export default memo(
       f: query?.f ?? [],
       page: query?.page ?? 1,
     });
-    const [columns, setColumns] = useState(
+    const [columns] = useState(
       _columns.findIndex((x) => x.name === "created_at") > -1
         ? _columns
         : [
@@ -444,7 +444,7 @@ export default memo(
                   return cloneElement(item, { key: x.id, ...item.props });
                 })
               ) : (
-                <NoDataImg className="w-full max-w-sm self-center" />
+                <NoDataImg className="self-center w-full max-w-sm" />
               )}
             </div>
           ) : (

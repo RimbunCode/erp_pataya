@@ -249,6 +249,7 @@ export default function Index({ lang }) {
         open={showNewForm}
         onOpenChange={setShowNewForm}
         className="max-w-xl"
+        setData={setData}
       >
         <Form data={data} setData={setData} />
       </FormPageDialog>

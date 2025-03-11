@@ -10,4 +10,15 @@ class Utils {
       return true;
     return $request->header('X-Inertia') == 'true' || $request->header('X-Inertia-Partial') == 'true';
   }
+  public static function generateRandom($length) {
+    $result = "";
+    $characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    $charactersLength = strlen($characters);
+    $counter = 0;
+    while ($counter < $length) {
+      $result .= $characters[rand(0, $charactersLength - 1)];
+      $counter += 1;
+    }
+    return $result;
+  }
 }

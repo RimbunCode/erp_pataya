@@ -10,7 +10,7 @@ import {
 import React, { forwardRef } from "react";
 import { SidebarInset, SidebarProvider } from "@/Components/ui/sidebar";
 
-import { AppSidebar } from "@/Components/Sidebar/AppSidebar";
+import AppSidebar from "@/Components/Sidebar/AppSidebar";
 import MasterLayout from "./MasterLayout";
 import Navbar from "@/Components/Navbar/Navbar";
 import { cn } from "@/lib/utils";

@@ -3,8 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\User\Permission;
+use App\Traits\DataTable;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 
 class PermissionSeeder extends Seeder {
   private $defaultPermissions = [
@@ -116,16 +118,31 @@ class PermissionSeeder extends Seeder {
         ]
       ]
     ];
+    // load composer.json as array
+    $composer = json_decode(file_get_contents(base_path('composer.json')), true);
+    // get the root namespace defined for the app
+    $namespace = 'App\Models';
+    // load classes composer knows about
+    $autoload = include base_path('/vendor/composer/autoload_classmap.php');
 
-    foreach ($modulePermissions as $module => $permissions) {
-      foreach ($permissions as $permission) {
-        Permission::create([
-          'module' => $module,
-          'name' => $permission['name'],
-          'model' => $permission['model'],
-          'permissions' => $permission['permissions'],
-        ]);
+    DB::beginTransaction();
+    foreach ($autoload as $className => $path) {
+      // skip if we are not in the root namespace, ie App\, to ignore other vendor packages, of which there are a lot (dd($autoload) to see)
+      if (!\str_contains($className, $namespace)) {
+        continue;
+      }
+
+      // check if class is extending Model
+      try {
+        if (
+          in_array(DataTable::class, class_uses_recursive($className), true)
+        ) {
+          $className::initPermissions();
+        }
+      } catch (\Throwable $e) {
+        // do nothing
       }
     }
+    DB::commit();
   }
 }

@@ -142,7 +142,10 @@ const FormPageContent = memo(
             className={cn(className, "px-4 py-4 !mt-0")}
             role="content"
           >
-            {headerChildren.length > 0 || isSingle ? (
+            {headerChildren.length > 0 ||
+            (isSingle && collapsible) ||
+            (isSingle && title) ||
+            (title && collapsible) ? (
               <>
                 <Trigger className="pt-0 pb-1 mb-3 border-b border-muted-foreground/25">
                   {!haveTitle && (
@@ -503,14 +506,14 @@ const FormPageDialog = memo(
         setShowAlert(false);
         setIsDirty(false);
         cancel();
-        setData({});
+        setData?.({});
       });
       if (isDirty) {
         setShowAlert(true);
       } else {
         setShowAlert(false);
         onOpenChange(val);
-        setData({});
+        setData?.({});
       }
     };
     useDidMountEffect(() => {

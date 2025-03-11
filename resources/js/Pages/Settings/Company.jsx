@@ -45,6 +45,7 @@ export default function Company({ preferences, currencies, countries }) {
   };
   return (
     <FormPage
+      errors={errors}
       disabled={processing}
       title={t("core.company.title")}
       onSubmit={onSubmit}

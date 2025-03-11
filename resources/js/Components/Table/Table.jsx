@@ -33,9 +33,9 @@ import { debounce } from "lodash";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-const DATATABLE_COLUMNS_KEY = "datatable_columns";
+export const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
-const convertColWidth = (colWidth) => {
+export const convertColWidth = (colWidth) => {
   if (colWidth) {
     switch (colWidth) {
       case "grow":
@@ -49,7 +49,7 @@ const convertColWidth = (colWidth) => {
     return "minmax(0px, 1fr)";
   }
 };
-const createHeaders = (headers) => {
+export const createHeaders = (headers) => {
   const columnsMap = new Map(
     headers.map((col) => [
       col.name,
