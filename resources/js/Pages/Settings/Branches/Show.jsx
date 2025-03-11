@@ -50,7 +50,7 @@ export default function Show({ branch }) {
             disabled={processing}
           >
             <SaveIcon />
-            Save
+            {t("core.form.save")}
           </Button>
         )
       }

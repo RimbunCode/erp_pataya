@@ -10,12 +10,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Supplier extends Model
 {
-    use HasUlids, SoftDeletes, DataTable;
+  use HasUlids, SoftDeletes, DataTable;
 
-    protected $guarded = ['id'];
+  protected $guarded = ['id'];
 
-    protected $casts=[
-        'is_disable'=>'boolean',
-        'banks'=>Json::class
-    ];
+  protected $casts = [
+    'is_disabled' => 'boolean',
+    'banks' => Json::class
+  ];
 }
