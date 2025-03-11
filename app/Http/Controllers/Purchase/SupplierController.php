@@ -43,49 +43,49 @@ class SupplierController extends Controller
   {
     $data = $request->validated();
     DB::beginTransaction();
-    $supplier = Supplier::create([
-      'name' => $data['name'],
-      'email' => $data['email'],
-      'phones' => $data['phones'],
-      'banks' => $data['banks'] ?? '',
-      'street' => $data['street'],
-      'city' => $data['city'],
-      'province' => $data['province'],
-      'zip_code' => $data['zip_code'],
-      'country' => $data['country'],
+    $supplier = Supplier::create($data);
+    $supplier->logs()->create([
+      'user_id' => $request->user()->id,
+      'activity' => [
+        'en' => ':user created this',
+        'id' => ':user membuat ini'
+      ]
     ]);
     DB::commit();
-    return redirect()->route('suppliers.show', $supplier);
+    return redirect()->back();
   }
 
   public function show(Request $request, Supplier $supplier)
   {
+
     $this->setBreadcrumbs($supplier);
     $supplier->showDetail();
-    return Inertia::render('Purchases/Suppliers/Show', [
-      'supplier' => $supplier,
+    return Inertia::render('Purchase/Suppliers/Show', [
+      'supplier' => function () use ($supplier) {
+        return $supplier;
+      }
     ]);
   }
 
   /**
    * Show the form for editing the specified resource.
    */
-  public function edit(string $id)
+  public function update(SupplierRequest $request, Supplier $supplier)
   {
-    //
+    $data = $request->validated();
+    DB::beginTransaction();
+    $supplier->update($data);
+    $supplier->logs()->create([
+      'user_id' => $request->user()->id,
+      'activity' => [
+        'en' => ':user updated this',
+        'id' => ':user memperbarui ini'
+      ]
+    ]);
+    DB::commit();
+    return back();
   }
 
-  /**
-   * Update the specified resource in storage.
-   */
-  public function update(Request $request, string $id)
-  {
-    //
-  }
-
-  /**
-   * Remove the specified resource from storage.
-   */
   public function destroy(Request $request): RedirectResponse
   {
     $request->validate([

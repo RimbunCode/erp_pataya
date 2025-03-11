@@ -22,7 +22,7 @@ class RoleRequest extends FormRequest {
       'name' => ['required', 'string', 'min:3', 'max:255'],
       'description' => ['nullable', 'string'],
       'is_disabled' => ['nullable', 'boolean'],
-      'rules' => ['nullable', 'array'],
+      'rules' => ['nullable', 'array', 'min:1'],
       'rules.*.permission_id' => ['required', 'string', 'exists:permissions,id'],
       'rules.*.level' => ['required', 'integer'],
       'rules.*.only_creator' => ['required', 'boolean'],

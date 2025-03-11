@@ -6,9 +6,11 @@ use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
 use App\Models\Scopes\DataTableScope;
+use App\Models\User\Permission;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log as FacadesLog;
 use Inertia\Inertia;
 
 /**
@@ -21,6 +23,87 @@ trait DataTable {
   }
   public static function getTableName() {
     return with(new static)->getTable();
+  }
+
+  /**
+   * Jika model ini untuk form yang submitable
+   * @var bool
+   */
+  protected static bool $is_submitable = false;
+  /**
+   * Berikan nama module untuk model ini
+   * @var string
+   */
+  protected static string|null $module = null;
+  /**
+   *
+   * @var string
+   */
+  protected static string|null $alias = null;
+  /**
+   * Custom permissions for this model
+      select,
+      read,
+      write,
+      create,
+      delete,
+      submit,
+      cancel,
+      amend,
+      print,
+      import,
+      export,
+      share,
+   * @return string[]
+   */
+  protected static function permissions(): array {
+    return [
+      'select',
+      'read',
+      'write',
+      'create',
+      'delete',
+      'submit',
+      'cancel',
+      'amend',
+      'print',
+      'import',
+      'export',
+      'share',
+    ];
+  }
+  private static function getShortName() {
+    return substr(static::class, strrpos(static::class, '\\') + 1);
+  }
+  private static function getModule() {
+    $shortName = static::getShortName();
+    // Hapus prefix "App\Models\"
+    $trimmed = str_replace("App\\Models\\", "", static::class);
+
+    // Hapus bagian terakhir dari namespace (shortName)
+    $list = explode("\\", $trimmed);
+    array_pop($list); // Menghapus elemen terakhir
+
+    $module = join("\\", $list);
+
+    return $module ?: null;
+  }
+  public static function initPermissions() {
+    $module = static::$module ?? static::getModule();
+    if (!$module) {
+      \print_r("\e[39m" . static::class . " \e[91m(Module name not found)" . \PHP_EOL);
+      return;
+    }
+    Permission::updateOrCreate([
+      'model' => static::class
+    ], [
+      'module' => $module,
+      'name' => static::$alias ??
+        \ucwords(str_replace(['_', '-'], ' ', static::getTableName())),
+      'permissions' => static::permissions(),
+      'is_submittable' => static::$is_submitable,
+    ]);
+    print_r("\e[39m" . static::class . " \e[92m(SUCCESS)" . \PHP_EOL);
   }
   public function showDetail() {
     Inertia::share([

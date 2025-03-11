@@ -23,7 +23,7 @@ import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
-export default function Index({ lang, branchSettings }) {
+export default function Index({ branchSettings }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
@@ -215,6 +215,7 @@ export default function Index({ lang, branchSettings }) {
         open={showNewForm}
         onOpenChange={setShowNewForm}
         className="max-w-lg"
+        setData={setData}
       >
         <Form data={data} setData={setData} />
       </FormPageDialog>

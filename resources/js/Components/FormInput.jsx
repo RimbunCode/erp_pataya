@@ -1,4 +1,4 @@
-import React, { Children, cloneElement, useEffect, useId } from "react";
+import React, { Children, cloneElement, useId } from "react";
 
 import InputError from "./InputError";
 import { Label } from "./ui/label";
@@ -9,6 +9,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 /**
  *
  * @param {object} props
+ * @param {boolean} props.ignoreDisabled
  * @param {string} props.label
  * @param {boolean} props.required
  * @param {string} props.className
@@ -36,7 +37,6 @@ function FormInput({
   const errors = errorsProps ?? form?.errors ?? {};
   const _required = required || child.props?.required;
   const _name = name || child.props?.name;
-  const _value = child.props?.value;
   return (
     <div
       className={cn("flex flex-col gap-y-2", className)}
@@ -50,7 +50,6 @@ function FormInput({
         : cloneElement(child, {
             id,
             required: _required,
-            value: _value ?? "",
           })}
       {_name in (errors ?? {}) ? (
         <InputError

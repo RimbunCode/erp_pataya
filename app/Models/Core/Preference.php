@@ -2,9 +2,11 @@
 
 namespace App\Models\Core;
 
+use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Model;
 
 class Preference extends Model {
+  use DataTable;
   protected $primaryKey = 'key';
   public $incrementing = false;
   protected $keyType = 'string';
