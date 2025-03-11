@@ -1,17 +1,18 @@
+import { Button } from "@/Components/ui/button";
+import Form from "./Form";
 /* eslint-disable jsdoc/require-jsdoc */
 import { FormPage } from "@/Pages/Core/FormPage";
 import React from "react";
 import { SaveIcon } from "lucide-react";
-
-import { Button } from "@/Components/ui/button";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import Form from "./Form";
 
 export default function Show({ supplier }) {
   const { t } = useLaravelReactI18n();
-  const { data, setData, put, processing, errors, reset, isDirty } =
-    useDraftForm("supplier", supplier);
+  const { data, setData, put, processing, errors, isDirty } = useDraftForm(
+    "supplier",
+    supplier,
+  );
   const route = window.route;
   const onSubmit = (e) => {
     e.preventDefault();
@@ -22,10 +23,15 @@ export default function Show({ supplier }) {
   return (
     <>
       <FormPage
+        errors={errors}
         disabled={processing}
         title={supplier.name}
         badge={
-          isDirty && <span className="text-sm badge warning">Not Save</span>
+          isDirty && (
+            <span className="text-sm badge warning">
+              {t("core.form.not_saved")}
+            </span>
+          )
         }
         controls={
           <Button
@@ -35,7 +41,7 @@ export default function Show({ supplier }) {
             disabled={processing}
           >
             <SaveIcon />
-            Save
+            {t("core.form.save")}
           </Button>
         }
       >

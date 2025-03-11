@@ -1,10 +1,10 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { Button } from "@/Components/ui/button";
-import { useDraftForm } from "@/Hooks/useDraftForm";
-import { FormPage } from "@/Pages/Core/FormPage";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { SaveIcon } from "lucide-react";
 import Form from "./Form";
+import { FormPage } from "@/Pages/Core/FormPage";
+import { SaveIcon } from "lucide-react";
+import { useDraftForm } from "@/Hooks/useDraftForm";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ branch }) {
   const route = window.route;
@@ -35,7 +35,11 @@ export default function Show({ branch }) {
               {t("core.branch.columns.is_main_branch")}
             </span>
           )}
-          {isDirty && <span className="text-sm badge warning">Not Saved</span>}
+          {isDirty && (
+            <span className="text-sm badge warning">
+              {t("core.form.not_saved")}
+            </span>
+          )}
         </>
       }
       controls={
@@ -46,7 +50,7 @@ export default function Show({ branch }) {
             disabled={processing}
           >
             <SaveIcon />
-            Save
+            {t("core.form.save")}
           </Button>
         )
       }

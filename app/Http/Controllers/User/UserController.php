@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UserRequest;
+use App\Models\Core\Branch;
 use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
@@ -70,11 +71,18 @@ class UserController extends Controller {
     }
     $this->setBreadcrumbs($user);
     $user->showDetail();
-    $user->roles = $user->roles()->pluck('id');
     return Inertia::render('Users/ManageUsers/Show', [
-      'user' => $user,
+      'user' => function () use ($user) {
+        $user->roles = $user->roles()->pluck('id');
+        $user->branches = $user->branches()->pluck('id');
+        return $user;
+      },
       'roles' => Inertia::defer(function () {
         return \App\Models\User\Role::all();
+      }),
+      'branches' => Inertia::defer(function () {
+        return Branch::whereNull('branchable_type')
+          ->whereNull('branchable_id')->get();
       })
     ]);
   }
@@ -90,6 +98,7 @@ class UserController extends Controller {
     DB::beginTransaction();
     $user->update($data);
     $user->roles()->sync($data['roles']);
+    $user->branches()->sync($data['branches']);
     $user->logs()->create([
       'user_id' => $request->user()->id,
       'activity' => [

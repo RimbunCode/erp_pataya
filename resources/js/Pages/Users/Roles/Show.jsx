@@ -1,7 +1,6 @@
 /* eslint-disable jsdoc/require-jsdoc */
 import { FormPage, FormPageContent } from "@/Pages/Core/FormPage";
 import { PlusIcon, SaveIcon, Trash2Icon } from "lucide-react";
-import React from "react";
 
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
@@ -10,14 +9,15 @@ import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import QueryString from "qs";
+import React from "react";
 import { Textarea } from "@/Components/ui/textarea";
 import axios from "axios";
 import { generateRandom } from "@/lib/utils";
 import { toast } from "sonner";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useDraftForm } from "@/Hooks/useDraftForm";
-import { useState } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { useState } from "react";
 
 export default function Show({ role }) {
   const { data, setData, put, post, processing, errors, isDirty } =
@@ -99,7 +99,11 @@ export default function Show({ role }) {
       title={role?.name ?? t("user.role.new")}
       onSubmit={onSubmit}
       badge={
-        isDirty && <span className="text-sm badge warning">Not Saved</span>
+        isDirty && (
+          <span className="text-sm badge warning">
+            {t("core.form.not_saved")}
+          </span>
+        )
       }
       controls={
         <Button

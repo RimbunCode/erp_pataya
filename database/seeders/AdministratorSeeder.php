@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Core\Branch;
 use App\Models\User\Permission;
 use App\Models\User\Role;
 use App\Models\User\RolePermission;
@@ -15,12 +16,20 @@ class AdministratorSeeder extends Seeder {
    */
   public function run(): void {
     $this->call(PermissionSeeder::class);
+
+
+    $defaultBranch = Branch::where('is_main_branch', true)
+      ->whereNull('branchable_type')
+      ->whereNull('branchable_id')
+      ->first();
+
     // Create Admin User
     $adminUser = User::factory()->create([
       'name' => 'Administrator',
       'username' => 'admin',
       'email' => 'test@example.com',
       'password' => bcrypt('admin'),
+      'default_branch_id' => $defaultBranch->id
     ]);
 
     // Create Role For Admin
@@ -30,6 +39,7 @@ class AdministratorSeeder extends Seeder {
 
     // Attach Admin User To Admin Role
     $adminUser->roles()->attach($roleAdmin->id);
+    $adminUser->branches()->attach($defaultBranch->id);
 
     // Create Role Permission For Admin
     $rules = [

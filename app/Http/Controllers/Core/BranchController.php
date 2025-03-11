@@ -8,6 +8,7 @@ use App\Models\Core\Branch;
 use App\Models\Core\Country;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class BranchController extends Controller {
@@ -28,6 +29,12 @@ class BranchController extends Controller {
         return Country::all();
       })
     ]);
+  }
+
+  public function switch(Request $request, string $id) {
+    $request->session()->forget('currentBranch');
+    $request->session()->put('currentBranch', $id);
+    return redirect()->back();
   }
 
   /**
@@ -92,6 +99,10 @@ class BranchController extends Controller {
    * Remove the specified resource from storage.
    */
   public function destroy(Branch $branch) {
-    //
+    if ($branch->is_main_branch) {
+      abort(403);
+    }
+    $branch->delete();
+    return back();
   }
 }

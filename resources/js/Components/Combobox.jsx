@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import {
   Command,
   CommandEmpty,
@@ -27,6 +28,7 @@ function Combobox({
   templateItem,
   placeholder,
   className,
+  disabled,
 }) {
   const commandRef = useRef();
   const isMobile = useIsMobile();
@@ -50,9 +52,10 @@ function Combobox({
   const ParentContent = isMobile ? DrawerContent : PopoverContent;
 
   return (
-    <Parent open={open} onOpenChange={setOpen}>
+    <Parent open={open} onOpenChange={setOpen} modal={false}>
       <ParentTrigger asChild>
         <Button
+          disabled={disabled}
           variant="outline"
           size="sm"
           className={cn(

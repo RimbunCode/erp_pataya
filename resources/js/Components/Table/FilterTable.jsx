@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/require-jsdoc */
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,7 @@ import {
 import { Filter, Plus } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn, generateRandom } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 import { Button } from "../ui/button";
 import FilterItem from "./FilterItem";
@@ -84,7 +85,7 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
     });
   }, [open]);
 
-  const countFilters = Object.keys(initialFilters).length;
+  const countFilters = initialFilters.length;
   const FilterProvider = isMobile ? Dialog : Popover;
   const FilterTrigger = isMobile ? DialogTrigger : PopoverTrigger;
   const FilterContent = isMobile ? DialogContent : PopoverContent;
@@ -105,7 +106,7 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
         ) : (
           <Button
             className={cn(
-              countFilters > 0 ? "border-r rounded-r-none" : "",
+              countFilters > 0 ? "border-r rounded-r-none" : "rounded-r",
               "flex-1 relative !py-0 h-8 !px-2  border-muted-foreground/50",
             )}
             variant="secondary"
@@ -174,4 +175,4 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
   );
 }
 
-export default FilterTable;
+export default memo(FilterTable);
