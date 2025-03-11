@@ -53,12 +53,6 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     Route::resource('company', \App\Http\Controllers\Core\CompanyController::class)->only(['index', 'store']);
     // Branches
     Route::resourceDetail('branches', 'branch', \App\Http\Controllers\Core\BranchController::class);
-    //Units
-    Route::get('/units/groups', [\App\Http\Controllers\Core\UnitController::class, 'getGroups']);
-    Route::get('/units/groups/{search}', [\App\Http\Controllers\Core\UnitController::class, 'getGroups'])->name('units.groups');
-    Route::resourceDetail('units', 'unit', \App\Http\Controllers\Core\UnitController::class);
-    // Categories
-    Route::resourceDetail('categories', 'category', \App\Http\Controllers\Core\CategoryController::class);
   });
   // Tags
   Route::resourceDetail('tags', 'tag', \App\Http\Controllers\Core\TagController::class);
@@ -72,6 +66,15 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('roles', 'role', \App\Http\Controllers\User\RoleController::class);
   // Warehouse
   Route::resourceDetail('warehouses', 'warehouse', \App\Http\Controllers\Inventory\WarehouseController::class);
+  //Units
+  Route::get('/units/groups/{search?}', [\App\Http\Controllers\Inventory\UnitController::class, 'getGroups'])->name('units.groups');
+  Route::resourceDetail('units', 'unit', \App\Http\Controllers\Inventory\UnitController::class);
+  // Categories
+  Route::resourceDetail('categories', 'category', \App\Http\Controllers\Inventory\CategoryController::class);
+  // Items
+  Route::resourceDetail('items', 'item', \App\Http\Controllers\Inventory\ItemController::class);
+  //Attributes
+  Route::resourceDetail('attributes', 'attribute', \App\Http\Controllers\Inventory\AttributeController::class);
   // Supplier
   Route::resourceDetail('suppliers', 'supplier', \App\Http\Controllers\Purchase\SupplierController::class);
 });

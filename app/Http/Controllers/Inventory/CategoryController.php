@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Core;
+namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Core\CategoryRequest;
-use App\Models\Core\Category;
+use App\Http\Requests\Inventory\CategoryRequest;
+use App\Models\Inventory\Category;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -21,7 +21,7 @@ class CategoryController extends Controller {
     $this->setBreadcrumbs();
     Category::dataTable($request);
     return Inertia::render(
-      'Settings/Categories/Index',
+      'Inventory/Categories/Index',
       [
         'types' => [
           'stock' => __('core/category.types.stock'),
@@ -63,7 +63,7 @@ class CategoryController extends Controller {
   public function show(Category $category) {
     $this->setBreadcrumbs($category);
     $category->showDetail();
-    return Inertia::render('Settings/Categories/Show', [
+    return Inertia::render('Inventory/Categories/Show', [
       'category' => $category,
       'types' => [
         'stock' => __('core/category.types.stock'),

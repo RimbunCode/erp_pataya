@@ -114,13 +114,13 @@ export default function Form({ data, setData }) {
       <FormPageContent title={null} value="detail">
         <FormPageContentTitle></FormPageContentTitle>
         <div className="grid gap-x-3 gap-y-4">
-          <FormInput required={true} label={t("core.unit.columns.group")}>
+          <FormInput required={true} label={t("inventory.unit.columns.group")}>
             <Combobox
               search={searchGroup}
               onSearchChange={setSearchGroup}
               options={groups}
               value={data.group}
-              placeholder={t("core.unit.columns.group.placeholder")}
+              placeholder={t("inventory.unit.columns.group.placeholder")}
               templateTrigger={(group) => {
                 return <span>{group}</span>;
               }}
@@ -138,13 +138,13 @@ export default function Form({ data, setData }) {
               }}
             />
           </FormInput>
-          <FormInput required={true} label={t("core.unit.columns.code")}>
+          <FormInput required={true} label={t("inventory.unit.columns.code")}>
             <Input
               value={data.code}
               onChange={(e) => setData("code", e.target.value)}
             />
           </FormInput>
-          <FormInput required={true} label={t("core.unit.columns.name")}>
+          <FormInput required={true} label={t("inventory.unit.columns.name")}>
             <Input
               value={data.name}
               onChange={(e) => setData("name", e.target.value)}
@@ -162,13 +162,13 @@ export default function Form({ data, setData }) {
               htmlFor={name + "-checkbox"}
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              {t("core.unit.columns.customable")}
+              {t("inventory.unit.columns.customable")}
             </label>
           </div>
           {!data.customable && (
             <FormInput
               required={true}
-              label={t("core.unit.columns.conversion_factor")}
+              label={t("inventory.unit.columns.conversion_factor")}
             >
               <Input
                 pattern="^\d*(\.\d+)?$"
@@ -180,15 +180,15 @@ export default function Form({ data, setData }) {
         </div>
       </FormPageContent>
       {!data.customable && units.length > 0 && (
-        <FormPageContent title={t("core.unit.playground")} value="detail">
+        <FormPageContent title={t("inventory.unit.playground")} value="detail">
           <FormPageContentDescription>
-            {t("core.unit.playground.description")}
+            {t("inventory.unit.playground.description")}
           </FormPageContentDescription>
           <div className="grid gap-x-3 gap-y-4">
             <div className="grid grid-cols-[1fr_auto_1fr] gap-x-2 gap-y-3">
               <FormInput
                 ignoreDisabled={true}
-                label={t("core.unit.columns.units.from")}
+                label={t("inventory.unit.columns.units.from")}
               >
                 <Combobox
                   options={units}
@@ -200,7 +200,7 @@ export default function Form({ data, setData }) {
                   disabled={
                     unitSelected.from && unitSelected.from?.id === data?.id
                   }
-                  placeholder={t("core.unit.playground.unit.placeholder")}
+                  placeholder={t("inventory.unit.playground.unit.placeholder")}
                   templateTrigger={(unit) => {
                     return (
                       <span>
@@ -235,7 +235,7 @@ export default function Form({ data, setData }) {
               </Button>
               <FormInput
                 ignoreDisabled={true}
-                label={t("core.unit.columns.units.to")}
+                label={t("inventory.unit.columns.units.to")}
               >
                 <Combobox
                   options={units}
@@ -245,7 +245,7 @@ export default function Form({ data, setData }) {
                       : unitSelected.to
                   }
                   disabled={unitSelected.to && unitSelected.to?.id === data?.id}
-                  placeholder={t("core.unit.playground.unit.placeholder")}
+                  placeholder={t("inventory.unit.playground.unit.placeholder")}
                   templateTrigger={(unit) => {
                     return (
                       <span>

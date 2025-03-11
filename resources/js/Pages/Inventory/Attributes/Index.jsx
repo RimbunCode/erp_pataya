@@ -28,7 +28,7 @@ export default function Index({ lang }) {
   const [showNewForm, setShowNewForm] = useState(false);
   const [idDelete, setIdDelete] = useState(null);
   const { data, setData, post, processing, errors } = useDraftForm(
-    "unit",
+    "attribute",
     {},
     {
       onContinueDraft: () => {
@@ -39,10 +39,10 @@ export default function Index({ lang }) {
   const onSubmit = (e) => {
     e.preventDefault();
 
-    post(route("units.store"));
+    post(route("attributes.store"));
   };
   const onDelete = (id) => {
-    router.delete(route("units.destroy", id), {
+    router.delete(route("attributes.destroy", id), {
       onSuccess: () => {
         setIdDelete(null);
       },
@@ -55,23 +55,7 @@ export default function Index({ lang }) {
   const columns = useMemo(
     () => [
       {
-        titleTrans: "core.unit.columns.code",
-        name: "code",
-        searchType: "text",
-        width: "fit",
-        sortable: true,
-        resizeable: true,
-        cell: ({ dataRow }) => (
-          <Link
-            className="hover:underline"
-            href={route("units.show", dataRow.id)}
-          >
-            {dataRow.code}
-          </Link>
-        ),
-      },
-      {
-        titleTrans: "core.unit.columns.name",
+        titleTrans: "inventory.attribute.columns.name",
         name: "name",
         searchType: "text",
         sortable: true,
@@ -79,36 +63,19 @@ export default function Index({ lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("units.show", dataRow.id)}
+            href={route("attributes.show", dataRow.id)}
           >
             {dataRow.name}
           </Link>
         ),
       },
       {
-        titleTrans: "core.unit.columns.group",
-        name: "group",
+        titleTrans: "inventory.attribute.columns.values",
+        name: "values",
         searchType: "text",
         sortable: true,
         resizeable: true,
-        cell: ({ dataRow }) => (
-          <button
-            type="button"
-            className="text-left hover:underline"
-            onClick={() => {
-              tableRef.current.addFilter("group", "eq", dataRow.group);
-            }}
-          >
-            {dataRow.group}
-          </button>
-        ),
-      },
-      {
-        titleTrans: "core.unit.columns.conversion_factor",
-        name: "conversion_factor",
-        searchType: "text",
-        sortable: false,
-        resizeable: true,
+        cell: ({ dataRow }) => <>{dataRow.values.join(", ")}</>,
       },
     ],
     [lang],
@@ -130,9 +97,9 @@ export default function Index({ lang }) {
             </Button>
           );
         }}
-        title={t("core.unit.title")}
+        title={t("inventory.attribute.title")}
         addButton={{
-          title: t("core.unit.add_unit"),
+          title: t("inventory.attribute.add_attribute"),
           onClick: () => {
             setShowNewForm(true);
           },
@@ -141,32 +108,26 @@ export default function Index({ lang }) {
           <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
             <Link
               as="button"
-              href={route("units.show", dataRow.id)}
+              href={route("attributes.show", dataRow.id)}
               className=""
             >
-              <p className="text-base font-medium text-left text-muted-foreground">
-                {dataRow.group}
-              </p>
-              <p className="text-base font-medium text-left">
-                {dataRow.name} ({dataRow.code})
-              </p>
+              <p className="text-base font-medium text-left">{dataRow.name}</p>
             </Link>
-            {!dataRow.is_default && (
-              <Button
-                variant="destructive"
-                size="icon"
-                className="size-8"
-                onClick={() => setIdDelete(dataRow.id)}
-              >
-                <Trash2Icon />
-              </Button>
-            )}
+
+            <Button
+              variant="destructive"
+              size="icon"
+              className="size-8"
+              onClick={() => setIdDelete(dataRow.id)}
+            >
+              <Trash2Icon />
+            </Button>
           </div>
         )}
         columns={columns}
       />
       <FormPageDialog
-        title={t("core.unit.new")}
+        title={t("inventory.attribute.new")}
         disabled={processing}
         errors={errors}
         onSubmit={onSubmit}
@@ -187,9 +148,11 @@ export default function Index({ lang }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("core.unit.delete")}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t("inventory.attribute.delete")}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("core.unit.delete.description")}
+              {t("inventory.attribute.delete.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -205,7 +168,7 @@ export default function Index({ lang }) {
                 onDelete(idDelete);
               }}
             >
-              {t("core.unit.delete.confirm")}
+              {t("inventory.attribute.delete.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

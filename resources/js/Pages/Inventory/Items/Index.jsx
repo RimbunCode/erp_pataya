@@ -16,6 +16,7 @@ import Form from "./Form";
 import { FormPageDialog } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { Trash2Icon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { router } from "@inertiajs/react";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -28,7 +29,7 @@ export default function Index({ lang }) {
   const [showNewForm, setShowNewForm] = useState(false);
   const [idDelete, setIdDelete] = useState(null);
   const { data, setData, post, processing, errors } = useDraftForm(
-    "category",
+    "item",
     {},
     {
       onContinueDraft: () => {
@@ -39,10 +40,10 @@ export default function Index({ lang }) {
   const onSubmit = (e) => {
     e.preventDefault();
 
-    post(route("categories.store"));
+    post(route("items.store"));
   };
   const onDelete = (id) => {
-    router.delete(route("categories.destroy", id), {
+    router.delete(route("items.destroy", id), {
       onSuccess: () => {
         setIdDelete(null);
       },
@@ -55,7 +56,23 @@ export default function Index({ lang }) {
   const columns = useMemo(
     () => [
       {
-        titleTrans: "core.category.columns.name",
+        titleTrans: "inventory.item.columns.code",
+        name: "code",
+        searchType: "text",
+        width: "fit",
+        sortable: true,
+        resizeable: true,
+        cell: ({ dataRow }) => (
+          <Link
+            className="hover:underline"
+            href={route("items.show", dataRow.id)}
+          >
+            {dataRow.name}
+          </Link>
+        ),
+      },
+      {
+        titleTrans: "inventory.item.columns.name",
         name: "name",
         searchType: "text",
         sortable: true,
@@ -63,27 +80,39 @@ export default function Index({ lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("categories.show", dataRow.id)}
+            href={route("items.show", dataRow.id)}
           >
             {dataRow.name}
           </Link>
         ),
       },
       {
-        titleTrans: "core.category.columns.type",
-        name: "type",
+        titleTrans: "inventory.item.columns.description",
+        name: "description",
+        searchType: "text",
+        show: false,
+        sortable: true,
+        resizeable: true,
+      },
+      {
+        titleTrans: "inventory.item.columns.category",
+        name: "categories.name",
         searchType: "text",
         sortable: true,
         resizeable: true,
         cell: ({ dataRow }) => (
           <button
+            className={cn("w-fit hover:underline")}
             type="button"
-            className="text-left hover:underline"
             onClick={() => {
-              tableRef.current.addFilter("type", "eq", dataRow.type);
+              tableRef.current.addFilter(
+                "categories.name",
+                "eq",
+                dataRow.category_name,
+              );
             }}
           >
-            {t(`core.category.types.${dataRow.type}`)}
+            {dataRow.category_name}
           </button>
         ),
       },
@@ -107,9 +136,9 @@ export default function Index({ lang }) {
             </Button>
           );
         }}
-        title={t("core.category.title")}
+        title={t("inventory.item.title")}
         addButton={{
-          title: t("core.category.add_category"),
+          title: t("inventory.item.add_item"),
           onClick: () => {
             setShowNewForm(true);
           },
@@ -118,12 +147,9 @@ export default function Index({ lang }) {
           <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
             <Link
               as="button"
-              href={route("categories.show", dataRow.id)}
+              href={route("items.show", dataRow.id)}
               className=""
             >
-              <p className="text-base font-medium text-left text-muted-foreground">
-                {t(`core.category.types.${dataRow.type}`)}
-              </p>
               <p className="text-base font-medium text-left">{dataRow.name}</p>
             </Link>
 
@@ -140,14 +166,14 @@ export default function Index({ lang }) {
         columns={columns}
       />
       <FormPageDialog
-        title={t("core.category.new")}
+        title={t("inventory.item.new")}
         disabled={processing}
         errors={errors}
         onSubmit={onSubmit}
         open={showNewForm}
         onOpenChange={setShowNewForm}
         setData={setData}
-        className="max-w-xl"
+        className="max-w-6xl"
       >
         <Form data={data} setData={setData} />
       </FormPageDialog>
@@ -161,9 +187,9 @@ export default function Index({ lang }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t("core.category.delete")}</AlertDialogTitle>
+            <AlertDialogTitle>{t("inventory.item.delete")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("core.category.delete.description")}
+              {t("inventory.item.delete.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -179,7 +205,7 @@ export default function Index({ lang }) {
                 onDelete(idDelete);
               }}
             >
-              {t("core.category.delete.confirm")}
+              {t("inventory.item.delete.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

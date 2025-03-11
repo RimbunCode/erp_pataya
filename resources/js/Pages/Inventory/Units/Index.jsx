@@ -8,8 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
 import DataTable from "@/Pages/Core/DataTable";
@@ -17,20 +16,19 @@ import Form from "./Form";
 import { FormPageDialog } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { Trash2Icon } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { router } from "@inertiajs/react";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
-export default function Index({ branchSettings }) {
+export default function Index({ lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
   const [idDelete, setIdDelete] = useState(null);
   const { data, setData, post, processing, errors } = useDraftForm(
-    "warehouse",
+    "unit",
     {},
     {
       onContinueDraft: () => {
@@ -38,23 +36,18 @@ export default function Index({ branchSettings }) {
       },
     },
   );
-  useEffect(() => {
-    if (!showNewForm) {
-      setData({});
-    }
-  }, [showNewForm]);
-  const onSubmit = useCallback((e) => {
+  const onSubmit = (e) => {
     e.preventDefault();
 
-    post(route("warehouses.store"));
-  }, []);
-  const onDelete = useCallback((id) => {
-    router.delete(route("warehouses.destroy", id), {
+    post(route("units.store"));
+  };
+  const onDelete = (id) => {
+    router.delete(route("units.destroy", id), {
       onSuccess: () => {
         setIdDelete(null);
       },
     });
-  }, []);
+  };
   /**
    * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
    * @type {ColumnProps[]}
@@ -62,8 +55,8 @@ export default function Index({ branchSettings }) {
   const columns = useMemo(
     () => [
       {
+        titleTrans: "inventory.unit.columns.code",
         name: "code",
-        titleTrans: "inventory.warehouse.columns.code",
         searchType: "text",
         width: "fit",
         sortable: true,
@@ -71,105 +64,61 @@ export default function Index({ branchSettings }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("warehouses.show", dataRow.id)}
+            href={route("units.show", dataRow.id)}
           >
             {dataRow.code}
           </Link>
         ),
       },
       {
+        titleTrans: "inventory.unit.columns.name",
         name: "name",
-        titleTrans: "inventory.warehouse.columns.name",
         searchType: "text",
         sortable: true,
         resizeable: true,
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("warehouses.show", dataRow.id)}
+            href={route("units.show", dataRow.id)}
           >
             {dataRow.name}
           </Link>
         ),
       },
       {
-        name: "branches.name",
-        titleTrans: "inventory.warehouse.columns.branch",
+        titleTrans: "inventory.unit.columns.group",
+        name: "group",
         searchType: "text",
         sortable: true,
         resizeable: true,
         cell: ({ dataRow }) => (
           <button
-            className={cn("w-fit hover:underline")}
             type="button"
+            className="text-left hover:underline"
             onClick={() => {
-              tableRef.current.addFilter(
-                "branches.name",
-                "eq",
-                dataRow.branch_name,
-              );
+              tableRef.current.addFilter("group", "eq", dataRow.group);
             }}
           >
-            {dataRow.branch_name}
+            {dataRow.group}
           </button>
         ),
       },
-
       {
-        name: "pic",
-        titleTrans: "inventory.warehouse.columns.pic",
+        titleTrans: "inventory.unit.columns.conversion_factor",
+        name: "conversion_factor",
+        searchType: "text",
+        sortable: false,
         resizeable: true,
-        cell: ({ dataRow }) => {
-          if (!dataRow.user_username) return <>-</>;
-
-          const alias = dataRow.user_name
-            .split(" ")
-            .slice(0, 2)
-            .map((n) => n.charAt(0))
-            .join("");
-          return (
-            <div className="flex items-center gap-3 text-sm text-left">
-              <Avatar className="rounded-lg size-10">
-                {dataRow.user_image && (
-                  <AvatarImage
-                    src={
-                      route("files.show", dataRow.user_image) +
-                      `?v=${new Date(dataRow.user_updated_at).getTime()}`
-                    }
-                    alt={dataRow.user_name}
-                  />
-                )}
-                <AvatarFallback className="text-xl font-semibold rounded-lg !flex">
-                  {alias}
-                </AvatarFallback>
-              </Avatar>
-              <div className="grid flex-1 text-base leading-tight text-left">
-                <span className="font-semibold truncate">
-                  {dataRow.user_name}
-                </span>
-                <span className="text-sm truncate text-foreground/80">
-                  {dataRow.user_email}
-                </span>
-              </div>
-            </div>
-          );
-        },
       },
     ],
-    [],
+    [lang],
   );
   return (
     <>
       <DataTable
         ref={tableRef}
-        title={`${branchSettings.currentBranch.name} ${t("inventory.warehouse.title")}`}
-        addButton={{
-          title: t("inventory.warehouse.add_warehouse"),
-          onClick: () => {
-            setShowNewForm(true);
-          },
-        }}
         actions={({ dataRow }) => {
+          if (dataRow.is_default) return null;
           return (
             <Button
               variant="destructive"
@@ -181,45 +130,53 @@ export default function Index({ branchSettings }) {
             </Button>
           );
         }}
+        title={t("inventory.unit.title")}
+        addButton={{
+          title: t("inventory.unit.add_unit"),
+          onClick: () => {
+            setShowNewForm(true);
+          },
+        }}
         templateItem={({ dataRow }) => (
           <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
             <Link
               as="button"
-              href={route("warehouses.show", dataRow.id)}
+              href={route("units.show", dataRow.id)}
               className=""
             >
               <p className="text-base font-medium text-left text-muted-foreground">
-                {dataRow.branch_name}
+                {dataRow.group}
               </p>
               <p className="text-base font-medium text-left">
-                ({dataRow.code}) {dataRow.name}
+                {dataRow.name} ({dataRow.code})
               </p>
             </Link>
-            <Button
-              variant="destructive"
-              size="icon"
-              className="size-8"
-              onClick={() => setIdDelete(dataRow.id)}
-            >
-              <Trash2Icon />
-            </Button>
+            {!dataRow.is_default && (
+              <Button
+                variant="destructive"
+                size="icon"
+                className="size-8"
+                onClick={() => setIdDelete(dataRow.id)}
+              >
+                <Trash2Icon />
+              </Button>
+            )}
           </div>
         )}
         columns={columns}
       />
       <FormPageDialog
-        title={t("inventory.warehouse.new")}
+        title={t("inventory.unit.new")}
         disabled={processing}
         errors={errors}
         onSubmit={onSubmit}
         open={showNewForm}
         onOpenChange={setShowNewForm}
-        className="max-w-lg"
         setData={setData}
+        className="max-w-xl"
       >
         <Form data={data} setData={setData} />
       </FormPageDialog>
-
       <AlertDialog
         open={idDelete}
         onOpenChange={(v) => {
@@ -230,11 +187,9 @@ export default function Index({ branchSettings }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("inventory.warehouse.delete")}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t("inventory.unit.delete")}</AlertDialogTitle>
             <AlertDialogDescription>
-              {t("inventory.warehouse.delete.description")}
+              {t("inventory.unit.delete.description")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -250,7 +205,7 @@ export default function Index({ branchSettings }) {
                 onDelete(idDelete);
               }}
             >
-              {t("inventory.warehouse.delete.confirm")}
+              {t("inventory.unit.delete.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

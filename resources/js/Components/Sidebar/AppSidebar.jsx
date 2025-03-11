@@ -31,9 +31,29 @@ const navList = [
     icon: <PackageIcon />,
     items: [
       {
-        title: "Warehouse",
+        title: "Items",
+        url: "/items",
+        urlPattern: "/items/*",
+      },
+      {
+        title: "Warehouses",
         url: "/warehouses",
         urlPattern: "/warehouses/*",
+      },
+      {
+        title: "Attributes",
+        url: "/attributes",
+        urlPattern: "/attributes/*",
+      },
+      {
+        title: "Categories",
+        url: "/categories",
+        urlPattern: "/categories/*",
+      },
+      {
+        title: "Units",
+        url: "/units",
+        urlPattern: "/units/*",
       },
     ],
   },
@@ -84,16 +104,6 @@ const navList = [
         urlPattern: "/settings/branches/*",
       },
       {
-        title: "Categories",
-        url: "/settings/categories",
-        urlPattern: "/settings/categories/*",
-      },
-      {
-        title: "Units",
-        url: "/settings/units",
-        urlPattern: "/settings/units/*",
-      },
-      {
         title: "Database Backup",
         url: "/settings/backup",
         urlPattern: "/settings/backup/*",
@@ -102,7 +112,7 @@ const navList = [
   },
 ];
 
-export function AppSidebar({ ...props }) {
+export default React.memo(function AppSidebar({ ...props }) {
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
@@ -115,4 +125,4 @@ export function AppSidebar({ ...props }) {
       <SidebarRail />
     </Sidebar>
   );
-}
+});
