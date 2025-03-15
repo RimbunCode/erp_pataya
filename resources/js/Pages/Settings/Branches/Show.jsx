@@ -54,8 +54,10 @@ export default function Show({ branch }) {
           </Button>
         )
       }
+      data={data}
+      setData={setData}
     >
-      <Form data={data} setData={setData} />
+      <Form />
     </FormPage>
   );
 }

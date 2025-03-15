@@ -5,36 +5,15 @@ import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { FormPageContent } from "@/Pages/Core/FormPage";
 import { Input } from "@/Components/ui/input";
-import QueryString from "qs";
-import axios from "axios";
-import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import LinkModel from "@/Components/LinkModel";
+import { useFormPage } from "bootstrap/ssr/assets/FormPage-6BHGEFK2";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
-export default memo(function Form({ data, setData }) {
-  const route = window.route;
+export default memo(function Form() {
+  const { data, setData } = useFormPage();
   const { branches } = usePage().props;
   const { t } = useLaravelReactI18n();
-  const [users, setUsers] = React.useState([]);
-  const [searchUser, setSearchUser] = React.useState("");
-  useDidMountEffect(() => {
-    const reloadModel = setTimeout(() => {
-      axios
-        .get(
-          `${route("users.index")}?${QueryString.stringify({ search: searchUser })}`,
-        )
-        .then((res) => {
-          setUsers(res.data);
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-    }, 500);
-    return () => {
-      clearTimeout(reloadModel);
-    };
-  }, [searchUser]);
-
   return (
     <FormPageContent title="Detail" value="detail">
       <div className="grid pt-2 gap-x-8 gap-y-4">
@@ -77,31 +56,10 @@ export default memo(function Form({ data, setData }) {
           />
         </FormInput>
         <FormInput label="PIC">
-          <Combobox
-            search={searchUser}
-            onSearchChange={setSearchUser}
-            options={users}
+          <LinkModel
+            model="App\Models\User\User"
             value={data.pic}
-            placeholder={t("inventory.warehouse.columns.pic.placeholder")}
-            templateTrigger={(user) => {
-              return <span>{user?.name}</span>;
-            }}
-            templateItem={(user) => {
-              return (
-                <CommandItem
-                  key={user.id}
-                  value={`${user.name} ${user.username} ${user.email}`}
-                  keywords={[user.username, user.name, user.email]}
-                  onSelect={() => {
-                    setData("pic", user);
-                    setData("user_id", user.id);
-                  }}
-                  className="block px-4 "
-                >
-                  {user.name}
-                </CommandItem>
-              );
-            }}
+            onValueChange={(val) => setData("pic", val)}
           />
         </FormInput>
       </div>

@@ -395,38 +395,48 @@ function Table({
                             {actions({ dataRow: row })}
                           </td>
                         )}
-                        {showedColumns.map(({ cell, name, parse }) => {
-                          return (
-                            <td key={name}>
-                              {(() => {
-                                if (typeof cell == "function") {
-                                  const child = cell({
-                                    dataRow: row,
-                                    valueCell: parse
-                                      ? (parse[row[name]?.toString()] ?? "")
-                                      : row[name],
-                                  });
-                                  if (child) {
-                                    return cloneElement(child, {
-                                      ...child.props,
-                                      className: cn(
-                                        child.props.className,
-                                        "text-ellipsis truncate",
-                                      ),
+                        {showedColumns.map(
+                          ({ cell, name, parse, parseTrans }) => {
+                            return (
+                              <td key={name}>
+                                {(() => {
+                                  if (typeof cell == "function") {
+                                    const child = cell({
+                                      dataRow: row,
+                                      valueCell: parseTrans
+                                        ? t(
+                                            `${parseTrans}.${row[name]?.toString()}`,
+                                          )
+                                        : parse
+                                          ? (parse[row[name]?.toString()] ?? "")
+                                          : row[name],
                                     });
+                                    if (child) {
+                                      return cloneElement(child, {
+                                        ...child.props,
+                                        className: cn(
+                                          child.props.className,
+                                          "text-ellipsis truncate",
+                                        ),
+                                      });
+                                    }
                                   }
-                                }
-                                return (
-                                  <span>
-                                    {parse
-                                      ? (parse[row[name]?.toString()] ?? "")
-                                      : row[name]}
-                                  </span>
-                                );
-                              })()}
-                            </td>
-                          );
-                        })}
+                                  return (
+                                    <span>
+                                      {parseTrans
+                                        ? t(
+                                            `${parseTrans}.${row[name]?.toString()}`,
+                                          )
+                                        : parse
+                                          ? (parse[row[name]?.toString()] ?? "")
+                                          : row[name]}
+                                    </span>
+                                  );
+                                })()}
+                              </td>
+                            );
+                          },
+                        )}
                       </tr>
                     ))}
 

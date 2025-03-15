@@ -67,7 +67,7 @@ function Combobox({
             templateTrigger ? (
               templateTrigger(option)
             ) : (
-              <>option</>
+              <>{option}</>
             )
           ) : (
             <>{placeholder}</>

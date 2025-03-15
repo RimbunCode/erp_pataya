@@ -23,9 +23,10 @@ export default function Show({ supplier }) {
   return (
     <>
       <FormPage
+        isCreate={!supplier}
         errors={errors}
         disabled={processing}
-        title={supplier.name}
+        title={supplier?.name ?? t("purchase.supplier.new")}
         badge={
           isDirty && (
             <span className="text-sm badge warning">
@@ -44,8 +45,10 @@ export default function Show({ supplier }) {
             {t("core.form.save")}
           </Button>
         }
+        data={data}
+        setData={setData}
       >
-        <Form data={data} setData={setData} />
+        <Form />
       </FormPage>
     </>
   );

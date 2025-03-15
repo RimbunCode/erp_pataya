@@ -30,17 +30,12 @@ class AttributeController extends Controller {
   public function store(AttributeRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    $data['values'] = (($data['is_numeric'] ?? false) == true) ? array_map(function ($value) {
-      return [
-        'id' => Utils::generateRandom(5),
+    if (($data['is_numeric'] ?? false) == true) {
+      $data['values'] = array_map(fn($value) => [
         'value' => $value
-      ];
-    }, range($data['from_range'], $data['to_range'], $data['increment'])) : array_map(function ($value) {
-      return [
-        'id' => $value['id'] ?? Utils::generateRandom(5),
-        ...$value
-      ];
-    }, $data['values']);
+      ], range($data['from_range'], $data['to_range'], $data['increment']));
+    }
+
     $attribute = Attribute::create($data);
     $attribute->logs()->create([
       'user_id' => $request->user()->id,
@@ -60,9 +55,9 @@ class AttributeController extends Controller {
     $this->setBreadcrumbs($attribute);
     $attribute->showDetail();
     if ($attribute->is_numeric) {
-      $attribute->from_range = $attribute->values[0];
-      $attribute->to_range = $attribute->values[count($attribute->values) - 1];
-      $attribute->increment = $attribute->values[1] - $attribute->values[0];
+      $attribute->from_range = $attribute->values[0]['value'] ?? 0;
+      $attribute->to_range = $attribute->values[count($attribute->values) - 1]['value'] ?? 0;
+      $attribute->increment = ($attribute->values[1]['value'] ?? 0) - ($attribute->values[0]['value'] ?? 0);
     }
     return Inertia::render('Inventory/Attributes/Show', [
       'attribute' => $attribute,
@@ -77,7 +72,9 @@ class AttributeController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     if (($data['is_numeric'] ?? false) == true) {
-      $data['values'] = range($data['from_range'], $data['to_range'], $data['increment']);
+      $data['values'] = array_map(fn($value) => [
+        'value' => $value
+      ], range($data['from_range'], $data['to_range'], $data['increment']));
     }
     $attribute->update($data);
     $attribute->logs()->create([

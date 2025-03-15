@@ -3,7 +3,7 @@
 namespace App\Models\Inventory;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ItemUnit extends Model {

@@ -44,8 +44,10 @@ export default function Show({ category }) {
           {t("core.form.save")}
         </Button>
       }
+      data={data}
+      setData={setData}
     >
-      <Form data={data} setData={setData} />
+      <Form />
     </FormPage>
   );
 }

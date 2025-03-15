@@ -47,8 +47,10 @@ export default function Show({ unit }) {
           </Button>
         )
       }
+      data={data}
+      setData={setData}
     >
-      <Form data={data} setData={setData} />
+      <Form />
     </FormPage>
   );
 }

@@ -4,7 +4,7 @@ namespace App\Models\Inventory;
 
 use App\Casts\Json;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ItemAttribute extends Model {

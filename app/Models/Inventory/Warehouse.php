@@ -6,7 +6,7 @@ use App\Models\Core\Branch;
 use App\Models\User\User;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 

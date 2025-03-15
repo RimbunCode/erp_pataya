@@ -41,9 +41,12 @@ const CommandDialog = ({ children, ...props }) => {
 };
 
 const CommandInput = React.forwardRef(
-  ({ className, showIcon = true, ...props }, ref) => (
+  ({ className, withoutBorder, showIcon = true, ...props }, ref) => (
     <div
-      className="flex items-center border-b border-muted"
+      className={cn(
+        "flex items-center",
+        !withoutBorder && "border-b border-muted",
+      )}
       // eslint-disable-next-line react/no-unknown-property
       cmdk-input-wrapper=""
     >
