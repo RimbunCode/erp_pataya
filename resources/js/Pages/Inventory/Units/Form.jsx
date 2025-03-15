@@ -3,6 +3,7 @@ import {
   FormPageContent,
   FormPageContentDescription,
   FormPageContentTitle,
+  useFormPage,
 } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect, useState } from "react";
 
@@ -17,7 +18,8 @@ import QueryString from "qs";
 import axios from "axios";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Form({ data, setData }) {
+export default function Form() {
+  const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
   const route = window.route;
   const [units, setUnits] = useState([]);

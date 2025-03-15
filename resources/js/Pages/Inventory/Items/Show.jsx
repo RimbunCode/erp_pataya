@@ -44,6 +44,8 @@ export default function Show({ attribute }) {
           {t("core.form.save")}
         </Button>
       }
+      data={data}
+      setData={setData}
     >
       <Form data={data} setData={setData} />
     </FormPage>

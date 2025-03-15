@@ -95,6 +95,10 @@ const DATATABLE_COLUMNS_EXPIRED = 7; //days
  * @property {boolean} sortable
  * @property {boolean} resizeable
  * @property {boolean} show default is true
+ * @property {string} parseTrans mirip seperti "parse", pada properti ini akan mengacu pada file locale
+ * - contoh: parseTrans: "core.form.parse"
+ *
+ * ini akan terkonversi menjadi { true: "core.form.parse.true", false: "core.form.parse.false" } bergantung pada attribute pada kolom tersebut
  * @property {object?} parse untuk konversi value sebelum ditampilkan
  * - contoh: { true: "Enabled", false: "Disabled" }
  * - Ini dapat berdampak pada filter jika searchType berupa boolean atau string[]

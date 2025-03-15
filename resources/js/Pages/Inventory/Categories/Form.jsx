@@ -1,5 +1,9 @@
 /* eslint-disable jsdoc/require-jsdoc */
-import { FormPageContent, FormPageContentTitle } from "@/Pages/Core/FormPage";
+import {
+  FormPageContent,
+  FormPageContentTitle,
+  useFormPage,
+} from "@/Pages/Core/FormPage";
 import {
   Select,
   SelectContent,
@@ -14,7 +18,8 @@ import React from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
-export default function Form({ data, setData }) {
+export default function Form() {
+  const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
   const types = usePage().props.types;
 
@@ -28,7 +33,7 @@ export default function Form({ data, setData }) {
             label={t("inventory.category.columns.name")}
           >
             <Input
-              value={data.name}
+              value={data?.name ?? ""}
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
@@ -36,7 +41,10 @@ export default function Form({ data, setData }) {
             required={true}
             label={t("inventory.category.columns.type")}
           >
-            <Select value={data.type} onValueChange={(v) => setData("type", v)}>
+            <Select
+              value={data?.type ?? ""}
+              onValueChange={(v) => setData("type", v)}
+            >
               <SelectTrigger>
                 <SelectValue
                   placeholder={t("inventory.category.columns.type.placeholder")}

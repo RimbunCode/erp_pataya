@@ -68,6 +68,9 @@ class WarehouseController extends Controller {
   public function store(WarehouseRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['pic'])) {
+      $data['user_id'] = $data['pic']['id'];
+    }
     $warehouse = Warehouse::create($data);
     $warehouse->logs()->create(
       [

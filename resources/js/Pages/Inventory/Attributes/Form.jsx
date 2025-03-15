@@ -1,18 +1,17 @@
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+/* eslint-disable jsdoc/require-jsdoc */
 import React, { useMemo } from "react";
 
-import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
-/* eslint-disable jsdoc/require-jsdoc */
-import { FormPageContent } from "@/Pages/Core/FormPage";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
 import { Textarea } from "@/Components/ui/textarea";
-import { Trash2Icon } from "lucide-react";
-import { isNullOrWhitespace } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Form({ data, setData }) {
+export default function Form() {
+  const { data, setData } = useFormPage();
+
   const { t } = useLaravelReactI18n();
 
   /**
@@ -72,7 +71,7 @@ export default function Form({ data, setData }) {
               label={t("inventory.attribute.columns.values")}
               className="col-span-full"
               columns={valuesColumns}
-              value={data.values}
+              value={data.values ?? []}
               onValueChange={(val) => {
                 setData("values", val);
               }}

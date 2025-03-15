@@ -1,8 +1,5 @@
-import FormInput from "@/Components/FormInput";
-import { Input } from "@/Components/ui/input";
-import React from "react";
-import Combobox from "@/Components/Combobox";
-import { CommandItem } from "@/Components/ui/command";
+/* eslint-disable jsdoc/require-jsdoc */
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import {
   Select,
   SelectContent,
@@ -10,14 +7,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
-import { Textarea } from "@/Components/ui/textarea";
-import { FormPageContent, FormPageContentTitle } from "@/Pages/Core/FormPage";
-import { usePage } from "@inertiajs/react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { memo } from "react";
 
-export default function Form({ data, setData }) {
-  const { supplier, countries } = usePage().props;
+import Combobox from "@/Components/Combobox";
+import { CommandItem } from "@/Components/ui/command";
+import FormInput from "@/Components/FormInput";
+import { Input } from "@/Components/ui/input";
+import React from "react";
+import { Textarea } from "@/Components/ui/textarea";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
+
+export default function Form() {
+  const { data, setData } = useFormPage();
+  const { countries } = usePage().props;
   const { t } = useLaravelReactI18n();
   return (
     <>
@@ -32,7 +34,7 @@ export default function Form({ data, setData }) {
           placeholder="PT Pataya Sarana Niaga"
         >
           <Input
-            value={data.name}
+            value={data?.name ?? ""}
             onChange={(e) => setData("name", e.target.value)}
           />
         </FormInput>
@@ -43,7 +45,7 @@ export default function Form({ data, setData }) {
           >
             <Input
               type="email"
-              value={data.email}
+              value={data?.email ?? ""}
               onChange={(e) => setData("email", e.target.value)}
             />
           </FormInput>
@@ -52,7 +54,7 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Input
-              value={data.phone}
+              value={data?.phone ?? ""}
               onChange={(e) => setData("phone", e.target.value)}
             />
           </FormInput>
@@ -61,7 +63,7 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Select
-              value={data.is_disabled ? "0" : "1"}
+              value={data?.is_disabled ? "0" : "1"}
               onValueChange={(v) => setData("is_disabled", v === "0")}
             >
               <SelectTrigger>
@@ -84,7 +86,7 @@ export default function Form({ data, setData }) {
         </div>
         <FormInput label={t("purchase.supplier.columns.banks")} required={true}>
           <Input
-            value={data.banks}
+            value={data?.banks ?? ""}
             onChange={(e) => setData("banks", e.target.value)}
           />
         </FormInput>
@@ -99,7 +101,7 @@ export default function Form({ data, setData }) {
           className="col-span-full"
         >
           <Textarea
-            value={data.street}
+            value={data?.street ?? ""}
             onChange={(e) => setData("street", e.target.value)}
           />
         </FormInput>
@@ -110,7 +112,7 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Input
-              value={data.city}
+              value={data?.city ?? ""}
               onChange={(e) => setData("city", e.target.value)}
             />
           </FormInput>
@@ -119,7 +121,7 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Input
-              value={data.province}
+              value={data?.province ?? ""}
               onChange={(e) => setData("province", e.target.value)}
             />
           </FormInput>
@@ -128,20 +130,41 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Input
-              value={data.zip_code}
+              value={data?.zip_code ?? ""}
               onChange={(e) => setData("zip_code", e.target.value)}
             />
           </FormInput>
+
+          <FormInput
+            label={t("purchase.supplier.columns.country")}
+            required={true}
+          >
+            <Combobox
+              options={countries}
+              value={data?.country_id}
+              placeholder={t("purchase.supplier.columns.country.placeholder")}
+              templateTrigger={(country_code) => {
+                const country = countries?.find((c) => c.code === country_code);
+                return <span>{country?.name}</span>;
+              }}
+              templateItem={(country) => {
+                return (
+                  <CommandItem
+                    key={country.code}
+                    value={`${country.name} ${country.code}`}
+                    keywords={[country.code, country.name]}
+                    onSelect={() => {
+                      setData("billing_country_id", country.code);
+                    }}
+                    className="block px-4 "
+                  >
+                    {country.name}
+                  </CommandItem>
+                );
+              }}
+            />
+          </FormInput>
         </div>
-        <FormInput
-          label={t("purchase.supplier.columns.country")}
-          required={true}
-        >
-          <Input
-            value={data.country}
-            onChange={(e) => setData("country", e.target.value)}
-          />
-        </FormInput>
       </FormPageContent>
     </>
   );

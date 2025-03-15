@@ -9,14 +9,9 @@ return new class extends Migration {
    * Run the migrations.
    */
   public function up(): void {
-    Schema::create('stocks',  function (Blueprint $table) {
+    Schema::create('item_variants', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->foreignUlid('item_id')->references('id')->on('items')->cascadeOnDelete();
-      $table->foreignUlid('warehouse_id')->references('id')->on('warehouses')->cascadeOnDelete();
-      $table->foreignUlid('unit_id')->references('id')->on('units')->restrictOnDelete();
-      $table->unsignedInteger('quantity')->default(0);
-      $table->double('price')->default(0);
-      $table->double('sale_price')->default(0);
       $table->timestamps();
       $table->softDeletes();
     });
@@ -26,6 +21,6 @@ return new class extends Migration {
    * Reverse the migrations.
    */
   public function down(): void {
-    Schema::dropIfExists('stocks');
+    Schema::dropIfExists('item_variants');
   }
 };

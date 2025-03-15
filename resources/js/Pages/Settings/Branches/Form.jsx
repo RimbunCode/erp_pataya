@@ -1,4 +1,8 @@
-import { FormPageContent, FormPageContentTitle } from "@/Pages/Core/FormPage";
+import {
+  FormPageContent,
+  FormPageContentTitle,
+  useFormPage,
+} from "@/Pages/Core/FormPage";
 import {
   Select,
   SelectContent,
@@ -7,17 +11,17 @@ import {
   SelectValue,
 } from "@/Components/ui/select";
 
-/* eslint-disable jsdoc/require-jsdoc */
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
-import { FixedSizeList } from "react-window";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import { Textarea } from "@/Components/ui/textarea";
 import { memo } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-export default memo(function Form({ data, setData }) {
+
+export default memo(function Form() {
+  const { data, setData } = useFormPage();
   const { branch, countries } = usePage().props;
   const { t } = useLaravelReactI18n();
   return (
