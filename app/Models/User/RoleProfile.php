@@ -3,7 +3,7 @@
 namespace App\Models\User;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Model;
 
 class RoleProfile extends Model {
   use HasUlids;

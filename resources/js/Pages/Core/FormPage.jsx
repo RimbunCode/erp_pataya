@@ -28,16 +28,18 @@ import React, {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 import { cn, generateRandom } from "@/lib/utils";
+import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 
 import AppLayout from "@/Layouts/AppLayout";
 import Attachments from "./Components/Attachments";
 import Comments from "./Components/Comments";
 import Tags from "./Components/Tags";
-import { useAlertDraftForm } from "@/Hooks/useDraftForm";
+import pluralize from "pluralize";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -281,6 +283,8 @@ const useFormPage = () => useContext(FormPageContext);
  * @param {React.ReactNode<FormPageContent>} props.children
  * @param {React.FormEventHandler} props.onSubmit
  * @param {string} props.className
+ * @param {object} props.data
+ * @param {Function} props.setData
  */
 const FormPage = memo(
   forwardRef(function FormPage(
@@ -298,6 +302,8 @@ const FormPage = memo(
       className,
       onSubmit,
       children,
+      data,
+      setData,
     },
     ref,
   ) {
@@ -306,6 +312,7 @@ const FormPage = memo(
     const [showHeader, setShowHeader] = useState(true);
     // eslint-disable-next-line no-unused-vars
     const [lastPosition, setLastPosition] = useState(0);
+    const formRef = useRef();
     const handleScroll = (e) => {
       const { scrollTop, scrollHeight, clientHeight } = e.target;
       const position = Math.ceil(
@@ -317,6 +324,23 @@ const FormPage = memo(
         return position;
       });
     };
+    const onKeyDown = useCallback(
+      (e) => {
+        if (e.ctrlKey && e.key == "s") {
+          e.preventDefault();
+          const form = formRef.current;
+
+          if (form) {
+            if (typeof form.requestSubmit === "function") {
+              form.requestSubmit();
+            } else {
+              form.dispatchEvent(new Event("submit", { cancelable: true }));
+            }
+          }
+        }
+      },
+      [formRef],
+    );
     const [menus, setMenus] = useState([]);
     const addMenu = useCallback((newItem) => {
       setMenus((prev) => {
@@ -370,10 +394,13 @@ const FormPage = memo(
         onScroll={handleScroll}
       >
         <FormPageContext.Provider
-          value={{ errors, fieldNameTrans, menus, addMenu }}
+          value={{ errors, fieldNameTrans, menus, addMenu, data, setData }}
         >
           <form
+            onKeyDown={onKeyDown}
+            ref={formRef}
             onSubmit={(e) => {
+              console.log(e);
               e.preventDefault();
               if (disabled) return;
               onSubmit?.(e);
@@ -457,6 +484,7 @@ const FormPage = memo(
  * @typedef {object} FormPageProps
  * @property {object} errors
  * @property {boolean} disabled
+ * @property {string} name untuk menyimpan key ke cookie dan route
  * @property {string} fieldNameTrans untuk translate name attribute
  * @property {string} defaultMenu Menu yang pertama kali ditampilkan, Beri nilai value sesuai FormPageContent value yang ingin di pilih
  * @property {string} title
@@ -473,14 +501,12 @@ const FormPage = memo(
 const FormPageDialog = memo(
   forwardRef(function FormPageDialog(
     {
-      setData,
       title,
-      errors,
-      disabled,
+      name,
+      disabled: disabledProps,
       fieldNameTrans,
       defaultMenu,
       className,
-      onSubmit,
       open,
       onOpenChange,
       children,
@@ -489,7 +515,18 @@ const FormPageDialog = memo(
     ref,
   ) {
     const { t } = useLaravelReactI18n();
+    const route = window.route;
     const [menus, setMenus] = useState([]);
+    const { data, setData, post, processing, errors } = useDraftForm(
+      name,
+      {},
+      {
+        onContinueDraft: () => {
+          onOpenChange?.(true);
+        },
+      },
+    );
+    const disabled = disabledProps ?? processing;
     const {
       setContinue,
       isDirty,
@@ -498,6 +535,24 @@ const FormPageDialog = memo(
       setShowAlert,
     } = useIsDirtyForm();
     const { cancel } = useAlertDraftForm();
+    const formRef = useRef();
+    const onKeyDown = useCallback(
+      (e) => {
+        if (e.ctrlKey && e.key == "s") {
+          e.preventDefault();
+          const form = formRef.current;
+
+          if (form) {
+            if (typeof form.requestSubmit === "function") {
+              form.requestSubmit();
+            } else {
+              form.dispatchEvent(new Event("submit", { cancelable: true }));
+            }
+          }
+        }
+      },
+      [formRef],
+    );
 
     const onClose = (val) => {
       if (val) return;
@@ -524,7 +579,8 @@ const FormPageDialog = memo(
     const _onSubmit = (e) => {
       e.preventDefault();
       if (disabled) return;
-      onSubmit?.(e);
+      const pluralized = pluralize.plural(name);
+      post(route(`${pluralized}.store`));
     };
     const addMenu = useCallback((newItem) => {
       setMenus((prev) => {
@@ -542,9 +598,11 @@ const FormPageDialog = memo(
       <AlertDialog open={open}>
         <AlertDialogContent className={className}>
           <FormPageContext.Provider
-            value={{ errors, fieldNameTrans, menus, addMenu }}
+            value={{ errors, fieldNameTrans, menus, addMenu, data, setData }}
           >
             <form
+              ref={formRef}
+              onKeyDown={onKeyDown}
               onSubmit={(e) => {
                 e.preventDefault();
                 _onSubmit(e);
@@ -558,6 +616,11 @@ const FormPageDialog = memo(
               <AlertDialogHeader className="mb-4 border-b border-muted-foreground/30">
                 <AlertDialogTitle className="flex items-center gap-x-2">
                   {title}
+                  {isDirty && (
+                    <span className="text-sm badge warning">
+                      {t("core.form.not_saved")}
+                    </span>
+                  )}
                   {badge}
                 </AlertDialogTitle>
                 <AlertDialogDescription className="sr-only"></AlertDialogDescription>

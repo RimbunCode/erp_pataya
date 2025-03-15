@@ -2,7 +2,7 @@
 
 namespace App\Models\Core;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Model;
 
 class Country extends Model {
   protected $primaryKey = 'code';

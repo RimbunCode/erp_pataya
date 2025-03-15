@@ -54,9 +54,13 @@ const FORMTABLE_COLUMNS_KEY = "formtable-columns";
 
 const Cell = memo(
   forwardRef(
-    ({ index, item, col, isLast, updateData, className, ...props }, ref) => {
+    (
+      { index, item, col, isLast, updateData, readonly, className, ...props },
+      ref,
+    ) => {
       if (!item) return;
       const attributes = {
+        readOnly: readonly ?? false,
         ...props,
         ...col.props,
       };
@@ -116,6 +120,7 @@ const FormTableItem = memo(function FormTableItem({
   updateData,
   setCurrentIndex,
   deleteRow,
+  readonly,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id });
@@ -133,7 +138,9 @@ const FormTableItem = memo(function FormTableItem({
       <div className="px-2 !justify-center text-left ">
         <span
           className={cn(
-            !(Object.keys(item).length <= 1 && isLast) && "group-hover:hidden",
+            !(Object.keys(item).length <= 1 && isLast) &&
+              !readonly &&
+              "group-hover:hidden",
           )}
         >
           {index + 1}
@@ -141,7 +148,8 @@ const FormTableItem = memo(function FormTableItem({
         <button
           className={cn(
             "hidden cursor-move group-hover:inline",
-            Object.keys(item).length <= 1 && isLast && "!hidden",
+            ((Object.keys(item).length <= 1 && isLast) || readonly) &&
+              "!hidden",
           )}
           type="button"
           {...listeners}
@@ -156,6 +164,7 @@ const FormTableItem = memo(function FormTableItem({
             <div key={col.name} className="">
               <Cell
                 ref={setRef(`${item.id}-${col.name}`)}
+                readonly={readonly}
                 index={index}
                 item={item}
                 col={col}
@@ -177,18 +186,20 @@ const FormTableItem = memo(function FormTableItem({
         >
           <PencilIcon className="size-3" />
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "size-6",
-            Object.keys(item).length <= 1 && isLast && "hidden",
-          )}
-          onClick={() => deleteRow(index)}
-        >
-          <Trash2Icon className="size-3 text-destructive" />
-        </Button>
+        {!readonly && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "size-6",
+              Object.keys(item).length <= 1 && isLast && "hidden",
+            )}
+            onClick={() => deleteRow(index)}
+          >
+            <Trash2Icon className="size-3 text-destructive" />
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -226,6 +237,9 @@ const createHeaders = (headers) => {
   return finalColumns;
 };
 /**
+ * @namespace FormTable
+ */
+/**
  * @typedef {object} CellProps
  * @property {object} dataRow
  * @property {Function} setData
@@ -242,8 +256,8 @@ const createHeaders = (headers) => {
  * @property {string} type
  * @property {"left" | "center" | "right"} align
  * @property {number} width value width in fr, default is 1
- * @property {boolean} required
- * @property {boolean} show default is false, but will be true when mode required is true
+ * @property {boolean} required default is false, require
+ * @property {boolean} show default is false, but will be true when required is true
  * @property {object} props
  * @property {CellCallback} Cell
  */
@@ -264,6 +278,7 @@ export default memo(function FormTable({
   label,
   description,
   ignoreDisabled = false,
+  readonly = false,
   className,
   columns: columnsProps,
   value,
@@ -300,7 +315,7 @@ export default memo(function FormTable({
     setColumns(createHeaders(columnsProps));
   }, [columnsProps]);
 
-  if (value && !Array.isArray(value)) {
+  if (!value || !Array.isArray(value)) {
     throw new Error("value must be an array");
   }
   if (!Array.isArray(columns)) {
@@ -398,9 +413,10 @@ export default memo(function FormTable({
           currentCol = columns[0].name;
         } else currentCol = columns[indexCol + 1].name;
       } else if (e.ctrlKey) {
-        e.preventDefault();
         switch (e.key) {
           case "ArrowRight": {
+            e.preventDefault();
+
             const indexCol = columns.findIndex((x) => x.name === currentCol);
             if (indexCol >= columns.length - 1) {
               if (currentIndex >= _data.length - 1) return;
@@ -410,6 +426,8 @@ export default memo(function FormTable({
             break;
           }
           case "ArrowLeft": {
+            e.preventDefault();
+
             const indexCol = columns.findIndex((x) => x.name === currentCol);
             if (indexCol <= 0) {
               if (currentIndex <= 0) return;
@@ -419,11 +437,15 @@ export default memo(function FormTable({
             break;
           }
           case "ArrowUp": {
+            e.preventDefault();
+
             if (currentIndex <= 0) return;
             currentIndex--;
             break;
           }
           case "ArrowDown": {
+            e.preventDefault();
+
             if (currentIndex >= _data.length - 1) return;
             currentIndex++;
             break;
@@ -509,9 +531,9 @@ export default memo(function FormTable({
             >
               {Array.isArray(_data) &&
                 _data.map((item, index) => {
-                  console.log(item);
                   return (
                     <FormTableItem
+                      readonly={readonly}
                       item={item}
                       index={index}
                       key={item.id}
@@ -546,6 +568,7 @@ export default memo(function FormTable({
 
                 <div className="flex flex-row items-center justify-end gap-2">
                   {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
+                    !readonly &&
                     (isMobile ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -581,6 +604,7 @@ export default memo(function FormTable({
                       </Button>
                     ))}
                   {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
+                    !readonly &&
                     currentIndex < _data.length - 2 &&
                     (isMobile ? (
                       <Tooltip>
@@ -616,19 +640,20 @@ export default memo(function FormTable({
                         {t("core.formtable.insert_below")}
                       </Button>
                     ))}
-                  {Object.keys(_data[currentIndex] ?? {}).length > 1 && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="w-8 h-8 sm:w-auto"
-                      onClick={() => duplicateRow(currentIndex)}
-                    >
-                      <CopyIcon className="size-4" />
-                      <span className="hidden lg:inline">
-                        {t("core.formtable.duplicate")}
-                      </span>
-                    </Button>
-                  )}
+                  {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
+                    !readonly && (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="w-8 h-8 sm:w-auto"
+                        onClick={() => duplicateRow(currentIndex)}
+                      >
+                        <CopyIcon className="size-4" />
+                        <span className="hidden lg:inline">
+                          {t("core.formtable.duplicate")}
+                        </span>
+                      </Button>
+                    )}
                   {currentIndex > 0 && (
                     <Button
                       variant="secondary"
@@ -650,16 +675,17 @@ export default memo(function FormTable({
                     </Button>
                   )}
                   {(Object.keys(_data[currentIndex] ?? {}).length > 1 ||
-                    currentIndex < _data.length - 1) && (
-                    <Button
-                      variant="destructive"
-                      size="icon"
-                      className="h-8 size-8"
-                      onClick={() => deleteRow(currentIndex)}
-                    >
-                      <Trash2Icon className="size-4" />
-                    </Button>
-                  )}
+                    currentIndex < _data.length - 1) &&
+                    !readonly && (
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="h-8 size-8"
+                        onClick={() => deleteRow(currentIndex)}
+                      >
+                        <Trash2Icon className="size-4" />
+                      </Button>
+                    )}
                 </div>
               </div>
             </DialogTitle>
@@ -685,6 +711,7 @@ export default memo(function FormTable({
                     name={col.name}
                   >
                     <Cell
+                      readonly={readonly}
                       index={currentIndex}
                       item={_data[currentIndex]}
                       col={col}

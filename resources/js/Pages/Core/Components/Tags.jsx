@@ -153,7 +153,7 @@ function Tags() {
             <div className="relative w-full">
               {open && (
                 <CommandList className="absolute top-0 z-10 w-full border rounded-md shadow-md outline-none visi bg-popover text-popover-foreground animate-in">
-                  <CommandEmpty>{t("core.form.tag.not_found")}</CommandEmpty>
+                  <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
                   {listTags?.map((tag) => (
                     <CommandItem
                       key={tag.id}

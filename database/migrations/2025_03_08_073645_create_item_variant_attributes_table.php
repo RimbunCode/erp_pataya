@@ -9,14 +9,14 @@ return new class extends Migration {
    * Run the migrations.
    */
   public function up(): void {
-    Schema::create('stock_attributes', function (Blueprint $table) {
+    Schema::create('item_variant_attributes', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->foreignUlid('stock_id')->references('id')->on('stocks')->cascadeOnDelete();
+      $table->foreignUlid('item_variant_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->foreignUlid('item_attribute_id')->references('id')->on('item_attributes')->cascadeOnDelete();
       $table->string('value');
       $table->timestamps();
       $table->softDeletes();
-      $table->unique(['stock_id', 'item_attribute_id', 'deleted_at'], 'stock_attribute_unique');
+      $table->unique(['item_variant_id', 'item_attribute_id', 'deleted_at'], 'item_variant_attribute_unique');
     });
   }
 

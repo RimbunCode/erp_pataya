@@ -9,6 +9,11 @@ return [
   'delete.confirm' => 'Delete',
   'cancel' => 'Cancel',
   'item' => 'Item',
+  'menu' => [
+    'details' => 'Details',
+    'variants' => 'Variants',
+    ''
+  ],
   'columns' => [
     'code' => 'Code',
     'name' => 'Name',
@@ -19,5 +24,10 @@ return [
     'default_unit.placeholder' => 'Select a unit',
     'stock_minimum' => 'Stock Minimum',
     'is_disabled' => 'Status',
+    'is_disabled.placeholder' => 'Select a status',
+    'is_disabled.parse' => [
+      'false' => 'Enabled',
+      'true' => 'Disabled'
+    ]
   ],
 ];

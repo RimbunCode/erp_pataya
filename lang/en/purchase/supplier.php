@@ -18,6 +18,7 @@ return [
     'province' => 'Province',
     'zip_code' => 'Zip Code',
     'country' => 'Country',
+    'country.placeholder' => 'Select a country',
     'is_disabled' => 'Status',
     'created_at' => 'Created at',
     'is_disabled.placeholder' => 'Select a status',
