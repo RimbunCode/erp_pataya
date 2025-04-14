@@ -85,13 +85,13 @@ export default memo(function Attachments() {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex items-center flex-1 overflow-hidden gap-x-2">
-                        <Link href={route("files.show", id)}>
+                        <Link href={route("files.preview", id)}>
                           <FileTextIcon className="size-5" />{" "}
                         </Link>
                         <a
                           target="_blank"
                           rel="noreferrer"
-                          href={route("files.show", id)}
+                          href={route("files.preview", id)}
                           className="hover:underline"
                         >
                           <p className="text-sm truncate ">{name}</p>

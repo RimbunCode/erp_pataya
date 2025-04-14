@@ -18,7 +18,7 @@ class FormTable implements CastsAttributes {
     }
     $value = json_decode($value, true);
     $value = \array_map(function ($value) {
-      if (!isset($value['id'])) $value['id'] = Utils::generateRandom(5);
+      if (!isset($value['id'])) $value['id'] = Utils::generateRandom(8);
       return $value;
     }, $value);
     return $value;

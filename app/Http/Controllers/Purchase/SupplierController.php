@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Purchase;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\Country;
 use App\Models\Purchase\Supplier;
 use App\Http\Requests\Purchase\SupplierRequest;
 use Illuminate\Http\RedirectResponse;
@@ -14,35 +15,33 @@ use Inertia\Response;
 use Illuminate\Support\Facades\Auth;
 
 
-class SupplierController extends Controller
-{
-  public function __construct(Request $request)
-  {
+class SupplierController extends Controller {
+  public function __construct(Request $request) {
     parent::__construct($request, Supplier::class);
   }
   /**
    * Display a listing of the resource.
    */
-  public function index(Request $request)
-  {
+  public function index(Request $request) {
     $this->setBreadcrumbs();
     Supplier::dataTable($request);
-    return Inertia::render('Purchase/Suppliers/Index',);
+    return Inertia::render('Purchase/Suppliers/Index');
   }
 
   /**
    * Show the form for creating a new resource.
    */
-  public function create()
-  {
+  public function create() {
     $this->setBreadcrumbs("__(purchase.supplier.new)");
-    return Inertia::render('Purchases/Suppliers/Show');
+    return Inertia::render('Purchase/Suppliers/Show');
   }
 
-  public function store(SupplierRequest $request)
-  {
+  public function store(SupplierRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['country'])) {
+      $data['country_id'] = $data['country']['id'];
+    }
     $supplier = Supplier::create($data);
     $supplier->logs()->create([
       'user_id' => $request->user()->id,
@@ -55,25 +54,25 @@ class SupplierController extends Controller
     return redirect()->back();
   }
 
-  public function show(Request $request, Supplier $supplier)
-  {
+  public function show(Request $request, Supplier $supplier) {
 
     $this->setBreadcrumbs($supplier);
     $supplier->showDetail();
+    $supplier->load('country');
     return Inertia::render('Purchase/Suppliers/Show', [
-      'supplier' => function () use ($supplier) {
-        return $supplier;
-      }
+      'supplier' => fn() => $supplier,
     ]);
   }
 
   /**
    * Show the form for editing the specified resource.
    */
-  public function update(SupplierRequest $request, Supplier $supplier)
-  {
+  public function update(SupplierRequest $request, Supplier $supplier) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['country'])) {
+      $data['country_id'] = $data['country']['id'];
+    }
     $supplier->update($data);
     $supplier->logs()->create([
       'user_id' => $request->user()->id,
@@ -86,8 +85,7 @@ class SupplierController extends Controller
     return back();
   }
 
-  public function destroy(Request $request): RedirectResponse
-  {
+  public function destroy(Request $request): RedirectResponse {
     $request->validate([
       'password' => ['required', 'current_password'],
     ]);

@@ -24,11 +24,7 @@ class BranchController extends Controller {
     Branch::whereNull('branchable_type')
       ->whereNull('branchable_id')
       ->dataTable($request);
-    return Inertia::render('Settings/Branches/Index', [
-      'countries' => Inertia::defer(function () {
-        return Country::all();
-      })
-    ]);
+    return Inertia::render('Settings/Branches/Index');
   }
 
   public function switch(Request $request, string $id) {
@@ -50,6 +46,12 @@ class BranchController extends Controller {
   public function store(BranchRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['shipping_country'])) {
+      $data['shipping_country_id'] = $data['shipping_country']['id'];
+    }
+    if (isset($data['billing_country'])) {
+      $data['billing_country_id'] = $data['billing_country']['id'];
+    }
     $branch = Branch::create($data);
     $branch->logs()->create([
       'user_id' => $request->user()->id,
@@ -68,11 +70,9 @@ class BranchController extends Controller {
   public function show(Branch $branch) {
     $this->setBreadcrumbs($branch);
     $branch->showDetail();
+    $branch->load('shipping_country', 'billing_country');
     return Inertia::render('Settings/Branches/Show', [
       'branch' => $branch,
-      'countries' => Inertia::defer(function () {
-        return Country::all();
-      })
     ]);
   }
 
@@ -83,6 +83,12 @@ class BranchController extends Controller {
   public function update(BranchRequest $request, Branch $branch) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['shipping_country'])) {
+      $data['shipping_country_id'] = $data['shipping_country']['id'];
+    }
+    if (isset($data['billing_country'])) {
+      $data['billing_country_id'] = $data['billing_country']['id'];
+    }
     $branch->update($data);
     $branch->logs()->create([
       'user_id' => $request->user()->id,

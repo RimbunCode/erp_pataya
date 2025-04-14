@@ -20,7 +20,6 @@ import { TZDate } from "@date-fns/tz";
 import { Trash2Icon } from "lucide-react";
 import { format } from "date-fns";
 import { router } from "@inertiajs/react";
-import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
@@ -30,20 +29,6 @@ export default function Index({ lang }) {
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
   const [idDelete, setIdDelete] = useState(null);
-  const { data, setData, post, processing, errors, isDirty } = useDraftForm(
-    "branch",
-    {},
-    {
-      onContinueDraft: () => {
-        setShowNewForm(true);
-      },
-    },
-  );
-  const onSubmit = (e) => {
-    e.preventDefault();
-
-    post(route("branches.store"));
-  };
   const onDelete = (id) => {
     router.delete(route("branches.destroy", id), {
       onSuccess: () => {
@@ -243,15 +228,12 @@ export default function Index({ lang }) {
       />
       <FormPageDialog
         title={t("core.branch.new")}
-        disabled={processing}
-        errors={errors}
-        onSubmit={onSubmit}
+        name="branch"
         open={showNewForm}
         onOpenChange={setShowNewForm}
         className="max-w-xl"
-        setData={setData}
       >
-        <Form data={data} setData={setData} />
+        <Form />
       </FormPageDialog>
       <AlertDialog
         open={idDelete}
@@ -269,14 +251,10 @@ export default function Index({ lang }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={processing}
-              onClick={() => setIdDelete(null)}
-            >
+            <AlertDialogCancel onClick={() => setIdDelete(null)}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={processing}
               onClick={() => {
                 onDelete(idDelete);
               }}

@@ -4,7 +4,6 @@ namespace App\Models\Scopes;
 
 use App\Models\Core\Preference;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,7 +12,7 @@ class DataTableScope implements Scope {
   /**
    * Apply the scope to a given Eloquent query builder.
    */
-  public function apply(Builder $builder, Model $model): void {
+  public function apply(Builder $builder, \Illuminate\Database\Eloquent\Model $model): void {
     //
   }
   public function extend(Builder $builder) {

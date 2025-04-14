@@ -1,14 +1,14 @@
-/* eslint-disable jsdoc/require-jsdoc */
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import {
   FormPageContent,
   FormPageContentDescription,
   FormPageContentTitle,
+  useFormPage,
 } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect, useState } from "react";
 
 import { ArrowLeftRightIcon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/checkbox";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
@@ -17,7 +17,8 @@ import QueryString from "qs";
 import axios from "axios";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Form({ data, setData }) {
+export default function Form() {
+  const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
   const route = window.route;
   const [units, setUnits] = useState([]);
@@ -150,21 +151,13 @@ export default function Form({ data, setData }) {
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id={"customable-checkbox"}
-              checked={data.customable ?? false}
-              onCheckedChange={(val) => {
-                setData("customable", val);
-              }}
-            />
-            <label
-              htmlFor={name + "-checkbox"}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              {t("inventory.unit.columns.customable")}
-            </label>
-          </div>
+          <FormCheckbox
+            checked={data.customable ?? false}
+            onCheckedChange={(val) => {
+              setData("customable", val);
+            }}
+            label={t("inventory.unit.columns.customable")}
+          />
           {!data.customable && (
             <FormInput
               required={true}

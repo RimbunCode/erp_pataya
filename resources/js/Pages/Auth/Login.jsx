@@ -6,9 +6,8 @@ import {
 } from "@/Components/ui/card";
 import { Head, useForm } from "@inertiajs/react";
 
-import { Bell } from "lucide-react";
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/checkbox";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import GuestLayout from "@/Layouts/GuestLayout";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
@@ -101,19 +100,19 @@ export default function Login() {
                   required
                 />
                 <div className="flex items-center">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="remember" />
-                    <label
-                      htmlFor="remember"
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {loading ? (
-                        <Skeleton className="w-32 h-7" />
-                      ) : (
-                        t("auth.login.remember")
-                      )}
-                    </label>
-                  </div>
+                  <FormCheckbox
+                    checked={data.remember}
+                    onCheckedChange={(v) => setData("remember", v)}
+                    label={
+                      <>
+                        {loading ? (
+                          <Skeleton className="w-32 h-7" />
+                        ) : (
+                          t("auth.login.remember")
+                        )}
+                      </>
+                    }
+                  />
                   <Link
                     href={route("password.request")}
                     className="ml-auto text-sm underline-offset-4 hover:underline"

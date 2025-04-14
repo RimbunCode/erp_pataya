@@ -24,9 +24,9 @@ class CategoryController extends Controller {
       'Inventory/Categories/Index',
       [
         'types' => [
-          'stock' => __('core/category.types.stock'),
-          'vehicle' => __('core/category.types.vehicle'),
-          'service' => __('core/category.types.service'),
+          'stock' => __('inventory/category.types.stock'),
+          'vehicle' => __('inventory/category.types.vehicle'),
+          'service' => __('inventory/category.types.service'),
         ]
       ]
     );
@@ -66,9 +66,9 @@ class CategoryController extends Controller {
     return Inertia::render('Inventory/Categories/Show', [
       'category' => $category,
       'types' => [
-        'stock' => __('core/category.types.stock'),
-        'vehicle' => __('core/category.types.vehicle'),
-        'service' => __('core/category.types.service'),
+        'stock' => __('inventory/category.types.stock'),
+        'vehicle' => __('inventory/category.types.vehicle'),
+        'service' => __('inventory/category.types.service'),
       ]
     ]);
   }

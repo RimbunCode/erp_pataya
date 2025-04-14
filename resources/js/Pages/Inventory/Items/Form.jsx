@@ -1,179 +1,311 @@
-import { Button } from "@/Components/ui/button";
+import "@/../css/mention.css";
+
+import {
+  FormPageContent,
+  FormPageContentTitle,
+  useFormPage,
+} from "@/Pages/Core/FormPage";
+import { Mention, MentionsInput } from "react-mentions";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { WhenVisible, usePage } from "@inertiajs/react";
+
+import AttributeLinkModel from "../Attributes/AttributeLinkModel";
 import { Checkbox } from "@/Components/ui/checkbox";
+import CurrencyInput from "react-currency-input-field";
+import FormBarcodes from "./FormBarcodes";
+import FormDetail from "./FormDetail";
 import FormInput from "@/Components/FormInput";
-/* eslint-disable jsdoc/require-jsdoc */
-import { FormPageContent } from "@/Pages/Core/FormPage";
-import { Input } from "@/Components/ui/input";
-import React from "react";
-import { Textarea } from "@/Components/ui/textarea";
-import { Trash2Icon } from "lucide-react";
-import { isNullOrWhitespace } from "@/lib/utils";
+import FormStockLevels from "./FormStockLevels";
+import FormTable from "@/Components/FormTable";
+import Link from "@/Components/Link";
+import LoadingIcon from "@/Components/LoadingIcon";
+import MultiSelect from "@/Components/MultiSelect";
+import UnitLinkModel from "../Units/UnitLinkModel";
+import axios from "axios";
+import { cn } from "@/lib/utils";
+import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Form({ data, setData }) {
+export default memo(function Form() {
+  const { data, setData } = useFormPage();
+  const { item, lang, variants } = usePage().props;
+  const route = window.route;
   const { t } = useLaravelReactI18n();
+  const [formatVariantSelected, setFormatVariantSelected] = useState([]);
+  const [listFormatVariant, setListFormatVariant] = useState([]);
 
-  const onUpdateValues = (list) => {
-    setData(
-      "values",
-      [...new Set(list.filter((x) => !isNullOrWhitespace(x)))].sort((a, b) =>
-        a > b ? 1 : -1,
-      ),
+  useEffect(() => {
+    const list = [
+      { id: "item", display: "Item Code" },
+      ...(data?.variants?.map((x) => ({
+        id: x.attribute?.id,
+        display: x.attribute?.name,
+      })) ?? []),
+    ].filter(
+      (x) =>
+        !formatVariantSelected.some(
+          (y) => y.display.replace(/^\{(.*?)\}$/g, "$1") == x.display,
+        ),
     );
-  };
-  return (
-    <>
-      <FormPageContent title={null} value="detail">
-        <div className="grid gap-x-3 gap-y-4 lg:grid-cols-3">
-          <FormInput
-            required={true}
-            label={t("inventory.attribute.columns.name")}
-            className="col-span-full"
-          >
-            <Input
-              value={data.name}
-              onChange={(e) => setData("name", e.target.value)}
-            />
-          </FormInput>
-          <FormInput
-            label={t("inventory.attribute.columns.description")}
-            className="col-span-full"
-          >
-            <Textarea
-              value={data.description}
-              onChange={(e) => setData("description", e.target.value)}
-            />
-          </FormInput>
-          <div className="flex items-center space-x-2 col-span-full">
-            <Checkbox
-              id={"is_numeric-checkbox"}
-              checked={data.is_numeric ?? false}
-              onCheckedChange={(val) => {
-                setData("is_numeric", val);
+    setListFormatVariant(list);
+  }, [data.variants, formatVariantSelected]);
+
+  const getUnits = useCallback((group) => {
+    axios
+      .post(route("model"), {
+        model: "App\\Models\\Inventory\\Unit",
+        filters: {
+          group: group,
+        },
+      })
+      .then((res) => {
+        setData(
+          "uom",
+          res.data.map((x) => ({ ...x, isCustom: !x.conversion_factor })),
+        );
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }, []);
+  useDidMountEffect(() => {
+    if (data.default_unit) {
+      if (data.uom?.at(0)?.group == data.default_unit.group) return;
+      getUnits(data.default_unit.group);
+    } else {
+      setData("uom", []);
+    }
+  }, [data.default_unit]);
+  /**
+   * @typedef {import('@/Components/FormTable').ColumnProps} ColumnProps
+   * @type {ColumnProps[]}
+   */
+  const uomColumns = useMemo(
+    () => [
+      {
+        name: "name",
+        titleTrans: "inventory.unit.unit",
+        required: true,
+        readonly: true,
+        cell({ dataRow, attributes }) {
+          return <UnitLinkModel value={dataRow} {...attributes} />;
+        },
+      },
+      {
+        name: "conversion_factor",
+        titleTrans: "inventory.unit.columns.conversion_factor",
+        required: true,
+        cell({ dataRow, data, setData, attributes }) {
+          return (
+            <CurrencyInput
+              {...attributes}
+              className={cn(
+                "text-right focus:!border-0 flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 text-base ring-offset-background  placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+                attributes?.className,
+              )}
+              readOnly={!dataRow.isCustom}
+              placeholder="0.00"
+              value={Number.isNaN(data) ? 0 : data}
+              intlConfig={{ locale: lang == "id" ? "id-ID" : "en-US" }}
+              decimalsLimit={6}
+              onValueChange={(value) => {
+                setData("conversion_factor", value);
               }}
             />
-            <label
-              htmlFor={name + "-checkbox"}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          );
+        },
+      },
+    ],
+    [],
+  );
+  /**
+   * @type {ColumnProps[]}
+   */
+  const variantColumns = useMemo(
+    () => [
+      {
+        name: "attribute",
+        titleTrans: "inventory.item.columns.attribute",
+        required: true,
+        cell({ dataRow, attributes, setData }) {
+          return (
+            <AttributeLinkModel
+              onValueChange={(val) => {
+                setData("attribute", val);
+              }}
+              placeholder={t("inventory.item.columns.attribute.placeholder")}
+              value={dataRow.attribute}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "values",
+        titleTrans: "inventory.item.columns.attribute_values",
+        required: true,
+        cell({ dataRow, attributes, setData }) {
+          return (
+            <MultiSelect
+              value={dataRow.values}
+              onValueChange={(val) => {
+                setData("values", val);
+              }}
+              options={dataRow.attribute?.values?.map((x) => {
+                return { label: x.value, value: x.value };
+              })}
+              {...attributes}
+            />
+          );
+        },
+      },
+    ],
+    [],
+  );
+  return (
+    <>
+      <FormDetail data={data} setData={setData} />
+      <FormPageContent
+        title={t("inventory.item.menu.variants")}
+        value="variants"
+      >
+        <FormTable
+          columns={variantColumns}
+          value={data.variants ?? []}
+          onValueChange={(val) => {
+            setData("variants", val);
+          }}
+        />
+        {data?.variants && data?.variants?.length > 0 && (
+          <FormInput
+            className="max-w-sm mt-4"
+            label={t("inventory.item.columns.format_variant")}
+            required
+            // description={}
+          >
+            <MentionsInput
+              singleLine
+              value={data.format_variant}
+              onChange={(_, value, __, mentions) => {
+                setFormatVariantSelected(mentions);
+                setData("format_variant", value);
+              }}
+              className="mentions"
+              placeholder={"Mention people using '@'"}
+              a11ySuggestionsListLabel={"Suggested mentions"}
+              allowSuggestionsAboveCursor
+              autoComplete="off"
             >
-              {t("inventory.attribute.columns.is_numeric")}
-            </label>
-          </div>
-          {!data.is_numeric ? (
-            <FormInput
-              label={t("inventory.attribute.columns.values")}
-              className="col-span-full"
-            >
-              <div className="grid [&>div]:px-3 gap-x-4 grid-cols-[auto_1fr_auto] text-sm [&>div>*]:px-1h max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center [&>div>*]:py-2 [&>div>*:not(:last-child)]:border-0">
-                <div className="grid grid-cols-subgrid col-span-full items-center rounded-md bg-muted [&>div]:font-bold [&>div]:text-sm lg:[&>div]:text-base">
-                  <div className="!pr-2 !pl-2 !justify-start text-left">
-                    No.
-                  </div>
-                  <div className="!justify-start text-left">Value</div>
-                  <div className="text-center"></div>
-                </div>
-                {data?.values &&
-                  data?.values.map((item, index) => {
-                    return (
-                      <div
-                        key={item}
-                        className="grid border-b col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base"
-                      >
-                        <div className="!pr-2 !pl-2 !justify-center text-left">
-                          {index + 1}
-                        </div>
-                        <div className="!justify-start text-left">
-                          <Input
-                            defaultValue={item}
-                            onBlur={(e) => {
-                              const index = data.values?.findIndex(
-                                (x) => x == item,
-                              );
-                              const options = data.values;
-                              options[index] = e.target.value
-                                ? e.target.value
-                                : null;
-                              onUpdateValues(options);
-                            }}
-                          />
-                        </div>
-                        <div className="text-center">
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            className="size-8"
-                            onClick={() =>
-                              setData(
-                                "values",
-                                data.values?.filter((x) => x != item),
-                              )
-                            }
-                          >
-                            <Trash2Icon />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
+              <Mention
+                trigger={/(\{([^{]*))$/}
+                data={listFormatVariant}
+                displayTransform={(x, display) => "{" + display + "}"}
+              />
+            </MentionsInput>
+          </FormInput>
+        )}
+      </FormPageContent>
 
-                <div className="grid border-b col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base">
-                  <div className="!pr-2 !pl-2 !justify-center text-left">
-                    {(data.values?.length ?? 0) + 1}
-                  </div>
-                  <div className="!justify-start text-left">
-                    <Input
-                      onBlur={(e) => {
-                        if (!e.target.value) return;
-                        onUpdateValues([
-                          ...(data.values ?? []),
-                          e.target.value,
-                        ]);
-                        e.target.value = null;
-                        e.target.focus();
-                      }}
+      {variants && variants.length > 0 && (
+        <FormPageContent
+          title={t("inventory.item.menu.variants")}
+          value="variants"
+          collapsible
+        >
+          <FormPageContentTitle>
+            {t("inventory.item.menu.variants")}
+          </FormPageContentTitle>
+          <WhenVisible
+            data={["variants"]}
+            fallback={() => (
+              <div className="!text-base font-normal text-foreground flex gap-x-4">
+                <LoadingIcon className="size-4" />
+                <span>{t("core.form.loading")} ...</span>
+              </div>
+            )}
+          >
+            <div className="grid grid-cols-[2fr_auto_auto_auto] gap-x-6 [&>*]:px-4 border rounded-md">
+              <div className="grid py-1 border-b rounded-t-md bg-muted border-muted-foreground/25 grid-cols-subgrid col-span-full">
+                <span className="flex items-center justify-start font-bold text-center">
+                  {t("inventory.item.columns.sku")}
+                </span>
+                <span className="flex items-center justify-start font-bold text-center">
+                  {t("inventory.item.columns.allow_alternative_item")}
+                </span>
+                <span className="flex items-center justify-start font-bold text-center">
+                  {t("inventory.item.columns.is_disabled.parse.false")}
+                </span>
+                <span className="flex items-center justify-start font-bold text-center">
+                  {t("inventory.item.columns.total_stock")}
+                </span>
+              </div>
+              {variants.map((variant) => (
+                <div
+                  key={variant.id}
+                  className="grid py-2 border-b last:rounded-b-md border-muted-foreground/25 grid-cols-subgrid col-span-full"
+                >
+                  {variant.sku ? (
+                    <Link
+                      className="hover:underline"
+                      href={route("variants.show", {
+                        variant: variant.id,
+                      })}
+                    >
+                      {variant.sku || item.code}
+                    </Link>
+                  ) : (
+                    <span className="flex items-center justify-start">
+                      {item.code}
+                    </span>
+                  )}
+                  <div className="flex justify-center">
+                    <Checkbox
+                      id="allow_alternative_item"
+                      checked={
+                        variant.allow_alternative_item == null
+                          ? "indeterminate"
+                          : variant.allow_alternative_item === true
+                      }
+                      disabled
                     />
                   </div>
-                  <div className="text-center"></div>
+                  <div className="flex justify-center">
+                    <Checkbox
+                      id="allow_alternative_item"
+                      checked={
+                        variant.disabled == null
+                          ? "indeterminate"
+                          : variant.disabled === false
+                      }
+                      disabled
+                    />
+                  </div>
+                  <span className="px-2 text-center">
+                    {variant.total_stock}
+                  </span>
                 </div>
-              </div>
-            </FormInput>
-          ) : (
-            <>
-              <FormInput
-                required={true}
-                label={t("inventory.attribute.columns.range.from")}
-              >
-                <Input
-                  type="number"
-                  value={data.from_range ?? 0}
-                  onChange={(e) => setData("from_range", e.target.value)}
-                />
-              </FormInput>
-              <FormInput
-                required={true}
-                label={t("inventory.attribute.columns.range.to")}
-              >
-                <Input
-                  type="number"
-                  value={data.to_range ?? 0}
-                  onChange={(e) => setData("to_range", e.target.value)}
-                />
-              </FormInput>
-              <FormInput
-                required={true}
-                label={t("inventory.attribute.columns.range.increment")}
-              >
-                <Input
-                  type="number"
-                  min="0"
-                  value={data.increment ?? 0}
-                  onChange={(e) => setData("increment", e.target.value)}
-                />
-              </FormInput>
-            </>
-          )}
-        </div>
+              ))}
+            </div>
+          </WhenVisible>
+        </FormPageContent>
+      )}
+      {item && !(item.variants && item.variants.length > 0) && (
+        <>
+          <FormStockLevels />
+          <FormBarcodes />
+        </>
+      )}
+      <FormPageContent title={t("inventory.item.menu.uom")} value="detail">
+        <FormPageContentTitle>
+          {t("inventory.item.menu.uom")}
+        </FormPageContentTitle>
+        <FormTable
+          readonly
+          columns={uomColumns}
+          value={data.uom ?? []}
+          onValueChange={useCallback((val) => setData("uom", val), [])}
+        />
       </FormPageContent>
     </>
   );
-}
+});

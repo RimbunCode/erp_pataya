@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import {
   Command,
   CommandEmpty,
@@ -67,7 +66,7 @@ function Combobox({
             templateTrigger ? (
               templateTrigger(option)
             ) : (
-              <>option</>
+              <>{option}</>
             )
           ) : (
             <>{placeholder}</>

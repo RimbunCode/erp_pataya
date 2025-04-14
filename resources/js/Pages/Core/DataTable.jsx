@@ -95,6 +95,10 @@ const DATATABLE_COLUMNS_EXPIRED = 7; //days
  * @property {boolean} sortable
  * @property {boolean} resizeable
  * @property {boolean} show default is true
+ * @property {string} parseTrans mirip seperti "parse", pada properti ini akan mengacu pada file locale
+ * - contoh: parseTrans: "core.form.parse"
+ *
+ * ini akan terkonversi menjadi { true: "core.form.parse.true", false: "core.form.parse.false" } bergantung pada attribute pada kolom tersebut
  * @property {object?} parse untuk konversi value sebelum ditampilkan
  * - contoh: { true: "Enabled", false: "Disabled" }
  * - Ini dapat berdampak pada filter jika searchType berupa boolean atau string[]
@@ -166,7 +170,9 @@ export default memo(
 
     const loadData = useCallback(() => {
       router.get(
-        route(route().current()) + "?" + QueryString.stringify(options),
+        route(route().current(), route().params) +
+          "?" +
+          QueryString.stringify(options),
         {},
         {
           reset: ["data", "ziggy"],
@@ -239,7 +245,7 @@ export default memo(
       setShow(value);
       setCookie("datatable_show", value, {
         days: DATATABLE_COLUMNS_EXPIRED,
-        path: route(route().current(), [], false),
+        path: window.location.pathname,
         sameSite: "lax",
       });
       loadData();

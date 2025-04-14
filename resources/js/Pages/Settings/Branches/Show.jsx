@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
@@ -54,8 +53,10 @@ export default function Show({ branch }) {
           </Button>
         )
       }
+      data={data}
+      setData={setData}
     >
-      <Form data={data} setData={setData} />
+      <Form />
     </FormPage>
   );
 }

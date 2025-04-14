@@ -18,30 +18,14 @@ import Link from "@/Components/Link";
 import { Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { router } from "@inertiajs/react";
-import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-// eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
   const [idDelete, setIdDelete] = useState(null);
-  const { data, setData, post, processing, errors } = useDraftForm(
-    "item",
-    {},
-    {
-      onContinueDraft: () => {
-        setShowNewForm(true);
-      },
-    },
-  );
-  const onSubmit = (e) => {
-    e.preventDefault();
-
-    post(route("items.store"));
-  };
   const onDelete = (id) => {
     router.delete(route("items.destroy", id), {
       onSuccess: () => {
@@ -65,9 +49,9 @@ export default function Index({ lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("items.show", dataRow.id)}
+            href={dataRow.id ? route("items.show", dataRow.id) : ""}
           >
-            {dataRow.name}
+            {dataRow.code}
           </Link>
         ),
       },
@@ -80,19 +64,11 @@ export default function Index({ lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("items.show", dataRow.id)}
+            href={dataRow.id ? route("items.show", dataRow.id) : ""}
           >
             {dataRow.name}
           </Link>
         ),
-      },
-      {
-        titleTrans: "inventory.item.columns.description",
-        name: "description",
-        searchType: "text",
-        show: false,
-        sortable: true,
-        resizeable: true,
       },
       {
         titleTrans: "inventory.item.columns.category",
@@ -115,6 +91,24 @@ export default function Index({ lang }) {
             {dataRow.category_name}
           </button>
         ),
+      },
+      {
+        titleTrans: "inventory.item.columns.description",
+        name: "description",
+        searchType: "text",
+        show: false,
+        sortable: true,
+        resizeable: true,
+      },
+      {
+        titleTrans: "inventory.item.columns.is_disabled",
+        name: "is_disabled",
+        searchType: "text",
+        parseTrans: "inventory.item.columns.is_disabled.parse",
+        show: "boolean",
+        width: "fit",
+        sortable: true,
+        resizeable: true,
       },
     ],
     [lang],
@@ -147,7 +141,7 @@ export default function Index({ lang }) {
           <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
             <Link
               as="button"
-              href={route("items.show", dataRow.id)}
+              href={dataRow.id ? route("items.show", dataRow.id) : ""}
               className=""
             >
               <p className="text-base font-medium text-left">{dataRow.name}</p>
@@ -167,15 +161,12 @@ export default function Index({ lang }) {
       />
       <FormPageDialog
         title={t("inventory.item.new")}
-        disabled={processing}
-        errors={errors}
-        onSubmit={onSubmit}
+        name="item"
         open={showNewForm}
         onOpenChange={setShowNewForm}
-        setData={setData}
         className="max-w-6xl"
       >
-        <Form data={data} setData={setData} />
+        <Form />
       </FormPageDialog>
       <AlertDialog
         open={idDelete}
@@ -193,14 +184,10 @@ export default function Index({ lang }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={processing}
-              onClick={() => setIdDelete(null)}
-            >
+            <AlertDialogCancel onClick={() => setIdDelete(null)}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={processing}
               onClick={() => {
                 onDelete(idDelete);
               }}

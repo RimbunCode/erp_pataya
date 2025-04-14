@@ -1,8 +1,4 @@
-import FormInput from "@/Components/FormInput";
-import { Input } from "@/Components/ui/input";
-import React from "react";
-import Combobox from "@/Components/Combobox";
-import { CommandItem } from "@/Components/ui/command";
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import {
   Select,
   SelectContent,
@@ -10,15 +6,41 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
-import { Textarea } from "@/Components/ui/textarea";
-import { FormPageContent, FormPageContentTitle } from "@/Pages/Core/FormPage";
-import { usePage } from "@inertiajs/react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { memo } from "react";
 
-export default function Form({ data, setData }) {
-  const { supplier, countries } = usePage().props;
+import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
+import FormInput from "@/Components/FormInput";
+import { Input } from "@/Components/ui/input";
+import React, { useMemo } from "react";
+import { Textarea } from "@/Components/ui/textarea";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+
+export default function Form() {
+  const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
+  /**
+   * @typedef {import('@/Components/FormTable').ColumnProps} ColumnProps
+   * @type {ColumnProps[]}
+   */
+  const banksColumns = useMemo(
+    () => [
+      {
+        name: "bank",
+        titleTrans: "purchase.supplier.columns.bank",
+        required: true,
+      },
+      {
+        name: "no_acc",
+        titleTrans: "purchase.supplier.columns.no_acc",
+        required: true,
+      },
+      {
+        name: "account",
+        titleTrans: "purchase.supplier.columns.account",
+        required: true,
+      },
+    ],
+    [],
+  );
   return (
     <>
       <FormPageContent
@@ -29,10 +51,9 @@ export default function Form({ data, setData }) {
           label={t("purchase.supplier.columns.name")}
           required={true}
           name="name"
-          placeholder="PT Pataya Sarana Niaga"
         >
           <Input
-            value={data.name}
+            value={data?.name ?? ""}
             onChange={(e) => setData("name", e.target.value)}
           />
         </FormInput>
@@ -43,7 +64,7 @@ export default function Form({ data, setData }) {
           >
             <Input
               type="email"
-              value={data.email}
+              value={data?.email ?? ""}
               onChange={(e) => setData("email", e.target.value)}
             />
           </FormInput>
@@ -52,7 +73,7 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Input
-              value={data.phone}
+              value={data?.phone ?? ""}
               onChange={(e) => setData("phone", e.target.value)}
             />
           </FormInput>
@@ -61,7 +82,7 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Select
-              value={data.is_disabled ? "0" : "1"}
+              value={data?.is_disabled ? "0" : "1"}
               onValueChange={(v) => setData("is_disabled", v === "0")}
             >
               <SelectTrigger>
@@ -81,13 +102,17 @@ export default function Form({ data, setData }) {
               </SelectContent>
             </Select>
           </FormInput>
-        </div>
-        <FormInput label={t("purchase.supplier.columns.banks")} required={true}>
-          <Input
-            value={data.banks}
-            onChange={(e) => setData("banks", e.target.value)}
+
+          <FormTable
+            label={t("purchase.supplier.columns.banks")}
+            className="col-span-full"
+            columns={banksColumns}
+            value={data.banks ?? []}
+            onValueChange={(val) => {
+              setData("banks", val);
+            }}
           />
-        </FormInput>
+        </div>
       </FormPageContent>
       <FormPageContent
         title={t("purchase.supplier.address")}
@@ -99,7 +124,7 @@ export default function Form({ data, setData }) {
           className="col-span-full"
         >
           <Textarea
-            value={data.street}
+            value={data?.street ?? ""}
             onChange={(e) => setData("street", e.target.value)}
           />
         </FormInput>
@@ -110,7 +135,7 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Input
-              value={data.city}
+              value={data?.city ?? ""}
               onChange={(e) => setData("city", e.target.value)}
             />
           </FormInput>
@@ -119,7 +144,7 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Input
-              value={data.province}
+              value={data?.province ?? ""}
               onChange={(e) => setData("province", e.target.value)}
             />
           </FormInput>
@@ -128,20 +153,22 @@ export default function Form({ data, setData }) {
             required={true}
           >
             <Input
-              value={data.zip_code}
+              value={data?.zip_code ?? ""}
               onChange={(e) => setData("zip_code", e.target.value)}
             />
           </FormInput>
+
+          <FormInput
+            label={t("purchase.supplier.columns.country")}
+            required={true}
+          >
+            <CountryLinkModel
+              placeholder={t("purchase.supplier.columns.country.placeholder")}
+              value={data.country}
+              onValueChange={(val) => setData("country", val)}
+            />
+          </FormInput>
         </div>
-        <FormInput
-          label={t("purchase.supplier.columns.country")}
-          required={true}
-        >
-          <Input
-            value={data.country}
-            onChange={(e) => setData("country", e.target.value)}
-          />
-        </FormInput>
       </FormPageContent>
     </>
   );

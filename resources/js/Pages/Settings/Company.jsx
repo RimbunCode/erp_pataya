@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { FormPage, FormPageContent } from "../Core/FormPage";
 import {
   Select,

@@ -25,12 +25,12 @@ class BranchRequest extends FormRequest {
       'billing_city' => ['nullable', 'string', 'max:255'],
       'billing_state' => ['nullable', 'string', 'max:255'],
       'billing_zip_code' => ['nullable', 'string', 'max:255'],
-      'billing_country_id' => ['nullable', 'string', 'exists:countries,code'],
+      'billing_country.id' => ['nullable', 'string', 'exists:countries,code'],
       'shipping_street' => ['nullable', 'string', 'max:255'],
       'shipping_city' => ['nullable', 'string', 'max:255'],
       'shipping_state' => ['nullable', 'string', 'max:255'],
       'shipping_zip_code' => ['nullable', 'string', 'max:255'],
-      'shipping_country_id' => ['nullable', 'string', 'exists:countries,code'],
+      'shipping_country.id' => ['nullable', 'string', 'exists:countries,code'],
     ];
   }
 }

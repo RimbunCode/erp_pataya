@@ -1,27 +1,30 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import { SaveIcon } from "lucide-react";
+import { useCallback } from "react";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ attribute }) {
+export default function Show({ item }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const { data, setData, put, processing, errors, isDirty } = useDraftForm(
-    "attribute",
-    attribute,
+    "item",
+    item,
   );
-  const onSubmit = (e) => {
-    e.preventDefault();
-
-    put(route("attributes.update", attribute.id));
-  };
+  const onSubmit = useCallback(
+    (e) => {
+      e.preventDefault();
+      if (!item.id) return;
+      put(route("items.update", item.id));
+    },
+    [item.id, put],
+  );
   return (
     <FormPage
       errors={errors}
-      title={attribute.name}
+      title={item.name}
       disabled={processing}
       onSubmit={(e) => {
         e.preventDefault();
@@ -44,8 +47,10 @@ export default function Show({ attribute }) {
           {t("core.form.save")}
         </Button>
       }
+      data={data}
+      setData={setData}
     >
-      <Form data={data} setData={setData} />
+      <Form />
     </FormPage>
   );
 }

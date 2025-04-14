@@ -63,9 +63,6 @@ trait DataTable {
       'write',
       'create',
       'delete',
-      'submit',
-      'cancel',
-      'amend',
       'print',
       'import',
       'export',
@@ -100,7 +97,7 @@ trait DataTable {
       'module' => $module,
       'name' => static::$alias ??
         \ucwords(str_replace(['_', '-'], ' ', static::getTableName())),
-      'permissions' => static::permissions(),
+      'permissions' => static::$is_submitable ? [...static::permissions(), 'submit', 'cancel', 'amend'] : static::permissions(),
       'is_submittable' => static::$is_submitable,
     ]);
     print_r("\e[39m" . static::class . " \e[92m(SUCCESS)" . \PHP_EOL);

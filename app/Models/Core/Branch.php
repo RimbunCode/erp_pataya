@@ -5,7 +5,7 @@ namespace App\Models\Core;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Branch extends Model {
@@ -22,6 +22,10 @@ class Branch extends Model {
     static::addGlobalScope('country', function (Builder $builder) {
       $builder->with(['billingCountry', 'shippingCountry']);
     });
+  }
+
+  public static function templateLink() {
+    return ":name";
   }
 
   public function billingCountry() {

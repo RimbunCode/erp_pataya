@@ -24,9 +24,10 @@ return [
   'loading' => 'Loading',
   'pick_date' => 'Pick a Date',
   'type_comment' => 'Type a reply / comment',
+  'not_found' => 'No results found',
+  'search.placeholder' => 'Search',
   'tag' => [
     'search' => 'Type tag name',
-    'not_found' => 'No results found'
   ],
   'errors.title' => 'Please fix the following errors:',
 ];

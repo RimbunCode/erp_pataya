@@ -38,21 +38,7 @@ class WarehouseController extends Controller {
       }
     }
     $warehouse->dataTable($request);
-    return Inertia::render('Inventory/Warehouses/Index', [
-      'branches' => Inertia::defer(function () {
-        $branches =  Branch::whereNull('branchable_type')
-          ->whereNull('branchable_id');
-
-        if (Session::has('currentBranch')) {
-          $branch = Branch::find(Session::get('currentBranch'));
-          if (!$branch->is_main_branch) {
-            $branches->where('id', $branch->id);
-          }
-        }
-
-        return $branches->get();
-      })
-    ]);
+    return Inertia::render('Inventory/Warehouses/Index');
   }
 
   /**
@@ -68,6 +54,12 @@ class WarehouseController extends Controller {
   public function store(WarehouseRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['branch'])) {
+      $data['branch_id'] = $data['branch']['id'];
+    }
+    if (isset($data['pic'])) {
+      $data['user_id'] = $data['pic']['id'];
+    }
     $warehouse = Warehouse::create($data);
     $warehouse->logs()->create(
       [
@@ -90,22 +82,9 @@ class WarehouseController extends Controller {
     $warehouse->showDetail();
     return Inertia::render('Inventory/Warehouses/Show', [
       'warehouse' => function () use ($warehouse) {
-        $warehouse->load('pic');
+        $warehouse->load(['pic', 'branch']);
         return $warehouse;
       },
-      'branches' => Inertia::defer(function () {
-        $branches =  Branch::whereNull('branchable_type')
-          ->whereNull('branchable_id');
-
-        if (Session::has('currentBranch')) {
-          $branch = Branch::find(Session::get('currentBranch'));
-          if (!$branch->is_main_branch) {
-            $branches->where('id', $branch->id);
-          }
-        }
-
-        return $branches->get();
-      })
     ]);
   }
 
@@ -115,6 +94,12 @@ class WarehouseController extends Controller {
   public function update(WarehouseRequest $request, Warehouse $warehouse) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['branch'])) {
+      $data['branch_id'] = $data['branch']['id'];
+    }
+    if (isset($data['pic'])) {
+      $data['user_id'] = $data['pic']['id'];
+    }
     $warehouse->update($data);
     $warehouse->logs()->create([
       'user_id' => $request->user()->id,

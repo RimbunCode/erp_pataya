@@ -1,6 +1,5 @@
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
-/* eslint-disable jsdoc/require-jsdoc */
 import { FormPage } from "@/Pages/Core/FormPage";
 import React from "react";
 import { SaveIcon } from "lucide-react";
@@ -23,9 +22,10 @@ export default function Show({ supplier }) {
   return (
     <>
       <FormPage
+        isCreate={!supplier}
         errors={errors}
         disabled={processing}
-        title={supplier.name}
+        title={supplier?.name ?? t("purchase.supplier.new")}
         badge={
           isDirty && (
             <span className="text-sm badge warning">
@@ -44,8 +44,10 @@ export default function Show({ supplier }) {
             {t("core.form.save")}
           </Button>
         }
+        data={data}
+        setData={setData}
       >
-        <Form data={data} setData={setData} />
+        <Form />
       </FormPage>
     </>
   );

@@ -3,7 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\DataTable;
-use Illuminate\Database\Eloquent\Model;
+use App\Models\Model;
 
 class Preference extends Model {
   use DataTable;

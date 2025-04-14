@@ -14,6 +14,7 @@ use App\Models\User\User;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -31,8 +32,8 @@ abstract class Controller {
    */
   protected function setBreadcrumbs(Model|string ...$models) {
     if (empty($models)) {
-      $tableName = $this->model::getTableName();
-      $breadcrumbs = [['name' => Str::title($tableName)]];
+      $tableName = Str::camel($this->model::getTableName());
+      $breadcrumbs = [['name' => Str::headline($tableName)]];
     } else {
       $breadcrumbs = [];
       /**
@@ -40,24 +41,26 @@ abstract class Controller {
        */
       foreach ($models as $key => $model) {
         if (\gettype($model) == 'string') {
-          $tableName = $this->model::getTableName();
-          $breadcrumbs[] = ['name' => Str::title($tableName), 'link' => route("{$tableName}.index")];
+          $tableName = Str::camel($this->model::getTableName());
+          $breadcrumbs[] = ['name' => Str::headline($tableName), 'link' => route("{$tableName}.index")];
           $breadcrumbs[] = ['name' => $model];
           break;
         }
-        $tableName = $model->getTable();
+        $tableName = Str::camel($model->getTable());
         if ($key == 0) {
-          $breadcrumbs[] = ['name' => Str::title($tableName), 'link' => route("{$tableName}.index")];
-          $breadcrumbs[] = ($key == (count($breadcrumbs) - 1)) ?
-            ['name' => $model->name] :
-            ['name' => $model->name, 'link' => route("{$tableName}.edit")];
+          $breadcrumbs[] = ['name' => Str::headline($tableName), 'link' => route("{$tableName}.index")];
+          $name = Arr::get($model->toArray(), $model->valueBreadcrumb ?? "", $model->name);
+          $breadcrumbs[] = ($key == (count($models) - 1)) ?
+            ['name' => $name] :
+            ['name' => $name, 'link' => route("{$tableName}.show", $model->id)];
           continue;
         }
-
-        preg_match('/([^\\\\]+)$/',  \get_class($model), $className);
-        $breadcrumbs[] = ($key == (count($breadcrumbs) - 1)) ?
-          ['name' => "{$className[1]}: {$model->name}"] :
-          ['name' => "{$className[1]}: {$model->name}", 'link' => route("{$tableName}.edit")];
+        preg_match('/([^\\\\]+)$/',  \get_class($model), matches: $className);
+        $alias = $model->aliasBreadcrumb ?? $className[1];
+        $value = Arr::get($model->toArray(), $model->valueBreadcrumb ?? "", $model->name);
+        $breadcrumbs[] = ($key == (count($models) - 1)) ?
+          ['name' => "{$alias}: {$value}"] :
+          ['name' => "{$alias}: {$value}", 'link' => route("{$tableName}.show", $model->id)];
       }
     }
 

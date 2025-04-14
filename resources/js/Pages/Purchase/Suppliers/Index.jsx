@@ -1,43 +1,17 @@
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/Components/ui/dialog";
 import { useMemo, useRef, useState } from "react";
+
 import DataTable from "@/Pages/Core/DataTable";
-import FormInput from "@/Components/FormInput";
-import { Input } from "@/Components/ui/input";
-import Link from "@/Components/Link";
-import { TZDate } from "@date-fns/tz";
-import { format } from "date-fns";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { cn, getLocaleDate } from "@/lib/utils";
-import { router } from "@inertiajs/react";
-import { useDraftForm } from "@/Hooks/useDraftForm";
-import { FormPageDialog } from "@/Pages/Core/FormPage";
 import Form from "./Form";
+import { FormPageDialog } from "@/Pages/Core/FormPage";
+import Link from "@/Components/Link";
+import { cn } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function Index({ lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
-  const { data, setData, post, processing, errors, isDirty } = useDraftForm(
-    "supplier",
-    {},
-    {
-      onContinueDraft: () => {
-        setShowNewForm(true);
-      },
-    },
-  );
-  const onSubmit = (e) => {
-    e.preventDefault();
-
-    post(route("suppliers.store"));
-  };
 
   const columns = useMemo(
     () => [
@@ -50,9 +24,8 @@ function Index({ lang }) {
         show: true,
         cell: ({ dataRow }) => (
           <Link
-            as="button"
             href={route("suppliers.show", dataRow.id)}
-            className="items-center block p-4 border-b border-muted-foreground/25"
+            className="hover:underline"
           >
             {dataRow.name}
           </Link>
@@ -125,6 +98,7 @@ function Index({ lang }) {
         addButton={{
           title: t("purchase.supplier.addButton"),
           onClick: () => {
+            // router.visit(route("suppliers.create"));
             setShowNewForm(true);
           },
         }}
@@ -132,14 +106,12 @@ function Index({ lang }) {
       />
       <FormPageDialog
         title={t("purchase.supplier.new")}
-        disabled={processing}
-        errors={errors}
-        onSubmit={onSubmit}
+        name="supplier"
         open={showNewForm}
         onOpenChange={setShowNewForm}
-        className="max-w-lg"
+        className="max-w-screen-lg"
       >
-        <Form data={data} setData={setData} />
+        <Form />
       </FormPageDialog>
     </>
   );

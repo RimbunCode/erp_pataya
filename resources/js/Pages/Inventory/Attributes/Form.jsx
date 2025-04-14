@@ -1,18 +1,16 @@
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useMemo } from "react";
 
-import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/checkbox";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
-/* eslint-disable jsdoc/require-jsdoc */
-import { FormPageContent } from "@/Pages/Core/FormPage";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
 import { Textarea } from "@/Components/ui/textarea";
-import { Trash2Icon } from "lucide-react";
-import { isNullOrWhitespace } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Form({ data, setData }) {
+export default function Form() {
+  const { data, setData } = useFormPage();
+
   const { t } = useLaravelReactI18n();
 
   /**
@@ -52,27 +50,20 @@ export default function Form({ data, setData }) {
               onChange={(e) => setData("description", e.target.value)}
             />
           </FormInput>
-          <div className="flex items-center space-x-2 col-span-full">
-            <Checkbox
-              id={"is_numeric-checkbox"}
-              checked={data.is_numeric ?? false}
-              onCheckedChange={(val) => {
-                setData("is_numeric", val);
-              }}
-            />
-            <label
-              htmlFor={name + "-checkbox"}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              {t("inventory.attribute.columns.is_numeric")}
-            </label>
-          </div>
+          <FormCheckbox
+            checked={data.is_numeric ?? false}
+            onCheckedChange={(val) => {
+              setData("is_numeric", val);
+            }}
+            label={t("inventory.attribute.columns.is_numeric")}
+            className="col-span-full"
+          />
           {!data.is_numeric ? (
             <FormTable
               label={t("inventory.attribute.columns.values")}
               className="col-span-full"
               columns={valuesColumns}
-              value={data.values}
+              value={data.values ?? []}
               onValueChange={(val) => {
                 setData("values", val);
               }}

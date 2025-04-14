@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import {
   Dialog,
@@ -28,7 +27,7 @@ import {
 } from "@/Components/ui/tooltip";
 
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/Checkbox";
+import { FormCheckbox } from "@/Components/ui/Checkbox";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -39,10 +38,12 @@ import axios from "axios";
 import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ user, roles, branches, auth }) {
+export default function Show({ user, roles, branches }) {
   const { t } = useLaravelReactI18n();
-  const { data, setData, put, processing, errors, reset, isDirty } =
-    useDraftForm("user", user);
+  const { data, setData, put, processing, errors, isDirty } = useDraftForm(
+    "user",
+    user,
+  );
   const route = window.route;
   const [openAttachment, setOpenAttachment] = useState(false);
   const [openDetailRole, setOpenDetailRole] = useState(false);
@@ -224,29 +225,26 @@ export default function Show({ user, roles, branches, auth }) {
               <div className="columns-[15rem] gap-x-2 space-y-4 mt-2">
                 {roles &&
                   roles.map((role) => (
-                    <div className="flex items-center space-x-2" key={role.id}>
-                      <Checkbox
-                        id={role.id + "_Checkbox"}
-                        disabled={role.is_disabled}
-                        checked={data.roles.includes(role.id)}
-                        onCheckedChange={(val) => {
-                          if (val) {
-                            setData("roles", [...data.roles, role.id]);
-                          } else {
-                            setData(
-                              "roles",
-                              data.roles.filter((x) => x !== role.id),
-                            );
-                          }
-                        }}
-                      />
-                      <span
-                        onClick={() => getDetailsRole(role.id)}
-                        className="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
+                    <FormCheckbox
+                      key={role.id}
+                      disabled={role.is_disabled}
+                      checked={data.roles.includes(role.id)}
+                      onCheckedChange={(val) => {
+                        if (val) {
+                          setData("roles", [...data.roles, role.id]);
+                        } else {
+                          setData(
+                            "roles",
+                            data.roles.filter((x) => x !== role.id),
+                          );
+                        }
+                      }}
+                      classNameLabel="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
+                      <span onClick={() => getDetailsRole(role.id)}>
                         {role.name}
                       </span>
-                    </div>
+                    </FormCheckbox>
                   ))}
               </div>
             </FormPageContent>
@@ -260,35 +258,26 @@ export default function Show({ user, roles, branches, auth }) {
               <div className="columns-[15rem] gap-x-2 space-y-4 mt-2">
                 {branches &&
                   branches.map((branch) => (
-                    <div
-                      className="flex items-center space-x-2"
+                    <FormCheckbox
                       key={branch.id}
-                    >
-                      <Checkbox
-                        id={branch.id + "_Checkbox"}
-                        disabled={branch.is_disabled}
-                        checked={data.branches?.includes(branch.id)}
-                        onCheckedChange={(val) => {
-                          if (val) {
-                            setData("branches", [...data.branches, branch.id]);
-                          } else {
-                            setData(
-                              "branches",
-                              data.branches?.filter((x) => x !== branch.id),
-                            );
-                            if (branch.id == data.default_branch_id) {
-                              setData("default_branch_id", null);
-                            }
+                      disabled={branch.is_disabled}
+                      checked={data.branches?.includes(branch.id)}
+                      onCheckedChange={(val) => {
+                        if (val) {
+                          setData("branches", [...data.branches, branch.id]);
+                        } else {
+                          setData(
+                            "branches",
+                            data.branches?.filter((x) => x !== branch.id),
+                          );
+                          if (branch.id == data.default_branch_id) {
+                            setData("default_branch_id", null);
                           }
-                        }}
-                      />
-                      <label
-                        htmlFor={branch.id + "_Checkbox"}
-                        className="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {branch.name}
-                      </label>
-                    </div>
+                        }
+                      }}
+                      classNameLabel="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      label={branch.name}
+                    />
                   ))}
               </div>
               <FormInput

@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
 import DataTable from "@/Pages/Core/DataTable";
@@ -19,7 +19,6 @@ import Link from "@/Components/Link";
 import { Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { router } from "@inertiajs/react";
-import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 // eslint-disable-next-line jsdoc/require-jsdoc
@@ -29,25 +28,7 @@ export default function Index({ branchSettings }) {
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
   const [idDelete, setIdDelete] = useState(null);
-  const { data, setData, post, processing, errors } = useDraftForm(
-    "warehouse",
-    {},
-    {
-      onContinueDraft: () => {
-        setShowNewForm(true);
-      },
-    },
-  );
-  useEffect(() => {
-    if (!showNewForm) {
-      setData({});
-    }
-  }, [showNewForm]);
-  const onSubmit = useCallback((e) => {
-    e.preventDefault();
 
-    post(route("warehouses.store"));
-  }, []);
   const onDelete = useCallback((id) => {
     router.delete(route("warehouses.destroy", id), {
       onSuccess: () => {
@@ -209,15 +190,12 @@ export default function Index({ branchSettings }) {
       />
       <FormPageDialog
         title={t("inventory.warehouse.new")}
-        disabled={processing}
-        errors={errors}
-        onSubmit={onSubmit}
+        name="warehouse"
         open={showNewForm}
         onOpenChange={setShowNewForm}
         className="max-w-lg"
-        setData={setData}
       >
-        <Form data={data} setData={setData} />
+        <Form />
       </FormPageDialog>
 
       <AlertDialog
@@ -238,14 +216,10 @@ export default function Index({ branchSettings }) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              disabled={processing}
-              onClick={() => setIdDelete(null)}
-            >
+            <AlertDialogCancel onClick={() => setIdDelete(null)}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={processing}
               onClick={() => {
                 onDelete(idDelete);
               }}
