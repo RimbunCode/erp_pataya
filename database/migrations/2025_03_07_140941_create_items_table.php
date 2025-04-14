@@ -19,6 +19,8 @@ return new class extends Migration {
       $table->unsignedInteger('stock_minimum')->default(0);
       $table->foreignUlid('image_id')->nullable()->references('id')->on('files')->nullOnDelete();
       $table->boolean('is_disabled')->default(false);
+      $table->boolean('allow_alternative_item')->default(false);
+      $table->string('format_variant')->nullable();
       $table->timestamps();
       $table->softDeletes();
       $table->unique(['code', 'deleted_at']);

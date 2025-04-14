@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";

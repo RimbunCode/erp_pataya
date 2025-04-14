@@ -1,6 +1,3 @@
-import "quill/dist/quill.bubble.css";
-import "quill-mention/autoregister";
-
 import {
   Accordion,
   AccordionContent,
@@ -26,7 +23,6 @@ import React, {
   useCallback,
   useContext,
   useEffect,
-  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -41,6 +37,7 @@ import Comments from "./Components/Comments";
 import Tags from "./Components/Tags";
 import pluralize from "pluralize";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useForm } from "@inertiajs/react";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -95,18 +92,21 @@ const FormPageContentDescription = memo(
  * @property {React.ReactNode} children
  * @property {string} className
  * @property {boolean} collapsible
+ * @property {boolean | string | string[]} showAt
  */
 /**
  * @type {React.ForwardRefRenderFunction<HTMLHeadingElement, FormPageContentProps>}
  */
 const FormPageContent = memo(
   forwardRef(function FormPageContent(
-    { title, value, children, className, collapsible = false },
+    { title, value, children, className, collapsible = false, showAt = false },
     ref,
   ) {
-    const { menus, addMenu } = useFormPage();
+    const { menus, addMenu, menuSelected } = useFormPage();
     const [id] = useState(generateRandom(8));
+    const [valueAccordion] = useState(generateRandom(8));
     useEffect(() => {
+      if (showAt) return;
       addMenu({
         id,
         title,
@@ -137,11 +137,24 @@ const FormPageContent = memo(
       : (props) => <div {...props} />;
     const Content = collapsible ? AccordionContent : Fragment;
     return (
-      <TabsContent value={value} className="mt-0">
-        <AccordionItem value={generateRandom(8)} asChild className="border-b-0">
+      <TabsContent
+        value={
+          showAt
+            ? typeof showAt === "string"
+              ? showAt
+              : Array.isArray(showAt)
+                ? (showAt.find(
+                    (item) => item === (menuSelected ?? menus?.[0]?.value),
+                  ) ?? value)
+                : (menuSelected ?? menus?.[0]?.value)
+            : value
+        }
+        className="mt-0"
+      >
+        <AccordionItem value={valueAccordion} asChild className="border-b-0">
           <div
             ref={ref}
-            className={cn(className, "px-4 py-4 !mt-0")}
+            className={cn("px-4 py-4 !mt-0", className)}
             role="content"
           >
             {headerChildren.length > 0 ||
@@ -176,27 +189,39 @@ const FormPageContent = memo(
  * @property {React.ReactNode} children
  * @property {string} className
  */
-/**
- * @type {React.ForwardRefRenderFunction<HTMLHeadingElement, FormPageBottomBarProps>}
- */
-const FormChildren = memo(
-  forwardRef(function FormChildren(
-    { children, className, defaultMenu, showHeader },
-    ref,
-  ) {
-    const { menus } = useFormPage();
-    const { t } = useLaravelReactI18n();
-    const [menuSelected, setMenuSelected] = useState(defaultMenu);
 
-    useImperativeHandle(
-      ref,
-      () => ({
-        setMenuSelected,
-      }),
-      [],
-    );
-    return (
-      <Accordion type="multiple" className="w-full" asChild>
+const FormChildren = memo(function FormChildren({
+  children,
+  className,
+  showHeader,
+  errors,
+  fieldNameTrans,
+  data,
+  setData,
+  defaultMenu,
+}) {
+  const { t } = useLaravelReactI18n();
+
+  const [menus, setMenus] = useState([]);
+
+  const [menuSelected, setMenuSelected] = useState(defaultMenu);
+  const addMenu = useCallback((newItem) => {
+    setMenus((prev) => {
+      let newItems = [...(prev ?? [])];
+      const index = newItems?.findIndex((menu) => menu.value === newItem.value);
+      if (index < 0) {
+        newItems = [...newItems, newItem];
+      }
+      return newItems;
+    });
+  }, []);
+  return (
+    <Accordion type="multiple" className="w-full" asChild>
+      <Tabs
+        value={menuSelected ?? menus?.[0]?.value}
+        onValueChange={setMenuSelected}
+        asChild
+      >
         <div
           className={cn(
             className,
@@ -204,47 +229,81 @@ const FormChildren = memo(
             "[&_:not(div[role=content])_+_div[role=content]]:border-t-0 [&_div[role=content]:first-child]:!border-t-0 [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
           )}
         >
-          <Tabs
-            value={menuSelected ?? menus?.[0]?.value}
-            onValueChange={setMenuSelected}
+          <TabsList
+            className={cn(
+              menus?.length <= 1 ? "hidden" : "",
+              showHeader ? "top-14" : "top-0",
+              "transition-[top] duration-300 ease-in-out sticky z-[9] w-full !p-0 h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
+            )}
           >
-            <TabsList
-              className={cn(
-                menus?.length <= 1 ? "hidden" : "",
-                showHeader ? "top-14" : "top-0",
-                "transition-[top] duration-300 ease-in-out sticky z-9 w-full !p-0 h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
-              )}
-            >
-              {menus.map((child) => {
-                return (
-                  <TabsTrigger
-                    key={child.value}
-                    value={child.value}
-                    className="text-base border-0 data-[state=active]:font-bold !p-0 !px-4 group rounded-none transition-colors "
-                  >
-                    <span className="pt-2 pb-1 border-transparent w-fit group-[[data-state=active]]:border-foreground border-b transition-colors duration-300 ">
-                      {t(child.title || child.value)}
-                    </span>
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+            {menus.map((child) => {
+              return (
+                <TabsTrigger
+                  key={child.value}
+                  value={child.value}
+                  className="text-base border-0 data-[state=active]:font-bold !p-0 !px-4 group rounded-none transition-colors "
+                >
+                  <span className="pt-2 pb-1 border-transparent w-fit group-[[data-state=active]]:border-foreground border-b transition-colors duration-300 ">
+                    {t(child.title || child.value)}
+                  </span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+          <FormPageProvider
+            errors={errors}
+            fieldNameTrans={fieldNameTrans}
+            data={data}
+            setData={setData}
+            menus={menus}
+            addMenu={addMenu}
+            menuSelected={menuSelected}
+            setMenuSelected={setMenuSelected}
+          >
             {children}
-          </Tabs>
+          </FormPageProvider>
         </div>
-      </Accordion>
-    );
-  }),
-);
+      </Tabs>
+    </Accordion>
+  );
+});
 
 const FormPageContext = createContext();
-
 /**
  * @typedef FormPageContextProps
  * @property {object} errors
  * @returns {FormPageContextProps}
  */
 const useFormPage = () => useContext(FormPageContext);
+
+const FormPageProvider = memo(function FormPageProvider({
+  children,
+  errors,
+  fieldNameTrans,
+  data,
+  setData,
+  menus,
+  addMenu,
+  menuSelected,
+  setMenuSelected,
+}) {
+  return (
+    <FormPageContext.Provider
+      value={{
+        menus,
+        addMenu,
+        menuSelected,
+        setMenuSelected,
+        errors,
+        fieldNameTrans,
+        data,
+        setData,
+      }}
+    >
+      {children}
+    </FormPageContext.Provider>
+  );
+});
 
 /**
  * @callback SidebarContent
@@ -313,21 +372,25 @@ const FormPage = memo(
     // eslint-disable-next-line no-unused-vars
     const [lastPosition, setLastPosition] = useState(0);
     const formRef = useRef();
-    const handleScroll = (e) => {
-      const { scrollTop, scrollHeight, clientHeight } = e.target;
-      const position = Math.ceil(
-        (scrollTop / (scrollHeight - clientHeight)) * 100,
-      );
-      setLastPosition((prev) => {
-        if (prev === position) return prev;
-        setShowHeader(position <= prev);
-        return position;
-      });
-    };
+    const handleScroll = useCallback(
+      (e) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.target;
+        const position = Math.ceil(
+          (scrollTop / (scrollHeight - clientHeight)) * 100,
+        );
+        setLastPosition((prev) => {
+          if (prev === position) return prev;
+          setShowHeader(position <= prev);
+          return position;
+        });
+      },
+      [setLastPosition, setShowHeader],
+    );
     const onKeyDown = useCallback(
       (e) => {
         if (e.ctrlKey && e.key == "s") {
           e.preventDefault();
+          e.stopPropagation();
           const form = formRef.current;
 
           if (form) {
@@ -341,19 +404,83 @@ const FormPage = memo(
       },
       [formRef],
     );
-    const [menus, setMenus] = useState([]);
-    const addMenu = useCallback((newItem) => {
-      setMenus((prev) => {
-        let newItems = [...(prev ?? [])];
-        const index = newItems?.findIndex(
-          (menu) => menu.value === newItem.value,
-        );
-        if (index < 0) {
-          newItems = [...newItems, newItem];
-        }
-        return newItems;
-      });
-    }, []);
+
+    return (
+      <AppLayout
+        data-disabled={disabled}
+        className="!pt-0 relative group/form"
+        onScroll={handleScroll}
+      >
+        <form
+          onKeyDown={onKeyDown}
+          ref={formRef}
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (disabled) return;
+            onSubmit?.(e);
+          }}
+        >
+          <div
+            className={cn(
+              showHeader ? "top-0" : "-top-16",
+              " transition-[top] duration-300 ease-in-out sticky z-10 flex items-center justify-between pt-4 pb-2 border-b gap-x-4 bg-background border-muted-foreground/25",
+            )}
+          >
+            <div className="flex items-center gap-x-2">
+              {title && <h1 className="text-xl font-bold">{title}</h1>}
+              {badge}
+            </div>
+            {controls && (
+              <div className="flex items-center gap-x-2 ">{controls}</div>
+            )}
+          </div>
+          {errors && Object.keys(errors).length > 0 && (
+            <div className="flex-col w-full mt-4 alert error">
+              <h3 className="text-base font-semibold">
+                {t("core.form.errors.title")}
+              </h3>
+              <ul className="block pl-5">
+                {Object.entries(errors).map(([key, value]) => (
+                  <li key={key} className="list-disc">
+                    {fieldNameTrans
+                      ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                      : value}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div
+            className={cn(
+              disabled &&
+                "[&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
+              "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
+            )}
+          >
+            {!isCreate && <SidebarChildren content={sidebarContent} />}
+            <FormChildren
+              ref={ref}
+              className={className}
+              showHeader={showHeader}
+              errors={errors}
+              fieldNameTrans={fieldNameTrans}
+              data={data}
+              setData={setData}
+              defaultMenu={defaultMenu}
+            >
+              {children}
+            </FormChildren>
+            {!isCreate && <BottombarChildren content={bottombarContent} />}
+          </div>
+        </form>
+      </AppLayout>
+    );
+  }),
+);
+
+const SidebarChildren = memo(
+  forwardRef(function SidebarChildren({ content, className }, ref) {
     const defaultSidebarChildren = useMemo(() => {
       return (
         <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
@@ -366,117 +493,52 @@ const FormPage = memo(
         </ul>
       );
     }, []);
+    const sidebarChildren =
+      content === false
+        ? null
+        : !content
+          ? defaultSidebarChildren
+          : typeof content === "function"
+            ? content?.(defaultSidebarChildren)
+            : content;
+    return (
+      <div
+        ref={ref}
+        className={cn(
+          className,
+          "flex flex-col order-2 lg:col-start-2 lg:row-span-2 h-fit  gap-y-4 lg:sticky lg:top-[73px]",
+        )}
+      >
+        {sidebarChildren}
+      </div>
+    );
+  }),
+);
+
+const BottombarChildren = memo(
+  forwardRef(function BottombarChildren({ content, className }, ref) {
     const defaultBottombarChildren = useMemo(() => {
       return <Comments />;
     }, []);
 
-    const sidebarChildren =
-      sidebarContent === false
-        ? null
-        : !sidebarContent
-          ? defaultSidebarChildren
-          : typeof sidebarContent === "function"
-            ? sidebarContent?.(defaultSidebarChildren)
-            : sidebarContent;
     const bottombarChildren =
-      bottombarContent === false
+      content === false
         ? null
-        : !bottombarContent
+        : !content
           ? defaultBottombarChildren
-          : typeof bottombarContent === "function"
-            ? bottombarContent?.(defaultBottombarChildren)
-            : bottombarContent;
-
+          : typeof content === "function"
+            ? content?.(defaultBottombarChildren)
+            : content;
     return (
-      <AppLayout
-        data-disabled={disabled}
-        className="!pt-0 relative group/form"
-        onScroll={handleScroll}
+      <div
+        ref={ref}
+        className={cn(
+          className,
+          "flex flex-col order-3 lg:col-start-1 gap-y-4",
+        )}
       >
-        <FormPageContext.Provider
-          value={{ errors, fieldNameTrans, menus, addMenu, data, setData }}
-        >
-          <form
-            onKeyDown={onKeyDown}
-            ref={formRef}
-            onSubmit={(e) => {
-              console.log(e);
-              e.preventDefault();
-              if (disabled) return;
-              onSubmit?.(e);
-            }}
-          >
-            <div
-              className={cn(
-                showHeader ? "top-0" : "-top-16",
-                " transition-[top] duration-300 ease-in-out sticky z-10 flex items-center justify-between pt-4 pb-2 border-b gap-x-4 bg-background border-muted-foreground/25",
-              )}
-            >
-              <div className="flex items-center gap-x-2">
-                {title && <h1 className="text-xl font-bold">{title}</h1>}
-                {badge}
-              </div>
-              {controls && (
-                <div className="flex items-center gap-x-2 ">{controls}</div>
-              )}
-            </div>
-            {errors && Object.keys(errors).length > 0 && (
-              <div className="flex-col w-full mt-4 alert error">
-                <h3 className="text-base font-semibold">
-                  {t("core.form.errors.title")}
-                </h3>
-                <ul className="block pl-5">
-                  {Object.entries(errors).map(([key, value]) => (
-                    <li key={key} className="list-disc">
-                      {fieldNameTrans
-                        ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                        : value}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <div
-              className={cn(
-                disabled &&
-                  "[&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
-                "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
-              )}
-            >
-              {!isCreate && sidebarChildren && (
-                <div
-                  ref={ref}
-                  className={cn(
-                    className,
-                    "flex flex-col order-2 lg:col-start-2 lg:row-span-2 h-fit  gap-y-4 lg:sticky lg:top-[73px]",
-                  )}
-                >
-                  {sidebarChildren}
-                </div>
-              )}
-              <FormChildren
-                ref={ref}
-                defaultMenu={defaultMenu}
-                className={className}
-                showHeader={showHeader}
-              >
-                {children}
-              </FormChildren>
-              {!isCreate && bottombarChildren && (
-                <div
-                  ref={ref}
-                  className={cn(
-                    className,
-                    "flex flex-col order-3 lg:col-start-1 gap-y-4",
-                  )}
-                >
-                  {bottombarChildren}
-                </div>
-              )}
-            </div>
-          </form>
-        </FormPageContext.Provider>
-      </AppLayout>
+        {bottombarChildren}
+      </div>
     );
   }),
 );
@@ -516,8 +578,15 @@ const FormPageDialog = memo(
   ) {
     const { t } = useLaravelReactI18n();
     const route = window.route;
-    const [menus, setMenus] = useState([]);
-    const { data, setData, post, processing, errors } = useDraftForm(
+    const {
+      data,
+      setData,
+      post,
+      processing,
+      errors,
+      isDirty,
+      recentlySuccessful,
+    } = useDraftForm(
       name,
       {},
       {
@@ -529,9 +598,8 @@ const FormPageDialog = memo(
     const disabled = disabledProps ?? processing;
     const {
       setContinue,
-      isDirty,
+
       setIsDirty,
-      recentlySuccessful,
       setShowAlert,
     } = useIsDirtyForm();
     const { cancel } = useAlertDraftForm();
@@ -578,94 +646,252 @@ const FormPageDialog = memo(
     }, [recentlySuccessful]);
     const _onSubmit = (e) => {
       e.preventDefault();
+      e.stopPropagation();
       if (disabled) return;
-      const pluralized = pluralize.plural(name);
-      post(route(`${pluralized}.store`));
+      if (!name) return;
+      const pluralized = `${pluralize.plural(name ?? "")}.store`;
+      post(route(pluralized));
     };
-    const addMenu = useCallback((newItem) => {
-      setMenus((prev) => {
-        let newItems = [...(prev ?? [])];
-        const index = newItems?.findIndex(
-          (menu) => menu.value === newItem.value,
-        );
-        if (index < 0) {
-          newItems = [...newItems, newItem];
-        }
-        return newItems;
-      });
-    }, []);
     return (
       <AlertDialog open={open}>
-        <AlertDialogContent className={className}>
-          <FormPageContext.Provider
-            value={{ errors, fieldNameTrans, menus, addMenu, data, setData }}
+        <AlertDialogContent className={cn(className, "pt-0")}>
+          <form
+            ref={formRef}
+            onKeyDown={onKeyDown}
+            onSubmit={_onSubmit}
+            disabled={disabled}
+            className={cn(
+              disabled &&
+                " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
+            )}
           >
-            <form
-              ref={formRef}
-              onKeyDown={onKeyDown}
-              onSubmit={(e) => {
-                e.preventDefault();
-                _onSubmit(e);
-              }}
-              disabled={disabled}
-              className={cn(
-                disabled &&
-                  "[&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
-              )}
+            <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
+              <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
+                {title}
+                {isDirty && (
+                  <span className="text-sm badge warning">
+                    {t("core.form.not_saved")}
+                  </span>
+                )}
+                {badge}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="sr-only"></AlertDialogDescription>
+            </AlertDialogHeader>
+            {errors && Object.keys(errors).length > 0 && (
+              <div className="flex-col w-full mt-4 alert error">
+                <h3 className="text-base font-semibold">
+                  {t("core.form.errors.title")}
+                </h3>
+                <ul className="block pl-5">
+                  {Object.entries(errors).map(([key, value]) => (
+                    <li key={key} className="list-disc">
+                      {fieldNameTrans
+                        ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                        : value}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <FormChildren
+              ref={ref}
+              defaultMenu={defaultMenu}
+              className={className}
+              showHeader={false}
+              errors={errors}
+              fieldNameTrans={fieldNameTrans}
+              data={data}
+              setData={setData}
             >
-              <AlertDialogHeader className="mb-4 border-b border-muted-foreground/30">
-                <AlertDialogTitle className="flex items-center gap-x-2">
-                  {title}
-                  {isDirty && (
-                    <span className="text-sm badge warning">
-                      {t("core.form.not_saved")}
-                    </span>
-                  )}
-                  {badge}
-                </AlertDialogTitle>
-                <AlertDialogDescription className="sr-only"></AlertDialogDescription>
-              </AlertDialogHeader>
-              {errors && Object.keys(errors).length > 0 && (
-                <div className="flex-col w-full mt-4 alert error">
-                  <h3 className="text-base font-semibold">
-                    {t("core.form.errors.title")}
-                  </h3>
-                  <ul className="block pl-5">
-                    {Object.entries(errors).map(([key, value]) => (
-                      <li key={key} className="list-disc">
-                        {fieldNameTrans
-                          ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                          : value}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <FormChildren
-                ref={ref}
-                defaultMenu={defaultMenu}
-                className={className}
-                showHeader={false}
+              {children}
+            </FormChildren>
+            <AlertDialogFooter className="mt-4">
+              <AlertDialogCancel className="h-8" onClick={() => onClose(false)}>
+                {t("core.form.cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="h-8"
+                type="submit"
+                onClick={() => {}}
               >
-                {children}
-              </FormChildren>
-              <AlertDialogFooter className="mt-4">
-                <AlertDialogCancel
-                  className="h-8"
-                  onClick={() => onClose(false)}
-                >
-                  {t("core.form.cancel")}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="h-8"
-                  type="submit"
-                  onClick={() => {}}
-                >
-                  {t("core.form.save")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </form>
-          </FormPageContext.Provider>
+                {t("core.form.save")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </form>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  }),
+);
+
+const FormPageLinkModelDialog = memo(
+  forwardRef(function FormPageDialog(
+    {
+      title,
+      name,
+      disabled: disabledProps,
+      fieldNameTrans,
+      defaultMenu,
+      className,
+      open,
+      onOpenChange,
+      children,
+      badge,
+      postOption = {},
+    },
+    ref,
+  ) {
+    const { t } = useLaravelReactI18n();
+    const route = window.route;
+    const {
+      data,
+      setData,
+      post,
+      put,
+      patch,
+      processing,
+      errors,
+      isDirty,
+      recentlySuccessful,
+      reset,
+      setDefaults,
+    } = useForm(postOption.initialData ?? {});
+    useEffect(() => {
+      setDefaults(postOption.initialData ?? {});
+      reset();
+    }, [postOption.initialData]);
+    const disabled = disabledProps ?? processing;
+    const formRef = useRef();
+    const onKeyDown = useCallback(
+      (e) => {
+        if (e.ctrlKey && e.key == "s") {
+          e.preventDefault();
+          e.stopPropagation();
+          const form = formRef.current;
+
+          if (form) {
+            if (typeof form.requestSubmit === "function") {
+              form.requestSubmit();
+            } else {
+              form.dispatchEvent(new Event("submit", { cancelable: true }));
+            }
+          }
+        }
+      },
+      [formRef],
+    );
+
+    const onClose = (val) => {
+      if (val) return;
+      onOpenChange(val);
+      setData?.({});
+    };
+    const _onSubmit = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (disabled) return;
+      if (!name) return;
+      const pluralized = `${pluralize.plural(name ?? "")}.store`;
+
+      const excludedKeys = ["initalData", "method"];
+
+      const fiteredOption = Object.fromEntries(
+        Object.entries(postOption ?? {}).filter(
+          ([key]) => !excludedKeys.includes(key),
+        ),
+      );
+
+      const routerOption = {
+        preserveScroll: true,
+        preserveState: true,
+        preserveUrl: true,
+        replace: true,
+        ...fiteredOption,
+      };
+
+      switch (postOption.method) {
+        case "put":
+          put(route(pluralized), routerOption);
+          break;
+        case "patch":
+          patch(route(pluralized), routerOption);
+          break;
+        default:
+          post(route(pluralized), routerOption);
+      }
+    };
+    useDidMountEffect(() => {
+      if (recentlySuccessful) {
+        onOpenChange(false);
+        reset();
+      }
+    }, [recentlySuccessful]);
+    return (
+      <AlertDialog open={open}>
+        <AlertDialogContent className={cn(className, "pt-0")}>
+          <form
+            ref={formRef}
+            onKeyDown={onKeyDown}
+            onSubmit={_onSubmit}
+            disabled={disabled}
+            className={cn(
+              disabled &&
+                " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
+            )}
+          >
+            <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
+              <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
+                {title}
+                {isDirty && (
+                  <span className="text-sm badge warning">
+                    {t("core.form.not_saved")}
+                  </span>
+                )}
+                {badge}
+              </AlertDialogTitle>
+              <AlertDialogDescription className="sr-only"></AlertDialogDescription>
+            </AlertDialogHeader>
+            {errors && Object.keys(errors).length > 0 && (
+              <div className="flex-col w-full mt-4 alert error">
+                <h3 className="text-base font-semibold">
+                  {t("core.form.errors.title")}
+                </h3>
+                <ul className="block pl-5">
+                  {Object.entries(errors).map(([key, value]) => (
+                    <li key={key} className="list-disc">
+                      {fieldNameTrans
+                        ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                        : value}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <FormChildren
+              ref={ref}
+              defaultMenu={defaultMenu}
+              className={className}
+              showHeader={false}
+              errors={errors}
+              fieldNameTrans={fieldNameTrans}
+              data={data}
+              setData={setData}
+            >
+              {children}
+            </FormChildren>
+            <AlertDialogFooter className="mt-4">
+              <AlertDialogCancel className="h-8" onClick={() => onClose(false)}>
+                {t("core.form.cancel")}
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="h-8"
+                type="submit"
+                onClick={() => {}}
+              >
+                {t("core.form.save")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </form>
         </AlertDialogContent>
       </AlertDialog>
     );
@@ -678,6 +904,7 @@ export {
   FormPageContentTitle,
   FormPageContentDescription,
   FormPageDialog,
+  FormPageLinkModelDialog,
   useFormPage,
   // useFormPageContent,
 };

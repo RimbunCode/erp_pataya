@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import * as React from "react";
 
 import {
@@ -34,6 +33,11 @@ const navList = [
         title: "Items",
         url: "/items",
         urlPattern: "/items/*",
+      },
+      {
+        title: "Item Alternatives",
+        url: "/itemAlternatives",
+        urlPattern: "/itemAlternatives/*",
       },
       {
         title: "Warehouses",

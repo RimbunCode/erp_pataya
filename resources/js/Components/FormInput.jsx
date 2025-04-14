@@ -1,4 +1,4 @@
-import React, { Children, cloneElement, useId } from "react";
+import React, { Children, cloneElement, memo, useId } from "react";
 
 import InputError from "./InputError";
 import { Label } from "./ui/label";
@@ -15,12 +15,11 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * @param {string} props.className
  * @param {string} props.name
  * @param {object} props.errors
- * @param {string} props.description
+ * @param {string | React.JSX.Element} props.description
  * @param {React.ReactNode} props.children
  * @returns {React.JSX.Element}
  */
 function FormInput({
-  ignoreDisabled = false,
   label,
   required,
   className,
@@ -28,6 +27,7 @@ function FormInput({
   errors: errorsProps,
   children,
   description,
+  ignoreDisabled = false,
 }) {
   const form = useFormPage();
   const id = useId();
@@ -45,13 +45,21 @@ function FormInput({
       <Label htmlFor={id}>
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>
+      {description &&
+        (typeof description == "string" ? (
+          <p className="text-sm font-normal text-muted-foreground">
+            {description}
+          </p>
+        ) : (
+          description
+        ))}
       {typeof child == "function"
         ? child({ id, required: _required })
         : cloneElement(child, {
             id,
             required: _required,
           })}
-      {_name in (errors ?? {}) ? (
+      {_name in (errors ?? {}) && (
         <InputError
           message={
             form.fieldNameTrans
@@ -63,15 +71,9 @@ function FormInput({
           }
           className=""
         />
-      ) : typeof description == "string" ? (
-        <p className="text-sm font-normal text-muted-foreground">
-          {description}
-        </p>
-      ) : (
-        description
       )}
     </div>
   );
 }
 
-export default FormInput;
+export default memo(FormInput);

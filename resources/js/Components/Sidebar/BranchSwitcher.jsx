@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import * as React from "react";
 
 import { Building2Icon, ChevronsUpDown, Plus } from "lucide-react";

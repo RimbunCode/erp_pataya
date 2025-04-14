@@ -1,4 +1,4 @@
-/* eslint-disable jsdoc/require-jsdoc */
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import {
   FormPageContent,
   FormPageContentDescription,
@@ -9,7 +9,6 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { ArrowLeftRightIcon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/checkbox";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
@@ -152,21 +151,13 @@ export default function Form() {
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id={"customable-checkbox"}
-              checked={data.customable ?? false}
-              onCheckedChange={(val) => {
-                setData("customable", val);
-              }}
-            />
-            <label
-              htmlFor={name + "-checkbox"}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              {t("inventory.unit.columns.customable")}
-            </label>
-          </div>
+          <FormCheckbox
+            checked={data.customable ?? false}
+            onCheckedChange={(val) => {
+              setData("customable", val);
+            }}
+            label={t("inventory.unit.columns.customable")}
+          />
           {!data.customable && (
             <FormInput
               required={true}

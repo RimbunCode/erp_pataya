@@ -22,4 +22,8 @@ class Warehouse extends Model {
   public function pic() {
     return $this->belongsTo(User::class, 'user_id');
   }
+
+  public function stocks() {
+    return $this->hasMany(Stock::class);
+  }
 }

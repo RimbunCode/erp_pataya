@@ -12,7 +12,8 @@ return new class extends Migration {
     Schema::create('item_variant_attributes', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->foreignUlid('item_variant_id')->references('id')->on('item_variants')->cascadeOnDelete();
-      $table->foreignUlid('item_attribute_id')->references('id')->on('item_attributes')->cascadeOnDelete();
+      $table->foreignUlid('attribute_id')->references('id')->on('attributes')->nullOnDelete();
+      $table->string('attribute_name');
       $table->string('value');
       $table->timestamps();
       $table->softDeletes();

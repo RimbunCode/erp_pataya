@@ -1,9 +1,9 @@
 import { FileText, Trash2 } from "lucide-react";
-import React, { useCallback, useId, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { checkFileType, formatBytes } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/checkbox";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import { Input } from "@/Components/ui/input";
 
 function FileItem({
@@ -14,7 +14,6 @@ function FileItem({
   name = null,
   isPublic = false,
 }) {
-  const checkboxId = useId();
   const [thumbnail] = useState(
     checkFileType("image/*", file.type) ? (
       <img
@@ -51,23 +50,17 @@ function FileItem({
           <span className="mx-1"> ● </span>
           {formatBytes(file.size)}
         </p>
-        <div className="mt-1 flex items-center gap-x-2 [&_*]:!pointer-events-auto">
-          <Checkbox
-            id={checkboxId}
-            checked={isPublic}
-            onCheckedChange={(val) => {
-              onUpdate(id, {
-                isPublic: val,
-              });
-            }}
-          />
-          <label
-            htmlFor={checkboxId}
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          >
-            Public
-          </label>
-        </div>
+
+        <FormCheckbox
+          checked={isPublic}
+          onCheckedChange={(val) => {
+            onUpdate(id, {
+              isPublic: val,
+            });
+          }}
+          label="Public"
+          className="mt-1 flex items-center gap-x-2 [&_*]:!pointer-events-auto"
+        />
       </div>
       <div className="flex items-center gap-x-0 [&_*]:!pointer-events-auto">
         {/* {isNew && progress && (

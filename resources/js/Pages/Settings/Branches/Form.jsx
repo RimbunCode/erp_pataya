@@ -11,18 +11,15 @@ import {
   SelectValue,
 } from "@/Components/ui/select";
 
-import Combobox from "@/Components/Combobox";
-import { CommandItem } from "@/Components/ui/command";
+import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import { Textarea } from "@/Components/ui/textarea";
 import { memo } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
 export default memo(function Form() {
   const { data, setData } = useFormPage();
-  const { branch, countries } = usePage().props;
   const { t } = useLaravelReactI18n();
   return (
     <>
@@ -30,7 +27,7 @@ export default memo(function Form() {
         title={t("core.branch.branch_detail")}
         value="branch_detail"
       >
-        <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+        <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
             label={t("core.branch.columns.name")}
             required={true}
@@ -68,13 +65,13 @@ export default memo(function Form() {
       </FormPageContent>
       <FormPageContent
         title={t(
-          branch?.branchable_type
+          data?.branchable_type
             ? "core.branch.columns.shipping_address"
             : "core.branch.columns.address",
         )}
         value="branch_detail"
       >
-        <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+        <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
             label={t("core.branch.columns.street")}
             required={true}
@@ -104,34 +101,15 @@ export default memo(function Form() {
             />
           </FormInput>
           <FormInput label={t("core.branch.columns.country")} required={true}>
-            <Combobox
-              options={countries}
-              value={data.shipping_country_id}
+            <CountryLinkModel
               placeholder={t("core.branch.columns.country.placeholder")}
-              templateTrigger={(country_code) => {
-                const country = countries?.find((c) => c.code === country_code);
-                return <span>{country?.name}</span>;
-              }}
-              templateItem={(country) => {
-                return (
-                  <CommandItem
-                    key={country.code}
-                    value={`${country.name} ${country.code}`}
-                    keywords={[country.code, country.name]}
-                    onSelect={() => {
-                      setData("shipping_country_id", country.code);
-                    }}
-                    className="block px-4 "
-                  >
-                    {country.name}
-                  </CommandItem>
-                );
-              }}
+              value={data.shipping_country}
+              onValueChange={(val) => setData("shipping_country", val)}
             />
           </FormInput>
         </div>
       </FormPageContent>
-      {branch?.branchable_type && (
+      {data?.branchable_type && (
         <FormPageContent
           title={t("core.branch.columns.billing_address")}
           value="branch_detail"
@@ -166,7 +144,7 @@ export default memo(function Form() {
               </SelectContent>
             </Select>
           </FormPageContentTitle>
-          <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+          <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
             <FormInput
               label={t("core.branch.columns.street")}
               required={true}
@@ -199,31 +177,10 @@ export default memo(function Form() {
               />
             </FormInput>
             <FormInput label={t("core.branch.columns.country")} required={true}>
-              <Combobox
-                options={countries}
-                value={data.billing_country_id}
+              <CountryLinkModel
                 placeholder={t("core.branch.columns.country.placeholder")}
-                templateTrigger={(country_code) => {
-                  const country = countries?.find(
-                    (c) => c.code === country_code,
-                  );
-                  return <span>{country?.name}</span>;
-                }}
-                templateItem={(country) => {
-                  return (
-                    <CommandItem
-                      key={country.code}
-                      value={`${country.name} ${country.code}`}
-                      keywords={[country.code, country.name]}
-                      onSelect={() => {
-                        setData("billing_country_id", country.code);
-                      }}
-                      className="block px-4 "
-                    >
-                      {country.name}
-                    </CommandItem>
-                  );
-                }}
+                value={data.billing_country}
+                onValueChange={(val) => setData("billing_country", val)}
               />
             </FormInput>
           </div>

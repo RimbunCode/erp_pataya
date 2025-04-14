@@ -237,7 +237,7 @@ export class ReactQuill extends React.Component {
     return this.editor;
   }
 
-  /**
+  /*
   Creates an editor on the given element. The editor will be passed the
   configuration, have its events bound,
   */

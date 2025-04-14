@@ -1,9 +1,9 @@
+import { FormCheckbox } from "@/Components/ui/Checkbox";
 import { ExternalLink, FileTextIcon } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 
 import { Accordion } from "@/Components/ui/accordion";
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/Checkbox";
 import FolderItem from "./FolderItem";
 import React from "react";
 import { useLibrary } from "./hooks";
@@ -51,38 +51,32 @@ export default memo(function FileItems({ files, folderId = null }) {
         } else {
           return (
             <div
-              className="border-b last:border-b-0"
+              className="flex items-center border-b last:border-b-0 group"
               key={file.id}
               value={file.id}
             >
-              <div className="flex items-center gap-x-2 group">
-                <Checkbox
-                  id={file.id + "checkbox"}
-                  checked={checklistFile.has(file.id)}
-                  onCheckedChange={(val) => setChecklistFile(file.id, val)}
-                />
-                <label
-                  htmlFor={file.id + "checkbox"}
-                  className="flex  items-center overflow-hidden  !py-2 text-sm [&>svg]:size-5 font-normal transition-all hover:underline gap-x-2 group cursor-pointer"
+              <FormCheckbox
+                checked={checklistFile.has(file.id)}
+                onCheckedChange={(val) => setChecklistFile(file.id, val)}
+                classNameLabel="flex items-center gap-x-2 overflow-hidden [&_svg]:size-5 group-hover:underline text-sm font-normal cursor-pointer"
+              >
+                <FileTextIcon />
+                <span className="truncate ">{file.fullname}</span>
+              </FormCheckbox>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-auto !p-2 ml-1 opacity-0 group-hover:opacity-100 transition duration-300 ease-in-out "
+                asChild
+              >
+                <a
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href={route("files.preview", file.id)}
                 >
-                  <FileTextIcon />
-                  <span className="truncate">{file.fullname}</span>
-                </label>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-auto !p-2 -ml-1 opacity-0 group-hover:opacity-100 transition duration-300 ease-in-out"
-                  asChild
-                >
-                  <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href={route("files.show", file.id)}
-                  >
-                    <ExternalLink className="size-4" />
-                  </a>
-                </Button>
-              </div>
+                  <ExternalLink className="size-4" />
+                </a>
+              </Button>
             </div>
           );
         }

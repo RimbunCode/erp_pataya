@@ -170,7 +170,9 @@ export default memo(
 
     const loadData = useCallback(() => {
       router.get(
-        route(route().current()) + "?" + QueryString.stringify(options),
+        route(route().current(), route().params) +
+          "?" +
+          QueryString.stringify(options),
         {},
         {
           reset: ["data", "ziggy"],
@@ -243,7 +245,7 @@ export default memo(
       setShow(value);
       setCookie("datatable_show", value, {
         days: DATATABLE_COLUMNS_EXPIRED,
-        path: route(route().current(), [], false),
+        path: window.location.pathname,
         sameSite: "lax",
       });
       loadData();

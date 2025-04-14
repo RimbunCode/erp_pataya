@@ -20,6 +20,7 @@ export default [
   {
     plugins: { jsdoc },
     rules: {
+      "jsdoc/require-jsdoc": "off",
       "jsdoc/require-param-description": "off",
       "jsdoc/require-returns-description": "off",
       "jsdoc/require-property-description": "off",

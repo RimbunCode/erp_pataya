@@ -12,6 +12,11 @@ return new class extends Migration {
     Schema::create('item_variants', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->foreignUlid('item_id')->references('id')->on('items')->cascadeOnDelete();
+      $table->string('item_code');
+      $table->string('format_variant')->nullable();
+      $table->text('description')->nullable();
+      $table->boolean('is_disabled')->nullable();
+      $table->boolean('allow_alternative_item')->nullable();
       $table->timestamps();
       $table->softDeletes();
     });

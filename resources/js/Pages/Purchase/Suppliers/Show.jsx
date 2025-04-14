@@ -1,6 +1,5 @@
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
-/* eslint-disable jsdoc/require-jsdoc */
 import { FormPage } from "@/Pages/Core/FormPage";
 import React from "react";
 import { SaveIcon } from "lucide-react";

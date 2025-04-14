@@ -1,44 +1,26 @@
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { memo } from "react";
 
-import Combobox from "@/Components/Combobox";
-import { CommandItem } from "@/Components/ui/command";
+import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import FormInput from "@/Components/FormInput";
-import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { Input } from "@/Components/ui/input";
-import LinkModel from "@/Components/LinkModel";
+import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
 export default memo(function Form() {
   const { data, setData } = useFormPage();
-  const { branches } = usePage().props;
   const { t } = useLaravelReactI18n();
   return (
     <FormPageContent title="Detail" value="detail">
       <div className="grid pt-2 gap-x-8 gap-y-4">
         <FormInput label="Branch" required={true}>
-          <Combobox
-            options={branches}
-            value={data.branch_id}
+          <BranchLinkModel
             placeholder={t("inventory.warehouse.columns.branch.placeholder")}
-            templateTrigger={(branch_id) => {
-              const country = branches?.find((c) => c.id === branch_id);
-              return <span>{country?.name}</span>;
-            }}
-            templateItem={(branch) => {
-              return (
-                <CommandItem
-                  key={branch.id}
-                  value={`${branch.name} ${branch.id}`}
-                  keywords={[branch.id, branch.name]}
-                  onSelect={() => {
-                    setData("branch_id", branch.id);
-                  }}
-                  className="block px-4 "
-                >
-                  {branch.name}
-                </CommandItem>
-              );
+            value={data.branch}
+            onValueChange={(val) => setData("branch", val)}
+            filters={{
+              branchable_type: null,
+              branchable_id: null,
             }}
           />
         </FormInput>
@@ -55,8 +37,8 @@ export default memo(function Form() {
           />
         </FormInput>
         <FormInput label="PIC">
-          <LinkModel
-            model="App\Models\User\User"
+          <UserLinkModel
+            placeholder={t("inventory.warehouse.columns.pic.placeholder")}
             value={data.pic}
             onValueChange={(val) => setData("pic", val)}
           />

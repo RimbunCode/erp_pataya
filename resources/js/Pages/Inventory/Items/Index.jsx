@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 import { router } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-// eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
@@ -50,9 +49,9 @@ export default function Index({ lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("items.show", dataRow.id)}
+            href={dataRow.id ? route("items.show", dataRow.id) : ""}
           >
-            {dataRow.name}
+            {dataRow.code}
           </Link>
         ),
       },
@@ -65,7 +64,7 @@ export default function Index({ lang }) {
         cell: ({ dataRow }) => (
           <Link
             className="hover:underline"
-            href={route("items.show", dataRow.id)}
+            href={dataRow.id ? route("items.show", dataRow.id) : ""}
           >
             {dataRow.name}
           </Link>
@@ -105,7 +104,7 @@ export default function Index({ lang }) {
         titleTrans: "inventory.item.columns.is_disabled",
         name: "is_disabled",
         searchType: "text",
-        parseTrans: "inventory.columns.is_disabled.parse",
+        parseTrans: "inventory.item.columns.is_disabled.parse",
         show: "boolean",
         width: "fit",
         sortable: true,
@@ -142,7 +141,7 @@ export default function Index({ lang }) {
           <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
             <Link
               as="button"
-              href={route("items.show", dataRow.id)}
+              href={dataRow.id ? route("items.show", dataRow.id) : ""}
               className=""
             >
               <p className="text-base font-medium text-left">{dataRow.name}</p>

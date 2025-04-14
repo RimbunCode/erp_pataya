@@ -1,8 +1,7 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-/* eslint-disable jsdoc/require-jsdoc */
 import React, { useMemo } from "react";
 
-import { Checkbox } from "@/Components/ui/checkbox";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
@@ -51,21 +50,14 @@ export default function Form() {
               onChange={(e) => setData("description", e.target.value)}
             />
           </FormInput>
-          <div className="flex items-center space-x-2 col-span-full">
-            <Checkbox
-              id={"is_numeric-checkbox"}
-              checked={data.is_numeric ?? false}
-              onCheckedChange={(val) => {
-                setData("is_numeric", val);
-              }}
-            />
-            <label
-              htmlFor={name + "-checkbox"}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            >
-              {t("inventory.attribute.columns.is_numeric")}
-            </label>
-          </div>
+          <FormCheckbox
+            checked={data.is_numeric ?? false}
+            onCheckedChange={(val) => {
+              setData("is_numeric", val);
+            }}
+            label={t("inventory.attribute.columns.is_numeric")}
+            className="col-span-full"
+          />
           {!data.is_numeric ? (
             <FormTable
               label={t("inventory.attribute.columns.values")}

@@ -9,4 +9,8 @@ class Country extends Model {
   public $incrementing = false;
   protected $keyType = 'string';
   protected $guarded = [];
+
+  public static function templateLink() {
+    return ":name";
+  }
 }

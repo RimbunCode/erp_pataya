@@ -4,13 +4,11 @@ namespace App\Http\Requests\Purchase;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class SupplierRequest extends FormRequest
-{
+class SupplierRequest extends FormRequest {
   /**
    * Determine if the user is authorized to make this request.
    */
-  public function authorize(): bool
-  {
+  public function authorize(): bool {
     return true;
   }
 
@@ -19,13 +17,12 @@ class SupplierRequest extends FormRequest
    *
    * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
    */
-  public function rules(): array
-  {
+  public function rules(): array {
     return [
       'name' => ['required', 'string', 'min:3', 'max:255'],
       'phone' => ['required', 'string', 'min:3', 'max:255'],
       'email' => ['required', 'string', 'min:3', 'max:255'],
-      'banks' => ['required', 'array'],
+      'banks' => ['required', 'array', 'min:1'],
       'banks.*.bank' => ['required', 'string', 'min:3'],
       'banks.*.no_acc' => ['required', 'numeric', 'min:5'],
       'banks.*.account' => ['required', 'string', 'min:3'],
@@ -33,7 +30,7 @@ class SupplierRequest extends FormRequest
       'city' => ['required', 'string', 'min:3', 'max:255'],
       'province' => ['required', 'string', 'min:3', 'max:255'],
       'zip_code' => ['required', 'string', 'min:3', 'max:255'],
-      'country_id' => ['required', 'string', 'exists:countries,code'],
+      'country.id' => ['required', 'string', 'exists:countries,code'],
       'is_disabled' => ['nullable', 'boolean'],
     ];
   }

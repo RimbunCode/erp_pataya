@@ -6,12 +6,15 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
 
-Route::macro('resourceDetail', function ($name, $controller) {
+Route::macro('resourceDetail', function ($name, $controller, $nestedShow = null) {
   $uri = \Illuminate\Support\Str::plural($name);
-  Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name) {
+  Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name, $nestedShow) {
     Route::get("/", "index")->name("$uri.index");
     Route::post("/", "store")->name("$uri.store");
     Route::get("/create", "create")->name("$uri.create");
+    if ($nestedShow) {
+      Route::prefix("/{{$name}}")->group($nestedShow)->name("$uri.show");
+    }
     Route::get("/{{$name}}", "show")->name("$uri.show");
     Route::put("/{{$name}}", "update")->name("$uri.update");
     Route::delete("/{{$name}}", "destroy")->name("$uri.destroy");
@@ -40,11 +43,11 @@ Route::controller(\App\Http\Controllers\Core\LanguageController::class)->group(f
 });
 
 // Route for Preview Image
-Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'preview'])->name('files.show');
+Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'preview'])->name('files.preview');
 // Get Data from Model Direct
 Route::post('/model', \App\Http\Controllers\ModelController::class)
   ->middleware(['auth'])
-  ->name('model.data');
+  ->name('model');
 Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Branch Switcher
   Route::put('/switch_branch/{id}', [\App\Http\Controllers\Core\BranchController::class, 'switch'])->name('branch.switch');
@@ -78,6 +81,9 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('category', \App\Http\Controllers\Inventory\CategoryController::class);
   // Items
   Route::resourceDetail('item', \App\Http\Controllers\Inventory\ItemController::class);
+  Route::resourceDetail('variant', \App\Http\Controllers\Inventory\ItemVariantController::class);
+  // ItemAlternatives
+  Route::resourceDetail('itemAlternative', \App\Http\Controllers\Inventory\ItemAlternativeController::class);
   //Attributes
   Route::resourceDetail('attribute', \App\Http\Controllers\Inventory\AttributeController::class);
   // Supplier
