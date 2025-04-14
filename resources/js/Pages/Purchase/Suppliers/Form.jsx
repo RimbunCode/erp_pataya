@@ -12,15 +12,40 @@ import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import React from "react";
+import React, { useMemo } from "react";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import FormTable from "@/Components/FormTable";
 
 export default function Form() {
   const { data, setData } = useFormPage();
   const { countries } = usePage().props;
   const { t } = useLaravelReactI18n();
+  /**
+   * @typedef {import('@/Components/FormTable').ColumnProps} ColumnProps
+   * @type {ColumnProps[]}
+   */
+  const banksColumns = useMemo(
+    () => [
+      {
+        name: "bank",
+        titleTrans: "purchase.supplier.columns.bank",
+        required: true,
+      },
+      {
+        name: "no_acc",
+        titleTrans: "purchase.supplier.columns.no_acc",
+        required: true,
+      },
+      {
+        name: "account",
+        titleTrans: "purchase.supplier.columns.account",
+        required: true,
+      },
+    ],
+    [],
+  );
   return (
     <>
       <FormPageContent
@@ -83,13 +108,17 @@ export default function Form() {
               </SelectContent>
             </Select>
           </FormInput>
-        </div>
-        <FormInput label={t("purchase.supplier.columns.banks")} required={true}>
-          <Input
-            value={data?.banks ?? ""}
-            onChange={(e) => setData("banks", e.target.value)}
+
+          <FormTable
+            label={t("purchase.supplier.columns.banks")}
+            className="col-span-full"
+            columns={banksColumns}
+            value={data.banks ?? []}
+            onValueChange={(val) => {
+              setData("banks", val);
+            }}
           />
-        </FormInput>
+        </div>
       </FormPageContent>
       <FormPageContent
         title={t("purchase.supplier.address")}
@@ -154,7 +183,7 @@ export default function Form() {
                     value={`${country.name} ${country.code}`}
                     keywords={[country.code, country.name]}
                     onSelect={() => {
-                      setData("billing_country_id", country.code);
+                      setData("country_id", country.code);
                     }}
                     className="block px-4 "
                   >

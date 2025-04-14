@@ -25,9 +25,8 @@ function Index({ lang }) {
         show: true,
         cell: ({ dataRow }) => (
           <Link
-            as="button"
             href={route("suppliers.show", dataRow.id)}
-            className="items-center block p-4 border-b border-muted-foreground/25"
+            className="hover:underline"
           >
             {dataRow.name}
           </Link>
@@ -111,7 +110,7 @@ function Index({ lang }) {
         name="supplier"
         open={showNewForm}
         onOpenChange={setShowNewForm}
-        className="max-w-2xl"
+        className="max-w-screen-lg"
       >
         <Form />
       </FormPageDialog>

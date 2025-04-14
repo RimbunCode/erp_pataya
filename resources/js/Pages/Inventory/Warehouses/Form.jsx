@@ -3,10 +3,9 @@ import React, { memo } from "react";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
-import { FormPageContent } from "@/Pages/Core/FormPage";
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { Input } from "@/Components/ui/input";
 import LinkModel from "@/Components/LinkModel";
-import { useFormPage } from "bootstrap/ssr/assets/FormPage-6BHGEFK2";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
