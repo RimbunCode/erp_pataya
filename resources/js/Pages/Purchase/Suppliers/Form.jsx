@@ -10,13 +10,37 @@ import {
 import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import React from "react";
+import React, { useMemo } from "react";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
+  /**
+   * @typedef {import('@/Components/FormTable').ColumnProps} ColumnProps
+   * @type {ColumnProps[]}
+   */
+  const banksColumns = useMemo(
+    () => [
+      {
+        name: "bank",
+        titleTrans: "purchase.supplier.columns.bank",
+        required: true,
+      },
+      {
+        name: "no_acc",
+        titleTrans: "purchase.supplier.columns.no_acc",
+        required: true,
+      },
+      {
+        name: "account",
+        titleTrans: "purchase.supplier.columns.account",
+        required: true,
+      },
+    ],
+    [],
+  );
   return (
     <>
       <FormPageContent
@@ -78,13 +102,17 @@ export default function Form() {
               </SelectContent>
             </Select>
           </FormInput>
-        </div>
-        <FormInput label={t("purchase.supplier.columns.banks")} required={true}>
-          <Input
-            value={data?.banks ?? ""}
-            onChange={(e) => setData("banks", e.target.value)}
+
+          <FormTable
+            label={t("purchase.supplier.columns.banks")}
+            className="col-span-full"
+            columns={banksColumns}
+            value={data.banks ?? []}
+            onValueChange={(val) => {
+              setData("banks", val);
+            }}
           />
-        </FormInput>
+        </div>
       </FormPageContent>
       <FormPageContent
         title={t("purchase.supplier.address")}
