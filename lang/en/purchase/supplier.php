@@ -26,5 +26,8 @@ return [
       'active' => 'Active',
       'disabled' => 'Inactive',
     ],
+    'bank' => 'Bank',
+    'no_acc' => 'No.Account',
+    'account' => 'Account',
   ]
 ];
