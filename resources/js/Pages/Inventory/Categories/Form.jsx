@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import {
   FormPageContent,
   FormPageContentTitle,
@@ -16,12 +15,10 @@ import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
 export default function Form() {
   const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
-  const types = usePage().props.types;
 
   return (
     <>
@@ -51,12 +48,15 @@ export default function Form() {
                 />
               </SelectTrigger>
               <SelectContent>
-                {types &&
-                  Object.entries(types).map(([key, type]) => (
-                    <SelectItem key={key} value={key}>
-                      {type}
-                    </SelectItem>
-                  ))}
+                <SelectItem value="stock">
+                  {t("inventory.category.types.stock")}
+                </SelectItem>
+                <SelectItem value="vehicle">
+                  {t("inventory.category.types.vehicle")}
+                </SelectItem>
+                <SelectItem value="service">
+                  {t("inventory.category.types.service")}
+                </SelectItem>
               </SelectContent>
             </Select>
           </FormInput>

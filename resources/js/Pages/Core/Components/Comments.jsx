@@ -1,3 +1,6 @@
+import "quill/dist/quill.bubble.css";
+import "quill-mention/autoregister";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { Deferred, router, usePage } from "@inertiajs/react";
 import { MessageSquare, Paperclip, SendHorizonal, Trash2 } from "lucide-react";

@@ -7,7 +7,7 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/Components/ui/command";
-import React, { forwardRef } from "react";
+import React, { forwardRef, memo } from "react";
 import { SidebarInset, SidebarProvider } from "@/Components/ui/sidebar";
 
 import AppSidebar from "@/Components/Sidebar/AppSidebar";
@@ -16,46 +16,44 @@ import Navbar from "@/Components/Navbar/Navbar";
 import { cn } from "@/lib/utils";
 import useTheme from "@/Hooks/useTheme";
 
-export default forwardRef(function AppLayout(
-  { className, children, ...props },
-  ref,
-) {
-  const { setTheme } = useTheme();
-  const [showSearch, setShowSearch] = React.useState(false);
-  React.useEffect(() => {
-    const down = (e) => {
-      if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
-        if (
-          (e.target instanceof HTMLElement && e.target.isContentEditable) ||
-          e.target instanceof HTMLInputElement ||
-          e.target instanceof HTMLTextAreaElement ||
-          e.target instanceof HTMLSelectElement
-        ) {
-          return;
+export default memo(
+  forwardRef(function AppLayout({ className, children, ...props }, ref) {
+    const { setTheme } = useTheme();
+    const [showSearch, setShowSearch] = React.useState(false);
+    React.useEffect(() => {
+      const down = (e) => {
+        if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
+          if (
+            (e.target instanceof HTMLElement && e.target.isContentEditable) ||
+            e.target instanceof HTMLInputElement ||
+            e.target instanceof HTMLTextAreaElement ||
+            e.target instanceof HTMLSelectElement
+          ) {
+            return;
+          }
+
+          e.preventDefault();
+          setShowSearch((open) => !open);
         }
+      };
 
-        e.preventDefault();
-        setShowSearch((open) => !open);
-      }
-    };
+      document.addEventListener("keydown", down);
+      return () => document.removeEventListener("keydown", down);
+    }, []);
 
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, []);
+    const runCommand = React.useCallback((command) => {
+      setShowSearch(false);
+      command();
+    }, []);
 
-  const runCommand = React.useCallback((command) => {
-    setShowSearch(false);
-    command();
-  }, []);
-
-  return (
-    <MasterLayout>
-      <div className="relative mx-auto max-w-screen-2xl">
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <Navbar setShowSearch={setShowSearch} />
-            <CommandDialog open={showSearch} onOpenChange={setShowSearch}>
+    return (
+      <MasterLayout>
+        <div className="relative mx-auto max-w-screen-2xl">
+          <SidebarProvider>
+            <AppSidebar />
+            <SidebarInset>
+              <Navbar setShowSearch={setShowSearch} />
+              {/* <CommandDialog open={showSearch} onOpenChange={setShowSearch}>
               <CommandInput
                 placeholder="Type a command or search..."
                 className="!outline-0 !border-0 !shadow-none !ring-0"
@@ -121,20 +119,21 @@ export default forwardRef(function AppLayout(
                   </CommandItem>
                 </CommandGroup>
               </CommandList>
-            </CommandDialog>
-            <div
-              ref={ref}
-              {...props}
-              className={cn(
-                "relative flex flex-col flex-1 max-h-full px-8 py-4 overflow-y-auto ",
-                className,
-              )}
-            >
-              {children}
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
-      </div>
-    </MasterLayout>
-  );
-});
+            </CommandDialog> */}
+              <div
+                ref={ref}
+                {...props}
+                className={cn(
+                  "relative flex flex-col flex-1 max-h-full px-8 py-4 overflow-y-auto ",
+                  className,
+                )}
+              >
+                {children}
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </div>
+      </MasterLayout>
+    );
+  }),
+);

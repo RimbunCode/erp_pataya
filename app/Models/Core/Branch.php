@@ -24,6 +24,10 @@ class Branch extends Model {
     });
   }
 
+  public static function templateLink() {
+    return ":name";
+  }
+
   public function billingCountry() {
     return $this->belongsTo(Country::class, 'billing_country_id', 'code');
   }

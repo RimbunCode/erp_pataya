@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { useMemo, useRef, useState } from "react";
 
 import DataTable from "@/Pages/Core/DataTable";

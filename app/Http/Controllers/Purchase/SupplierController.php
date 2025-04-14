@@ -25,9 +25,7 @@ class SupplierController extends Controller {
   public function index(Request $request) {
     $this->setBreadcrumbs();
     Supplier::dataTable($request);
-    return Inertia::render('Purchase/Suppliers/Index', [
-      'countries' => Inertia::defer(fn() => Country::all())
-    ]);
+    return Inertia::render('Purchase/Suppliers/Index');
   }
 
   /**
@@ -41,6 +39,9 @@ class SupplierController extends Controller {
   public function store(SupplierRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['country'])) {
+      $data['country_id'] = $data['country']['id'];
+    }
     $supplier = Supplier::create($data);
     $supplier->logs()->create([
       'user_id' => $request->user()->id,
@@ -57,9 +58,9 @@ class SupplierController extends Controller {
 
     $this->setBreadcrumbs($supplier);
     $supplier->showDetail();
+    $supplier->load('country');
     return Inertia::render('Purchase/Suppliers/Show', [
       'supplier' => fn() => $supplier,
-      'countries' => Inertia::defer(fn() => Country::all())
     ]);
   }
 
@@ -69,6 +70,9 @@ class SupplierController extends Controller {
   public function update(SupplierRequest $request, Supplier $supplier) {
     $data = $request->validated();
     DB::beginTransaction();
+    if (isset($data['country'])) {
+      $data['country_id'] = $data['country']['id'];
+    }
     $supplier->update($data);
     $supplier->logs()->create([
       'user_id' => $request->user()->id,

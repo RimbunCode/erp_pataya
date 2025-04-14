@@ -10,4 +10,8 @@ class ItemVariantAttribute extends Model {
   use HasUlids, SoftDeletes;
 
   protected $guarded = ['id'];
+
+  public function barcodes() {
+    return $this->hasMany(ItemBarcode::class, 'item_id', 'id');
+  }
 }

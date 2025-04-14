@@ -1,9 +1,8 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { FormPage, FormPageContent } from "@/Pages/Core/FormPage";
 import { PlusIcon, SaveIcon, Trash2Icon } from "lucide-react";
 
 import { Button } from "@/Components/ui/button";
-import { Checkbox } from "@/Components/ui/checkbox";
+import { Checkbox, FormCheckbox } from "@/Components/ui/checkbox";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
@@ -131,20 +130,11 @@ export default function Show({ role }) {
                 onChange={(e) => setData("description", e.target.value)}
               />
             </FormInput>
-
-            <div role="forminput" className="flex items-center space-x-2">
-              <Checkbox
-                id="disabled"
-                checked={data?.is_disabled}
-                onCheckedChange={(val) => setData("is_disabled", val)}
-              />
-              <label
-                htmlFor="disabled"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Disabled
-              </label>
-            </div>
+            <FormCheckbox
+              checked={data?.is_disabled}
+              onCheckedChange={(val) => setData("is_disabled", val)}
+              label="Disabled"
+            />
           </div>
         </FormPageContent>
         <FormPageContent title="Permission Manager" value="permission_manager">
@@ -244,28 +234,20 @@ export default function Show({ role }) {
                     <div className="flex flex-col gap-y-4">
                       <span className="font-medium">{rule.name}</span>
                       {rule.level <= 0 && (
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={rule.id + "_checked"}
-                            checked={rule.only_creator}
-                            onCheckedChange={(val) => {
-                              setData(
-                                "rules",
-                                data?.rules.map((r) =>
-                                  r.id === rule.id
-                                    ? { ...r, only_creator: val }
-                                    : r,
-                                ),
-                              );
-                            }}
-                          />
-                          <label
-                            htmlFor={rule.id + "_checked"}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {t("user.role.only_creator")}
-                          </label>
-                        </div>
+                        <FormCheckbox
+                          checked={rule.only_creator}
+                          onCheckedChange={(val) => {
+                            setData(
+                              "rules",
+                              data?.rules.map((r) =>
+                                r.id === rule.id
+                                  ? { ...r, only_creator: val }
+                                  : r,
+                              ),
+                            );
+                          }}
+                          label={t("user.role.only_creator")}
+                        />
                       )}
                     </div>
                     <div className="font-medium text-center">{rule.level}</div>
@@ -273,37 +255,28 @@ export default function Show({ role }) {
                       {Object.entries(rule.permissions ?? {}).map(
                         ([key, value]) => {
                           return (
-                            <div
-                              className="flex items-center space-x-2 w-fit"
+                            <FormCheckbox
                               key={key}
-                            >
-                              <Checkbox
-                                id={`${rule.id}_${key}_checkbox`}
-                                checked={value}
-                                onCheckedChange={(val) =>
-                                  setData(
-                                    "rules",
-                                    data?.rules.map((r) => {
-                                      if (r.id != rule.id) return r;
+                              checked={value}
+                              onCheckedChange={(val) =>
+                                setData(
+                                  "rules",
+                                  data?.rules.map((r) => {
+                                    if (r.id != rule.id) return r;
 
-                                      return {
-                                        ...r,
-                                        permissions: {
-                                          ...r.permissions,
-                                          [key]: val,
-                                        },
-                                      };
-                                    }),
-                                  )
-                                }
-                              />
-                              <label
-                                htmlFor={`${rule.id}_${key}_checkbox`}
-                                className="text-sm leading-none capitalize peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                              >
-                                {t(`user.role.permissions.${key}`)}
-                              </label>
-                            </div>
+                                    return {
+                                      ...r,
+                                      permissions: {
+                                        ...r.permissions,
+                                        [key]: val,
+                                      },
+                                    };
+                                  }),
+                                )
+                              }
+                              label={t(`user.role.permissions.${key}`)}
+                              classNameLabel="capitalize"
+                            />
                           );
                         },
                       )}

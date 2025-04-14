@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import {
   Select,
@@ -8,18 +7,15 @@ import {
   SelectValue,
 } from "@/Components/ui/select";
 
-import Combobox from "@/Components/Combobox";
-import { CommandItem } from "@/Components/ui/command";
+import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
 export default function Form() {
   const { data, setData } = useFormPage();
-  const { countries } = usePage().props;
   const { t } = useLaravelReactI18n();
   return (
     <>
@@ -31,7 +27,6 @@ export default function Form() {
           label={t("purchase.supplier.columns.name")}
           required={true}
           name="name"
-          placeholder="PT Pataya Sarana Niaga"
         >
           <Input
             value={data?.name ?? ""}
@@ -139,29 +134,10 @@ export default function Form() {
             label={t("purchase.supplier.columns.country")}
             required={true}
           >
-            <Combobox
-              options={countries}
-              value={data?.country_id}
+            <CountryLinkModel
               placeholder={t("purchase.supplier.columns.country.placeholder")}
-              templateTrigger={(country_code) => {
-                const country = countries?.find((c) => c.code === country_code);
-                return <span>{country?.name}</span>;
-              }}
-              templateItem={(country) => {
-                return (
-                  <CommandItem
-                    key={country.code}
-                    value={`${country.name} ${country.code}`}
-                    keywords={[country.code, country.name]}
-                    onSelect={() => {
-                      setData("billing_country_id", country.code);
-                    }}
-                    className="block px-4 "
-                  >
-                    {country.name}
-                  </CommandItem>
-                );
-              }}
+              value={data.country}
+              onValueChange={(val) => setData("country", val)}
             />
           </FormInput>
         </div>

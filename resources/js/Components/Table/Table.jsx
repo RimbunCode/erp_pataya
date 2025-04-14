@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import "@/../css/table.css";
 
 import {
@@ -154,7 +153,7 @@ function Table({
       JSON.stringify(columns.map((x) => ({ name: x.name, show: x.show }))),
       {
         days: DATATABLE_COLUMNS_EXPIRED,
-        path: route(route().current(), [], false),
+        path: window.location.pathname,
         sameSite: "lax",
       },
     );

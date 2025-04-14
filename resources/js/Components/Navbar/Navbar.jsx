@@ -48,7 +48,7 @@ export default memo(function Navbar({ setShowSearch }) {
                     {breadcrumbs.map((breadcrumb, index) => {
                       if (index === breadcrumbs.length - 1) return null;
                       const name = t(
-                        breadcrumb.name.replace(/__\(\s*(.*?)\s*\)/g, "$1"),
+                        breadcrumb.name?.replace(/__\(\s*(.*?)\s*\)/g, "$1"),
                       );
                       return (
                         <DropdownMenuItem
@@ -66,7 +66,7 @@ export default memo(function Navbar({ setShowSearch }) {
               <BreadcrumbItem>
                 <BreadcrumbPage>
                   {t(
-                    breadcrumbs[breadcrumbs.length - 1].name.replace(
+                    breadcrumbs[breadcrumbs.length - 1].name?.replace(
                       /__\(\s*(.*?)\s*\)/g,
                       "$1",
                     ),
@@ -81,7 +81,9 @@ export default memo(function Navbar({ setShowSearch }) {
                   <BreadcrumbItem className="hidden md:block">
                     <BreadcrumbLink asChild>
                       <Link href={breadcrumb.link}>
-                        {t(breadcrumb.name.replace(/__\(\s*(.*?)\s*\)/g, "$1"))}
+                        {t(
+                          breadcrumb.name?.replace(/__\(\s*(.*?)\s*\)/g, "$1"),
+                        )}
                       </Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
@@ -90,7 +92,7 @@ export default memo(function Navbar({ setShowSearch }) {
               ) : (
                 <BreadcrumbItem key={breadcrumb.name + index}>
                   <BreadcrumbPage>
-                    {t(breadcrumb.name.replace(/__\(\s*(.*?)\s*\)/g, "$1"))}
+                    {t(breadcrumb.name?.replace(/__\(\s*(.*?)\s*\)/g, "$1"))}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               ),

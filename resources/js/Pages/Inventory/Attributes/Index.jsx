@@ -19,7 +19,6 @@ import { Trash2Icon } from "lucide-react";
 import { router } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-// eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
