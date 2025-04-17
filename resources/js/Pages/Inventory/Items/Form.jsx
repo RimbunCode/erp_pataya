@@ -61,7 +61,11 @@ export default memo(function Form() {
       .then((res) => {
         setData(
           "uom",
-          res.data.map((x) => ({ ...x, isCustom: !x.conversion_factor })),
+          res.data.map((x) => ({
+            ...x,
+            readOnly: true,
+            isCustom: !x.conversion_factor,
+          })),
         );
       })
       .catch((err) => {
@@ -86,9 +90,21 @@ export default memo(function Form() {
         name: "name",
         titleTrans: "inventory.unit.unit",
         required: true,
-        readonly: true,
-        cell({ dataRow, attributes }) {
-          return <UnitLinkModel value={dataRow} {...attributes} />;
+        cell({ dataRow, setData, attributes }) {
+          return (
+            <UnitLinkModel
+              value={dataRow}
+              {...attributes}
+              filters={{
+                group: data?.default_unit?.group,
+                ...(dataRow.readOnly ? {} : { conversion_factor: null }),
+              }}
+              onValueChange={(value) => {
+                if (!value) return;
+                setData(value);
+              }}
+            />
+          );
         },
       },
       {
@@ -103,9 +119,9 @@ export default memo(function Form() {
                 "text-right focus:!border-0 flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 text-base ring-offset-background  placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
                 attributes?.className,
               )}
-              readOnly={!dataRow.isCustom}
+              readOnly={dataRow.readOnly && !dataRow.isCustom}
               placeholder="0.00"
-              value={Number.isNaN(data) ? 0 : data}
+              value={Number.isNaN(data) ? "" : (data ?? "")}
               intlConfig={{ locale: lang == "id" ? "id-ID" : "en-US" }}
               decimalsLimit={6}
               onValueChange={(value) => {
@@ -116,7 +132,7 @@ export default memo(function Form() {
         },
       },
     ],
-    [],
+    [data.default_unit?.group],
   );
   /**
    * @type {ColumnProps[]}
@@ -185,7 +201,7 @@ export default memo(function Form() {
           >
             <MentionsInput
               singleLine
-              value={data.format_variant}
+              value={data?.format_variant ?? ""}
               onChange={(_, value, __, mentions) => {
                 setFormatVariantSelected(mentions);
                 setData("format_variant", value);
@@ -290,17 +306,18 @@ export default memo(function Form() {
         </FormPageContent>
       )}
       {item && !(item.variants && item.variants.length > 0) && (
-        <>
-          <FormStockLevels />
-          <FormBarcodes />
-        </>
+        <FormStockLevels />
+      )}
+      {((data && !(data.variants && data.variants.length > 0)) ||
+        (item && !(item.variants && item.variants.length > 0))) && (
+        <FormBarcodes />
       )}
       <FormPageContent title={t("inventory.item.menu.uom")} value="detail">
         <FormPageContentTitle>
           {t("inventory.item.menu.uom")}
         </FormPageContentTitle>
         <FormTable
-          readonly
+          readOnly={!data.default_unit}
           columns={uomColumns}
           value={data.uom ?? []}
           onValueChange={useCallback((val) => setData("uom", val), [])}

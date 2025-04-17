@@ -60,14 +60,14 @@ const FORMTABLE_COLUMNS_EXPIRED = 7;
 const Cell = memo(
   forwardRef(
     (
-      { index, item, col, isLast, updateData, readonly, className, ...props },
+      { index, item, col, isLast, updateData, readOnly, className, ...props },
       ref,
     ) => {
       if (!item) return;
       const attributes = {
         ...props,
         ...col.props,
-        readOnly: readonly || col.readonly || false,
+        readOnly: readOnly || col.readonly || false,
         required:
           (Object.keys(item ?? {}).length > 1 || !isLast) && col.required,
         name: col.name,
@@ -121,7 +121,7 @@ const FormTableItem = memo(function FormTableItem({
   updateData,
   setCurrentIndex,
   deleteRow,
-  readonly,
+  readOnly,
   className,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -144,7 +144,7 @@ const FormTableItem = memo(function FormTableItem({
         <span
           className={cn(
             !(Object.keys(item).length <= 1 && isLast) &&
-              !readonly &&
+              !readOnly &&
               "group-hover:hidden",
           )}
         >
@@ -153,7 +153,7 @@ const FormTableItem = memo(function FormTableItem({
         <button
           className={cn(
             "hidden cursor-move group-hover:inline",
-            ((Object.keys(item).length <= 1 && isLast) || readonly) &&
+            ((Object.keys(item).length <= 1 && isLast) || readOnly) &&
               "!hidden",
           )}
           type="button"
@@ -169,7 +169,7 @@ const FormTableItem = memo(function FormTableItem({
             <div key={col.name} className="">
               <Cell
                 ref={setRef(`${item.id}-${col.name}`)}
-                readonly={readonly}
+                readOnly={readOnly}
                 index={index}
                 item={item}
                 col={col}
@@ -191,7 +191,7 @@ const FormTableItem = memo(function FormTableItem({
         >
           <PencilIcon className="size-3" />
         </Button>
-        {!readonly && (
+        {!readOnly && (
           <Button
             type="button"
             variant="ghost"
@@ -285,7 +285,7 @@ export default memo(function FormTable({
   label,
   description,
   ignoreDisabled = false,
-  readonly = false,
+  readOnly = false,
   className,
   columns: columnsProps,
   value,
@@ -348,7 +348,7 @@ export default memo(function FormTable({
     [columns],
   );
   const [_data, _setData] = useState(() =>
-    readonly
+    readOnly
       ? value
       : [
           ...value.map((x) => ({ ...x, id: x.id ?? generateRandom(5) })),
@@ -360,7 +360,7 @@ export default memo(function FormTable({
   useEffect(() => {
     if (!isEqual(value, prevValueRef.current)) {
       prevValueRef.current = value;
-      if (readonly) {
+      if (readOnly) {
         _setData([...value]);
         return;
       }
@@ -369,12 +369,12 @@ export default memo(function FormTable({
         { id: generateRandom(5) }, // Pastikan ada row kosong
       ]);
     }
-  }, [value, readonly]);
+  }, [value, readOnly]);
 
   // Kirim perubahan ke parent hanya jika ada perubahan nyata
   useEffect(() => {
     if (onValueChange) {
-      const filteredData = readonly ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
+      const filteredData = readOnly ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
       if (!isEqual(filteredData, prevValueRef.current)) {
         prevValueRef.current = filteredData;
         onValueChange(filteredData);
@@ -389,14 +389,28 @@ export default memo(function FormTable({
 
       if (!newData[index]) return prevData;
 
+      const payload =
+        typeof key === "string" || typeof key === "number"
+          ? { [key]: newValue }
+          : key;
+
+      if (index === newData.length - 1 && !readOnly) {
+        const isDuplicate = newData.some((x, idx) => {
+          if (idx == index) return false;
+          if (x.id === (payload.id ?? newData[index].id)) return true;
+          return false;
+        });
+        if (isDuplicate) return prevData;
+      }
+
       newData[index] = {
         ...newData[index],
         id: newData[index]?.id ?? generateRandom(5),
-        [key]: newValue,
+        ...payload,
       };
 
       // Jika mengubah row terakhir, tambahkan row kosong baru
-      if (index === newData.length - 1 && !readonly) {
+      if (index === newData.length - 1 && !readOnly) {
         newData.push({ id: generateRandom(5) });
       }
 
@@ -567,7 +581,7 @@ export default memo(function FormTable({
                 _data.map((item, index) => {
                   return (
                     <FormTableItem
-                      readonly={readonly}
+                      readOnly={readOnly || item.readOnly}
                       item={item}
                       index={index}
                       key={item.id}
@@ -605,7 +619,7 @@ export default memo(function FormTable({
 
                 <div className="flex flex-row items-center justify-end gap-2">
                   {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readonly &&
+                    !readOnly &&
                     (isMobile ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -641,7 +655,7 @@ export default memo(function FormTable({
                       </Button>
                     ))}
                   {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readonly &&
+                    !readOnly &&
                     currentIndex < _data.length - 2 &&
                     (isMobile ? (
                       <Tooltip>
@@ -678,7 +692,7 @@ export default memo(function FormTable({
                       </Button>
                     ))}
                   {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readonly && (
+                    !readOnly && (
                       <Button
                         variant="secondary"
                         size="sm"
@@ -713,7 +727,7 @@ export default memo(function FormTable({
                   )}
                   {(Object.keys(_data[currentIndex] ?? {}).length > 1 ||
                     currentIndex < _data.length - 1) &&
-                    !readonly && (
+                    !readOnly && (
                       <Button
                         variant="destructive"
                         size="icon"
@@ -748,7 +762,7 @@ export default memo(function FormTable({
                     name={col.name}
                   >
                     <Cell
-                      readonly={readonly}
+                      readonly={readOnly}
                       index={currentIndex}
                       item={_data[currentIndex]}
                       col={col}
