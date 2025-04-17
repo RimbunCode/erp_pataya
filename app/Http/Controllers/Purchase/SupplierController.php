@@ -40,7 +40,7 @@ class SupplierController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     if (isset($data['country'])) {
-      $data['country_id'] = $data['country']['id'];
+      $data['country_id'] = $data['country']['code'];
     }
     $supplier = Supplier::create($data);
     $supplier->logs()->create([
@@ -71,7 +71,7 @@ class SupplierController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     if (isset($data['country'])) {
-      $data['country_id'] = $data['country']['id'];
+      $data['country_id'] = $data['country']['code'];
     }
     $supplier->update($data);
     $supplier->logs()->create([

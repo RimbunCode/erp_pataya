@@ -30,7 +30,7 @@ class SupplierRequest extends FormRequest {
       'city' => ['required', 'string', 'min:3', 'max:255'],
       'province' => ['required', 'string', 'min:3', 'max:255'],
       'zip_code' => ['required', 'string', 'min:3', 'max:255'],
-      'country.id' => ['required', 'string', 'exists:countries,code'],
+      'country.code' => ['required', 'string', 'exists:countries,code'],
       'is_disabled' => ['nullable', 'boolean'],
     ];
   }

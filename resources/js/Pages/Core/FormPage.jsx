@@ -107,6 +107,8 @@ const FormPageContent = memo(
     const [valueAccordion] = useState(generateRandom(8));
     useEffect(() => {
       if (showAt) return;
+      const index = menus?.findIndex((menu) => menu.value === value);
+      if (index >= 0) return;
       addMenu({
         id,
         title,
@@ -215,6 +217,16 @@ const FormChildren = memo(function FormChildren({
       return newItems;
     });
   }, []);
+  // useEffect(() => {
+  //   setMenus([]);
+  //   console.log("children", children);
+  // }, [children]);
+  const removeMenu = useCallback((value) => {
+    setMenus((prev) => {
+      const newItems = prev?.filter((menu) => menu.value !== value);
+      return newItems;
+    });
+  }, []);
   return (
     <Accordion type="multiple" className="w-full" asChild>
       <Tabs
@@ -257,6 +269,7 @@ const FormChildren = memo(function FormChildren({
             setData={setData}
             menus={menus}
             addMenu={addMenu}
+            removeMenu={removeMenu}
             menuSelected={menuSelected}
             setMenuSelected={setMenuSelected}
           >
@@ -284,6 +297,7 @@ const FormPageProvider = memo(function FormPageProvider({
   setData,
   menus,
   addMenu,
+  removeMenu,
   menuSelected,
   setMenuSelected,
 }) {
@@ -292,6 +306,7 @@ const FormPageProvider = memo(function FormPageProvider({
       value={{
         menus,
         addMenu,
+        removeMenu,
         menuSelected,
         setMenuSelected,
         errors,

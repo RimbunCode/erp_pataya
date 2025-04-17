@@ -133,7 +133,7 @@ export default memo(
   ) {
     const { t } = useLaravelReactI18n();
     const [open, setOpen] = useState(false);
-    const [option, _setOption] = useState(value);
+    const [_option, _setOption] = useState(value);
     const [search, setSearch] = useState("");
     const [options, setOptions] = useState([]);
     const [allowSearch, setAllowSearch] = useState(true);
@@ -146,6 +146,7 @@ export default memo(
         setOpen(false);
       },
     });
+    const option = value ?? _option;
 
     const convertTemplateLink = useCallback((value, search) => {
       const template = value.templateLink ?? "";
@@ -197,7 +198,7 @@ export default memo(
     );
 
     useEffect(() => {
-      if (!open && !option) {
+      if (!open && !option && !search) {
         const findOption = options.find(
           (x) => convertTemplateLink(x).toLowerCase() == search.toLowerCase(),
         );
@@ -219,6 +220,7 @@ export default memo(
         setSearch("");
       }
     }, [option]);
+
     useEffect(() => {
       if (!(option || value)) return;
       const isValid = validate(option || value, filters);
@@ -227,6 +229,7 @@ export default memo(
         setOption(null);
       }
     }, [filters]);
+
     const getModels = () => {
       axios
         .post(route("model"), {
@@ -300,7 +303,7 @@ export default memo(
                 onKeyDown={onInputKeyDown}
                 onDoubleClick={(e) => {
                   e.preventDefault();
-                  if (!option) {
+                  if (!option || !search) {
                     setOpen(true);
                     getModels();
                   }
@@ -324,10 +327,12 @@ export default memo(
                     size="icon"
                     className={cn(
                       "size-6 hidden",
-                      option && "group-focus-within/model:inline-flex",
+                      option &&
+                        search &&
+                        "group-focus-within/model:inline-flex",
                     )}
                     onClick={() => {
-                      if (!name || !option) return;
+                      if (!name || !option || !search) return;
                       const pluralized = `${pluralize.plural(name ?? "")}.show`;
                       window.open(route(pluralized, option.id), "_blank");
                     }}

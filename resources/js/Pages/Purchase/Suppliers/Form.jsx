@@ -1,4 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+import React, { useMemo } from "react";
 import {
   Select,
   SelectContent,
@@ -9,8 +10,8 @@ import {
 
 import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
 import FormInput from "@/Components/FormInput";
+import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
-import React, { useMemo } from "react";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
