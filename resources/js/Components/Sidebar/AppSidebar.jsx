@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   PackageIcon,
   Settings2,
+  ShoppingBag,
   Users2,
 } from "lucide-react";
 import {
@@ -76,6 +77,12 @@ const navList = [
         urlPattern: "/orders/*",
       },
     ],
+  },
+  {
+    title: "Customers",
+    url: "/customers",
+    urlPattern: "/customers/*",
+    icon: <ShoppingBag />,
   },
   {
     title: "Users",
