@@ -1,8 +1,9 @@
-import { FormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback } from "react";
 
 import { Button } from "@/Components/ui/button";
+import FormBarcodes from "./FormBarcodes";
 import FormDetail from "./FormDetail";
+import { FormPage } from "@/Pages/Core/FormPage";
 import FormStockLevels from "./FormStockLevels";
 import { SaveIcon } from "lucide-react";
 import { useDraftForm } from "@/Hooks/useDraftForm";
@@ -19,7 +20,7 @@ export default function ShowVariant({ item, variant }) {
     (e) => {
       e.preventDefault();
       if (!variant.id) return;
-      put(route("items.updateVariant", variant.id));
+      put(route("variants.update", variant.id));
     },
     [variant.id, put],
   );
@@ -27,6 +28,8 @@ export default function ShowVariant({ item, variant }) {
     <FormPage
       errors={errors}
       title={variant.sku}
+      data={data}
+      setData={setData}
       onSubmit={onSubmit}
       badge={
         isDirty && (
@@ -47,7 +50,7 @@ export default function ShowVariant({ item, variant }) {
       }
     >
       <FormDetail isVariant data={data} setData={setData} item={item} />
-
+      <FormBarcodes isVariant />
       <FormStockLevels />
     </FormPage>
   );

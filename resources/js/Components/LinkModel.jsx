@@ -74,14 +74,17 @@ function validateWithOperators(value, operators, logic = "and") {
   return logic == "and";
 }
 function validate(value, filters, logic = "and") {
-  if (!filters || typeof filters !== "object" || Array.isArray(filters))
+  if (!filters || typeof filters !== "object" || Array.isArray(filters)) {
     return true;
+  }
 
   for (const key in filters) {
     const val = filters[key];
     let result = false;
     if (key === "and" || key === "or") {
       result = validate(value, val, key);
+    } else if (val === undefined) {
+      result = true;
     } else if (Array.isArray(val)) {
       result = JSON.stringify(value[key]) === JSON.stringify(val);
     } else if (typeof val !== "object" || val === null) {

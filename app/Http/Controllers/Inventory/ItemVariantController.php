@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Inventory\ItemVariantRequest;
 use App\Models\Core\Branch;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
+use App\Services\Inventory\ItemServices;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class ItemVariantController extends Controller {
-  public function __construct(request $request) {
+  private $itemService;
+  public function __construct(Request $request, ItemServices $itemService) {
+    $this->itemService = $itemService;
     parent::__construct($request, ItemVariant::class);
   }
   public function show(ItemVariant $variant) {
@@ -19,9 +23,12 @@ class ItemVariantController extends Controller {
     $this->setBreadcrumbs($item, $variant);
     $variant->showDetail();
     return Inertia::render('Inventory/Items/ShowVariant', [
-      'variant' => $variant,
+      'variant' => function () use ($variant) {
+        $variant->load(['barcodes']);
+        return $variant;
+      },
       'item' => function () use ($item) {
-        $item->load(['category', 'defaultUnit']);
+        $item->load(['category', 'defaultUnit',]);
         return $item;
       },
       'stocks' => Inertia::defer(function () use ($variant) {
@@ -44,5 +51,12 @@ class ItemVariantController extends Controller {
         return $variant->barcodes()->with(['unit'])->get();
       }),
     ]);
+  }
+
+  public function update(ItemVariantRequest $request, ItemVariant $variant) {
+    $data = $request->validated();
+    $variant->update($data);
+    $this->itemService->updateBarcodes($variant, $data['barcodes']);
+    return redirect()->back();
   }
 }

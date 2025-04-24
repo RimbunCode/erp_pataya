@@ -305,12 +305,9 @@ export default memo(function Form() {
           </WhenVisible>
         </FormPageContent>
       )}
+      <FormBarcodes />
       {item && !(item.variants && item.variants.length > 0) && (
         <FormStockLevels />
-      )}
-      {((data && !(data.variants && data.variants.length > 0)) ||
-        (item && !(item.variants && item.variants.length > 0))) && (
-        <FormBarcodes />
       )}
       <FormPageContent title={t("inventory.item.menu.uom")} value="detail">
         <FormPageContentTitle>

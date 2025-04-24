@@ -99,13 +99,25 @@ const FormPageContentDescription = memo(
  */
 const FormPageContent = memo(
   forwardRef(function FormPageContent(
-    { title, value, children, className, collapsible = false, showAt = false },
+    {
+      title,
+      value,
+      children,
+      className,
+      collapsible = false,
+      showAt = false,
+      show = true,
+    },
     ref,
   ) {
-    const { menus, addMenu, menuSelected } = useFormPage();
+    const { menus, addMenu, menuSelected, removeMenu } = useFormPage();
     const [id] = useState(generateRandom(8));
     const [valueAccordion] = useState(generateRandom(8));
     useEffect(() => {
+      if (!show) {
+        removeMenu(value);
+        return;
+      }
       if (showAt) return;
       const index = menus?.findIndex((menu) => menu.value === value);
       if (index >= 0) return;
@@ -114,7 +126,7 @@ const FormPageContent = memo(
         title,
         value,
       });
-    }, []);
+    }, [show]);
     const headerChildren = Children.toArray(children).filter((child) => {
       return (
         child?.type == FormPageContentTitle ||
@@ -222,6 +234,7 @@ const FormChildren = memo(function FormChildren({
   //   console.log("children", children);
   // }, [children]);
   const removeMenu = useCallback((value) => {
+    console.log(value);
     setMenus((prev) => {
       const newItems = prev?.filter((menu) => menu.value !== value);
       return newItems;
@@ -253,7 +266,7 @@ const FormChildren = memo(function FormChildren({
                 <TabsTrigger
                   key={child.value}
                   value={child.value}
-                  className="text-base border-0 data-[state=active]:font-bold !p-0 !px-4 group rounded-none transition-colors "
+                  className="text-base border-0 data-[state=active]:font-bold !p-0 !px-4 group rounded-none transition-colors"
                 >
                   <span className="pt-2 pb-1 border-transparent w-fit group-[[data-state=active]]:border-foreground border-b transition-colors duration-300 ">
                     {t(child.title || child.value)}
@@ -601,6 +614,7 @@ const FormPageDialog = memo(
       errors,
       isDirty,
       recentlySuccessful,
+      clearErrors,
     } = useDraftForm(
       name,
       {},
@@ -645,6 +659,7 @@ const FormPageDialog = memo(
         setIsDirty(false);
         cancel();
         setData?.({});
+        clearErrors();
       });
       if (isDirty) {
         setShowAlert(true);
@@ -652,6 +667,7 @@ const FormPageDialog = memo(
         setShowAlert(false);
         onOpenChange(val);
         setData?.({});
+        clearErrors();
       }
     };
     useDidMountEffect(() => {
@@ -843,7 +859,7 @@ const FormPageLinkModelDialog = memo(
     }, [recentlySuccessful]);
     return (
       <AlertDialog open={open}>
-        <AlertDialogContent className={cn(className, "pt-0")}>
+        <AlertDialogContent className={cn(className, "pt-0 overflow-hidden")}>
           <form
             ref={formRef}
             onKeyDown={onKeyDown}
@@ -866,22 +882,24 @@ const FormPageLinkModelDialog = memo(
               </AlertDialogTitle>
               <AlertDialogDescription className="sr-only"></AlertDialogDescription>
             </AlertDialogHeader>
-            {errors && Object.keys(errors).length > 0 && (
-              <div className="flex-col w-full mt-4 alert error">
-                <h3 className="text-base font-semibold">
-                  {t("core.form.errors.title")}
-                </h3>
-                <ul className="block pl-5">
-                  {Object.entries(errors).map(([key, value]) => (
-                    <li key={key} className="list-disc">
-                      {fieldNameTrans
-                        ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                        : value}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <div className="overflow-y-auto">
+              {errors && Object.keys(errors).length > 0 && (
+                <div className="flex-col w-full mt-4 alert error">
+                  <h3 className="text-base font-semibold">
+                    {t("core.form.errors.title")}
+                  </h3>
+                  <ul className="block pl-5">
+                    {Object.entries(errors).map(([key, value]) => (
+                      <li key={key} className="list-disc">
+                        {fieldNameTrans
+                          ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                          : value}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
             <FormChildren
               ref={ref}
               defaultMenu={defaultMenu}
