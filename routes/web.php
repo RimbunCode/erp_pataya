@@ -88,6 +88,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('attribute', \App\Http\Controllers\Inventory\AttributeController::class);
   // Supplier
   Route::resourceDetail('supplier', \App\Http\Controllers\Purchase\SupplierController::class);
+  // Customer
+  Route::resourceDetail('customer', \App\Http\Controllers\Sales\CustomerController::class);
 });
 
 require __DIR__ . '/auth.php';
