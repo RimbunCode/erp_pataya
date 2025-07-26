@@ -17,6 +17,7 @@ export default forwardRef(function BranchLinkModel(
       titleDialog={t("core.branch.new")}
       classNameDialog="max-w-screen-md"
       form={<Form />}
+      order="is_main_branch:desc"
       {...props}
       ref={ref}
     />

@@ -2,7 +2,7 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
-import ItemLinkModel from "../Items/ItemLinkModel";
+import ItemVariantLinkModel from "../Items/ItemVariantLinkModel";
 import React from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -23,12 +23,15 @@ export default function Form() {
             required={true}
             label={t("inventory.itemAlternative.columns.item_code")}
           >
-            <ItemLinkModel
+            <ItemVariantLinkModel
               placeholder={t(
                 "inventory.itemAlternative.columns.item_code.placeholder",
               )}
               filters={{
-                allow_alternative_item: true,
+                or: {
+                  allow_alternative_item: true,
+                  item: { allow_alternative_item: true },
+                },
               }}
               value={data.item}
               onValueChange={(val) => setData("item", val)}
@@ -38,15 +41,23 @@ export default function Form() {
             required={true}
             label={t("inventory.itemAlternative.columns.alternative_item_code")}
           >
-            <ItemLinkModel
+            <ItemVariantLinkModel
               placeholder={t(
                 "inventory.itemAlternative.columns.alternative_item_code.placeholder",
               )}
               filters={{
-                ...(data.two_way ? { allow_alternative_item: true } : {}),
+                ...(data.two_way
+                  ? {
+                      or: {
+                        allow_alternative_item: true,
+                        item: { allow_alternative_item: true },
+                      },
+                    }
+                  : {}),
                 id: {
                   not: data.item?.id,
                 },
+                category_id: data.item?.category_id,
               }}
               value={data.alternative}
               onValueChange={(val) => setData("alternative", val)}

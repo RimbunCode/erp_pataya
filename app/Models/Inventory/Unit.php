@@ -17,6 +17,6 @@ class Unit extends Model {
   ];
 
   public static function templateLink() {
-    return ":name</title><br/><span class='text-muted-foreground'>:code</span>";
+    return ":name (:code)";
   }
 }

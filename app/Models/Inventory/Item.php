@@ -18,7 +18,7 @@ class Item extends Model {
   ];
 
   public static function templateLink() {
-    return "<title>:code</title><br/><span>:name</span>";
+    return "<title>:code - :name</title><b>:code</b><br/><span>:name</span>";
   }
 
   public function attributes() {

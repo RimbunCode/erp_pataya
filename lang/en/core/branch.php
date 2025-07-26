@@ -1,16 +1,20 @@
 <?php
 
 return [
+  'branch' => 'Branch',
   'branches' => 'Branches',
   'title' => 'Branches Company',
   'add_branch' => 'Add Branch',
   'branch_detail' => 'Branch Details',
   'new' => 'New Branch',
-  'delete' => 'Delete Branch',
+  'delete' => "Delete Branch",
   'delete.description' => 'Are you sure you want to delete this branch?',
   'delete.confirm' => 'Delete',
   'cancel' => 'Cancel',
+  'add_row' => 'Add Row',
+  'empty' => 'Empty',
   'columns' => [
+    'code' => 'Code',
     'name' => 'Name',
     'email' => 'Email',
     'phone' => 'Phone',

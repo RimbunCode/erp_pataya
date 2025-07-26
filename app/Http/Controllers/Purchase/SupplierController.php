@@ -42,6 +42,7 @@ class SupplierController extends Controller {
     if (isset($data['country'])) {
       $data['country_id'] = $data['country']['code'];
     }
+    $data['parent_id'] = (isset($data['branch_of']) && $data['branch_of']['id'] != null) ? $data['branch_of']['id'] : null;
     $supplier = Supplier::create($data);
     $supplier->logs()->create([
       'user_id' => $request->user()->id,
@@ -58,10 +59,12 @@ class SupplierController extends Controller {
 
     $this->setBreadcrumbs($supplier);
     $supplier->showDetail();
-    $supplier->load('country');
-    return Inertia::render('Purchase/Suppliers/Show', [
-      'supplier' => fn() => $supplier,
-    ]);
+    return $this->renderShow(
+      'Purchase/Suppliers/Form',
+      "supplier",
+      $supplier->name,
+      $supplier
+    );
   }
 
   /**
@@ -73,6 +76,7 @@ class SupplierController extends Controller {
     if (isset($data['country'])) {
       $data['country_id'] = $data['country']['code'];
     }
+    $data['parent_id'] = (isset($data['branch_of']) && $data['branch_of']['id'] != null) ? $data['branch_of']['id'] : null;
     $supplier->update($data);
     $supplier->logs()->create([
       'user_id' => $request->user()->id,

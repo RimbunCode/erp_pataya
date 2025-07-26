@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\CategoryRequest;
 use App\Models\Inventory\Category;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -22,13 +23,7 @@ class CategoryController extends Controller {
     Category::dataTable($request);
     return Inertia::render(
       'Inventory/Categories/Index',
-      [
-        'types' => [
-          'stock' => __('inventory/category.types.stock'),
-          'vehicle' => __('inventory/category.types.vehicle'),
-          'service' => __('inventory/category.types.service'),
-        ]
-      ]
+      []
     );
   }
 
@@ -63,14 +58,12 @@ class CategoryController extends Controller {
   public function show(Category $category) {
     $this->setBreadcrumbs($category);
     $category->showDetail();
-    return Inertia::render('Inventory/Categories/Show', [
-      'category' => $category,
-      'types' => [
-        'stock' => __('inventory/category.types.stock'),
-        'vehicle' => __('inventory/category.types.vehicle'),
-        'service' => __('inventory/category.types.service'),
-      ]
-    ]);
+    return $this->renderShow(
+      'Inventory/Categories/Form',
+      "category",
+      $category->name,
+      $category
+    );
   }
   /**
    * Update the specified resource in storage.
@@ -87,6 +80,7 @@ class CategoryController extends Controller {
       ]
     ]);
     DB::commit();
+    // dd($request->all());
     return redirect()->back();
   }
 

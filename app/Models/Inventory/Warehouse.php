@@ -15,6 +15,10 @@ class Warehouse extends Model {
 
   protected $guarded = ['id'];
 
+  public static function templateLink() {
+    return ':code - :name';
+  }
+
   public function branch() {
     return $this->belongsTo(Branch::class);
   }

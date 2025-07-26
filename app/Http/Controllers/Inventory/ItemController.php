@@ -86,6 +86,7 @@ class ItemController extends Controller {
         $itemArray = $item->toArray();
         $itemArray['uom'] = $uom->map(function (Unit $uom) use ($item, $uomIds) {
           $uom->isCustom = $uom->isCustom == 1;
+          $uom->readOnly = true;
           if (\in_array($uom->id, $uomIds->toArray())) {
             $uom->conversion_factor = $item->uom->where('unit_id', $uom->id)->first()->conversion_factor;
           }

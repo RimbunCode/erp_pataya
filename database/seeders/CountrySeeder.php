@@ -6,6 +6,7 @@ use App\Models\Core\Country;
 use App\Services\CountryApiService;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class CountrySeeder extends Seeder {
   private function getCountries() {
@@ -25,7 +26,9 @@ class CountrySeeder extends Seeder {
    * Run the database seeds.
    */
   public function run(): void {
+    Schema::disableForeignKeyConstraints();
     Country::truncate();
     Country::insert($this->getCountries()->values()->toArray());
+    Schema::enableForeignKeyConstraints();
   }
 }

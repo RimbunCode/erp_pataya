@@ -22,6 +22,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
+import { Head, router, usePage } from "@inertiajs/react";
 import {
   Select,
   SelectContent,
@@ -43,7 +44,6 @@ import {
   useState,
 } from "react";
 import { cn, getCookieByName, getLocaleDate, setCookie } from "@/lib/utils";
-import { router, usePage } from "@inertiajs/react";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
@@ -169,10 +169,9 @@ export default memo(
     );
 
     const loadData = useCallback(() => {
+      console.log(options);
       router.get(
-        route(route().current(), route().params) +
-          "?" +
-          QueryString.stringify(options),
+        window.location.pathname + "?" + QueryString.stringify(options),
         {},
         {
           reset: ["data", "ziggy"],
@@ -253,6 +252,7 @@ export default memo(
 
     return (
       <AppLayout>
+        <Head title={title} />
         <div className="flex items-center justify-between gap-x-4">
           <h1 className="text-xl font-bold">{title}</h1>
           <div className="flex items-center gap-x-4 ">

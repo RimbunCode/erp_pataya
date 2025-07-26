@@ -23,6 +23,7 @@ class PreferenceSeeder extends Seeder {
         300
       ],
       "company_name" => "PATAYA",
+      'short_name' => "PSN",
       "email" => "pataya@gmail.com",
       "phone" => "asdas",
       "street" => "Jl. Rungkut Mejoyo Selatan No.9",
@@ -38,6 +39,7 @@ class PreferenceSeeder extends Seeder {
     ])->values();
     Preference::insert($preferences->toArray());
     Branch::create([
+      'code' => $preferencesArr['short_name'],
       'name' => $preferencesArr['company_name'],
       'is_main_branch' => true,
       'shipping_street' => $preferencesArr['street'],

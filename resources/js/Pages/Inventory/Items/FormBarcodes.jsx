@@ -55,7 +55,6 @@ export default memo(function FormBarcodes({ isVariant = false }) {
         columns={barcodeColumns}
         value={data.barcodes ?? []}
         onValueChange={(val) => {
-          console.log(val);
           setData("barcodes", val);
         }}
       />

@@ -140,7 +140,8 @@ class PermissionSeeder extends Seeder {
           $className::initPermissions();
         }
       } catch (\Throwable $e) {
-        // do nothing
+        print_r("\e[39m" . $className . " \e[91m(ERROR) \e[39m" . \PHP_EOL);
+        print_r($e);
       }
     }
     DB::commit();

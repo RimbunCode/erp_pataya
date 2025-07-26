@@ -1,4 +1,3 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import { useMemo, useRef, useState } from "react";
 
 import DataTable from "@/Pages/Core/DataTable";
@@ -18,7 +17,7 @@ function Index({ lang }) {
     () => [
       {
         name: "name",
-        titleTrans: "sales.supplier.columns.name",
+        titleTrans: "sales.customer.columns.name",
         searchType: "text",
         sortable: true,
         resizeable: true,
@@ -50,11 +49,11 @@ function Index({ lang }) {
       },
       {
         name: "vat",
-        titleTrans: "sales.customer.column.vat",
+        titleTrans: "sales.customer.columns.vat",
         searchType: "text",
         sortable: true,
         resizeable: true,
-        show: true,
+        show: false,
       },
 
       {
@@ -63,7 +62,7 @@ function Index({ lang }) {
         searchType: "text",
         sortable: true,
         resizeable: true,
-        show: true,
+        show: false,
       },
       {
         name: "is_disabled",

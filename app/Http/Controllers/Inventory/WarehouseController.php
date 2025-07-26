@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\WarehouseRequest;
 use App\Models\Core\Branch;
 use App\Models\Inventory\Warehouse;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -80,12 +81,15 @@ class WarehouseController extends Controller {
   public function show(Warehouse $warehouse) {
     $this->setBreadcrumbs($warehouse);
     $warehouse->showDetail();
-    return Inertia::render('Inventory/Warehouses/Show', [
-      'warehouse' => function () use ($warehouse) {
+    return $this->renderShow(
+      'Inventory/Warehouses/Form',
+      "warehouse",
+      $warehouse->name,
+      function () use ($warehouse) {
         $warehouse->load(['pic', 'branch']);
         return $warehouse;
       },
-    ]);
+    );
   }
 
   /**

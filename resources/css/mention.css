@@ -4,7 +4,7 @@
 
 @layer components {
   .mentions {
-    @apply bg-muted h-8 rounded-md font-sans text-sm;
+    @apply bg-muted h-8 rounded-md font-sans text-sm border border-input focus-within:!border-0 ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1;
 
     .mentions__highlighter {
       @apply !py-1 !px-3 !border-2 !border-transparent h-8;
@@ -23,7 +23,7 @@
     }
   }
   .mentions input {
-    @apply focus:!border-0 flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 !text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+    @apply focus:!border-0 flex h-8 w-full rounded-md !border-0 border-input bg-muted px-3 py-2 !text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .mentions--singleLine .mentions__control {

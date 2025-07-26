@@ -49,7 +49,7 @@ abstract class Controller {
         $tableName = Str::camel($model->getTable());
         if ($key == 0) {
           $breadcrumbs[] = ['name' => Str::headline($tableName), 'link' => route("{$tableName}.index")];
-          $name = Arr::get($model->toArray(), $model->valueBreadcrumb ?? "", $model->name);
+          $name = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
           $breadcrumbs[] = ($key == (count($models) - 1)) ?
             ['name' => $name] :
             ['name' => $name, 'link' => route("{$tableName}.show", $model->id)];
@@ -57,7 +57,7 @@ abstract class Controller {
         }
         preg_match('/([^\\\\]+)$/',  \get_class($model), matches: $className);
         $alias = $model->aliasBreadcrumb ?? $className[1];
-        $value = Arr::get($model->toArray(), $model->valueBreadcrumb ?? "", $model->name);
+        $value = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
         $breadcrumbs[] = ($key == (count($models) - 1)) ?
           ['name' => "{$alias}: {$value}"] :
           ['name' => "{$alias}: {$value}", 'link' => route("{$tableName}.show", $model->id)];
@@ -116,6 +116,14 @@ abstract class Controller {
     ]);
 
     return back();
+  }
+   protected function renderShow($formPathname, $name, $title, $data, $props = []) {
+    return Inertia::render('ShowGeneral', array_merge([
+      'name' => $name,
+      'title' => $title,
+      'formPathname' => $formPathname,
+      $name => $data,
+    ], $props));
   }
   public function removeComment(Request $request, $param, Log $id) {
     if ($id->user_id != $request->user()->id || !$id || $id->type != 'comment') {

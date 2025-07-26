@@ -18,7 +18,16 @@ class Supplier extends Model {
     'is_disabled' => 'boolean',
     'banks' => FormTable::class
   ];
+  public static function templateLink() {
+    return ":name";
+  }
   public function country() {
     return $this->belongsTo(Country::class, 'country_id', 'code');
+  }
+  public function branchOf() {
+    return $this->belongsTo(Supplier::class, 'parent_id');
+  }
+  public function branches() {
+    return $this->hasMany(Supplier::class, 'parent_id');
   }
 }

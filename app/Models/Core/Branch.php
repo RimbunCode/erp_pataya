@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\DataTable;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use App\Models\Model;
@@ -17,6 +18,32 @@ class Branch extends Model {
     'is_disabled' => 'boolean',
   ];
 
+
+  protected $appends = ['title'];
+
+  public function title(): Attribute {
+    return new Attribute(
+      get: function ($value) {
+        if ($this->is_main_branch) {
+          return "{$this->name} (Main)";
+        }
+        return $this->name;
+      }
+    );
+  }
+
+  public function shippingAddress() {
+    return new Attribute(
+      get: function ($value) {
+        if ($this->is_main_branch) {
+          return [
+            'street'
+          ];
+        }
+      }
+    );
+  }
+
   public static function boot() {
     parent::boot();
     static::addGlobalScope('country', function (Builder $builder) {
@@ -25,7 +52,7 @@ class Branch extends Model {
   }
 
   public static function templateLink() {
-    return ":name";
+    return ":name{:title}";
   }
 
   public function billingCountry() {
@@ -37,5 +64,9 @@ class Branch extends Model {
 
   public function users() {
     return $this->belongsToMany(\App\Models\User\User::class, 'user_branches', 'branch_id', 'user_id');
+  }
+
+  public function branchable() {
+    return $this->morphTo();
   }
 }
