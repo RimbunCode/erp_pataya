@@ -1,4 +1,4 @@
-import { FormPage, FormPageContent } from "../Core/FormPage";
+import { FormPage, FormPageContent, useFormPage } from "../Core/FormPage";
 import {
   Select,
   SelectContent,
@@ -7,35 +7,20 @@ import {
   SelectValue,
 } from "@/Components/ui/select";
 
-import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
-import { SaveIcon } from "lucide-react";
 import { Textarea } from "@/Components/ui/textarea";
-import { useDraftForm } from "@/Hooks/useDraftForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
-export default function Company({ preferences, currencies, countries }) {
-  const route = window.route;
+function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, post, processing, errors, isDirty } = useDraftForm(
-    "company_details",
-    preferences,
-  );
-  const onSubmit = (e) => {
-    e.preventDefault();
-
-    post(route("company.index"));
-  };
-  // useEffect(() => {
-  //   axios.get(
-  //     "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.min.json",
-  //   ).then('data');
-  // })
+  const { currencies, countries } = usePage().props;
+  const { data, setData } = useFormPage();
   const onUpdatePerPageOptions = (list) => {
     setData(
       "per_page_options",
@@ -43,37 +28,12 @@ export default function Company({ preferences, currencies, countries }) {
     );
   };
   return (
-    <FormPage
-      errors={errors}
-      disabled={processing}
-      title={t("core.company.title")}
-      onSubmit={onSubmit}
-      badge={
-        isDirty && (
-          <span className="text-sm badge warning">
-            {t("core.form.not_saved")}
-          </span>
-        )
-      }
-      controls={
-        <Button
-          type="submit"
-          role="save"
-          className="!p-2 size-fit h-8"
-          disabled={processing}
-        >
-          <SaveIcon />
-          {t("core.form.save")}
-        </Button>
-      }
-      sidebarContent={false}
-      bottombarContent={false}
-    >
+    <>
       <FormPageContent
         value="company_details"
         title={t("core.company.company_details.title")}
       >
-        <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+        <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-2">
           <FormInput
             label={t("core.company.company_details.name")}
             required={true}
@@ -81,6 +41,15 @@ export default function Company({ preferences, currencies, countries }) {
             <Input
               value={data.company_name}
               onChange={(e) => setData("company_name", e.target.value)}
+            />
+          </FormInput>
+          <FormInput
+            label={t("core.company.company_details.short_name")}
+            required={true}
+          >
+            <Input
+              value={data.short_name}
+              onChange={(e) => setData("short_name", e.target.value)}
             />
           </FormInput>
           <FormInput
@@ -176,7 +145,7 @@ export default function Company({ preferences, currencies, countries }) {
         value="email_setup"
         title={t("core.company.email_setup.title")}
       >
-        <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+        <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
             label={t("core.company.email_setup.protocol")}
             required={true}
@@ -383,6 +352,26 @@ export default function Company({ preferences, currencies, countries }) {
           </div>
         </div>
       </FormPageContent>
+    </>
+  );
+}
+export default function Company() {
+  const { t } = useLaravelReactI18n();
+
+  // useEffect(() => {
+  //   axios.get(
+  //     "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.min.json",
+  //   ).then('data');
+  // })
+
+  return (
+    <FormPage
+      name="company"
+      title={t("core.company.title")}
+      sidebarContent={false}
+      bottombarContent={false}
+    >
+      <Form />
     </FormPage>
   );
 }

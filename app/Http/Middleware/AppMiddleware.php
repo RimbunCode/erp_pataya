@@ -21,6 +21,10 @@ class AppMiddleware extends Middleware {
   public function handle(Request $request, Closure $next): Response {
     if (Auth::check()) {
       $currentBranch = $request->session()->get('currentBranch');
+      if (!$currentBranch) {
+        $currentBranch = Auth::user()->default_branch_id;
+        $request->session()->put('currentBranch', $currentBranch);
+      }
       $branches = $request->user()->branches()->get();
 
       Inertia::share([

@@ -3,8 +3,17 @@
 namespace App;
 
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class Utils {
+  public static function renderShow($formPathname, $name, $title, $data, $props = []) {
+    return Inertia::render('ShowGeneral', array_merge([
+      'name' => $name,
+      'title' => $title,
+      'formPathname' => $formPathname,
+      $name => $data,
+    ], $props));
+  }
   public static function isInertiaRequest(Request $request) {
     if (!$request->ajax())
       return true;
@@ -20,5 +29,8 @@ class Utils {
       $counter += 1;
     }
     return $result;
+  }
+  public static function isNullOrWhitespace($value) {
+    return $value === null || trim($value) === '';
   }
 }

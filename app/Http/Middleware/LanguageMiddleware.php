@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use Carbon\Carbon;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
@@ -20,6 +21,7 @@ class LanguageMiddleware {
   public function handle(Request $request, Closure $next): Response {
     if ($request->hasCookie('lang')) {
       App::setLocale($request->cookie('lang'));
+      Carbon::setLocale($request->cookie('lang'));
       return $next($request)->withCookie(
         cookie('lang',  $request->cookie(key: 'lang'), 60 * 24 * 30)
       );

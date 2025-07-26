@@ -9,6 +9,7 @@ return [
   'address' => 'Supplier Address',
   'new' => 'New',
   'columns' => [
+    'branch_of' => 'Branch of',
     'name' => 'Name',
     'phone' => 'Phone',
     'email' => 'Email',

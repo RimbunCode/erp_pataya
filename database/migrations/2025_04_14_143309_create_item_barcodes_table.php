@@ -12,7 +12,7 @@ return new class extends Migration {
     Schema::create('item_barcodes', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->foreignUlid('item_variant_id')->references('id')->on('item_variants')->cascadeOnDelete();
-      $table->foreignId('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
+      $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
       $table->string('barcode');
       $table->timestamps();
       $table->softDeletes();

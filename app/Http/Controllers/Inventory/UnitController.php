@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\UnitRequest;
 use App\Models\Inventory\Unit;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -85,9 +86,12 @@ class UnitController extends Controller {
     if ($unit->conversion_factor == null) {
       $unit->customable = true;
     }
-    return Inertia::render('Inventory/Units/Show', [
-      'unit' => $unit,
-    ]);
+    return $this->renderShow(
+      'Inventory/Units/Form',
+      "unit",
+      $unit->name,
+      $unit,
+    );
   }
 
   /**

@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
+import { Head, WhenVisible, useForm, usePage } from "@inertiajs/react";
 import React, {
   Children,
   Fragment,
@@ -33,11 +34,13 @@ import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 
 import AppLayout from "@/Layouts/AppLayout";
 import Attachments from "./Components/Attachments";
+import { Button } from "@/Components/ui/button";
 import Comments from "./Components/Comments";
+import LoadingIcon from "@/Components/LoadingIcon";
+import { SaveIcon } from "lucide-react";
 import Tags from "./Components/Tags";
 import pluralize from "pluralize";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
-import { useForm } from "@inertiajs/react";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -99,20 +102,32 @@ const FormPageContentDescription = memo(
  */
 const FormPageContent = memo(
   forwardRef(function FormPageContent(
-    { title, value, children, className, collapsible = false, showAt = false },
+    {
+      title,
+      value,
+      children,
+      className,
+      collapsible = false,
+      showAt = false,
+      show = true,
+    },
     ref,
   ) {
-    const { menus, addMenu, menuSelected } = useFormPage();
+    const { menus, addMenu, menuSelected, removeMenu } = useFormPage();
     const [id] = useState(generateRandom(8));
     const [valueAccordion] = useState(generateRandom(8));
     useEffect(() => {
       if (showAt) return;
+      if (!show) {
+        removeMenu(id);
+        return;
+      }
       addMenu({
         id,
         title,
         value,
       });
-    }, []);
+    }, [show]);
     const headerChildren = Children.toArray(children).filter((child) => {
       return (
         child?.type == FormPageContentTitle ||
@@ -199,24 +214,41 @@ const FormChildren = memo(function FormChildren({
   data,
   setData,
   defaultMenu,
+  disabled,
 }) {
   const { t } = useLaravelReactI18n();
 
-  const [menus, setMenus] = useState([]);
+  const [_menus, setMenus] = useState([]);
 
   const [menuSelected, setMenuSelected] = useState(defaultMenu);
   const addMenu = useCallback((newItem) => {
     setMenus((prev) => {
       let newItems = [...(prev ?? [])];
-      const index = newItems?.findIndex((menu) => menu.value === newItem.value);
-      if (index < 0) {
-        newItems = [...newItems, newItem];
-      }
+      newItems = [...newItems, newItem];
       return newItems;
     });
   }, []);
+  // useEffect(() => {
+  //   setMenus([]);
+  //   console.log("children", children);
+  // }, [children]);
+  const removeMenu = useCallback((id) => {
+    setMenus((prev) => {
+      const newItems = prev?.filter((menu) => menu.id !== id);
+      return newItems;
+    });
+  }, []);
+
+  const menus = useMemo(() => {
+    const mapMenus = new Map();
+    _menus?.forEach((menu) => {
+      if (mapMenus.has(menu.value)) return;
+      mapMenus.set(menu.value, menu);
+    });
+    return Array.from(mapMenus.values());
+  }, [_menus]);
   return (
-    <Accordion type="multiple" className="w-full" asChild>
+    <Accordion type="multiple" className={cn("w-full", className)} asChild>
       <Tabs
         value={menuSelected ?? menus?.[0]?.value}
         onValueChange={setMenuSelected}
@@ -224,7 +256,6 @@ const FormChildren = memo(function FormChildren({
       >
         <div
           className={cn(
-            className,
             "flex flex-col order-1 max-w-full  border rounded-xl lg:col-start-1 border-muted-foreground/25",
             "[&_:not(div[role=content])_+_div[role=content]]:border-t-0 [&_div[role=content]:first-child]:!border-t-0 [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
           )}
@@ -241,7 +272,7 @@ const FormChildren = memo(function FormChildren({
                 <TabsTrigger
                   key={child.value}
                   value={child.value}
-                  className="text-base border-0 data-[state=active]:font-bold !p-0 !px-4 group rounded-none transition-colors "
+                  className="text-base border-0 data-[state=active]:font-bold !p-0 !px-4 group rounded-none transition-colors"
                 >
                   <span className="pt-2 pb-1 border-transparent w-fit group-[[data-state=active]]:border-foreground border-b transition-colors duration-300 ">
                     {t(child.title || child.value)}
@@ -251,12 +282,14 @@ const FormChildren = memo(function FormChildren({
             })}
           </TabsList>
           <FormPageProvider
+            disabled={disabled}
             errors={errors}
             fieldNameTrans={fieldNameTrans}
             data={data}
             setData={setData}
             menus={menus}
             addMenu={addMenu}
+            removeMenu={removeMenu}
             menuSelected={menuSelected}
             setMenuSelected={setMenuSelected}
           >
@@ -278,20 +311,24 @@ const useFormPage = () => useContext(FormPageContext);
 
 const FormPageProvider = memo(function FormPageProvider({
   children,
+  disabled,
   errors,
   fieldNameTrans,
   data,
   setData,
   menus,
   addMenu,
+  removeMenu,
   menuSelected,
   setMenuSelected,
 }) {
   return (
     <FormPageContext.Provider
       value={{
+        disabled,
         menus,
         addMenu,
+        removeMenu,
         menuSelected,
         setMenuSelected,
         errors,
@@ -344,11 +381,12 @@ const FormPageProvider = memo(function FormPageProvider({
  * @param {string} props.className
  * @param {object} props.data
  * @param {Function} props.setData
+ * @param {boolean} props.isSubmitable
  */
 const FormPage = memo(
   forwardRef(function FormPage(
     {
-      errors,
+      name,
       disabled,
       isCreate,
       fieldNameTrans,
@@ -359,18 +397,40 @@ const FormPage = memo(
       sidebarContent,
       bottombarContent,
       className,
-      onSubmit,
       children,
-      data,
-      setData,
+      submitable = false,
+      hasConnections,
     },
     ref,
   ) {
+    const route = window.route;
     const { t } = useLaravelReactI18n();
+    const defaultData = usePage().props[name] ?? {};
+    const {
+      data,
+      setData: _setData,
+      put,
+      processing,
+      errors,
+      isDirty,
+    } = useDraftForm(name, defaultData);
+    const onSubmit = useCallback(
+      (e) => {
+        e.preventDefault();
+        if (e.action == "submit") {
+          put(route(`${pluralize.plural(name ?? "")}.submit`, defaultData.id));
+          return;
+        }
+
+        put(route(`${pluralize.plural(name ?? "")}.update`, defaultData.id));
+      },
+      [route, name, defaultData, data],
+    );
     // const permissions = usePage().props.permissions;
     const [showHeader, setShowHeader] = useState(true);
     // eslint-disable-next-line no-unused-vars
     const [lastPosition, setLastPosition] = useState(0);
+    const [showAlertBeforeSubmit, setShowAlertBeforeSubmit] = useState(false);
     const formRef = useRef();
     const handleScroll = useCallback(
       (e) => {
@@ -391,6 +451,10 @@ const FormPage = memo(
         if (e.ctrlKey && e.key == "s") {
           e.preventDefault();
           e.stopPropagation();
+          if (submitable && !isDirty) {
+            setShowAlertBeforeSubmit(true);
+            return;
+          }
           const form = formRef.current;
 
           if (form) {
@@ -402,8 +466,19 @@ const FormPage = memo(
           }
         }
       },
-      [formRef],
+      [formRef, isDirty, submitable],
     );
+    const setData = useCallback(
+      (...args) => {
+        if (disabled) return;
+        _setData(...args);
+      },
+      [disabled, _setData],
+    );
+    const submit = useCallback(() => {
+      if (!submitable) new Error("This form not submitable!");
+      setShowAlertBeforeSubmit(true);
+    }, []);
 
     return (
       <AppLayout
@@ -418,6 +493,7 @@ const FormPage = memo(
             e.preventDefault();
             e.stopPropagation();
             if (disabled) return;
+            e.action = "update";
             onSubmit?.(e);
           }}
         >
@@ -427,13 +503,39 @@ const FormPage = memo(
               " transition-[top] duration-300 ease-in-out sticky z-10 flex items-center justify-between pt-4 pb-2 border-b gap-x-4 bg-background border-muted-foreground/25",
             )}
           >
+            <Head title={title} />
             <div className="flex items-center gap-x-2">
               {title && <h1 className="text-xl font-bold">{title}</h1>}
+              {isDirty && (
+                <span className="text-sm badge warning">
+                  {t("core.form.not_saved")}
+                </span>
+              )}
               {badge}
             </div>
-            {controls && (
-              <div className="flex items-center gap-x-2 ">{controls}</div>
-            )}
+            <div className="flex items-center gap-x-2 ">
+              {typeof controls === "function" ? controls() : controls}
+              {!disabled &&
+                (isDirty || !submitable ? (
+                  <Button
+                    type="submit"
+                    className="!p-2 size-fit h-8"
+                    disabled={processing}
+                  >
+                    <SaveIcon />
+                    {t("core.form.save")}
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    className="!p-2 size-fit h-8"
+                    disabled={processing}
+                    onClick={submit}
+                  >
+                    {t("core.form.submit")}
+                  </Button>
+                ))}
+            </div>
           </div>
           {errors && Object.keys(errors).length > 0 && (
             <div className="flex-col w-full mt-4 alert error">
@@ -458,9 +560,15 @@ const FormPage = memo(
               "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
             )}
           >
-            {!isCreate && <SidebarChildren content={sidebarContent} />}
+            {!isCreate && (
+              <SidebarChildren
+                content={sidebarContent}
+                hasConnections={hasConnections}
+              />
+            )}
             <FormChildren
               ref={ref}
+              disabled={disabled}
               className={className}
               showHeader={showHeader}
               errors={errors}
@@ -474,13 +582,75 @@ const FormPage = memo(
             {!isCreate && <BottombarChildren content={bottombarContent} />}
           </div>
         </form>
+        {submitable && (
+          <AlertDialog
+            open={showAlertBeforeSubmit}
+            onOpenChange={setShowAlertBeforeSubmit}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {t("core.form.confirmation_submit.title")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("core.form.confirmation_submit.subtitle")}
+                </AlertDialogDescription>
+                <AlertDialogFooter>
+                  <AlertDialogCancel
+                    className="h-8"
+                    onClick={() => setShowAlertBeforeSubmit(false)}
+                  >
+                    {t("core.form.confirmation_submit.cancel")}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="h-8"
+                    onClick={(e) => {
+                      setShowAlertBeforeSubmit(false);
+                      e.action = "submit";
+                      onSubmit?.(e);
+                    }}
+                  >
+                    {t("core.form.confirmation_submit.submit")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogHeader>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </AppLayout>
     );
   }),
 );
 
+const Connections = memo(
+  forwardRef(function Connections(_, ref) {
+    const { t } = useLaravelReactI18n();
+    return (
+      <WhenVisible
+        data={["connections"]}
+        fallback={() => (
+          <div className="!text-base font-normal text-foreground flex gap-x-4">
+            <LoadingIcon className="size-4" />
+            <span>{t("core.form.loading")} ...</span>
+          </div>
+        )}
+      >
+        <Accordion ref={ref}>
+          <AccordionItem value="test">
+            <AccordionTrigger></AccordionTrigger>
+            <AccordionContent></AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </WhenVisible>
+    );
+  }),
+);
+
 const SidebarChildren = memo(
-  forwardRef(function SidebarChildren({ content, className }, ref) {
+  forwardRef(function SidebarChildren(
+    { content, className, hasConnections },
+    ref,
+  ) {
     const defaultSidebarChildren = useMemo(() => {
       return (
         <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
@@ -490,6 +660,11 @@ const SidebarChildren = memo(
           <li role="forminput">
             <Tags />
           </li>
+          {hasConnections && (
+            <li>
+              <Connections />
+            </li>
+          )}
         </ul>
       );
     }, []);
@@ -580,12 +755,13 @@ const FormPageDialog = memo(
     const route = window.route;
     const {
       data,
-      setData,
+      setData: _setData,
       post,
       processing,
       errors,
       isDirty,
       recentlySuccessful,
+      clearErrors,
     } = useDraftForm(
       name,
       {},
@@ -596,6 +772,14 @@ const FormPageDialog = memo(
       },
     );
     const disabled = disabledProps ?? processing;
+
+    const setData = useCallback(
+      (...args) => {
+        if (disabled) return;
+        _setData(...args);
+      },
+      [disabled, _setData],
+    );
     const {
       setContinue,
 
@@ -630,6 +814,7 @@ const FormPageDialog = memo(
         setIsDirty(false);
         cancel();
         setData?.({});
+        clearErrors();
       });
       if (isDirty) {
         setShowAlert(true);
@@ -637,6 +822,7 @@ const FormPageDialog = memo(
         setShowAlert(false);
         onOpenChange(val);
         setData?.({});
+        clearErrors();
       }
     };
     useDidMountEffect(() => {
@@ -654,13 +840,14 @@ const FormPageDialog = memo(
     };
     return (
       <AlertDialog open={open}>
-        <AlertDialogContent className={cn(className, "pt-0")}>
+        <AlertDialogContent className={cn(className, "py-0 overflow-hidden")}>
           <form
             ref={formRef}
             onKeyDown={onKeyDown}
             onSubmit={_onSubmit}
             disabled={disabled}
             className={cn(
+              "max-h-screen overflow-y-hidden flex flex-col",
               disabled &&
                 " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
             )}
@@ -677,35 +864,38 @@ const FormPageDialog = memo(
               </AlertDialogTitle>
               <AlertDialogDescription className="sr-only"></AlertDialogDescription>
             </AlertDialogHeader>
-            {errors && Object.keys(errors).length > 0 && (
-              <div className="flex-col w-full mt-4 alert error">
-                <h3 className="text-base font-semibold">
-                  {t("core.form.errors.title")}
-                </h3>
-                <ul className="block pl-5">
-                  {Object.entries(errors).map(([key, value]) => (
-                    <li key={key} className="list-disc">
-                      {fieldNameTrans
-                        ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                        : value}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <FormChildren
-              ref={ref}
-              defaultMenu={defaultMenu}
-              className={className}
-              showHeader={false}
-              errors={errors}
-              fieldNameTrans={fieldNameTrans}
-              data={data}
-              setData={setData}
-            >
-              {children}
-            </FormChildren>
-            <AlertDialogFooter className="mt-4">
+            <div className="overflow-y-auto">
+              {errors && Object.keys(errors).length > 0 && (
+                <div className="flex-col w-full mt-4 alert error">
+                  <h3 className="text-base font-semibold">
+                    {t("core.form.errors.title")}
+                  </h3>
+                  <ul className="block pl-5">
+                    {Object.entries(errors).map(([key, value]) => (
+                      <li key={key} className="list-disc">
+                        {fieldNameTrans
+                          ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                          : value}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <FormChildren
+                ref={ref}
+                disabled={disabled}
+                defaultMenu={defaultMenu}
+                className={className}
+                showHeader={false}
+                errors={errors}
+                fieldNameTrans={fieldNameTrans}
+                data={data}
+                setData={setData}
+              >
+                {children}
+              </FormChildren>
+            </div>
+            <AlertDialogFooter className="pb-6 mt-4">
               <AlertDialogCancel className="h-8" onClick={() => onClose(false)}>
                 {t("core.form.cancel")}
               </AlertDialogCancel>
@@ -745,7 +935,7 @@ const FormPageLinkModelDialog = memo(
     const route = window.route;
     const {
       data,
-      setData,
+      setData: _setData,
       post,
       put,
       patch,
@@ -762,6 +952,13 @@ const FormPageLinkModelDialog = memo(
     }, [postOption.initialData]);
     const disabled = disabledProps ?? processing;
     const formRef = useRef();
+    const setData = useCallback(
+      (...args) => {
+        if (disabled) return;
+        _setData(...args);
+      },
+      [disabled, _setData],
+    );
     const onKeyDown = useCallback(
       (e) => {
         if (e.ctrlKey && e.key == "s") {
@@ -828,15 +1025,16 @@ const FormPageLinkModelDialog = memo(
     }, [recentlySuccessful]);
     return (
       <AlertDialog open={open}>
-        <AlertDialogContent className={cn(className, "pt-0")}>
+        <AlertDialogContent className={cn(className, "py-0 overflow-hidden")}>
           <form
             ref={formRef}
             onKeyDown={onKeyDown}
             onSubmit={_onSubmit}
             disabled={disabled}
             className={cn(
+              "max-h-screen overflow-y-hidden flex flex-col",
               disabled &&
-                " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
+                " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden ",
             )}
           >
             <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
@@ -851,35 +1049,39 @@ const FormPageLinkModelDialog = memo(
               </AlertDialogTitle>
               <AlertDialogDescription className="sr-only"></AlertDialogDescription>
             </AlertDialogHeader>
-            {errors && Object.keys(errors).length > 0 && (
-              <div className="flex-col w-full mt-4 alert error">
-                <h3 className="text-base font-semibold">
-                  {t("core.form.errors.title")}
-                </h3>
-                <ul className="block pl-5">
-                  {Object.entries(errors).map(([key, value]) => (
-                    <li key={key} className="list-disc">
-                      {fieldNameTrans
-                        ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                        : value}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            <FormChildren
-              ref={ref}
-              defaultMenu={defaultMenu}
-              className={className}
-              showHeader={false}
-              errors={errors}
-              fieldNameTrans={fieldNameTrans}
-              data={data}
-              setData={setData}
-            >
-              {children}
-            </FormChildren>
-            <AlertDialogFooter className="mt-4">
+            <div className="overflow-y-auto">
+              {errors && Object.keys(errors).length > 0 && (
+                <div className="flex-col w-full mt-4 alert error">
+                  <h3 className="text-base font-semibold">
+                    {t("core.form.errors.title")}
+                  </h3>
+                  <ul className="block pl-5">
+                    {Object.entries(errors).map(([key, value]) => (
+                      <li key={key} className="list-disc">
+                        {fieldNameTrans
+                          ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                          : value}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <FormChildren
+                ref={ref}
+                disabled={disabled}
+                defaultMenu={defaultMenu}
+                className={className}
+                showHeader={false}
+                errors={errors}
+                fieldNameTrans={fieldNameTrans}
+                data={data}
+                setData={setData}
+              >
+                {children}
+              </FormChildren>
+            </div>
+
+            <AlertDialogFooter className="pb-6 mt-4">
               <AlertDialogCancel className="h-8" onClick={() => onClose(false)}>
                 {t("core.form.cancel")}
               </AlertDialogCancel>
@@ -900,6 +1102,7 @@ const FormPageLinkModelDialog = memo(
 
 export {
   FormPage,
+  FormChildren,
   FormPageContent,
   FormPageContentTitle,
   FormPageContentDescription,

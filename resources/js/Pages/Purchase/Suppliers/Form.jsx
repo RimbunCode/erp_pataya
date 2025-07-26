@@ -1,4 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+import React, { useMemo } from "react";
 import {
   Select,
   SelectContent,
@@ -9,8 +10,9 @@ import {
 
 import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
 import FormInput from "@/Components/FormInput";
+import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
-import React, { useMemo } from "react";
+import SupplierLinkModel from "./SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -57,7 +59,26 @@ export default function Form() {
             onChange={(e) => setData("name", e.target.value)}
           />
         </FormInput>
-        <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+        <FormInput
+          label={t("purchase.supplier.columns.branch_of")}
+          required={false}
+          name="branch_of"
+          className="mt-4"
+        >
+          <SupplierLinkModel
+            disabled={data?.branches && data?.branches.length > 0}
+            value={data.branch_of}
+            onValueChange={(val) => setData("branch_of", val)}
+            filters={{
+              parent_id: null,
+              id: {
+                not: data?.id,
+                notIn: data?.branches?.map((x) => x.id) ?? [],
+              },
+            }}
+          />
+        </FormInput>
+        <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
             label={t("purchase.supplier.columns.email")}
             required={true}

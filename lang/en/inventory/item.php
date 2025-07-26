@@ -19,7 +19,7 @@ return [
   'columns' => [
     'sku' => 'SKU',
     'total_stock' => 'Total Stock',
-    'code' => 'Code',
+    'code' => 'Part No.',
     'name' => 'Name',
     'description' => 'Description',
     'category' => 'Category',
@@ -34,6 +34,7 @@ return [
       'true' => 'Disabled'
     ],
     'format_variant' => 'Format Variant',
+    'format_variant.placeholder' => 'Using "{" to display attributes',
     'attribute' => 'Attribute',
     'attribute.placeholder' => 'Select an attribute',
     'attribute_values' => 'Values',

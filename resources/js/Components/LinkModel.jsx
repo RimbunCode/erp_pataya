@@ -6,6 +6,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
@@ -25,8 +26,9 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function validateWithOperators(value, operators, logic = "and") {
   let result = false;
-  for (const key in operators) {
+  for (let key in operators) {
     const val = operators[key];
+    key = key.match(/^([^\[\]]+)/)?.[1] ?? key;
     switch (key) {
       case "and":
       case "or":
@@ -74,14 +76,21 @@ function validateWithOperators(value, operators, logic = "and") {
   return logic == "and";
 }
 function validate(value, filters, logic = "and") {
-  if (!filters || typeof filters !== "object" || Array.isArray(filters))
+  if (!filters || typeof filters !== "object" || Array.isArray(filters)) {
     return true;
+  }
 
-  for (const key in filters) {
+  for (let key in filters) {
     const val = filters[key];
+    key = key.match(/^([^\[\]]+)/)?.[1] ?? key;
+    // key = (key.match(/^raw\((.+)\)$/)?.[1] ?? key).split(".").pop();
     let result = false;
-    if (key === "and" || key === "or") {
+    if (/^raw\((.+)\)$/.test(key)) {
+      result = true;
+    } else if (key === "and" || key === "or") {
       result = validate(value, val, key);
+    } else if (val === undefined) {
+      result = true;
     } else if (Array.isArray(val)) {
       result = JSON.stringify(value[key]) === JSON.stringify(val);
     } else if (typeof val !== "object" || val === null) {
@@ -107,10 +116,13 @@ function validate(value, filters, logic = "and") {
  * @param props.model
  * @param props.limit
  * @param props.filters
+ * @param props.joins
+ * @param props.keywords
  */
 export default memo(
   forwardRef(function LinkModel(
     {
+      as,
       value,
       onValueChange,
       placeholder,
@@ -121,6 +133,8 @@ export default memo(
       model,
       limit,
       filters,
+      joins,
+      keywords,
       titleDialog,
       classNameDialog,
       disabledNavigation,
@@ -128,32 +142,48 @@ export default memo(
       form,
       postOption,
       onKeyDown,
+      with: _with,
+      order,
     },
     ref,
   ) {
     const { t } = useLaravelReactI18n();
     const [open, setOpen] = useState(false);
-    const [option, _setOption] = useState(value);
+    const [_option, _setOption] = useState(value);
     const [search, setSearch] = useState("");
     const [options, setOptions] = useState([]);
     const [allowSearch, setAllowSearch] = useState(true);
     const [loading, setLoading] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
-    const name = model.split("\\").pop().toLowerCase();
+    const { name, keyRoute } = useMemo(() => {
+      if (as) {
+        const [name, keyRoute] = as.split(":");
+        return { name: name.toLowerCase(), keyRoute };
+      }
+      return {
+        name: model.split("\\").pop().toLowerCase(),
+        keyRoute: "id",
+      };
+    }, [as, model]);
+    // const name = (as || model.split("\\").pop()).toLowerCase();
     const route = window.route;
     const commandRef = useDetectClickOutside({
       onTriggered: () => {
         setOpen(false);
       },
     });
+    const option = value ?? _option;
 
     const convertTemplateLink = useCallback((value, search) => {
       const template = value.templateLink ?? "";
-
-      let item = template.replace(/:(\w[\w.]*)/g, (match) => {
-        const newValue = getValueObject(value, match.substring(1));
-        return newValue || match;
-      });
+      let item = template.replace(
+        /:((\w[\w]+{:[\w]+})|(\w[\w.]+))/g,
+        (match) => {
+          match = match.replace(/(.*?){:(.*?)}/i, ":$2");
+          const newValue = getValueObject(value, match.substring(1));
+          return newValue || match;
+        },
+      );
       if (search == null) {
         const titleMatch = item.match(/<title(.*?)>(.*?)<\/title>/i);
         const plainTextMatch = item.match(/^[^<]+/g);
@@ -165,7 +195,7 @@ export default memo(
             : "";
       }
 
-      item = item.replace(/<title(.*?)>(.*?)<\/title>/gi, "<b$1>$2</b>");
+      item = item.replace(/<title(.*?)>(.*?)<\/title>/gi, "");
 
       let searchWords =
         search
@@ -197,7 +227,7 @@ export default memo(
     );
 
     useEffect(() => {
-      if (!open && !option) {
+      if (!open && !option && search) {
         const findOption = options.find(
           (x) => convertTemplateLink(x).toLowerCase() == search.toLowerCase(),
         );
@@ -219,6 +249,7 @@ export default memo(
         setSearch("");
       }
     }, [option]);
+
     useEffect(() => {
       if (!(option || value)) return;
       const isValid = validate(option || value, filters);
@@ -227,13 +258,18 @@ export default memo(
         setOption(null);
       }
     }, [filters]);
+
     const getModels = () => {
       axios
         .post(route("model"), {
           model,
           limit: limit ?? 10,
           search: search,
+          with: _with,
           filters,
+          joins,
+          keywords,
+          order,
         })
         .then((res) => {
           setOptions(res.data);
@@ -280,14 +316,14 @@ export default memo(
     return (
       <Popover open={open} onOpenChange={() => {}}>
         <Command
-          className="relative h-auto overflow-visible bg-transparent"
+          className="relative h-full overflow-visible bg-transparent"
           ref={commandRef}
           loop
         >
           <PopoverTrigger
             asChild
             className={cn(
-              "flex h-8 bg-muted overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+              "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
               disabled && "cursor-not-allowed opacity-50",
               className,
             )}
@@ -298,9 +334,9 @@ export default memo(
                 disabled={disabled}
                 readOnly={readOnly}
                 onKeyDown={onInputKeyDown}
-                onDoubleClick={(e) => {
+                onClick={(e) => {
                   e.preventDefault();
-                  if (!option) {
+                  if (!option || !search) {
                     setOpen(true);
                     getModels();
                   }
@@ -324,12 +360,17 @@ export default memo(
                     size="icon"
                     className={cn(
                       "size-6 hidden",
-                      option && "group-focus-within/model:inline-flex",
+                      option &&
+                        search &&
+                        "group-focus-within/model:inline-flex",
                     )}
                     onClick={() => {
-                      if (!name || !option) return;
+                      if (!name || !option || !search) return;
                       const pluralized = `${pluralize.plural(name ?? "")}.show`;
-                      window.open(route(pluralized, option.id), "_blank");
+                      window.open(
+                        route(pluralized, option[keyRoute ?? "id"]),
+                        "_blank",
+                      );
                     }}
                   >
                     <ArrowRight className="size-3" />
@@ -358,7 +399,7 @@ export default memo(
               onOpenAutoFocus={(e) => e.preventDefault()}
               align="start"
               side="bottom"
-              className="relative z-50  w-[--radix-popover-trigger-width] p-0 "
+              className="relative z-50 w-auto  min-w-[--radix-popover-trigger-width] p-0 "
               forceMount
               asChild
             >

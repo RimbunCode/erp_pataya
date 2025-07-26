@@ -11,7 +11,7 @@ import {
 import { memo, useEffect } from "react";
 
 import { Toaster } from "@/Components/ui/sonner";
-import Toasts from "@/Components/Toasts";
+import { TooltipProvider } from "@/Components/ui/tooltip";
 import { useAlertDraftForm } from "@/Hooks/useDraftForm";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -99,7 +99,7 @@ const MasterLayout = memo(({ children }) => {
   } = useIsDirtyForm();
   return (
     <>
-      {children}
+      <TooltipProvider>{children}</TooltipProvider>
       <Toaster />
       <AlertDialog
         open={showAlertDirtyForm}

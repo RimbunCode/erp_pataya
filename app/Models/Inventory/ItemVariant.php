@@ -4,6 +4,7 @@ namespace App\Models\Inventory;
 
 use App\Models\Core\Branch;
 use App\Models\Model;
+use App\Services\Inventory\ItemServices;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -13,7 +14,7 @@ use Inertia\Inertia;
 
 class ItemVariant extends Model {
   use HasUlids, SoftDeletes, DataTable;
-  public $valueBreadcrumb = 'sku';
+  public $keyBreadcrumb = 'sku';
   public $aliasBreadcrumb = 'Variant';
   protected $guarded = ['id'];
   protected $appends = ['sku'];
@@ -23,20 +24,13 @@ class ItemVariant extends Model {
   ];
   public function sku(): Attribute {
     return new Attribute(
-      get: function ($value) {
-        if ($this->format_variant === null || $this->format_variant === '') {
-          return null;
-        }
-        $data = array_combine(array_column($this->values->toArray(), 'attribute_id'), array_column($this->values->toArray(), 'value'));
-        $data['item'] = $this->item_code ?? $this->item->code;
-        $result = preg_replace_callback('/@\[(.*?)\]\((.*?)\)/', function ($matches) use ($data) {
-          $key = $matches[1];
-          $id = $matches[2];
-          return $data[$key] ?? ($data[$id] ?? $matches[0]);
-        }, $this->format_variant ?? $this->item->format_variant);
-        return $result;
+      get: function () {
+        return ItemServices::getSku($this);
       }
     );
+  }
+  public static function templateLink() {
+    return "<title>:code - :item_name</title><b>:code</b><br/><span>:item_name</span>";
   }
   public function values() {
     return $this->hasMany(ItemVariantAttribute::class, 'item_variant_id', 'id');
@@ -46,6 +40,15 @@ class ItemVariant extends Model {
   }
   public function stocks() {
     return $this->hasMany(Stock::class, 'item_variant_id', 'id');
+  }
+  public function defaultUnit() {
+    return $this->belongsTo(Unit::class, 'default_unit_id');
+  }
+  public function uom() {
+    return $this->hasMany(ItemUnit::class, 'item_id', 'id');
+  }
+  public function category() {
+    return $this->belongsTo(Category::class);
   }
 
   public function showStocks() {

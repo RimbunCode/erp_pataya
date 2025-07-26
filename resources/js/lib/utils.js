@@ -7,6 +7,9 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
+export function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
 export function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
 
@@ -167,4 +170,20 @@ export function getValueObject(obj, key) {
   const keys = key.split(".");
   const newValue = keys.reduce((x, y) => x[y], obj);
   return newValue;
+}
+
+export function getThemeByStatus(status) {
+  switch (status) {
+    case "submitted":
+      return "primary";
+    case "pending":
+      return "warning";
+    case "approved":
+      return "success";
+    case "rejected":
+      return "error";
+    case "draft":
+    default:
+      return "secondary";
+  }
 }

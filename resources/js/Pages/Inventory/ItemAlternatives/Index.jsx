@@ -11,6 +11,7 @@ import {
 import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
+import { Checkbox } from "@/Components/ui/checkbox";
 import DataTable from "@/Pages/Core/DataTable";
 import Form from "./Form";
 import { FormPageDialog } from "@/Pages/Core/FormPage";
@@ -68,6 +69,20 @@ export default function Index({ lang }) {
           </Link>
         ),
       },
+      {
+        titleTrans: "inventory.itemAlternative.columns.two_way",
+        name: "two_way",
+        searchType: "boolean",
+        sortable: true,
+        resizeable: true,
+        cell: ({ dataRow }) => (
+          <Checkbox
+            checked={dataRow.two_way}
+            readOnly
+            className="cursor-default"
+          />
+        ),
+      },
     ],
     [lang],
   );
@@ -102,10 +117,17 @@ export default function Index({ lang }) {
               href={route("itemAlternatives.show", dataRow.id)}
               className=""
             >
-              <p className="text-base font-medium text-left text-muted-foreground">
-                {t(`inventory.itemAlternative.types.${dataRow.type}`)}
+              {dataRow.two_way && (
+                <span className="mb-1 -ml-2 text-xs badge primary">
+                  {t("inventory.itemAlternative.columns.two_way")}
+                </span>
+              )}
+              <p className="text-base font-medium text-left">
+                {dataRow.item_code}
               </p>
-              <p className="text-base font-medium text-left">{dataRow.name}</p>
+              <p className="text-sm font-medium text-left text-muted-foreground">
+                {dataRow.alternative_code}
+              </p>
             </Link>
 
             <Button

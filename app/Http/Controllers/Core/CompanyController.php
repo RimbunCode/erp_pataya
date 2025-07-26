@@ -19,9 +19,12 @@ class CompanyController extends Controller {
   public function index() {
     $preferences = Preference::get(['key', 'value']);
     $preferences = $preferences->mapWithKeys(fn($pref) => [$pref->key => $pref->value]);
+
     return Inertia::render('Settings/Company', [
-      'preferences' => $preferences->toArray(),
-      'currencies' => fn() => Currency::all()->toArray(),
+      'company' => $preferences->toArray(),
+      'currencies' => Inertia::defer(function () {
+        return Currency::all()->toArray();
+      }),
       'countries' => Inertia::defer(function () {
         return Country::all();
       }),
@@ -31,10 +34,7 @@ class CompanyController extends Controller {
     ]);
   }
 
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(Request $request) {
+  public function update(Request $request) {
     $preferences = $request->all();
     DB::beginTransaction();
     foreach ($preferences as $key => $value) {

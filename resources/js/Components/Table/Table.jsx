@@ -95,7 +95,6 @@ function Table({
   setSort,
   resetSorting,
 }) {
-  const route = window.route;
   const { t } = useLaravelReactI18n();
   const [data, setData] = useState(initialData);
   useDidMountEffect(() => {

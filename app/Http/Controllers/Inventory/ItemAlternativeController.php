@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\ItemAlternativeRequest;
 use App\Models\Inventory\ItemAlternative;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -19,8 +20,8 @@ class ItemAlternativeController extends Controller {
    */
   public function index(Request $request) {
     $this->setBreadcrumbs();
-    ItemAlternative::leftJoin('items as item', 'item.id', '=', 'item_alternatives.item_id')
-      ->leftJoin('items as alternative', 'alternative.id', '=', 'item_alternatives.alternative_item_id')
+    ItemAlternative::leftJoin('item_variants as item', 'item.id', '=', 'item_alternatives.item_id')
+      ->leftJoin('item_variants as alternative', 'alternative.id', '=', 'item_alternatives.alternative_item_id')
       ->select(['item.code as item_code', 'alternative.code as alternative_code'])
       ->dataTable($request);
     return Inertia::render('Inventory/ItemAlternatives/Index');
@@ -62,9 +63,12 @@ class ItemAlternativeController extends Controller {
   public function show(ItemAlternative $itemAlternative) {
     $this->setBreadcrumbs($itemAlternative);
     $itemAlternative->showDetail();
-    return Inertia::render('Inventory/ItemAlternatives/Show', [
-      'itemAlternative' => $itemAlternative,
-    ]);
+    return $this->renderShow(
+      'Inventory/ItemAlternatives/Form',
+      'itemAlternative',
+      $itemAlternative->item->code,
+      $itemAlternative
+    );
   }
 
   /**

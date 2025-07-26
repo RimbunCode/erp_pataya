@@ -13,6 +13,8 @@ return new class extends Migration {
       $table->ulid('id')->primary();
       $table->longText('activity');
       $table->string('type')->default('log');
+      $table->json("data_before")->nullable();
+      $table->json("data_after")->nullable();
       $table->ulidMorphs('loggable');
       $table->foreignUlid('user_id')->nullable()->references('id')->on('users')->cascadeOnDelete();
       $table->timestamps();

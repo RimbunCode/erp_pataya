@@ -8,6 +8,7 @@ import { Button } from "./ui/button";
 import { Calendar } from "./ui/calendar";
 import { TimePickerInput } from "./TimePicker/time-picker-input";
 import { format } from "date-fns";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 export default React.memo(function DatetimePicker({
@@ -19,6 +20,7 @@ export default React.memo(function DatetimePicker({
   value: valueProps,
   onValueChange,
 }) {
+  const { t } = useLaravelReactI18n();
   const lang = usePage().props.lang;
   const [_value, _setValue] = React.useState();
   const minuteRef = React.useRef();
@@ -26,6 +28,7 @@ export default React.memo(function DatetimePicker({
 
   const value = valueProps ?? _value;
   const setValue = (value) => {
+    value = value instanceof Date ? value?.toISOString() : value;
     if (valueProps != null) {
       onValueChange(value);
       return;
@@ -35,10 +38,14 @@ export default React.memo(function DatetimePicker({
 
   const setDate = (dateInput) => {
     const date = new Date(value);
+    if (!dateInput) {
+      setValue(date);
+      return;
+    }
     date.setDate(dateInput.getDate());
     date.setMonth(dateInput.getMonth());
     date.setFullYear(dateInput.getFullYear());
-    setValue(date, value);
+    setValue(date);
   };
   const setTime = (dateInput) => {
     if (!dateInput) return;
@@ -104,7 +111,7 @@ export default React.memo(function DatetimePicker({
           fromYear={fromYear}
           toYear={toYear}
           mode={type == "daterange" ? "range" : "single"}
-          defaultMonth={Date.now()}
+          defaultMonth={new Date()}
           selected={value}
           onSelect={(val) => {
             type == "daterange" ? setValue(val) : setDate(val);
@@ -113,11 +120,10 @@ export default React.memo(function DatetimePicker({
         />
         {type == "datetime" && (
           <>
-            <hr className="my-0" />
             <div className="flex justify-between px-3 py-2">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Clock className="w-5 h-5" />
-                <p className="text-sm font-medium">Time</p>
+                <p className="text-sm font-medium">{t("core.form.time")}</p>
               </div>
               <div className="font-medium">
                 <div className="flex items-center gap-2">
@@ -138,6 +144,21 @@ export default React.memo(function DatetimePicker({
                   />
                 </div>
               </div>
+            </div>
+          </>
+        )}
+        {(type == "datetime" || type == "date") && (
+          <>
+            <hr className="my-0" />
+            <div className="flex justify-between px-3 py-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full h-8"
+                onClick={() => setValue(new Date())}
+              >
+                {type == "date" ? t("core.form.today") : t("core.form.now")}
+              </Button>
             </div>
           </>
         )}

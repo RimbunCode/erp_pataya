@@ -12,7 +12,7 @@ class ItemAlternative extends Model {
 
   protected $with = ['item', 'alternative'];
   protected $guarded = ['id'];
-  public $valueBreadcrumb = 'item.code';
+  public $keyBreadcrumb = 'item.code';
   protected $casts = [
     'two_way' => 'boolean',
   ];
@@ -21,9 +21,9 @@ class ItemAlternative extends Model {
   }
 
   public function item() {
-    return $this->belongsTo(Item::class, 'item_id', 'id');
+    return $this->belongsTo(ItemVariant::class, 'item_id', 'id');
   }
   public function alternative() {
-    return $this->belongsTo(Item::class, 'alternative_item_id', 'id');
+    return $this->belongsTo(ItemVariant::class, 'alternative_item_id', 'id');
   }
 }

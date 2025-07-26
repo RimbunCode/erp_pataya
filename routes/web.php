@@ -1,14 +1,12 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Foundation\Application;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
 
-Route::macro('resourceDetail', function ($name, $controller, $nestedShow = null) {
+Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable = false, $nestedShow = null) {
   $uri = \Illuminate\Support\Str::plural($name);
-  Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name, $nestedShow) {
+  Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name, $nestedShow, $isSubmmitable) {
     Route::get("/", "index")->name("$uri.index");
     Route::post("/", "store")->name("$uri.store");
     Route::get("/create", "create")->name("$uri.create");
@@ -17,6 +15,9 @@ Route::macro('resourceDetail', function ($name, $controller, $nestedShow = null)
     }
     Route::get("/{{$name}}", "show")->name("$uri.show");
     Route::put("/{{$name}}", "update")->name("$uri.update");
+    if ($isSubmmitable) {
+      Route::put("/{{$name}}/submit", "submit")->name("$uri.submit");
+    }
     Route::delete("/{{$name}}", "destroy")->name("$uri.destroy");
 
     Route::post("/{{$name}}/comment", "addComment")->name("$uri.addComment");
@@ -39,15 +40,16 @@ Route::get('/', function () {
 // Languages
 Route::controller(\App\Http\Controllers\Core\LanguageController::class)->group(function () {
   Route::get('/lang', 'index')->name('lang.index');
-  Route::post('/lang', 'set')->name('lang.set');
+  Route::post('/lang', action: 'set')->name('lang.set');
 });
 
 // Route for Preview Image
 Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'preview'])->name('files.preview');
 // Get Data from Model Direct
 Route::post('/model', \App\Http\Controllers\ModelController::class)
-  ->middleware(['auth'])
+  ->middleware(middleware: ['auth'])
   ->name('model');
+
 Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Branch Switcher
   Route::put('/switch_branch/{id}', [\App\Http\Controllers\Core\BranchController::class, 'switch'])->name('branch.switch');
@@ -58,9 +60,13 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Settings
   Route::prefix('/settings')->group(function () {
     // Company
-    Route::resource('company', \App\Http\Controllers\Core\CompanyController::class)->only(['index', 'store']);
+    Route::controller(\App\Http\Controllers\Core\CompanyController::class)->group(function () {
+      Route::get('company', 'index')->name('companies.index');
+      Route::put('company', 'update')->name('companies.update');
+    });
     // Branches
     Route::resourceDetail('branch', \App\Http\Controllers\Core\BranchController::class);
+    Route::resourceDetail('formatingSeries', \App\Http\Controllers\Core\FormatingSeriesController::class);
   });
   // Tags
   Route::resourceDetail('tag', \App\Http\Controllers\Core\TagController::class);
@@ -88,6 +94,12 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('attribute', \App\Http\Controllers\Inventory\AttributeController::class);
   // Supplier
   Route::resourceDetail('supplier', \App\Http\Controllers\Purchase\SupplierController::class);
+  // Customer
+  Route::resourceDetail('customer', \App\Http\Controllers\Sales\CustomerController::class);
+  /// Service Group
+  // Work Order
+  Route::resourceDetail('workOrder', \App\Http\Controllers\Service\WorkOrderController::class, isSubmmitable: true);
+  /// Service Group End
 });
 
 require __DIR__ . '/auth.php';

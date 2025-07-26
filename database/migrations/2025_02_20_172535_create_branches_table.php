@@ -11,6 +11,7 @@ return new class extends Migration {
   public function up(): void {
     Schema::create('branches', function (Blueprint $table) {
       $table->ulid('id')->primary();
+      $table->string('code')->nullable();
       $table->string('name');
       $table->nullableUlidMorphs('branchable');
       $table->boolean('is_main_branch')->default(false);

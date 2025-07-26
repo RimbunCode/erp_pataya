@@ -51,6 +51,9 @@ class ItemRequest extends FormRequest {
         'max:255',
       ],
       'variants.*.values' => ['required', 'array', 'min:1'],
+      'barcodes' => ['nullable', 'array'],
+      'barcodes.*.barcode' => ['required', 'string', 'min:3', 'max:255'],
+      'barcodes.*.unit.id' => ['required', 'string', 'exists:units,id'],
     ];
   }
 }

@@ -61,14 +61,17 @@ export default function Index({ lang }) {
         searchType: "text",
         sortable: true,
         resizeable: true,
-        cell: ({ dataRow }) => (
-          <Link
-            className="hover:underline"
-            href={dataRow.id ? route("items.show", dataRow.id) : ""}
-          >
-            {dataRow.name}
-          </Link>
-        ),
+        cell: ({ dataRow }) => {
+          console.log(dataRow);
+          return (
+            <Link
+              className="hover:underline"
+              href={dataRow.id ? route("items.show", dataRow.id) : ""}
+            >
+              {dataRow.name}
+            </Link>
+          );
+        },
       },
       {
         titleTrans: "inventory.item.columns.category",

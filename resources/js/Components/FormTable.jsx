@@ -1,4 +1,16 @@
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
+import {
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogFooter,
+} from "./ui/alert-dialog";
+import {
   ArrowDownIcon,
   ArrowUpIcon,
   CopyIcon,
@@ -45,6 +57,7 @@ import { cn, generateRandom, getCookieByName, setCookie } from "@/lib/utils";
 import { Button } from "./ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { FormCheckbox } from "./ui/checkbox";
+import { FormChildren } from "@/Pages/Core/FormPage";
 import FormInput from "./FormInput";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -57,21 +70,48 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 const FORMTABLE_COLUMNS_KEY = "formtable-columns";
 const FORMTABLE_COLUMNS_EXPIRED = 7;
 
+const Wrapper = memo(({ children, isDialog }) => {
+  if (isDialog) return <>{children}</>;
+  else
+    return (
+      <div className="focus-within:border-0 focus-within:ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1 h-full focus-visible:ring-offset-1 m-0.5">
+        {children}
+      </div>
+    );
+});
+
+Wrapper.displayName = "Wrapper";
 const Cell = memo(
   forwardRef(
     (
-      { index, item, col, isLast, updateData, readonly, className, ...props },
+      {
+        index,
+        item,
+        col,
+        isLast,
+        updateData,
+        readOnly,
+        disabled,
+        className,
+        onOpenDialog,
+        defaultValueRow,
+        isDialog,
+        ...props
+      },
       ref,
     ) => {
       if (!item) return;
       const attributes = {
         ...props,
         ...col.props,
-        readOnly: readonly || col.readonly || false,
+        readOnly: readOnly || disabled || col.readOnly || false,
         required:
-          (Object.keys(item ?? {}).length > 1 || !isLast) && col.required,
+          (Object.keys(item ?? {}).length >
+            Object.keys(defaultValueRow ?? {}).length + 1 ||
+            !isLast) &&
+          col.required,
         name: col.name,
-        className: cn(className, col.props?.className),
+        className: cn(!isDialog && "h-full", className, col.props?.className),
         ref,
       };
       if (col.cell) {
@@ -81,13 +121,17 @@ const Cell = memo(
             data: item[col.name],
             setData: (key, value) => updateData(index, key, value),
             attributes,
+            openDialog: onOpenDialog ?? (() => {}),
+            isEmpty:
+              Object.keys(item).length <=
+              Object.keys(defaultValueRow ?? {}).length + 1,
           },
           index,
         );
       }
       switch (col.type) {
         default:
-          return (
+          return isDialog ? (
             <Input
               type={col.type ?? "text"}
               value={col.name ? (item[col.name] ?? "") : ""}
@@ -99,12 +143,42 @@ const Cell = memo(
                 );
               }}
               {...attributes}
+              className={cn(
+                attributes.className,
+                !isDialog &&
+                  "m-0 !bg-transparent !border-0 h-full focus-visible:!ring-0 focus-visible:!ring-offset-0",
+              )}
               // onBlur={(e) => {
               //   if (!e.target.value) return;
               //   e.target.value = null;
               //   e.target.focus();
               // }}
             />
+          ) : (
+            <div className="w-full focus-within:border-0 focus-within:ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-0 h-full focus-visible:ring-offset-1 m-0.5">
+              <Input
+                type={col.type ?? "text"}
+                value={col.name ? (item[col.name] ?? "") : ""}
+                onChange={(e) => {
+                  updateData(
+                    index,
+                    col.name,
+                    col.type == "number" ? +e.target.value : e.target.value,
+                  );
+                }}
+                {...attributes}
+                className={cn(
+                  attributes.className,
+                  !isDialog &&
+                    "m-0 !bg-transparent !border-0 h-full focus-visible:!ring-0 focus-visible:!ring-offset-0",
+                )}
+                // onBlur={(e) => {
+                //   if (!e.target.value) return;
+                //   e.target.value = null;
+                //   e.target.focus();
+                // }}
+              />
+            </div>
           );
       }
     },
@@ -119,10 +193,13 @@ const FormTableItem = memo(function FormTableItem({
   setRef,
   cellOnKeyDown,
   updateData,
+  submitable,
   setCurrentIndex,
+  setCurrentData,
   deleteRow,
-  readonly,
+  readOnly,
   className,
+  defaultValueRow,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id });
@@ -136,15 +213,18 @@ const FormTableItem = memo(function FormTableItem({
       ref={setNodeRef}
       style={style}
       className={cn(
-        "grid group col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base",
+        "grid group min-h-10 col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base",
         className,
       )}
     >
       <div className="px-2 !justify-center text-left ">
         <span
           className={cn(
-            !(Object.keys(item).length <= 1 && isLast) &&
-              !readonly &&
+            !(
+              Object.keys(item).length <=
+                Object.keys(defaultValueRow ?? {}).length + 1 && isLast
+            ) &&
+              !readOnly &&
               "group-hover:hidden",
           )}
         >
@@ -152,8 +232,11 @@ const FormTableItem = memo(function FormTableItem({
         </span>
         <button
           className={cn(
-            "hidden cursor-move group-hover:inline",
-            ((Object.keys(item).length <= 1 && isLast) || readonly) &&
+            "hidden cursor-move group-hover:inline ",
+            ((Object.keys(item).length <=
+              Object.keys(defaultValueRow ?? {}).length + 1 &&
+              isLast) ||
+              readOnly) &&
               "!hidden",
           )}
           type="button"
@@ -166,14 +249,19 @@ const FormTableItem = memo(function FormTableItem({
       {columns &&
         columns.map((col) => {
           return (
-            <div key={col.name} className="">
+            <div key={col.name} className="has-[.custom-cell]:!block">
               <Cell
+                onOpenDialog={() => {
+                  setCurrentIndex(index);
+                  if (submitable) setCurrentData(item);
+                }}
                 ref={setRef(`${item.id}-${col.name}`)}
-                readonly={readonly}
+                readOnly={readOnly}
                 index={index}
                 item={item}
                 col={col}
                 isLast={isLast}
+                defaultValueRow={defaultValueRow}
                 onKeyDown={(e) => cellOnKeyDown(e, index, col.name)}
                 updateData={updateData}
                 className="rounded-none border-0 focus-visible:ring-offset-1 bg-background m-0.5"
@@ -186,19 +274,25 @@ const FormTableItem = memo(function FormTableItem({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-6"
-          onClick={() => setCurrentIndex(index)}
+          className="size-6 !pointer-events-auto"
+          onClick={() => {
+            setCurrentIndex(index);
+            if (submitable) setCurrentData(item);
+          }}
         >
           <PencilIcon className="size-3" />
         </Button>
-        {!readonly && (
+        {!readOnly && (
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className={cn(
               "size-6",
-              Object.keys(item).length <= 1 && isLast && "hidden",
+              Object.keys(item).length <=
+                Object.keys(defaultValueRow ?? {}).length + 1 &&
+                isLast &&
+                "hidden",
             )}
             onClick={() => deleteRow(index)}
           >
@@ -283,13 +377,17 @@ const createHeaders = (headers, reset) => {
  */
 export default memo(function FormTable({
   label,
+  disabled,
   description,
   ignoreDisabled = false,
-  readonly = false,
+  readOnly = false,
   className,
   columns: columnsProps,
   value,
   onValueChange,
+  defaultValueRow,
+  form,
+  submitable = false,
 }) {
   if (!columnsProps) {
     throw new Error("columns is required");
@@ -298,6 +396,7 @@ export default memo(function FormTable({
   const [columns, setColumns] = useState(createHeaders(columnsProps));
   const { t } = useLaravelReactI18n();
   const [currentIndex, setCurrentIndex] = useState(-1);
+  const [currentData, setCurrentData] = useState(null);
   const [getRef, setRef] = useDynamicRefs();
   const isMobile = useIsMobile();
   const prevValueRef = useRef(value); // Simpan `value` sebelumnya untuk mencegah loop
@@ -348,33 +447,67 @@ export default memo(function FormTable({
     [columns],
   );
   const [_data, _setData] = useState(() =>
-    readonly
+    readOnly || disabled
       ? value
       : [
-          ...value.map((x) => ({ ...x, id: x.id ?? generateRandom(5) })),
-          { id: generateRandom(5) }, // Row kosong selalu ada di akhir
+          ...value.map((x) => ({
+            ...(defaultValueRow ?? {}),
+            ...x,
+            id: x.id ?? generateRandom(5),
+          })),
+          { id: generateRandom(5), ...(defaultValueRow ?? {}) }, // Row kosong selalu ada di akhir
         ],
   );
+
+  const getColumn = (name, attributes) => {
+    const col = columns.find((x) => x.name === name);
+    if (!col) return null;
+
+    return (
+      <FormInput
+        key={`${_data[currentIndex]?.id}-${col.name}`}
+        required={col.required}
+        label={col.titleTrans ? t(col.titleTrans) : col.title}
+        name={col.name}
+      >
+        <Cell
+          isDialog
+          defaultValueRow={defaultValueRow}
+          readOnly={readOnly}
+          disabled={disabled}
+          index={currentIndex}
+          item={_data[currentIndex]}
+          col={col}
+          updateData={updateData}
+          {...attributes}
+        />
+      </FormInput>
+    );
+  };
 
   // Sinkronisasi data lokal hanya jika `value` berubah dari parent
   useEffect(() => {
     if (!isEqual(value, prevValueRef.current)) {
       prevValueRef.current = value;
-      if (readonly) {
+      if (readOnly || disabled) {
         _setData([...value]);
         return;
       }
       _setData([
-        ...value.map((x) => ({ ...x, id: x.id ?? generateRandom(5) })),
-        { id: generateRandom(5) }, // Pastikan ada row kosong
+        ...value.map((x) => ({
+          ...(defaultValueRow ?? {}),
+          ...x,
+          id: x.id ?? generateRandom(5),
+        })),
+        { ...(defaultValueRow ?? {}), id: generateRandom(5) }, // Pastikan ada row kosong
       ]);
     }
-  }, [value, readonly]);
+  }, [value, readOnly, disabled]);
 
   // Kirim perubahan ke parent hanya jika ada perubahan nyata
   useEffect(() => {
     if (onValueChange) {
-      const filteredData = readonly ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
+      const filteredData = readOnly || disabled ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
       if (!isEqual(filteredData, prevValueRef.current)) {
         prevValueRef.current = filteredData;
         onValueChange(filteredData);
@@ -382,22 +515,70 @@ export default memo(function FormTable({
     }
   }, [_data, value, onValueChange]);
 
+  // Memperbarui data current
+  const updateDataCurrent = useCallback((key, newValue) => {
+    setCurrentData((prevData) => {
+      const payload =
+        typeof key === "string" || typeof key === "number"
+          ? { [key]: newValue }
+          : key;
+      return {
+        ...prevData,
+        id: prevData?.id ?? generateRandom(5),
+        ...payload,
+      };
+    });
+  }, []);
+
   // Memperbarui data di index tertentu
   const updateData = useCallback((index, key, newValue) => {
     _setData((prevData) => {
+      if (
+        !(readOnly || disabled) &&
+        index === prevData.length - 1 &&
+        key == null
+      )
+        return prevData;
       let newData = [...prevData];
 
       if (!newData[index]) return prevData;
 
+      const payload =
+        typeof key === "string" || typeof key === "number"
+          ? { [key]: newValue }
+          : key;
+
+      if (payload == null) {
+        console.log(payload, index, newData[index]);
+        if (newData[index].id.length <= 5) {
+          return prevData;
+        }
+        newData[index] = {
+          ...(defaultValueRow ?? {}),
+          id: generateRandom(5),
+        };
+        return newData;
+      }
+
+      if (index === newData.length - 1 && !readOnly) {
+        const isDuplicate = newData.some((x, idx) => {
+          if (idx == index) return false;
+          if (x.id == (payload.id ?? newData[index].id)) return true;
+          return false;
+        });
+        if (isDuplicate) return prevData;
+      }
+
       newData[index] = {
+        ...(defaultValueRow ?? {}),
         ...newData[index],
         id: newData[index]?.id ?? generateRandom(5),
-        [key]: newValue,
+        ...payload,
       };
 
       // Jika mengubah row terakhir, tambahkan row kosong baru
-      if (index === newData.length - 1 && !readonly) {
-        newData.push({ id: generateRandom(5) });
+      if (index === newData.length - 1 && !readOnly) {
+        newData.push({ ...(defaultValueRow ?? {}), id: generateRandom(5) });
       }
 
       return newData;
@@ -408,6 +589,7 @@ export default memo(function FormTable({
       const newData = [...prev];
       newData.splice(index, 0, { id: generateRandom(5) });
       setCurrentIndex(index);
+      if (submitable) setCurrentData(newData[index]);
       return newData;
     });
   }, []);
@@ -415,17 +597,23 @@ export default memo(function FormTable({
     _setData((prev) => {
       const newData = [...prev];
       newData.splice(index + 1, 0, {
+        ...(defaultValueRow ?? {}),
         ...newData[index],
         id: generateRandom(5),
       });
       setCurrentIndex(index + 1);
+      if (submitable) setCurrentData(newData[index + 1]);
       return newData;
     });
   });
   const deleteRow = useCallback((index) => {
     _setData((prev) => {
       const newData = [...prev];
+      if (index === newData.length - 1 && !readOnly) {
+        return newData;
+      }
       newData.splice(index, 1);
+      if (submitable) setCurrentData(newData[currentIndex]);
       return newData;
     });
   }, []);
@@ -505,6 +693,13 @@ export default memo(function FormTable({
     [_setData],
   );
 
+  const MyDialog = submitable ? AlertDialog : Dialog;
+  const MyDialogContent = submitable ? AlertDialogContent : DialogContent;
+  const MyDialogHeader = submitable ? AlertDialogHeader : DialogHeader;
+  const MyDialogTitle = submitable ? AlertDialogTitle : DialogTitle;
+  const MyDialogDescription = submitable
+    ? AlertDialogDescription
+    : DialogDescription;
   return (
     <>
       <div
@@ -547,7 +742,7 @@ export default memo(function FormTable({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-5"
+                className="size-5 !pointer-events-auto"
                 onClick={() => setOpenConfigureColumns(true)}
               >
                 <SettingsIcon className="size-3" />
@@ -567,7 +762,7 @@ export default memo(function FormTable({
                 _data.map((item, index) => {
                   return (
                     <FormTableItem
-                      readonly={readonly}
+                      readOnly={readOnly || item.readOnly}
                       item={item}
                       index={index}
                       key={item.id}
@@ -576,8 +771,11 @@ export default memo(function FormTable({
                       setRef={setRef}
                       cellOnKeyDown={cellOnKeyDown}
                       updateData={updateData}
+                      submitable={submitable}
                       setCurrentIndex={setCurrentIndex}
+                      setCurrentData={setCurrentData}
                       deleteRow={deleteRow}
+                      defaultValueRow={defaultValueRow}
                       className={
                         index == _data.length - 1 ? "rounded-b-md" : ""
                       }
@@ -588,178 +786,257 @@ export default memo(function FormTable({
           </DndContext>
         </div>
       </div>
-      <Dialog
+      <MyDialog
         open={currentIndex >= 0}
         onOpenChange={(e) => {
-          if (!e) setCurrentIndex(-1);
+          if (!e && !submitable) setCurrentIndex(-1);
         }}
       >
-        <DialogContent
+        <MyDialogContent
           hideX
           className="max-w-full sm:max-w-screen-sm md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-screen-lg"
+          asChild
         >
-          <DialogHeader>
-            <DialogTitle asChild>
-              <div className="flex items-center justify-between">
-                <h2>{`${t("core.formtable.editing_row")} #${(currentIndex ?? 0) + 1}`}</h2>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              updateData(currentIndex, currentData);
 
-                <div className="flex flex-row items-center justify-end gap-2">
-                  {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readonly &&
-                    (isMobile ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="size-8"
-                            onClick={() => insertRow(currentIndex - 1)}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 2048 2048"
-                            >
-                              <path
-                                fill="currentColor"
-                                d="M2048 128v1664H0V128h512L384 256H128v384h640v512h384V640h768V256h-384l-128-128zM640 1280H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zM621 525l-90-90L960 6l429 429l-90 90l-275-275v774H896V250z"
-                              ></path>
-                            </svg>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {t("core.formtable.insert_above")}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-8"
-                        onClick={() => insertRow(currentIndex - 1)}
-                      >
-                        {t("core.formtable.insert_above")}
-                      </Button>
-                    ))}
-                  {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readonly &&
-                    currentIndex < _data.length - 2 &&
-                    (isMobile ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="size-8"
-                            onClick={() => insertRow(currentIndex + 1)}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 2048 2048"
-                            >
-                              <path
-                                fill="currentColor"
-                                d="M2048 128v1664h-640l128-128h384v-384h-768V768H768v512H128v384h256l128 128H0V128zM640 256H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zm-621 1139l90 90l-429 429l-429-429l90-90l275 275V896h128v774z"
-                              ></path>
-                            </svg>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {t("core.formtable.insert_below")}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-8"
-                        onClick={() => insertRow(currentIndex + 1)}
-                      >
-                        {t("core.formtable.insert_below")}
-                      </Button>
-                    ))}
-                  {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readonly && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="w-8 h-8 sm:w-auto"
-                        onClick={() => duplicateRow(currentIndex)}
-                      >
-                        <CopyIcon className="size-4" />
-                        <span className="hidden lg:inline">
-                          {t("core.formtable.duplicate")}
-                        </span>
-                      </Button>
-                    )}
-                  {currentIndex > 0 && (
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-8 size-8"
-                      onClick={() => setCurrentIndex(currentIndex - 1)}
-                    >
-                      <ArrowUpIcon className="size-4" />
-                    </Button>
-                  )}
-                  {currentIndex < _data.length - 1 && (
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-8 size-8"
-                      onClick={() => setCurrentIndex(currentIndex + 1)}
-                    >
-                      <ArrowDownIcon className="size-4" />
-                    </Button>
-                  )}
-                  {(Object.keys(_data[currentIndex] ?? {}).length > 1 ||
-                    currentIndex < _data.length - 1) &&
-                    !readonly && (
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-8 size-8"
-                        onClick={() => deleteRow(currentIndex)}
-                      >
-                        <Trash2Icon className="size-4" />
-                      </Button>
-                    )}
-                </div>
-              </div>
-            </DialogTitle>
-            <DialogDescription className="sr-only" />
-          </DialogHeader>
-          <div
-            className={cn(
-              columns.length <= 1
-                ? "grid-cols-1"
-                : columns.length <= 2
-                  ? "md:grid-cols-2"
-                  : "md:grid-cols-2 lg:grid-cols-3",
-              "grid gap-x-4 gap-y-3",
-            )}
+              setCurrentIndex(-1);
+              setCurrentData(null);
+            }}
           >
-            {columns &&
-              columns.map((col) => {
-                return (
-                  <FormInput
-                    key={`${_data[currentIndex]?.id}-${col.name}`}
-                    required={col.required}
-                    label={col.titleTrans ? t(col.titleTrans) : col.title}
-                    name={col.name}
-                  >
-                    <Cell
-                      readonly={readonly}
-                      index={currentIndex}
-                      item={_data[currentIndex]}
-                      col={col}
-                      updateData={updateData}
-                    />
-                  </FormInput>
-                );
-              })}
-          </div>
-        </DialogContent>
-      </Dialog>
+            <MyDialogHeader>
+              <MyDialogTitle asChild>
+                <div className="flex items-center justify-between">
+                  <h2>{`${t("core.formtable.editing_row")} #${(currentIndex ?? 0) + 1}`}</h2>
+
+                  <div className="flex flex-row items-center justify-end gap-2">
+                    {!submitable && (
+                      <>
+                        {Object.keys(_data[currentIndex] ?? {}).length >
+                          Object.keys(defaultValueRow ?? {}).length + 1 &&
+                          !readOnly &&
+                          (isMobile ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="size-8"
+                                  onClick={() => insertRow(currentIndex - 1)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 2048 2048"
+                                  >
+                                    <path
+                                      fill="currentColor"
+                                      d="M2048 128v1664H0V128h512L384 256H128v384h640v512h384V640h768V256h-384l-128-128zM640 1280H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zM621 525l-90-90L960 6l429 429l-90 90l-275-275v774H896V250z"
+                                    ></path>
+                                  </svg>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t("core.formtable.insert_above")}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => insertRow(currentIndex - 1)}
+                            >
+                              {t("core.formtable.insert_above")}
+                            </Button>
+                          ))}
+                        {Object.keys(_data[currentIndex] ?? {}).length >
+                          Object.keys(defaultValueRow ?? {}).length + 1 &&
+                          !readOnly &&
+                          currentIndex < _data.length - 2 &&
+                          (isMobile ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  size="sm"
+                                  className="size-8"
+                                  onClick={() => insertRow(currentIndex + 1)}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    viewBox="0 0 2048 2048"
+                                  >
+                                    <path
+                                      fill="currentColor"
+                                      d="M2048 128v1664h-640l128-128h384v-384h-768V768H768v512H128v384h256l128 128H0V128zM640 256H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zm-621 1139l90 90l-429 429l-429-429l90-90l275 275V896h128v774z"
+                                    ></path>
+                                  </svg>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {t("core.formtable.insert_below")}
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="h-8"
+                              onClick={() => insertRow(currentIndex + 1)}
+                            >
+                              {t("core.formtable.insert_below")}
+                            </Button>
+                          ))}
+                      </>
+                    )}
+                    {Object.keys(_data[currentIndex] ?? {}).length >
+                      Object.keys(defaultValueRow ?? {}).length + 1 &&
+                      !(readOnly || _data[currentIndex]?.readOnly) && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="w-8 h-8 sm:w-auto"
+                          onClick={() => duplicateRow(currentIndex)}
+                        >
+                          <CopyIcon className="size-4" />
+                          <span className="hidden lg:inline">
+                            {t("core.formtable.duplicate")}
+                          </span>
+                        </Button>
+                      )}
+                    {!submitable && (
+                      <>
+                        {currentIndex > 0 && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 size-8"
+                            onClick={() => {
+                              setCurrentIndex((prev) => prev - 1);
+                              if (submitable)
+                                setCurrentData(_data[currentIndex - 1]);
+                            }}
+                          >
+                            <ArrowUpIcon className="size-4" />
+                          </Button>
+                        )}
+                        {currentIndex < _data.length - 1 && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="icon"
+                            className="h-8 size-8"
+                            onClick={() => {
+                              setCurrentIndex((prev) => prev + 1);
+                              if (submitable)
+                                setCurrentData(_data[currentIndex + 1]);
+                            }}
+                          >
+                            <ArrowDownIcon className="size-4" />
+                          </Button>
+                        )}
+                      </>
+                    )}
+                    {(Object.keys(_data[currentIndex] ?? {}).length >
+                      Object.keys(defaultValueRow ?? {}).length + 1 ||
+                      currentIndex < _data.length - 1) &&
+                      !(readOnly || _data[currentIndex]?.readOnly) && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon"
+                          className="h-8 size-8"
+                          onClick={() => deleteRow(currentIndex)}
+                        >
+                          <Trash2Icon className="size-4" />
+                        </Button>
+                      )}
+                  </div>
+                </div>
+              </MyDialogTitle>
+              <MyDialogDescription className="sr-only" />
+            </MyDialogHeader>
+            {form ? (
+              <FormChildren
+                className={""}
+                showHeader={false}
+                errors={{}}
+                fieldNameTrans={""}
+                data={(submitable ? currentData : _data[currentIndex]) ?? {}}
+                setData={(...args) =>
+                  submitable
+                    ? updateDataCurrent(...args)
+                    : updateData(currentIndex, ...args)
+                }
+              >
+                {typeof form === "function"
+                  ? form({ getColumn })
+                  : React.cloneElement(form, { getColumn })}
+              </FormChildren>
+            ) : (
+              <div
+                className={cn(
+                  columns.length <= 1
+                    ? "grid-cols-1"
+                    : columns.length <= 2
+                      ? "md:grid-cols-2"
+                      : "md:grid-cols-2 lg:grid-cols-3",
+                  "grid gap-x-4 gap-y-3",
+                )}
+              >
+                {columns &&
+                  columns.map((col) => {
+                    return (
+                      <FormInput
+                        key={`${_data[currentIndex]?.id}-${col.name}`}
+                        required={col.required}
+                        label={col.titleTrans ? t(col.titleTrans) : col.title}
+                        name={col.name}
+                      >
+                        <Cell
+                          isDialog
+                          defaultValueRow={defaultValueRow}
+                          readOnly={readOnly}
+                          index={currentIndex}
+                          item={_data[currentIndex]}
+                          col={col}
+                          updateData={updateData}
+                        />
+                      </FormInput>
+                    );
+                  })}
+              </div>
+            )}
+            {submitable && (
+              <AlertDialogFooter className="order-2 mt-4">
+                <AlertDialogCancel
+                  className="h-8"
+                  onClick={() => {
+                    setCurrentIndex(-1);
+                  }}
+                >
+                  {t("core.form.cancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="h-8"
+                  type="submit"
+                  onClick={() => {}}
+                >
+                  {t("core.form.save")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            )}
+          </form>
+        </MyDialogContent>
+      </MyDialog>
       <ConfigureColumns
         columns={columns}
         setColumns={setColumns}
@@ -880,6 +1157,7 @@ const ConfigureColumns = memo(function ConfigureColumns({
             </div>
           </DndContext>
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             className="inline h-6 -mt-3 font-medium text-left w-fit"
@@ -890,6 +1168,7 @@ const ConfigureColumns = memo(function ConfigureColumns({
           <DialogFooter className="pt-2 -mb-2 border-t border-muted-foreground/25">
             <DialogClose asChild>
               <Button
+                type="button"
                 variant="secondary"
                 className="h-8"
                 onClick={() => onReset()}
@@ -898,7 +1177,11 @@ const ConfigureColumns = memo(function ConfigureColumns({
               </Button>
             </DialogClose>
             <DialogClose asChild>
-              <Button className="h-8" onClick={() => setColumnsProps(columns)}>
+              <Button
+                className="h-8"
+                onClick={() => setColumnsProps(columns)}
+                type="button"
+              >
                 {t("core.formtable.apply")}
               </Button>
             </DialogClose>
@@ -987,7 +1270,11 @@ const SelectColumn = memo(function SelectColumn({
             {t("core.formtable.select_all")}
           </Button>
           <DialogClose asChild>
-            <Button className="h-8" onClick={() => setColumnsProps(columns)}>
+            <Button
+              className="h-8"
+              onClick={() => setColumnsProps(columns)}
+              type="button"
+            >
               {t("core.formtable.apply")}
             </Button>
           </DialogClose>
@@ -1014,7 +1301,12 @@ const ColumnItem = memo(function ColumnItem({
       style={style}
       className="grid bg-background group col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base"
     >
-      <button className="cursor-move " {...listeners} {...attributes}>
+      <button
+        className="cursor-move "
+        {...listeners}
+        {...attributes}
+        type="button"
+      >
         <GripVerticalIcon className="transition-[color,opacity] group-hover:text-foreground text-muted-foreground/50 size-5" />
       </button>
       <div>

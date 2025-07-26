@@ -11,8 +11,8 @@ return new class extends Migration {
   public function up(): void {
     Schema::create('item_alternatives', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->foreignUlid('item_id')->references('id')->on('items')->cascadeOnDelete();
-      $table->foreignUlid('alternative_item_id')->references('id')->on('items')->cascadeOnDelete();
+      $table->foreignUlid('item_id')->references('id')->on('item_variants')->cascadeOnDelete();
+      $table->foreignUlid('alternative_item_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->boolean('two_way')->default(false);
       $table->timestamps();
       $table->softDeletes();

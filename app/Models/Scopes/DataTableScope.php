@@ -56,10 +56,14 @@ class DataTableScope implements Scope {
               },  explode(',', $value));
               $query->whereIn($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
             } else if (in_array($operator, ['between', '!between'])) {
-              $values = array_map(function ($val) {
-                return trim($val);
-              },  explode(',', $value));
-              $query->whereBetween($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
+              if (is_array($value) && count($value) == 2) {
+                $query->whereBetween($keyQuery, \array_values($value), $key <= 0 ? 'and' : 'or', $operator == '!like');
+              } else {
+                $values = array_map(function ($val) {
+                  return trim($val);
+                }, explode(',', $value));
+                $query->whereBetween($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
+              }
             } else {
               $operator = match ($payload[1]) {
                 'eq' => '=',

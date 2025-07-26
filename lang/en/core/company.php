@@ -5,6 +5,7 @@ return [
   'company_details' => [
     'title' => 'Company Details',
     'name' => 'Company Name',
+    'short_name' => 'Short Name',
     'email' => 'Email',
     'phone' => 'Phone',
     'street' => 'Street',

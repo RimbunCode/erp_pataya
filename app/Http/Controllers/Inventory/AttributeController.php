@@ -59,9 +59,12 @@ class AttributeController extends Controller {
       $attribute->to_range = $attribute->values[count($attribute->values) - 1]['value'] ?? 0;
       $attribute->increment = ($attribute->values[1]['value'] ?? 0) - ($attribute->values[0]['value'] ?? 0);
     }
-    return Inertia::render('Inventory/Attributes/Show', [
-      'attribute' => $attribute,
-    ]);
+    return $this->renderShow(
+      'Inventory/Attributes/Form',
+      'attribute',
+      $attribute->name,
+      $attribute
+    );
   }
 
 
