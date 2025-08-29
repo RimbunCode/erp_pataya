@@ -13,6 +13,7 @@ return [
   'cancel' => 'Cancel',
   'add_row' => 'Add Row',
   'empty' => 'Empty',
+  'main' => 'Main',
   'columns' => [
     'code' => 'Code',
     'name' => 'Name',

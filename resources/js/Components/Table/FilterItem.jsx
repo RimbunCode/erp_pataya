@@ -5,7 +5,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Button } from "../ui/button";
 import DatetimePicker from "../DatetimePicker";
@@ -15,6 +15,8 @@ import { X } from "lucide-react";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import Combobox from "../Combobox";
+import { CommandItem } from "../ui/command";
 
 function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
   const { t } = useLaravelReactI18n();
@@ -229,24 +231,75 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
   const onValueChanged = (val) => {
     onFilterChanged({ value: val });
   };
+
+  const [currentColumn, setCurrentColumn] = useState(null);
+
+  const getColumn = useCallback(
+    (name) => {
+      return columns.find((x) => x.name === name);
+    },
+    [columns],
+  );
+  const getColumnFromColumns = useCallback((columns, name) => {
+    return columns.find((x) => x.name === name);
+  }, []);
+
+  const currentColumns = useMemo(() => {
+    if (!currentColumn) return columns;
+    const splitString = currentColumn.split(".");
+
+    let currenCols = columns;
+    splitString.forEach((column) => {
+      const col = getColumnFromColumns(currenCols, column);
+      if (!col) return currenCols;
+      if (!col.columns) return currenCols;
+      currenCols = col.columns;
+    });
+    return currenCols;
+  }, [currentColumn, columns]);
+
+  useEffect(() => {
+    console.log(currentColumn, currentColumns);
+  }, [currentColumn, currentColumns]);
   return (
     <div className="relative flex flex-col col-span-4 p-3 pr-10 border rounded-lg border-muted-foreground/30 gap-y-3 md:p-0 md:border-0 md:grid grid-cols-subgrid md:gap-x-2">
-      <Select value={props.column} onValueChange={onColumnChanged}>
+      <Combobox
+        options={currentColumns}
+        value={currentColumn}
+        placeholder={t("core.datatable.filter.select_column")}
+        templateTrigger={(col) => {
+          console.log(col);
+          return <span>{col ?? ""}</span>;
+        }}
+        templateItem={(col) => {
+          return (
+            <CommandItem
+              key={col.name}
+              value={(currentColumn ? `${currentColumn}.` : "") + col.name}
+              className="block px-4 "
+              onSelect={(v) => setCurrentColumn(v)}
+            >
+              {col.title ?? t(col.titleTrans)}
+            </CommandItem>
+          );
+        }}
+      />
+      {/* <Select value={props.column} onValueChange={onColumnChanged}>
         <SelectTrigger className="m-1">
           <SelectValue placeholder={t("core.datatable.filter.select_column")} />
         </SelectTrigger>
         <SelectContent>
           <ScrollArea className="max-h-56">
             {columns
-              ?.filter((x) => x.searchType)
+              ?.filter((x) => x.searchType || x.searchable)
               .map((col) => (
                 <SelectItem key={col.name} value={col.name}>
-                  {t(col.titleTrans)}
+                  {col.title ?? t(col.titleTrans)}
                 </SelectItem>
               ))}
           </ScrollArea>
         </SelectContent>
-      </Select>
+      </Select> */}
       <Select
         disabled={operators.length <= 0}
         value={props.operator}

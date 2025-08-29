@@ -1,6 +1,7 @@
 import { Children, cloneElement } from "react";
 import { enUS, id as idLocale } from "date-fns/locale";
 
+import { Buffer } from "buffer";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -144,6 +145,51 @@ export function setCookie(name, value, { days = 1, path = "/", sameSite }) {
 
   document.cookie = cookie;
 }
+export const saveToLocalStorage = (key, data, expiredDays) => {
+  const jsonString = JSON.stringify(data);
+  const base64 = Buffer.from(jsonString).toString("base64");
+  localStorage.setItem(
+    `${window.location.pathname}/${key}`,
+    JSON.stringify({
+      pathname: window.location.pathname,
+      expiredDate: new Date(
+        Date.now() + expiredDays * 24 * 60 * 60 * 1000,
+      ).toISOString(),
+      updatedAt: new Date().toISOString(),
+      data: base64,
+    }),
+  );
+};
+export const getFromLocalStorage = (key) => {
+  key = `${window.location.pathname}/${key}`;
+  let dataCookie = localStorage.getItem(key);
+  if (dataCookie != null) {
+    if (typeof dataCookie === "string") {
+      try {
+        dataCookie = JSON.parse(dataCookie);
+      } catch (e) {
+        console.error("Error parsing cookie data:", e);
+        return;
+      }
+    }
+    if (dataCookie.pathname !== window.location.pathname) {
+      // console.log("Cookie data does not match current path, ignoring.");
+      return;
+    }
+    if (new Date(dataCookie.expiredDate) < new Date(Date.now())) {
+      localStorage.removeItem(key);
+      // removeCookie(key, window.location.pathname);
+      return;
+    }
+    const jsonString = Buffer.from(dataCookie.data, "base64").toString();
+    return JSON.parse(jsonString);
+  }
+  return null;
+};
+export const removeFromLocalStorage = (key) => {
+  key = `${window.location.pathname}/${key}`;
+  localStorage.removeItem(key);
+};
 export const checkFileType = (patternType, fileType) => {
   const patern = "^"
     .concat(patternType)

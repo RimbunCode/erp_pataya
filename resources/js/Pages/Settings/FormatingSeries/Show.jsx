@@ -1,6 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { Mention, MentionsInput } from "@/Components/Mention";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -27,6 +27,40 @@ export default function Show() {
       }
     },
     [loading],
+  );
+  const getData = useCallback(
+    (search) => {
+      const contains = /@\[[i]+\]/.test(data.format);
+      let list = [];
+      if (!contains) {
+        const fixedLengthData = 5;
+        const length = /^[i]+$/.test(search) ? search.length : 1;
+
+        let start = length - Math.floor(fixedLengthData / 2);
+        start = start < 1 ? 1 : start;
+        const current = getRandomInt(Math.pow(10, start) - 1).toString();
+        list = Array.from({ length: fixedLengthData }, (_, i) => {
+          const display = current.padStart(start + i, "0");
+          return {
+            id: "i".repeat(start + i),
+            display: `${t("core.formatingSeries.formats.number")} (${display})`,
+          };
+        });
+        if (/^[i]+$/.test(search)) {
+          return list;
+        }
+      }
+
+      return [...list, ...codeFormats].filter((x) => {
+        const contains = data.format.includes(`@[${x.id}]`);
+        return (
+          !contains &&
+          (x.display.toLowerCase().includes(search.toLowerCase()) ||
+            x.id.toLowerCase().includes(search.toLowerCase()))
+        );
+      });
+    },
+    [data.format],
   );
   const formatingCode = useCallback(
     (format) => {
@@ -58,6 +92,9 @@ export default function Show() {
     },
     [codeFormats],
   );
+  const resultCode = useMemo(() => {
+    return formatingCode(data.format);
+  }, [data.format, formatingCode]);
   return (
     <>
       <FormPageContent value="detail" title={null}>
@@ -83,45 +120,13 @@ export default function Show() {
               <Mention
                 markup="@[__id__]"
                 trigger={/(\{([^{]*))$/}
-                data={(search) => {
-                  const contains = /@\[[i]+\]/.test(data.format);
-                  let list = [];
-                  if (!contains) {
-                    const fixedLengthData = 5;
-                    const length = /^[i]+$/.test(search) ? search.length : 1;
-
-                    let start = length - Math.floor(fixedLengthData / 2);
-                    start = start < 1 ? 1 : start;
-                    const current = getRandomInt(
-                      Math.pow(10, start) - 1,
-                    ).toString();
-                    list = Array.from({ length: fixedLengthData }, (_, i) => {
-                      const display = current.padStart(start + i, "0");
-                      return {
-                        id: "i".repeat(start + i),
-                        display: `${t("core.formatingSeries.formats.number")} (${display})`,
-                      };
-                    });
-                    if (/^[i]+$/.test(search)) {
-                      return list;
-                    }
-                  }
-
-                  return [...list, ...codeFormats].filter((x) => {
-                    const contains = data.format.includes(`@[${x.id}]`);
-                    return (
-                      !contains &&
-                      (x.display.toLowerCase().includes(search.toLowerCase()) ||
-                        x.id.toLowerCase().includes(search.toLowerCase()))
-                    );
-                  });
-                }}
+                data={getData}
                 displayTransform={(id) => "{" + id + "}"}
               />
             </MentionsInput>
           </FormInput>
           <FormInput label={t("core.formatingSeries.columns.example_result")}>
-            <Input disabled value={formatingCode(data.format)} />
+            <Input disabled value={resultCode} />
           </FormInput>
         </div>
       </FormPageContent>

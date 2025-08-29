@@ -19,6 +19,6 @@ class Role extends Model {
     return $this->belongsToMany(User::class, 'user_roles', 'role_id', 'user_id');
   }
   public function rules() {
-    return $this->hasMany(RolePermission::class);
+    return $this->hasMany(RolePermission::class)->orderBy('name')->orderBy('level');
   }
 }

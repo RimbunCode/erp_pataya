@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
@@ -63,7 +64,6 @@ abstract class Controller {
           ['name' => "{$alias}: {$value}", 'link' => route("{$tableName}.show", $model->id)];
       }
     }
-
     Inertia::share([
       'breadcrumbs' => $breadcrumbs,
     ]);
@@ -76,13 +76,19 @@ abstract class Controller {
     $this->model = $model;
     if (!$model)
       return;
-    $this->permissions = RolePermission::select('role_permissions.permissions')
-      ->join('roles', 'roles.id', '=', 'role_permissions.role_id')
-      ->join('user_role', 'user_role.role_id', '=', 'roles.id')
-      ->where('user_role.user_id', $request->user()->id)
-      ->where('model', $this->model)
-      ->first()?->permissions;
-    Inertia::share('permissions', $this->permissions);
+    $this->permissions = RolePermission::getPermissions($model);
+    $currentRoute = Route::getCurrentRoute();
+    switch ($currentRoute->getActionMethod()) {
+      case 'index':
+      case "create":
+      case "store":
+      case 'show':
+      case "update":
+      case "submit":
+      case "destroy":
+    }
+    // dd($this->permissions->toArray());
+    // Inertia::share('permissions', $this->permissions);
   }
   protected function guard($operation) {
     $isAllow = in_array($operation, $this->permissions);
@@ -117,13 +123,13 @@ abstract class Controller {
 
     return back();
   }
-   protected function renderShow($formPathname, $name, $title, $data, $props = []) {
+  protected function renderShow($formPathname, $name, $title, $data, $props = [], $settings = []) {
     return Inertia::render('ShowGeneral', array_merge([
       'name' => $name,
       'title' => $title,
-      'formPathname' => $formPathname,
+      'formPathname' => $formPathname ?? (new $this->model())->formComponent ?? "",
       $name => $data,
-    ], $props));
+    ], [...$props, 'settings' => $settings]));
   }
   public function removeComment(Request $request, $param, Log $id) {
     if ($id->user_id != $request->user()->id || !$id || $id->type != 'comment') {

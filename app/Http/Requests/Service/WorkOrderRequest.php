@@ -29,8 +29,6 @@ class WorkOrderRequest extends FormRequest {
       'customer_branch.*' => ['nullable'],
       'item_service.id' => ['required', 'exists:item_variants,id'],
       'item_service.*' => ['nullable'],
-      'source_warehouse.id' => ['required', 'exists:warehouses,id'],
-      'source_warehouse.*' => ['nullable'],
       'items' => ['required', 'array', 'min:1'],
       'items.*.id' => ['required', 'string'],
       'items.*.item.id' => ['required', 'exists:item_variants,id', 'distinct'],

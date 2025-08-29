@@ -66,15 +66,9 @@ class UnitController extends Controller {
       $data['conversion_factor'] = null;
     }
     $unit = Unit::create($data);
-    $unit->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
+    $unit->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return back()->with('id', $unit->id);
   }
 
   /**
@@ -91,6 +85,9 @@ class UnitController extends Controller {
       "unit",
       $unit->name,
       $unit,
+      settings: [
+        'disabled' => $unit->is_default,
+      ]
     );
   }
 
@@ -103,23 +100,20 @@ class UnitController extends Controller {
     if ($data['customable'] == true) {
       $data['conversion_factor'] = null;
     }
-    $unit->update($data);
-    $unit->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini',
-      ]
-    ]);
+    $unit->fillForUpdate($data);
+    $unit->logForUpdated();
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
   public function destroy(Unit $unit) {
+    DB::beginTransaction();
     $unit->delete();
-    return redirect()->back();
+    $unit->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

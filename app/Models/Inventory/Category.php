@@ -15,4 +15,6 @@ class Category extends Model {
   public static function templateLink() {
     return ":name";
   }
+
+  public string $formComponent = 'Inventory/Categories/Form';
 }

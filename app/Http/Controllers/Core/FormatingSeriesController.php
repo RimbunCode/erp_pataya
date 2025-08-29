@@ -135,7 +135,7 @@ class FormatingSeriesController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
 
-    $logs = $formatingSeries->logs;
+    $logs = (array)$formatingSeries->logs;
     $formatingSeries->format = $data['format'];
     $keys = $this->service->getKeyLogs($formatingSeries);
     if (!\array_key_exists($keys,  $logs)) {
@@ -146,15 +146,10 @@ class FormatingSeriesController extends Controller {
       $data['logs'] = $logs;
     }
 
-    $formatingSeries->update($data);
-    $formatingSeries->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
+    $formatingSeries->fillForUpdate($data);
+    $formatingSeries->logForUpdated();
+
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 }

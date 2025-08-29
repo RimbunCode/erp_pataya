@@ -52,7 +52,12 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { cn, generateRandom, getCookieByName, setCookie } from "@/lib/utils";
+import {
+  cn,
+  generateRandom,
+  getFromLocalStorage,
+  saveToLocalStorage,
+} from "@/lib/utils";
 
 import { Button } from "./ui/button";
 import { CSS } from "@dnd-kit/utilities";
@@ -198,6 +203,7 @@ const FormTableItem = memo(function FormTableItem({
   setCurrentData,
   deleteRow,
   readOnly,
+  disabled,
   className,
   defaultValueRow,
 }) {
@@ -224,7 +230,7 @@ const FormTableItem = memo(function FormTableItem({
               Object.keys(item).length <=
                 Object.keys(defaultValueRow ?? {}).length + 1 && isLast
             ) &&
-              !readOnly &&
+              !(readOnly || disabled) &&
               "group-hover:hidden",
           )}
         >
@@ -236,7 +242,8 @@ const FormTableItem = memo(function FormTableItem({
             ((Object.keys(item).length <=
               Object.keys(defaultValueRow ?? {}).length + 1 &&
               isLast) ||
-              readOnly) &&
+              readOnly ||
+              disabled) &&
               "!hidden",
           )}
           type="button"
@@ -256,6 +263,7 @@ const FormTableItem = memo(function FormTableItem({
                   if (submitable) setCurrentData(item);
                 }}
                 ref={setRef(`${item.id}-${col.name}`)}
+                disabled={disabled}
                 readOnly={readOnly}
                 index={index}
                 item={item}
@@ -282,7 +290,7 @@ const FormTableItem = memo(function FormTableItem({
         >
           <PencilIcon className="size-3" />
         </Button>
-        {!readOnly && (
+        {!(readOnly || disabled) && (
           <Button
             type="button"
             variant="ghost"
@@ -317,7 +325,7 @@ const createHeaders = (headers, reset) => {
   if (reset) return Array.from(columnsMap.values());
 
   let finalColumns = [];
-  const columnsFromCookie = JSON.parse(getCookieByName(FORMTABLE_COLUMNS_KEY));
+  const columnsFromCookie = getFromLocalStorage(FORMTABLE_COLUMNS_KEY);
   if (!columnsFromCookie) {
     return Array.from(columnsMap.values());
   }
@@ -358,6 +366,7 @@ const createHeaders = (headers, reset) => {
  * @property {"left" | "center" | "right"} align
  * @property {number} width value width in fr, default is 1
  * @property {boolean} required default is false, require
+ * @property {boolean} unique default is false
  * @property {boolean} show default is false, but will be true when required is true
  * @property {object} props
  * @property {CellCallback} Cell
@@ -376,8 +385,9 @@ const createHeaders = (headers, reset) => {
  * @returns {React.JSX.Element}
  */
 export default memo(function FormTable({
+  name,
   label,
-  disabled,
+  disabled = false,
   description,
   ignoreDisabled = false,
   readOnly = false,
@@ -422,16 +432,10 @@ export default memo(function FormTable({
     setColumns(createHeaders(columnsProps));
   }, [columnsProps]);
   useDidMountEffect(() => {
-    setCookie(
-      FORMTABLE_COLUMNS_KEY,
-      JSON.stringify(
-        columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
-      ),
-      {
-        days: FORMTABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      },
+    saveToLocalStorage(
+      FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
+      columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
+      FORMTABLE_COLUMNS_EXPIRED,
     );
   }, [columns]);
 
@@ -447,7 +451,7 @@ export default memo(function FormTable({
     [columns],
   );
   const [_data, _setData] = useState(() =>
-    readOnly || disabled
+    readOnly || (disabled && value.length > 0)
       ? value
       : [
           ...value.map((x) => ({
@@ -484,12 +488,27 @@ export default memo(function FormTable({
       </FormInput>
     );
   };
+  const formRef = useRef();
+  const onKeyDown = useCallback(
+    (e) => {
+      e.stopPropagation();
+      if (e.ctrlKey && e.key == "s") {
+        e.preventDefault();
+        const form = formRef.current;
+
+        if (form) {
+          form.requestSubmit();
+        }
+      }
+    },
+    [formRef],
+  );
 
   // Sinkronisasi data lokal hanya jika `value` berubah dari parent
   useEffect(() => {
     if (!isEqual(value, prevValueRef.current)) {
       prevValueRef.current = value;
-      if (readOnly || disabled) {
+      if (readOnly || (disabled && value.length > 0)) {
         _setData([...value]);
         return;
       }
@@ -531,59 +550,94 @@ export default memo(function FormTable({
   }, []);
 
   // Memperbarui data di index tertentu
-  const updateData = useCallback((index, key, newValue) => {
-    _setData((prevData) => {
-      if (
-        !(readOnly || disabled) &&
-        index === prevData.length - 1 &&
-        key == null
-      )
-        return prevData;
-      let newData = [...prevData];
-
-      if (!newData[index]) return prevData;
-
-      const payload =
-        typeof key === "string" || typeof key === "number"
-          ? { [key]: newValue }
-          : key;
-
-      if (payload == null) {
-        console.log(payload, index, newData[index]);
-        if (newData[index].id.length <= 5) {
+  const updateData = useCallback(
+    (index, key, newValue) => {
+      _setData((prevData) => {
+        const isLastRow = index === prevData.length - 1;
+        if (
+          (disabled && prevData.length > 0) ||
+          (!readOnly && index === prevData.length - 1 && key == null)
+        )
           return prevData;
+        let newData = [...prevData];
+        if (!newData[index]) return prevData;
+
+        const payload =
+          typeof key === "string" || typeof key === "number"
+            ? { [key]: newValue }
+            : (key ?? {});
+        const resetRow = (idx) => {
+          newData[idx] = { ...(defaultValueRow ?? {}), id: generateRandom(5) };
+        };
+        const isDuplicateValue = (colName, value) => {
+          const isDuplicate = newData.some((row, idx) => {
+            if (idx == index) return false;
+            if (row[value] == value || isEqual(row[value], value)) return true;
+            if (
+              typeof row[value] === "object" &&
+              typeof value === "object" &&
+              row[value]?.id == value?.id
+            )
+              return true;
+            return false;
+          });
+          return isDuplicate;
+        };
+        // Cek kolom unique
+        const keysToCheck =
+          typeof key === "object" ? Object.keys(payload) : [key];
+        for (const colName of keysToCheck) {
+          if (
+            typeof colName === "string" &&
+            columns.find((c) => c.name === colName)?.unique
+          ) {
+            if (isDuplicateValue(colName, payload[colName])) {
+              resetRow(index);
+              return newData;
+            }
+          }
         }
+
+        // Jika payload null → reset row kecuali id pendek
+        if (payload == null) {
+          if (newData[index].id.length <= 5) return prevData;
+          resetRow(index);
+          return newData;
+        }
+
+        // Cek duplikat ID di row terakhir
+        if (isLastRow && !readOnly) {
+          if (isDuplicateValue("id", payload.id ?? newData[index].id)) {
+            return prevData;
+          }
+        }
+
+        // if (isLastRow && !readOnly) {
+        //   const isDuplicate = newData.some((x, idx) => {
+        //     if (idx == index) return false;
+        //     if (x.id == (payload.id ?? newData[index].id)) return true;
+        //     return false;
+        //   });
+        //   if (isDuplicate) return prevData;
+        // }
+
         newData[index] = {
           ...(defaultValueRow ?? {}),
-          id: generateRandom(5),
+          ...newData[index],
+          id: newData[index]?.id ?? generateRandom(5),
+          ...payload,
         };
+
+        // Jika mengubah row terakhir, tambahkan row kosong baru
+        if (isLastRow && !readOnly) {
+          newData.push({ ...(defaultValueRow ?? {}), id: generateRandom(5) });
+        }
+
         return newData;
-      }
-
-      if (index === newData.length - 1 && !readOnly) {
-        const isDuplicate = newData.some((x, idx) => {
-          if (idx == index) return false;
-          if (x.id == (payload.id ?? newData[index].id)) return true;
-          return false;
-        });
-        if (isDuplicate) return prevData;
-      }
-
-      newData[index] = {
-        ...(defaultValueRow ?? {}),
-        ...newData[index],
-        id: newData[index]?.id ?? generateRandom(5),
-        ...payload,
-      };
-
-      // Jika mengubah row terakhir, tambahkan row kosong baru
-      if (index === newData.length - 1 && !readOnly) {
-        newData.push({ ...(defaultValueRow ?? {}), id: generateRandom(5) });
-      }
-
-      return newData;
-    });
-  }, []);
+      });
+    },
+    [columns],
+  );
   const insertRow = useCallback((index) => {
     _setData((prev) => {
       const newData = [...prev];
@@ -605,18 +659,21 @@ export default memo(function FormTable({
       if (submitable) setCurrentData(newData[index + 1]);
       return newData;
     });
-  });
-  const deleteRow = useCallback((index) => {
-    _setData((prev) => {
-      const newData = [...prev];
-      if (index === newData.length - 1 && !readOnly) {
-        return newData;
-      }
-      newData.splice(index, 1);
-      if (submitable) setCurrentData(newData[currentIndex]);
-      return newData;
-    });
   }, []);
+  const deleteRow = useCallback(
+    (index) => {
+      _setData((prev) => {
+        const newData = [...prev];
+        if (index === newData.length - 1 && !(readOnly || disabled)) {
+          return newData;
+        }
+        newData.splice(index, 1);
+        if (submitable) setCurrentData(newData[currentIndex]);
+        return newData;
+      });
+    },
+    [readOnly, disabled],
+  );
   const cellOnKeyDown = useCallback(
     (e, currentIndex, currentCol) => {
       if (e.key == "Enter") {
@@ -762,6 +819,7 @@ export default memo(function FormTable({
                 _data.map((item, index) => {
                   return (
                     <FormTableItem
+                      disabled={disabled}
                       readOnly={readOnly || item.readOnly}
                       item={item}
                       index={index}
@@ -798,8 +856,12 @@ export default memo(function FormTable({
           asChild
         >
           <form
+            ref={formRef}
+            onKeyDown={onKeyDown}
             onSubmit={(e) => {
+              console.log(e);
               e.preventDefault();
+              e.stopPropagation();
               updateData(currentIndex, currentData);
 
               setCurrentIndex(-1);
@@ -816,7 +878,7 @@ export default memo(function FormTable({
                       <>
                         {Object.keys(_data[currentIndex] ?? {}).length >
                           Object.keys(defaultValueRow ?? {}).length + 1 &&
-                          !readOnly &&
+                          !(readOnly || disabled) &&
                           (isMobile ? (
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -855,7 +917,7 @@ export default memo(function FormTable({
                           ))}
                         {Object.keys(_data[currentIndex] ?? {}).length >
                           Object.keys(defaultValueRow ?? {}).length + 1 &&
-                          !readOnly &&
+                          !(readOnly || disabled) &&
                           currentIndex < _data.length - 2 &&
                           (isMobile ? (
                             <Tooltip>
@@ -897,7 +959,11 @@ export default memo(function FormTable({
                     )}
                     {Object.keys(_data[currentIndex] ?? {}).length >
                       Object.keys(defaultValueRow ?? {}).length + 1 &&
-                      !(readOnly || _data[currentIndex]?.readOnly) && (
+                      !(
+                        readOnly ||
+                        disabled ||
+                        _data[currentIndex]?.readOnly
+                      ) && (
                         <Button
                           type="button"
                           variant="secondary"
@@ -948,7 +1014,11 @@ export default memo(function FormTable({
                     {(Object.keys(_data[currentIndex] ?? {}).length >
                       Object.keys(defaultValueRow ?? {}).length + 1 ||
                       currentIndex < _data.length - 1) &&
-                      !(readOnly || _data[currentIndex]?.readOnly) && (
+                      !(
+                        readOnly ||
+                        disabled ||
+                        _data[currentIndex]?.readOnly
+                      ) && (
                         <Button
                           type="button"
                           variant="destructive"
@@ -1004,6 +1074,7 @@ export default memo(function FormTable({
                         <Cell
                           isDialog
                           defaultValueRow={defaultValueRow}
+                          disabled={disabled}
                           readOnly={readOnly}
                           index={currentIndex}
                           item={_data[currentIndex]}
@@ -1027,8 +1098,10 @@ export default memo(function FormTable({
                 </AlertDialogCancel>
                 <AlertDialogAction
                   className="h-8"
-                  type="submit"
-                  onClick={() => {}}
+                  type="button"
+                  onClick={() => {
+                    formRef.current?.requestSubmit();
+                  }}
                 >
                   {t("core.form.save")}
                 </AlertDialogAction>

@@ -125,7 +125,6 @@ class PermissionSeeder extends Seeder {
     // load classes composer knows about
     $autoload = include base_path('/vendor/composer/autoload_classmap.php');
 
-    DB::beginTransaction();
     foreach ($autoload as $className => $path) {
       // skip if we are not in the root namespace, ie App\, to ignore other vendor packages, of which there are a lot (dd($autoload) to see)
       if (!\str_contains($className, $namespace)) {
@@ -144,6 +143,5 @@ class PermissionSeeder extends Seeder {
         print_r($e);
       }
     }
-    DB::commit();
   }
 }

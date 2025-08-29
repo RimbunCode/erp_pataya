@@ -5,7 +5,10 @@ import { useEffect, useImperativeHandle, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 const Input = React.forwardRef(
-  ({ className, isFocused = false, type, ...props }, ref) => {
+  (
+    { className, isFocused = false, type, onValueChange, onChange, ...props },
+    ref,
+  ) => {
     const localRef = useRef(null);
 
     useImperativeHandle(ref, () => ({
@@ -24,6 +27,10 @@ const Input = React.forwardRef(
           "focus:!border-0 text-ellipsis  flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
           className,
         )}
+        onChange={(e) => {
+          onValueChange?.(e.target.value);
+          onChange?.(e);
+        }}
         ref={localRef}
         {...props}
       />

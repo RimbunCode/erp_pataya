@@ -12,4 +12,8 @@ enum FormStatus: string {
   case RESERVED = 'reserved';
 
   case COMPLATED = 'complated';
+
+  public function label() {
+    return __("status.". $this->value);
+  }
 }

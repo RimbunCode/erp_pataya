@@ -52,15 +52,15 @@ class AdministratorSeeder extends Seeder {
         "level" => 0,
         "only_creator" => 0,
         "permissions" => [
+          "select" => true,
           "read" => true,
-          "print" => true,
-          "share" => true,
           "write" => true,
           "create" => true,
           "delete" => true,
-          "export" => true,
+          "print" => true,
           "import" => true,
-          "select" => true
+          "export" => true,
+          "share" => true,
         ],
         "created_at" => "2025-02-21T13:57:35.000000Z",
         "updated_at" => "2025-02-21T13:59:10.000000Z",
@@ -75,12 +75,12 @@ class AdministratorSeeder extends Seeder {
         "level" => 0,
         "only_creator" => 0,
         "permissions" => [
+          "select" => true,
           "read" => true,
-          "print" => true,
           "write" => true,
           "create" => true,
           "delete" => true,
-          "select" => true
+          "print" => true,
         ],
         "created_at" => "2025-02-21T13:57:35.000000Z",
         "updated_at" => "2025-02-21T13:59:10.000000Z",
@@ -99,9 +99,9 @@ class AdministratorSeeder extends Seeder {
       ], values: [
         'name' => $permission->name,
         'model' => $permission->model,
-        'is_submittable' => $permission->is_submittable,
-        'level' => $permission->is_submittable ? $rule['level'] : 0,
-        'only_creator' => $permission->is_submittable ? $rule['only_creator'] : false,
+        'is_submitable' => $permission->is_submitable,
+        'level' => $permission->is_submitable ? $rule['level'] : 0,
+        'only_creator' => $permission->is_submitable ? $rule['only_creator'] : false,
         'permissions' => collect($permission->permissions)->mapWithKeys(function ($permission) use ($rule) {
           return [$permission => $rule['permissions'][$permission] ?? false];
         }),

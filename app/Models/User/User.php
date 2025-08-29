@@ -9,6 +9,7 @@ use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\Tag;
 use App\Traits\DataTable;
+use App\Traits\LinkModel;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,7 +18,7 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable {
   /** @use HasFactory<\Database\Factories\UserFactory> */
-  use HasFactory, Notifiable, HasUlids, SoftDeletes, DataTable;
+  use HasFactory, Notifiable, HasUlids, SoftDeletes, DataTable, LinkModel;
 
   protected $guarded = ['id'];
 

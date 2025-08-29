@@ -115,12 +115,54 @@ class ModelController extends Controller {
       }
     }
   }
+  private function queryTranslations(Builder|JoinClause $query, Request $request, $search, $boolean = "and") {
+    $hasTranslate = $request->has("translate");
+    if ($hasTranslate) {
+      $translates = $request->translate;
+      $query->where(function (Builder $query) use ($translates, $search) {
+        $search = \strtolower($search);
+        foreach ($translates as $column => $map) {
+          foreach ($map as $value => $keyword) {
+            $value = match (\strtolower($value)) {
+              "true" => true,
+              "false" => false,
+              default => $value
+            };
+            if (\is_string($keyword)) {
+              $keyword = \strtolower($keyword);
+              if (
+                \str_contains($keyword, $search)
+              ) {
+                $query->orWhere($column, $value);
+              }
+            } else if (\is_array($keyword)) {
+              foreach ($keyword as $val) {
+                if (
+                  \str_contains($val, $search)
+                ) {
+                  $query->orWhere($column, $value);
+                }
+              }
+            }
+          }
+        }
+      }, boolean: $boolean);
+    }
+    return $query;
+  }
   public function __invoke(Request $request) {
     if ($this->isInertiaRequest($request)) {
       abort(404);
       return;
     }
     $model = $request->model;
+    if ($request->has("id")) {
+      $dataModel = $model::find($request->id);
+      if ($request->has('with')) {
+        $dataModel->load($request->with);
+      }
+      return response()->json($dataModel);
+    }
     $search = $request->search ?? "";
     $template = $model::templateLink();
     // Ekstrak daftar atribut dari template
@@ -141,26 +183,32 @@ class ModelController extends Controller {
     if (\method_exists($model, 'scopeLinkModel')) {
       $query = $model::linkModel($search);
     } else {
-      $query = $model::where(function (Builder $query) use ($search, $attributes) {
+      $query = $model::where(function (Builder $query) use ($search, $attributes, $request) {
         $splitSearch = explode(" ", $search);
         foreach ($splitSearch as $item) {
+          $hasTranslate = $request->has("translate");
+
           preg_match_all('/[a-zA-Z0-9]+/', $item, $matches);
+          // dd($matches, $item, $attributes);
 
           if (count($matches[0]) == 1 && !Utils::isNullOrWhitespace($item) && $item == $matches[0][0]) {
             $query->whereAny($attributes, 'like', "%{$item}%");
+            $this->queryTranslations($query, $request, $item, "or");
             continue;
           }
           if (preg_match('/^[^\w]+$/', $item))
             continue;
 
-          $query->where(function (Builder $query) use ($matches, $item, $attributes) {
+          $query->where(function (Builder $query) use ($matches, $item, $attributes, $request) {
             if (!Utils::isNullOrWhitespace($item)) {
               $query->whereAny($attributes, 'like', "%{$item}%");
+              $this->queryTranslations($query, $request, $item, "or");
             }
             foreach ($matches[0] as $match) {
               if (Utils::isNullOrWhitespace($match))
                 continue;
               $query->orWhereAny($attributes, 'like', "%{$match}%");
+              $this->queryTranslations($query, $request, $match, "or");
             }
           });
         }
@@ -187,6 +235,7 @@ class ModelController extends Controller {
       });
     }
     // dd($query->toRawSql());
+    $queryForCount = $query->clone();
     if ($request->has('limit')) {
       $query->limit($request->limit);
     }
@@ -203,8 +252,19 @@ class ModelController extends Controller {
       ...$value,
     ], $data);
 
-    User::join("roles", function ($query) {
-    });
-    return response()->json($results);
+    return response()->json([
+      'total' => $queryForCount->count(),
+      'data' => $results
+    ]);
+  }
+
+  public function datatable(Request $request, string $model) {
+    // if ($this->isInertiaRequest($request)) {
+    //   abort(404);
+    //   return;
+    // }
+    $model = str_replace("/", "\\", $model);
+    $columns = $model::getColumns();
+    return response()->json($columns);
   }
 }

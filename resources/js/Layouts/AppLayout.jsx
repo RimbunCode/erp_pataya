@@ -48,7 +48,7 @@ export default memo(
 
     return (
       <MasterLayout>
-        <div className="relative mx-auto max-w-screen-2xl">
+        <div className="relative mx-auto max-w-[1920px]">
           <SidebarProvider>
             <AppSidebar />
             <SidebarInset>

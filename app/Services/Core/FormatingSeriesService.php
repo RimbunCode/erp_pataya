@@ -3,6 +3,7 @@
 namespace App\Services\Core;
 
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\Preference;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -13,10 +14,13 @@ class FormatingSeriesService {
 
     $keyFormat = $this->getKeyLogs($ref, $codeRelations);
 
-    $refLatest = $ref->logs[$keyFormat];
+    $refLatest = (array)((array)$ref->logs)[$keyFormat];
 
-    $now = Carbon::now();
+    $timezone = (string)Preference::where('key', 'timezone')->first()?->value ?? "UTC";
+
+    $now = Carbon::now()->timezone($timezone);
     $lastUpdated = Carbon::parse($refLatest['updated_at']);
+
     preg_match('/^(?=.*@\[(mm|mmm|mmmm)\])(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $monthYear);
     preg_match('/^(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $year);
     if (\count($monthYear) > 0) {
@@ -54,7 +58,7 @@ class FormatingSeriesService {
 
     $ref->fill([
       'logs' => [
-        ...$ref->logs,
+        ...(array)$ref->logs,
         $keyFormat => [
           'current' => $refLatest['current'],
           'updated_at' => now()
@@ -90,6 +94,20 @@ class FormatingSeriesService {
       }
       $key[] = $codeRelations[$char]["relation"];
     }, $formatingSeries->format);
+
+    sort($key);
+    return implode($key);
+  }
+  public function getKeyLogsForInit(string $model, string $format) {
+    $codeRelations = $this->getCodeRelations($model);
+    preg_replace_callback('/@\[([myi]|(?:\w+))+\]/', function ($matches) use (&$key, $codeRelations) {
+      $char = $matches[1];
+      if (in_array($char, ['m', 'i', 'y'])) {
+        $key[] = $char;
+        return;
+      }
+      $key[] = $codeRelations[$char]["relation"];
+    }, $format);
 
     sort($key);
     return implode($key);

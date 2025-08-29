@@ -9,15 +9,17 @@ import { cn, getThemeByStatus } from "@/lib/utils";
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 
 export default function Show({ workOrder }) {
   const { t } = useLaravelReactI18n();
+  const route = window.route;
 
   const statusBadge = useMemo(() => {
     // if (data?.status == "draft") return;
-    const status = t(`core.form.status.${workOrder?.status}`);
+    const status = t(`core.form.statuses.${workOrder?.status}`);
     const theme = getThemeByStatus(workOrder?.status);
 
     return (
@@ -47,8 +49,14 @@ export default function Show({ workOrder }) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>
-                  <DropdownMenuItem>
-                    {t("service.workOrder.actions.create_pr")}
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={route("purchaseRequests.create", {
+                        ref: `workOrder/${workOrder.id}`,
+                      })}
+                    >
+                      {t("service.workOrder.actions.create_pr")}
+                    </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
                     {t(

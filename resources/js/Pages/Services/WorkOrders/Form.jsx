@@ -12,12 +12,11 @@ import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
-import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { dataBefore, data, setData, disabled, form } = useFormPage();
   const itemColumns = useMemo(() => {
     return [
       {
@@ -25,6 +24,7 @@ export default function Form() {
         titleTrans: "service.workOrder.columns.item",
         required: true,
         width: 3,
+        unique: true,
         cell({ data, setData, attributes }) {
           return (
             <ItemVariantLinkModel
@@ -176,7 +176,8 @@ export default function Form() {
   }, []);
   useEffect(() => {
     if (!data.date) {
-      setData("date", new Date());
+      const currentDate = new Date();
+      form.setData({ date: currentDate });
     }
   }, []);
   return (
@@ -210,6 +211,7 @@ export default function Form() {
             <CustomerLinkModel
               disabled={data.for_internal}
               with={["branches"]}
+              valueBefore={dataBefore.customer}
               value={data.for_internal ? "" : data.customer}
               onValueChange={(val) => {
                 if (val?.branches?.length <= 1) {
@@ -230,10 +232,19 @@ export default function Form() {
           >
             <BranchLinkModel
               disabled={!(data.for_internal || data.customer)}
+              valueBefore={dataBefore.customer_branch}
               value={data.customer_branch}
               onValueChange={(val) => setData("customer_branch", val)}
               disabledNavigation={!data.for_internal}
               filters={{
+                branchable_type: data.for_internal
+                  ? null
+                  : "App\\Models\\Sales\\Customer",
+                branchable_id: data.for_internal
+                  ? null
+                  : (data.customer?.id ?? null),
+              }}
+              defaultValueForm={{
                 branchable_type: data.for_internal
                   ? null
                   : "App\\Models\\Sales\\Customer",
@@ -254,6 +265,7 @@ export default function Form() {
               placeholder={t(
                 "service.workOrder.columns.item_service.placeholder",
               )}
+              valueBefore={dataBefore.item_service}
               value={data.item_service}
               onValueChange={(val) => {
                 setData("item_service", val);
@@ -266,22 +278,6 @@ export default function Form() {
                 },
               }}
               with={["defaultUnit"]}
-            />
-          </FormInput>
-          <FormInput
-            className="col-span-2 col-start-1"
-            label={t("service.workOrder.columns.source_warehouse")}
-            required
-            name="source_warehouse"
-          >
-            <WarehouseLinkModel
-              placeholder={t(
-                "service.workOrder.columns.source_warehouse.placeholder",
-              )}
-              value={data.source_warehouse}
-              onValueChange={(val) => {
-                setData("source_warehouse", val);
-              }}
             />
           </FormInput>
         </div>

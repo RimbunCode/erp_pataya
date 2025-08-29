@@ -13,7 +13,7 @@
       }
     }
     .mentions__suggestions {
-      @apply rounded-md border border-muted bg-popover p-1 text-popover-foreground shadow-md outline-none;
+      @apply rounded-md border border-muted !bg-popover p-1 text-popover-foreground shadow-md outline-none;
     }
     .mentions__suggestions__item {
       @apply relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors;

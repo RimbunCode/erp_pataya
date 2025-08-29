@@ -25,6 +25,10 @@ class DataTableScope implements Scope {
 
   protected function addDataTable(Builder $builder) {
     $builder->macro('dataTable', function (Builder $query, Request $request) {
+      $dataTableColumns = \get_class($query->getModel())::getColumns();
+      $configColumns = array_column(\json_decode($_COOKIE['datatable_columns'] ?? "", true) ?? [], null, "name");
+
+      $isSubmitable =  $query->getModel()->isSubmitable();
       $nameOfTable = $query->toBase()->from;
       $query->addSelect("$nameOfTable.*");
       $defaultShow = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
@@ -38,6 +42,15 @@ class DataTableScope implements Scope {
       $sortDirection = $sortArr[0] === $sortKey ? "asc" : "desc";
       $query = $query->orderBy($sortKey, $sortDirection);
 
+      $relations = [];
+      foreach ($dataTableColumns as $column) {
+        if ($column["ignore"] ?? false)
+          continue;
+        if ($column["type"] == "relation") {
+          $relations[] = $column["nameOfFunction"];
+        }
+      }
+      $query = $query->with($relations);
       // Filter
       if ($request->has('f')) {
         $filter = $request->input('f');
@@ -77,10 +90,18 @@ class DataTableScope implements Scope {
           };
         });
       }
+      if ($isSubmitable) {
+        $query->where(function (Builder $query) use ($request) {
+          $query->where('status', '!=', 'draft');
+          $query->orWhere('created_by', $request->user()->id);
+        });
+      }
 
-      // dd($query->toRawSql());
       Inertia::share([
         'defaultSort' => '-created_at',
+        'name' => $query->getModel()->getNameClass(),
+        'translateKey' => $query->getModel()->translateKey ?? null,
+        'dataTableColumns' => $dataTableColumns,
         'data' => Inertia::merge(value: $query->paginate($show))
       ]);
     });

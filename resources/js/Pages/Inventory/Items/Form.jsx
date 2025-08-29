@@ -24,7 +24,7 @@ import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function Form() {
-  const { data, setData } = useFormPage();
+  const { dataBefore, data, setData, disabled } = useFormPage();
   const { item, variants } = usePage().props;
   const route = window.route;
   const { t } = useLaravelReactI18n();
@@ -57,8 +57,8 @@ export default memo(function Form() {
       })
       .then((res) => {
         setData(
-          "uom",
-          res.data.map((x) => ({
+          "uoms",
+          res.data.data?.map((x) => ({
             ...x,
             readOnly: x.conversion_factor,
             isCustom: !x.conversion_factor,
@@ -71,10 +71,10 @@ export default memo(function Form() {
   }, []);
   useDidMountEffect(() => {
     if (data.default_unit) {
-      if (data.uom?.at(0)?.group == data.default_unit.group) return;
+      if (data.uoms?.at(0)?.group == data.default_unit.group) return;
       getUnits(data.default_unit.group);
     } else {
-      setData("uom", []);
+      setData("uoms", []);
     }
   }, [data.default_unit]);
   /**
@@ -96,6 +96,9 @@ export default memo(function Form() {
                 group: data?.default_unit?.group,
                 ...(dataRow.readOnly ? {} : { conversion_factor: null }),
               }}
+              defaultValueForm={{
+                group: data?.default_unit?.group,
+              }}
               onValueChange={(value) => {
                 // if (!value) return;
                 setData(value);
@@ -113,7 +116,9 @@ export default memo(function Form() {
             <CurrencyInput
               {...attributes}
               disabled={!dataRow?.code}
-              readOnly={dataRow.readOnly && !dataRow.isCustom}
+              readOnly={
+                attributes.disabled || (dataRow.readOnly && !dataRow.isCustom)
+              }
               value={data}
               onValueChange={(value) => {
                 setData("conversion_factor", value);
@@ -134,6 +139,7 @@ export default memo(function Form() {
         name: "attribute",
         titleTrans: "inventory.item.columns.attribute",
         required: true,
+        unique: true,
         cell({ dataRow, attributes, setData }) {
           return (
             <AttributeLinkModel
@@ -171,19 +177,22 @@ export default memo(function Form() {
   );
   return (
     <>
-      <FormDetail data={data} setData={setData} />
+      <FormDetail dataBefore={dataBefore} data={data} setData={setData} />
       <FormPageContent
         title={t("inventory.item.menu.variants")}
         value="variants"
       >
         <FormTable
+          name="variants"
+          disabled={disabled}
+          // readOnly={disabled}
           columns={variantColumns}
-          value={data.variants ?? []}
+          value={data.attributes ?? []}
           onValueChange={(val) => {
-            setData("variants", val);
+            setData("attributes", val);
           }}
         />
-        {data?.variants && data?.variants?.length > 0 && (
+        {data?.attributes && data?.attributes?.length > 0 && (
           <FormInput
             className="max-w-sm mt-4"
             label={t("inventory.item.columns.format_variant")}
@@ -256,8 +265,8 @@ export default memo(function Form() {
                   {variant.sku ? (
                     <Link
                       className="hover:underline"
-                      href={route("variants.show", {
-                        variant: variant.id,
+                      href={route("itemVariants.show", {
+                        itemVariant: variant.id,
                       })}
                     >
                       {variant.sku || item.code}
@@ -298,19 +307,21 @@ export default memo(function Form() {
           </WhenVisible>
         </FormPageContent>
       )}
-      <FormBarcodes />
-      {item && !(item.variants && item.variants.length > 0) && (
-        <FormStockLevels />
-      )}
+      <FormBarcodes disabled={disabled} />
+      {item &&
+        !(item.attributes && item.attributes.length > 0) &&
+        !disabled && <FormStockLevels />}
       <FormPageContent title={t("inventory.item.menu.uom")} value="detail">
         <FormPageContentTitle>
           {t("inventory.item.menu.uom")}
         </FormPageContentTitle>
         <FormTable
-          readOnly={!data.default_unit}
+          name="uoms"
+          // disabled={disabled}
+          // readOnly={!data.default_unit}
           columns={uomColumns}
-          value={data.uom ?? []}
-          onValueChange={useCallback((val) => setData("uom", val), [])}
+          value={data.uoms ?? []}
+          onValueChange={useCallback((val) => setData("uoms", val), [])}
         />
       </FormPageContent>
     </>

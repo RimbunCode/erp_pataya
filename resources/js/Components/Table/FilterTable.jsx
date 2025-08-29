@@ -137,16 +137,19 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
             "grid max-w-full flex-1 overflow-y-auto grid-cols-[max-content_max-content_auto_max-content] gap-y-2 mb-4 [&>div.grid:first-child]:border-t-0 [&>div.grid:first-child]:pt-0 [&>div.grid]:pt-2 [&>div.grid]:border-t [&>div.grid]:border-muted-foreground/30",
           )}
         >
-          {filters.map(({ id, ...props }) => (
-            <FilterItem
-              key={id}
-              id={id}
-              {...props}
-              columns={columns}
-              onChanged={updateFilter}
-              removeFilter={removeFilter}
-            />
-          ))}
+          {filters.map(({ id, ...props }) => {
+            if (props.type == "relations" || props.type == "mixed") return;
+            return (
+              <FilterItem
+                key={id}
+                id={id}
+                {...props}
+                columns={columns}
+                onChanged={updateFilter}
+                removeFilter={removeFilter}
+              />
+            );
+          })}
         </div>
         <div className="flex items-center justify-between py-2 border-t gap-x-6 border-muted-foreground/50">
           <Button variant="outline" className="h-8 !px-2" onClick={addFilter}>

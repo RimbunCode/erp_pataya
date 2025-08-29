@@ -37,9 +37,15 @@ export default forwardRef(function MultiSelect(
     },
   });
 
-  const convertValues = useCallback((values) => {
-    return values?.join(", ") ?? "";
-  }, []);
+  const convertValues = useCallback(
+    (values) => {
+      const options = optionsProps
+        ?.filter((opt) => values.includes(opt.value))
+        .map((opt) => opt.label);
+      return options?.join(", ") ?? "";
+    },
+    [options],
+  );
 
   const setSearch = useCallback(
     (search) => {
@@ -238,7 +244,7 @@ export default forwardRef(function MultiSelect(
                           htmlFor={`${opt.value}-checkbox`}
                           className="flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          {opt.value}
+                          {opt.label}
                         </span>
                       </label>
                     </CommandItem>

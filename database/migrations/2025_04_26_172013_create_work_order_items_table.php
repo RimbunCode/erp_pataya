@@ -11,7 +11,7 @@ return new class extends Migration {
   public function up(): void {
     Schema::create('work_order_items', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->timestamp("date");
+      $table->nullableUlidMorphs('referenceable');
       $table->foreignUlid('work_order_id')->references('id')->on('work_orders')->cascadeOnDelete();
       $table->foreignUlid('item_variant_id')->nullable()->references('id')->on('item_variants')->nullOnDelete();
       $table->string('item_name')->nullable();
