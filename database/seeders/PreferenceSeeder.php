@@ -31,7 +31,8 @@ class PreferenceSeeder extends Seeder {
       "state" => "Jawa Timur",
       "zip_code" => "60293",
       "country_id" => "IDN",
-      "default_currency_id" => "idr"
+      "default_currency_id" => "idr",
+      "timezone" => "Asia/Jakarta",
     ];
     $preferences = collect($preferencesArr)->map(fn($value, $key) => [
       'key' => $key,

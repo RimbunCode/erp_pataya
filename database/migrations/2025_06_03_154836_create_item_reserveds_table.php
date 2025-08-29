@@ -13,7 +13,7 @@ return new class extends Migration {
       $table->ulid("id")->primary();
       $table->nullableUlidMorphs('reserveable');
       $table->foreignUlid('item_variant_id')->references('id')->on('item_variants')->onDelete('cascade');
-      $table->foreignUlid('stock_id')->references('id')->on('stocks')->onDelete('cascade');
+      $table->foreignUlid('stock_id')->nullable()->references('id')->on('stocks')->onDelete('cascade');
       $table->unsignedInteger('quantity')->default(0);
       $table->foreignUlid('unit_id')->references('id')->on('units')->onDelete('cascade');
       $table->string('status')->default('reserved'); // reserved, cancelled, completed

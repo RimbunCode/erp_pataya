@@ -31,6 +31,7 @@ class CompanyController extends Controller {
       'breadcrumbs' => [
         ['name' => 'Company Details'],
       ],
+      "timezones" => timezone_identifiers_list(),
     ]);
   }
 

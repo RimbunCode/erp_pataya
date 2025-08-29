@@ -31,6 +31,7 @@ class CustomerRequest extends FormRequest {
       'is_disabled' => ['nullable', 'boolean'],
       'branches' =>  ['nullable', 'array'],
       'branches.*.id' => ['nullable', 'string',],
+      'branches.*.code' => ['required', 'string', 'max:255'],
       'branches.*.name' => ['required', 'string', 'max:255'],
       'branches.*.is_disabled' => ['nullable', 'boolean'],
       'branches.*.billing_address' => ['required', 'string', 'in:same_main,same_shipping,separate'],

@@ -15,7 +15,7 @@ return new class extends Migration {
       $table->string('name');
       $table->text('model');
       $table->json('permissions')->nullable();
-      $table->boolean('is_submittable')->default(false);
+      $table->boolean('is_submitable')->default(false);
       $table->timestamps();
       $table->softDeletes();
       $table->unique(['module', 'name', 'deleted_at']);

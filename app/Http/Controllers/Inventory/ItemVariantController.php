@@ -18,21 +18,20 @@ class ItemVariantController extends Controller {
     $this->itemService = $itemService;
     parent::__construct($request, ItemVariant::class);
   }
-  public function show(ItemVariant $variant) {
-    $item = $variant->item;
-    $this->setBreadcrumbs($item, $variant);
-    $variant->showDetail();
+  public function index(Request $request) {
+    return \redirect()->route('items.index');
+  }
+  public function show(ItemVariant $itemVariant) {
+    $item = $itemVariant->item;
+    $this->setBreadcrumbs($item, $itemVariant);
+    $itemVariant->showDetail();
     return Inertia::render('Inventory/Items/ShowVariant', [
-      'variant' => function () use ($variant) {
-        $variant->load(['barcodes']);
-        return $variant;
+      'itemVariant' => function () use ($itemVariant) {
+        $itemVariant->loadRelations();
+        return $itemVariant;
       },
-      'item' => function () use ($item) {
-        $item->load(['category', 'defaultUnit',]);
-        return $item;
-      },
-      'stocks' => Inertia::defer(function () use ($variant) {
-        $warehouses = Warehouse::with(['stocks' => fn($query) => $query->where('item_variant_id', $variant->id), 'stocks.unit', 'branch']);
+      'stocks' => Inertia::defer(function () use ($itemVariant) {
+        $warehouses = Warehouse::with(['stocks' => fn($query) => $query->where('item_variant_id', $itemVariant->id), 'stocks.unit', 'branch']);
         if (Session::has('currentBranch')) {
           $branch = Branch::find(Session::get('currentBranch'));
           if (!$branch->is_main_branch) {
@@ -47,16 +46,14 @@ class ItemVariantController extends Controller {
           ]);
         return $warehouses;
       }),
-      'barcodes' => Inertia::defer(function () use ($variant) {
-        return $variant->barcodes()->with(['unit'])->get();
-      }),
     ]);
   }
 
-  public function update(ItemVariantRequest $request, ItemVariant $variant) {
+  public function update(ItemVariantRequest $request, ItemVariant $itemVariant) {
     $data = $request->validated();
-    $variant->update($data);
-    $this->itemService->updateBarcodes($variant, $data['barcodes']);
-    return redirect()->back();
+    $itemVariant->fillForUpdate($data);
+    $this->itemService->updateBarcodes($itemVariant, $data['barcodes']);
+    $itemVariant->logForUpdated();
+    return back();
   }
 }

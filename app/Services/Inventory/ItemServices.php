@@ -43,10 +43,10 @@ class ItemServices {
     }
   }
 
-  public function updateVariants(Item $item, string $formatVariants, array $variants) {
-    if (isset($variants) && \count($variants) > 0) {
+  public function updateVariants(Item $item, string $formatVariants, array $attributes) {
+    if (isset($attributes) && \count($attributes) > 0) {
       if (isset($formatVariants)) {
-        $attribute_map = array_column(array_column($variants, 'attribute'), 'id', 'name');
+        $attribute_map = array_column(array_column($attributes, 'attribute'), 'id', 'name');
         $attribute_map['Item Code'] = 'item';
 
         // Ganti format menggunakan regex
@@ -55,26 +55,26 @@ class ItemServices {
           return isset($attribute_map[$name]) ? "@[$name]({$attribute_map[$name]})" : $matches[0];
         }, $formatVariants);
       }
-      foreach ($variants as $variant) {
-        $item->variants()->updateOrCreate([
-          'attribute_id' => $variant['attribute']['id'],
+      foreach ($attributes as $attribute) {
+        $item->attributes()->updateOrCreate([
+          'attribute_id' => $attribute['attribute']['id'],
         ], [
-          'values' => $variant['values']
+          'values' => $attribute['values']
         ]);
       }
-      $variantIds = array_column(
-        array_column($variants, 'attribute'),
+      $attributeIds = array_column(
+        array_column($attributes, 'attribute'),
         'id'
       );
-      foreach ($item->variants as $variant) {
+      foreach ($item->attributes as $attribute) {
         if (!\in_array(
-          $variant->attribute_id,
-          $variantIds
+          $attribute->attribute_id,
+          $attributeIds
         )) {
-          $variant->delete();
+          $attribute->delete();
         }
       }
-      $datavariants = ItemVariant::selectRaw("
+      $dataVariants = ItemVariant::selectRaw("
         item_variants.id,
         CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('\"', item_variant_attributes.value, '\"') SEPARATOR ', '), ']') AS `values`
       ")
@@ -85,9 +85,9 @@ class ItemServices {
           'values' => 'array'
         ])
         ->get();
-      $this->generateVariants($datavariants, $item, $variants);
+      $this->generateVariants($dataVariants, $item, $attributes);
     } else {
-      $item->variants()->delete();
+      $item->attributes()->delete();
       $itemVariant = ItemVariant::updateOrCreate([
         'item_id' => $item->id,
         'format_variant' => null,
@@ -105,7 +105,7 @@ class ItemServices {
   private function generateVariants($variants, Item $item, array $attributes, array $prefix = []) {
     if (!$attributes) {
       $variant = $variants->where(function ($variant) use ($prefix) {
-        if (\count($variant->values) != \count($prefix)) return false;
+        if (\count($variant->values ?? []) != \count($prefix)) return false;
         foreach ($prefix as $attribute) {
           if (!\in_array($attribute['value'], $variant->values ?? [])) {
             return false;
@@ -124,7 +124,7 @@ class ItemServices {
           'default_unit_id' => $item->default_unit_id,
         ])->id;
         foreach ($prefix as $attribute) {
-          ItemVariantAttribute::create([
+          $attribute->values()->create([
             'item_variant_id' => $variantId,
             ...$attribute
           ]);
@@ -142,9 +142,8 @@ class ItemServices {
         $variantId = $variant->id;
       }
       foreach ($prefix as $attribute) {
-        ItemVariantAttribute::updateOrCreate([
+        $attribute->values()->updateOrCreate([
           'item_variant_id' => $variantId,
-          'attribute_id' => $attribute['attribute_id'],
         ], [
           ...$attribute
         ]);

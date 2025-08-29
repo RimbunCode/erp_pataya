@@ -96,16 +96,10 @@ class UserController extends Controller {
     }
     $data = $request->validated();
     DB::beginTransaction();
-    $user->update($data);
+    $user->fillForUpdate($data);
     $user->roles()->sync($data['roles']);
     $user->branches()->sync($data['branches']);
-    $user->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
+    $user->logForUpdated();
     DB::commit();
     return back();
   }

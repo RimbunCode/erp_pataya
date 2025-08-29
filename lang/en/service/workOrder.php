@@ -2,7 +2,7 @@
 
 return [
   'title' => 'Work Orders',
-  'add_work_order' => 'Add Work Order',
+  'add' => 'Add Work Order',
   'work_orders' => 'Work Order',
   'new' => 'New Work Orders',
   'delete' => 'Delete Work_order',

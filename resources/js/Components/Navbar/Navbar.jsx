@@ -24,8 +24,9 @@ import ToggleTheme from "@/Components/ToggleTheme";
 import UserInfo from "./UserInfo";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/Hooks/use-mobile";
-import { usePage } from "@inertiajs/react";
+import { useIsTablet } from "@/Hooks/use-tablet";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
 export default memo(function Navbar({ setShowSearch }) {
   const { t, loading } = useLaravelReactI18n();
@@ -34,8 +35,8 @@ export default memo(function Navbar({ setShowSearch }) {
   const breadcrumbsMenu = useMemo(() => {
     if (!breadcrumbs) return null;
     return (
-      <Breadcrumb>
-        <BreadcrumbList>
+      <Breadcrumb className="flex w-full ">
+        <BreadcrumbList className="flex  w-full pr-6">
           {breadcrumbs.length > 1 && (isMobile || breadcrumbs.length > 3) ? (
             <>
               <BreadcrumbItem>
@@ -63,8 +64,8 @@ export default memo(function Navbar({ setShowSearch }) {
                 </DropdownMenu>
               </BreadcrumbItem>
               <BreadcrumbSeparator className="" />
-              <BreadcrumbItem>
-                <BreadcrumbPage>
+              <BreadcrumbItem className="overflow-hidden block">
+                <BreadcrumbPage className="truncate block w-full">
                   {t(
                     breadcrumbs[breadcrumbs.length - 1].name?.replace(
                       /__\(\s*(.*?)\s*\)/g,
@@ -78,20 +79,26 @@ export default memo(function Navbar({ setShowSearch }) {
             breadcrumbs.map((breadcrumb, index) =>
               index < breadcrumbs.length - 1 ? (
                 <Fragment key={breadcrumb.name + index}>
-                  <BreadcrumbItem className="hidden md:block">
+                  <BreadcrumbItem className="hidden md:block overflow-hidden">
                     <BreadcrumbLink asChild>
-                      <Link href={breadcrumb.link}>
+                      <Link
+                        href={breadcrumb.link}
+                        className="truncate block w-full"
+                      >
                         {t(
                           breadcrumb.name?.replace(/__\(\s*(.*?)\s*\)/g, "$1"),
                         )}
                       </Link>
                     </BreadcrumbLink>
                   </BreadcrumbItem>
-                  <BreadcrumbSeparator className="hidden md:block" />
+                  <BreadcrumbSeparator className="hidden md:inline-block" />
                 </Fragment>
               ) : (
-                <BreadcrumbItem key={breadcrumb.name + index}>
-                  <BreadcrumbPage>
+                <BreadcrumbItem
+                  key={breadcrumb.name + index}
+                  className="overflow-hidden block"
+                >
+                  <BreadcrumbPage className="truncate block w-full">
                     {t(breadcrumb.name?.replace(/__\(\s*(.*?)\s*\)/g, "$1"))}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
@@ -103,13 +110,13 @@ export default memo(function Navbar({ setShowSearch }) {
     );
   }, [breadcrumbs, isMobile, loading]);
   return (
-    <header className="sticky top-0 bg-background z-10  w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-      <div className="flex items-center gap-2 px-4">
+    <header className="overflow-hidden sticky top-0 bg-background z-10 max-w-full w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+      <div className="overflow-hidden flex w-full items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="h-4 mr-2" />
         {breadcrumbsMenu}
       </div>
-      <div className="flex items-center gap-2 px-4">
+      <div className="flex flex-1 items-center gap-2 px-4 justify-end">
         <Button
           onClick={() => setShowSearch((open) => !open)}
           variant="outline"

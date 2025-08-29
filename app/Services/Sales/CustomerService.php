@@ -4,25 +4,27 @@ namespace App\Services\Sales;
 
 use App\Models\Core\Branch;
 use App\Models\Sales\Customer;
+use Illuminate\Support\Str;
 use Symfony\Component\Uid\Ulid;
 
 class CustomerService {
   public function storeBranches(Customer $customer, array $branches) {
-    $mainBranch = collect($branches)->where('is_main_branch', true)->first();
-    if (!$mainBranch) {
-      $branches = [
-        [
-          'name' => $customer->name,
-          'is_main_branch' => true,
-          'shipping_country_id' => $customer->country_id,
-          'shipping_street' => $customer->shipping_street,
-          'shipping_city' => $customer->shipping_city,
-          'shipping_state' => $customer->shipping_state,
-          'shipping_zip_code' => $customer->shipping_zip_code,
-          'billing_address' => 'same_shipping',
-        ]
-      ];
-    }
+    $mainBranch = $customer->branches()->where('is_main_branch', true)->first();
+    $branches = [
+      [
+        'id' => $mainBranch?->id,
+        'code' => str_replace(" ", "-", $customer->name),
+        'name' => $customer->name,
+        'is_main_branch' => true,
+        'shipping_country_id' => $customer->country_id,
+        'shipping_street' => $customer->street,
+        'shipping_city' => $customer->city,
+        'shipping_state' => $customer->state,
+        'shipping_zip_code' => $customer->zip_code,
+        'billing_address' => 'same_shipping',
+      ],
+      ...$branches
+    ];
     foreach ($branches as $branch) {
       $branch['branchable_type'] = Customer::class;
       $branch['branchable_id'] = $customer->id;

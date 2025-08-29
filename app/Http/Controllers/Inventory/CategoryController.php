@@ -23,7 +23,6 @@ class CategoryController extends Controller {
     Category::dataTable($request);
     return Inertia::render(
       'Inventory/Categories/Index',
-      []
     );
   }
 
@@ -41,15 +40,9 @@ class CategoryController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $category = Category::create($data);
-    $category->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
+    $category->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return redirect()->back()->with('id', $category->id);
   }
 
   /**
@@ -71,24 +64,21 @@ class CategoryController extends Controller {
   public function update(CategoryRequest $request, Category $category) {
     $data = $request->validated();
     DB::beginTransaction();
-    $category->update($data);
-    $category->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user telah memperbarui ini',
-      ]
-    ]);
+    $category->fillForUpdate($data);
+    $category->logForUpdated();
     DB::commit();
     // dd($request->all());
-    return redirect()->back();
+    return back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
   public function destroy(Category $category) {
+    DB::beginTransaction();
     $category->delete();
-    return redirect()->back();
+    $category->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

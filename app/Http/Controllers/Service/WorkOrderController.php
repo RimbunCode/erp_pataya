@@ -15,12 +15,11 @@ use Inertia\Inertia;
 class WorkOrderController extends Controller {
   private FormatingSeriesService $referenceCodeService;
   private WorkOrderService $service;
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, WorkOrderService $service) {
-    $this->referenceCodeService = $preferenceCodeService;
+  public function __construct(Request $request, FormatingSeriesService $referenceCodeService, WorkOrderService $service) {
+    $this->referenceCodeService = $referenceCodeService;
     $this->service = $service;
     parent::__construct($request, WorkOrder::class);
   }
-
 
   /**A
    * Display a listing of the resource.
@@ -28,7 +27,7 @@ class WorkOrderController extends Controller {
   public function index(Request $request) {
     $this->setBreadcrumbs();
     WorkOrder::dataTable($request);
-    return Inertia::render('Services/WorkOrders/Index');
+    return Inertia::render(component: 'Services/WorkOrders/Index');
   }
 
   /**
@@ -47,18 +46,10 @@ class WorkOrderController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
     $code = $this->referenceCodeService->get(WorkOrder::class, $data);
     $data['code'] = $code;
-    $data['created_by'] = $request->user()->id;
 
     $wo = $this->service->create($data);
-    $wo->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('workOrders.show', $wo);
   }
 
   /**
@@ -69,7 +60,7 @@ class WorkOrderController extends Controller {
     $workOrder->showDetail();
     return Inertia::render('Services/WorkOrders/Show', [
       'workOrder' => function () use ($workOrder) {
-        $workOrder->load(['items', 'customer', 'customer_branch', 'item_service', 'source_warehouse']);
+        $workOrder->loadRelations();
         return $workOrder;
       },
     ]);
@@ -82,34 +73,21 @@ class WorkOrderController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $wo = $this->service->update($workOrder, $data);
-    $wo->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini',
-      ]
-    ]);
+
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 
   public function submit(Request $request, WorkOrder $workOrder) {
     DB::beginTransaction();
     $wo = $this->service->submit($workOrder);
-    $wo->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini',
-      ]
-    ]);
     DB::commit();
   }
 
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(string $id) {
+  public function destroy(Request $request, WorkOrder $workOrder) {
     //
   }
 }

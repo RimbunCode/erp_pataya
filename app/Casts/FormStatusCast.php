@@ -14,6 +14,7 @@ class FormStatusCast implements CastsAttributes {
    * @param  array<string, mixed>  $attributes
    */
   public function get(Model $model, string $key, mixed $value, array $attributes): mixed {
+    if ($value == null) return null;
     return FormStatus::from($value);
   }
 

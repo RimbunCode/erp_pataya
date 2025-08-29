@@ -24,7 +24,6 @@ class AppServiceProvider extends ServiceProvider {
   public function boot(): void {
     Vite::prefetch(concurrency: 3);
 
-    Model::observe(\App\Observers\ModelObserver::class);
     $this->app->instance(IlluminateDatabaseChannel::class, new \App\Channels\DatabaseChannel());
     // $this->app->extend(EloquentModel::class, \App\Models\Model::class);
     $this->app->instance(IlluminateNotification::class, new \App\Notifications\BaseNotification());

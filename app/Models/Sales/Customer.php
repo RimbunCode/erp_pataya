@@ -19,6 +19,16 @@ class Customer extends Model {
   public static function templateLink() {
     return ":name";
   }
+  public $translateKey = 'sales.customer';
+  protected $configColumns = [
+    "country",
+    "branches",
+  ];
+  protected static function loadRelationsOnShow() {
+    return ['country', 'branches' => function ($query) {
+      $query->where('is_main_branch', false);
+    }];
+  }
   public function country() {
     return $this->belongsTo(Country::class, 'country_id', 'code');
   }

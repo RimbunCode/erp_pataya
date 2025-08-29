@@ -116,7 +116,7 @@ export default memo(function Form() {
               {t("core.branch.columns.billing_address")}
             </h1>
             <Select
-              required
+              required={true}
               value={data.billing_address}
               onValueChange={(val) => {
                 setData("billing_address", val);

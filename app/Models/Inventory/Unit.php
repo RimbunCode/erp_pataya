@@ -19,4 +19,5 @@ class Unit extends Model {
   public static function templateLink() {
     return ":name (:code)";
   }
+  public string $formComponent = "Inventory/Units/Form";
 }

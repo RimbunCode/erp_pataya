@@ -9,14 +9,16 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
   Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name, $nestedShow, $isSubmmitable) {
     Route::get("/", "index")->name("$uri.index");
     Route::post("/", "store")->name("$uri.store");
-    Route::get("/create", "create")->name("$uri.create");
+    Route::get("/create/{ref?}", "create")->name("$uri.create")->where('ref', '.*');
     if ($nestedShow) {
       Route::prefix("/{{$name}}")->group($nestedShow)->name("$uri.show");
     }
     Route::get("/{{$name}}", "show")->name("$uri.show");
-    Route::put("/{{$name}}", "update")->name("$uri.update");
     if ($isSubmmitable) {
       Route::put("/{{$name}}/submit", "submit")->name("$uri.submit");
+      Route::put("/{{$name}}/{level?}", "update")->name("$uri.update");
+    } else {
+      Route::put("/{{$name}}", "update")->name("$uri.update");
     }
     Route::delete("/{{$name}}", "destroy")->name("$uri.destroy");
 
@@ -49,8 +51,13 @@ Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::
 Route::post('/model', \App\Http\Controllers\ModelController::class)
   ->middleware(middleware: ['auth'])
   ->name('model');
+Route::get('/model/{model}', [\App\Http\Controllers\ModelController::class, 'datatable'])
+  ->where('model', '.*')
+  ->middleware(middleware: ['auth'])
+  ->name('model.datatable');
 
 Route::middleware(['auth', 'lang', 'app'])->group(function () {
+  Route::get('/logs/{log}', [\App\Http\Controllers\Core\LogController::class, 'show'])->name('logs.show');
   // Branch Switcher
   Route::put('/switch_branch/{id}', [\App\Http\Controllers\Core\BranchController::class, 'switch'])->name('branch.switch');
   // Dashboard
@@ -87,15 +94,24 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('category', \App\Http\Controllers\Inventory\CategoryController::class);
   // Items
   Route::resourceDetail('item', \App\Http\Controllers\Inventory\ItemController::class);
-  Route::resourceDetail('variant', \App\Http\Controllers\Inventory\ItemVariantController::class);
+  Route::resourceDetail('itemVariant', \App\Http\Controllers\Inventory\ItemVariantController::class);
   // ItemAlternatives
   Route::resourceDetail('itemAlternative', \App\Http\Controllers\Inventory\ItemAlternativeController::class);
   //Attributes
   Route::resourceDetail('attribute', \App\Http\Controllers\Inventory\AttributeController::class);
+
+  /// Purchase Group
   // Supplier
   Route::resourceDetail('supplier', \App\Http\Controllers\Purchase\SupplierController::class);
+  // Purchase Request
+  Route::resourceDetail('purchaseRequest', \App\Http\Controllers\Purchase\PurchaseRequestController::class);
+  // Purchase Order
+  Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class);
+  /// Purchase Group End
+
   // Customer
   Route::resourceDetail('customer', \App\Http\Controllers\Sales\CustomerController::class);
+
   /// Service Group
   // Work Order
   Route::resourceDetail('workOrder', \App\Http\Controllers\Service\WorkOrderController::class, isSubmmitable: true);

@@ -45,24 +45,21 @@ class CustomerController extends Controller {
     $data['country_id'] = $data['country']['code'];
     $customer = Customer::create($data);
     $this->customerService->storeBranches($customer, $data["branches"] ?? []);
-    $customer->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user membuat ini'
-      ]
-    ]);
+    $customer->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return back()->with('id', $customer->id);
   }
   public function show(Customer $customer) {
     $this->setBreadcrumbs($customer);
     $customer->showDetail();
     return $this->renderShow(
-      'Sales/Customers/Show',
+      'Sales/Customers/Form',
       "customer",
       $customer->name,
-      $customer
+      function () use ($customer) {
+        $customer->loadRelations();
+        return $customer;
+      },
     );
   }
 
@@ -73,15 +70,9 @@ class CustomerController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['country_id'] = $data['country']['code'];
-    $customer->update($data);
+    $customer->fillForUpdate($data);
     $this->customerService->storeBranches($customer, $data["branches"] ?? []);
-    $customer->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
+    $customer->logForUpdated();
     DB::commit();
     return back();
   }
@@ -89,6 +80,11 @@ class CustomerController extends Controller {
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(Request $request) {
+  public function destroy(Customer $customer) {
+    DB::beginTransaction();
+    $customer->delete();
+    $customer->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

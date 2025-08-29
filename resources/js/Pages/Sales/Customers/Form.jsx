@@ -163,7 +163,12 @@ export default function Form() {
                 return (
                   <div className="flex self-start justify-start px-4 py-2 custom-cell">
                     {isEmpty ? (
-                      <Button size="sm" className="h-8" onClick={openDialog}>
+                      <Button
+                        size="sm"
+                        className="h-8"
+                        onClick={openDialog}
+                        type="button"
+                      >
                         {t("core.branch.add_branch")}
                       </Button>
                     ) : (

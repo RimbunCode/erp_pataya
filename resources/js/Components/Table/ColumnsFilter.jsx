@@ -28,23 +28,26 @@ function ColumnsFilter({ columns: initColumn, onApply, open }) {
         <DialogTitle>{t("core.datatable.columns.select_column")}</DialogTitle>
         <DialogDescription className="sr-only">Select Column</DialogDescription>
       </DialogHeader>
-      {columns.map(({ name, titleTrans, show }) => (
-        <FormCheckbox
-          key={name}
-          checked={show}
-          onCheckedChange={(val) => {
-            setColumns((x) => {
-              return x.map((y) => {
-                if (y.name === name) {
-                  return { ...y, show: val };
-                }
-                return y;
+      {columns.map(({ name, title, titleTrans, show, type }) => {
+        if (type == "relations" || type == "mixed") return;
+        return (
+          <FormCheckbox
+            key={name}
+            checked={show}
+            onCheckedChange={(val) => {
+              setColumns((x) => {
+                return x.map((y) => {
+                  if (y.name === name) {
+                    return { ...y, show: val };
+                  }
+                  return y;
+                });
               });
-            });
-          }}
-          label={t(titleTrans)}
-        />
-      ))}
+            }}
+            label={title ?? t(titleTrans)}
+          />
+        );
+      })}
       <DialogFooter className="flex justify-end">
         <Button className="h-8 !px-2" onClick={_onApply}>
           {t("core.datatable.columns.apply")}

@@ -14,11 +14,20 @@ class ItemAttribute extends Model {
   protected $casts = [
     'values' => Json::class,
   ];
+  protected $configColumns = [
+    'item',
+    'attribute',
+    'barcodes',
+  ];
 
   public function item() {
     return $this->belongsTo(Item::class);
   }
   public function attribute() {
     return $this->belongsTo(Attribute::class);
+  }
+
+  public function barcodes() {
+    return $this->hasMany(ItemBarcode::class, 'item_variant_id', 'id');
   }
 }

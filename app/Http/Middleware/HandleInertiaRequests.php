@@ -28,6 +28,7 @@ class HandleInertiaRequests extends Middleware {
    */
   public function share(Request $request): array {
     $isDebug = config('app.debug');
+    $flashKeys = $request->session()->has("_flash") ? $request->session()->get("_flash")["old"] : [];
     return [
       ...parent::share($request),
       'auth' => [
@@ -39,6 +40,11 @@ class HandleInertiaRequests extends Middleware {
         'location' => $request->url(),
         'query' => count($request->query()) > 0 ? $request->query() : null,
       ],
+      'flash' =>  \array_filter(
+        $request->session()->all(),
+        fn($key) => \in_array($key, $flashKeys),
+        \ARRAY_FILTER_USE_KEY
+      ),
       ...($isDebug ? ['debug' => $isDebug] : []),
     ];
   }

@@ -5,28 +5,56 @@ import { Check, ChevronDown, ChevronUp } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const Select = SelectPrimitive.Root;
+// Wrapper agar ketika Select menutup, fokus dipindahkan ke trigger
+const Select = React.forwardRef(({ children, ...props }, ref) => {
+  return (
+    <SelectPrimitive.Root
+      ref={ref}
+      {...props}
+      onOpenChange={(open) => {
+        if (!open) {
+          // Pastikan fokus kembali ke trigger saat ditutup
+          requestAnimationFrame(() => {
+            const active = document.activeElement;
+            if (active && active.getAttribute("aria-hidden") === "true") {
+              active.blur();
+            }
+          });
+        }
+        props.onOpenChange?.(open);
+      }}
+    >
+      {children}
+    </SelectPrimitive.Root>
+  );
+});
+Select.displayName = SelectPrimitive.Root.displayName;
 
 const SelectGroup = SelectPrimitive.Group;
 
 const SelectValue = SelectPrimitive.Value;
 
 const SelectTrigger = React.forwardRef(
-  ({ className, children, asChild, ...props }, ref) => (
-    <SelectPrimitive.Trigger
-      ref={ref}
-      className={cn(
-        "flex h-8 w-full items-center justify-between rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
-        className,
-      )}
-      {...props}
-    >
-      {children}
-      <SelectPrimitive.Icon asChild>
-        <ChevronDown className="w-4 h-4 opacity-50" />
-      </SelectPrimitive.Icon>
-    </SelectPrimitive.Trigger>
-  ),
+  ({ className, children, required, ...props }, ref) => {
+    // Cegah required memicu warning kalau belum ada value
+    const safeRequired = required && props.value ? true : undefined;
+    return (
+      <SelectPrimitive.Trigger
+        ref={ref}
+        className={cn(
+          "flex h-8 w-full items-center justify-between rounded-md border border-input bg-muted px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring focus:ring-offset-0 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+          className,
+        )}
+        required={safeRequired}
+        {...props}
+      >
+        {children}
+        <SelectPrimitive.Icon asChild>
+          <ChevronDown className="w-4 h-4 opacity-50" />
+        </SelectPrimitive.Icon>
+      </SelectPrimitive.Trigger>
+    );
+  },
 );
 SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 

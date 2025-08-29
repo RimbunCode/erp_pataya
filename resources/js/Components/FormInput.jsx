@@ -30,6 +30,7 @@ function FormInput({
   children,
   description,
   ignoreDisabled = false,
+  ...props
 }) {
   const form = useFormPage();
   const id = useId();
@@ -55,12 +56,13 @@ function FormInput({
           description
         ))}
       {typeof child == "function"
-        ? child({ id, required: _required, readOnly: form?.disabled })
+        ? child({ id, required: _required, readOnly: form?.disabled, ...props })
         : React.Children.map(children, (child) =>
             cloneElement(child, {
               id,
-              required: _required,
+              required: _required && (child.props?.required ?? true),
               readOnly: child.props?.readOnly || form?.disabled,
+              ...props,
             }),
           )}
       {(error || _name in (errors ?? {})) && (

@@ -4,7 +4,7 @@ import { FormPage } from "./Core/FormPage";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function ShowGeneral({ name, title, formPathname }) {
+export default function ShowGeneral({ name, title, formPathname, settings }) {
   const { t } = useLaravelReactI18n();
   // Menggunakan useMemo untuk memuat komponen hanya ketika namefile berubah
   const FormComponent = useMemo(() => {
@@ -21,7 +21,7 @@ export default function ShowGeneral({ name, title, formPathname }) {
   }, [formPathname]);
 
   return (
-    <FormPage name={name} title={title}>
+    <FormPage name={name} title={title} {...settings}>
       {FormComponent ? (
         <Suspense
           fallback={

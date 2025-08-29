@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { Head, WhenVisible, useForm, usePage } from "@inertiajs/react";
 import React, {
   Children,
@@ -29,7 +30,7 @@ import React, {
   useState,
 } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
-import { cn, generateRandom } from "@/lib/utils";
+import { cn, generateRandom, getLocaleDate } from "@/lib/utils";
 import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 
 import AppLayout from "@/Layouts/AppLayout";
@@ -38,11 +39,15 @@ import { Button } from "@/Components/ui/button";
 import Comments from "./Components/Comments";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { SaveIcon } from "lucide-react";
+import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
+import { TooltipProvider } from "@/Components/ui/tooltip";
+import { format } from "date-fns";
 import pluralize from "pluralize";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import Link from "@/Components/Link";
 
 /**
  * @typedef {object} FormPageContentTitleProps
@@ -107,6 +112,7 @@ const FormPageContent = memo(
       value,
       children,
       className,
+      actions,
       collapsible = false,
       showAt = false,
       show = true,
@@ -178,9 +184,10 @@ const FormPageContent = memo(
             (title && collapsible) ? (
               <>
                 <Trigger className="pt-0 pb-1 mb-3 border-b border-muted-foreground/25">
-                  {!haveTitle && (
-                    <FormPageContentTitle>
+                  {(!haveTitle || (!haveTitle && actions)) && (
+                    <FormPageContentTitle className="flex items-center justify-between gap-x-4">
                       {title || value}
+                      {actions}
                     </FormPageContentTitle>
                   )}
                   {headerChildren}
@@ -211,10 +218,12 @@ const FormChildren = memo(function FormChildren({
   showHeader,
   errors,
   fieldNameTrans,
+  dataBefore,
   data,
   setData,
   defaultMenu,
   disabled,
+  form,
 }) {
   const { t } = useLaravelReactI18n();
 
@@ -292,6 +301,8 @@ const FormChildren = memo(function FormChildren({
             removeMenu={removeMenu}
             menuSelected={menuSelected}
             setMenuSelected={setMenuSelected}
+            dataBefore={dataBefore}
+            form={form}
           >
             {children}
           </FormPageProvider>
@@ -321,6 +332,8 @@ const FormPageProvider = memo(function FormPageProvider({
   removeMenu,
   menuSelected,
   setMenuSelected,
+  dataBefore,
+  form,
 }) {
   return (
     <FormPageContext.Provider
@@ -335,6 +348,8 @@ const FormPageProvider = memo(function FormPageProvider({
         fieldNameTrans,
         data,
         setData,
+        dataBefore: dataBefore ?? {},
+        form,
       }}
     >
       {children}
@@ -388,7 +403,7 @@ const FormPage = memo(
     {
       name,
       disabled,
-      isCreate,
+      isCreate = false,
       fieldNameTrans,
       title,
       badge,
@@ -406,14 +421,16 @@ const FormPage = memo(
     const route = window.route;
     const { t } = useLaravelReactI18n();
     const defaultData = usePage().props[name] ?? {};
+    const form = useDraftForm(name, defaultData);
     const {
       data,
       setData: _setData,
       put,
+      post,
       processing,
       errors,
       isDirty,
-    } = useDraftForm(name, defaultData);
+    } = form;
     const onSubmit = useCallback(
       (e) => {
         e.preventDefault();
@@ -422,9 +439,14 @@ const FormPage = memo(
           return;
         }
 
+        if (isCreate) {
+          post(route(`${pluralize.plural(name ?? "")}.store`));
+          return;
+        }
+
         put(route(`${pluralize.plural(name ?? "")}.update`, defaultData.id));
       },
-      [route, name, defaultData, data],
+      [route, name, isCreate, defaultData, data],
     );
     // const permissions = usePage().props.permissions;
     const [showHeader, setShowHeader] = useState(true);
@@ -516,6 +538,29 @@ const FormPage = memo(
             <div className="flex items-center gap-x-2 ">
               {typeof controls === "function" ? controls() : controls}
               {!disabled &&
+                (!submitable ||
+                  (submitable && defaultData?.status == "draft")) &&
+                defaultData?.id && (
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    className="!p-2 size-fit h-8"
+                    disabled={processing}
+                    asChild
+                  >
+                    <Link
+                      href={route(
+                        `${pluralize.plural(name ?? "")}.destroy`,
+                        defaultData.id,
+                      )}
+                      method="delete"
+                    >
+                      <SaveIcon />
+                      {t("core.form.delete")}
+                    </Link>
+                  </Button>
+                )}
+              {!disabled &&
                 (isDirty || !submitable ? (
                   <Button
                     type="submit"
@@ -576,6 +621,7 @@ const FormPage = memo(
               data={data}
               setData={setData}
               defaultMenu={defaultMenu}
+              form={form}
             >
               {children}
             </FormChildren>
@@ -588,32 +634,34 @@ const FormPage = memo(
             onOpenChange={setShowAlertBeforeSubmit}
           >
             <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t("core.form.confirmation_submit.title")}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("core.form.confirmation_submit.subtitle")}
-                </AlertDialogDescription>
-                <AlertDialogFooter>
-                  <AlertDialogCancel
-                    className="h-8"
-                    onClick={() => setShowAlertBeforeSubmit(false)}
-                  >
-                    {t("core.form.confirmation_submit.cancel")}
-                  </AlertDialogCancel>
-                  <AlertDialogAction
-                    className="h-8"
-                    onClick={(e) => {
-                      setShowAlertBeforeSubmit(false);
-                      e.action = "submit";
-                      onSubmit?.(e);
-                    }}
-                  >
-                    {t("core.form.confirmation_submit.submit")}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogHeader>
+              <TooltipProvider>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t("core.form.confirmation_submit.title")}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("core.form.confirmation_submit.subtitle")}
+                  </AlertDialogDescription>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel
+                      className="h-8"
+                      onClick={() => setShowAlertBeforeSubmit(false)}
+                    >
+                      {t("core.form.confirmation_submit.cancel")}
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      className="h-8"
+                      onClick={(e) => {
+                        setShowAlertBeforeSubmit(false);
+                        e.action = "submit";
+                        onSubmit?.(e);
+                      }}
+                    >
+                      {t("core.form.confirmation_submit.submit")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogHeader>
+              </TooltipProvider>
             </AlertDialogContent>
           </AlertDialog>
         )}
@@ -746,6 +794,7 @@ const FormPageDialog = memo(
       className,
       open,
       onOpenChange,
+      defaultValue,
       children,
       badge,
     },
@@ -753,6 +802,12 @@ const FormPageDialog = memo(
   ) {
     const { t } = useLaravelReactI18n();
     const route = window.route;
+
+    const form = useDraftForm(name, defaultValue ?? {}, {
+      onContinueDraft: () => {
+        onOpenChange?.(true);
+      },
+    });
     const {
       data,
       setData: _setData,
@@ -761,17 +816,20 @@ const FormPageDialog = memo(
       errors,
       isDirty,
       recentlySuccessful,
+      reset,
+      setDefaults,
       clearErrors,
-    } = useDraftForm(
-      name,
-      {},
-      {
-        onContinueDraft: () => {
-          onOpenChange?.(true);
-        },
-      },
-    );
+    } = form;
     const disabled = disabledProps ?? processing;
+
+    useEffect(() => {
+      setDefaults(defaultValue ?? {});
+      reset();
+    }, [defaultValue]);
+    useEffect(() => {
+      if (!open) return;
+      reset();
+    }, [open]);
 
     const setData = useCallback(
       (...args) => {
@@ -780,16 +838,12 @@ const FormPageDialog = memo(
       },
       [disabled, _setData],
     );
-    const {
-      setContinue,
-
-      setIsDirty,
-      setShowAlert,
-    } = useIsDirtyForm();
+    const { setContinue, setIsDirty, setShowAlert } = useIsDirtyForm();
     const { cancel } = useAlertDraftForm();
     const formRef = useRef();
     const onKeyDown = useCallback(
       (e) => {
+        e.stopPropagation();
         if (e.ctrlKey && e.key == "s") {
           e.preventDefault();
           const form = formRef.current;
@@ -813,7 +867,7 @@ const FormPageDialog = memo(
         setShowAlert(false);
         setIsDirty(false);
         cancel();
-        setData?.({});
+        reset();
         clearErrors();
       });
       if (isDirty) {
@@ -841,73 +895,79 @@ const FormPageDialog = memo(
     return (
       <AlertDialog open={open}>
         <AlertDialogContent className={cn(className, "py-0 overflow-hidden")}>
-          <form
-            ref={formRef}
-            onKeyDown={onKeyDown}
-            onSubmit={_onSubmit}
-            disabled={disabled}
-            className={cn(
-              "max-h-screen overflow-y-hidden flex flex-col",
-              disabled &&
-                " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
-            )}
-          >
-            <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
-              <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
-                {title}
-                {isDirty && (
-                  <span className="text-sm badge warning">
-                    {t("core.form.not_saved")}
-                  </span>
-                )}
-                {badge}
-              </AlertDialogTitle>
-              <AlertDialogDescription className="sr-only"></AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="overflow-y-auto">
-              {errors && Object.keys(errors).length > 0 && (
-                <div className="flex-col w-full mt-4 alert error">
-                  <h3 className="text-base font-semibold">
-                    {t("core.form.errors.title")}
-                  </h3>
-                  <ul className="block pl-5">
-                    {Object.entries(errors).map(([key, value]) => (
-                      <li key={key} className="list-disc">
-                        {fieldNameTrans
-                          ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                          : value}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+          <TooltipProvider>
+            <form
+              ref={formRef}
+              onKeyDown={onKeyDown}
+              onSubmit={_onSubmit}
+              disabled={disabled}
+              className={cn(
+                "max-h-screen overflow-y-hidden flex flex-col",
+                disabled &&
+                  " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
               )}
-              <FormChildren
-                ref={ref}
-                disabled={disabled}
-                defaultMenu={defaultMenu}
-                className={className}
-                showHeader={false}
-                errors={errors}
-                fieldNameTrans={fieldNameTrans}
-                data={data}
-                setData={setData}
-              >
-                {children}
-              </FormChildren>
-            </div>
-            <AlertDialogFooter className="pb-6 mt-4">
-              <AlertDialogCancel className="h-8" onClick={() => onClose(false)}>
-                {t("core.form.cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                className="h-8"
-                type="submit"
-                onClick={() => {}}
-              >
-                {t("core.form.save")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </form>
+            >
+              <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
+                <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
+                  {title}
+                  {isDirty && (
+                    <span className="text-sm badge warning">
+                      {t("core.form.not_saved")}
+                    </span>
+                  )}
+                  {badge}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="sr-only"></AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="overflow-y-auto">
+                {errors && Object.keys(errors).length > 0 && (
+                  <div className="flex-col w-full mt-4 alert error">
+                    <h3 className="text-base font-semibold">
+                      {t("core.form.errors.title")}
+                    </h3>
+                    <ul className="block pl-5">
+                      {Object.entries(errors).map(([key, value]) => (
+                        <li key={key} className="list-disc">
+                          {fieldNameTrans
+                            ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                            : value}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <FormChildren
+                  ref={ref}
+                  disabled={disabled}
+                  defaultMenu={defaultMenu}
+                  className={className}
+                  showHeader={false}
+                  errors={errors}
+                  fieldNameTrans={fieldNameTrans}
+                  data={data}
+                  setData={setData}
+                  form={form}
+                >
+                  {children}
+                </FormChildren>
+              </div>
+              <AlertDialogFooter className="pb-6 mt-4">
+                <AlertDialogCancel
+                  className="h-8"
+                  onClick={() => onClose(false)}
+                >
+                  {t("core.form.cancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="h-8"
+                  type="submit"
+                  onClick={() => {}}
+                >
+                  {t("core.form.save")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </form>
+          </TooltipProvider>
         </AlertDialogContent>
       </AlertDialog>
     );
@@ -927,6 +987,8 @@ const FormPageLinkModelDialog = memo(
       onOpenChange,
       children,
       badge,
+      defaultValue,
+      onSuccess,
       postOption = {},
     },
     ref,
@@ -945,11 +1007,17 @@ const FormPageLinkModelDialog = memo(
       recentlySuccessful,
       reset,
       setDefaults,
-    } = useForm(postOption.initialData ?? {});
+      clearErrors,
+    } = useForm({});
     useEffect(() => {
-      setDefaults(postOption.initialData ?? {});
+      setDefaults(defaultValue ?? {});
       reset();
-    }, [postOption.initialData]);
+    }, [defaultValue]);
+    useEffect(() => {
+      if (!open) return;
+      reset();
+      clearErrors();
+    }, [open]);
     const disabled = disabledProps ?? processing;
     const formRef = useRef();
     const setData = useCallback(
@@ -992,7 +1060,7 @@ const FormPageLinkModelDialog = memo(
 
       const excludedKeys = ["initalData", "method"];
 
-      const fiteredOption = Object.fromEntries(
+      const filteredOption = Object.fromEntries(
         Object.entries(postOption ?? {}).filter(
           ([key]) => !excludedKeys.includes(key),
         ),
@@ -1003,7 +1071,10 @@ const FormPageLinkModelDialog = memo(
         preserveState: true,
         preserveUrl: true,
         replace: true,
-        ...fiteredOption,
+        ...filteredOption,
+        onSuccess: (e) => {
+          if (onSuccess) onSuccess(e);
+        },
       };
 
       switch (postOption.method) {
@@ -1026,76 +1097,217 @@ const FormPageLinkModelDialog = memo(
     return (
       <AlertDialog open={open}>
         <AlertDialogContent className={cn(className, "py-0 overflow-hidden")}>
-          <form
-            ref={formRef}
-            onKeyDown={onKeyDown}
-            onSubmit={_onSubmit}
-            disabled={disabled}
-            className={cn(
-              "max-h-screen overflow-y-hidden flex flex-col",
-              disabled &&
-                " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden ",
-            )}
-          >
-            <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
-              <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
-                {title}
-                {isDirty && (
-                  <span className="text-sm badge warning">
-                    {t("core.form.not_saved")}
-                  </span>
-                )}
-                {badge}
-              </AlertDialogTitle>
-              <AlertDialogDescription className="sr-only"></AlertDialogDescription>
-            </AlertDialogHeader>
-            <div className="overflow-y-auto">
-              {errors && Object.keys(errors).length > 0 && (
-                <div className="flex-col w-full mt-4 alert error">
-                  <h3 className="text-base font-semibold">
-                    {t("core.form.errors.title")}
-                  </h3>
-                  <ul className="block pl-5">
-                    {Object.entries(errors).map(([key, value]) => (
-                      <li key={key} className="list-disc">
-                        {fieldNameTrans
-                          ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                          : value}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+          <TooltipProvider>
+            <form
+              ref={formRef}
+              onKeyDown={onKeyDown}
+              onSubmit={_onSubmit}
+              disabled={disabled}
+              className={cn(
+                "max-h-screen overflow-y-hidden flex flex-col",
+                disabled &&
+                  " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden ",
               )}
-              <FormChildren
-                ref={ref}
-                disabled={disabled}
-                defaultMenu={defaultMenu}
-                className={className}
-                showHeader={false}
-                errors={errors}
-                fieldNameTrans={fieldNameTrans}
-                data={data}
-                setData={setData}
-              >
-                {children}
-              </FormChildren>
-            </div>
+            >
+              <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
+                <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
+                  {title}
+                  {isDirty && (
+                    <span className="text-sm badge warning">
+                      {t("core.form.not_saved")}
+                    </span>
+                  )}
+                  {badge}
+                </AlertDialogTitle>
+                <AlertDialogDescription className="sr-only"></AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="overflow-y-auto">
+                {errors && Object.keys(errors).length > 0 && (
+                  <div className="flex-col w-full mt-4 alert error">
+                    <h3 className="text-base font-semibold">
+                      {t("core.form.errors.title")}
+                    </h3>
+                    <ul className="block pl-5">
+                      {Object.entries(errors).map(([key, value]) => (
+                        <li key={key} className="list-disc">
+                          {fieldNameTrans
+                            ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                            : value}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                <FormChildren
+                  ref={ref}
+                  disabled={disabled}
+                  defaultMenu={defaultMenu}
+                  className={className}
+                  showHeader={false}
+                  errors={errors}
+                  fieldNameTrans={fieldNameTrans}
+                  data={data}
+                  setData={setData}
+                >
+                  {children}
+                </FormChildren>
+              </div>
 
-            <AlertDialogFooter className="pb-6 mt-4">
-              <AlertDialogCancel className="h-8" onClick={() => onClose(false)}>
-                {t("core.form.cancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                className="h-8"
-                type="submit"
-                onClick={() => {}}
-              >
-                {t("core.form.save")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </form>
+              <AlertDialogFooter className="pb-6 mt-4">
+                <AlertDialogCancel
+                  className="h-8"
+                  onClick={() => onClose(false)}
+                >
+                  {t("core.form.cancel")}
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="h-8"
+                  type="submit"
+                  onClick={() => {}}
+                >
+                  {t("core.form.save")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </form>
+          </TooltipProvider>
         </AlertDialogContent>
       </AlertDialog>
+    );
+  }),
+);
+
+const FormPageDiff = memo(
+  forwardRef(function FormPageDiff({ title, badge, className, children }, ref) {
+    const route = window.route;
+    const { t } = useLaravelReactI18n();
+    const { dataAfter: data, dataBefore, log, lang } = usePage().props;
+    // const permissions = usePage().props.permissions;
+    const [showHeader, setShowHeader] = useState(true);
+    // eslint-disable-next-line no-unused-vars
+    const [lastPosition, setLastPosition] = useState(0);
+    const handleScroll = useCallback(
+      (e) => {
+        const { scrollTop, scrollHeight, clientHeight } = e.target;
+        const position = Math.ceil(
+          (scrollTop / (scrollHeight - clientHeight)) * 100,
+        );
+        setLastPosition((prev) => {
+          if (prev === position) return prev;
+          setShowHeader(position <= prev);
+          return position;
+        });
+      },
+      [setLastPosition, setShowHeader],
+    );
+    const alias = useMemo(() => {
+      return log.user.name
+        .split(" ")
+        .slice(0, 2)
+        .map((n) => n.charAt(0))
+        .join("");
+    }, [log.user.name]);
+    return (
+      <AppLayout
+        data-disabled={true}
+        className="!pt-0 relative group/form"
+        onScroll={handleScroll}
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+        >
+          <div
+            className={cn(
+              showHeader ? "top-0" : "-top-16",
+              " transition-[top] duration-300 ease-in-out sticky z-10 flex items-center justify-between pt-4 pb-2 border-b gap-x-4 bg-background border-muted-foreground/25",
+            )}
+          >
+            <Head title={title} />
+            <div className="flex items-center gap-x-2">
+              {title && <h1 className="text-xl font-bold">{title}</h1>}
+              {/* {isDirty && (
+                <span className="text-sm badge warning">
+                  {t("core.form.not_saved")}
+                </span>
+              )} */}
+              {badge}
+            </div>
+            <div className="flex items-center gap-x-2 "></div>
+          </div>
+
+          <div
+            className={cn(
+              "[&_[role=title]]:pointer-events-none  [&_button[role=save]]:hidden",
+              "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
+            )}
+          >
+            <FormChildren
+              ref={ref}
+              disabled={true}
+              className={className}
+              showHeader={showHeader}
+              dataBefore={dataBefore ?? {}}
+              data={data ?? {}}
+              setData={() => {}}
+            >
+              {children}
+            </FormChildren>
+            <BottombarChildren
+              content={
+                <>
+                  <p className="mt-8 text-xl font-bold">
+                    {t("core.form.log_informations")}
+                  </p>
+                  <div className="border border-muted-foreground/25 rounded-lg grid grid-cols-[auto_1fr] [&>div:nth-child(odd)]:bg-muted/50  [&>div>*]:py-1.5 [&>div>*]:px-4 [&>div>*:first-child]:pl-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b [&>*]:border-muted-foreground/25 [&>div_p]:text-sm">
+                    <div className="grid grid-cols-subgrid col-span-full">
+                      <p>{t("core.form.timestamp")}</p>
+                      <p>
+                        {format(new TZDate(log.created_at, "UTC"), "PPPp", {
+                          locale: getLocaleDate(lang),
+                        })}
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-subgrid col-span-full">
+                      <p>{t("core.form.updated_by")}</p>
+                      <div className="flex items-center gap-3 px-1 py-1.5 text-left text-sm">
+                        <Avatar className="rounded-lg size-20">
+                          {log.user.image && (
+                            <AvatarImage
+                              src={
+                                route("files.show", log.user.image) +
+                                `?v=${new Date(log.user.updated_at).getTime()}`
+                              }
+                              alt={log.user.name}
+                            />
+                          )}
+                          <AvatarFallback className="text-4xl font-semibold rounded-lg">
+                            {alias}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid flex-1 text-base leading-tight text-left gap-y-0.5">
+                          <span className="font-semibold truncate">
+                            {log.user.name}
+                          </span>
+                          <span className="text-sm truncate text-foreground/80">
+                            {log.user.username}
+                          </span>
+                          <div className="w-fit px-2 py-0.5 rounded-full gap-x-1 items-center text-foreground/80  bg-muted">
+                            <span className="text-sm truncate">
+                              {log.user.email}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              }
+            />
+          </div>
+        </form>
+      </AppLayout>
     );
   }),
 );
@@ -1108,6 +1320,7 @@ export {
   FormPageContentDescription,
   FormPageDialog,
   FormPageLinkModelDialog,
+  FormPageDiff,
   useFormPage,
   // useFormPageContent,
 };

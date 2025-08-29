@@ -5,6 +5,7 @@ namespace {{ namespace }};
 use {{ namespacedModel }};
 use {{ rootNamespace }}Http\Controllers\Controller;
 use {{ namespacedRequests }}
+use Inertia\Inertia;
 
 class {{ class }} extends Controller
 {

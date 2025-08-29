@@ -1,13 +1,3 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/Components/ui/alert-dialog";
 import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
@@ -16,23 +6,15 @@ import Form from "./Form";
 import { FormPageDialog } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { Trash2Icon } from "lucide-react";
-import { router } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import useDeleteModal from "@/Hooks/useDeleteModal";
 
-// eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
-  const [idDelete, setIdDelete] = useState(null);
-  const onDelete = (id) => {
-    router.delete(route("units.destroy", id), {
-      onSuccess: () => {
-        setIdDelete(null);
-      },
-    });
-  };
+  const { deleteItem } = useDeleteModal();
   /**
    * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
    * @type {ColumnProps[]}
@@ -109,7 +91,7 @@ export default function Index({ lang }) {
               variant="destructive"
               size="icon"
               className="size-8"
-              onClick={() => setIdDelete(dataRow.id)}
+              onClick={() => deleteItem("units.destroy", dataRow.id)}
             >
               <Trash2Icon />
             </Button>
@@ -141,7 +123,7 @@ export default function Index({ lang }) {
                 variant="destructive"
                 size="icon"
                 className="size-8"
-                onClick={() => setIdDelete(dataRow.id)}
+                onClick={() => deleteItem("units.destroy", dataRow.id)}
               >
                 <Trash2Icon />
               </Button>
@@ -159,35 +141,6 @@ export default function Index({ lang }) {
       >
         <Form />
       </FormPageDialog>
-      <AlertDialog
-        open={idDelete}
-        onOpenChange={(v) => {
-          if (!v) {
-            setIdDelete(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("inventory.unit.delete")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("inventory.unit.delete.description")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIdDelete(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                onDelete(idDelete);
-              }}
-            >
-              {t("inventory.unit.delete.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

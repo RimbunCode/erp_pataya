@@ -180,96 +180,110 @@ export default memo(function Comments() {
             }
           >
             {logs &&
-              logs.map(({ id, type, activity, user, created_at }) => (
-                <li key={id} className="mb-3 first:mt-2 ms-6">
-                  <div
-                    className={cn(
-                      type == "log" ? "bg-inherit" : "bg-muted border-[3px]",
-                      "p-2 -mt-0.5 size-[34px] -start-[18px]   border-muted flex justify-center items-center absolute rounded-full",
-                    )}
-                  >
-                    {type == "log" && (
-                      <span className="block rounded-full bg-accent-foreground size-2" />
-                    )}
-                    {type == "attachment" && <Paperclip className="size-4" />}
-                    {type == "comment" && <MessageSquare className="size-4" />}
-                  </div>
-                  {type == "comment" ? (
-                    <div className="rounded-lg px-4 py-1 grid grid-cols-[auto_1fr] gap-x-4 border border-muted-foreground/30">
-                      <div className="flex items-center">
-                        <Avatar className="rounded-full h-max size-10">
-                          {user.image && (
-                            <AvatarImage
-                              src={
-                                route("files.show", user.image) +
-                                `?v=${new Date(user.updated_at).getTime()}`
-                              }
-                              alt={user.name}
-                            />
-                          )}
-                          <AvatarFallback className="text-xl font-semibold rounded-lg">
-                            {alias}
-                          </AvatarFallback>
-                        </Avatar>
-                      </div>
-                      <div className="flex items-center border-b border-muted-foreground/30">
-                        <div className="flex-1">
-                          <Link
-                            href={route("users.show", user.id)}
-                            className="hover:underline"
+              logs.map(
+                ({ id, type, activity, user, created_at, data_after }) => (
+                  <li key={id} className="mb-3 first:mt-2 ms-6">
+                    <div
+                      className={cn(
+                        type == "log" ? "bg-inherit" : "bg-muted border-[3px]",
+                        "p-2 -mt-0.5 size-[34px] -start-[18px]   border-muted flex justify-center items-center absolute rounded-full",
+                      )}
+                    >
+                      {type == "log" && (
+                        <span className="block rounded-full bg-accent-foreground size-2" />
+                      )}
+                      {type == "attachment" && <Paperclip className="size-4" />}
+                      {type == "comment" && (
+                        <MessageSquare className="size-4" />
+                      )}
+                    </div>
+                    {type == "comment" ? (
+                      <div className="rounded-lg px-4 py-1 grid grid-cols-[auto_1fr] gap-x-4 border border-muted-foreground/30">
+                        <div className="flex items-center">
+                          <Avatar className="rounded-full h-max size-10">
+                            {user.image && (
+                              <AvatarImage
+                                src={
+                                  route("files.show", user.image) +
+                                  `?v=${new Date(user.updated_at).getTime()}`
+                                }
+                                alt={user.name}
+                              />
+                            )}
+                            <AvatarFallback className="text-xl font-semibold rounded-lg">
+                              {alias}
+                            </AvatarFallback>
+                          </Avatar>
+                        </div>
+                        <div className="flex items-center border-b border-muted-foreground/30">
+                          <div className="flex-1">
+                            <Link
+                              href={route("users.show", user.id)}
+                              className="hover:underline"
+                            >
+                              {user.name}
+                            </Link>{" "}
+                            <span>{t("core.form.commented")}</span>
+                            <span className="mx-2 text-muted-foreground">
+                              ●
+                            </span>
+                            <span className="text-muted-foreground">
+                              {format(new TZDate(created_at, "UTC"), "PPPp", {
+                                locale: getLocaleDate(lang),
+                              })}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="!p-0 hover:text-red-500"
+                            onClick={() => removeComment(id)}
                           >
-                            {user.name}
-                          </Link>{" "}
-                          <span>{t("core.form.commented")}</span>
-                          <span className="mx-2 text-muted-foreground">●</span>
-                          <span className="text-muted-foreground">
+                            <Trash2 />
+                          </Button>
+                        </div>
+                        <div className="[&_pre]:!font-sans col-start-2 pt-2 [&_*]:text-sm  font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
+                          <div
+                            className="ql-editor !p-0"
+                            dangerouslySetInnerHTML={{
+                              __html: activity,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <time className="mb-1 text-xs font-normal leading-none text-muted-foreground">
+                          <span>
                             {format(new TZDate(created_at, "UTC"), "PPPp", {
                               locale: getLocaleDate(lang),
                             })}
                           </span>
+                        </time>
+                        <div className="[&_pre]:!font-sans col-start-2 pt-0 [&_*]:text-sm font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
+                          <div
+                            className="ql-editor !p-0 hover:[&_*[role=noeditor]]:!underline [&_*[role=noeditor]]:!no-underline [&_*[role=noeditor]]:after:!content-none [&_*[role=noeditor]]:before:!content-none"
+                            dangerouslySetInnerHTML={{
+                              __html: activity[lang].replace(
+                                ":user",
+                                `<a role="noeditor" href="${route("users.show", user.id)}" rel="noopener noreferrer" target="_blank" >${user.name}</a>`,
+                              ),
+                            }}
+                          />
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="!p-0 hover:text-red-500"
-                          onClick={() => removeComment(id)}
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
-                      <div className="[&_pre]:!font-sans col-start-2 pt-2 [&_*]:text-sm  font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
-                        <div
-                          className="ql-editor !p-0"
-                          dangerouslySetInnerHTML={{
-                            __html: activity,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <time className="mb-1 text-xs font-normal leading-none text-muted-foreground">
-                        <span>
-                          {format(new TZDate(created_at, "UTC"), "PPPp", {
-                            locale: getLocaleDate(lang),
-                          })}
-                        </span>
-                      </time>
-                      <div className="[&_pre]:!font-sans col-start-2 pt-0 [&_*]:text-sm font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
-                        <div
-                          className="ql-editor !p-0 hover:[&_*[role=noeditor]]:!underline [&_*[role=noeditor]]:!no-underline [&_*[role=noeditor]]:after:!content-none [&_*[role=noeditor]]:before:!content-none"
-                          dangerouslySetInnerHTML={{
-                            __html: activity[lang].replace(
-                              ":user",
-                              `<a role="noeditor" href="${route("users.show", user.id)}" rel="noopener noreferrer" target="_blank" >${user.name}</a>`,
-                            ),
-                          }}
-                        />
-                      </div>
-                    </>
-                  )}
-                </li>
-              ))}
+                        {data_after && (
+                          <Link
+                            className="hover:underline text-blue-400 text-sm"
+                            href={route("logs.show", id)}
+                          >
+                            {t("core.form.show_diff")}
+                          </Link>
+                        )}
+                      </>
+                    )}
+                  </li>
+                ),
+              )}
           </Deferred>
         </ol>
       </div>

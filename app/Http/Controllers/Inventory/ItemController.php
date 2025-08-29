@@ -56,19 +56,15 @@ class ItemController extends Controller {
 
     DB::beginTransaction();
     $item = Item::create($data);
-    $this->service->updateUom($item, $data['uom']);
+    $this->service->updateUom($item, $data['uoms']);
     $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['variants'] ?? []);
     $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
-
-    $item->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
+    $item->logForCreated();
     DB::commit();
-    return redirect()->back();
+    if ($itemVariant) {
+      return back()->with('id', $itemVariant->id);
+    }
+    return back();
   }
 
   /**
@@ -80,20 +76,10 @@ class ItemController extends Controller {
 
     return Inertia::render('Inventory/Items/Show', [
       'item' => function () use ($item) {
-        $item->load(['category', 'defaultUnit', 'uom', 'variants', 'variants.attribute']);
-        $uom = Unit::selectRaw('*,ISNULL(`conversion_factor`) AS `isCustom`')->where('group', $item->defaultUnit->group)->get();
-        $uomIds = $item->uom->pluck('unit_id');
+        $item->loadRelations();
         $itemArray = $item->toArray();
-        $itemArray['uom'] = $uom->map(function (Unit $uom) use ($item, $uomIds) {
-          $uom->isCustom = $uom->isCustom == 1;
-          $uom->readOnly = true;
-          if (\in_array($uom->id, $uomIds->toArray())) {
-            $uom->conversion_factor = $item->uom->where('unit_id', $uom->id)->first()->conversion_factor;
-          }
-          return $uom;
-        });
 
-        $variant = ItemVariant::where('item_id', $item->id)
+        $variant = $item->variants
           ->whereNull('format_variant')
           ->first();
         if ($variant) {
@@ -148,26 +134,25 @@ class ItemController extends Controller {
     $data['default_unit_id'] = $data['default_unit']['id'];
 
     DB::beginTransaction();
-    $item->update($data);
-    $this->service->updateUom($item, $data['uom']);
-    $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['variants'] ?? []);
+    $item->fillForUpdate($data);
+    $this->service->updateUom($item, $data['uoms']);
+    $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['attributes'] ?? []);
     $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
+    $item->logForUpdated();
 
-    $item->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini',
-      ]
-    ]);
+
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
   public function destroy(Item $item) {
-    //
+    DB::beginTransaction();
+    $item->delete();
+    $item->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

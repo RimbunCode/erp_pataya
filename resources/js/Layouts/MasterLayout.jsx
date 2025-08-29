@@ -8,14 +8,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
-import { memo, useEffect } from "react";
+import { memo, useCallback, useEffect } from "react";
+import { router, usePage } from "@inertiajs/react";
 
 import { Toaster } from "@/Components/ui/sonner";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import { useAlertDraftForm } from "@/Hooks/useDraftForm";
+import useDeleteModal from "@/Hooks/useDeleteModal";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 import useTheme from "@/Hooks/useTheme";
 
 const MasterLayout = memo(({ children }) => {
@@ -26,6 +27,19 @@ const MasterLayout = memo(({ children }) => {
   // const isDebug = true;
   useEffect(() => {
     setLocale(lang);
+    const contentsOfLocalStorage = Object.entries(localStorage);
+    contentsOfLocalStorage.forEach(([key, value]) => {
+      try {
+        const parsedValue = JSON.parse(value);
+        if (new Date(parsedValue.expiredDate) < new Date(Date.now())) {
+          localStorage.removeItem(key);
+          return;
+        }
+      } catch {
+        /* empty */
+      }
+      return;
+    });
   }, []);
   // Theme logic
   useEffect(() => {
@@ -97,10 +111,30 @@ const MasterLayout = memo(({ children }) => {
     cancel: cancelDirtyForm,
     continue: continueDirtyForm,
   } = useIsDirtyForm();
+  const {
+    isOpen: isOpenDeleteDialog,
+    close: closeDeleteDialog,
+    route: deleteRoute,
+    id: deleteId,
+  } = useDeleteModal();
+  function handleKeyDown(e) {
+    if (e.key == "Escape") {
+      closeDeleteDialog();
+    }
+  }
+  const route = window.route;
+  const onDelete = useCallback(() => {
+    router.delete(route(deleteRoute, deleteId), {
+      onSuccess: () => {
+        closeDeleteDialog();
+      },
+    });
+  }, [deleteRoute, closeDeleteDialog, deleteId]);
   return (
     <>
       <TooltipProvider>{children}</TooltipProvider>
       <Toaster />
+      {/* Alert for leave form */}
       <AlertDialog
         open={showAlertDirtyForm}
         onOpenChange={setShowAlertDirtyForm}
@@ -123,6 +157,7 @@ const MasterLayout = memo(({ children }) => {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Alert for continue draft form */}
       <AlertDialog open={showAlertDrafForm} onOpenChange={setShowAlertDrafForm}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -145,6 +180,33 @@ const MasterLayout = memo(({ children }) => {
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert for delete item */}
+      <AlertDialog
+        open={isOpenDeleteDialog}
+        onOpenChange={(v) => {
+          if (!v) {
+            closeDeleteDialog();
+          }
+        }}
+      >
+        <AlertDialogContent onKeyDown={handleKeyDown}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("inventory.unit.delete")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("inventory.unit.delete.description")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDeleteDialog}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={onDelete}>
+              {t("inventory.unit.delete.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>

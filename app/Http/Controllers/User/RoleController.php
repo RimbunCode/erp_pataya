@@ -55,34 +55,9 @@ class RoleController extends Controller {
       'is_disabled' => $data['is_disabled'] ?? '',
     ]);
 
-    $permissions = array_map(fn($permission) => $permission['permission_id'], $data['rules'] ?? []);
-    $permissions = Permission::whereIn('id', $permissions)->get()
-      ->mapWithKeys(fn($permission) => [$permission->id => $permission]);
+    $this->updatePermissions($role, $data['rules']);
+    $role->logForCreated();
 
-    foreach ($data['rules'] ?? [] as $rule) {
-      $permission = $permissions[$rule['permission_id']];
-      RolePermission::updateOrCreate([
-        'role_id' => $role->id,
-        'permission_id' => $permission->id,
-      ], values: [
-        'name' => $permission->name,
-        'model' => $permission->model,
-        'is_submittable' => $permission->is_submittable,
-        'level' => $permission->is_submittable ? $rule['level'] : 0,
-        'only_creator' => $permission->is_submittable ? $rule['only_creator'] : false,
-        'permissions' => collect($permission->permissions)->mapWithKeys(function ($permission) use ($rule) {
-          return [$permission => $rule['permissions'][$permission] ?? false];
-        }),
-      ]);
-    }
-
-    $role->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
     DB::commit();
 
     return redirect()->route('roles.show', $role);
@@ -96,6 +71,7 @@ class RoleController extends Controller {
       $role->load('rules');
       return response()->json($role);
     }
+
     $this->setBreadcrumbs($role);
     $role->showDetail();
     return Inertia::render('Users/Roles/Show', [
@@ -106,44 +82,43 @@ class RoleController extends Controller {
     ]);
   }
 
+  private function updatePermissions(Role &$role, array $rules) {
+    $permissions = array_map(fn($permission) => $permission['permission_id'], $rules);
+    $permissions = Permission::whereIn('id', $permissions)->get()
+      ->mapWithKeys(fn($permission) => [$permission->id => $permission]);
+
+    foreach ($rules as $rule) {
+      $permission = $permissions[$rule['permission_id']];
+      RolePermission::updateOrCreate([
+        'role_id' => $role->id,
+        'permission_id' => $permission->id,
+        'level' => $rule['level'],
+        'only_creator' => $rule['only_creator'],
+      ],  [
+        'name' => $permission->name,
+        'model' => $permission->model,
+        'is_submitable' => $permission->is_submitable,
+        'permissions' => collect($rule['level'] > 0 ? ["read", "write"] : $permission->permissions)
+          ->mapWithKeys(function ($permission) use ($rule) {
+            return [$permission => $rule['permissions'][$permission] ?? false];
+          }),
+      ]);
+    }
+  }
   /**
    * Update the specified resource in storage.
    */
   public function update(RoleRequest $request, Role $role) {
     $data = $request->validated();
     DB::beginTransaction();
-    $role->update([
+    $role->fillForUpdate([
       'name' => $data['name'],
       'description' => $data['description'] ?? '',
       'is_disabled' => $data['is_disabled'] ?? '',
     ]);
 
-    $permissions = array_map(fn($permission) => $permission['permission_id'], $data['rules']);
-    $permissions = Permission::whereIn('id', $permissions)->get()
-      ->mapWithKeys(fn($permission) => [$permission->id => $permission]);
-
-    foreach ($data['rules'] as $rule) {
-      $permission = $permissions[$rule['permission_id']];
-      RolePermission::updateOrCreate([
-        'role_id' => $role->id,
-        'permission_id' => $permission->id,
-      ], values: [
-        'name' => $permission->name,
-        'model' => $permission->model,
-        'level' => $rule['level'],
-        'only_creator' => $rule['only_creator'],
-        'permissions' => collect($permission->permissions)->mapWithKeys(function ($permission) use ($rule) {
-          return [$permission => $rule['permissions'][$permission] ?? false];
-        }),
-      ]);
-    }
-    $role->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
+    $this->updatePermissions($role, $data['rules']);
+    $role->logForUpdated();
 
     DB::commit();
     return back();
