@@ -12,7 +12,6 @@ return new class extends Migration {
     Schema::create('work_orders', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->string('code')->unique();
-      $table->foreignUlid('branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();
       $table->foreignUlid('customer_id')->nullable()->references('id')->on('customers')->nullOnDelete();
       $table->string('customer_name')->nullable();
       $table->foreignUlid('customer_branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();

@@ -17,4 +17,16 @@ class Tax extends Model
   {
     return ":name (:rate%)";
   }
+
+  protected $configColumns = [
+    'name' => [
+      'show' => true,
+      'isLink' => true,
+    ],
+    'rate' => [
+      'show' => true,
+    ],
+  ];
+
+  public string $translateKey = "finances.taxes";
 }

@@ -574,7 +574,7 @@ export default memo(
           open={showNewForm}
           onOpenChange={setShowNewForm}
           className={classNameDialog}
-          name="workOrder"
+          name={name}
         >
           {form}
         </FormPageDialog>
