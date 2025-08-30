@@ -3,6 +3,7 @@ import * as React from "react";
 import {
   LayoutDashboard,
   PackageIcon,
+  Receipt,
   Settings2,
   ShoppingBagIcon,
   Users2,
@@ -116,6 +117,38 @@ const navList = [
         />
       </svg>
     ),
+  },
+  {
+    title: "Sales",
+    icon: <Receipt />,
+    items: [
+      {
+        title: "Sales Orders",
+        url: "/salesOrders",
+        urlPattern: "/salesOrders/*",
+      },
+      {
+        title: "Internal Orders",
+        url: "/internalOrders",
+        urlPattern: "/internalOrders/*",
+      },
+    ],
+  },
+  {
+    title: "Finances",
+    icon: <Users2 />,
+    items: [
+      {
+        title: "Taxes",
+        url: "/taxes",
+        urlPattern: "/taxes/*",
+      },
+      {
+        title: "Payment Methods",
+        url: "/paymentMethods",
+        urlPattern: "/paymentMethods/*",
+      },
+    ],
   },
   {
     title: "Users",

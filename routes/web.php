@@ -116,6 +116,16 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Work Order
   Route::resourceDetail('workOrder', \App\Http\Controllers\Service\WorkOrderController::class, isSubmmitable: true);
   /// Service Group End
+  /// Sales Groups
+  // Sales Orders
+  Route::resourceDetail('salesOrder', \App\Http\Controllers\Sales\SalesOrderController::class, isSubmmitable: true);
+  // Internal Orders
+  Route::resourceDetail('internalOrder', \App\Http\Controllers\Sales\InternalOrderController::class, isSubmmitable: true);
+  /// Sales Groups End
+  // Finances
+  // Taxes
+  Route::resourceDetail('tax', \App\Http\Controllers\Finances\TaxesController::class);
 });
+
 
 require __DIR__ . '/auth.php';

@@ -1,0 +1,38 @@
+<?php
+
+return [
+  'title' => 'Sales Orders',
+  'addButton' => 'New Sales Orders',
+  'customer' => 'Customer',
+  'for_rental' => 'For Rental?',
+  'rental_date' => 'Rental Date',
+  'branch' => 'Customer Branch',
+  'new' => 'New Sales Order',
+  'items' => 'Items',
+  'detail' => "Detail",
+  'status' => 'Status',
+  'total' => 'Total Price',
+  'source' => 'Source Warehouse',
+  'exchange_rate' => 'Exchange Rate',
+  'currency' => 'Currency',
+  'currency.placeholder' => 'Select a Currency',
+  'columns' => [
+    'so' => 'SO Number',
+    'item' => 'Item',
+    'item.placeholder' => 'Select an item',
+    'date' => 'SO Date',
+    'description' => 'Description',
+    'source_warehouse' => 'Source Warehouse',
+    'source_warehouse.placeholder' => 'Select a Source Warehouse',
+    'quantity' => 'Quantity',
+    'unit' => 'Unit',
+    'unit.placeholder' => 'Select a unit',
+    'price' => 'Price',
+    'tax' => 'Tax',
+    'tax.placeholder' => 'Select a Tax',
+    'created_at' => 'Created at',
+    'reference_so' => 'Reference SO',
+    'reference_so.placeholder' => 'Select a Reference',
+    'external_note' => 'External Note',
+  ]
+];
