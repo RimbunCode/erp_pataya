@@ -1,8 +1,7 @@
 <?php
 return [
   'title' => 'Taxes',
-  'add_category' => 'Add Tax',
-  'categories' => 'Categories',
+  'add' => 'Add Tax',
   'new' => 'New Tax',
   'delete' => 'Delete Tax',
   'delete.description' => 'Are you sure you want to delete this Tax?',

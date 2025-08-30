@@ -124,6 +124,7 @@ const MasterLayout = memo(({ children }) => {
   }
   const route = window.route;
   const onDelete = useCallback(() => {
+    console.log(deleteRoute, deleteId);
     router.delete(route(deleteRoute, deleteId), {
       onSuccess: () => {
         closeDeleteDialog();
