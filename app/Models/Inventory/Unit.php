@@ -21,4 +21,5 @@ class Unit extends Model
   {
     return ":name (:code)";
   }
+  public string $formComponent = "Inventory/Units/Form";
 }

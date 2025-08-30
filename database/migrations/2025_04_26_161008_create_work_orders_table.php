@@ -19,10 +19,7 @@ return new class extends Migration {
       $table->string('customer_branch_name')->nullable();
       $table->foreignUlid('item_service_id')->nullable()->references('id')->on('item_variants')->nullOnDelete();
       $table->string('item_service_name')->nullable();
-      $table->foreignUlid('source_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
-      $table->string('source_warehouse_name')->nullable();
       $table->timestamp('date')->nullable();
-      $table->json("address")->nullable();
       $table->text('external_note')->nullable();
       $table->timestamps();
       $table->softDeletes();

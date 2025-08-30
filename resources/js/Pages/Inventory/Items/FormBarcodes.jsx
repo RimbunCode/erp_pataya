@@ -7,7 +7,7 @@ import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
-export default memo(function FormBarcodes({ isVariant = false }) {
+export default memo(function FormBarcodes({ disabled, isVariant = false }) {
   const { data, setData } = useFormPage();
   const item = usePage().props.item;
   const { t } = useLaravelReactI18n();
@@ -22,15 +22,21 @@ export default memo(function FormBarcodes({ isVariant = false }) {
         name: "unit",
         titleTrans: "inventory.item.columns.barcodes.columns.unit",
         required: true,
-        cell({ data: value, setData, attributes }) {
+        cell({ dataRow, data: value, setData, attributes }) {
           return (
             <UnitLinkModel
               {...attributes}
+              readOnly={!dataRow.barcode}
               value={value}
               onValueChange={(val) => {
                 setData("unit", val);
               }}
               filters={{
+                group: isVariant
+                  ? item?.default_unit?.group
+                  : data?.default_unit?.group,
+              }}
+              defaultValueForm={{
                 group: isVariant
                   ? item?.default_unit?.group
                   : data?.default_unit?.group,
@@ -46,12 +52,10 @@ export default memo(function FormBarcodes({ isVariant = false }) {
     <FormPageContent
       title={t("inventory.item.menu.barcodes")}
       value="barcodes"
-      show={
-        (item && !(item.variants && item.variants.length > 0)) ||
-        (data && !(data.variants && data.variants.length > 0))
-      }
+      show={item && !(item.attributes && item.attributes.length > 0)}
     >
       <FormTable
+        disabled={disabled}
         columns={barcodeColumns}
         value={data.barcodes ?? []}
         onValueChange={(val) => {

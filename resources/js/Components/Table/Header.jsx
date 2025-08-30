@@ -25,6 +25,7 @@ export default memo(
   forwardRef(function Header(
     {
       id,
+      title,
       titleTrans,
       name,
       isEmpty,
@@ -91,10 +92,10 @@ export default memo(
                 className="flex items-center hover:underline gap-x-2 [&>svg]:size-5"
                 onClick={() => setSort(name)}
               >
-                {t(titleTrans)}
+                {title ?? t(titleTrans)}
               </button>
             ) : (
-              <span>{t(titleTrans)}</span>
+              <span>{title ?? t(titleTrans)}</span>
             )}
           </div>
           <DropdownMenu>

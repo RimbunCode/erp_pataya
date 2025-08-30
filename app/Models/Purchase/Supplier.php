@@ -30,4 +30,5 @@ class Supplier extends Model {
   public function branches() {
     return $this->hasMany(Supplier::class, 'parent_id');
   }
+  public string $formComponent = "Purchase/Suppliers/Form";
 }

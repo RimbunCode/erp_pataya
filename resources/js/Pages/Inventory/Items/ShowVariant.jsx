@@ -1,26 +1,33 @@
-import { FormPage, useFormPage } from "@/Pages/Core/FormPage";
-
-import FormBarcodes from "./FormBarcodes";
-import FormDetail from "./FormDetail";
-import FormStockLevels from "./FormStockLevels";
+import { FormPage } from "@/Pages/Core/FormPage";
+import FormVariant from "./FormVariant";
+import Link from "@/Components/Link";
 import React from "react";
-import { usePage } from "@inertiajs/react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
-function Form() {
-  const item = usePage().props.item;
-  const { data, setData } = useFormPage();
+export default function ShowVariant({ itemVariant }) {
+  const { t } = useLaravelReactI18n();
+  const route = window.route;
   return (
-    <>
-      <FormDetail isVariant data={data} setData={setData} item={item} />
-      <FormBarcodes isVariant />
-      <FormStockLevels />
-    </>
-  );
-}
-export default function ShowVariant({ variant }) {
-  return (
-    <FormPage title={variant.sku} name="itemVariant">
-      <Form />
+    <FormPage
+      title={itemVariant.sku}
+      name="itemVariant"
+      badge={
+        <>
+          {itemVariant.format_variant && (
+            <span className="text-sm badge primary">
+              {`${t("inventory.item.variant_of")} `}
+              <Link
+                className="ml-1 hover:underline"
+                href={route("items.show", itemVariant.item.id)}
+              >
+                {itemVariant.item.code}
+              </Link>
+            </span>
+          )}
+        </>
+      }
+    >
+      <FormVariant />
     </FormPage>
   );
 }

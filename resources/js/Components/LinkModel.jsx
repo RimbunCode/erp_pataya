@@ -1,5 +1,11 @@
 import { ArrowRight, PlusIcon, XIcon } from "lucide-react";
-import { Command, CommandEmpty, CommandItem, CommandList } from "./ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "./ui/command";
 import {
   Fragment,
   forwardRef,
@@ -10,6 +16,7 @@ import {
   useState,
 } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn, getValueObject, isNullOrWhitespace } from "@/lib/utils";
 
 import { Button } from "./ui/button";
@@ -105,6 +112,44 @@ function validate(value, filters, logic = "and") {
   return logic === "and";
 }
 
+export const convertTemplateLink = (value, search) => {
+  if (!value) return "";
+  const template = value.templateLink ?? "";
+  let item = template.replace(/:((\w[\w]+{:[\w]+})|(\w[\w.]+))/g, (match) => {
+    match = match.replace(/(.*?){:(.*?)}/i, ":$2");
+    const newValue = getValueObject(value, match.substring(1));
+    return newValue || match;
+  });
+  if (search == null) {
+    const titleMatch = item.match(/<title(.*?)>(.*?)<\/title>/i);
+    const plainTextMatch = item.match(/^[^<]+/g);
+
+    return titleMatch
+      ? titleMatch[2].trim()
+      : plainTextMatch
+        ? plainTextMatch[0].trim()
+        : "";
+  }
+
+  item = item.replace(/<title(.*?)>(.*?)<\/title>/gi, "");
+
+  let searchWords =
+    search
+      .split(/\s+/)
+      ?.map((string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .filter((x) => !isNullOrWhitespace(x)) || [];
+
+  if (searchWords.length < 1) return item;
+
+  let regex = new RegExp(`(${searchWords.join("|")})`, "gi");
+  item = item.replace(/(<[^>]+>)|([^<]+)/g, (_, tag, text) => {
+    if (tag) return tag; // Jika ini bagian dari tag HTML, jangan ubah
+    return text.replace(regex, `<mark class="bg-yellow-500">$1</mark>`); // Hanya ubah teks biasa
+  });
+
+  return item;
+};
+
 /**
  *
  * @param props
@@ -123,6 +168,7 @@ export default memo(
   forwardRef(function LinkModel(
     {
       as,
+      valueBefore,
       value,
       onValueChange,
       placeholder,
@@ -131,14 +177,16 @@ export default memo(
       readOnly,
       required,
       model,
-      limit,
+      limit = 10,
       filters,
       joins,
       keywords,
+      translate,
       titleDialog,
       classNameDialog,
       disabledNavigation,
       disabledAddButton,
+      defaultValueForm,
       form,
       postOption,
       onKeyDown,
@@ -151,6 +199,7 @@ export default memo(
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(value);
     const [search, setSearch] = useState("");
+    const [total, setTotal] = useState(0);
     const [options, setOptions] = useState([]);
     const [allowSearch, setAllowSearch] = useState(true);
     const [loading, setLoading] = useState(false);
@@ -174,56 +223,17 @@ export default memo(
     });
     const option = value ?? _option;
 
-    const convertTemplateLink = useCallback((value, search) => {
-      const template = value.templateLink ?? "";
-      let item = template.replace(
-        /:((\w[\w]+{:[\w]+})|(\w[\w.]+))/g,
-        (match) => {
-          match = match.replace(/(.*?){:(.*?)}/i, ":$2");
-          const newValue = getValueObject(value, match.substring(1));
-          return newValue || match;
-        },
-      );
-      if (search == null) {
-        const titleMatch = item.match(/<title(.*?)>(.*?)<\/title>/i);
-        const plainTextMatch = item.match(/^[^<]+/g);
-
-        return titleMatch
-          ? titleMatch[2].trim()
-          : plainTextMatch
-            ? plainTextMatch[0].trim()
-            : "";
-      }
-
-      item = item.replace(/<title(.*?)>(.*?)<\/title>/gi, "");
-
-      let searchWords =
-        search
-          .split(/\s+/)
-          ?.map((string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-          .filter((x) => !isNullOrWhitespace(x)) || [];
-
-      if (searchWords.length < 1) return item;
-
-      let regex = new RegExp(`(${searchWords.join("|")})`, "gi");
-      item = item.replace(/(<[^>]+>)|([^<]+)/g, (_, tag, text) => {
-        if (tag) return tag; // Jika ini bagian dari tag HTML, jangan ubah
-        return text.replace(regex, `<mark class="bg-yellow-500">$1</mark>`); // Hanya ubah teks biasa
-      });
-
-      return item;
-    }, []);
-
     useDidMountEffect(() => {
       _setOption(value);
     }, [value]);
 
     const setOption = useCallback(
       (val) => {
+        if (disabled || readOnly) return;
         _setOption(val);
         onValueChange?.(val);
       },
-      [onValueChange, _setOption],
+      [onValueChange, _setOption, disabled, readOnly],
     );
 
     useEffect(() => {
@@ -251,13 +261,16 @@ export default memo(
     }, [option]);
 
     useEffect(() => {
+      if (valueBefore !== undefined) {
+        return;
+      }
       if (!(option || value)) return;
       const isValid = validate(option || value, filters);
 
       if (!isValid) {
         setOption(null);
       }
-    }, [filters]);
+    }, [filters, option, value]);
 
     const getModels = () => {
       axios
@@ -270,9 +283,12 @@ export default memo(
           joins,
           keywords,
           order,
+          translate,
         })
         .then((res) => {
-          setOptions(res.data);
+          const data = res.data.data;
+          setTotal(res.data.total ?? data.length);
+          setOptions(data);
         })
         .catch((err) => {
           console.log(err);
@@ -293,6 +309,7 @@ export default memo(
       };
     }, [search]);
     const onInputKeyDown = (e) => {
+      console.log(e.key);
       if (e.key == "Enter" && open) return;
       if (
         e.ctrlKey ||
@@ -313,6 +330,35 @@ export default memo(
         setOpen(true);
       }
     };
+
+    const onSuccessFormPageLinkModelDialog = (e) => {
+      setOpen(false);
+      axios
+        .post(route("model"), {
+          model,
+          with: _with,
+          id: e.props.flash.id ?? null,
+        })
+        .then((res) => {
+          setOption(res.data);
+        })
+        .catch((err) => {
+          console.log(err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+
+    const diff = useMemo(() => {
+      const before = convertTemplateLink(valueBefore);
+      const after = convertTemplateLink(value);
+      return {
+        before: before != after && before,
+        after,
+        same: before == after,
+      };
+    }, [value, valueBefore]);
     return (
       <Popover open={open} onOpenChange={() => {}}>
         <Command
@@ -320,80 +366,100 @@ export default memo(
           ref={commandRef}
           loop
         >
-          <PopoverTrigger
-            asChild
-            className={cn(
-              "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-              disabled && "cursor-not-allowed opacity-50",
-              className,
-            )}
-          >
-            <div>
-              <Input
-                ref={ref}
-                disabled={disabled}
-                readOnly={readOnly}
-                onKeyDown={onInputKeyDown}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (!option || !search) {
-                    setOpen(true);
-                    getModels();
-                  }
-                }}
-                required={required}
-                value={search}
-                onChange={(e) => {
-                  setAllowSearch(true);
-                  setSearch(e.target.value);
-                }}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger
+                asChild
                 className={cn(
-                  "focus:!border-0 !bg-inherit disabled:!opacity-100 h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
+                  "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+                  valueBefore !== undefined &&
+                    !diff?.same &&
+                    "bg-yellow-200 dark:bg-yellow-900",
+                  disabled && "cursor-not-allowed opacity-50",
+                  className,
                 )}
-                placeholder={placeholder}
-              />
-              <div className="flex items-center h-8 pr-2 gap-x-2">
-                {!disabledNavigation && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "size-6 hidden",
-                      option &&
-                        search &&
-                        "group-focus-within/model:inline-flex",
-                    )}
-                    onClick={() => {
-                      if (!name || !option || !search) return;
-                      const pluralized = `${pluralize.plural(name ?? "")}.show`;
-                      window.open(
-                        route(pluralized, option[keyRoute ?? "id"]),
-                        "_blank",
-                      );
+              >
+                <div>
+                  <Input
+                    ref={ref}
+                    disabled={disabled}
+                    readOnly={readOnly}
+                    onKeyDown={onInputKeyDown}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!(option && search) && !open) {
+                        setOpen(true);
+                        getModels();
+                      }
                     }}
-                  >
-                    <ArrowRight className="size-3" />
-                  </Button>
+                    required={required}
+                    value={search}
+                    onChange={(e) => {
+                      setAllowSearch(true);
+                      setSearch(e.target.value);
+                    }}
+                    className={cn(
+                      "focus:!border-0 !bg-inherit disabled:!opacity-100 h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
+                      diff.same && "text-",
+                    )}
+                    placeholder={placeholder}
+                  />
+                  <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
+                    {!disabledNavigation && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "size-6 hidden",
+                          valueBefore && "!inline-flex",
+                          option &&
+                            search &&
+                            "group-focus-within/model:inline-flex",
+                        )}
+                        onClick={() => {
+                          if (!name || !option || !search) return;
+                          const pluralized = `${pluralize.plural(name ?? "")}.show`;
+                          window.open(
+                            route(pluralized, option[keyRoute ?? "id"]),
+                            "_blank",
+                          );
+                        }}
+                      >
+                        <ArrowRight className="size-3" />
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "size-6 ",
+                        (!search || disabled || readOnly) && "hidden",
+                      )}
+                      onClick={() => {
+                        setOption(null);
+                        setSearch("");
+                      }}
+                    >
+                      <XIcon className="size-3" />
+                    </Button>
+                  </div>
+                </div>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            {valueBefore && !diff?.same && (
+              <TooltipContent side="top" align="start">
+                {diff?.before && (
+                  <>
+                    <s>{diff?.before}</s>
+                    <br />
+                  </>
                 )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "size-6 ",
-                    (!search || disabled || readOnly) && "hidden",
-                  )}
-                  onClick={() => {
-                    setOption(null);
-                    setSearch("");
-                  }}
-                >
-                  <XIcon className="size-3" />
-                </Button>
-              </div>
-            </div>
-          </PopoverTrigger>
+                <span>{diff?.after}</span>
+              </TooltipContent>
+            )}
+          </Tooltip>
           {!(disabled || readOnly) && (
             <PopoverContent
               onOpenAutoFocus={(e) => e.preventDefault()}
@@ -433,6 +499,19 @@ export default memo(
                           </CommandItem>
                         );
                       })}
+                    {total > limit && !disabledAddButton && (
+                      <CommandSeparator />
+                    )}
+                    {total > limit && (
+                      <CommandItem
+                        className="text-blue-700 hover:!text-blue-900 dark:text-blue-300 dark:hover:!text-blue-200"
+                        onSelect={() => {
+                          // setOpenDialog(true);
+                        }}
+                      >
+                        {t("core.form.linkmodel.more")}
+                      </CommandItem>
+                    )}
                     {!disabledAddButton && (
                       <CommandItem
                         onSelect={() => {
@@ -463,6 +542,8 @@ export default memo(
             open={openDialog}
             onOpenChange={setOpenDialog}
             className={cn("max-w-lg", classNameDialog)}
+            defaultValue={defaultValueForm}
+            onSuccess={onSuccessFormPageLinkModelDialog}
             postOption={postOption}
           >
             {form}

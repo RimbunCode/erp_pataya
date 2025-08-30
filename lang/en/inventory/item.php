@@ -44,5 +44,6 @@ return [
       'unit' => 'Unit',
     ],
   ],
+  'variant_of' => 'Variant of',
   'variants' => []
 ];

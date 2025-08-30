@@ -19,7 +19,7 @@ import { usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { currencies, countries } = usePage().props;
+  const { currencies, countries, timezones } = usePage().props;
   const { data, setData } = useFormPage();
   const onUpdatePerPageOptions = (list) => {
     setData(
@@ -257,13 +257,13 @@ function Form() {
                 "core.company.preferences.default_currency.placeholder",
               )}
               templateTrigger={(currency_code) => {
-                const currency = currencies.find(
+                const currency = currencies?.find(
                   (c) => c.code === currency_code,
                 );
                 return (
                   <span>
-                    {currency.name}{" "}
-                    <span className="uppercase">({currency.code})</span>
+                    {currency?.name}{" "}
+                    <span className="uppercase">({currency?.code})</span>
                   </span>
                 );
               }}
@@ -280,6 +280,35 @@ function Form() {
                   >
                     {currency.name}{" "}
                     <span className="uppercase">({currency.code})</span>
+                  </CommandItem>
+                );
+              }}
+            />
+          </FormInput>
+          <FormInput
+            label={t("core.company.preferences.timezone")}
+            required={true}
+            className=""
+          >
+            <Combobox
+              options={timezones}
+              value={data.timezone}
+              placeholder={t("core.company.preferences.timezone.placeholder")}
+              templateTrigger={(timezone) => {
+                return <span>{timezone}</span>;
+              }}
+              templateItem={(timezone) => {
+                return (
+                  <CommandItem
+                    key={timezone}
+                    value={timezone}
+                    keywords={[timezone]}
+                    onSelect={() => {
+                      setData("timezone", timezone);
+                    }}
+                    className="block px-4 "
+                  >
+                    {timezone}
                   </CommandItem>
                 );
               }}

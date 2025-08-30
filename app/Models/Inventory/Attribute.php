@@ -23,4 +23,6 @@ class Attribute extends Model {
   public static function templateLink() {
     return ":name";
   }
+
+  public string $formComponent = 'Inventory/Attributes/Form';
 }

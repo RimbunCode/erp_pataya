@@ -29,6 +29,7 @@ return new class extends Migration {
       $table->text('billing_country_id')->nullable();
       $table->timestamps();
       $table->softDeletes();
+      $table->unique(['name', "branchable_id", 'deleted_at',]);
     });
   }
 

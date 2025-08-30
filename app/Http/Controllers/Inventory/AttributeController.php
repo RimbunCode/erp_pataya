@@ -37,15 +37,9 @@ class AttributeController extends Controller {
     }
 
     $attribute = Attribute::create($data);
-    $attribute->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
+    $attribute->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return back()->with('id', $attribute->id);
   }
 
   /**
@@ -56,7 +50,7 @@ class AttributeController extends Controller {
     $attribute->showDetail();
     if ($attribute->is_numeric) {
       $attribute->from_range = $attribute->values[0]['value'] ?? 0;
-      $attribute->to_range = $attribute->values[count($attribute->values) - 1]['value'] ?? 0;
+      $attribute->to_range = $attribute->values[count((array)$attribute->values) - 1]['value'] ?? 0;
       $attribute->increment = ($attribute->values[1]['value'] ?? 0) - ($attribute->values[0]['value'] ?? 0);
     }
     return $this->renderShow(
@@ -79,16 +73,10 @@ class AttributeController extends Controller {
         'value' => $value
       ], range($data['from_range'], $data['to_range'], $data['increment']));
     }
-    $attribute->update($data);
-    $attribute->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user telah memperbarui ini',
-      ]
-    ]);
+    $attribute->fillForUpdate($data);
+    $attribute->logForUpdated();
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 
   /**
@@ -96,15 +84,9 @@ class AttributeController extends Controller {
    */
   public function destroy(Request $request, Attribute $attribute) {
     DB::beginTransaction();
-    $attribute->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user deleted this',
-        'id' => ':user telah menghapus ini',
-      ]
-    ]);
     $attribute->delete();
+    $attribute->logForDeleted();
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 }

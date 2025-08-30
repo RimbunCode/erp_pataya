@@ -25,7 +25,8 @@ class Branch extends Model {
     return new Attribute(
       get: function ($value) {
         if ($this->is_main_branch) {
-          return "{$this->name} (Main)";
+          $main = __('core/branch.main');
+          return "{$this->name} ({$main})";
         }
         return $this->name;
       }
@@ -54,6 +55,17 @@ class Branch extends Model {
   public static function templateLink() {
     return ":name{:title}";
   }
+  protected static function loadRelationsOnShow() {
+    return ['shippingCountry', 'billingCountry'];
+  }
+
+  public string $formComponent = 'Settings/Branches/Form';
+
+  protected $configColumns = [
+    'billingCountry',
+    'shippingCountry',
+    // 'users',
+  ];
 
   public function billingCountry() {
     return $this->belongsTo(Country::class, 'billing_country_id', 'code');

@@ -6,12 +6,16 @@ import { FormPageDialog } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { Button } from "@/Components/ui/button";
+import { Trash2Icon } from "lucide-react";
+import useDeleteModal from "@/Hooks/useDeleteModal";
 
 function Index({ lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
+  const { deleteItem } = useDeleteModal();
 
   const columns = useMemo(
     () => [
@@ -95,6 +99,18 @@ function Index({ lang }) {
       <DataTable
         ref={tableRef}
         title={t("purchase.supplier.title")}
+        actions={({ dataRow }) => {
+          return (
+            <Button
+              variant="destructive"
+              size="icon"
+              className="size-8"
+              onClick={() => deleteItem("suppliers.destroy", dataRow.id)}
+            >
+              <Trash2Icon />
+            </Button>
+          );
+        }}
         addButton={{
           title: t("purchase.supplier.addButton"),
           onClick: () => {

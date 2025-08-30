@@ -15,11 +15,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WorkOrder extends Model {
-  use DataTable, Submitable, HasUlids, SoftDeletes;
+  use HasUlids, SoftDeletes, DataTable, Submitable;
   protected $guarded = ['id'];
   protected $casts = [
     "date" => "datetime",
-    'address' => Json::class
   ];
   protected $appends = ['for_internal'];
   protected function forInternal(): Attribute {
@@ -33,6 +32,49 @@ class WorkOrder extends Model {
     ];
   }
   public $keyBreadcrumb = "code";
+  protected static function loadRelationsOnShow() {
+    return [
+      'items',
+      'items.item',
+      'customer',
+      'customer_branch',
+      'item_service'
+    ];
+  }
+
+  public string $formComponent = 'Services/WorkOrders/Form';
+  public string $translateKey = "service.workOrder";
+  protected $configColumns = [
+    'code' => [
+      'isLink' => true,
+      'show' => true,
+    ],
+    'date' => [
+      'type' => 'date',
+      'show' => true,
+    ],
+    'branch' => [
+      'ignore' => true,
+    ],
+    'for_internal' => [
+      'type' => 'boolean',
+      'show' => true,
+      'width' => 'fit',
+    ],
+    'items',
+    'customer' => [
+      'show' => true,
+    ],
+    'customer_branch' => [
+      'disabledNavigation' => true
+    ],
+    'item_service' => [
+      'show' => true,
+    ],
+    'status' => [
+      'show' => true
+    ]
+  ];
 
   public function branch() {
     return $this->belongsTo(Branch::class);
@@ -48,8 +90,5 @@ class WorkOrder extends Model {
   }
   public function item_service() {
     return $this->belongsTo(ItemVariant::class, 'item_service_id');
-  }
-  public function source_warehouse() {
-    return $this->belongsTo(Warehouse::class, 'source_warehouse_id');
   }
 }

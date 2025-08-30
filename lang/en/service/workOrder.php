@@ -2,7 +2,7 @@
 
 return [
   'title' => 'Work Orders',
-  'add_work_order' => 'Add Work Order',
+  'add' => 'Add Work Order',
   'work_orders' => 'Work Order',
   'new' => 'New Work Orders',
   'delete' => 'Delete Work_order',
@@ -27,6 +27,7 @@ return [
     'item_service' => 'Item Service',
     'item_service.placeholder' => 'Select a item service',
     'external_note' => 'External Note',
+    'items' => 'Items',
     'item' => 'Item',
     'item.placeholder' => "Select a item",
     'description' => 'Description',

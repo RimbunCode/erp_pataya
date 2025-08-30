@@ -62,17 +62,9 @@ class WarehouseController extends Controller {
       $data['user_id'] = $data['pic']['id'];
     }
     $warehouse = Warehouse::create($data);
-    $warehouse->logs()->create(
-      [
-        'user_id' => $request->user()->id,
-        'activity' => [
-          'en' => ':user created this',
-          'id' => ':user telah membuat ini',
-        ]
-      ]
-    );
+    $warehouse->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return back()->with('id', $warehouse->id);
   }
 
   /**
@@ -84,9 +76,9 @@ class WarehouseController extends Controller {
     return $this->renderShow(
       'Inventory/Warehouses/Form',
       "warehouse",
-      $warehouse->name,
+      $warehouse->title,
       function () use ($warehouse) {
-        $warehouse->load(['pic', 'branch']);
+        $warehouse->loadRelations();
         return $warehouse;
       },
     );
@@ -104,14 +96,8 @@ class WarehouseController extends Controller {
     if (isset($data['pic'])) {
       $data['user_id'] = $data['pic']['id'];
     }
-    $warehouse->update($data);
-    $warehouse->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
+    $warehouse->fillForUpdate($data);
+    $warehouse->logForUpdated();
     DB::commit();
     return back();
   }
@@ -120,7 +106,10 @@ class WarehouseController extends Controller {
    * Remove the specified resource from storage.
    */
   public function destroy(Warehouse $warehouse) {
+    DB::beginTransaction();
     $warehouse->delete();
-    return redirect()->back();
+    $warehouse->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

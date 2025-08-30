@@ -43,7 +43,12 @@ import {
   useImperativeHandle,
   useState,
 } from "react";
-import { cn, getCookieByName, getLocaleDate, setCookie } from "@/lib/utils";
+import {
+  cn,
+  getFromLocalStorage,
+  getLocaleDate,
+  saveToLocalStorage,
+} from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
@@ -135,7 +140,6 @@ export default memo(
     const lang = usePage().props.lang;
     const isMobile = useIsMobile();
     const { t } = useLaravelReactI18n();
-    const route = window.route;
     const query = usePage().props.ziggy.query;
     const { data, defaultSort } = usePage().props;
     const [options, setOptions] = useState({
@@ -238,15 +242,11 @@ export default memo(
         per_page_options: [25, 50, 100],
       };
     const [show, setShow] = useState(
-      getCookieByName("datatable_show") ?? numPerPage,
+      getFromLocalStorage("datatable_show") ?? numPerPage,
     );
     const setShowNumber = useCallback((value) => {
       setShow(value);
-      setCookie("datatable_show", value, {
-        days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      });
+      saveToLocalStorage("datatable_show", value, DATATABLE_COLUMNS_EXPIRED);
       loadData();
     }, []);
 

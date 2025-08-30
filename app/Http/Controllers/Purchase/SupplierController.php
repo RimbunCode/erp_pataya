@@ -44,15 +44,9 @@ class SupplierController extends Controller {
     }
     $data['parent_id'] = (isset($data['branch_of']) && $data['branch_of']['id'] != null) ? $data['branch_of']['id'] : null;
     $supplier = Supplier::create($data);
-    $supplier->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user membuat ini'
-      ]
-    ]);
+    $supplier->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return back()->with('id', $supplier->id);
   }
 
   public function show(Request $request, Supplier $supplier) {
@@ -77,32 +71,17 @@ class SupplierController extends Controller {
       $data['country_id'] = $data['country']['code'];
     }
     $data['parent_id'] = (isset($data['branch_of']) && $data['branch_of']['id'] != null) ? $data['branch_of']['id'] : null;
-    $supplier->update($data);
-    $supplier->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
+    $supplier->fillForUpdate($data);
+    $supplier->logForUpdated();
     DB::commit();
     return back();
   }
 
-  public function destroy(Request $request): RedirectResponse {
-    $request->validate([
-      'password' => ['required', 'current_password'],
-    ]);
-
-    $user = $request->user();
-
-    Auth::logout();
-
-    $user->delete();
-
-    $request->session()->invalidate();
-    $request->session()->regenerateToken();
-
-    return Redirect::to('/');
+  public function destroy(Supplier $supplier) {
+    DB::beginTransaction();
+    $supplier->delete();
+    $supplier->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

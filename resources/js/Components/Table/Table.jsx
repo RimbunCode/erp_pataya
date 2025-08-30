@@ -21,7 +21,7 @@ import {
   arrayMove,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { cn, getCookieByName, setCookie } from "@/lib/utils";
+import { cn, getFromLocalStorage, saveToLocalStorage } from "@/lib/utils";
 
 import { Checkbox } from "../ui/checkbox";
 import ColumnsFilter from "./ColumnsFilter";
@@ -63,7 +63,7 @@ export const createHeaders = (headers) => {
   );
 
   let finalColumns = [];
-  const columnsFromCookie = JSON.parse(getCookieByName(DATATABLE_COLUMNS_KEY));
+  const columnsFromCookie = getFromLocalStorage(DATATABLE_COLUMNS_KEY);
   if (!columnsFromCookie) {
     return Array.from(columnsMap.values());
   }
@@ -147,14 +147,10 @@ function Table({
     // }),
   );
   useDidMountEffect(() => {
-    setCookie(
+    saveToLocalStorage(
       DATATABLE_COLUMNS_KEY,
-      JSON.stringify(columns.map((x) => ({ name: x.name, show: x.show }))),
-      {
-        days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      },
+      columns.map((x) => ({ name: x.name, show: x.show })),
+      DATATABLE_COLUMNS_EXPIRED,
     );
   }, [columns]);
   function handleDragOver(event) {

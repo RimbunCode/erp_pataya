@@ -1,3 +1,8 @@
+import {
+  getFromLocalStorage,
+  removeFromLocalStorage,
+  saveToLocalStorage,
+} from "@/lib/utils";
 import { useCallback, useEffect } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 
@@ -6,19 +11,6 @@ import { isEmpty } from "lodash";
 import useDidMountEffect from "./useDidMountEffect";
 import { useIsDirtyForm } from "./useIsDirtyForm";
 
-const saveToLocalStorage = (key, data, expiredDays) => {
-  localStorage.setItem(
-    key,
-    JSON.stringify({
-      pathname: window.location.pathname,
-      expiredDate: new Date(
-        Date.now() + expiredDays * 24 * 60 * 60 * 1000,
-      ).toISOString(),
-      updatedAt: new Date().toISOString(),
-      data,
-    }),
-  );
-};
 export const useAlertDraftForm = create((set) => ({
   showAlert: false,
   setShowAlert: (value) => set({ showAlert: value }),
@@ -34,7 +26,7 @@ export const useAlertDraftForm = create((set) => ({
  */
 
 /**
- * @param {string} key kunci untuk menyimpan data pada cookie
+ * @param {string} name kunci untuk menyimpan data pada cookie
  * @param {object} initialData
  * @typedef {object} OptionsProps
  * @property {number=} expiredDays jumlah hari berlaku cookie
@@ -43,14 +35,14 @@ export const useAlertDraftForm = create((set) => ({
  * @returns {import("@inertiajs/react").InertiaFormProps<any>}
  */
 export const useDraftForm = (
-  key,
+  name,
   initialData,
   { expiredDays = 7, onContinueDraft } = {},
 ) => {
   const { setShowAlert, setCancel, setContinue } = useAlertDraftForm();
   const { setIsDirty, setProcessing, setRecentlySuccessful } = useIsDirtyForm();
   const user = usePage().props.auth.user;
-  key = user ? `${key}_${user.id}` : null;
+  let key = user ? `${name}_${user.id}` : null;
   key =
     !initialData || isEmpty(initialData) ? `${key}_create` : `${key}_update`;
   const {
@@ -65,11 +57,8 @@ export const useDraftForm = (
 
   useDidMountEffect(() => {
     setIsDirty(form.isDirty);
-    // console.log("isDirty", form.isDirty);
     if (!form.isDirty) {
-      // console.log("remove cookie", key, window.location.pathname);
-      localStorage.removeItem(key);
-      // removeCookie(key, window.location.pathname);
+      removeFromLocalStorage(key);
     }
   }, [form.isDirty]);
   useDidMountEffect(() => {
@@ -85,48 +74,24 @@ export const useDraftForm = (
     }
   }, [initialData]);
   useDidMountEffect(() => {
-    // console.log(key != null, form.isDirty, form.data);
     if (key != null && form.isDirty) {
-      // console.log(key != null, key, form.isDirty);
-      // console.log("set cookie", key, JSON.stringify(form.data));
       saveToLocalStorage(key, form.data, expiredDays);
-      // setCookie(key, JSON.stringify(form.data), {
-      //   days: expiredDays,
-      //   path: window.location.pathname,
-      //   // sameSite: "lax",
-      // });
+    }
+    if (!form.isDirty) {
+      removeFromLocalStorage(key);
     }
   }, [form.data, form.isDirty, key, expiredDays]);
 
   useEffect(() => {
-    let dataCookie = localStorage.getItem(key);
-    // const dataCookie = getCookieByName(key);
+    let dataCookie = getFromLocalStorage(key);
     if (dataCookie != null) {
-      if (typeof dataCookie === "string") {
-        try {
-          dataCookie = JSON.parse(dataCookie);
-        } catch (e) {
-          console.error("Error parsing cookie data:", e);
-          return;
-        }
-      }
-      if (dataCookie.pathname !== window.location.pathname) {
-        // console.log("Cookie data does not match current path, ignoring.");
-        return;
-      }
-      if (new Date(dataCookie.expiredDate) < new Date(Date.now())) {
-        localStorage.removeItem(key);
-        // removeCookie(key, window.location.pathname);
-        return;
-      }
       setCancel(() => {
-        localStorage.removeItem(key);
-        // removeCookie(key, window.location.pathname);
+        form.reset();
+        removeFromLocalStorage(key);
       });
       setContinue(() => {
-        form.setData(dataCookie.data);
-        localStorage.removeItem(key);
-        // removeCookie(key, window.location.pathname);
+        form.setData(dataCookie);
+        removeFromLocalStorage(key);
         onContinueDraft?.();
       });
       setShowAlert(true);
@@ -141,21 +106,16 @@ export const useDraftForm = (
         replace: true,
         ...options,
         onSuccess: (e) => {
-          form.setDefaults(e.props.role);
+          form.setDefaults(e.props[name]);
+          setIsDirty(false);
           if (options?.onSuccess) options.onSuccess(e);
         },
         onBefore: (e) => {
-          localStorage.removeItem(key);
-          // removeCookie(key, window.location.pathname);
+          removeFromLocalStorage(key);
           if (options?.onBefore) options.onBefore(e);
         },
         onError: (e) => {
           saveToLocalStorage(key, form.data, expiredDays);
-          // setCookie(key, JSON.stringify(form.data), {
-          //   days: expiredDays,
-          //   path: window.location.pathname,
-          //   sameSite: "lax",
-          // });
           if (options?.onError) options.onError(e);
         },
       };

@@ -1,15 +1,5 @@
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/Components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
 import DataTable from "@/Pages/Core/DataTable";
@@ -18,24 +8,15 @@ import { FormPageDialog } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { Trash2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { router } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import useDeleteModal from "@/Hooks/useDeleteModal";
 
-// eslint-disable-next-line jsdoc/require-jsdoc
 export default function Index({ branchSettings }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const tableRef = useRef();
   const [showNewForm, setShowNewForm] = useState(false);
-  const [idDelete, setIdDelete] = useState(null);
-
-  const onDelete = useCallback((id) => {
-    router.delete(route("warehouses.destroy", id), {
-      onSuccess: () => {
-        setIdDelete(null);
-      },
-    });
-  }, []);
+  const { deleteItem } = useDeleteModal();
   /**
    * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
    * @type {ColumnProps[]}
@@ -54,7 +35,7 @@ export default function Index({ branchSettings }) {
             className="hover:underline"
             href={route("warehouses.show", dataRow.id)}
           >
-            {dataRow.code}
+            {dataRow.title}
           </Link>
         ),
       },
@@ -156,7 +137,7 @@ export default function Index({ branchSettings }) {
               variant="destructive"
               size="icon"
               className="size-8"
-              onClick={() => setIdDelete(dataRow.id)}
+              onClick={() => deleteItem("warehouses.destroy", dataRow.id)}
             >
               <Trash2Icon />
             </Button>
@@ -180,7 +161,7 @@ export default function Index({ branchSettings }) {
               variant="destructive"
               size="icon"
               className="size-8"
-              onClick={() => setIdDelete(dataRow.id)}
+              onClick={() => deleteItem("warehouses.destroy", dataRow.id)}
             >
               <Trash2Icon />
             </Button>
@@ -197,38 +178,6 @@ export default function Index({ branchSettings }) {
       >
         <Form />
       </FormPageDialog>
-
-      <AlertDialog
-        open={idDelete}
-        onOpenChange={(v) => {
-          if (!v) {
-            setIdDelete(null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("inventory.warehouse.delete")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("inventory.warehouse.delete.description")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIdDelete(null)}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                onDelete(idDelete);
-              }}
-            >
-              {t("inventory.warehouse.delete.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

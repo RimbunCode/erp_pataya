@@ -17,11 +17,11 @@ class ItemVariant extends Model {
   public $keyBreadcrumb = 'sku';
   public $aliasBreadcrumb = 'Variant';
   protected $guarded = ['id'];
-  protected $appends = ['sku'];
   protected $casts = [
     'is_disabled' => 'boolean',
     'allow_alternative_item' => 'boolean',
   ];
+  protected $appends = ['sku'];
   public function sku(): Attribute {
     return new Attribute(
       get: function () {
@@ -29,6 +29,16 @@ class ItemVariant extends Model {
       }
     );
   }
+  protected static function loadRelationsOnShow() {
+    return [
+      'values',
+      'category',
+      'item',
+      'defaultUnit',
+      'barcodes',
+    ];
+  }
+  public string $formComponent = 'Inventory/Items/FormVariant';
   public static function templateLink() {
     return "<title>:code - :item_name</title><b>:code</b><br/><span>:item_name</span>";
   }
@@ -36,7 +46,8 @@ class ItemVariant extends Model {
     return $this->hasMany(ItemVariantAttribute::class, 'item_variant_id', 'id');
   }
   public function item() {
-    return $this->belongsTo(Item::class, 'item_id', 'id');
+    return $this->belongsTo(Item::class, 'item_id', 'id')
+      ->with(['category', 'defaultUnit']);
   }
   public function stocks() {
     return $this->hasMany(Stock::class, 'item_variant_id', 'id');
@@ -72,6 +83,7 @@ class ItemVariant extends Model {
     ]);
   }
   public function barcodes() {
-    return $this->hasMany(ItemBarcode::class, 'item_variant_id', 'id');
+    return $this->hasMany(ItemBarcode::class, 'item_variant_id', 'id')
+      ->with(['unit']);
   }
 }

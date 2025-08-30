@@ -18,6 +18,11 @@ export default forwardRef(function BranchLinkModel(
       classNameDialog="max-w-screen-md"
       form={<Form />}
       order="is_main_branch:desc"
+      translate={{
+        is_main_branch: {
+          true: t("core.branch.main"),
+        },
+      }}
       {...props}
       ref={ref}
     />

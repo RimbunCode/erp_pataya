@@ -16,10 +16,12 @@ class WorkOrderItem extends Model {
     return $this->belongsTo(WorkOrder::class);
   }
   public function item() {
-    return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')
-      ->with("defaultUnit");
+    return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')->withTrashed($this->status != "draft")
+      ->with(["defaultUnit" => function ($q) {
+        return $q->withTrashed($this->status != "draft");
+      }]);
   }
   public function unit() {
-    return $this->belongsTo(Unit::class, 'unit_id', 'id');
+    return $this->belongsTo(Unit::class, 'unit_id', 'id')->withTrashed($this->status != "draft");
   }
 }

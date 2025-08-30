@@ -8,7 +8,13 @@ import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function FormDetail({ data, setData, isVariant, item }) {
+export default function FormDetail({
+  dataBefore,
+  data,
+  setData,
+  isVariant,
+  item,
+}) {
   const { t } = useLaravelReactI18n();
   return (
     <FormPageContent title={t("inventory.item.menu.details")} value="detail">

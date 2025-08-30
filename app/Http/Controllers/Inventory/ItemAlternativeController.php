@@ -46,15 +46,9 @@ class ItemAlternativeController extends Controller {
         'two_way' => $data['two_way'] ?? false,
       ]
     );
-    $itemAlternative->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
+    $itemAlternative->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return back()->with('id', $itemAlternative->id);
   }
 
   /**
@@ -84,29 +78,26 @@ class ItemAlternativeController extends Controller {
   public function update(ItemAlternativeRequest $request, ItemAlternative $itemAlternative) {
     $data = $request->validated();
     DB::beginTransaction();
-    $itemAlternative->update(
+    $itemAlternative->fillForUpdate(
       [
         'item_id' => $data['item']['id'],
         'alternative_item_id' => $data['alternative']['id'],
         'two_way' => $data['two_way'] ?? false,
       ]
     );
-    $itemAlternative->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user telah memperbarui ini',
-      ]
-    ]);
+    $itemAlternative->logForUpdated();
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
   public function destroy(ItemAlternative $itemAlternative) {
+    DB::beginTransaction();
     $itemAlternative->delete();
-    return redirect()->back();
+    $itemAlternative->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

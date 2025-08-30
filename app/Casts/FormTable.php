@@ -12,9 +12,9 @@ class FormTable implements CastsAttributes {
    *
    * @param  array<string, mixed>  $attributes
    */
-  public function get(Model $model, string $key, mixed $value, array $attributes): mixed {
+  public function get(Model $model, string $key, mixed $value, array $attributes): array {
     if (!isset($value) || $value == null) {
-      return null;
+      return [];
     }
     $value = json_decode($value, true);
     $value = \array_map(function ($value) {

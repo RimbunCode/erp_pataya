@@ -19,6 +19,10 @@ class ItemAlternative extends Model {
   public static function templateLink() {
     return ":item.code";
   }
+  protected $configColumns = [
+    'item',
+    'alternative',
+  ];
 
   public function item() {
     return $this->belongsTo(ItemVariant::class, 'item_id', 'id');
@@ -26,4 +30,5 @@ class ItemAlternative extends Model {
   public function alternative() {
     return $this->belongsTo(ItemVariant::class, 'alternative_item_id', 'id');
   }
+  public string $formComponent = "Inventory/ItemAlternatives/Form";
 }
