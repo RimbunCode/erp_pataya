@@ -150,7 +150,7 @@ trait LinkModel {
     }
     return [];
   }
-  private function mergeConfigColumns(array ...$configs) {
+  private static function mergeConfigColumns(array ...$configs) {
     $newConfigs = [];
     foreach ($configs as $config) {
       foreach ($config as $key => $value) {
@@ -160,6 +160,7 @@ trait LinkModel {
         $newConfigs[$newKey] = array_merge(($newConfigs[$newKey] ?? []), $newValue);
       }
     }
+    return $newConfigs;
   }
 
   public static function getColumns(...$excepts) {
@@ -168,10 +169,10 @@ trait LinkModel {
     $casts = $instance->getCasts();
     $hidden = [...$instance->getHidden(), ...$instance->getGuarded()];
     $appends = $instance->getAppends();
-    $configColumns = [
-      ...($instance->defaultConfigColumns ?? []),
-      ...($instance->configColumns ?? []),
-    ];
+    $configColumns = static::mergeConfigColumns(
+      $instance->defaultConfigColumns ?? [],
+      $instance->configColumns ?? [],
+    );
     $translateKey = $instance->translateKey ?? null;
 
     $newColumns = [];

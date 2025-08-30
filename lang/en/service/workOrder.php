@@ -27,6 +27,7 @@ return [
     'item_service' => 'Item Service',
     'item_service.placeholder' => 'Select a item service',
     'external_note' => 'External Note',
+    'items' => 'Items',
     'item' => 'Item',
     'item.placeholder' => "Select a item",
     'description' => 'Description',

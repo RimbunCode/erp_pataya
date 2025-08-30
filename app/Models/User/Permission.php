@@ -15,7 +15,13 @@ class Permission extends Model {
     'permissions' => Json::class,
     'is_submitable' => 'boolean',
   ];
+  protected $appends = ['translateKey'];
   public static function templateLink() {
     return "<title>:name</title><b>:name</b><br/><span>:module</span>";
+  }
+  protected function getTranslateKeyAttribute() {
+    $model = $this->model;
+    $instance = new $model();
+    return $instance->translateKey;
   }
 }

@@ -17,6 +17,7 @@ return [
     'create_so' => 'Create SO',
     'create_pr' => 'Create PR',
   ],
+  'import_items' => 'Import Items',
   'columns' => [
     'code' => 'Code',
     'customer' => 'Customer',

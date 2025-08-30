@@ -5,13 +5,13 @@ import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import LinkModel from "@/Components/LinkModel";
 import React, { useCallback } from "react";
 import { Textarea } from "@/Components/ui/textarea";
 import { generateRandom } from "@/lib/utils";
 import { toast } from "sonner";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useState } from "react";
+import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 
 function Form() {
   const { data, setData } = useFormPage();
@@ -186,11 +186,8 @@ function Form() {
               required
               className="ml-1"
             >
-              <LinkModel
+              <PermissionLinkModel
                 required={false}
-                model="App\Models\User\Permission"
-                disabledAddButton={true}
-                disabledNavigation={true}
                 placeholder={t("user.role.columns.model.placeholder")}
                 value={newRule.model}
                 onValueChange={(val) =>

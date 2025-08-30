@@ -18,4 +18,8 @@ class PurchaseRequestItem extends Model {
   public function purchaseRequest() {
     return $this->belongsTo(PurchaseRequest::class);
   }
+
+  public function referenceable() {
+    return $this->morphTo();
+  }
 }

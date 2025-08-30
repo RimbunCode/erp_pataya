@@ -28,9 +28,16 @@ class PurchaseRequest extends Model {
   protected $configColumns = [
     "code" => [
       "show" => true,
-      "searchable" => true,
-      "sortable" => true,
       "isLink" => true,
+    ],
+    'date' => [
+      'show' => true,
+    ],
+    'required_date' => [
+      'show' => true,
+    ],
+    'status' => [
+      'show' => true,
     ],
     'items',
   ];
