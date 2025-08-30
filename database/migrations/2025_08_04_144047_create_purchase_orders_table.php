@@ -12,7 +12,6 @@ return new class extends Migration {
     Schema::create('purchase_orders', function (Blueprint $table) {
       $table->ulid("id")->primary();
       $table->string("code")->unique();
-      $table->foreignUlid('branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();
       $table->timestamp('date');
       $table->timestamp('required_date')->nullable();
       $table->foreignUlid('supplier_id')->nullable()->references('id')->on('suppliers')->nullOnDelete();

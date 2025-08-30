@@ -8,8 +8,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class PermissionSeeder extends Seeder
-{
+class PermissionSeeder extends Seeder {
   private $defaultPermissions = [
     'select',
     'read',
@@ -25,15 +24,13 @@ class PermissionSeeder extends Seeder
     'share',
   ];
 
-  private function getPermissions($except = [])
-  {
+  private function getPermissions($except = []) {
     return array_values(array_diff($this->defaultPermissions, $except));
   }
   /**
    * Run the database seeds.
    */
-  public function run(): void
-  {
+  public function run(): void {
 
 
     // $modulePermissions = [
@@ -143,7 +140,7 @@ class PermissionSeeder extends Seeder
         }
       } catch (\Throwable $e) {
         print_r("\e[39m" . $className . " \e[91m(ERROR) \e[39m" . \PHP_EOL);
-        print_r($e);
+        print_r(value: $e);
       }
     }
   }
