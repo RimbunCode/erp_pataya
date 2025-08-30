@@ -47,9 +47,16 @@ export default memo(
     const hourRef = useRef();
     const commandRef = useDetectClickOutside({
       onTriggered: () => {
-        setOpen(false);
+        if (!isInputFocused && !isPopoverFocused) setOpen(false);
       },
     });
+    const popoverContentRef = useDetectClickOutside({
+      onTriggered: () => {
+        if (!isInputFocused && !isPopoverFocused) setOpen(false);
+      },
+    });
+    const [isInputFocused, setIsInputFocused] = useState(false);
+    const [isPopoverFocused, setIsPopoverFocused] = useState(false);
 
     const value = valueProps ?? _value;
     const setValue = (value) => {
@@ -115,17 +122,13 @@ export default memo(
       [lang, type],
     );
     useEffect(() => {
-      console.log(value, open);
       if (value) {
-        // setAllowSearch(false);
         setSearch(getDateValue(value));
       } else if (!open) {
-        // setAllowSearch(true);
         setSearch("");
       }
     }, [value, open]);
     const onInputKeyDown = (e) => {
-      console.log(e.key);
       if (e.key == "Enter" && open) return;
       if (
         e.ctrlKey ||
@@ -146,7 +149,6 @@ export default memo(
         setOpen(true);
       }
     };
-    useEffect(() => {});
     // const dateValue = useMemo(() => {}, [value, type]);
 
     return type == "time" ? (
@@ -164,17 +166,14 @@ export default memo(
     ) : (
       <Popover open={open} onOpenChange={() => {}}>
         <Command
-          className="relative h-full overflow-visible bg-transparent"
           ref={commandRef}
+          className="relative h-full overflow-visible bg-transparent"
           loop
         >
           <PopoverTrigger
             asChild
             className={cn(
               "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-              // valueBefore !== undefined &&
-              //   !diff?.same &&
-              //   "bg-yellow-200 dark:bg-yellow-900",
               disabled && "cursor-not-allowed opacity-50",
               className,
             )}
@@ -190,7 +189,6 @@ export default memo(
                 disabled={disabled}
                 className={cn(
                   "focus:!border-0 !bg-inherit disabled:!opacity-100 h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
-                  // diff.same && "text-",
                 )}
                 required={required}
                 onClick={(e) => {
@@ -200,34 +198,20 @@ export default memo(
                   }
                 }}
                 onChange={(e) => setSearch(e.target.value)}
+                onFocus={() => setIsInputFocused(true)}
+                onBlur={() => setIsInputFocused(false)}
               />
             </div>
-
-            {/* <Button
-            disabled={disabled}
-            id="date"
-            variant={"outline"}
-            className={cn(
-              "h-8 w-auto justify-start bg-muted text-left font-normal overflow-hidden truncate",
-              !value && "text-muted-foreground",
-              readOnly && "pointer-events-none",
-              className,
-            )}
-          >
-            <CalendarIcon />
-            <span className="truncate">
-              {(() => {
-
-              })()}
-            </span>
-          </Button> */}
           </PopoverTrigger>
           <PopoverContent
             className="w-auto p-0"
+            ref={popoverContentRef}
             onOpenAutoFocus={(e) => e.preventDefault()}
             align="start"
             side="bottom"
             forceMount
+            onFocus={() => setIsPopoverFocused(true)}
+            onBlur={() => setIsPopoverFocused(false)}
           >
             <Calendar
               fromYear={fromYear}
@@ -237,7 +221,6 @@ export default memo(
               selected={value}
               onSelect={(val) => {
                 type == "daterange" ? setValue(val) : setDate(val);
-                setOpen(false);
               }}
               numberOfMonths={1}
             />

@@ -19,6 +19,10 @@ return [
     'cancel' => 'Cancel',
     'submit' => 'Submit'
   ],
+  'select' => 'Select',
+  'select.placeholder' => 'Select an option',
+  'select_model' => 'Select Model',
+  'from' => 'From',
   'commented' => 'commented',
   'comments' => 'Comments',
   'activity' => 'Activity',
@@ -33,6 +37,7 @@ return [
   'loading' => 'Loading',
   'pick_date' => 'Pick a Date',
   'type_comment' => 'Type a reply / comment',
+  'model.placeholder' => 'Select a model',
   'not_found' => 'No results found',
   'search.placeholder' => 'Search',
   'datetime.placeholder' => 'Pick a date and time',

@@ -10,6 +10,8 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import React from "react";
 import { useMemo } from "react";
 import ItemForm from "./ItemForm";
+import { Button } from "@/Components/ui/button";
+import SelectModel from "@/Components/SelectModel";
 
 function Form() {
   const { t } = useLaravelReactI18n();
@@ -234,6 +236,32 @@ function Form() {
       <FormPageContent
         value="detail"
         title={t("purchase.purchaseRequest.items")}
+        actions={
+          <SelectModel
+            from={{
+              "App\\Models\\Service\\WorkOrder": {
+                columns: ["code", "date"],
+                select: {
+                  items: {
+                    columns: ["workOrder", "item", "quantity", "unit"],
+                  },
+                },
+              },
+              "App\\Models\\Purchase\\PurchaseOrder": {},
+            }}
+            trigger={
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="w-fit"
+                // onClick={() => setOpenSelectColumn(true)}
+              >
+                {t("purchase.purchaseRequest.import_items")}
+              </Button>
+            }
+          />
+        }
       >
         <FormTable
           readOnly={disabled}
