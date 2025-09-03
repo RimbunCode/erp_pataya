@@ -15,7 +15,7 @@ export default function Index() {
     <>
       <DataTable2
         ref={tableRef}
-        classNameDialog="max-w-screen-2xl"
+        classNameDialog="max-w-(--breakpoint-2xl)"
         form={<Form />}
         templateItem={({ dataRow }) => (
           <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">

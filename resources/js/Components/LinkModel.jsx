@@ -411,7 +411,7 @@ export default memo(
                       setSearch(e.target.value);
                     }}
                     className={cn(
-                      "focus:!border-0 !bg-inherit disabled:!opacity-100 h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
+                      "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
                       diff.same && "text-",
                     )}
                     placeholder={placeholder}
@@ -428,7 +428,7 @@ export default memo(
                             size="icon"
                             className={cn(
                               "size-6 hidden",
-                              valueBefore && "!inline-flex",
+                              valueBefore && "inline-flex!",
                               option &&
                                 search &&
                                 "group-focus-within/model:inline-flex",
@@ -483,7 +483,7 @@ export default memo(
               onOpenAutoFocus={(e) => e.preventDefault()}
               align="start"
               side="bottom"
-              className="relative z-50 w-auto  min-w-[--radix-popover-trigger-width] p-0 "
+              className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
               forceMount
               asChild
             >
@@ -522,7 +522,7 @@ export default memo(
                     )}
                     {total > limit && (
                       <CommandItem
-                        className="text-blue-700 hover:!text-blue-900 dark:text-blue-300 dark:hover:!text-blue-200"
+                        className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
                         onSelect={() => {
                           // setOpenDialog(true);
                         }}

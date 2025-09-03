@@ -175,7 +175,7 @@ const FormPageContent = memo(
         <AccordionItem value={valueAccordion} asChild className="border-b-0">
           <div
             ref={ref}
-            className={cn("px-4 py-4 !mt-0", className)}
+            className={cn("px-4 py-4 mt-0!", className)}
             role="content"
           >
             {headerChildren.length > 0 ||
@@ -266,14 +266,14 @@ const FormChildren = memo(function FormChildren({
         <div
           className={cn(
             "flex flex-col order-1 max-w-full  border rounded-xl lg:col-start-1 border-muted-foreground/25",
-            "[&_:not(div[role=content])_+_div[role=content]]:border-t-0 [&_div[role=content]:first-child]:!border-t-0 [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
+            "[&_:not(div[role=content])+div[role=content]]:border-t-0 [&_div[role=content]:first-child]:border-t-0! [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
           )}
         >
           <TabsList
             className={cn(
               menus?.length <= 1 ? "hidden" : "",
               showHeader ? "top-14" : "top-0",
-              "transition-[top] duration-300 ease-in-out sticky z-[9] w-full !p-0 h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
+              "transition-[top] duration-300 ease-in-out sticky z-9 w-full p-0! h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
             )}
           >
             {menus.map((child) => {
@@ -281,9 +281,9 @@ const FormChildren = memo(function FormChildren({
                 <TabsTrigger
                   key={child.value}
                   value={child.value}
-                  className="text-base border-0 data-[state=active]:font-bold !p-0 !px-4 group rounded-none transition-colors"
+                  className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
                 >
-                  <span className="pt-2 pb-1 border-transparent w-fit group-[[data-state=active]]:border-foreground border-b transition-colors duration-300 ">
+                  <span className="pt-2 pb-1 border-transparent w-fit group-data-[state=active]:border-foreground border-b transition-colors duration-300 ">
                     {t(child.title || child.value)}
                   </span>
                 </TabsTrigger>
@@ -505,7 +505,7 @@ const FormPage = memo(
     return (
       <AppLayout
         data-disabled={disabled}
-        className="!pt-0 relative group/form"
+        className="pt-0! relative group/form"
         onScroll={handleScroll}
       >
         <form
@@ -544,7 +544,7 @@ const FormPage = memo(
                   <Button
                     type="submit"
                     variant="destructive"
-                    className="!p-2 size-fit h-8"
+                    className="p-2! size-fit h-8"
                     disabled={processing}
                     asChild
                   >
@@ -564,7 +564,7 @@ const FormPage = memo(
                 (isDirty || !submitable ? (
                   <Button
                     type="submit"
-                    className="!p-2 size-fit h-8"
+                    className="p-2! size-fit h-8"
                     disabled={processing}
                   >
                     <SaveIcon />
@@ -573,7 +573,7 @@ const FormPage = memo(
                 ) : (
                   <Button
                     type="button"
-                    className="!p-2 size-fit h-8"
+                    className="p-2! size-fit h-8"
                     disabled={processing}
                     onClick={submit}
                   >
@@ -677,7 +677,7 @@ const Connections = memo(
       <WhenVisible
         data={["connections"]}
         fallback={() => (
-          <div className="!text-base font-normal text-foreground flex gap-x-4">
+          <div className="text-base! font-normal text-foreground flex gap-x-4">
             <LoadingIcon className="size-4" />
             <span>{t("core.form.loading")} ...</span>
           </div>
@@ -1209,7 +1209,7 @@ const FormPageDiff = memo(
     return (
       <AppLayout
         data-disabled={true}
-        className="!pt-0 relative group/form"
+        className="pt-0! relative group/form"
         onScroll={handleScroll}
       >
         <form
@@ -1260,7 +1260,7 @@ const FormPageDiff = memo(
                   <p className="mt-8 text-xl font-bold">
                     {t("core.form.log_informations")}
                   </p>
-                  <div className="border border-muted-foreground/25 rounded-lg grid grid-cols-[auto_1fr] [&>div:nth-child(odd)]:bg-muted/50  [&>div>*]:py-1.5 [&>div>*]:px-4 [&>div>*:first-child]:pl-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b [&>*]:border-muted-foreground/25 [&>div_p]:text-sm">
+                  <div className="border border-muted-foreground/25 rounded-lg grid grid-cols-[auto_1fr] [&>div:nth-child(odd)]:bg-muted/50  [&>div>*]:py-1.5 [&>div>*]:px-4 [&>div>*:first-child]:pl-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b *:border-muted-foreground/25 [&>div_p]:text-sm">
                     <div className="grid grid-cols-subgrid col-span-full">
                       <p>{t("core.form.timestamp")}</p>
                       <p>

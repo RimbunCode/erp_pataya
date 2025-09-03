@@ -188,7 +188,7 @@ export default memo(
                 readOnly={readOnly}
                 disabled={disabled}
                 className={cn(
-                  "focus:!border-0 !bg-inherit disabled:!opacity-100 h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
+                  "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
                 )}
                 required={required}
                 onClick={(e) => {

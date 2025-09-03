@@ -309,7 +309,7 @@ export default memo(
           >
             {trigger}
           </DialogTrigger>
-          <DialogContent className="max-w-screen-xl p-0">
+          <DialogContent className="max-w-(--breakpoint-xl) p-0">
             <TooltipProvider>
               <DialogHeader className="px-6 pt-6 mb-2 border-b border-muted-foreground/30">
                 <DialogTitle className="flex items-center mb-1 gap-x-2">
@@ -381,7 +381,7 @@ export default memo(
                 <div className="flex items-center justify-between py-2 pb-3 border-b gap-x-6 border-muted-foreground/30">
                   <Button
                     variant="outline"
-                    className="h-8 !px-2"
+                    className="h-8 px-2!"
                     onClick={addFilter}
                   >
                     <PlusIcon />
@@ -391,13 +391,13 @@ export default memo(
                   <div className="flex gap-x-2 ">
                     <Button
                       variant="secondary"
-                      className="h-8 !px-2"
+                      className="h-8 px-2!"
                       onClick={() => setFilters([])}
                     >
                       {t("core.datatable.filter.clear_filters")}
                     </Button>
                     {isDirty && (
-                      <Button className="h-8 !px-2" onClick={applyFilters}>
+                      <Button className="h-8 px-2!" onClick={applyFilters}>
                         {t("core.datatable.filter.apply_filters")}
                       </Button>
                     )}

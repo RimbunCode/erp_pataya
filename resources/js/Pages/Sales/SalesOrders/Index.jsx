@@ -140,7 +140,7 @@ export default function Index({ lang }) {
         title={t("sales.salesOrder.new")}
         open={showNewForm}
         onOpenChange={setShowNewForm}
-        className="max-w-screen-xl"
+        className="max-w-(--breakpoint-xl)"
         name="salesOrder"
       >
         <Form />

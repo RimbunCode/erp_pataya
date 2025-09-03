@@ -93,11 +93,11 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
     <FilterProvider open={open} onOpenChange={setOpen}>
       <FilterTrigger asChild>
         {isMobile ? (
-          <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
+          <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
             <Filter />
             {t("core.datatable.filter.filter")}
             {countFilters > 0 && (
-              <span className="badge secondary !bg-background !py-0.5 !px-1.5 !h-auto !aspect-square rounded-full border border-muted-foreground/50 !text-xs">
+              <span className="badge secondary bg-background! py-0.5! px-1.5! h-auto! aspect-square! rounded-full border border-muted-foreground/50 text-xs!">
                 {countFilters}
               </span>
             )}
@@ -106,14 +106,14 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
           <Button
             className={cn(
               countFilters > 0 ? "border-r rounded-r-none" : "rounded-r",
-              "flex-1 relative !py-0 h-8 !px-2  border-muted-foreground/50",
+              "flex-1 relative py-0! h-8 px-2!  border-muted-foreground/50",
             )}
             variant="secondary"
           >
             <Filter />
             {t("core.datatable.filter.filter")}
             {countFilters > 0 && (
-              <span className="badge secondary !bg-background !py-0.5 !px-1.5 !h-auto !aspect-square rounded-full border border-muted-foreground/50 !text-xs">
+              <span className="badge secondary bg-background! py-0.5! px-1.5! h-auto! aspect-square! rounded-full border border-muted-foreground/50 text-xs!">
                 {countFilters}
               </span>
             )}
@@ -152,7 +152,7 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
           })}
         </div>
         <div className="flex items-center justify-between py-2 border-t gap-x-6 border-muted-foreground/50">
-          <Button variant="outline" className="h-8 !px-2" onClick={addFilter}>
+          <Button variant="outline" className="h-8 px-2!" onClick={addFilter}>
             <Plus />
             {t("core.datatable.filter.add_filter")}
           </Button>
@@ -160,14 +160,14 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
           <div className="flex gap-x-2 ">
             <Button
               variant="secondary"
-              className="h-8 !px-2"
+              className="h-8 px-2!"
               onClick={() =>
                 setFilters([{ ...defaultFilter, id: generateRandom(8) }])
               }
             >
               {t("core.datatable.filter.clear_filters")}
             </Button>
-            <Button className="h-8 !px-2" onClick={applyFilters}>
+            <Button className="h-8 px-2!" onClick={applyFilters}>
               {t("core.datatable.filter.apply_filters")}
             </Button>
           </div>

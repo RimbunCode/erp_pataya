@@ -28,7 +28,7 @@ export default memo(function FileItems({ files, folderId = null }) {
 
   if (files.length <= 0) {
     return (
-      <div className="pl-8 flex gap-x-2 group  !py-2 text-sm [&>svg]:size-5 data-[state=open]:border-b">
+      <div className="pl-8 flex gap-x-2 group  py-2! text-sm [&>svg]:size-5 data-[state=open]:border-b">
         No files found
       </div>
     );
@@ -66,7 +66,7 @@ export default memo(function FileItems({ files, folderId = null }) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="size-auto !p-2 ml-1 opacity-0 group-hover:opacity-100 transition duration-300 ease-in-out "
+                className="size-auto p-2! ml-1 opacity-0 group-hover:opacity-100 transition duration-300 ease-in-out "
                 asChild
               >
                 <a

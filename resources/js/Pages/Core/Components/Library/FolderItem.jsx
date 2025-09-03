@@ -69,7 +69,7 @@ export default memo(function FolderItem({ id, name, open, isRoot }) {
 
   if (isRoot) {
     return isLoading ? (
-      <div className="!text-base font-normal text-foreground flex gap-x-4 items-center">
+      <div className="text-base! font-normal text-foreground flex gap-x-4 items-center">
         <LoadingIcon className="size-4" />
         <span>Loading ...</span>
       </div>
@@ -80,15 +80,15 @@ export default memo(function FolderItem({ id, name, open, isRoot }) {
   return (
     <AccordionItem value={id} className="border-b last:border-b-0">
       <AccordionTriggerCustom asChild>
-        <div className="flex gap-x-2 group cursor-pointer !py-2 text-sm [&>svg]:size-5 data-[state=open]:border-b">
-          <Folder className="group-[[data-state=open]]:hidden" />
-          <FolderOpen className="group-[[data-state=closed]]:hidden" />
+        <div className="flex gap-x-2 group cursor-pointer py-2! text-sm [&>svg]:size-5 data-[state=open]:border-b">
+          <Folder className="group-data-[state=open]:hidden" />
+          <FolderOpen className="group-data-[state=closed]:hidden" />
           {name}
         </div>
       </AccordionTriggerCustom>
-      <AccordionContent className="[&>div>div]:pl-8 !pb-0">
+      <AccordionContent className="[&>div>div]:pl-8 pb-0!">
         {isLoading ? (
-          <div className="!text-base font-normal text-foreground flex gap-x-4 items-center">
+          <div className="text-base! font-normal text-foreground flex gap-x-4 items-center">
             <LoadingIcon className="size-4" />
             <span>Loading ...</span>
           </div>

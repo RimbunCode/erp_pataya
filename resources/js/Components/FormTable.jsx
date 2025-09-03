@@ -151,7 +151,7 @@ const Cell = memo(
               className={cn(
                 attributes.className,
                 !isDialog &&
-                  "m-0 !bg-transparent !border-0 h-full focus-visible:!ring-0 focus-visible:!ring-offset-0",
+                  "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
               )}
               // onBlur={(e) => {
               //   if (!e.target.value) return;
@@ -175,7 +175,7 @@ const Cell = memo(
                 className={cn(
                   attributes.className,
                   !isDialog &&
-                    "m-0 !bg-transparent !border-0 h-full focus-visible:!ring-0 focus-visible:!ring-offset-0",
+                    "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
                 )}
                 // onBlur={(e) => {
                 //   if (!e.target.value) return;
@@ -223,7 +223,7 @@ const FormTableItem = memo(function FormTableItem({
         className,
       )}
     >
-      <div className="px-2 !justify-center text-left ">
+      <div className="px-2 justify-center! text-left ">
         <span
           className={cn(
             !(
@@ -244,7 +244,7 @@ const FormTableItem = memo(function FormTableItem({
               isLast) ||
               readOnly ||
               disabled) &&
-              "!hidden",
+              "hidden!",
           )}
           type="button"
           {...listeners}
@@ -256,7 +256,7 @@ const FormTableItem = memo(function FormTableItem({
       {columns &&
         columns.map((col) => {
           return (
-            <div key={col.name} className="has-[.custom-cell]:!block">
+            <div key={col.name} className="has-[.custom-cell]:block!">
               <Cell
                 onOpenDialog={() => {
                   setCurrentIndex(index);
@@ -282,7 +282,7 @@ const FormTableItem = memo(function FormTableItem({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-6 !pointer-events-auto"
+          className="size-6 pointer-events-auto!"
           onClick={() => {
             setCurrentIndex(index);
             if (submitable) setCurrentData(item);
@@ -774,19 +774,19 @@ export default memo(function FormTable({
           ))}
 
         <div
-          className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm [&>div>*:last-child]:border-r [&>div>*]:border-l [&>div>*]:border-muted-foreground/25 max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center  [&>*]:border-b [&>*]:border-muted-foreground/25"
+          className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm [&>div>*:last-child]:border-r [&>div>*]:border-l [&>div>*]:border-muted-foreground/25 max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center  *:border-b *:border-muted-foreground/25"
           style={{
             gridTemplateColumns: `auto ${filteredColumns
               .map((x) => `${x.width ?? 1}fr`)
               .join(" ")} auto`,
           }}
         >
-          <div className="grid border-t [&>*]:py-2 [&>*]:px-4 grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:!py-1">
-            <div className="!justify-center text-left">#</div>
+          <div className="grid border-t *:py-2 *:px-4 grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:py-1!">
+            <div className="justify-center! text-left">#</div>
             {filteredColumns &&
               filteredColumns.map((item) => {
                 return (
-                  <div key={item.name} className="!justify-start text-left">
+                  <div key={item.name} className="justify-start! text-left">
                     {item.titleTrans ? t(item.titleTrans) : item.title}
                     {item.required && (
                       <span className="ml-1 text-red-500">*</span>
@@ -799,7 +799,7 @@ export default memo(function FormTable({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-5 !pointer-events-auto"
+                className="size-5 pointer-events-auto!"
                 onClick={() => setOpenConfigureColumns(true)}
               >
                 <SettingsIcon className="size-3" />
@@ -852,7 +852,7 @@ export default memo(function FormTable({
       >
         <MyDialogContent
           hideX
-          className="max-w-full sm:max-w-screen-sm md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-screen-lg"
+          className="max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)"
           asChild
         >
           <form
@@ -1186,13 +1186,13 @@ const ConfigureColumns = memo(function ConfigureColumns({
             sensors={sensors}
             collisionDetection={closestCenter}
           >
-            <div className="overflow-x-hidden grid border rounded-lg border-muted-foreground/25 grid-cols-[auto_2fr_minmax(auto,1fr)_auto]  text-sm max-w-full w-full [&>div]:h-fit [&>*:not(:last-child)]:border-b [&>*]:border-muted-foreground/25">
-              <div className="grid grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:!py-1 [&>*]:px-2">
+            <div className="overflow-x-hidden grid border rounded-lg border-muted-foreground/25 grid-cols-[auto_2fr_minmax(auto,1fr)_auto]  text-sm max-w-full w-full [&>div]:h-fit [&>*:not(:last-child)]:border-b *:border-muted-foreground/25">
+              <div className="grid grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:py-1! *:px-2">
                 <div></div>
                 <div>{t("core.formtable.column")}</div>
                 <div>{t("core.formtable.width")}</div>
               </div>
-              <div className="overflow-y-auto overflow-x-hidden grid grid-cols-subgrid col-span-full [&>div>*]:py-1 [&>div>*]:px-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b [&>*]:border-muted-foreground/25">
+              <div className="overflow-y-auto overflow-x-hidden grid grid-cols-subgrid col-span-full [&>div>*]:py-1 [&>div>*]:px-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b *:border-muted-foreground/25">
                 <SortableContext
                   items={showedColumns.map((x) => x.name)}
                   strategy={verticalListSortingStrategy}
@@ -1309,7 +1309,7 @@ const SelectColumn = memo(function SelectColumn({
                       )}
                     </>
                   }
-                  classNameCheckbox="!pointer-events-auto"
+                  classNameCheckbox="pointer-events-auto!"
                   disabled={col.required}
                   checked={col.required || col.show}
                   onCheckedChange={(val) => {

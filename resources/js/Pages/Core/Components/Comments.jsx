@@ -142,7 +142,7 @@ export default memo(function Comments() {
           <ReactQuill
             ref={commentRef}
             placeholder="Type a reply / comment"
-            className="bg-muted relative [&_*]:!font-sans focus:!border-0 grid grid-cols-1 text-wrap w-full max-w-full flex-grow  basis-0  rounded-lg border border-input  text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+            className="bg-muted relative **:font-sans! focus:border-0! grid grid-cols-1 text-wrap w-full max-w-full grow  basis-0  rounded-lg border border-input  text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
             theme="bubble"
             value={comment}
             onChange={setComment}
@@ -157,10 +157,10 @@ export default memo(function Comments() {
             <Button
               variant="outline"
               size="icon"
-              className="!p-2"
+              className="p-2!"
               onClick={() => onSubmit(comment)}
             >
-              <SendHorizonal className="!size-6" />
+              <SendHorizonal className="size-6!" />
             </Button>
           )}
         </div>
@@ -172,7 +172,7 @@ export default memo(function Comments() {
             data={["logs"]}
             fallback={
               <li className="mb-3 first:mt-2 ms-6">
-                <div className="!text-base font-normal text-foreground flex gap-x-4">
+                <div className="text-base! font-normal text-foreground flex gap-x-4">
                   <LoadingIcon className="size-4" />
                   <span>{t("core.form.loading")} ...</span>
                 </div>
@@ -236,15 +236,15 @@ export default memo(function Comments() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="!p-0 hover:text-red-500"
+                            className="p-0! hover:text-red-500"
                             onClick={() => removeComment(id)}
                           >
                             <Trash2 />
                           </Button>
                         </div>
-                        <div className="[&_pre]:!font-sans col-start-2 pt-2 [&_*]:text-sm  font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
+                        <div className="[&_pre]:font-sans! col-start-2 pt-2 **:text-sm  font-normal text-foreground ql-container ql-bubble font-sans! [&_a]:underline-offset-2 [&_a]:hover:underline">
                           <div
-                            className="ql-editor !p-0"
+                            className="ql-editor p-0!"
                             dangerouslySetInnerHTML={{
                               __html: activity,
                             }}
@@ -260,9 +260,9 @@ export default memo(function Comments() {
                             })}
                           </span>
                         </time>
-                        <div className="[&_pre]:!font-sans col-start-2 pt-0 [&_*]:text-sm font-normal text-foreground ql-container ql-bubble !font-sans [&_a]:underline-offset-[2px] [&_a]:hover:underline">
+                        <div className="[&_pre]:font-sans! col-start-2 pt-0 **:text-sm font-normal text-foreground ql-container ql-bubble font-sans! [&_a]:underline-offset-2 [&_a]:hover:underline">
                           <div
-                            className="ql-editor !p-0 hover:[&_*[role=noeditor]]:!underline [&_*[role=noeditor]]:!no-underline [&_*[role=noeditor]]:after:!content-none [&_*[role=noeditor]]:before:!content-none"
+                            className="ql-editor p-0! hover:[&_*[role=noeditor]]:underline! [&_*[role=noeditor]]:no-underline! [&_*[role=noeditor]]:after:content-none! [&_*[role=noeditor]]:before:content-none!"
                             dangerouslySetInnerHTML={{
                               __html: activity[lang].replace(
                                 ":user",
