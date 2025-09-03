@@ -29,15 +29,19 @@ class PurchaseRequest extends Model {
     "code" => [
       "show" => true,
       "isLink" => true,
+      "order" => 0,
     ],
     'date' => [
       'show' => true,
+      "order" => 1,
     ],
     'required_date' => [
       'show' => true,
+      "order" => 2,
     ],
     'status' => [
       'show' => true,
+      "order" => 3,
     ],
     'items',
   ];

@@ -51,10 +51,13 @@ Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::
 Route::post('/model', \App\Http\Controllers\ModelController::class)
   ->middleware(middleware: ['auth'])
   ->name('model');
-Route::get('/model/{model}', [\App\Http\Controllers\ModelController::class, 'datatable'])
-  ->where('model', '.*')
+Route::post('/model/datatable', [\App\Http\Controllers\ModelController::class, "datatable"])
   ->middleware(middleware: ['auth'])
   ->name('model.datatable');
+Route::get('/model/{model}', [\App\Http\Controllers\ModelController::class, 'columns'])
+  ->where('model', '.*')
+  ->middleware(middleware: ['auth'])
+  ->name('model.columns');
 
 Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::get('/logs/{log}', [\App\Http\Controllers\Core\LogController::class, 'show'])->name('logs.show');

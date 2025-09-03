@@ -1,17 +1,18 @@
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+
+import { Button } from "@/Components/ui/button";
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
-import { Textarea } from "@/Components/ui/textarea";
-import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import React from "react";
+import SelectModel from "@/Components/SelectModel";
+import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import React from "react";
 import { useMemo } from "react";
-import ItemForm from "./ItemForm";
-import { Button } from "@/Components/ui/button";
-import SelectModel from "@/Components/SelectModel";
 
 function Form() {
   const { t } = useLaravelReactI18n();
@@ -241,13 +242,19 @@ function Form() {
             from={{
               "App\\Models\\Service\\WorkOrder": {
                 columns: ["code", "date"],
+                filters: {
+                  status: "submitted",
+                },
                 select: {
                   items: {
-                    columns: ["workOrder", "item", "quantity", "unit"],
+                    filters: {
+                      status: "submitted",
+                    },
+                    columns: ["work_order", "item", "quantity", "unit"],
                   },
                 },
               },
-              "App\\Models\\Purchase\\PurchaseOrder": {},
+              "App\\Models\\Purchase\\PurchaseRequest": {},
             }}
             trigger={
               <Button

@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Casts\FormStatusCast;
 use App\Casts\Json;
+use App\Models\Scopes\DataTableScope;
 use App\Models\User\Permission;
 use Closure;
 use Exception;
@@ -18,6 +19,17 @@ use ReflectionClass;
 use ReflectionMethod;
 
 trait LinkModel {
+  protected static function bootLinkModel() {
+    static::addGlobalScope(new DataTableScope);
+  }
+  /**
+   * Jika model ini untuk form yang submitable
+   * @var bool
+   */
+  // protected static bool $is_submitable;
+  public function isSubmitable() {
+    return static::$is_submitable ?? false;
+  }
   protected function getArrayableAppends() {
     $this->appends = array_unique(array_merge(
       $this->appends,
@@ -247,7 +259,7 @@ trait LinkModel {
         "route" => isset($route) ? "$route.show" : null,
         'primaryKey' => $rel->getRelated()->getKeyName(),
         'sortable' => false,
-        'titleTrans' => $translateKey ? $translateKey . ".columns." . $newKey : null,
+        'titleTrans' => $translateKey ? "$translateKey.columns.$newKey" : null,
         "columns" => $classRelation::getColumns(static::class, ...$excepts ?? []),
         ...$config,
       ];

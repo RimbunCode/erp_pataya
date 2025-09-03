@@ -26,6 +26,7 @@ import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import React from "react";
 import axios from "axios";
+import { debounce } from "lodash";
 import pluralize from "pluralize";
 import { useDetectClickOutside } from "react-detect-click-outside";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -38,9 +39,13 @@ function validateWithOperators(value, operators, logic = "and") {
     key = key.match(/^([^\[\]]+)/)?.[1] ?? key;
     switch (key) {
       case "and":
-      case "or":
-        result = validateWithOperators(value, val, key);
+      case "or": {
+        result =
+          Array.isArray(val) && key == "or"
+            ? val.includes(value)
+            : validateWithOperators(value, val, key);
         break;
+      }
       case "not":
         result = value != operators[key];
         break;
@@ -61,11 +66,11 @@ function validateWithOperators(value, operators, logic = "and") {
         break;
       case "like":
       case "in":
-        result = Array.isArray(value) ? value.includes(val) : false;
+        result = Array.isArray(val) ? val.includes(value) : false;
         break;
       case "notLike":
       case "notIn":
-        result = Array.isArray(value) ? !value.includes(val) : true;
+        result = Array.isArray(val) ? !val.includes(value) : true;
         break;
       case "between":
         result = value > val[0] && value < val[1];
@@ -73,9 +78,14 @@ function validateWithOperators(value, operators, logic = "and") {
       case "notBetween":
         result = value < val[0] || value > val[1];
         break;
-      default:
-        result = true;
+      default: {
+        result =
+          (value?.[key] ?? false)
+            ? validateWithOperators(value[key], val)
+            : true;
+
         break;
+      }
     }
     if (logic === "and" && !result) return false;
     if (logic === "or" && result) return true;
@@ -230,10 +240,14 @@ export default memo(
     const setOption = useCallback(
       (val) => {
         if (disabled || readOnly) return;
+        if (val) {
+          const isValid = validate(val, filters);
+          if (!isValid) return;
+        }
         _setOption(val);
         onValueChange?.(val);
       },
-      [onValueChange, _setOption, disabled, readOnly],
+      [onValueChange, _setOption, disabled, readOnly, filters],
     );
 
     useEffect(() => {
@@ -273,6 +287,7 @@ export default memo(
     }, [filters, option, value]);
 
     const getModels = () => {
+      setLoading(true);
       axios
         .post(route("model"), {
           model,
@@ -301,15 +316,13 @@ export default memo(
     useDidMountEffect(() => {
       if (!allowSearch) return;
       const reloadModel = setTimeout(() => {
-        setLoading(true);
         getModels();
       }, 500);
       return () => {
         clearTimeout(reloadModel);
       };
-    }, [search]);
+    }, [search, open]);
     const onInputKeyDown = (e) => {
-      console.log(e.key);
       if (e.key == "Enter" && open) return;
       if (
         e.ctrlKey ||
@@ -389,7 +402,6 @@ export default memo(
                       e.preventDefault();
                       if (!(option && search) && !open) {
                         setOpen(true);
-                        getModels();
                       }
                     }}
                     required={required}
@@ -405,45 +417,51 @@ export default memo(
                     placeholder={placeholder}
                   />
                   <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
-                    {!disabledNavigation && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "size-6 hidden",
-                          valueBefore && "!inline-flex",
-                          option &&
-                            search &&
-                            "group-focus-within/model:inline-flex",
+                    {loading ? (
+                      <LoadingIcon className="size-4" />
+                    ) : (
+                      <>
+                        {!disabledNavigation && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "size-6 hidden",
+                              valueBefore && "!inline-flex",
+                              option &&
+                                search &&
+                                "group-focus-within/model:inline-flex",
+                            )}
+                            onClick={() => {
+                              if (!name || !option || !search) return;
+                              const pluralized = `${pluralize.plural(name ?? "")}.show`;
+                              window.open(
+                                route(pluralized, option[keyRoute ?? "id"]),
+                                "_blank",
+                              );
+                            }}
+                          >
+                            <ArrowRight className="size-3" />
+                          </Button>
                         )}
-                        onClick={() => {
-                          if (!name || !option || !search) return;
-                          const pluralized = `${pluralize.plural(name ?? "")}.show`;
-                          window.open(
-                            route(pluralized, option[keyRoute ?? "id"]),
-                            "_blank",
-                          );
-                        }}
-                      >
-                        <ArrowRight className="size-3" />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "size-6 ",
+                            (!search || disabled || readOnly) && "hidden",
+                          )}
+                          onClick={() => {
+                            setOption(null);
+                            setSearch("");
+                          }}
+                        >
+                          <XIcon className="size-3" />
+                        </Button>
+                      </>
                     )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "size-6 ",
-                        (!search || disabled || readOnly) && "hidden",
-                      )}
-                      onClick={() => {
-                        setOption(null);
-                        setSearch("");
-                      }}
-                    >
-                      <XIcon className="size-3" />
-                    </Button>
                   </div>
                 </div>
               </PopoverTrigger>
