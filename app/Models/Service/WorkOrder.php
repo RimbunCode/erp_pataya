@@ -36,6 +36,7 @@ class WorkOrder extends Model {
     return [
       'items',
       'items.item',
+      'items.unit',
       'customer',
       'customerBranch',
       'itemService'

@@ -1,10 +1,4 @@
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/Components/ui/accordion";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -15,7 +9,13 @@ import {
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { Head, WhenVisible, useForm, usePage } from "@inertiajs/react";
+import { ChevronDownIcon, SaveIcon } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/Components/ui/collapsible";
+import { Head, WhenVisible, usePage } from "@inertiajs/react";
 import React, {
   Children,
   Fragment,
@@ -37,8 +37,8 @@ import AppLayout from "@/Layouts/AppLayout";
 import Attachments from "./Components/Attachments";
 import { Button } from "@/Components/ui/button";
 import Comments from "./Components/Comments";
+import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
-import { SaveIcon } from "lucide-react";
 import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
@@ -47,7 +47,6 @@ import pluralize from "pluralize";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import Link from "@/Components/Link";
 
 /**
  * @typedef {object} FormPageContentTitleProps
@@ -114,6 +113,7 @@ const FormPageContent = memo(
       className,
       actions,
       collapsible = false,
+      defaultOpen = false,
       showAt = false,
       show = true,
     },
@@ -121,7 +121,7 @@ const FormPageContent = memo(
   ) {
     const { menus, addMenu, menuSelected, removeMenu } = useFormPage();
     const [id] = useState(generateRandom(8));
-    const [valueAccordion] = useState(generateRandom(8));
+    const [openCollapsible, setOpenCollapsible] = useState(defaultOpen);
     useEffect(() => {
       if (showAt) return;
       if (!show) {
@@ -154,9 +154,9 @@ const FormPageContent = memo(
         (child) => child?.type == FormPageContentTitle,
       ) >= 0;
     const Trigger = collapsible
-      ? AccordionTrigger
+      ? CollapsibleTrigger
       : (props) => <div {...props} />;
-    const Content = collapsible ? AccordionContent : Fragment;
+    const Content = collapsible ? CollapsibleContent : Fragment;
     return (
       <TabsContent
         value={
@@ -172,10 +172,10 @@ const FormPageContent = memo(
         }
         className="mt-0"
       >
-        <AccordionItem value={valueAccordion} asChild className="border-b-0">
+        <Collapsible open={openCollapsible} onOpenChange={setOpenCollapsible}>
           <div
             ref={ref}
-            className={cn("px-4 py-4 mt-0!", className)}
+            className={cn("px-4 py-4 mt-0! border-b-0", className)}
             role="content"
           >
             {headerChildren.length > 0 ||
@@ -183,11 +183,14 @@ const FormPageContent = memo(
             (isSingle && title) ||
             (title && collapsible) ? (
               <>
-                <Trigger className="pt-0 pb-1 mb-3 border-b border-muted-foreground/25">
+                <Trigger className="w-full pt-0 pb-1 mb-3 border-b border-muted-foreground/25 [&[data-state=open]_svg]:rotate-180">
                   {(!haveTitle || (!haveTitle && actions)) && (
                     <FormPageContentTitle className="flex items-center justify-between gap-x-4">
                       {title || value}
                       {actions}
+                      {collapsible && (
+                        <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
+                      )}
                     </FormPageContentTitle>
                   )}
                   {headerChildren}
@@ -198,7 +201,7 @@ const FormPageContent = memo(
               children
             )}
           </div>
-        </AccordionItem>
+        </Collapsible>
       </TabsContent>
     );
   }),
@@ -257,58 +260,57 @@ const FormChildren = memo(function FormChildren({
     return Array.from(mapMenus.values());
   }, [_menus]);
   return (
-    <Accordion type="multiple" className={cn("w-full", className)} asChild>
-      <Tabs
-        value={menuSelected ?? menus?.[0]?.value}
-        onValueChange={setMenuSelected}
-        asChild
+    <Tabs
+      value={menuSelected ?? menus?.[0]?.value ?? ""}
+      className={cn("w-full", className)}
+      onValueChange={setMenuSelected}
+      asChild
+    >
+      <div
+        className={cn(
+          "flex flex-col order-1 max-w-full  border rounded-xl lg:col-start-1 border-muted-foreground/25",
+          "[&_:not(div[role=content])+div[role=content]]:border-t-0 [&_div[role=content]:first-child]:border-t-0! [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
+        )}
       >
-        <div
+        <TabsList
           className={cn(
-            "flex flex-col order-1 max-w-full  border rounded-xl lg:col-start-1 border-muted-foreground/25",
-            "[&_:not(div[role=content])+div[role=content]]:border-t-0 [&_div[role=content]:first-child]:border-t-0! [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
+            menus?.length <= 1 ? "hidden" : "",
+            showHeader ? "top-14" : "top-0",
+            "transition-[top] duration-300 ease-in-out sticky z-9 w-full p-0! h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
           )}
         >
-          <TabsList
-            className={cn(
-              menus?.length <= 1 ? "hidden" : "",
-              showHeader ? "top-14" : "top-0",
-              "transition-[top] duration-300 ease-in-out sticky z-9 w-full p-0! h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
-            )}
-          >
-            {menus.map((child) => {
-              return (
-                <TabsTrigger
-                  key={child.value}
-                  value={child.value}
-                  className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
-                >
-                  <span className="pt-2 pb-1 border-transparent w-fit group-data-[state=active]:border-foreground border-b transition-colors duration-300 ">
-                    {t(child.title || child.value)}
-                  </span>
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
-          <FormPageProvider
-            disabled={disabled}
-            errors={errors}
-            fieldNameTrans={fieldNameTrans}
-            data={data}
-            setData={setData}
-            menus={menus}
-            addMenu={addMenu}
-            removeMenu={removeMenu}
-            menuSelected={menuSelected}
-            setMenuSelected={setMenuSelected}
-            dataBefore={dataBefore}
-            form={form}
-          >
-            {children}
-          </FormPageProvider>
-        </div>
-      </Tabs>
-    </Accordion>
+          {menus.map((child) => {
+            return (
+              <TabsTrigger
+                key={child.value}
+                value={child.value}
+                className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
+              >
+                <span className="pt-2 pb-1 border-transparent w-fit group-data-[state=active]:border-foreground border-b transition-colors duration-300 ">
+                  {t(child.title || child.value)}
+                </span>
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+        <FormPageProvider
+          disabled={disabled}
+          errors={errors}
+          fieldNameTrans={fieldNameTrans}
+          data={data}
+          setData={setData}
+          menus={menus}
+          addMenu={addMenu}
+          removeMenu={removeMenu}
+          menuSelected={menuSelected}
+          setMenuSelected={setMenuSelected}
+          dataBefore={dataBefore}
+          form={form}
+        >
+          {children}
+        </FormPageProvider>
+      </div>
+    </Tabs>
   );
 });
 
@@ -415,13 +417,14 @@ const FormPage = memo(
       children,
       submitable = false,
       hasConnections,
+      ignoreDraft = false,
     },
     ref,
   ) {
     const route = window.route;
     const { t } = useLaravelReactI18n();
     const defaultData = usePage().props[name] ?? {};
-    const form = useDraftForm(name, defaultData);
+    const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
     const {
       data,
       setData: _setData,
@@ -683,12 +686,12 @@ const Connections = memo(
           </div>
         )}
       >
-        <Accordion ref={ref}>
+        {/* <Accordion ref={ref}>
           <AccordionItem value="test">
             <AccordionTrigger></AccordionTrigger>
             <AccordionContent></AccordionContent>
           </AccordionItem>
-        </Accordion>
+        </Accordion> */}
       </WhenVisible>
     );
   }),
@@ -803,10 +806,12 @@ const FormPageDialog = memo(
     const { t } = useLaravelReactI18n();
     const route = window.route;
 
-    const form = useDraftForm(name, defaultValue ?? {}, {
-      onContinueDraft: () => {
-        onOpenChange?.(true);
-      },
+    const { loadDraft, ...form } = useDraftForm(name, defaultValue ?? {}, {
+      // onContinueDraft: () => {
+      //   onOpenChange?.(true);
+      // },
+      isCreate: true,
+      isDialog: true,
     });
     const {
       data,
@@ -828,6 +833,9 @@ const FormPageDialog = memo(
     }, [defaultValue]);
     useEffect(() => {
       if (!open) return;
+      else {
+        loadDraft();
+      }
       reset();
     }, [open]);
 
@@ -838,7 +846,8 @@ const FormPageDialog = memo(
       },
       [disabled, _setData],
     );
-    const { setContinue, setIsDirty, setShowAlert } = useIsDirtyForm();
+    const { setLeave, setSaveAsDraft, setIsDirty, setShowAlert } =
+      useIsDirtyForm();
     const { cancel } = useAlertDraftForm();
     const formRef = useRef();
     const onKeyDown = useCallback(
@@ -862,7 +871,7 @@ const FormPageDialog = memo(
 
     const onClose = (val) => {
       if (val) return;
-      setContinue(() => {
+      setLeave(() => {
         onOpenChange(false);
         setShowAlert(false);
         setIsDirty(false);
@@ -870,12 +879,18 @@ const FormPageDialog = memo(
         reset();
         clearErrors();
       });
+      setSaveAsDraft(() => {
+        onOpenChange(false);
+        setShowAlert(false);
+        setIsDirty(false);
+        clearErrors();
+      });
       if (isDirty) {
         setShowAlert(true);
       } else {
         setShowAlert(false);
         onOpenChange(val);
-        setData?.({});
+        reset();
         clearErrors();
       }
     };
@@ -995,6 +1010,9 @@ const FormPageLinkModelDialog = memo(
   ) {
     const { t } = useLaravelReactI18n();
     const route = window.route;
+    const { setLeave, setSaveAsDraft, setIsDirty, setShowAlert } =
+      useIsDirtyForm();
+    const { cancel } = useAlertDraftForm();
     const {
       data,
       setData: _setData,
@@ -1008,13 +1026,23 @@ const FormPageLinkModelDialog = memo(
       reset,
       setDefaults,
       clearErrors,
-    } = useForm({});
+      loadDraft,
+    } = useDraftForm(name, defaultValue ?? {}, {
+      // onContinueDraft: () => {
+      //   onOpenChange?.(true);
+      // },
+      isDialog: true,
+      isCreate: true,
+    });
     useEffect(() => {
       setDefaults(defaultValue ?? {});
       reset();
     }, [defaultValue]);
     useEffect(() => {
       if (!open) return;
+      else {
+        loadDraft();
+      }
       reset();
       clearErrors();
     }, [open]);
@@ -1046,11 +1074,37 @@ const FormPageLinkModelDialog = memo(
       [formRef],
     );
 
+    // const onClose = (val) => {
+    //   if (val) return;
+    //   onOpenChange(val);
+    //   setData?.({});
+    // };
     const onClose = (val) => {
       if (val) return;
-      onOpenChange(val);
-      setData?.({});
+      setLeave(() => {
+        onOpenChange(false);
+        setShowAlert(false);
+        setIsDirty(false);
+        cancel();
+        reset();
+        clearErrors();
+      });
+      setSaveAsDraft(() => {
+        onOpenChange(false);
+        setShowAlert(false);
+        setIsDirty(false);
+        clearErrors();
+      });
+      if (isDirty) {
+        setShowAlert(true);
+      } else {
+        setShowAlert(false);
+        onOpenChange(val);
+        setData?.({});
+        clearErrors();
+      }
     };
+
     const _onSubmit = (e) => {
       e.preventDefault();
       e.stopPropagation();

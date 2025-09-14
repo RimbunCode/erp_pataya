@@ -1,13 +1,5 @@
-import { Clock } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { cn, getLocaleDate } from "@/lib/utils";
-
-import { Button } from "./ui/button";
-import { Calendar } from "./ui/calendar";
-import { TimePickerInput } from "./TimePicker/time-picker-input";
-import { format } from "date-fns";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 import {
   forwardRef,
   memo,
@@ -16,14 +8,23 @@ import {
   useRef,
   useState,
 } from "react";
-import { Input } from "./ui/input";
+
+import { Button } from "./ui/button";
+import { Calendar } from "./ui/calendar";
+import { Clock } from "lucide-react";
 import { Command } from "./ui/command";
-import { useDetectClickOutside } from "react-detect-click-outside";
+import { Input } from "./ui/input";
 import React from "react";
+import { TimePickerInput } from "./TimePicker/time-picker-input";
+import { format } from "date-fns";
+import { useDetectClickOutside } from "react-detect-click-outside";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
 export default memo(
   forwardRef(function DatetimePicker(
     {
+      id,
       className,
       type = "datetime",
       fromYear,
@@ -61,15 +62,15 @@ export default memo(
     const value = valueProps ?? _value;
     const setValue = (value) => {
       value = value instanceof Date ? value?.toISOString() : value;
-      if (valueProps != null) {
+      if (onValueChange) {
         onValueChange(value);
-        return;
+        // return;
       }
       _setValue(value);
     };
 
     const setDate = (dateInput) => {
-      const date = new Date(value);
+      const date = value ? new Date(value) : new Date();
       if (!dateInput) {
         setValue(date);
         return;
@@ -81,7 +82,7 @@ export default memo(
     };
     const setTime = (dateInput) => {
       if (!dateInput) return;
-      const time = new Date(value);
+      const time = value ? new Date(value) : new Date();
       time.setHours(dateInput.getHours());
       time.setMinutes(dateInput.getMinutes());
       setValue(time);
@@ -121,6 +122,11 @@ export default memo(
       },
       [lang, type],
     );
+
+    // useEffect(() => {
+    //   if (!open || search || isValid) return;
+    //   setValue(Date.now());
+    // }, [open]);
     useEffect(() => {
       if (value) {
         setSearch(getDateValue(value));
@@ -180,6 +186,7 @@ export default memo(
           >
             <div>
               <Input
+                id={id}
                 onKeyDown={onInputKeyDown}
                 ref={ref}
                 type="text"
@@ -235,7 +242,7 @@ export default memo(
                     <div className="flex items-center gap-2">
                       <TimePickerInput
                         picker="hours"
-                        date={value}
+                        date={value ?? Date.now()}
                         setDate={setTime}
                         ref={hourRef}
                         onRightFocus={() => minuteRef.current?.focus()}
@@ -243,7 +250,7 @@ export default memo(
                       <span>:</span>
                       <TimePickerInput
                         picker="minutes"
-                        date={value}
+                        date={value ?? Date.now()}
                         setDate={setTime}
                         ref={minuteRef}
                         onLeftFocus={() => hourRef.current?.focus()}

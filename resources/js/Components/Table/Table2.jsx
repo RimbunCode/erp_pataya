@@ -10,9 +10,11 @@ import {
 } from "@dnd-kit/core";
 import React, {
   cloneElement,
+  forwardRef,
   memo,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -88,6 +90,7 @@ const Cell = memo(
     const { lang } = usePage().props;
     const { t } = useLaravelReactI18n();
     const value = row[name];
+    if (!value) return;
     let valueCell = "";
     switch (type) {
       case "boolean":
@@ -183,21 +186,24 @@ const Cell = memo(
   },
 );
 Cell.displayName = "TableCell";
-function Table2({
-  className,
-  selectable,
-  actions,
-  columns: headers,
-  freezeColumn = 0,
-  onOptionsChanged,
-  options: initialOptions = {},
-  data: initialData = [],
-  setSort,
-  resetSorting,
-  reload,
-  isDynamicData,
-  isLoading,
-}) {
+const Table2 = forwardRef(function Table2(
+  {
+    className,
+    selectable,
+    actions,
+    columns: headers,
+    freezeColumn = 0,
+    onOptionsChanged,
+    options: initialOptions = {},
+    data: initialData = [],
+    setSort,
+    resetSorting,
+    reload,
+    isDynamicData,
+    isLoading,
+  },
+  ref,
+) {
   const { t } = useLaravelReactI18n();
   const [data, setData] = useState(initialData);
   useDidMountEffect(() => {
@@ -223,6 +229,15 @@ function Table2({
       }
     },
     [initialOptions, _options],
+  );
+  useImperativeHandle(
+    ref,
+    () => ({
+      getSelectedItem() {
+        return data.filter((x) => x.isSelected);
+      },
+    }),
+    [data],
   );
 
   const minCellWidth = 120;
@@ -610,6 +625,6 @@ function Table2({
       </DndContext>
     </div>
   );
-}
+});
 
 export default memo(Table2);

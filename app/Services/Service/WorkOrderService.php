@@ -47,8 +47,13 @@ class WorkOrderService {
   public function update(WorkOrder $workOrder, array $data) {
     $workOrder->fillForUpdate($this->fillRelations($data));
 
+    $workOrder->items()
+      ->whereNotIn('id', array_column($data['items'], 'id'))
+      ->update(['deleted_at' => now()]);
+
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item);
+
       if (Ulid::isValid($item['id'])) {
         unset($item['item']);
         unset($item['unit']);
@@ -59,9 +64,7 @@ class WorkOrderService {
       }
       $workOrder->items()->create($item);
     }
-    $workOrder->items()
-      ->whereNotIn('id', array_column($data['items'], 'id'))
-      ->update(['deleted_at' => now()]);
+
     $workOrder->logForUpdated();
     return $workOrder;
   }

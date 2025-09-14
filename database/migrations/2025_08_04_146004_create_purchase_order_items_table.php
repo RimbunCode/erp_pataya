@@ -18,14 +18,17 @@ return new class extends Migration {
       $table->timestamp('required_date')->nullable();
       $table->foreignUlid('target_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
       $table->unsignedInteger('quantity')->default(1);
+      $table->unsignedInteger('ordered_quantity')->default(0);
+      $table->unsignedInteger('remaining_quantity')->storedAs('quantity - ordered_quantity');
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
       $table->string("unit_name")->nullable();
       $table->double('conversion_factor')->default(1);
       $table->text("description")->nullable();
-      // $table->foreignUlid('tax_id')->nullable()->references('id')->on('taxes')->nullOnDelete();
+      $table->foreignUlid('tax_id')->nullable()->references('id')->on('taxes')->nullOnDelete();
       $table->double("tax_rate")->default(0);
       $table->double("unit_price")->default(0);
       $table->timestamps();
+      $table->softDeletes();
     });
   }
 

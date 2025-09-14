@@ -15,6 +15,7 @@ class PurchaseRequest extends Model {
   protected $guarded = ["id"];
   protected $casts = [
     "date" => "datetime",
+    'required_date' => 'datetime'
   ];
   protected static string $defaultFormatCode = '@[branch_code]/PR-@[iiii]/@[yy]';
   public function codeRelations() {
@@ -45,6 +46,13 @@ class PurchaseRequest extends Model {
     ],
     'items',
   ];
+  protected static function loadRelationsOnShow() {
+    return [
+      'items',
+      'items.item',
+      'items.unit',
+    ];
+  }
   public function items() {
     return $this->hasMany(PurchaseRequestItem::class);
   }

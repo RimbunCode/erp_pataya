@@ -107,9 +107,9 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Supplier
   Route::resourceDetail('supplier', \App\Http\Controllers\Purchase\SupplierController::class);
   // Purchase Request
-  Route::resourceDetail('purchaseRequest', \App\Http\Controllers\Purchase\PurchaseRequestController::class);
+  Route::resourceDetail('purchaseRequest', \App\Http\Controllers\Purchase\PurchaseRequestController::class, isSubmmitable: true);
   // Purchase Order
-  Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class);
+  Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class, isSubmmitable: true);
   /// Purchase Group End
 
   // Customer

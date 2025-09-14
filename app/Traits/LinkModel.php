@@ -230,6 +230,10 @@ trait LinkModel {
     foreach ($configColumns as $key => $relation) {
       $key = \is_string($key) ? $key : $relation;
       $config = \is_array($relation) ? $relation : [];
+
+      if (! method_exists($instance, $key))
+        continue;
+
       $rel = $instance->$key();
       if (!$rel instanceof Relation) {
         throw new Exception("Relation $key not found");

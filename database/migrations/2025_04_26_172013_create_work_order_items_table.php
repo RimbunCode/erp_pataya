@@ -16,6 +16,8 @@ return new class extends Migration {
       $table->foreignUlid('item_variant_id')->nullable()->references('id')->on('item_variants')->nullOnDelete();
       $table->string('item_name')->nullable();
       $table->unsignedInteger('quantity')->default(1);
+      $table->unsignedInteger('ordered_quantity')->default(0);
+      $table->unsignedInteger('remaining_quantity')->storedAs('quantity - ordered_quantity');
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
       $table->string("unit_name")->nullable();
       $table->double('conversion_factor')->nullable()->default(1);

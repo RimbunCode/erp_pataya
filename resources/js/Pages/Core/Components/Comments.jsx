@@ -155,6 +155,7 @@ export default memo(function Comments() {
           />
           {showSend && (
             <Button
+              type="button"
               variant="outline"
               size="icon"
               className="p-2!"
@@ -186,7 +187,7 @@ export default memo(function Comments() {
                     <div
                       className={cn(
                         type == "log" ? "bg-inherit" : "bg-muted border-[3px]",
-                        "p-2 -mt-0.5 size-[34px] -start-[18px]   border-muted flex justify-center items-center absolute rounded-full",
+                        "p-2 -mt-0.5 size-[34px] -start-[18px] border-muted flex justify-center items-center absolute rounded-full",
                       )}
                     >
                       {type == "log" && (

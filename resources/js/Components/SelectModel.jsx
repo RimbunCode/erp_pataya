@@ -1,4 +1,3 @@
-import { AlertDialogAction, AlertDialogCancel } from "./ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +15,14 @@ import {
   SelectValue,
 } from "./ui/select";
 import { cn, generateRandom } from "@/lib/utils";
-import { forwardRef, memo, useCallback, useMemo, useState } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "./ui/button";
 import FilterItem from "./Table/FilterItem";
@@ -40,8 +46,20 @@ const defaultFilter = {
 };
 const defaultSort = "-created_at";
 export default memo(
-  forwardRef(function SelectModel({ title, trigger, from }, ref) {
+  forwardRef(function SelectModel(
+    {
+      title,
+      label,
+      variant = "secondary",
+      size = "sm",
+      className,
+      from,
+      onSelected,
+    },
+    ref,
+  ) {
     const route = window.route;
+    const tableRef = useRef();
     const { t } = useLaravelReactI18n();
     const [open, setOpen] = useState(false);
     const [model, setModel] = useState(null);
@@ -94,12 +112,7 @@ export default memo(
 
     const loadData = useCallback(
       (columns) => {
-        console.log(
-          columns
-            ?.filter((x) => x.show)
-            .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
-            .map((x) => ({ name: x.name, order: x.order ?? Infinity })),
-        );
+        if (!dataModel?.model) return;
         setLoading(true);
         axios
           .post(route("model.datatable"), {
@@ -109,6 +122,10 @@ export default memo(
               .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
               .map((x) => x.name),
             filters: configModel?.filters,
+            with:
+              selects && selects.length > 0 && select == null
+                ? selects
+                : undefined,
             ...options,
           })
           .then((res) => {
@@ -298,16 +315,53 @@ export default memo(
       if (!selects) return null;
       return Object.keys(selects);
     }, [configModel]);
+
+    const _onSelected = useCallback(() => {
+      const dataSelected = tableRef?.current?.getSelectedItem();
+      if (!dataSelected || dataSelected.length <= 0) return;
+      if (!onSelected) {
+        setOpen(false);
+        return;
+      }
+      const selects = Object.keys(configModel?.select ?? {});
+      let data, model;
+
+      if (select == null && selects.length <= 1) {
+        if (selects.length == 0) {
+          data = dataSelected;
+          model = dataModel.model;
+        } else {
+          data =
+            dataSelected.length > 1
+              ? dataSelected.reduce((a, b) => {
+                  if (Array.isArray(a)) {
+                    return [...a, ...b[selects[0]]];
+                  }
+                  return [...a[selects[0]], ...b[selects[0]]];
+                })
+              : dataSelected[0][selects[0]];
+          model = dataModel.columns.filter((x) => x.name == selects[0])?.[0]
+            ?.related;
+        }
+      } else {
+        data = dataSelected;
+        model = dataModel.model;
+      }
+      onSelected(data, model);
+      setOpen(false);
+    }, [tableRef, configModel, select, dataModel, setOpen]);
     return (
       <>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger
-            ref={ref}
-            asChild
-            className="w-full"
-            onClick={() => setOpen(true)}
-          >
-            {trigger}
+          <DialogTrigger ref={ref} asChild onClick={() => setOpen(true)}>
+            <Button
+              type="button"
+              variant={variant}
+              size={size}
+              className={cn(className)}
+            >
+              {label}
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-w-(--breakpoint-xl) p-0">
             <TooltipProvider>
@@ -405,6 +459,7 @@ export default memo(
                 </div>
                 {model && dataModel?.columns && (
                   <Table2
+                    ref={tableRef}
                     selectable={true}
                     reload={loadData}
                     className="flex-1"
@@ -421,19 +476,24 @@ export default memo(
                 )}
               </div>
               <DialogFooter className="px-6 pb-6 mt-2">
-                <AlertDialogCancel
-                  className="h-8"
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                  className="h-8 mt-2 sm:mt-0 p-2 size-fit"
                   onClick={() => setOpen(false)}
                 >
                   {t("core.form.cancel")}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="h-8"
-                  type="submit"
-                  onClick={() => {}}
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="lg"
+                  className="h-8 p-2 size-fit"
+                  onClick={_onSelected}
                 >
                   {t("core.form.select")}
-                </AlertDialogAction>
+                </Button>
               </DialogFooter>
             </TooltipProvider>
           </DialogContent>
@@ -442,3 +502,29 @@ export default memo(
     );
   }),
 );
+
+export const loadFromModel = async (model, id, select) => {
+  try {
+    const res = await axios.post(window.route("model.datatable"), {
+      model: model,
+      id: id,
+      with: select ? [select] : undefined,
+    });
+    const dataRes = res.data;
+
+    let data, dataModel;
+    if (select) {
+      data = dataRes?.data?.[select];
+      dataModel = dataRes.dataTableColumns.filter((x) => x.name == select)?.[0]
+        ?.related;
+    } else {
+      data = dataRes?.data;
+      dataModel = model;
+    }
+    console.log({ value: data, model: dataModel });
+    return { value: data, model: dataModel };
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
+};

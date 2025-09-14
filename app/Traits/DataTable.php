@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\ModelConnection;
 use App\Models\Core\Tag;
 use App\Models\Scopes\DataTableScope;
 use App\Models\Service\WorkOrder;
@@ -60,7 +61,8 @@ trait DataTable {
     if ($fillOnly) {
       return $this->fill($attributes);
     }
-    return $this->update($attributes);
+    $this->fill($attributes);
+    return $this->save();
   }
   public function logForCreated() {
     if (get_class($this) == Log::class) {
@@ -334,6 +336,9 @@ trait DataTable {
   }
   public function showDetail() {
     Inertia::share([
+      'connections' => Inertia::defer(function () {
+        return ModelConnection::search(static::class, $this->getKey())->get();
+      }),
       'logs' => Inertia::defer(function () {
         return Log::with('user')
           ->where('loggable_type', static::class)

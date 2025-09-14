@@ -1,22 +1,86 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+import React, { useCallback, useEffect } from "react";
+import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 
-import { Button } from "@/Components/ui/button";
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
-import React from "react";
-import SelectModel from "@/Components/SelectModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
+import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
   const { data, setData, disabled } = useFormPage();
+  const loadFrom = usePage().props.loadFrom;
+
+  const mergeItems = useCallback(
+    (value, model) => {
+      setData((prev) => {
+        const oldItems = prev.items ?? [];
+
+        // Buat Map untuk lookup cepat
+        const itemMap = new Map(
+          oldItems.map((item) => [
+            `${item.referenceable_type}_${item.referenceable_id}`,
+            item,
+          ]),
+        );
+
+        value.forEach((item) => {
+          const key = `${model}_${item.id}`;
+          const newItem = {
+            // ...item,
+            id: generateRandom(5),
+            item: item.item,
+            description: item.description,
+            required_date: prev.required_date,
+            quantity: item.remaining_quantity,
+            unit: item.unit,
+            referenceable_type: model,
+            referenceable_id: item.id,
+          };
+          if (newItem.quantity <= 0) {
+            itemMap.delete(key);
+          }
+          if (itemMap.has(key)) {
+            // update quantity sesuai newItem
+            itemMap.set(key, {
+              ...itemMap.get(key),
+              ...newItem,
+            });
+          } else {
+            // tambah item baru
+            itemMap.set(key, newItem);
+          }
+        });
+
+        return {
+          ...prev,
+          items: Array.from(itemMap.values()),
+        };
+      });
+    },
+    [setData],
+  );
+  useEffect(() => {
+    if (!loadFrom) return;
+    const fetchData = async () => {
+      const data = await loadFromModel(
+        loadFrom?.model,
+        loadFrom?.id,
+        loadFrom?.select,
+      );
+      mergeItems(data.value, data.model);
+    };
+    fetchData().catch(console.error);
+  }, []);
   const itemColumns = useMemo(() => {
     return [
       {
@@ -35,7 +99,6 @@ function Form() {
                 setData({
                   item: val,
                   unit: val?.default_unit,
-                  alternative: null,
                   required_date: data.required_date,
                 });
               }}
@@ -125,69 +188,6 @@ function Form() {
           );
         },
       },
-      {
-        name: "alternative",
-        titleTrans: "purchase.purchaseRequest.columns.alternative",
-        width: 3,
-        cell({ data, setData, attributes, dataRow }) {
-          return (
-            <ItemVariantLinkModel
-              disabled={
-                !(
-                  dataRow?.item?.allow_alternative_item ??
-                  dataRow?.item?.item?.allow_alternative_item
-                )
-              }
-              placeholder={t(
-                "purchase.purchaseRequest.columns.alternative.placeholder",
-              )}
-              value={data}
-              onValueChange={(val) => {
-                setData("alternative", val);
-              }}
-              disabledAddButton
-              {...attributes}
-              filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
-                or: {
-                  "raw(item_alternatives.item_id)": dataRow?.item?.id,
-                  and: {
-                    "raw(item_alternatives.alternative_item_id)":
-                      dataRow?.item?.id,
-                    "raw(item_alternatives.two_way)": true,
-                  },
-                },
-              }}
-              joins={{
-                item_alternatives: {
-                  on: {
-                    or: {
-                      "and[0]": {
-                        "item_alternatives.item_id": dataRow?.item?.id,
-                        "item_alternatives.alternative_item_id": {
-                          column: "item_variants.id",
-                        },
-                      },
-                      "and[1]": {
-                        "item_alternatives.alternative_item_id":
-                          dataRow?.item?.id,
-                        "item_alternatives.item_id": {
-                          column: "item_variants.id",
-                        },
-                        "item_alternatives.two_way": true,
-                      },
-                    },
-                  },
-                },
-              }}
-            />
-          );
-        },
-      },
     ];
   }, []);
   return (
@@ -218,15 +218,19 @@ function Form() {
                 type="datetime"
                 value={data.required_date}
                 onValueChange={(val) => {
-                  const items = data?.items?.map((item) => {
+                  setData((prev) => {
+                    const items = data?.items?.map((item) => {
+                      return {
+                        ...item,
+                        required_date: val,
+                      };
+                    });
+
                     return {
-                      ...item,
+                      ...prev,
                       required_date: val,
+                      items,
                     };
-                  });
-                  setData({
-                    required_date: val,
-                    items,
                   });
                 }}
               />
@@ -238,42 +242,37 @@ function Form() {
         value="detail"
         title={t("purchase.purchaseRequest.items")}
         actions={
-          <SelectModel
-            from={{
-              "App\\Models\\Service\\WorkOrder": {
-                columns: ["code", "date"],
-                filters: {
-                  status: "submitted",
-                },
-                select: {
-                  items: {
-                    filters: {
-                      status: "submitted",
+          (!data.status || data.status == "draft") && (
+            <SelectModel
+              from={{
+                "App\\Models\\Service\\WorkOrder": {
+                  columns: ["code", "date"],
+                  filters: {
+                    status: "submitted",
+                  },
+                  select: {
+                    items: {
+                      filters: {
+                        status: "submitted",
+                      },
+                      columns: ["work_order", "item", "quantity", "unit"],
                     },
-                    columns: ["work_order", "item", "quantity", "unit"],
                   },
                 },
-              },
-              "App\\Models\\Purchase\\PurchaseRequest": {},
-            }}
-            trigger={
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                className="w-fit"
-                // onClick={() => setOpenSelectColumn(true)}
-              >
-                {t("purchase.purchaseRequest.import_items")}
-              </Button>
-            }
-          />
+              }}
+              label={t("purchase.purchaseRequest.import_items")}
+              className="w-fit"
+              variant="secondary"
+              size="sm"
+              onSelected={mergeItems}
+            />
+          )
         }
       >
         <FormTable
           readOnly={disabled}
           columns={itemColumns}
-          value={data?.items ?? []}
+          value={data?.items}
           onValueChange={(v) => setData("items", v)}
           form={<ItemForm />}
         />

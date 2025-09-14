@@ -1,5 +1,6 @@
 import { cn, getLocaleDate } from "@/lib/utils";
 import { useMemo, useRef, useState } from "react";
+
 import DataTable from "@/Pages/Core/DataTable";
 import Form from "./Form";
 import { FormPageDialog } from "@/Pages/Core/FormPage";
@@ -140,7 +141,7 @@ export default function Index({ lang }) {
         title={t("sales.salesOrder.new")}
         open={showNewForm}
         onOpenChange={setShowNewForm}
-        className="max-w-(--breakpoint-xl)"
+        className="max-w-(--breakpoint-2xl)!"
         name="salesOrder"
       >
         <Form />

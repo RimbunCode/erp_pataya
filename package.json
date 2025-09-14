@@ -34,7 +34,7 @@
     "react-dom": "^18.2.0",
     "tailwindcss": "^4.1.12",
     "tw-animate-css": "^1.3.8",
-    "vite": "^6.1.0"
+    "vite": "^6.3.6"
   },
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-beta.2",
@@ -84,7 +84,7 @@
     "react-day-picker": "^8.10.1",
     "react-detect-click-outside": "^1.1.7",
     "react-easy-crop": "^5.2.0",
-    "react-mentions": "^4.4.10",
+    "react-mentions": "^3.0.2",
     "react-window": "^1.8.11",
     "sonner": "^1.7.4",
     "tailwind-merge": "^2.6.0",

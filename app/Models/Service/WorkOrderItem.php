@@ -34,7 +34,11 @@ class WorkOrderItem extends Model {
   public function workOrder() {
     return $this->belongsTo(WorkOrder::class);
   }
-  public function item() {
+
+  public function parentRelation() {
+    return $this->workOrder();
+  }
+  public function item(): mixed {
     return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')->withTrashed($this->status != "draft")
       ->with(["defaultUnit" => function ($q) {
         return $q->withTrashed($this->status != "draft");

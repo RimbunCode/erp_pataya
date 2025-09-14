@@ -61,6 +61,7 @@ import {
 
 import { Button } from "./ui/button";
 import { CSS } from "@dnd-kit/utilities";
+import CurrencyInput from "./CurrencyInput";
 import { FormCheckbox } from "./ui/checkbox";
 import { FormChildren } from "@/Pages/Core/FormPage";
 import FormInput from "./FormInput";
@@ -73,7 +74,7 @@ import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const FORMTABLE_COLUMNS_KEY = "formtable-columns";
-const FORMTABLE_COLUMNS_EXPIRED = 7;
+// const FORMTABLE_COLUMNS_EXPIRED = 7;
 
 const Wrapper = memo(({ children, isDialog }) => {
   if (isDialog) return <>{children}</>;
@@ -435,13 +436,12 @@ export default memo(function FormTable({
     saveToLocalStorage(
       FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
       columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
-      FORMTABLE_COLUMNS_EXPIRED,
     );
   }, [columns]);
-
-  if (!value || !Array.isArray(value)) {
+  if (value && !Array.isArray(value)) {
     throw new Error("value must be an array");
   }
+  value = value ?? [];
   if (!Array.isArray(columns)) {
     throw new Error("columns must be an array");
   }
@@ -450,8 +450,8 @@ export default memo(function FormTable({
     () => columns.filter((x) => x.required || (x.show ?? true)),
     [columns],
   );
-  const [_data, _setData] = useState(() =>
-    readOnly || (disabled && value.length > 0)
+  const [_data, _setData] = useState(() => {
+    return readOnly || (disabled && value.length > 0)
       ? value
       : [
           ...value.map((x) => ({
@@ -460,8 +460,8 @@ export default memo(function FormTable({
             id: x.id ?? generateRandom(5),
           })),
           { id: generateRandom(5), ...(defaultValueRow ?? {}) }, // Row kosong selalu ada di akhir
-        ],
-  );
+        ];
+  });
 
   const getColumn = (name, attributes) => {
     const col = columns.find((x) => x.name === name);
@@ -506,7 +506,10 @@ export default memo(function FormTable({
 
   // Sinkronisasi data lokal hanya jika `value` berubah dari parent
   useEffect(() => {
-    if (!isEqual(value, prevValueRef.current)) {
+    if (
+      value != prevValueRef.current &&
+      !isEqual(value, prevValueRef.current)
+    ) {
       prevValueRef.current = value;
       if (readOnly || (disabled && value.length > 0)) {
         _setData([...value]);
@@ -526,7 +529,10 @@ export default memo(function FormTable({
   // Kirim perubahan ke parent hanya jika ada perubahan nyata
   useEffect(() => {
     if (onValueChange) {
-      const filteredData = readOnly || disabled ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
+      let filteredData = readOnly || disabled ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
+      // if (filteredData.length <= 0) {
+      //   filteredData = undefined;
+      // }
       if (!isEqual(filteredData, prevValueRef.current)) {
         prevValueRef.current = filteredData;
         onValueChange(filteredData);
@@ -1387,14 +1393,14 @@ const ColumnItem = memo(function ColumnItem({
         {column.required && <span className="ml-1 text-red-500">*</span>}
       </div>
       <div>
-        <Input
-          type="number"
+        <CurrencyInput
+          className="text-left"
           min="1"
           max="10"
           step="1"
           value={column.width ?? 1}
-          onChange={(e) => {
-            onChangeWidth(column.name, e.target.value);
+          onValueChange={(val) => {
+            onChangeWidth(column.name, val);
           }}
         />
       </div>

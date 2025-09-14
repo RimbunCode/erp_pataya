@@ -51,7 +51,21 @@ class DataTableScope implements Scope {
           $relations[] = $column["nameOfFunction"];
         }
       }
-      $query = $query->with($relations);
+      $with = $relations;
+      if ($request->has("with")) {
+        $with = [
+          ...$with,
+          ...$request->with,
+        ];
+      }
+      $query = $query->with($with);
+      if ($request->has('id')) {
+        $data = $query->find($request->id);
+        return [
+          'data' => $data,
+          'dataTableColumns' => $dataTableColumns,
+        ];
+      }
       // Filter
       if ($request->has('f')) {
         $filter = $request->input('f');

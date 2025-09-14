@@ -17,7 +17,7 @@ import {
 } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { cn, getValueObject, isNullOrWhitespace } from "@/lib/utils";
+import { camelize, cn, getValueObject, isNullOrWhitespace } from "@/lib/utils";
 
 import { Button } from "./ui/button";
 import { Command as CommandPrimitive } from "cmdk";
@@ -26,7 +26,6 @@ import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import React from "react";
 import axios from "axios";
-import { debounce } from "lodash";
 import pluralize from "pluralize";
 import { useDetectClickOutside } from "react-detect-click-outside";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -177,6 +176,7 @@ export const convertTemplateLink = (value, search) => {
 export default memo(
   forwardRef(function LinkModel(
     {
+      id,
       as,
       valueBefore,
       value,
@@ -217,10 +217,10 @@ export default memo(
     const { name, keyRoute } = useMemo(() => {
       if (as) {
         const [name, keyRoute] = as.split(":");
-        return { name: name.toLowerCase(), keyRoute };
+        return { name: camelize(name), keyRoute };
       }
       return {
-        name: model.split("\\").pop().toLowerCase(),
+        name: camelize(model.split("\\").pop()),
         keyRoute: "id",
       };
     }, [as, model]);
@@ -251,7 +251,10 @@ export default memo(
     );
 
     useEffect(() => {
-      if (!open && !option && search) {
+      if (open) return;
+
+      setLoading(false);
+      if (!option && search) {
         const findOption = options.find(
           (x) => convertTemplateLink(x).toLowerCase() == search.toLowerCase(),
         );
@@ -287,7 +290,6 @@ export default memo(
     }, [filters, option, value]);
 
     const getModels = () => {
-      setLoading(true);
       axios
         .post(route("model"), {
           model,
@@ -314,7 +316,8 @@ export default memo(
     };
 
     useDidMountEffect(() => {
-      if (!allowSearch) return;
+      if (!allowSearch || !open) return;
+      setLoading(true);
       const reloadModel = setTimeout(() => {
         getModels();
       }, 500);
@@ -394,6 +397,7 @@ export default memo(
               >
                 <div>
                   <Input
+                    id={id}
                     ref={ref}
                     disabled={disabled}
                     readOnly={readOnly}
