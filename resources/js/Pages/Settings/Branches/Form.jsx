@@ -56,7 +56,7 @@ export default memo(function Form() {
               setData("is_disabled", val);
             }}
             label={t("core.branch.columns.is_disabled.options.disabled")}
-            className="col-start-1 flex items-center [&_*]:!pointer-events-auto"
+            className="col-start-1 flex items-center **:pointer-events-auto!"
           />
         </div>
       </FormPageContent>
@@ -122,7 +122,7 @@ export default memo(function Form() {
                 setData("billing_address", val);
               }}
             >
-              <SelectTrigger className="!w-fit">
+              <SelectTrigger className="w-fit!">
                 <SelectValue
                   placeholder={t(
                     "core.branch.columns.billing_address.placeholder",

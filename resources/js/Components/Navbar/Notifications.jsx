@@ -32,7 +32,7 @@ function Notifications() {
       <PopoverContent
         side="bottom"
         align="end"
-        className="!p-0 overflow-hidden h-[460px] w-96"
+        className="p-0! overflow-hidden h-[460px] w-96"
       >
         <div className="sticky top-0 flex items-center justify-between px-4 py-1 bg-white shadow-md dark:bg-gray-800">
           <h3 className="text-base font-bold">Notifications</h3>

@@ -110,7 +110,7 @@ export default memo(function Navbar({ setShowSearch }) {
     );
   }, [breadcrumbs, isMobile, loading]);
   return (
-    <header className="overflow-hidden sticky top-0 bg-background z-10 max-w-full w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+    <header className="overflow-hidden sticky top-0 bg-background z-10 max-w-full w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
       <div className="overflow-hidden flex w-full items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="h-4 mr-2" />
@@ -121,7 +121,7 @@ export default memo(function Navbar({ setShowSearch }) {
           onClick={() => setShowSearch((open) => !open)}
           variant="outline"
           className={cn(
-            "relative h-9 w-fit !px-2 md:!px-4  justify-start rounded-[0.5rem] lg:bg-muted/50 text-sm font-normal text-muted-foreground shadow-none lg:w-56 xl:w-64",
+            "relative h-9 w-fit px-2! md:px-4!  justify-start rounded-[0.5rem] lg:bg-muted/50 text-sm font-normal text-muted-foreground shadow-none lg:w-56 xl:w-64",
           )}
         >
           <span className="hidden lg:inline-flex">Search ...</span>

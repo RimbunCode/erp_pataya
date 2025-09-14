@@ -56,7 +56,7 @@ export default memo(
               {/* <CommandDialog open={showSearch} onOpenChange={setShowSearch}>
               <CommandInput
                 placeholder="Type a command or search..."
-                className="!outline-0 !border-0 !shadow-none !ring-0"
+                className="outline-0! border-0! shadow-none! ring-0!"
               />
               <CommandList>
                 <CommandEmpty>No results found.</CommandEmpty>

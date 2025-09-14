@@ -123,7 +123,7 @@ function UploadDialog({
       case "home":
         return (
           <div
-            className="relative flex items-center justify-center w-full flex-col [&_*]:pointer-events-none min-h-64 overflow-y-auto"
+            className="relative flex items-center justify-center w-full flex-col **:pointer-events-none min-h-64 overflow-y-auto"
             onDragOver={(e) => {
               e.preventDefault();
               setHover(true);
@@ -140,7 +140,7 @@ function UploadDialog({
             {/* Files To Upload */}
             {files.length > 0 && (
               <div className="flex flex-col w-full min-h-64 gap-y-2">
-                <p className="mb-1 alert warning border-1">
+                <p className="mb-1 alert warning border">
                   Maximum File Size: 10 MB
                 </p>
                 {files.map((file) => (
@@ -159,7 +159,7 @@ function UploadDialog({
             >
               <div
                 className={cn(
-                  "transition ease-in-out duration-300 data-[closed]:opacity-0 ",
+                  "transition ease-in-out duration-300 data-closed:opacity-0 ",
                   "absolute top-0 left-0 data flex flex-col items-center justify-center w-full min-h-64 h-full overflow-hidden border-2 border-dashed rounded-lg border-muted-foreground/30 bg-background",
                 )}
               >
@@ -211,9 +211,9 @@ function UploadDialog({
                       "transition ease-in-out duration-300 ",
                     )}
                   >
-                    <div className="gap-x-2 flex [&_svg]:rounded-full [&_svg]:bg-muted [&_svg]:p-2 [&_svg]:size-9 [&>*]:h-auto [&>*]:!p-2 [&>*]:!border-0 [&>*]:flex [&>*]:flex-col [&>*]:gap-y-1 [&>*]:items-center [&>*]:cursor-pointer">
+                    <div className="gap-x-2 flex [&_svg]:rounded-full [&_svg]:bg-muted [&_svg]:p-2 [&_svg]:size-9 *:h-auto *:p-2! *:border-0! *:flex *:flex-col *:gap-y-1 *:items-center *:cursor-pointer">
                       <Button
-                        className={cn(!hover && "!pointer-events-auto")}
+                        className={cn(!hover && "pointer-events-auto!")}
                         variant="outline"
                         asChild
                       >
@@ -222,7 +222,7 @@ function UploadDialog({
                         </label>
                       </Button>
                       <Button
-                        className={cn(!hover && "!pointer-events-auto")}
+                        className={cn(!hover && "pointer-events-auto!")}
                         variant="outline"
                         onClick={() => setMenu("library")}
                       >
@@ -275,7 +275,7 @@ function UploadDialog({
     }
   };
   return (
-    <DialogContent className="max-w-xl !overflow-hidden">
+    <DialogContent className="max-w-xl overflow-hidden!">
       <DialogHeader className="pb-2 border-b">
         <DialogTitle>Upload</DialogTitle>
         <DialogDescription className="sr-only"></DialogDescription>
@@ -283,7 +283,7 @@ function UploadDialog({
       {getMenu()}
       {progress && (
         <div className="flex items-center w-full text-xs text-muted-foreground">
-          <Progress value={progress.progress * 100} className="!h-2" />
+          <Progress value={progress.progress * 100} className="h-2!" />
           <p className="mx-3 text-nowrap">
             ({formatBytes(progress.loaded)} / {formatBytes(progress.total)})
           </p>
@@ -293,9 +293,9 @@ function UploadDialog({
       <DialogFooter
         className={cn(
           files.length > 0 && menu === "home"
-            ? "!justify-between"
-            : "!justify-end",
-          "flex !flex-row  pt-2 border-t gap-x-2",
+            ? "justify-between!"
+            : "justify-end!",
+          "flex flex-row!  pt-2 border-t gap-x-2",
         )}
       >
         {files.length > 0 && menu === "home" && (

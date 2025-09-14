@@ -42,7 +42,7 @@ export default function Show({ workOrder }) {
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    className="!p-2 size-fit h-8"
+                    className="p-2! size-fit h-8"
                     variant="secondary"
                   >
                     {t("core.form.actions")}

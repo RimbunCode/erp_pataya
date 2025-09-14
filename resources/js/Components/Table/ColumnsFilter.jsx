@@ -49,7 +49,7 @@ function ColumnsFilter({ columns: initColumn, onApply, open }) {
         );
       })}
       <DialogFooter className="flex justify-end">
-        <Button className="h-8 !px-2" onClick={_onApply}>
+        <Button className="h-8 px-2!" onClick={_onApply}>
           {t("core.datatable.columns.apply")}
         </Button>
       </DialogFooter>

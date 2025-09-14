@@ -101,7 +101,7 @@ export default function Index({ branchSettings }) {
                     alt={dataRow.user_name}
                   />
                 )}
-                <AvatarFallback className="text-xl font-semibold rounded-lg !flex">
+                <AvatarFallback className="text-xl font-semibold rounded-lg flex!">
                   {alias}
                 </AvatarFallback>
               </Avatar>

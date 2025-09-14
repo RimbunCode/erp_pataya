@@ -3,16 +3,16 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
+
+import CurrencyInput from "@/Components/CurrencyInput";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import CurrencyInput from "@/Components/CurrencyInput";
 
 export default function Form() {
   const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
-
   return (
     <>
       <FormPageContent title={null} value="detail">
@@ -29,6 +29,9 @@ export default function Form() {
               className="text-left"
               value={data.rate}
               onValueChange={(value) => setData("rate", value)}
+              suffix="%"
+              currencyCode={null}
+              decimalScale={2}
             />
           </FormInput>
         </div>

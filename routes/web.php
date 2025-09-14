@@ -51,10 +51,13 @@ Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::
 Route::post('/model', \App\Http\Controllers\ModelController::class)
   ->middleware(middleware: ['auth'])
   ->name('model');
-Route::get('/model/{model}', [\App\Http\Controllers\ModelController::class, 'datatable'])
-  ->where('model', '.*')
+Route::post('/model/datatable', [\App\Http\Controllers\ModelController::class, "datatable"])
   ->middleware(middleware: ['auth'])
   ->name('model.datatable');
+Route::get('/model/{model}', [\App\Http\Controllers\ModelController::class, 'columns'])
+  ->where('model', '.*')
+  ->middleware(middleware: ['auth'])
+  ->name('model.columns');
 
 Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::get('/logs/{log}', [\App\Http\Controllers\Core\LogController::class, 'show'])->name('logs.show');
@@ -104,9 +107,9 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Supplier
   Route::resourceDetail('supplier', \App\Http\Controllers\Purchase\SupplierController::class);
   // Purchase Request
-  Route::resourceDetail('purchaseRequest', \App\Http\Controllers\Purchase\PurchaseRequestController::class);
+  Route::resourceDetail('purchaseRequest', \App\Http\Controllers\Purchase\PurchaseRequestController::class, isSubmmitable: true);
   // Purchase Order
-  Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class);
+  Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class, isSubmmitable: true);
   /// Purchase Group End
 
   // Customer

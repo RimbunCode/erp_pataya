@@ -67,7 +67,7 @@ export default function Index({ lang }) {
               variant="destructive"
               size="icon"
               className="size-8"
-              onClick={() => deleteItem("units.destroy", dataRow.id)}
+              onClick={() => deleteItem("categories.destroy", dataRow.id)}
             >
               <Trash2Icon />
             </Button>
@@ -97,7 +97,7 @@ export default function Index({ lang }) {
               variant="destructive"
               size="icon"
               className="size-8"
-              onClick={() => deleteItem("units.destroy", dataRow.id)}
+              onClick={() => deleteItem("categories.destroy", dataRow.id)}
             >
               <Trash2Icon />
             </Button>

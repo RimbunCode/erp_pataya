@@ -192,7 +192,10 @@ export default function Form() {
             <DatetimePicker
               type="datetime"
               value={data.date}
-              onValueChange={(val) => setData("date", val)}
+              onValueChange={(val) => {
+                console.log(val);
+                setData("date", val);
+              }}
             />
           </FormInput>
           <FormCheckbox
@@ -277,7 +280,7 @@ export default function Form() {
                   },
                 },
               }}
-              with={["defaultUnit"]}
+              with={["defaultUnit", "category"]}
             />
           </FormInput>
         </div>
@@ -295,6 +298,7 @@ export default function Form() {
         value="detail"
         title={t("service.workOrder.columns.external_note")}
         collapsible
+        defaultOpen
       >
         <div className="px-1 py-1">
           <FormInput>

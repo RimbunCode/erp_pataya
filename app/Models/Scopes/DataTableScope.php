@@ -3,6 +3,7 @@
 namespace App\Models\Scopes;
 
 use App\Models\Core\Preference;
+use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Http\Request;
@@ -24,7 +25,7 @@ class DataTableScope implements Scope {
   }
 
   protected function addDataTable(Builder $builder) {
-    $builder->macro('dataTable', function (Builder $query, Request $request) {
+    $builder->macro('dataTable', function (Builder $query, Request $request, array|null $showedColumns = null) {
       $dataTableColumns = \get_class($query->getModel())::getColumns();
       $configColumns = array_column(\json_decode($_COOKIE['datatable_columns'] ?? "", true) ?? [], null, "name");
 
@@ -50,7 +51,21 @@ class DataTableScope implements Scope {
           $relations[] = $column["nameOfFunction"];
         }
       }
-      $query = $query->with($relations);
+      $with = $relations;
+      if ($request->has("with")) {
+        $with = [
+          ...$with,
+          ...$request->with,
+        ];
+      }
+      $query = $query->with($with);
+      if ($request->has('id')) {
+        $data = $query->find($request->id);
+        return [
+          'data' => $data,
+          'dataTableColumns' => $dataTableColumns,
+        ];
+      }
       // Filter
       if ($request->has('f')) {
         $filter = $request->input('f');
@@ -97,12 +112,18 @@ class DataTableScope implements Scope {
         });
       }
 
+      $data = [
+        'data' => $query->paginate($show),
+      ];
+      if (!Utils::isInertiaRequest($request)) {
+        return $data;
+      }
       Inertia::share([
+        ...$data,
         'defaultSort' => '-created_at',
         'name' => $query->getModel()->getNameClass(),
         'translateKey' => $query->getModel()->translateKey ?? null,
         'dataTableColumns' => $dataTableColumns,
-        'data' => Inertia::merge(value: $query->paginate($show))
       ]);
     });
   }

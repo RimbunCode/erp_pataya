@@ -88,7 +88,7 @@ const Library = forwardRef(function Library(
       >
         <Button
           variant="ghost"
-          className="px-2 !py-1 size-auto"
+          className="px-2 py-1! size-auto"
           onClick={() => setMenu("home")}
         >
           <ArrowLeft /> Back
@@ -103,7 +103,7 @@ const Library = forwardRef(function Library(
         </div>
         <div className="w-full px-2">
           {isLoading ? (
-            <div className="!text-base font-normal text-foreground flex gap-x-4 items-center">
+            <div className="text-base! font-normal text-foreground flex gap-x-4 items-center">
               <LoadingIcon className="size-4" />
               <span>Loading ...</span>
             </div>

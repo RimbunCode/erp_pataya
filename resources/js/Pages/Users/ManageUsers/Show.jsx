@@ -100,7 +100,7 @@ export default function Show({ user, roles, branches }) {
         controls={
           <Button
             role="save"
-            className="!p-2 size-fit h-8"
+            className="p-2! size-fit h-8"
             onClick={onSubmit}
             disabled={processing}
           >
@@ -123,7 +123,7 @@ export default function Show({ user, roles, branches }) {
                     <TooltipTrigger asChild>
                       <DialogTrigger asChild>
                         <Button variant="default" size="icon">
-                          <UploadIcon className="!size-5" />
+                          <UploadIcon className="size-5!" />
                         </Button>
                       </DialogTrigger>
                     </TooltipTrigger>
@@ -133,7 +133,7 @@ export default function Show({ user, roles, branches }) {
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button variant="destructive" size="icon">
-                          <Trash2 className="!size-5" />
+                          <Trash2 className="size-5!" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent align="center">Remove</TooltipContent>
@@ -317,7 +317,7 @@ export default function Show({ user, roles, branches }) {
         }
       </FormPage>
       <Dialog open={openDetailRole} onOpenChange={setOpenDetailRole}>
-        <DialogContent className="max-w-screen-lg border-muted-foreground/25">
+        <DialogContent className="max-w-(--breakpoint-lg) border-muted-foreground/25">
           <DialogHeader className="pb-2 border-b border-muted-foreground/25">
             <DialogTitle className="font-bold">
               {detailsRole && detailsRole.name}
@@ -326,7 +326,7 @@ export default function Show({ user, roles, branches }) {
           </DialogHeader>
           <div className="grid [&>div]:px-3 gap-x-1 grid-cols-[minmax(auto,1fr)_max-content_auto_repeat(12,max-content)] text-sm [&>div>*]:px-1h max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center [&>div>*]:py-2 [&>div>*:not(:last-child)]:border-0">
             <div className="grid grid-cols-subgrid col-span-full items-center rounded-md bg-muted [&>div]:font-bold [&>div]:text-xs lg:[&>div]:text-sm">
-              <div className="!pr-2 !pl-2 !justify-start text-left">Model</div>
+              <div className="pr-2! pl-2! justify-start! text-left">Model</div>
               <div className="text-center">Level</div>
               <div className="text-center">If Owner</div>
               {[
@@ -354,7 +354,7 @@ export default function Show({ user, roles, branches }) {
                   key={rule.id}
                   className="grid border-b col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-xs lg:[&>div]:text-sm"
                 >
-                  <div className="!pr-2 !justify-start text-left">
+                  <div className="pr-2! justify-start! text-left">
                     {rule.name}
                   </div>
                   <div className="text-center">{rule.level}</div>

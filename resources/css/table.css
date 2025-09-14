@@ -1,61 +1,63 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@reference "./app.css";
+table.resizeable-table {
+  @apply w-full h-full max-w-full grid overflow-x-auto overflow-y-hidden grid-rows-none  border-collapse;
 
-@layer components {
-  table.resizeable-table {
-    @apply w-full h-full max-w-full grid overflow-x-auto overflow-y-hidden grid-rows-none  border-collapse;
-
-    thead,
-    tbody,
-    tr {
-      @apply contents;
-    }
-    thead tr:first-child th {
-      @apply bg-muted;
-    }
-
-    th {
-      @apply relative;
-    }
-
-    th {
-      @apply text-left py-0.5 px-5 flex justify-center flex-col text-foreground/80 text-sm;
-    }
-    td {
-      @apply text-left py-2 px-5 flex justify-center flex-col text-foreground/90 text-sm;
-    }
-
-    th span,
-    td span {
-      @apply whitespace-nowrap overflow-hidden block;
-    }
-    thead tr th {
-      @apply border-b  border-muted-foreground/25;
-    }
-
-    tr td {
-      @apply border-b   border-muted-foreground/25;
-    }
-    tr td span {
-      @apply text-ellipsis;
-    }
+  thead,
+  tbody,
+  tr {
+    @apply contents;
   }
-  .resize-handle {
-    display: block;
-    position: absolute;
-    width: 7px;
-    right: 0;
-    top: 0;
-    z-index: 1;
-    border-right: 2px solid transparent;
+  thead tr:first-child th {
+    @apply bg-muted;
   }
 
-  .resize-handle:hover {
+  th {
+    @apply relative;
+  }
+
+  th {
+    @apply text-left py-0.5 px-5 flex justify-center flex-col text-foreground/80 text-sm;
+  }
+  td {
+    @apply text-left py-2 px-5 flex justify-center flex-col text-foreground/90 text-sm;
+  }
+
+  th span,
+  td span {
+    @apply whitespace-nowrap overflow-hidden block;
+  }
+  thead tr th {
+    @apply border-b  border-muted-foreground/25;
+  }
+
+  tr td {
+    @apply border-b   border-muted-foreground/25;
+  }
+  tr td span {
+    @apply text-ellipsis;
+  }
+}
+
+.resize-handle {
+  display: block;
+  position: absolute;
+  width: 7px;
+  right: 0;
+  top: 0;
+  z-index: 1;
+  border-right: 2px solid transparent;
+
+  &:hover {
     border-color: #ccc;
   }
 
-  .resize-handle.active {
+  &.active {
+    border-color: #517ea5;
+  }
+}
+
+.active {
+  &.resize-handle {
     border-color: #517ea5;
   }
 }

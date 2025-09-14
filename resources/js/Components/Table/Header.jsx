@@ -72,11 +72,11 @@ export default memo(
       <th
         ref={mergeRefs(setNodeRef, ref)}
         style={!freezeColumn ? style : {}}
-        className="!pr-3 group/header"
+        className="pr-3! group/header"
       >
         <div
           className={cn(
-            !freezeColumn && "!-ml-5",
+            !freezeColumn && "-ml-5!",
             "flex justify-between gap-x-2 group",
           )}
         >
@@ -100,7 +100,7 @@ export default memo(
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="!px-1 !py-1 ">
+              <Button variant="ghost" size="sm" className="px-1! py-1! ">
                 <EllipsisVertical />
               </Button>
             </DropdownMenuTrigger>
@@ -143,8 +143,8 @@ export default memo(
           className={cn(
             style.transform ? "opacity-0" : "opacity-100",
             resizeable ? "cursor-col-resize" : "cursor-default",
-            isEmpty ? "!h-[40px]" : "",
-            `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-[1] group group-last/header:hidden`,
+            isEmpty ? "h-[40px]!" : "",
+            `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-1 group group-last/header:hidden`,
           )}
         >
           <div
@@ -153,7 +153,7 @@ export default memo(
                 ? "border-foreground border-r-[3px]"
                 : "border-r border-muted-foreground/15",
               resizeable ? " group-hover:border-muted-foreground" : "",
-              "h-full   w-[1px]",
+              "h-full   w-px",
             )}
           ></div>
         </div>

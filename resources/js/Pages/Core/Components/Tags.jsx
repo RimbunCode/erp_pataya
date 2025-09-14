@@ -122,7 +122,7 @@ function Tags() {
         <span className="flex-1">{t("core.form.tags")}</span>
         <Button
           variant="ghost"
-          className="rounded-full !p-0 group-data-[disabled=true]/form:hidden"
+          className="rounded-full p-0! group-data-[disabled=true]/form:hidden"
           size="icon"
           type="button"
           onClick={() => setShowSearch(!showSearch)}
@@ -148,7 +148,7 @@ function Tags() {
               onValueChange={setSearch}
               showIcon={false}
               placeholder={t("core.form.tag.search")}
-              className="my-2 !border focus:`!ring-1 bg-muted h-8"
+              className="my-2 border! focus:`ring-1! bg-muted h-8"
             />
             <div className="relative w-full">
               {open && (
@@ -173,7 +173,7 @@ function Tags() {
         data={["tags"]}
         fallback={
           <div className="mb-3 first:mt-2 ms-6">
-            <div className="!text-base font-normal text-foreground flex gap-x-4">
+            <div className="text-base! font-normal text-foreground flex gap-x-4">
               <LoadingIcon className="size-4" />
               <span>{t("core.form.loading")} ...</span>
             </div>
@@ -195,7 +195,7 @@ function Tags() {
                 </Link>
                 <Button
                   variant="ghost"
-                  className="rounded-full !p-0 !m-0 w-auto h-auto group-data-[disabled=true]/form:hidden"
+                  className="rounded-full p-0! m-0! w-auto h-auto group-data-[disabled=true]/form:hidden"
                   size="icon"
                   onClick={() => {
                     if (!isLoading) removeTag(id);
@@ -204,7 +204,7 @@ function Tags() {
                   {isLoading ? (
                     <LoadingIcon className="size-4" />
                   ) : (
-                    <X className="!size-4" />
+                    <X className="size-4!" />
                   )}
                 </Button>
               </div>

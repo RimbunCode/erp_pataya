@@ -12,10 +12,33 @@ class WorkOrderItem extends Model {
   use HasUlids, SoftDeletes;
   protected $guarded = ['id'];
 
+  public string $translateKey = "service.workOrder.workOrderItem";
+  protected $configColumns = [
+    'workOrder' => [
+      'show' => true,
+      'order' => 0,
+    ],
+    'item' => [
+      'show' => true,
+      'order' => 1,
+    ],
+    'quantity' => [
+      'show' => true,
+      'order' => 2,
+    ],
+    'unit' => [
+      'show' => true,
+      'order' => 3,
+    ],
+  ];
   public function workOrder() {
     return $this->belongsTo(WorkOrder::class);
   }
-  public function item() {
+
+  public function parentRelation() {
+    return $this->workOrder();
+  }
+  public function item(): mixed {
     return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')->withTrashed($this->status != "draft")
       ->with(["defaultUnit" => function ($q) {
         return $q->withTrashed($this->status != "draft");

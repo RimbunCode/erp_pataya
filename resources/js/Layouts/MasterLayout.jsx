@@ -109,7 +109,9 @@ const MasterLayout = memo(({ children }) => {
     showAlert: showAlertDirtyForm,
     setShowAlert: setShowAlertDirtyForm,
     cancel: cancelDirtyForm,
-    continue: continueDirtyForm,
+    leave: continueDirtyForm,
+    saveAsDraft,
+    setIsDirty,
   } = useIsDirtyForm();
   const {
     isOpen: isOpenDeleteDialog,
@@ -117,6 +119,10 @@ const MasterLayout = memo(({ children }) => {
     route: deleteRoute,
     id: deleteId,
   } = useDeleteModal();
+  const { url } = usePage();
+  useEffect(() => {
+    setIsDirty(false);
+  }, [url]);
   function handleKeyDown(e) {
     if (e.key == "Escape") {
       closeDeleteDialog();
@@ -124,7 +130,6 @@ const MasterLayout = memo(({ children }) => {
   }
   const route = window.route;
   const onDelete = useCallback(() => {
-    console.log(deleteRoute, deleteId);
     router.delete(route(deleteRoute, deleteId), {
       onSuccess: () => {
         closeDeleteDialog();
@@ -150,8 +155,15 @@ const MasterLayout = memo(({ children }) => {
               <AlertDialogCancel className="h-8" onClick={cancelDirtyForm}>
                 {t("core.form.leave.cancel")}
               </AlertDialogCancel>
-              <AlertDialogAction className="h-8" onClick={continueDirtyForm}>
+              <AlertDialogCancel
+                className="h-8"
+                variant="secondary"
+                onClick={continueDirtyForm}
+              >
                 {t("core.form.leave.leave")}
+              </AlertDialogCancel>
+              <AlertDialogAction className="h-8" onClick={saveAsDraft}>
+                {t("core.form.leave.save_as_draft")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogHeader>

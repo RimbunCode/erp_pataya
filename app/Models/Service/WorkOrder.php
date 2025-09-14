@@ -36,10 +36,14 @@ class WorkOrder extends Model {
     return [
       'items',
       'items.item',
+      'items.unit',
       'customer',
-      'customer_branch',
-      'item_service'
+      'customerBranch',
+      'itemService'
     ];
+  }
+  public static function templateLink() {
+    return ":code";
   }
 
   public string $formComponent = 'Services/WorkOrders/Form';
@@ -65,10 +69,10 @@ class WorkOrder extends Model {
     'customer' => [
       'show' => true,
     ],
-    'customer_branch' => [
+    'customerBranch' => [
       'disabledNavigation' => true
     ],
-    'item_service' => [
+    'itemService' => [
       'show' => true,
     ],
     'status' => [
@@ -85,10 +89,10 @@ class WorkOrder extends Model {
   public function customer() {
     return $this->belongsTo(Customer::class);
   }
-  public function customer_branch() {
+  public function customerBranch() {
     return $this->belongsTo(Branch::class, 'customer_branch_id');
   }
-  public function item_service() {
+  public function itemService() {
     return $this->belongsTo(ItemVariant::class, 'item_service_id');
   }
 }

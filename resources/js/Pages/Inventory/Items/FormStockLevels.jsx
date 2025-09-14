@@ -33,7 +33,7 @@ export default memo(function FormStockLevels() {
           value="stock_levels"
         >
           <WhenVisible data={["stocks"]}>
-            <div className="grid text-sm grid-cols-[3fr_1fr_1fr_auto] [&>*]:px-4 ">
+            <div className="grid text-sm grid-cols-[3fr_1fr_1fr_auto] *:px-4 ">
               {stocks?.map((stock) => (
                 <div
                   key={stock.id}

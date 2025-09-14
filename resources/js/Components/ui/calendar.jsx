@@ -36,7 +36,7 @@ const DropdownMonthYear = React.memo(
           handleChange(value);
         }}
       >
-        <SelectTrigger className="pr-1.5 focus:ring-0 !py-1 bg-inherit">
+        <SelectTrigger className="pr-1.5 focus:ring-0 py-1! bg-inherit">
           <SelectValue>{selected?.props?.children}</SelectValue>
         </SelectTrigger>
         <SelectContent position="popper">
