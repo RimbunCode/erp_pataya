@@ -1,5 +1,6 @@
 import {
   getFromLocalStorage,
+  isDeepEmpty,
   removeFromLocalStorage,
   saveToLocalStorage,
 } from "@/lib/utils";
@@ -7,7 +8,6 @@ import { useCallback, useEffect } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 
 import { create } from "zustand";
-import { isEmpty } from "lodash";
 import useDidMountEffect from "./useDidMountEffect";
 import { useIsDirtyForm } from "./useIsDirtyForm";
 
@@ -37,14 +37,21 @@ export const useAlertDraftForm = create((set) => ({
 export const useDraftForm = (
   name,
   initialData,
-  { expiredDays = 7, onContinueDraft } = {},
+  {
+    expiredDays = 7,
+    onContinueDraft,
+    isCreate = false,
+    isDialog = false,
+    ignoreDraft = false,
+  } = {},
 ) => {
   const { setShowAlert, setCancel, setContinue } = useAlertDraftForm();
   const { setIsDirty, setProcessing, setRecentlySuccessful } = useIsDirtyForm();
   const user = usePage().props.auth.user;
   let key = user ? `${name}_${user.id}` : null;
-  key =
-    !initialData || isEmpty(initialData) ? `${key}_create` : `${key}_update`;
+  key = isCreate
+    ? `${key}_create`
+    : `${key}_update_${initialData?.id ?? initialData?.code ?? ""}`;
   const {
     submit: submitForm,
     get: getForm,
@@ -74,6 +81,7 @@ export const useDraftForm = (
     }
   }, [initialData]);
   useDidMountEffect(() => {
+    console.log(form.data);
     if (key != null && form.isDirty) {
       saveToLocalStorage(key, form.data, expiredDays);
     }
@@ -82,20 +90,24 @@ export const useDraftForm = (
     }
   }, [form.data, form.isDirty, key, expiredDays]);
 
-  useEffect(() => {
+  const loadDraft = useCallback(() => {
     let dataCookie = getFromLocalStorage(key);
-    if (dataCookie != null) {
-      setCancel(() => {
-        form.reset();
-        removeFromLocalStorage(key);
-      });
-      setContinue(() => {
-        form.setData(dataCookie);
-        removeFromLocalStorage(key);
-        onContinueDraft?.();
-      });
-      setShowAlert(true);
-    }
+    if (!dataCookie || isDeepEmpty(dataCookie)) return;
+    setCancel(() => {
+      form.reset();
+      removeFromLocalStorage(key);
+    });
+    setContinue(() => {
+      form.setData(dataCookie);
+      removeFromLocalStorage(key);
+      onContinueDraft?.();
+    });
+    setShowAlert(true);
+  }, [key]);
+  useEffect(() => {
+    if (isDialog) return;
+    if (ignoreDraft) return;
+    loadDraft();
   }, []);
 
   const getOptions = useCallback(
@@ -106,7 +118,9 @@ export const useDraftForm = (
         replace: true,
         ...options,
         onSuccess: (e) => {
-          form.setDefaults(e.props[name]);
+          if (!isDialog) {
+            form.setDefaults(e.props[name]);
+          }
           setIsDirty(false);
           if (options?.onSuccess) options.onSuccess(e);
         },
@@ -143,6 +157,7 @@ export const useDraftForm = (
     delete(url, options) {
       deleteForm(url, getOptions(options));
     },
+    loadDraft,
   };
 
   // return {

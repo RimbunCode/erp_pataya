@@ -11,7 +11,8 @@ return [
     'title' => 'Leave Page',
     'subtitle' => 'You have unsaved changes. Are you sure you want to leave?',
     'cancel' => 'Cancel',
-    'leave' => 'Leave'
+    'leave' => 'Leave',
+    'save_as_draft' => 'Save as Draft'
   ],
   'confirmation_submit' => [
     'title' => 'Submit Confirmation',

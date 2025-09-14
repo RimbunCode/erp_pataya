@@ -118,7 +118,7 @@ function Index({ lang }) {
         name="customer"
         open={showNewForm}
         onOpenChange={setShowNewForm}
-        className="max-w-screen-lg"
+        className="max-w-(--breakpoint-lg)"
       >
         <Form />
       </FormPageDialog>

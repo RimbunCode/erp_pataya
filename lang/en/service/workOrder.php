@@ -41,4 +41,12 @@ return [
     'source_warehouse' => 'Source Warehouse',
     'source_warehouse.placeholder' => 'Select a source warehouse',
   ],
+  'workOrderItem' => [
+    'columns' => [
+      'work_order' => 'Work Order',
+      'item' => 'Item',
+      'quantity' => 'Quantity',
+      'unit' => 'Unit'
+    ]
+  ]
 ];

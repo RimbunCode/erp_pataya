@@ -185,7 +185,7 @@ export default forwardRef(function MultiSelect(
                 setSearch(e.target.value);
               }}
               className={cn(
-                "focus:!border-0 !bg-inherit h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
+                "focus:border-0! bg-inherit! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
               )}
               placeholder={placeholder}
             />
@@ -214,7 +214,7 @@ export default forwardRef(function MultiSelect(
             ref={popoverRef}
             align="start"
             side="bottom"
-            className="relative z-50  w-[--radix-popover-trigger-width] p-0 "
+            className="relative z-50  w-(--radix-popover-trigger-width) p-0 "
             forceMount
             asChild
           >

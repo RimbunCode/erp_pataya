@@ -6,10 +6,12 @@ use App\Models\User\User;
 use App\Utils;
 use Error;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class ModelController extends Controller {
   private function filterOperator(Builder|JoinClause $query, $key, $operatorFilter, $value, $boolean = "and", bool $valueIsColumn = false) {
@@ -77,7 +79,7 @@ class ModelController extends Controller {
         $query->$function($key, '=', $value, $boolean);
     }
   }
-  private function filterToQuery(Builder|JoinClause $query, $filters, $boolean = "and") {
+  private function filterToQuery(Builder|JoinClause $query, $filters, $boolean = "and", array &$with = []) {
     if ($query instanceof Builder) {
       $columns = Schema::getColumnListing($query->getModel()->getTable());
     }
@@ -98,11 +100,12 @@ class ModelController extends Controller {
               $key = $matches[1];
             }
             if ($query instanceof Builder && !$isMatch && !in_array($key, $columns)) {
+              $with[] = $key;
               $query->has($key, ">=", 1, $boolean, function (Builder $builder) use ($value) {
                 $this->filterToQuery($builder, $value);
               });
             } else if (is_array($value)) {
-              $query->where(function ($builder) use ($key, $value, $boolean) {
+              $query->where(function (Builder $builder) use ($key, $value, $boolean) {
                 foreach ($value as $operator => $val) {
                   $this->filterOperator($builder, $key, $operator, $val);
                 }
@@ -229,19 +232,18 @@ class ModelController extends Controller {
       }
       $query->select($model::getTableName() . ".*");
     }
+    $with = $request->with ?? [];
     if ($request->has('filters')) {
-      $query->where(function (Builder $query) use ($request) {
-        $this->filterToQuery($query, $request->filters);
+      $query->where(function (Builder $query) use ($request, &$with) {
+        $this->filterToQuery($query, $request->filters, "and", $with);
       });
     }
-    // dd($query->toRawSql());
+
     $queryForCount = $query->clone();
     if ($request->has('limit')) {
       $query->limit($request->limit);
     }
-    if ($request->has('with')) {
-      $query->with($request->with);
-    }
+    $query->with($with);
     if ($request->has('order')) {
       $orders = explode(":", $request->order);
       $query->orderBy($orders[0], $orders[1] ?? 'asc');
@@ -258,13 +260,41 @@ class ModelController extends Controller {
     ]);
   }
 
-  public function datatable(Request $request, string $model) {
+  public function columns(Request $request, string $model) {
     // if ($this->isInertiaRequest($request)) {
     //   abort(404);
     //   return;
     // }
     $model = str_replace("/", "\\", $model);
+    $showedColumns = $request->columns ?? [];
+    $select = $request->select;
+    if ($select) {
+      $instance = new $model();
+      $relation = $instance->$select();
+      if ($relation instanceof Relation) {
+        $model = \get_class($relation->getRelated());
+      }
+    }
     $columns = $model::getColumns();
-    return response()->json($columns);
+    if (count($showedColumns) > 0) {
+      foreach ($columns as $key => $column) {
+        $columns[$key]["show"] = in_array($column["name"],  $showedColumns,  true);
+        // if ($column["name"] == "status") {
+        //   dd($column["name"], $column["show"], in_array($column["name"], $showedColumns, true), $column);
+        // }
+      }
+    }
+    return response()->json([
+      'model' => $model,
+      'route' => Str::plural((new $model())->getNameClass()),
+      'columns' => $columns
+    ]);
+  }
+
+  public function datatable(Request $request) {
+    $model = $request->model;
+    $showedColumns = $request->showedColumns;
+
+    return $model::dataTable($request, $showedColumns);
   }
 }

@@ -3,7 +3,7 @@
 return [
   'title' => 'Purchase Requests',
   'add' => 'Add Purchase Request',
-  'new' => 'New Purchase Requests',
+  'new' => 'New Purchase Request',
   'delete' => 'Delete Work_order',
   'delete.description' => 'Are you sure you want to delete this Purchase Request?',
   'delete.confirm' => 'Delete',

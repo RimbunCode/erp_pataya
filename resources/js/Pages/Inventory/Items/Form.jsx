@@ -236,13 +236,13 @@ export default memo(function Form() {
           <WhenVisible
             data={["variants"]}
             fallback={() => (
-              <div className="!text-base font-normal text-foreground flex gap-x-4">
+              <div className="text-base! font-normal text-foreground flex gap-x-4">
                 <LoadingIcon className="size-4" />
                 <span>{t("core.form.loading")} ...</span>
               </div>
             )}
           >
-            <div className="grid grid-cols-[2fr_auto_auto_auto] gap-x-6 [&>*]:px-4 border rounded-md">
+            <div className="grid grid-cols-[2fr_auto_auto_auto] gap-x-6 *:px-4 border rounded-md">
               <div className="grid py-1 border-b rounded-t-md bg-muted border-muted-foreground/25 grid-cols-subgrid col-span-full">
                 <span className="flex items-center justify-start font-bold text-center">
                   {t("inventory.item.columns.sku")}

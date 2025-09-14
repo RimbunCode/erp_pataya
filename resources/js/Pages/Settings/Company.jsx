@@ -316,8 +316,8 @@ function Form() {
           </FormInput>
           <div className="grid [&>div]:px-3 gap-x-1 grid-cols-[auto_1fr_auto] text-sm [&>div>*]:px-1h max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center [&>div>*]:py-2 [&>div>*:not(:last-child)]:border-0">
             <div className="grid grid-cols-subgrid col-span-full items-center rounded-md bg-muted [&>div]:font-bold [&>div]:text-sm lg:[&>div]:text-base">
-              <div className="!pr-2 !pl-2 !justify-start text-left">No.</div>
-              <div className="!justify-start text-left">Rows per Page</div>
+              <div className="pr-2! pl-2! justify-start! text-left">No.</div>
+              <div className="justify-start! text-left">Rows per Page</div>
               <div className="text-center">Default</div>
             </div>
             {data?.per_page_options &&
@@ -327,10 +327,10 @@ function Form() {
                     key={item}
                     className="grid border-b col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base"
                   >
-                    <div className="!pr-2 !pl-2 !justify-start text-left">
+                    <div className="pr-2! pl-2! justify-start! text-left">
                       {index + 1}
                     </div>
-                    <div className="!justify-start text-left">
+                    <div className="justify-start! text-left">
                       <Input
                         type="number"
                         defaultValue={item}
@@ -359,10 +359,10 @@ function Form() {
               })}
 
             <div className="grid border-b col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base">
-              <div className="!pr-2 !pl-2 !justify-start text-left">
+              <div className="pr-2! pl-2! justify-start! text-left">
                 {data.per_page_options.length + 1}
               </div>
-              <div className="!justify-start text-left">
+              <div className="justify-start! text-left">
                 <Input
                   type="number"
                   onBlur={(e) => {

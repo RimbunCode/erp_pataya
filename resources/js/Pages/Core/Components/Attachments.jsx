@@ -42,7 +42,7 @@ export default memo(function Attachments() {
           >
             <Button
               variant="ghost"
-              className="rounded-full !p-0"
+              className="rounded-full p-0!"
               size="icon"
               type="button"
             >
@@ -61,7 +61,7 @@ export default memo(function Attachments() {
         data={["attachments"]}
         fallback={
           <div className="mb-3 first:mt-2 ms-6">
-            <div className="!text-base font-normal text-foreground flex gap-x-4">
+            <div className="text-base! font-normal text-foreground flex gap-x-4">
               <LoadingIcon className="size-4" />
               <span>{t("core.form.loading")} ...</span>
             </div>
@@ -103,7 +103,7 @@ export default memo(function Attachments() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="rounded-full !p-0 group-data-[disabled=true]/form:hidden"
+                    className="rounded-full p-0! group-data-[disabled=true]/form:hidden"
                     onClick={() => {
                       removeFile(id);
                     }}

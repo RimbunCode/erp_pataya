@@ -13,10 +13,10 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WorkOrderController extends Controller {
-  private FormatingSeriesService $referenceCodeService;
+  private FormatingSeriesService $formatingSeriesService;
   private WorkOrderService $service;
   public function __construct(Request $request, FormatingSeriesService $referenceCodeService, WorkOrderService $service) {
-    $this->referenceCodeService = $referenceCodeService;
+    $this->formatingSeriesService = $referenceCodeService;
     $this->service = $service;
     parent::__construct($request, WorkOrder::class);
   }
@@ -44,7 +44,7 @@ class WorkOrderController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code = $this->referenceCodeService->get(WorkOrder::class, $data);
+    $code = $this->formatingSeriesService->get(WorkOrder::class, $data);
     $data['code'] = $code;
 
     $wo = $this->service->create($data);
@@ -82,6 +82,7 @@ class WorkOrderController extends Controller {
     DB::beginTransaction();
     $wo = $this->service->submit($workOrder);
     DB::commit();
+    return back();
   }
 
   /**

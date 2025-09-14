@@ -17,7 +17,7 @@ import {
 } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { cn, getValueObject, isNullOrWhitespace } from "@/lib/utils";
+import { camelize, cn, getValueObject, isNullOrWhitespace } from "@/lib/utils";
 
 import { Button } from "./ui/button";
 import { Command as CommandPrimitive } from "cmdk";
@@ -38,9 +38,13 @@ function validateWithOperators(value, operators, logic = "and") {
     key = key.match(/^([^\[\]]+)/)?.[1] ?? key;
     switch (key) {
       case "and":
-      case "or":
-        result = validateWithOperators(value, val, key);
+      case "or": {
+        result =
+          Array.isArray(val) && key == "or"
+            ? val.includes(value)
+            : validateWithOperators(value, val, key);
         break;
+      }
       case "not":
         result = value != operators[key];
         break;
@@ -61,11 +65,11 @@ function validateWithOperators(value, operators, logic = "and") {
         break;
       case "like":
       case "in":
-        result = Array.isArray(value) ? value.includes(val) : false;
+        result = Array.isArray(val) ? val.includes(value) : false;
         break;
       case "notLike":
       case "notIn":
-        result = Array.isArray(value) ? !value.includes(val) : true;
+        result = Array.isArray(val) ? !val.includes(value) : true;
         break;
       case "between":
         result = value > val[0] && value < val[1];
@@ -73,9 +77,14 @@ function validateWithOperators(value, operators, logic = "and") {
       case "notBetween":
         result = value < val[0] || value > val[1];
         break;
-      default:
-        result = true;
+      default: {
+        result =
+          (value?.[key] ?? false)
+            ? validateWithOperators(value[key], val)
+            : true;
+
         break;
+      }
     }
     if (logic === "and" && !result) return false;
     if (logic === "or" && result) return true;
@@ -167,6 +176,7 @@ export const convertTemplateLink = (value, search) => {
 export default memo(
   forwardRef(function LinkModel(
     {
+      id,
       as,
       valueBefore,
       value,
@@ -207,10 +217,10 @@ export default memo(
     const { name, keyRoute } = useMemo(() => {
       if (as) {
         const [name, keyRoute] = as.split(":");
-        return { name: name.toLowerCase(), keyRoute };
+        return { name: camelize(name), keyRoute };
       }
       return {
-        name: model.split("\\").pop().toLowerCase(),
+        name: camelize(model.split("\\").pop()),
         keyRoute: "id",
       };
     }, [as, model]);
@@ -230,14 +240,21 @@ export default memo(
     const setOption = useCallback(
       (val) => {
         if (disabled || readOnly) return;
+        if (val) {
+          const isValid = validate(val, filters);
+          if (!isValid) return;
+        }
         _setOption(val);
         onValueChange?.(val);
       },
-      [onValueChange, _setOption, disabled, readOnly],
+      [onValueChange, _setOption, disabled, readOnly, filters],
     );
 
     useEffect(() => {
-      if (!open && !option && search) {
+      if (open) return;
+
+      setLoading(false);
+      if (!option && search) {
         const findOption = options.find(
           (x) => convertTemplateLink(x).toLowerCase() == search.toLowerCase(),
         );
@@ -299,17 +316,16 @@ export default memo(
     };
 
     useDidMountEffect(() => {
-      if (!allowSearch) return;
+      if (!allowSearch || !open) return;
+      setLoading(true);
       const reloadModel = setTimeout(() => {
-        setLoading(true);
         getModels();
       }, 500);
       return () => {
         clearTimeout(reloadModel);
       };
-    }, [search]);
+    }, [search, open]);
     const onInputKeyDown = (e) => {
-      console.log(e.key);
       if (e.key == "Enter" && open) return;
       if (
         e.ctrlKey ||
@@ -381,6 +397,7 @@ export default memo(
               >
                 <div>
                   <Input
+                    id={id}
                     ref={ref}
                     disabled={disabled}
                     readOnly={readOnly}
@@ -389,7 +406,6 @@ export default memo(
                       e.preventDefault();
                       if (!(option && search) && !open) {
                         setOpen(true);
-                        getModels();
                       }
                     }}
                     required={required}
@@ -399,51 +415,57 @@ export default memo(
                       setSearch(e.target.value);
                     }}
                     className={cn(
-                      "focus:!border-0 !bg-inherit disabled:!opacity-100 h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
+                      "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
                       diff.same && "text-",
                     )}
                     placeholder={placeholder}
                   />
                   <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
-                    {!disabledNavigation && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "size-6 hidden",
-                          valueBefore && "!inline-flex",
-                          option &&
-                            search &&
-                            "group-focus-within/model:inline-flex",
+                    {loading ? (
+                      <LoadingIcon className="size-4" />
+                    ) : (
+                      <>
+                        {!disabledNavigation && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "size-6 hidden",
+                              valueBefore && "inline-flex!",
+                              option &&
+                                search &&
+                                "group-focus-within/model:inline-flex",
+                            )}
+                            onClick={() => {
+                              if (!name || !option || !search) return;
+                              const pluralized = `${pluralize.plural(name ?? "")}.show`;
+                              window.open(
+                                route(pluralized, option[keyRoute ?? "id"]),
+                                "_blank",
+                              );
+                            }}
+                          >
+                            <ArrowRight className="size-3" />
+                          </Button>
                         )}
-                        onClick={() => {
-                          if (!name || !option || !search) return;
-                          const pluralized = `${pluralize.plural(name ?? "")}.show`;
-                          window.open(
-                            route(pluralized, option[keyRoute ?? "id"]),
-                            "_blank",
-                          );
-                        }}
-                      >
-                        <ArrowRight className="size-3" />
-                      </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "size-6 ",
+                            (!search || disabled || readOnly) && "hidden",
+                          )}
+                          onClick={() => {
+                            setOption(null);
+                            setSearch("");
+                          }}
+                        >
+                          <XIcon className="size-3" />
+                        </Button>
+                      </>
                     )}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "size-6 ",
-                        (!search || disabled || readOnly) && "hidden",
-                      )}
-                      onClick={() => {
-                        setOption(null);
-                        setSearch("");
-                      }}
-                    >
-                      <XIcon className="size-3" />
-                    </Button>
                   </div>
                 </div>
               </PopoverTrigger>
@@ -465,7 +487,7 @@ export default memo(
               onOpenAutoFocus={(e) => e.preventDefault()}
               align="start"
               side="bottom"
-              className="relative z-50 w-auto  min-w-[--radix-popover-trigger-width] p-0 "
+              className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
               forceMount
               asChild
             >
@@ -504,7 +526,7 @@ export default memo(
                     )}
                     {total > limit && (
                       <CommandItem
-                        className="text-blue-700 hover:!text-blue-900 dark:text-blue-300 dark:hover:!text-blue-200"
+                        className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
                         onSelect={() => {
                           // setOpenDialog(true);
                         }}

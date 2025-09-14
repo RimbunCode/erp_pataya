@@ -10,9 +10,11 @@ import {
 } from "@dnd-kit/core";
 import React, {
   cloneElement,
+  forwardRef,
   memo,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -28,15 +30,18 @@ import { Checkbox } from "../ui/checkbox";
 import ColumnsFilter from "./ColumnsFilter";
 import { Dialog } from "../ui/dialog";
 import Header from "./Header";
-import NoDataImg from "./NoDataImg";
-import { debounce } from "lodash";
-import useDidMountEffect from "@/Hooks/useDidMountEffect";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { TZDate } from "@date-fns/tz";
-import { format } from "date-fns";
-import useDynamicRefs from "@/Hooks/useDynamicRefs";
-import { convertTemplateLink } from "../LinkModel";
 import Link from "../Link";
+import LoadingIcon from "../LoadingIcon";
+import NoDataImg from "./NoDataImg";
+import { TZDate } from "@date-fns/tz";
+import { convertTemplateLink } from "../LinkModel";
+import { debounce } from "lodash";
+import { format } from "date-fns";
+import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import useDynamicRefs from "@/Hooks/useDynamicRefs";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
+
 export const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
 export const convertColWidth = (colWidth) => {
@@ -53,16 +58,18 @@ export const convertColWidth = (colWidth) => {
     return "minmax(0px, 1fr)";
   }
 };
-export const createHeaders = (headers) => {
+export const createHeaders = (headers, ignoreCookie = false) => {
   const columnsFromCookie = JSON.parse(getCookieByName(DATATABLE_COLUMNS_KEY));
   const newHeaders = { ...headers };
   Object.values(newHeaders).forEach((col) => {
-    const colFromCookie = columnsFromCookie?.[col.name];
+    const colFromCookie = ignoreCookie ? null : columnsFromCookie?.[col.name];
+    const show = colFromCookie ? true : (col.show ?? true);
     headers[col.name] = {
       ...col,
       sort: null,
-      show: colFromCookie ? true : (col.show ?? true),
-      size: colFromCookie ?? convertColWidth(col.width),
+      show: show,
+      order: show ? colFromCookie?.order || col.order : undefined,
+      size: colFromCookie?.size ?? convertColWidth(col.width),
     };
   });
   return Object.values(headers);
@@ -80,8 +87,10 @@ const Cell = memo(
     isLink,
     ...colProps
   }) => {
-    const { t, lang } = useLaravelReactI18n();
+    const { lang } = usePage().props;
+    const { t } = useLaravelReactI18n();
     const value = row[name];
+    if (!value) return;
     let valueCell = "";
     switch (type) {
       case "boolean":
@@ -155,7 +164,6 @@ const Cell = memo(
       }
     }
     if (type == "relation" && route && !colProps?.disabledNavigation) {
-      console.log(row.name, row);
       return (
         <Link
           href={window.route(route ?? "", value?.[primaryKey] ?? "")}
@@ -178,19 +186,24 @@ const Cell = memo(
   },
 );
 Cell.displayName = "TableCell";
-function Table2({
-  className,
-  selectable,
-  actions,
-  columns: headers,
-  freezeColumn = 0,
-  onOptionsChanged,
-  options: initialOptions = {},
-  data: initialData = [],
-  setSort,
-  resetSorting,
-  reload,
-}) {
+const Table2 = forwardRef(function Table2(
+  {
+    className,
+    selectable,
+    actions,
+    columns: headers,
+    freezeColumn = 0,
+    onOptionsChanged,
+    options: initialOptions = {},
+    data: initialData = [],
+    setSort,
+    resetSorting,
+    reload,
+    isDynamicData,
+    isLoading,
+  },
+  ref,
+) {
   const { t } = useLaravelReactI18n();
   const [data, setData] = useState(initialData);
   useDidMountEffect(() => {
@@ -217,17 +230,25 @@ function Table2({
     },
     [initialOptions, _options],
   );
+  useImperativeHandle(
+    ref,
+    () => ({
+      getSelectedItem() {
+        return data.filter((x) => x.isSelected);
+      },
+    }),
+    [data],
+  );
 
   const minCellWidth = 120;
 
   const [tableHeight, setTableHeight] = useState("auto");
   const [activeIndex, setActiveIndex] = useState(null);
   const tableElement = useRef(null);
-  const [columns, setColumns] = useState(createHeaders(headers));
+  const [columns, setColumns] = useState(createHeaders(headers, isDynamicData));
   const [openColumnsFilter, setOpenColumnsFilter] = useState(false);
-  // console.log(columns);
   useDidMountEffect(() => {
-    setColumns(createHeaders(headers));
+    setColumns(createHeaders(headers, isDynamicData));
   }, [headers]);
 
   const sensors = useSensors(
@@ -255,25 +276,42 @@ function Table2({
   //     DATATABLE_COLUMNS_EXPIRED,
   //   );
   // }, [columns]);
+  const mergeColumns = useCallback((columns, showColumns) => {
+    return columns.map((col) => {
+      for (const key in showColumns) {
+        const colShowed = showColumns[key];
+        if (col.name == colShowed.name) {
+          return {
+            ...col,
+            order: key,
+          };
+        }
+      }
+      return col;
+    });
+  }, []);
   function handleDragOver(event) {
     const { active, over } = event;
 
     if (active.id !== over.id) {
       setColumns((items) => {
-        const newItems = items.map((x) => x.name);
+        const showColumn = items
+          .filter((x) => x.show)
+          .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
+        const newItems = showColumn.map((x) => x.name);
 
         const newIndex = newItems.indexOf(over.id);
         if (newIndex < freezeColumn) return items;
 
         const oldIndex = newItems.indexOf(active.id);
-        const newColumn = arrayMove(items, oldIndex, newIndex);
+        const newColumn = arrayMove(showColumn, oldIndex, newIndex);
         tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""}  ${[
           ...newColumn,
         ]
-          .filter((x) => x.show)
           .map((x) => x.size)
           .join(" ")}`;
-        return newColumn;
+
+        return mergeColumns(items, newColumn);
       });
     }
   }
@@ -301,13 +339,18 @@ function Table2({
     return newCols;
   }, []);
   const showedColumns = useMemo(() => {
-    return getShowedColumns(columns);
+    return getShowedColumns(columns).sort(
+      (a, b) => (a.order ?? Infinity) - (b.order ?? Infinity),
+    );
   }, [columns]);
 
   useEffect(() => {
     const newShowedColumns = {};
-    showedColumns.forEach((col) => {
-      newShowedColumns[col.name] = col.size;
+    showedColumns.forEach((col, index) => {
+      newShowedColumns[col.name] = {
+        size: col.size,
+        order: index,
+      };
     });
     setCookie(DATATABLE_COLUMNS_KEY, JSON.stringify(newShowedColumns), {
       days: DATATABLE_COLUMNS_EXPIRED,
@@ -352,7 +395,6 @@ function Table2({
         newColumns[col.name] = { ...col, size };
         return size;
       });
-      // debounce(() => setColumns(newColumns.values()), 500)();
 
       tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""} ${gridColumns.join(
         " ",
@@ -372,7 +414,7 @@ function Table2({
       return col.size;
     });
 
-    debounce(() => setColumns(newColumns), 500)();
+    debounce(() => setColumns(columns, newColumns), 500)();
 
     tableElement.current.style.gridTemplateColumns = `${selectable ? "max-content" : ""} ${actions ? "max-content" : ""} ${gridColumns.join(
       " ",
@@ -419,7 +461,7 @@ function Table2({
     });
   };
   return (
-    <div className={cn(className, "flex flex-col gap-x-2")}>
+    <div className={cn(className)}>
       <DndContext
         onDragOver={handleDragOver}
         sensors={sensors}
@@ -428,7 +470,7 @@ function Table2({
         <Dialog open={openColumnsFilter} onOpenChange={setOpenColumnsFilter}>
           <div className="flex-1">
             <table
-              className={cn("resizeable-table")}
+              className="resizeable-table"
               ref={tableElement}
               style={{
                 gridTemplateRows: [
@@ -451,7 +493,7 @@ function Table2({
                     strategy={horizontalListSortingStrategy}
                   >
                     {selectable && (
-                      <th className="!py-2 !px-2 !pr-4 items-center">
+                      <th className="py-2! px-2! items-center">
                         <Checkbox
                           checked={data.every((x) => x.isSelected ?? false)}
                           onCheckedChange={checkAll}
@@ -459,18 +501,18 @@ function Table2({
                       </th>
                     )}
                     {actions && (
-                      <th className="!py-2 !px-2 !pr-4 items-center">
+                      <th className="py-2! px-2! pr-4! items-center">
                         <span>{t("core.datatable.action")}</span>
                         <div
                           style={{ height: tableHeight }}
                           className={cn(
-                            !data || data.length === 0 ? "!h-[40px]" : "",
-                            `flex opacity-100 justify-center items-center absolute w-4 -right-2 top-0 z-[1]`,
+                            !data || data.length === 0 ? "h-[40px]!" : "",
+                            `flex opacity-100 justify-center items-center absolute w-4 -right-2 top-0 z-1`,
                           )}
                         >
                           <div
                             className={cn(
-                              "h-full border-r border-muted-foreground/15 w-[1px]",
+                              "h-full border-r border-muted-foreground/15 w-px",
                             )}
                           ></div>
                         </div>
@@ -498,15 +540,26 @@ function Table2({
                 </tr>
               </thead>
               <tbody>
-                {!data || data.length === 0 ? (
+                {isLoading || !data || data.length === 0 ? (
                   <tr>
                     <td
-                      className="!border-b-0 items-center justify-center"
+                      className="border-b-0! items-center justify-center"
                       style={{
                         gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
                       }}
                     >
-                      <NoDataImg className="w-full max-w-lg" />
+                      {isLoading ? (
+                        <div className="flex justify-center py-6 text-sm font-normal text-center text-foreground gap-x-4">
+                          <LoadingIcon className="size-4" />
+                          <span>{t("core.form.loading")} ...</span>
+                        </div>
+                      ) : !isDynamicData ? (
+                        <NoDataImg className="w-full max-w-lg max-h-full" />
+                      ) : (
+                        <p className="text-muted-foreground">
+                          {t("core.datatable.no_data")}
+                        </p>
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -514,7 +567,7 @@ function Table2({
                     {data.map((row, i) => (
                       <tr key={i}>
                         {selectable && (
-                          <td className="!py-2 !px-2 items-center">
+                          <td className="py-2! px-2! items-center">
                             <Checkbox
                               checked={row.isSelected ?? false}
                               onCheckedChange={(check) => checklist(row, check)}
@@ -547,7 +600,7 @@ function Table2({
 
                     <tr>
                       <td
-                        className="!border-b-0 items-center justify-center row-auto h-full"
+                        className="border-b-0! items-center justify-center row-auto h-full"
                         style={{
                           gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
                         }}
@@ -562,8 +615,9 @@ function Table2({
             columns={columns}
             open={openColumnsFilter}
             onApply={(val) => {
+              console.log(val);
               setColumns(val);
-              reload?.();
+              reload?.(val);
               setOpenColumnsFilter(false);
             }}
           />
@@ -571,6 +625,6 @@ function Table2({
       </DndContext>
     </div>
   );
-}
+});
 
 export default memo(Table2);

@@ -224,7 +224,7 @@ export default function Form() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="self-end !size-8"
+                className="self-end size-8!"
                 onClick={swapPlayground}
               >
                 <ArrowLeftRightIcon className="size-8" />

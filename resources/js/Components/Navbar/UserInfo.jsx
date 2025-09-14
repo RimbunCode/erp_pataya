@@ -102,7 +102,7 @@ export default memo(function UserInfo() {
             href={route("logout")}
             method="post"
             as="button"
-            className="w-full text-red-500 hover:!text-red-500"
+            className="w-full text-red-500 hover:text-red-500!"
           >
             <LogOut />
             Log out

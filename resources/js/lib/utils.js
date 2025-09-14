@@ -1,5 +1,13 @@
 import { Children, cloneElement } from "react";
 import { enUS, id as idLocale } from "date-fns/locale";
+import {
+  every,
+  isArray,
+  isEmpty,
+  isNull,
+  isPlainObject,
+  isUndefined,
+} from "lodash";
 
 import { Buffer } from "buffer";
 import { clsx } from "clsx";
@@ -149,19 +157,19 @@ export const saveToLocalStorage = (key, data, expiredDays) => {
   const jsonString = JSON.stringify(data);
   const base64 = Buffer.from(jsonString).toString("base64");
   localStorage.setItem(
-    `${window.location.pathname}/${key}`,
+    key,
     JSON.stringify({
-      pathname: window.location.pathname,
-      expiredDate: new Date(
-        Date.now() + expiredDays * 24 * 60 * 60 * 1000,
-      ).toISOString(),
+      // pathname: window.location.pathname,
+      expiredDate: expiredDays
+        ? new Date(Date.now() + expiredDays * 24 * 60 * 60 * 1000).toISOString()
+        : null,
       updatedAt: new Date().toISOString(),
       data: base64,
     }),
   );
 };
 export const getFromLocalStorage = (key) => {
-  key = `${window.location.pathname}/${key}`;
+  // key = `${window.location.pathname}/${key}`;
   let dataCookie = localStorage.getItem(key);
   if (dataCookie != null) {
     if (typeof dataCookie === "string") {
@@ -172,11 +180,14 @@ export const getFromLocalStorage = (key) => {
         return;
       }
     }
-    if (dataCookie.pathname !== window.location.pathname) {
-      // console.log("Cookie data does not match current path, ignoring.");
-      return;
-    }
-    if (new Date(dataCookie.expiredDate) < new Date(Date.now())) {
+    // if (dataCookie.pathname !== window.location.pathname) {
+    //   // console.log("Cookie data does not match current path, ignoring.");
+    //   return;
+    // }
+    if (
+      dataCookie.expiredDate &&
+      new Date(dataCookie.expiredDate) < new Date(Date.now())
+    ) {
       localStorage.removeItem(key);
       // removeCookie(key, window.location.pathname);
       return;
@@ -187,7 +198,7 @@ export const getFromLocalStorage = (key) => {
   return null;
 };
 export const removeFromLocalStorage = (key) => {
-  key = `${window.location.pathname}/${key}`;
+  // key = `${window.location.pathname}/${key}`;
   localStorage.removeItem(key);
 };
 export const checkFileType = (patternType, fileType) => {
@@ -232,4 +243,30 @@ export function getThemeByStatus(status) {
     default:
       return "secondary";
   }
+}
+
+export function camelize(str) {
+  return str
+    .replace(/(?:^\w|[A-Z]|\b\w)/g, function (word, index) {
+      return index === 0 ? word.toLowerCase() : word.toUpperCase();
+    })
+    .replace(/\s+/g, "");
+}
+
+export function isDeepEmpty(value) {
+  if (isUndefined(value)) return true;
+  if (isNull(value)) return true;
+
+  // Cek array
+  if (isArray(value)) {
+    return value.length === 0 || every(value, isDeepEmpty);
+  }
+
+  // Cek object
+  if (isPlainObject(value)) {
+    return isEmpty(value) || every(value, (v) => isDeepEmpty(v));
+  }
+
+  // Selain itu dianggap "ada nilai"
+  return false;
 }

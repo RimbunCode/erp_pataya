@@ -1,20 +1,21 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useEffect, useMemo } from "react";
+
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
+import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import SalesOrderLinkModel from "./SalesOrderLinkModel";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import SalesOrderLinkModel from "./SalesOrderLinkModel";
-import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
-import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -158,8 +159,8 @@ export default function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <CurrencyInput
-              decimalLimit={2}
-              prefix="Rp "
+              currencyCode="default"
+              decimalScale={2}
               disabled={!dataRow?.item}
               value={data}
               onValueChange={(val) => {
@@ -270,14 +271,13 @@ export default function Form() {
             <CurrencyInput
               disabled={!data.currency}
               className="text-left"
-              decimalLimit={2}
+              decimalScale={2}
               value={data.exchange_rate}
               onValueChange={(value) => {
                 setData("exchange_rate", value);
               }}
             />
           </FormInput>
-
           <FormInput
             className="col-span-2 col-start-1"
             label={t("sales.salesOrder.columns.reference_so")}

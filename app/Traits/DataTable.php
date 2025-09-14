@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Models\Core\File;
 use App\Models\Core\Log;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\ModelConnection;
 use App\Models\Core\Tag;
 use App\Models\Scopes\DataTableScope;
 use App\Models\Service\WorkOrder;
@@ -28,9 +29,7 @@ use Inertia\Inertia;
  * @method void dataTable(\Illuminate\Http\Request $request)
  */
 trait DataTable {
-  protected static function bootDataTable() {
-    static::addGlobalScope(new DataTableScope);
-  }
+
   protected $defaultConfigColumns = [];
   public function initializeDataTable() {
     $this->defaultConfigColumns = array_merge($this->defaultConfigColumns, [
@@ -62,7 +61,8 @@ trait DataTable {
     if ($fillOnly) {
       return $this->fill($attributes);
     }
-    return $this->update($attributes);
+    $this->fill($attributes);
+    return $this->save();
   }
   public function logForCreated() {
     if (get_class($this) == Log::class) {
@@ -145,6 +145,21 @@ trait DataTable {
     ]);
   }
 
+  public function logForSubmitted() {
+    if (get_class($this) == Log::class) {
+      return;
+    }
+    Log::create([
+      'user_id' => Auth::user()->id,
+      'loggable_id' => $this->id,
+      'loggable_type' => get_class($this),
+      'activity' => [
+        'en' => ':user submitted this',
+        'id' => ':user telah mengajukan ini',
+      ],
+    ]);
+  }
+
   private array $dataBefore = [];
   private function recordLogs(): void {
     $this->loadRelations();
@@ -213,14 +228,7 @@ trait DataTable {
     return with(new static)->codeRelations() ?? [];
   }
 
-  /**
-   * Jika model ini untuk form yang submitable
-   * @var bool
-   */
-  // protected static bool $is_submitable;
-  public function isSubmitable() {
-    return static::$is_submitable ?? false;
-  }
+
   /**
    * Berikan nama module untuk model ini
    * @var string
@@ -328,6 +336,9 @@ trait DataTable {
   }
   public function showDetail() {
     Inertia::share([
+      'connections' => Inertia::defer(function () {
+        return ModelConnection::search(static::class, $this->getKey())->get();
+      }),
       'logs' => Inertia::defer(function () {
         return Log::with('user')
           ->where('loggable_type', static::class)

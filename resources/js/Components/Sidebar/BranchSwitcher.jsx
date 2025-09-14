@@ -62,7 +62,7 @@ export default React.memo(function BranchSwitcher() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground "
             >
-              <div className="flex items-center justify-center rounded-lg aspect-square size-8 bg-sidebar-foreground dark:!text-muted text-sidebar-primary-foreground">
+              <div className="flex items-center justify-center rounded-lg aspect-square size-8 bg-sidebar-foreground dark:text-muted! text-sidebar-primary-foreground">
                 <Building2Icon className="size-5" />
               </div>
               <div className="grid flex-1 text-sm leading-tight text-left">
@@ -74,7 +74,7 @@ export default React.memo(function BranchSwitcher() {
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             align="start"
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}

@@ -1,7 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
+@reference "./app.css";
 .ql-container {
   box-sizing: border-box;
   font-family: Helvetica, Arial, sans-serif;
@@ -506,7 +503,7 @@
   border: none;
   cursor: pointer;
   display: inline-block;
-  float: left;
+  float: none;
   height: 24px;
   padding: 3px 5px;
   width: 28px;
@@ -742,7 +739,7 @@
 .ql-snow .ql-picker {
   color: #444;
   display: inline-block;
-  float: left;
+  float: none;
   font-size: 14px;
   font-weight: 500;
   height: 24px;

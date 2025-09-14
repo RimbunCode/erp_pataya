@@ -61,6 +61,7 @@ import {
 
 import { Button } from "./ui/button";
 import { CSS } from "@dnd-kit/utilities";
+import CurrencyInput from "./CurrencyInput";
 import { FormCheckbox } from "./ui/checkbox";
 import { FormChildren } from "@/Pages/Core/FormPage";
 import FormInput from "./FormInput";
@@ -73,7 +74,7 @@ import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const FORMTABLE_COLUMNS_KEY = "formtable-columns";
-const FORMTABLE_COLUMNS_EXPIRED = 7;
+// const FORMTABLE_COLUMNS_EXPIRED = 7;
 
 const Wrapper = memo(({ children, isDialog }) => {
   if (isDialog) return <>{children}</>;
@@ -151,7 +152,7 @@ const Cell = memo(
               className={cn(
                 attributes.className,
                 !isDialog &&
-                  "m-0 !bg-transparent !border-0 h-full focus-visible:!ring-0 focus-visible:!ring-offset-0",
+                  "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
               )}
               // onBlur={(e) => {
               //   if (!e.target.value) return;
@@ -175,7 +176,7 @@ const Cell = memo(
                 className={cn(
                   attributes.className,
                   !isDialog &&
-                    "m-0 !bg-transparent !border-0 h-full focus-visible:!ring-0 focus-visible:!ring-offset-0",
+                    "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
                 )}
                 // onBlur={(e) => {
                 //   if (!e.target.value) return;
@@ -223,7 +224,7 @@ const FormTableItem = memo(function FormTableItem({
         className,
       )}
     >
-      <div className="px-2 !justify-center text-left ">
+      <div className="px-2 justify-center! text-left ">
         <span
           className={cn(
             !(
@@ -244,7 +245,7 @@ const FormTableItem = memo(function FormTableItem({
               isLast) ||
               readOnly ||
               disabled) &&
-              "!hidden",
+              "hidden!",
           )}
           type="button"
           {...listeners}
@@ -256,7 +257,7 @@ const FormTableItem = memo(function FormTableItem({
       {columns &&
         columns.map((col) => {
           return (
-            <div key={col.name} className="has-[.custom-cell]:!block">
+            <div key={col.name} className="has-[.custom-cell]:block!">
               <Cell
                 onOpenDialog={() => {
                   setCurrentIndex(index);
@@ -282,7 +283,7 @@ const FormTableItem = memo(function FormTableItem({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-6 !pointer-events-auto"
+          className="size-6 pointer-events-auto!"
           onClick={() => {
             setCurrentIndex(index);
             if (submitable) setCurrentData(item);
@@ -435,13 +436,12 @@ export default memo(function FormTable({
     saveToLocalStorage(
       FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
       columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
-      FORMTABLE_COLUMNS_EXPIRED,
     );
   }, [columns]);
-
-  if (!value || !Array.isArray(value)) {
+  if (value && !Array.isArray(value)) {
     throw new Error("value must be an array");
   }
+  value = value ?? [];
   if (!Array.isArray(columns)) {
     throw new Error("columns must be an array");
   }
@@ -450,8 +450,8 @@ export default memo(function FormTable({
     () => columns.filter((x) => x.required || (x.show ?? true)),
     [columns],
   );
-  const [_data, _setData] = useState(() =>
-    readOnly || (disabled && value.length > 0)
+  const [_data, _setData] = useState(() => {
+    return readOnly || (disabled && value.length > 0)
       ? value
       : [
           ...value.map((x) => ({
@@ -460,8 +460,8 @@ export default memo(function FormTable({
             id: x.id ?? generateRandom(5),
           })),
           { id: generateRandom(5), ...(defaultValueRow ?? {}) }, // Row kosong selalu ada di akhir
-        ],
-  );
+        ];
+  });
 
   const getColumn = (name, attributes) => {
     const col = columns.find((x) => x.name === name);
@@ -506,7 +506,10 @@ export default memo(function FormTable({
 
   // Sinkronisasi data lokal hanya jika `value` berubah dari parent
   useEffect(() => {
-    if (!isEqual(value, prevValueRef.current)) {
+    if (
+      value != prevValueRef.current &&
+      !isEqual(value, prevValueRef.current)
+    ) {
       prevValueRef.current = value;
       if (readOnly || (disabled && value.length > 0)) {
         _setData([...value]);
@@ -526,7 +529,10 @@ export default memo(function FormTable({
   // Kirim perubahan ke parent hanya jika ada perubahan nyata
   useEffect(() => {
     if (onValueChange) {
-      const filteredData = readOnly || disabled ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
+      let filteredData = readOnly || disabled ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
+      // if (filteredData.length <= 0) {
+      //   filteredData = undefined;
+      // }
       if (!isEqual(filteredData, prevValueRef.current)) {
         prevValueRef.current = filteredData;
         onValueChange(filteredData);
@@ -774,19 +780,19 @@ export default memo(function FormTable({
           ))}
 
         <div
-          className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm [&>div>*:last-child]:border-r [&>div>*]:border-l [&>div>*]:border-muted-foreground/25 max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center  [&>*]:border-b [&>*]:border-muted-foreground/25"
+          className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm [&>div>*:last-child]:border-r [&>div>*]:border-l [&>div>*]:border-muted-foreground/25 max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center  *:border-b *:border-muted-foreground/25"
           style={{
             gridTemplateColumns: `auto ${filteredColumns
               .map((x) => `${x.width ?? 1}fr`)
               .join(" ")} auto`,
           }}
         >
-          <div className="grid border-t [&>*]:py-2 [&>*]:px-4 grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:!py-1">
-            <div className="!justify-center text-left">#</div>
+          <div className="grid border-t *:py-2 *:px-4 grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:py-1!">
+            <div className="justify-center! text-left">#</div>
             {filteredColumns &&
               filteredColumns.map((item) => {
                 return (
-                  <div key={item.name} className="!justify-start text-left">
+                  <div key={item.name} className="justify-start! text-left">
                     {item.titleTrans ? t(item.titleTrans) : item.title}
                     {item.required && (
                       <span className="ml-1 text-red-500">*</span>
@@ -799,7 +805,7 @@ export default memo(function FormTable({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-5 !pointer-events-auto"
+                className="size-5 pointer-events-auto!"
                 onClick={() => setOpenConfigureColumns(true)}
               >
                 <SettingsIcon className="size-3" />
@@ -852,7 +858,7 @@ export default memo(function FormTable({
       >
         <MyDialogContent
           hideX
-          className="max-w-full sm:max-w-screen-sm md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-screen-lg"
+          className="max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)"
           asChild
         >
           <form
@@ -1186,13 +1192,13 @@ const ConfigureColumns = memo(function ConfigureColumns({
             sensors={sensors}
             collisionDetection={closestCenter}
           >
-            <div className="overflow-x-hidden grid border rounded-lg border-muted-foreground/25 grid-cols-[auto_2fr_minmax(auto,1fr)_auto]  text-sm max-w-full w-full [&>div]:h-fit [&>*:not(:last-child)]:border-b [&>*]:border-muted-foreground/25">
-              <div className="grid grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:!py-1 [&>*]:px-2">
+            <div className="overflow-x-hidden grid border rounded-lg border-muted-foreground/25 grid-cols-[auto_2fr_minmax(auto,1fr)_auto]  text-sm max-w-full w-full [&>div]:h-fit [&>*:not(:last-child)]:border-b *:border-muted-foreground/25">
+              <div className="grid grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:py-1! *:px-2">
                 <div></div>
                 <div>{t("core.formtable.column")}</div>
                 <div>{t("core.formtable.width")}</div>
               </div>
-              <div className="overflow-y-auto overflow-x-hidden grid grid-cols-subgrid col-span-full [&>div>*]:py-1 [&>div>*]:px-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b [&>*]:border-muted-foreground/25">
+              <div className="overflow-y-auto overflow-x-hidden grid grid-cols-subgrid col-span-full [&>div>*]:py-1 [&>div>*]:px-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b *:border-muted-foreground/25">
                 <SortableContext
                   items={showedColumns.map((x) => x.name)}
                   strategy={verticalListSortingStrategy}
@@ -1309,7 +1315,7 @@ const SelectColumn = memo(function SelectColumn({
                       )}
                     </>
                   }
-                  classNameCheckbox="!pointer-events-auto"
+                  classNameCheckbox="pointer-events-auto!"
                   disabled={col.required}
                   checked={col.required || col.show}
                   onCheckedChange={(val) => {
@@ -1387,14 +1393,14 @@ const ColumnItem = memo(function ColumnItem({
         {column.required && <span className="ml-1 text-red-500">*</span>}
       </div>
       <div>
-        <Input
-          type="number"
+        <CurrencyInput
+          className="text-left"
           min="1"
           max="10"
           step="1"
           value={column.width ?? 1}
-          onChange={(e) => {
-            onChangeWidth(column.name, e.target.value);
+          onValueChange={(val) => {
+            onChangeWidth(column.name, val);
           }}
         />
       </div>

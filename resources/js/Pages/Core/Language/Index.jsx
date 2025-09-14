@@ -19,7 +19,7 @@ function Index({ lang, locales }) {
   const route = window.route;
   const { t, loading } = useLaravelReactI18n();
   return (
-    <GuestLayout className="!w-fit min-w-80">
+    <GuestLayout className="w-fit! min-w-80">
       <Head title="Select Language" />
       <CardHeader>
         <div className="flex items-center justify-between gap-x-4">
@@ -38,13 +38,13 @@ function Index({ lang, locales }) {
           <ToggleTheme className="size-4" />
         </div>
       </CardHeader>
-      <CardContent className="!pt-0">
+      <CardContent className="pt-0!">
         <Tabs
           defaultValue={lang}
           orientation="vertical"
           className="flex flex-col "
         >
-          <TabsList className="flex flex-col h-auto !bg-background gap-y-2 !p-0 ">
+          <TabsList className="flex flex-col h-auto bg-background! gap-y-2 p-0! ">
             {locales &&
               locales.map(({ code, name, countryCode }) => (
                 <TabsTrigger
