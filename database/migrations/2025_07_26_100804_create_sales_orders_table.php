@@ -8,7 +8,8 @@ return new class extends Migration {
   /**
    * Run the migrations.
    */
-  public function up(): void {
+  public function up(): void
+  {
     Schema::create('sales_orders', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->string('code')->unique();
@@ -37,7 +38,8 @@ return new class extends Migration {
   /**
    * Reverse the migrations.
    */
-  public function down(): void {
+  public function down(): void
+  {
     Schema::dropIfExists('sales_orders');
   }
 };

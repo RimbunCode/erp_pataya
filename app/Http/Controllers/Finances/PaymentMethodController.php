@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Finances;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Finances\TaxRequest;
-use App\Models\Finances\Tax;
+use App\Http\Requests\Finances\PaymentMethodRequest;
+use App\Models\Finances\PaymentMethod;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class TaxesController extends Controller
+class PaymentMethodController extends Controller
 {
   public function __construct(Request $request)
   {
-    parent::__construct($request, Tax::class);
+    parent::__construct($request, PaymentMethod::class);
   }
 
   /**
@@ -22,9 +22,9 @@ class TaxesController extends Controller
   public function index(Request $request)
   {
     $this->setBreadcrumbs();
-    Tax::dataTable($request);
+    PaymentMethod::dataTable($request);
     return Inertia::render(
-      'Finances/Taxes/Index',
+      'Finances/PaymentMethods/Index',
       []
     );
   }
@@ -39,49 +39,49 @@ class TaxesController extends Controller
   /**
    * Store a newly created resource in storage.
    */
-  public function store(TaxRequest $request)
+  public function store(PaymentMethodRequest $request)
   {
     $data = $request->validated();
     DB::beginTransaction();
-    $tax = Tax::create($data);
-    $tax->logForCreated();
+    $paymentMethod = PaymentMethod::create($data);
+    $paymentMethod->logForCreated();
     DB::commit();
-    return redirect()->back()->with('id', $tax->id);
+    return redirect()->back()->with('id', $paymentMethod->id);
   }
 
   /**
    * Display the specified resource.
    */
-  public function show(Tax $tax)
+  public function show(PaymentMethod $paymentMethod)
   {
-    $this->setBreadcrumbs($tax);
-    $tax->showDetail();
+    $this->setBreadcrumbs($paymentMethod);
+    $paymentMethod->showDetail();
     return $this->renderShow(
-      'Finances/Taxes/Form',
-      "tax",
-      $tax->name,
-      $tax
+      'Finances/PaymentMethods/Form',
+      "paymentMethod",
+      $paymentMethod->name,
+      $paymentMethod
     );
   }
 
 
-  public function update(TaxRequest $request, Tax $tax)
+  public function update(PaymentMethodRequest $request, PaymentMethod $paymentMethod)
   {
     $data = $request->validated();
     DB::beginTransaction();
-    $tax->fillForUpdate($data);
-    $tax->logForUpdated();
+    $paymentMethod->fillForUpdate($data);
+    $paymentMethod->logForUpdated();
     DB::commit();
     return redirect()->back();
   }
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(Tax $tax)
+  public function destroy(PaymentMethod $paymentMethod)
   {
     DB::beginTransaction();
-    $tax->delete();
-    $tax->logForDeleted();
+    $paymentMethod->delete();
+    $paymentMethod->logForDeleted();
     DB::commit();
     return redirect()->back();
   }

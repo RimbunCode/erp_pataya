@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import {
+  HandCoins,
   LayoutDashboard,
   PackageIcon,
   Receipt,
@@ -136,7 +137,7 @@ const navList = [
   },
   {
     title: "Finances",
-    icon: <Users2 />,
+    icon: <HandCoins />,
     items: [
       {
         title: "Taxes",
@@ -147,6 +148,16 @@ const navList = [
         title: "Payment Methods",
         url: "/paymentMethods",
         urlPattern: "/paymentMethods/*",
+      },
+      {
+        title: "Payment Terms",
+        url: "/paymentTerms",
+        urlPattern: "/paymentTerms/*",
+      },
+      {
+        title: "Payment Schedules",
+        url: "/paymentSchedules",
+        urlPattern: "/paymentSchedules/*",
       },
     ],
   },

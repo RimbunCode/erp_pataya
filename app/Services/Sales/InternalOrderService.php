@@ -35,12 +35,13 @@ class InternalOrderService
       $item = $this->fillItemRelations($item);
       $internalOrder->items()->create($item);
     }
+    $internalOrder->logForCreated();
     return $internalOrder;
   }
 
   public function update(InternalOrder $internalOrder, array $data)
   {
-    $internalOrder->update($this->fillRelations($data));
+    $internalOrder->fillForUpdate($this->fillRelations($data));
 
     $internalOrder->items()
       ->whereNotIn('id', array_column($data['items'], 'id'))
@@ -62,7 +63,7 @@ class InternalOrderService
 
       $internalOrder->items()->create($item);
     }
-
+    $internalOrder->logForUpdated();
     return $internalOrder;
   }
 

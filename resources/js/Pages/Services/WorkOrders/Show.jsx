@@ -58,11 +58,22 @@ export default function Show({ workOrder }) {
                       {t("service.workOrder.actions.create_pr")}
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    {t(
-                      "service.workOrder.actions." +
-                        (workOrder?.for_internal ? "create_io" : "create_so"),
-                    )}
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={route(
+                        workOrder?.for_internal
+                          ? "internalOrders.create"
+                          : "salesOrders.create",
+                        {
+                          ref: `workOrder/${workOrder.id}`,
+                        },
+                      )}
+                    >
+                      {t(
+                        "service.workOrder.actions." +
+                          (workOrder?.for_internal ? "create_io" : "create_so"),
+                      )}
+                    </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

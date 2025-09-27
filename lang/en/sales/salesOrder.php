@@ -34,5 +34,28 @@ return [
     'reference_so' => 'Reference SO',
     'reference_so.placeholder' => 'Select a Reference',
     'external_note' => 'External Note',
+    'terms' => 'Payment Terms',
+    'payment_term' => 'Payment Terms',
+    'payment_term.placeholder' => 'Select a Payment Terms',
+    'due_date' => 'Due Date',
+    'invoice_portion' => 'Invoice Portion',
+    'payment_amount' => 'Payment Amount',
+    'payment_method' => 'Payment Method',
+    'payment_method.placeholder' => 'Select a payment method',
+    'discount' => 'Discount',
+    'discount_type' => 'Discount Type',
+    'discount_type.placeholder' => 'Select a discount type',
+    'discount_type.options' => [
+      'percentage' => 'Percentage',
+      'amount' => 'Amount',
+    ],
+    'due_date_based_on.options' => [
+      'days_after_invoice_date' => 'Days after invoice date',
+      'weeks_after_invoice_week' => 'Weeks after invoice week',
+      'months_after_invoice_month' => 'Months after invoice month',
+    ],
+    'outsanding_amount' => 'Outstanding Amount',
+
   ]
+
 ];

@@ -2,13 +2,14 @@
 
 namespace App\Models\Sales;
 
-use App\Models\Core\Branch;
-use App\Models\Core\Currency;
 use App\Models\Model;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
-use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use App\Models\Core\Branch;
+use App\Models\Core\Currency;
+use App\Models\Finances\PaymentSchedule;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
 
 class SalesOrder extends Model
 {
@@ -31,6 +32,23 @@ class SalesOrder extends Model
   public static function templateLink()
   {
     return ":name (:code)";
+  }
+
+  protected static function loadRelationsOnShow()
+  {
+    return [
+      'items',
+      'customer',
+      'customer_branch',
+      'currency',
+      'items.item',
+      'items.tax',
+      'items.unit',
+      'items.sourceWarehouse',
+      'paymentSchedules',
+      'paymentSchedules.paymentTerm',
+      'paymentSchedules.paymentMethod',
+    ];
   }
 
   public function items()
@@ -56,5 +74,9 @@ class SalesOrder extends Model
   public function currency()
   {
     return $this->belongsTo(Currency::class, 'currency_code');
+  }
+  public function paymentSchedules()
+  {
+    return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')->orderBy('payment_date', 'asc');
   }
 }

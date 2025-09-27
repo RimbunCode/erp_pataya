@@ -3,13 +3,15 @@ import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 
 export default function Show({ salesOrder }) {
   const { t } = useLaravelReactI18n();
-
+  const loadFrom = usePage().props.loadFrom;
   const statusBadge = useMemo(() => {
-    // if (data?.status == "draft") return;
-    const status = t(`core.form.status.${salesOrder?.status}`);
+    if (!salesOrder) return;
+
+    const status = t(`core.form.statuses.${salesOrder?.status}`);
     const theme = getThemeByStatus(salesOrder?.status);
 
     return (
@@ -19,8 +21,10 @@ export default function Show({ salesOrder }) {
 
   return (
     <FormPage
+      isCreate={!salesOrder}
+      ignoreDraft={loadFrom}
       name="salesOrder"
-      title={salesOrder.code}
+      title={salesOrder ? salesOrder.code : t("sales.salesOrder.new")}
       disabled={(salesOrder?.status ?? "draft") != "draft"}
       submitable
       badge={statusBadge}

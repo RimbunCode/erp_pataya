@@ -2,6 +2,7 @@
 
 namespace App\Models\Sales;
 
+use App\Models\Finances\PaymentTerm;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;

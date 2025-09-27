@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\SalesOrderRequest;
 use App\Models\Core\Branch;
 use App\Models\Sales\SalesOrder;
+use App\Models\Service\WorkOrder;
 use App\Services\Core\FormatingSeriesService;
 use App\Services\Sales\SalesOrderService;
 use Illuminate\Http\Request;
@@ -37,9 +38,35 @@ class SalesOrderController extends Controller
   /**
    * Show the form for creating a new resource.
    */
-  public function create()
+  public function create(Request $request, string $ref = null)
   {
-    //
+    if ($ref) {
+      $select = $request->has('select') ? $request->select : null;
+      $split = \explode("/", $ref);
+      $modelOri = $split[0] ?? null;
+      if ($modelOri) {
+        $model = match ($modelOri) {
+          'workOrder' => WorkOrder::class,
+          default => null,
+        };
+        if ($select == null) {
+          $select = match ($modelOri) {
+            'workOrder' => "items",
+            default => null,
+          };
+        }
+      }
+      $id = $split[1] ?? null;
+    }
+
+    $this->setBreadcrumbs('sales.salesOrder.new');
+    return Inertia::render('Sales/SalesOrders/Show', [
+      'loadFrom' => isset($model) && $id ? [
+        'model' => $model,
+        'id' => $id,
+        'select' => $select,
+      ] : null,
+    ]);
   }
 
   /**
@@ -60,6 +87,7 @@ class SalesOrderController extends Controller
 
     // create SO
     $so = $this->service->create($data);
+    $so->logForCreated();
 
     DB::commit();
     return redirect()->route('salesOrders.show', $so);
@@ -75,7 +103,7 @@ class SalesOrderController extends Controller
 
     return Inertia::render('Sales/SalesOrders/Show', [
       'salesOrder' => function () use ($salesOrder) {
-        $salesOrder->load(['items', 'customer', 'customer_branch', 'currency', 'items.item', 'items.tax', 'items.unit', 'items.sourceWarehouse']);
+        $salesOrder->loadRelations();
         return $salesOrder;
       },
     ]);
@@ -128,6 +156,10 @@ class SalesOrderController extends Controller
    */
   public function destroy(SalesOrder $salesOrder)
   {
-    //
+    DB::beginTransaction();
+    $salesOrder->delete();
+    $salesOrder->logForDeleted();
+    DB::commit();
+    return redirect()->back();
   }
 }
