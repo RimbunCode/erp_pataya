@@ -64,8 +64,12 @@ return [
     'in_progress' => 'In Progress',
     'completed' => 'Completed',
     'deleted' => 'Deleted',
+    'reserved' => 'Reserved',
     'active' => 'Active',
     'inactive' => 'Inactive',
+    'partially_paid' => 'Partially Paid',
+    'to_bill' => 'To Bill'
+
   ],
   'status' => "Status",
   "connections" => "Connections",

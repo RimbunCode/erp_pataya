@@ -6,12 +6,14 @@ use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\ItemVariantAttribute;
 
-class ItemServices {
+class ItemServices
+{
   /**
    * Summary of getSku
    * @param \App\Models\Inventory\ItemVariant|\App\Models\Inventory\Item $item
    */
-  public static function getSku(mixed $item, array|null $attributes = null) {
+  public static function getSku(mixed $item, array|null $attributes = null)
+  {
 
     if ($item->format_variant === null || $item->format_variant === '') {
       return $item->item_code;
@@ -26,15 +28,14 @@ class ItemServices {
     }, $item->format_variant ?? $item->item->format_variant);
     return $result;
   }
-  public function updateUom(Item $item, array $uoms) {
+  public function updateUom(Item $item, array $uoms)
+  {
     foreach ($uoms as $uom) {
-      if ($uom['isCustom'] ?? false) {
-        $item->uom()->updateOrCreate([
-          'unit_id' => $uom['id'],
-        ], [
-          'conversion_factor' => $uom['conversion_factor'],
-        ]);
-      }
+      $item->uom()->updateOrCreate([
+        'unit_id' => $uom['id'],
+      ], [
+        'conversion_factor' => $uom['conversion_factor'],
+      ]);
     }
     foreach ($item->uom as $uom) {
       if (!in_array($uom->unit_id, array_column($uoms, 'id'))) {
@@ -43,7 +44,8 @@ class ItemServices {
     }
   }
 
-  public function updateVariants(Item $item, string $formatVariants, array $attributes) {
+  public function updateVariants(Item $item, string $formatVariants, array $attributes)
+  {
     if (isset($attributes) && \count($attributes) > 0) {
       if (isset($formatVariants)) {
         $attribute_map = array_column(array_column($attributes, 'attribute'), 'id', 'name');
@@ -102,7 +104,8 @@ class ItemServices {
     }
   }
 
-  private function generateVariants($variants, Item $item, array $attributes, array $prefix = []) {
+  private function generateVariants($variants, Item $item, array $attributes, array $prefix = [])
+  {
     if (!$attributes) {
       $variant = $variants->where(function ($variant) use ($prefix) {
         if (\count($variant->values ?? []) != \count($prefix)) return false;
@@ -169,7 +172,8 @@ class ItemServices {
     }
   }
 
-  public function updateBarcodes(ItemVariant|null $variant, array $barcodes) {
+  public function updateBarcodes(ItemVariant|null $variant, array $barcodes)
+  {
     if (!$variant) return;
     $variant->barcodes()->delete();
     foreach ($barcodes as $barcode) {

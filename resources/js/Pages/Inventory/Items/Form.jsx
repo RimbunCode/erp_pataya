@@ -100,8 +100,11 @@ export default memo(function Form() {
                 group: data?.default_unit?.group,
               }}
               onValueChange={(value) => {
-                // if (!value) return;
-                setData(value);
+                if (!value) return;
+                setData({
+                  ...value,
+                  isCustom: !value?.conversion_factor,
+                });
               }}
             />
           );

@@ -8,16 +8,17 @@ return new class extends Migration {
   /**
    * Run the migrations.
    */
-  public function up(): void {
+  public function up(): void
+  {
     Schema::create('work_order_items', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->nullableUlidMorphs('referenceable');
       $table->foreignUlid('work_order_id')->references('id')->on('work_orders')->cascadeOnDelete();
       $table->foreignUlid('item_variant_id')->nullable()->references('id')->on('item_variants')->nullOnDelete();
       $table->string('item_name')->nullable();
-      $table->unsignedInteger('quantity')->default(1);
-      $table->unsignedInteger('ordered_quantity')->default(0);
-      $table->unsignedInteger('remaining_quantity')->storedAs('quantity - ordered_quantity');
+      $table->double('quantity')->default(1);
+      $table->double('ordered_quantity')->default(0);
+      $table->double('remaining_quantity')->storedAs('quantity - ordered_quantity');
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
       $table->string("unit_name")->nullable();
       $table->double('conversion_factor')->nullable()->default(1);
@@ -30,7 +31,8 @@ return new class extends Migration {
   /**
    * Reverse the migrations.
    */
-  public function down(): void {
+  public function down(): void
+  {
     Schema::dropIfExists('work_order_items');
   }
 };

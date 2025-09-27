@@ -1,6 +1,9 @@
-import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useEffect, useMemo } from "react";
-
+import {
+  FormPageContent,
+  FormPageContentTitle,
+  useFormPage,
+} from "@/Pages/Core/FormPage";
+import React, { useCallback, useEffect, useMemo } from "react";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -16,10 +19,84 @@ import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
+import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/Components/ui/select";
+import { generateRandom } from "@/lib/utils";
+import { usePage } from "@inertiajs/react";
+import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
   const { data, setData, disabled } = useFormPage();
+  const loadFrom = usePage().props.loadFrom;
+
+  const mergeItems = useCallback(
+    (value, model) => {
+      setData((prev) => {
+        const oldItems = prev.items ?? [];
+
+        // Buat Map untuk lookup cepat
+        const itemMap = new Map(
+          oldItems.map((item) => [
+            `${item.referenceable_type}_${item.referenceable_id}`,
+            item,
+          ]),
+        );
+
+        value.forEach((item) => {
+          const key = `${model}_${item.id}`;
+          const newItem = {
+            // ...item,
+            id: generateRandom(5),
+            item: item.item,
+            description: item.description,
+            quantity: item.remaining_quantity,
+            unit: item.unit,
+            referenceable_type: model,
+            referenceable_id: item.id,
+          };
+          if (newItem.quantity <= 0) {
+            itemMap.delete(key);
+          }
+          if (itemMap.has(key)) {
+            // update quantity sesuai newItem
+            itemMap.set(key, {
+              ...itemMap.get(key),
+              ...newItem,
+            });
+          } else {
+            // tambah item baru
+            itemMap.set(key, newItem);
+          }
+        });
+
+        return {
+          ...prev,
+          items: Array.from(itemMap.values()),
+        };
+      });
+    },
+    [setData],
+  );
+  useEffect(() => {
+    if (!loadFrom) return;
+    const fetchData = async () => {
+      const data = await loadFromModel(
+        loadFrom?.model,
+        loadFrom?.id,
+        loadFrom?.select,
+      );
+      mergeItems(data.value, data.model);
+    };
+    fetchData().catch(console.error);
+  }, []);
   const itemColumns = useMemo(() => {
     return [
       {
@@ -156,13 +233,13 @@ export default function Form() {
         titleTrans: "sales.salesOrder.columns.price",
         required: true,
         width: 1,
-        cell({ data, setData, attributes, dataRow }) {
+        cell({ data: price, setData, attributes, dataRow }) {
           return (
             <CurrencyInput
-              currencyCode="default"
               decimalScale={2}
+              currencyCode={data?.currency?.code}
               disabled={!dataRow?.item}
-              value={data}
+              value={price}
               onValueChange={(val) => {
                 setData("price", val);
               }}
@@ -172,7 +249,227 @@ export default function Form() {
         },
       },
     ];
-  }, []);
+  }, [data]);
+
+  const paymentScheduleColumns = useMemo(() => {
+    return [
+      {
+        name: "payment_term",
+        titleTrans: "sales.salesOrder.columns.payment_term",
+        required: true,
+        cell({ data: paymentTerm, setData, attributes }) {
+          return (
+            <PaymentTermLinkModel
+              placeholder={t(
+                "sales.salesOrder.columns.payment_term.placeholder",
+              )}
+              value={paymentTerm}
+              onValueChange={(val) => {
+                const due_date = new Date(data?.date);
+                console.log(due_date, data?.date);
+                const payment_amount =
+                  data?.amount * (val?.invoice_portion / 100);
+                switch (val?.due_date_based_on) {
+                  case "days_after_invoice_date": {
+                    due_date.setDate(
+                      due_date.getDate() + (val?.credit_period ?? 0),
+                    );
+                    break;
+                  }
+                  case "weeks_after_invoice_week": {
+                    due_date.setDate(
+                      due_date.getDate() + (val?.credit_period ?? 0) * 7,
+                    );
+                    break;
+                  }
+                  case "months_after_invoice_month": {
+                    due_date.setMonth(
+                      due_date.getMonth() + (val?.credit_period ?? 0),
+                    );
+                    break;
+                  }
+                }
+                console.log(due_date);
+                setData({
+                  payment_term: val,
+                  due_date,
+                  description: val?.description,
+                  invoice_portion: val?.invoice_portion,
+                  discount_type: val?.discount_type,
+                  discount: val?.discount,
+                  payment_method: val?.payment_method,
+                  payment_amount,
+                  outstanding_amount: payment_amount,
+                });
+              }}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "due_date",
+        titleTrans: "sales.salesOrder.columns.due_date",
+        required: true,
+        cell({ data, setData, attributes }) {
+          return (
+            <DatetimePicker
+              type="datetime"
+              value={data}
+              onValueChange={(val) => setData("due_date", val)}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "description",
+        titleTrans: "sales.salesOrder.columns.description",
+        show: false,
+        type: "text",
+        width: 2,
+        cell({ dataRow, data, setData, attributes }) {
+          return (
+            <Textarea
+              disabled={!dataRow?.item}
+              rows={1}
+              value={data ?? ""}
+              onChange={(e) => setData("description", e.target.value)}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "invoice_portion",
+        titleTrans: "sales.salesOrder.columns.invoice_portion",
+        required: true,
+        width: 1,
+        cell({ data, setData, attributes }) {
+          return (
+            <CurrencyInput
+              decimalScale={2}
+              suffix="%"
+              value={data}
+              onValueChange={(val) => {
+                setData("invoice_portion", val);
+              }}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "payment_amount",
+        titleTrans: "sales.salesOrder.columns.payment_amount",
+        required: true,
+        width: 1,
+        cell({ data: payment_amount, setData, attributes }) {
+          return (
+            <CurrencyInput
+              decimalScale={2}
+              currencyCode={data?.currency?.code}
+              value={payment_amount}
+              onValueChange={(val) => {
+                setData("payment_amount", val);
+              }}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "payment_method",
+        titleTrans: "sales.salesOrder.columns.payment_method",
+        width: 1,
+        cell({ data, setData, attributes }) {
+          return (
+            <PaymentMethodLinkModel
+              value={data}
+              onValueChange={(val) => setData("payment_method", val)}
+              placeholder={t(
+                "finances.paymentTerm.columns.payment_method.placeholder",
+              )}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "discount_type",
+        titleTrans: "sales.salesOrder.columns.discount_type",
+        width: 1,
+        cell({ data, setData, attributes }) {
+          return (
+            <Select
+              value={data}
+              onValueChange={(val) => setData("discount_type", val)}
+              {...attributes}
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={t(
+                    "sales.salesOrder.columns.discount_type.placeholder",
+                  )}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="percentage">
+                  {t(
+                    "sales.salesOrder.columns.discount_type.options.percentage",
+                  )}
+                </SelectItem>
+                <SelectItem value="amount">
+                  {t("sales.salesOrder.columns.discount_type.options.amount")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          );
+        },
+      },
+      {
+        name: "discount",
+        titleTrans: "sales.salesOrder.columns.discount",
+        width: 1,
+        cell({ data: discount, dataRow, setData, attributes }) {
+          return (
+            <CurrencyInput
+              className="text-left"
+              value={discount}
+              currencyCode={
+                dataRow.discount_type == "percentage"
+                  ? undefined
+                  : data?.currency?.code
+              }
+              onValueChange={(value) => setData("discount", value)}
+              decimalsLimit={2}
+              suffix={dataRow.discount_type == "percentage" ? "%" : ""}
+              min={dataRow.discount_type == "percentage" && 0}
+              max={dataRow.discount_type == "percentage" && 100}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "outstanding_amount",
+        titleTrans: "sales.salesOrder.columns.outstanding_amount",
+        readOnly: true,
+        width: 1,
+        cell({ data, setData, attributes }) {
+          return (
+            <CurrencyInput
+              decimalScale={2}
+              currencyCode={data?.currency?.code}
+              value={data}
+              onValueChange={(val) => setData("outstanding_amount", val)}
+              {...attributes}
+            />
+          );
+        },
+      },
+    ];
+  }, [data]);
   useEffect(() => {
     if (!data.date) {
       setData("date", new Date());
@@ -183,13 +480,13 @@ export default function Form() {
       <FormPageContent value="detail" title={t("sales.salesOrder.detail")}>
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
           <FormInput
+            name="date"
             label={t("sales.salesOrder.columns.date")}
             required
-            name="date"
           >
             <DatetimePicker
               type="datetime"
-              value={data.date}
+              value={data?.date}
               onValueChange={(val) => setData("date", val)}
             />
           </FormInput>
@@ -295,7 +592,65 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      <FormPageContent value="detail" title={t("sales.salesOrder.items")}>
+      <FormPageContent
+        value="detail"
+        title={t("sales.salesOrder.items")}
+        actions={
+          (!data.status || data.status == "draft") && (
+            <SelectModel
+              from={{
+                "App\\Models\\Service\\WorkOrder": {
+                  columns: ["code", "date"],
+                  filters: {
+                    status: "submitted",
+                  },
+                  select: {
+                    items: {
+                      filters: {
+                        status: "submitted",
+                      },
+                      columns: ["work_order", "item", "quantity", "unit"],
+                    },
+                  },
+                },
+              }}
+              label={t("purchase.purchaseRequest.import_items")}
+              className="w-fit"
+              variant="secondary"
+              size="sm"
+              onSelected={mergeItems}
+            />
+          )
+        }
+      >
+        <FormPageContentTitle className="flex items-center justify-between gap-x-4">
+          {t("sales.salesOrder.items")}
+          {(!data.status || data.status == "draft") && (
+            <SelectModel
+              from={{
+                "App\\Models\\Service\\WorkOrder": {
+                  columns: ["code", "date"],
+                  filters: {
+                    status: "submitted",
+                  },
+                  select: {
+                    items: {
+                      filters: {
+                        status: "submitted",
+                      },
+                      columns: ["work_order", "item", "quantity", "unit"],
+                    },
+                  },
+                },
+              }}
+              label={t("purchase.purchaseRequest.import_items")}
+              className="w-fit"
+              variant="secondary"
+              size="sm"
+              onSelected={mergeItems}
+            />
+          )}
+        </FormPageContentTitle>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormInput
             label={t("sales.salesOrder.columns.source_warehouse")}
@@ -324,6 +679,7 @@ export default function Form() {
             />
           </FormInput>
           <FormTable
+            name="items"
             className="col-start-1 col-span-2"
             readOnly={disabled}
             columns={itemColumns}
@@ -345,6 +701,21 @@ export default function Form() {
               onChange={(e) => setData("external_note", e.target.value)}
             />
           </FormInput>
+        </div>
+      </FormPageContent>
+      <FormPageContent
+        value="terms"
+        title={t("sales.salesOrder.columns.terms")}
+      >
+        <div className="px-1 py-1">
+          <FormTable
+            name="paymentSchedules"
+            className="col-start-1 col-span-2"
+            readOnly={disabled}
+            columns={paymentScheduleColumns}
+            value={data?.payment_schedules ?? []}
+            onValueChange={(v) => setData("payment_schedules", v)}
+          />
         </div>
       </FormPageContent>
       {/* {(data.status ?? "draft") != "draft" && (

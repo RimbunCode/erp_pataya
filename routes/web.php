@@ -125,9 +125,15 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Internal Orders
   Route::resourceDetail('internalOrder', \App\Http\Controllers\Sales\InternalOrderController::class, isSubmmitable: true);
   /// Sales Groups End
-  // Finances
+  /// Finances
   // Taxes
   Route::resourceDetail('tax', \App\Http\Controllers\Finances\TaxesController::class);
+  // Payment Methods
+  Route::resourceDetail('paymentMethod', \App\Http\Controllers\Finances\PaymentMethodController::class);
+  // Payment Terms
+  Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
+  // Payment Schedules
+  Route::resourceDetail('paymentSchedule', \App\Http\Controllers\Finances\PaymentScheduleController::class);
 });
 
 

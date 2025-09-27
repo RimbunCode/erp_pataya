@@ -4,13 +4,16 @@ namespace App\Services\Service;
 
 use App\FormStatus;
 use App\Models\Core\FormatingSeries;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\ItemReserved;
 use App\Models\Service\WorkOrder;
 use Symfony\Component\Uid\Ulid;
 
-class WorkOrderService {
-  private function fillRelations(array $data) {
+class WorkOrderService
+{
+  private function fillRelations(array $data)
+  {
     if (!($data['for_internal'] ?? false)) {
       $data['customer_id'] = $data['customer']['id'];
       $data['customer_name'] = $data['customer']['name'];
@@ -26,15 +29,17 @@ class WorkOrderService {
 
     return $data;
   }
-  private function fillItemRelations(array $data) {
+  private function fillItemRelations(array $data)
+  {
     $data['item_variant_id'] = $data['item']['id'];
     $data['item_name'] = $data['item']['sku'];
     $data['unit_id'] = $data['unit']['id'];
     $data['unit_name'] = $data['unit']['name'];
-    $data['conversion_factor'] = $data['unit']['conversion_factor'];
+    $data['conversion_factor'] = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
     return $data;
   }
-  public function create(array $data) {
+  public function create(array $data)
+  {
     $wo = WorkOrder::create($this->fillRelations($data));
 
     foreach ($data['items'] as $item) {
@@ -44,7 +49,8 @@ class WorkOrderService {
     $wo->logForCreated();
     return $wo;
   }
-  public function update(WorkOrder $workOrder, array $data) {
+  public function update(WorkOrder $workOrder, array $data)
+  {
     $workOrder->fillForUpdate($this->fillRelations($data));
 
     $workOrder->items()
@@ -69,7 +75,8 @@ class WorkOrderService {
     return $workOrder;
   }
 
-  public function submit(WorkOrder $workOrder) {
+  public function submit(WorkOrder $workOrder)
+  {
     $workOrder->update([
       'status' => FormStatus::SUBMITTED,
     ]);

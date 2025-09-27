@@ -54,6 +54,20 @@ class SalesOrderRequest extends FormRequest
       'currency.code' => ['nullable', 'exists:currencies,code'],
       'exchange_rate' => [Rule::requiredIf($this->currency), 'numeric'],
       'external_note' => ['nullable', 'string'],
+      'payment_schedules' => ['nullable', 'array'],
+      'payment_schedules.*.id' => ['required', 'string'],
+      'payment_schedules.*.payment_term.id' => ['nullable', 'exists:payment_terms,id'],
+      'payment_schedules.*.payment_term.*' => ['nullable'],
+      'payment_schedules.*.payment_method.id' => ['nullable', 'exists:payment_methods,id'],
+      'payment_schedules.*.payment_method.*' => ['nullable'],
+      'payment_schedules.*.due_date' => ['required', 'date'],
+      'payment_schedules.*.payment_amount' => ['required', 'numeric'],
+      'payment_schedules.*.discount' => ['nullable', 'numeric'],
+      'payment_schedules.*.discount_type' => ['nullable', 'in:percentage,amount'],
+      'payment_schedules.*.description' => ['nullable', 'string'],
+      'payment_schedules.*.invoice_portion' => ['required', 'numeric'],
+
+
     ];
   }
 }

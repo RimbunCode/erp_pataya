@@ -128,6 +128,10 @@ class InternalOrderController extends Controller
    */
   public function destroy(InternalOrder $internalOrder)
   {
-    //
+    DB::beginTransaction();
+    $internalOrder->delete();
+    $internalOrder->logForDeleted();
+    DB::commit();
+    return redirect()->back();
   }
 }
