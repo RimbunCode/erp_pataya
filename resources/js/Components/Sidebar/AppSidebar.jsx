@@ -159,6 +159,11 @@ const navList = [
         url: "/paymentSchedules",
         urlPattern: "/paymentSchedules/*",
       },
+      {
+        title: "Payment Entries",
+        url: "/paymentEntries",
+        urlPattern: "/paymentEntries/*",
+      },
     ],
   },
   {

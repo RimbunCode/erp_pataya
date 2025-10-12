@@ -21,6 +21,7 @@ class PaymentScheduleController extends Controller
   public function index(Request $request)
   {
     $this->setBreadcrumbs();
+    // tampilkan hanya paymentShedule yang sudah di submit
     PaymentSchedule::dataTable($request);
     return Inertia::render(
       'Finances/PaymentSchedules/Index',
@@ -29,50 +30,18 @@ class PaymentScheduleController extends Controller
   }
 
   /**
-   * Show the form for creating a new resource.
-   */
-  public function create()
-  {
-    //
-  }
-
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(Request $request)
-  {
-    //
-  }
-
-  /**
    * Display the specified resource.
    */
-  public function show(string $id)
+  public function show(PaymentSchedule $paymentSchedule)
   {
-    //
-  }
+    $this->setBreadcrumbs($paymentSchedule);
+    $paymentSchedule->showDetail();
 
-  /**
-   * Show the form for editing the specified resource.
-   */
-  public function edit(string $id)
-  {
-    //
-  }
-
-  /**
-   * Update the specified resource in storage.
-   */
-  public function update(Request $request, string $id)
-  {
-    //
-  }
-
-  /**
-   * Remove the specified resource from storage.
-   */
-  public function destroy(string $id)
-  {
-    //
+    return Inertia::render('Finances/PaymentSchedules/Show', [
+      'paymentSchedule' => function () use ($paymentSchedule) {
+        $paymentSchedule->loadRelations();
+        return $paymentSchedule;
+      },
+    ]);
   }
 }

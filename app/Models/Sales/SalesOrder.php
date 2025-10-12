@@ -31,7 +31,7 @@ class SalesOrder extends Model
 
   public static function templateLink()
   {
-    return ":name (:code)";
+    return ":code";
   }
 
   protected static function loadRelationsOnShow()

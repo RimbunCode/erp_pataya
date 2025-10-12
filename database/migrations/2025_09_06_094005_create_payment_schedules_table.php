@@ -13,6 +13,7 @@ return new class extends Migration
   {
     Schema::create('payment_schedules', function (Blueprint $table) {
       $table->ulid('id')->primary();
+      $table->string('reference_to')->nullable();
       $table->ulidMorphs('payment_scheduleable', 'payment_scheduleable_index');
       $table->double('invoice_portion');
       $table->string('discount_type')->nullable();

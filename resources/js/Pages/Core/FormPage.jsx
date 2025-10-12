@@ -418,12 +418,13 @@ const FormPage = memo(
       submitable = false,
       hasConnections,
       ignoreDraft = false,
+      defaultValues,
     },
     ref,
   ) {
     const route = window.route;
     const { t } = useLaravelReactI18n();
-    const defaultData = usePage().props[name] ?? {};
+    const defaultData = usePage().props[name] ?? defaultValues ?? {};
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
     const {
       data,
