@@ -58,10 +58,10 @@ class ItemController extends Controller {
     $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
 
     DB::beginTransaction();
-    $item = Item::create($data);
-    Unit::find($item->default_unit_id)->updateHaveTransactions();
     $category = Category::find($data['category_id']);
     $data['is_stock_item'] = $category->type != 'service';
+    $item = Item::create($data);
+    Unit::find($item->default_unit_id)->updateHaveTransactions();
     $this->service->updateUom($item, $data['uoms']);
     $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['variants'] ?? []);
     $this->service->updateBarcodes($itemVariant, barcodes: $data['barcodes'] ?? []);
@@ -138,7 +138,6 @@ class ItemController extends Controller {
     $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['attributes'] ?? []);
     $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
     $item->logForUpdated();
-
 
     DB::commit();
     return back();
