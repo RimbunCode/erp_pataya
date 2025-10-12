@@ -64,8 +64,7 @@ trait DataTable {
       ]
     ]);
   }
-  public function fillForUpdate(array $attributes, bool $fillOnly = false)
-  {
+  public function fillForUpdate(array $attributes, bool $fillOnly = false) {
     $this->recordLogs();
     if ($fillOnly) {
       return $this->fill($attributes);
@@ -73,8 +72,7 @@ trait DataTable {
     $this->fill($attributes);
     return $this->save();
   }
-  public function logForCreated()
-  {
+  public function logForCreated() {
     if (get_class($this) == Log::class) {
       return;
     }
@@ -96,8 +94,7 @@ trait DataTable {
       'data_after' => $this->dataAfter,
     ]);
   }
-  public function logForUpdated()
-  {
+  public function logForUpdated() {
     if (get_class($this) == Log::class) {
       return;
     }
@@ -127,8 +124,7 @@ trait DataTable {
       'data_after' => $this->dataAfter,
     ]);
   }
-  public function logForDeleted()
-  {
+  public function logForDeleted() {
     if (get_class($this) == Log::class) {
       return;
     }
@@ -142,8 +138,7 @@ trait DataTable {
       ],
     ]);
   }
-  public function logForRestore()
-  {
+  public function logForRestore() {
     if (get_class($this) == Log::class) {
       return;
     }
@@ -158,8 +153,7 @@ trait DataTable {
     ]);
   }
 
-  public function logForSubmitted()
-  {
+  public function logForSubmitted() {
     if (get_class($this) == Log::class) {
       return;
     }
@@ -175,13 +169,11 @@ trait DataTable {
   }
 
   private array $dataBefore = [];
-  private function recordLogs(): void
-  {
+  private function recordLogs(): void {
     $this->loadRelations();
     $this->dataBefore = $this->toArray();
   }
-  protected function getDefaultLogableField(array $except = [])
-  {
+  protected function getDefaultLogableField(array $except = []) {
     $except = array_merge($except, ['id', 'created_at', 'updated_at']);
     if ($this->exists) {
       $keys =  array_keys($this->toArray());
@@ -203,13 +195,11 @@ trait DataTable {
     return array_values(array_diff($keys, $except));
   }
 
-  protected static function loadRelationsOnShow()
-  {
+  protected static function loadRelationsOnShow() {
     return [];
   }
 
-  protected function logableFields()
-  {
+  protected function logableFields() {
     return $this->getDefaultLogableField();
   }
   /**
@@ -218,8 +208,7 @@ trait DataTable {
    * @param  array|string $relations
    * @return $this
    */
-  public function loadRelations($relations = [])
-  {
+  public function loadRelations($relations = []) {
     $defaultRelations = static::loadRelationsOnShow() ?? [];
     $relations = array_merge($defaultRelations, is_string($relations) ? [$relations] : ($relations ?? []));
 
@@ -270,8 +259,7 @@ trait DataTable {
       share,
    * @return string[]
    */
-  protected static function permissions(): array
-  {
+  protected static function permissions(): array {
     return [
       'select',
       'read',
@@ -284,12 +272,10 @@ trait DataTable {
       'share',
     ];
   }
-  private static function getShortName()
-  {
+  private static function getShortName() {
     return substr(static::class, strrpos(static::class, '\\') + 1);
   }
-  private static function getModule()
-  {
+  private static function getModule() {
     $shortName = static::getShortName();
     // Hapus prefix "App\Models\"
     $trimmed = str_replace("App\\Models\\", "", static::class);
@@ -302,8 +288,7 @@ trait DataTable {
 
     return $module ?: null;
   }
-  public static function initPermissions()
-  {
+  public static function initPermissions() {
     $tableName = static::getTableName();
     $nameModel = Str::afterLast(static::class, '\\');
     $alias = static::$alias ??
@@ -348,9 +333,9 @@ trait DataTable {
         });
       }
 
-      if (!Schema::hasColumns($tableName, ['have_transactions'])) {
+      if (Schema::hasColumns($tableName, ['have_transactions'])) {
         Schema::table($tableName, function (Blueprint $table) {
-          $table->boolean('have_transactions')->default(false);
+          $table->dropColumn('have_transactions');
         });
       }
 
@@ -375,9 +360,10 @@ trait DataTable {
           $table->dropColumn('submitted_at');
         });
       }
-      if (Schema::hasColumns($tableName, ['have_transactions'])) {
+
+      if (!Schema::hasColumns($tableName, ['have_transactions'])) {
         Schema::table($tableName, function (Blueprint $table) {
-          $table->dropColumn('have_transactions');
+          $table->boolean('have_transactions')->default(false);
         });
       }
     }
@@ -392,8 +378,7 @@ trait DataTable {
     ]);
     print_r("\e[39m" . static::class . " \e[92m(SUCCESS) \e[39m" . \PHP_EOL);
   }
-  public function showDetail()
-  {
+  public function showDetail() {
     Inertia::share([
       'translateKey' => $this->translateKey ?? null,
       'connections' => Inertia::defer(function () {
@@ -450,17 +435,14 @@ trait DataTable {
     ]);
   }
 
-  public function logs()
-  {
+  public function logs() {
     return $this->morphMany(Log::class, 'loggable');
   }
-  public function tags()
-  {
+  public function tags() {
     return $this->morphToMany(Tag::class, 'taggable')
       ->whereNull('taggables.deleted_at');
   }
-  public function files()
-  {
+  public function files() {
     return $this->morphToMany(File::class, 'fileable')
       ->whereNull('fileables.deleted_at');
   }
