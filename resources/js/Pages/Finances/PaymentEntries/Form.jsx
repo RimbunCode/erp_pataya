@@ -3,13 +3,6 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -18,6 +11,7 @@ import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
 import React from "react";
+import Select from "@/Components/Select";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
