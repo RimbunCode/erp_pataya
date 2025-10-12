@@ -13,9 +13,7 @@ return [
   'items' => 'Items',
   'connections' => 'Connections',
   'actions' => [
-    'create_io' => 'Create IO',
-    'create_so' => 'Create SO',
-    'create_pr' => 'Create PR',
+    'create_po' => 'Create PO',
   ],
   'import_items' => 'Import Items',
   'columns' => [

@@ -7,13 +7,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import Select from "./Select";
 import { cn, generateRandom } from "@/lib/utils";
 import {
   forwardRef,
@@ -392,23 +386,10 @@ export default memo(
                         required={false}
                         value={select}
                         onValueChange={setSelect}
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={t("core.form.select.placeholder")}
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={null}>{model?.name}</SelectItem>
-                          {selects.map((x) => (
-                            <SelectItem key={x} value={x}>
-                              {model?.translateKey
-                                ? t(`${model?.translateKey}.columns.${x}`)
-                                : x}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        placeholder={t("core.form.select.placeholder")}
+                        optionTrans={`${model?.translateKey}.columns`}
+                        options={selects}
+                      />
                     </FormInput>
                   )}
                 </div>

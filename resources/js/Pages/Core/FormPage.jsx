@@ -16,6 +16,11 @@ import {
   CollapsibleTrigger,
 } from "@/Components/ui/collapsible";
 import { Head, WhenVisible, usePage } from "@inertiajs/react";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/Components/ui/hover-card";
 import React, {
   Children,
   Fragment,
@@ -25,6 +30,7 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -37,13 +43,16 @@ import AppLayout from "@/Layouts/AppLayout";
 import Attachments from "./Components/Attachments";
 import { Button } from "@/Components/ui/button";
 import Comments from "./Components/Comments";
+import { HoverCardArrow } from "@radix-ui/react-hover-card";
 import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
+import { ScrollArea } from "@/Components/ui/scroll-area";
 import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import { format } from "date-fns";
 import pluralize from "pluralize";
+import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -140,7 +149,7 @@ const FormPageContent = memo(
         child?.type == FormPageContentDescription
       );
     });
-    const isSingle = menus.length <= 1;
+    const isSingle = menus.length <= 1 || !menus.some((x) => x.id == id);
     if (headerChildren.length > 0 || isSingle) {
       var contentChildren = Children.toArray(children).filter((child) => {
         return !(
@@ -222,14 +231,15 @@ const FormChildren = memo(function FormChildren({
   errors,
   fieldNameTrans,
   dataBefore,
+  defaultData,
   data,
   setData,
   defaultMenu,
   disabled,
   form,
+  hasConnections,
 }) {
   const { t } = useLaravelReactI18n();
-
   const [_menus, setMenus] = useState([]);
 
   const [menuSelected, setMenuSelected] = useState(defaultMenu);
@@ -240,10 +250,6 @@ const FormChildren = memo(function FormChildren({
       return newItems;
     });
   }, []);
-  // useEffect(() => {
-  //   setMenus([]);
-  //   console.log("children", children);
-  // }, [children]);
   const removeMenu = useCallback((id) => {
     setMenus((prev) => {
       const newItems = prev?.filter((menu) => menu.id !== id);
@@ -274,7 +280,7 @@ const FormChildren = memo(function FormChildren({
       >
         <TabsList
           className={cn(
-            menus?.length <= 1 ? "hidden" : "",
+            menus?.length <= 1 && !hasConnections ? "hidden" : "",
             showHeader ? "top-14" : "top-0",
             "transition-[top] duration-300 ease-in-out sticky z-9 w-full p-0! h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
           )}
@@ -292,11 +298,23 @@ const FormChildren = memo(function FormChildren({
               </TabsTrigger>
             );
           })}
+
+          {hasConnections && (
+            <TabsTrigger
+              value="connections"
+              className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
+            >
+              <span className="pt-2 pb-1 border-transparent w-fit group-data-[state=active]:border-foreground border-b transition-colors duration-300 ">
+                {t("core.form.connections")}
+              </span>
+            </TabsTrigger>
+          )}
         </TabsList>
         <FormPageProvider
           disabled={disabled}
           errors={errors}
           fieldNameTrans={fieldNameTrans}
+          defaultData={defaultData}
           data={data}
           setData={setData}
           menus={menus}
@@ -308,6 +326,7 @@ const FormChildren = memo(function FormChildren({
           form={form}
         >
           {children}
+          {hasConnections && <Connections />}
         </FormPageProvider>
       </div>
     </Tabs>
@@ -327,6 +346,7 @@ const FormPageProvider = memo(function FormPageProvider({
   disabled,
   errors,
   fieldNameTrans,
+  defaultData,
   data,
   setData,
   menus,
@@ -348,6 +368,7 @@ const FormPageProvider = memo(function FormPageProvider({
         setMenuSelected,
         errors,
         fieldNameTrans,
+        defaultData,
         data,
         setData,
         dataBefore: dataBefore ?? {},
@@ -416,12 +437,13 @@ const FormPage = memo(
       className,
       children,
       submitable = false,
-      hasConnections,
       ignoreDraft = false,
+      deleteable = true,
     },
     ref,
   ) {
     const route = window.route;
+    const { deleteItem } = useDeleteModal();
     const { t } = useLaravelReactI18n();
     const defaultData = usePage().props[name] ?? {};
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
@@ -543,37 +565,27 @@ const FormPage = memo(
               {!disabled &&
                 (!submitable ||
                   (submitable && defaultData?.status == "draft")) &&
+                deleteable &&
+                defaultData?.canDelete &&
                 defaultData?.id && (
                   <Button
-                    type="submit"
+                    type="button"
                     variant="destructive"
                     className="p-2! size-fit h-8"
                     disabled={processing}
-                    asChild
-                  >
-                    <Link
-                      href={route(
+                    onClick={() =>
+                      deleteItem(
                         `${pluralize.plural(name ?? "")}.destroy`,
                         defaultData.id,
-                      )}
-                      method="delete"
-                    >
-                      <SaveIcon />
-                      {t("core.form.delete")}
-                    </Link>
+                      )
+                    }
+                  >
+                    <SaveIcon />
+                    {t("core.form.delete")}
                   </Button>
                 )}
               {!disabled &&
-                (isDirty || !submitable ? (
-                  <Button
-                    type="submit"
-                    className="p-2! size-fit h-8"
-                    disabled={processing}
-                  >
-                    <SaveIcon />
-                    {t("core.form.save")}
-                  </Button>
-                ) : (
+                (submitable && !isDirty ? (
                   <Button
                     type="button"
                     className="p-2! size-fit h-8"
@@ -581,6 +593,15 @@ const FormPage = memo(
                     onClick={submit}
                   >
                     {t("core.form.submit")}
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    className="p-2! size-fit h-8"
+                    disabled={processing}
+                  >
+                    <SaveIcon />
+                    {t("core.form.save")}
                   </Button>
                 ))}
             </div>
@@ -608,12 +629,7 @@ const FormPage = memo(
               "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
             )}
           >
-            {!isCreate && (
-              <SidebarChildren
-                content={sidebarContent}
-                hasConnections={hasConnections}
-              />
-            )}
+            {!isCreate && <SidebarChildren content={sidebarContent} />}
             <FormChildren
               ref={ref}
               disabled={disabled}
@@ -621,10 +637,14 @@ const FormPage = memo(
               showHeader={showHeader}
               errors={errors}
               fieldNameTrans={fieldNameTrans}
+              defaultData={defaultData}
               data={data}
               setData={setData}
               defaultMenu={defaultMenu}
               form={form}
+              hasConnections={
+                submitable && data?.status && data?.status != "draft"
+              }
             >
               {children}
             </FormChildren>
@@ -675,33 +695,71 @@ const FormPage = memo(
 
 const Connections = memo(
   forwardRef(function Connections(_, ref) {
+    const route = window.route;
     const { t } = useLaravelReactI18n();
+    const { connections } = usePage().props;
+    const LoadingIndicator = useMemo(() => {
+      return (
+        <div className="text-base! font-normal text-foreground flex gap-x-4">
+          <LoadingIcon className="size-4" />
+          <span>{t("core.form.loading")} ...</span>
+        </div>
+      );
+    }, [t]);
     return (
-      <WhenVisible
-        data={["connections"]}
-        fallback={() => (
-          <div className="text-base! font-normal text-foreground flex gap-x-4">
-            <LoadingIcon className="size-4" />
-            <span>{t("core.form.loading")} ...</span>
-          </div>
-        )}
-      >
-        {/* <Accordion ref={ref}>
-          <AccordionItem value="test">
-            <AccordionTrigger></AccordionTrigger>
-            <AccordionContent></AccordionContent>
-          </AccordionItem>
-        </Accordion> */}
-      </WhenVisible>
+      <TabsContent value="connections" className="mt-0" ref={ref}>
+        <div className="p-4 mt-0! border-b-0">
+          <WhenVisible data={["connections"]} fallback={LoadingIndicator}>
+            <div className="columns-sm space-y-4 gap-x-4">
+              {connections &&
+                connections?.map((connection) => {
+                  return (
+                    <HoverCard key={connection.reference_type}>
+                      <HoverCardTrigger asChild>
+                        <Link
+                          className="badge secondary gap-x-2 shadow-md"
+                          href={route(connection.route)}
+                        >
+                          {connection.model}
+                          <span className="rounded-full size-6 flex justify-center items-center bg-foreground/90 text-muted!">
+                            {connection.count}
+                          </span>
+                        </Link>
+                      </HoverCardTrigger>
+                      <HoverCardContent
+                        className="max-w-full sm:max-w-80 w-auto"
+                        side="right"
+                        align="start"
+                      >
+                        <ScrollArea className="max-h-96">
+                          {connection.items?.map((item) => {
+                            return (
+                              <div key={item.id}>
+                                <Link
+                                  href={route(item.route, item.reference_id)}
+                                  className="text-blue-800 dark:text-blue-200 hover:underline"
+                                >
+                                  {item.reference_display}
+                                </Link>
+                              </div>
+                            );
+                          })}
+                        </ScrollArea>
+                        <HoverCardArrow />
+                      </HoverCardContent>
+                    </HoverCard>
+                  );
+                })}
+            </div>
+          </WhenVisible>
+        </div>
+      </TabsContent>
     );
   }),
 );
 
 const SidebarChildren = memo(
-  forwardRef(function SidebarChildren(
-    { content, className, hasConnections },
-    ref,
-  ) {
+  forwardRef(function SidebarChildren({ content, className }, ref) {
     const defaultSidebarChildren = useMemo(() => {
       return (
         <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
@@ -711,11 +769,6 @@ const SidebarChildren = memo(
           <li role="forminput">
             <Tags />
           </li>
-          {hasConnections && (
-            <li>
-              <Connections />
-            </li>
-          )}
         </ul>
       );
     }, []);
@@ -795,8 +848,6 @@ const FormPageDialog = memo(
       fieldNameTrans,
       defaultMenu,
       className,
-      open,
-      onOpenChange,
       defaultValue,
       children,
       badge,
@@ -805,7 +856,15 @@ const FormPageDialog = memo(
   ) {
     const { t } = useLaravelReactI18n();
     const route = window.route;
-
+    const [open, setOpen] = useState(false);
+    useImperativeHandle(
+      ref,
+      () => ({
+        open: () => setOpen(true),
+        close: () => setOpen(false),
+      }),
+      [],
+    );
     const { loadDraft, ...form } = useDraftForm(name, defaultValue ?? {}, {
       // onContinueDraft: () => {
       //   onOpenChange?.(true);
@@ -872,7 +931,7 @@ const FormPageDialog = memo(
     const onClose = (val) => {
       if (val) return;
       setLeave(() => {
-        onOpenChange(false);
+        setOpen(false);
         setShowAlert(false);
         setIsDirty(false);
         cancel();
@@ -880,7 +939,7 @@ const FormPageDialog = memo(
         clearErrors();
       });
       setSaveAsDraft(() => {
-        onOpenChange(false);
+        setOpen(false);
         setShowAlert(false);
         setIsDirty(false);
         clearErrors();
@@ -889,14 +948,14 @@ const FormPageDialog = memo(
         setShowAlert(true);
       } else {
         setShowAlert(false);
-        onOpenChange(val);
+        setOpen(val);
         reset();
         clearErrors();
       }
     };
     useDidMountEffect(() => {
       if (recentlySuccessful) {
-        onOpenChange(false);
+        setOpen(false);
       }
     }, [recentlySuccessful]);
     const _onSubmit = (e) => {
@@ -952,7 +1011,6 @@ const FormPageDialog = memo(
                   </div>
                 )}
                 <FormChildren
-                  ref={ref}
                   disabled={disabled}
                   defaultMenu={defaultMenu}
                   className={className}

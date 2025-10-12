@@ -1,5 +1,6 @@
 /**
  * regular expression to check for valid hour format (01-23)
+ * @param value
  */
 export function isValidHour(value) {
   return /^(0[0-9]|1[0-9]|2[0-3])$/.test(value);
@@ -7,6 +8,7 @@ export function isValidHour(value) {
 
 /**
  * regular expression to check for valid 12 hour format (01-12)
+ * @param value
  */
 export function isValid12Hour(value) {
   return /^(0[1-9]|1[0-2])$/.test(value);
@@ -14,6 +16,7 @@ export function isValid12Hour(value) {
 
 /**
  * regular expression to check for valid minute format (00-59)
+ * @param value
  */
 export function isValidMinuteOrSecond(value) {
   return /^[0-5][0-9]$/.test(value);
@@ -151,6 +154,8 @@ export function getArrowByType(value, step, type) {
  * handles value change of 12-hour input
  * 12:00 PM is 12:00
  * 12:00 AM is 00:00
+ * @param hour
+ * @param period
  */
 export function convert12HourTo24Hour(hour, period) {
   if (period === "PM") {
@@ -170,6 +175,7 @@ export function convert12HourTo24Hour(hour, period) {
  * time is stored in the 24-hour form,
  * but needs to be displayed to the user
  * in its 12-hour representation
+ * @param hours
  */
 export function display12HourValue(hours) {
   if (hours === 0 || hours === 12) return "12";

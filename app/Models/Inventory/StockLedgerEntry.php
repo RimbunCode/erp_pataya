@@ -1,0 +1,16 @@
+<?php
+
+namespace App\Models\Inventory;
+
+use App\Models\Model;
+use App\Traits\DataTable;
+use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class StockLedgerEntry extends Model {
+  use HasUlids, SoftDeletes, DataTable;
+  protected $guarded = ["id"];
+  protected $casts = [
+    'stock_queue' => 'array'
+  ];
+}

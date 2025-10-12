@@ -82,6 +82,7 @@ return [
   'created_by' => 'Created By',
   'updated_at' => 'Updated At',
   'deleted_at' => 'Deleted At',
+  'submitted_at' => 'Submitted At',
   'logs' => 'Logs',
-  'files' => 'Files'
+  'files' => 'Files',
 ];

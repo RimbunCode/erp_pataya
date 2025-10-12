@@ -21,6 +21,8 @@ return new class extends Migration {
       $table->text('description')->nullable();
       $table->boolean('is_disabled')->nullable();
       $table->boolean('allow_alternative_item')->nullable();
+      $table->double('conversion_factor')->nullable()->default(1);
+      $table->boolean('is_stock_item')->default(true);
       $table->timestamps();
       $table->softDeletes();
     });

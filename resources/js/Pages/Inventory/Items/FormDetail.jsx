@@ -93,6 +93,15 @@ export default function FormDetail({
             disabled={isVariant}
             value={isVariant ? item.category : data.category}
             onValueChange={(val) => setData("category", val)}
+            filters={
+              !isVariant && data.have_transations
+                ? {
+                    type: {
+                      in: ["stock", "vehicle"],
+                    },
+                  }
+                : null
+            }
           />
         </FormInput>
 
@@ -101,6 +110,7 @@ export default function FormDetail({
           label={t("inventory.item.columns.default_unit")}
         >
           <UnitLinkModel
+            readOnly={isVariant ? item.have_transations : data.have_transations}
             placeholder={t("inventory.item.columns.default_unit.placeholder")}
             disabled={isVariant}
             value={isVariant ? item.default_unit : data.default_unit}

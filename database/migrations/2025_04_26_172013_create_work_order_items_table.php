@@ -8,8 +8,7 @@ return new class extends Migration {
   /**
    * Run the migrations.
    */
-  public function up(): void
-  {
+  public function up(): void {
     Schema::create('work_order_items', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->nullableUlidMorphs('referenceable');
@@ -18,7 +17,9 @@ return new class extends Migration {
       $table->string('item_name')->nullable();
       $table->double('quantity')->default(1);
       $table->double('ordered_quantity')->default(0);
-      $table->double('remaining_quantity')->storedAs('quantity - ordered_quantity');
+      $table->double('required_quantity')->storedAs('IF((quantity - ordered_quantity - transferred_quantity) > quantity, 0, (quantity - ordered_quantity - transferred_quantity))');
+      $table->double('transferred_quantity')->default(0);
+      $table->double('remaining_quantity')->storedAs('quantity - transferred_quantity');
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
       $table->string("unit_name")->nullable();
       $table->double('conversion_factor')->nullable()->default(1);
@@ -31,8 +32,7 @@ return new class extends Migration {
   /**
    * Reverse the migrations.
    */
-  public function down(): void
-  {
+  public function down(): void {
     Schema::dropIfExists('work_order_items');
   }
 };

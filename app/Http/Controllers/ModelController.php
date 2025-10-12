@@ -278,10 +278,14 @@ class ModelController extends Controller {
     $columns = $model::getColumns();
     if (count($showedColumns) > 0) {
       foreach ($columns as $key => $column) {
-        $columns[$key]["show"] = in_array($column["name"],  $showedColumns,  true);
-        // if ($column["name"] == "status") {
-        //   dd($column["name"], $column["show"], in_array($column["name"], $showedColumns, true), $column);
-        // }
+        $columns[$key]["show"] = false;
+        foreach ($showedColumns as $order => $showedCol) {
+          if ($column["name"] == $showedCol) {
+            $columns[$key]["show"] = true;
+            $columns[$key]["order"] = $order;
+            break;
+          }
+        }
       }
     }
     return response()->json([

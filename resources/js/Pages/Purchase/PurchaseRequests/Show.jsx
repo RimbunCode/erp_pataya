@@ -58,20 +58,12 @@ export default function Show({ purchaseRequest }) {
                 <DropdownMenuContent>
                   <DropdownMenuItem asChild>
                     <Link
-                      href={route("purchaseRequests.create", {
+                      href={route("purchaseOrders.create", {
                         ref: `purchaseRequest/${purchaseRequest?.id}`,
                       })}
                     >
-                      {t("service.purchaseRequest.actions.create_pr")}
+                      {t("service.purchaseRequest.actions.create_po")}
                     </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    {t(
-                      "service.purchaseRequest.actions." +
-                        (purchaseRequest?.for_internal
-                          ? "create_io"
-                          : "create_so"),
-                    )}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

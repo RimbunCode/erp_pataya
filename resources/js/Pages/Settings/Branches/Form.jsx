@@ -3,19 +3,13 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/Components/ui/select";
 
 import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
+import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import { memo } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -121,28 +115,10 @@ export default memo(function Form() {
               onValueChange={(val) => {
                 setData("billing_address", val);
               }}
-            >
-              <SelectTrigger className="w-fit!">
-                <SelectValue
-                  placeholder={t(
-                    "core.branch.columns.billing_address.placeholder",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="same_main">
-                  {t("core.branch.columns.billing_address.options.same_main")}
-                </SelectItem>
-                <SelectItem value="same_shipping">
-                  {t(
-                    "core.branch.columns.billing_address.options.same_shipping",
-                  )}
-                </SelectItem>
-                <SelectItem value="separate">
-                  {t("core.branch.columns.billing_address.options.separate")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              placeholder={t("core.branch.columns.billing_address.placeholder")}
+              optionTrans="core.branch.columns.billing_address.options"
+              options={["same_main", "same_shipping", "separate"]}
+            />
           </FormPageContentTitle>
           {data?.billing_address == "separate" && (
             <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">

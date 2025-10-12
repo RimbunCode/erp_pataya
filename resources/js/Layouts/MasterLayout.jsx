@@ -19,14 +19,147 @@ import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import useTheme from "@/Hooks/useTheme";
 
-const MasterLayout = memo(({ children }) => {
-  const lang = usePage().props.lang ?? "";
+const AlertDialogs = memo(() => {
+  const { lang, translateKey } = usePage().props;
   const { t, setLocale } = useLaravelReactI18n();
+
+  useEffect(() => {
+    setLocale(lang ?? "");
+  }, [lang]);
+
+  const {
+    showAlert: showAlertDrafForm,
+    setShowAlert: setShowAlertDrafForm,
+    cancel: cancelDraftForm,
+    continue: continueDraftForm,
+  } = useAlertDraftForm();
+  const {
+    showAlert: showAlertDirtyForm,
+    setShowAlert: setShowAlertDirtyForm,
+    cancel: cancelDirtyForm,
+    leave: continueDirtyForm,
+    saveAsDraft,
+    setIsDirty,
+  } = useIsDirtyForm();
+  const {
+    isOpen: isOpenDeleteDialog,
+    close: closeDeleteDialog,
+    route: deleteRoute,
+    id: deleteId,
+  } = useDeleteModal();
+  const { url } = usePage();
+  useEffect(() => {
+    setIsDirty(false);
+  }, [setIsDirty, url]);
+  function handleKeyDown(e) {
+    if (e.key == "Escape") {
+      closeDeleteDialog();
+    }
+  }
+  const route = window.route;
+  const onDelete = useCallback(() => {
+    router.delete(route(deleteRoute, deleteId), {
+      onSuccess: () => {
+        closeDeleteDialog();
+      },
+    });
+  }, [route, deleteRoute, deleteId, closeDeleteDialog]);
+
+  return (
+    <>
+      {/* Alert for leave form */}
+      <AlertDialog
+        open={showAlertDirtyForm}
+        onOpenChange={setShowAlertDirtyForm}
+      >
+        <AlertDialogContent align="center">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("core.form.leave.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("core.form.leave.subtitle")}
+            </AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogCancel className="h-8" onClick={cancelDirtyForm}>
+                {t("core.form.leave.cancel")}
+              </AlertDialogCancel>
+              <AlertDialogCancel
+                className="h-8"
+                variant="secondary"
+                onClick={continueDirtyForm}
+              >
+                {t("core.form.leave.leave")}
+              </AlertDialogCancel>
+              <AlertDialogAction className="h-8" onClick={saveAsDraft}>
+                {t("core.form.leave.save_as_draft")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert for continue draft form */}
+      <AlertDialog open={showAlertDrafForm} onOpenChange={setShowAlertDrafForm}>
+        <AlertDialogContent align="center">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("core.form.unfinished.title")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("core.form.unfinished.subtitle")}
+            </AlertDialogDescription>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                className="h-8"
+                variant="destructive"
+                onClick={cancelDraftForm}
+              >
+                {t("core.form.unfinished.ignore")}
+              </AlertDialogCancel>
+              <AlertDialogAction className="h-8" onClick={continueDraftForm}>
+                {t("core.form.unfinished.continue")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogHeader>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Alert for delete item */}
+      <AlertDialog
+        open={isOpenDeleteDialog}
+        onOpenChange={(v) => {
+          if (!v) {
+            closeDeleteDialog();
+          }
+        }}
+      >
+        <AlertDialogContent align="center" onKeyDown={handleKeyDown}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t(`${translateKey}.delete`)}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t(`${translateKey}.delete.description`)}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDeleteDialog}>
+              {t("core.form.leave.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={onDelete}>
+              {t(`${translateKey}.delete.confirm`)}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+});
+
+AlertDialogs.displayName = "AlertDialogs";
+
+const MasterLayout = memo(({ children }) => {
   const { theme, currentTheme, setCurrentTheme } = useTheme();
   const isDebug = usePage().props.debug;
   // const isDebug = true;
   useEffect(() => {
-    setLocale(lang);
     const contentsOfLocalStorage = Object.entries(localStorage);
     contentsOfLocalStorage.forEach(([key, value]) => {
       try {
@@ -53,7 +186,8 @@ const MasterLayout = memo(({ children }) => {
     return () => {
       matchMedia.removeEventListener("change", onThemeSystemChanged);
     };
-  }, []);
+  }, [setCurrentTheme, theme]);
+
   useEffect(() => {
     if (currentTheme === "light") {
       document.documentElement.classList.remove("dark");
@@ -97,131 +231,12 @@ const MasterLayout = memo(({ children }) => {
       document.removeEventListener("contextmenu", onContextMenu);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
-
-  const {
-    showAlert: showAlertDrafForm,
-    setShowAlert: setShowAlertDrafForm,
-    cancel: cancelDraftForm,
-    continue: continueDraftForm,
-  } = useAlertDraftForm();
-  const {
-    showAlert: showAlertDirtyForm,
-    setShowAlert: setShowAlertDirtyForm,
-    cancel: cancelDirtyForm,
-    leave: continueDirtyForm,
-    saveAsDraft,
-    setIsDirty,
-  } = useIsDirtyForm();
-  const {
-    isOpen: isOpenDeleteDialog,
-    close: closeDeleteDialog,
-    route: deleteRoute,
-    id: deleteId,
-  } = useDeleteModal();
-  const { url } = usePage();
-  useEffect(() => {
-    setIsDirty(false);
-  }, [url]);
-  function handleKeyDown(e) {
-    if (e.key == "Escape") {
-      closeDeleteDialog();
-    }
-  }
-  const route = window.route;
-  const onDelete = useCallback(() => {
-    router.delete(route(deleteRoute, deleteId), {
-      onSuccess: () => {
-        closeDeleteDialog();
-      },
-    });
-  }, [deleteRoute, closeDeleteDialog, deleteId]);
+  }, [isDebug]);
   return (
     <>
       <TooltipProvider>{children}</TooltipProvider>
       <Toaster />
-      {/* Alert for leave form */}
-      <AlertDialog
-        open={showAlertDirtyForm}
-        onOpenChange={setShowAlertDirtyForm}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("core.form.leave.title")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("core.form.leave.subtitle")}
-            </AlertDialogDescription>
-            <AlertDialogFooter>
-              <AlertDialogCancel className="h-8" onClick={cancelDirtyForm}>
-                {t("core.form.leave.cancel")}
-              </AlertDialogCancel>
-              <AlertDialogCancel
-                className="h-8"
-                variant="secondary"
-                onClick={continueDirtyForm}
-              >
-                {t("core.form.leave.leave")}
-              </AlertDialogCancel>
-              <AlertDialogAction className="h-8" onClick={saveAsDraft}>
-                {t("core.form.leave.save_as_draft")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogHeader>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Alert for continue draft form */}
-      <AlertDialog open={showAlertDrafForm} onOpenChange={setShowAlertDrafForm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("core.form.unfinished.title")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("core.form.unfinished.subtitle")}
-            </AlertDialogDescription>
-            <AlertDialogFooter>
-              <AlertDialogCancel
-                className="h-8"
-                variant="destructive"
-                onClick={cancelDraftForm}
-              >
-                {t("core.form.unfinished.ignore")}
-              </AlertDialogCancel>
-              <AlertDialogAction className="h-8" onClick={continueDraftForm}>
-                {t("core.form.unfinished.continue")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogHeader>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Alert for delete item */}
-      <AlertDialog
-        open={isOpenDeleteDialog}
-        onOpenChange={(v) => {
-          if (!v) {
-            closeDeleteDialog();
-          }
-        }}
-      >
-        <AlertDialogContent onKeyDown={handleKeyDown}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("inventory.unit.delete")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("inventory.unit.delete.description")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={closeDeleteDialog}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete}>
-              {t("inventory.unit.delete.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <AlertDialogs />
     </>
   );
 });

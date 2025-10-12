@@ -47,14 +47,6 @@ function FormInput({
       <Label htmlFor={id}>
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>
-      {description &&
-        (typeof description == "string" ? (
-          <p className="text-sm font-normal text-muted-foreground">
-            {description}
-          </p>
-        ) : (
-          description
-        ))}
       {typeof child == "function"
         ? child({ id, required: _required, readOnly: form?.disabled, ...props })
         : React.Children.map(children, (child) =>
@@ -65,6 +57,14 @@ function FormInput({
               ...props,
             }),
           )}
+      {description &&
+        (typeof description == "string" ? (
+          <p className="text-sm font-normal text-muted-foreground">
+            {description}
+          </p>
+        ) : (
+          description
+        ))}
       {(error || _name in (errors ?? {})) && (
         <InputError
           message={

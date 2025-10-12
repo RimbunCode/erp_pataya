@@ -2,9 +2,15 @@
 
 return [
   'title' => 'Warehouses',
-  'add_warehouse' => 'Add Warehouse',
+  'add' => 'Add Warehouse',
+  'new' => 'New Warehouse',
+  'delete' => 'Delete Warehouse',
+  'delete.description' => 'Are you sure you want to delete this warehouse?',
+  'delete.confirm' => 'Delete',
+  'cancel' => 'Cancel',
   'columns' => [
     'name' => 'Name',
+    'title' => 'Code',
     'code' => 'Code',
     'branch' => 'Branch',
     'branch.placeholder' => 'Select a branch',
@@ -15,9 +21,4 @@ return [
     'pic.username' => 'PIC Username',
     'pic.placeholder' => 'Select a PIC',
   ],
-  'new' => 'New Warehouse',
-  'delete' => 'Delete Warehouse',
-  'delete.description' => 'Are you sure you want to delete this warehouse?',
-  'delete.confirm' => 'Delete',
-  'cancel' => 'Cancel',
 ];

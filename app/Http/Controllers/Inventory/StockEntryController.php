@@ -1,0 +1,98 @@
+<?php
+
+namespace App\Http\Controllers\Inventory;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Inventory\StockEntryRequest;
+use App\Models\Core\Branch;
+use App\Models\Inventory\StockEntry;
+use App\Services\Core\FormatingSeriesService;
+use App\Services\Inventory\StockEntryService;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
+
+class StockEntryController extends Controller {
+  private FormatingSeriesService $formatingSeriesService;
+  private StockEntryService $service;
+  public function __construct(Request $request, FormatingSeriesService $referenceCodeService, StockEntryService $service) {
+    $this->formatingSeriesService = $referenceCodeService;
+    $this->service = $service;
+    parent::__construct($request, StockEntry::class);
+  }
+
+  /**
+   * Display a listing of the resource.
+   */
+  public function index(Request $request) {
+    $this->setBreadcrumbs();
+    StockEntry::dataTable($request);
+    return Inertia::render('Inventory/StockEntries/Index');
+  }
+
+  /**
+   * Show the form for creating a new resource.
+   */
+  public function create() {
+    //
+  }
+
+  /**
+   * Store a newly created resource in storage.
+   */
+  public function store(StockEntryRequest $request) {
+    $data = $request->validated();
+    DB::beginTransaction();
+    $code = $this->formatingSeriesService->get(StockEntry::class, $data);
+    $data['code'] = $code;
+    $stockEntry = $this->service->create($data);
+    DB::commit();
+    return redirect()->route('stockEntries.show', $stockEntry);
+  }
+
+  /**
+   * Display the specified resource.
+   */
+  public function show(StockEntry $stockEntry) {
+    $this->setBreadcrumbs($stockEntry);
+    $stockEntry->showDetail();
+    return Inertia::render('Inventory/StockEntries/Show', [
+      'stockEntry' => function () use ($stockEntry) {
+        $stockEntry->loadRelations();
+        return $stockEntry;
+      },
+    ]);
+  }
+
+  /**
+   * Show the form for editing the specified resource.
+   */
+  public function edit(string $id) {
+    //
+  }
+
+  /**
+   * Update the specified resource in storage.
+   */
+  public function update(StockEntryRequest $request, StockEntry $stockEntry) {
+    $data = $request->validated();
+    DB::beginTransaction();
+    $stockEntry = $this->service->update($stockEntry, $data);
+    DB::commit();
+    return redirect()->route('stockEntries.show', $stockEntry);
+  }
+
+  public function submit(Request $request, StockEntry $stockEntry) {
+    DB::beginTransaction();
+    $wo = $this->service->submit($stockEntry);
+    DB::commit();
+    return back();
+  }
+
+  /**
+   * Remove the specified resource from storage.
+   */
+  public function destroy(string $id) {
+    //
+  }
+}

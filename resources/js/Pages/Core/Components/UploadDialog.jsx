@@ -211,7 +211,7 @@ function UploadDialog({
                       "transition ease-in-out duration-300 ",
                     )}
                   >
-                    <div className="gap-x-2 flex [&_svg]:rounded-full [&_svg]:bg-muted [&_svg]:p-2 [&_svg]:size-9 *:h-auto *:p-2! *:border-0! *:flex *:flex-col *:gap-y-1 *:items-center *:cursor-pointer">
+                    <div className="gap-x-2 flex [&_svg]:rounded-full [&_svg]:bg-muted [&_svg]:p-2 [&_svg]:size-9! *:h-auto *:p-2! *:border-0! *:flex *:flex-col *:gap-y-1 *:items-center *:cursor-pointer">
                       <Button
                         className={cn(!hover && "pointer-events-auto!")}
                         variant="outline"

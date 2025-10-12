@@ -1,7 +1,7 @@
 <?php
 return [
   'title' => 'Units',
-  'add_unit' => 'Add Unit',
+  'add' => 'Add Unit',
   'units' => 'Units',
   'new' => 'New Unit',
   'delete' => 'Delete Unit',

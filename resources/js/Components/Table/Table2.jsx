@@ -24,7 +24,14 @@ import {
   arrayMove,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { cn, getCookieByName, getLocaleDate, setCookie } from "@/lib/utils";
+import {
+  cn,
+  getCookieByName,
+  getLocaleDate,
+  removeCookie,
+  setCookie,
+} from "@/lib/utils";
+import { router, usePage } from "@inertiajs/react";
 
 import { Checkbox } from "../ui/checkbox";
 import ColumnsFilter from "./ColumnsFilter";
@@ -40,7 +47,6 @@ import { format } from "date-fns";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import useDynamicRefs from "@/Hooks/useDynamicRefs";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
 export const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
@@ -59,11 +65,17 @@ export const convertColWidth = (colWidth) => {
   }
 };
 export const createHeaders = (headers, ignoreCookie = false) => {
-  const columnsFromCookie = JSON.parse(getCookieByName(DATATABLE_COLUMNS_KEY));
-  const newHeaders = { ...headers };
-  Object.values(newHeaders).forEach((col) => {
+  const columnsFromCookie = JSON.parse(
+    getCookieByName(`${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`),
+  );
+  // const newHeaders = { ...headers };
+  Object.values(headers).forEach((col) => {
     const colFromCookie = ignoreCookie ? null : columnsFromCookie?.[col.name];
-    const show = colFromCookie ? true : (col.show ?? true);
+    const show = colFromCookie
+      ? true
+      : columnsFromCookie && Object.keys(columnsFromCookie).length > 0
+        ? false
+        : (col.show ?? true);
     headers[col.name] = {
       ...col,
       sort: null,
@@ -81,7 +93,7 @@ const Cell = memo(
     type,
     route,
     name,
-    parseTrans,
+    valueTrans,
     parse,
     primaryKey,
     isLink,
@@ -90,7 +102,7 @@ const Cell = memo(
     const { lang } = usePage().props;
     const { t } = useLaravelReactI18n();
     const value = row[name];
-    if (!value) return;
+    if (value == null) return;
     let valueCell = "";
     switch (type) {
       case "boolean":
@@ -127,13 +139,17 @@ const Cell = memo(
       case "date":
       case "time":
       case "datetime":
-        valueCell = format(
-          new TZDate(value, "UTC"),
-          type == "date" ? "PPP" : type == "time" ? "pp" : "PPPpp",
-          {
-            locale: getLocaleDate(lang),
-          },
-        );
+        if (!value) {
+          valueCell = null;
+        } else {
+          valueCell = format(
+            new TZDate(value, "UTC"),
+            type == "date" ? "PPP" : type == "time" ? "pp" : "PPPpp",
+            {
+              locale: getLocaleDate(lang),
+            },
+          );
+        }
         break;
       case "relation":
         valueCell = convertTemplateLink(value);
@@ -142,8 +158,8 @@ const Cell = memo(
       case "relations":
         return;
       case "string":
-        valueCell = parseTrans
-          ? t(`${parseTrans}.${value?.toString()}`)
+        valueCell = valueTrans
+          ? t(`${valueTrans}.${value?.toString()}`)
           : parse
             ? (parse[value?.toString()] ?? "")
             : value;
@@ -163,20 +179,20 @@ const Cell = memo(
         });
       }
     }
-    if (type == "relation" && route && !colProps?.disabledNavigation) {
-      return (
-        <Link
-          href={window.route(route ?? "", value?.[primaryKey] ?? "")}
-          className="text-blue-800 dark:text-blue-200 hover:underline"
-        >
-          {valueCell}
-        </Link>
-      );
-    } else if (isLink) {
+    if (isLink) {
       return (
         <Link
           className="text-blue-800 dark:text-blue-200 hover:underline"
           href={window.route(route ?? "", row[primaryKey] ?? "")}
+        >
+          {valueCell}
+        </Link>
+      );
+    } else if (type == "relation" && route && !colProps?.disabledNavigation) {
+      return (
+        <Link
+          href={window.route(route ?? "", value?.[primaryKey] ?? "")}
+          className="text-blue-800 dark:text-blue-200 hover:underline"
         >
           {valueCell}
         </Link>
@@ -271,7 +287,7 @@ const Table2 = forwardRef(function Table2(
   );
   // useDidMountEffect(() => {
   //   saveToLocalStorage(
-  //     DATATABLE_COLUMNS_KEY,
+  //     `${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`,
   //     columns.map((x) => ({ name: x.name, show: x.show })),
   //     DATATABLE_COLUMNS_EXPIRED,
   //   );
@@ -345,6 +361,7 @@ const Table2 = forwardRef(function Table2(
   }, [columns]);
 
   useEffect(() => {
+    if (isDynamicData) return;
     const newShowedColumns = {};
     showedColumns.forEach((col, index) => {
       newShowedColumns[col.name] = {
@@ -352,11 +369,15 @@ const Table2 = forwardRef(function Table2(
         order: index,
       };
     });
-    setCookie(DATATABLE_COLUMNS_KEY, JSON.stringify(newShowedColumns), {
-      days: DATATABLE_COLUMNS_EXPIRED,
-      path: window.location.pathname,
-      sameSite: "lax",
-    });
+    setCookie(
+      `${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`,
+      JSON.stringify(newShowedColumns),
+      {
+        days: DATATABLE_COLUMNS_EXPIRED,
+        path: window.location.pathname,
+        sameSite: "lax",
+      },
+    );
   }, [showedColumns]);
   // const showedColumns = columns.filter(
   //   (x) => x.show && !(x.type == "relations" || x.type == "mixed"),
@@ -575,12 +596,12 @@ const Table2 = forwardRef(function Table2(
                           </td>
                         )}
                         {actions && (
-                          <td className="w-full">
+                          <td className="w-full flex flex-row! items-center gap-x-2">
                             {actions({ dataRow: row })}
                           </td>
                         )}
                         {showedColumns.map(
-                          ({ type, name, parse, parseTrans, ...colProps }) => {
+                          ({ type, name, parse, valueTrans, ...colProps }) => {
                             return (
                               <td key={name}>
                                 <Cell
@@ -588,7 +609,7 @@ const Table2 = forwardRef(function Table2(
                                   type={type}
                                   name={name}
                                   parse={parse}
-                                  parseTrans={parseTrans}
+                                  valueTrans={valueTrans}
                                   {...colProps}
                                 />
                               </td>
@@ -618,6 +639,14 @@ const Table2 = forwardRef(function Table2(
               console.log(val);
               setColumns(val);
               reload?.(val);
+              setOpenColumnsFilter(false);
+            }}
+            onReset={() => {
+              removeCookie(
+                `${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`,
+                window.location.pathname,
+              );
+              router.reload();
               setOpenColumnsFilter(false);
             }}
           />

@@ -21,11 +21,11 @@ export default function Form() {
           />
           <FormInput
             required={true}
-            label={t("inventory.itemAlternative.columns.item_code")}
+            label={t("inventory.itemAlternative.columns.item")}
           >
             <ItemVariantLinkModel
               placeholder={t(
-                "inventory.itemAlternative.columns.item_code.placeholder",
+                "inventory.itemAlternative.columns.item.placeholder",
               )}
               filters={{
                 or: {
@@ -39,11 +39,11 @@ export default function Form() {
           </FormInput>
           <FormInput
             required={true}
-            label={t("inventory.itemAlternative.columns.alternative_item_code")}
+            label={t("inventory.itemAlternative.columns.alternative")}
           >
             <ItemVariantLinkModel
               placeholder={t(
-                "inventory.itemAlternative.columns.alternative_item_code.placeholder",
+                "inventory.itemAlternative.columns.alternative.placeholder",
               )}
               filters={{
                 ...(data.two_way

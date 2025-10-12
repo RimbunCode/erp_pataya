@@ -20,6 +20,7 @@ class ItemVariant extends Model {
   protected $casts = [
     'is_disabled' => 'boolean',
     'allow_alternative_item' => 'boolean',
+    'is_stock_item' => 'boolean',
   ];
   protected $appends = ['sku'];
   public function sku(): Attribute {
@@ -65,19 +66,25 @@ class ItemVariant extends Model {
   public function showStocks() {
     Inertia::share([
       'stocks' => Inertia::defer(function () {
-        $warehouses = Warehouse::with(['stocks' => fn($query) => $query->where('item_variant_id', $this->id), 'stocks.unit', 'branch']);
+        $warehouses = Warehouse::select([
+          'warehouses.*',
+          'stocks.id as stock_id',
+          'stocks.actual_quantity',
+          'stocks.reserved_quantity',
+          'stocks.incoming_quantity',
+          'stocks.projected_quantity',
+          'stocks.ready_quantity',
+          'stocks.valuation_rate',
+        ])
+          ->leftJoin('stocks', 'stocks.warehouse_id', '=', 'warehouses.id')
+          ->where('item_variant_id', $this->id);
         if (Session::has('currentBranch')) {
           $branch = Branch::find(Session::get('currentBranch'));
           if (!$branch->is_main_branch) {
             $warehouses->where('warehouses.branch_id', $branch->id);
           }
         }
-        $warehouses = $warehouses->get()
-          ->map(fn($warehouse) => [
-            ...$warehouse->toArray(),
-            'actual_stock' => $warehouse->stocks->sum('quantity'),
-            'reserved_stock' => 0,
-          ]);
+        $warehouses = $warehouses->get();
         return $warehouses;
       })
     ]);

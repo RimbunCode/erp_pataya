@@ -1,3 +1,5 @@
+import "@/../css/mention.css";
+
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { Mention, MentionsInput } from "@/Components/Mention";
 import { useCallback, useMemo, useState } from "react";
@@ -9,7 +11,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 export default function Show() {
-  const { t, loading } = useLaravelReactI18n();
+  const { t } = useLaravelReactI18n();
   const codeFormats = usePage().props.codeFormats;
   const [error, setError] = useState(null);
   const { data, setData } = useFormPage();
@@ -26,7 +28,7 @@ export default function Show() {
         return t("core.formatingSeries.errors.increment_notfound");
       }
     },
-    [loading],
+    [t],
   );
   const getData = useCallback(
     (search) => {
@@ -60,11 +62,11 @@ export default function Show() {
         );
       });
     },
-    [data.format],
+    [codeFormats, data.format, t],
   );
   const formatingCode = useCallback(
     (format) => {
-      format = format.replace(/@\[([^\]]+)\]/g, function (_, p1) {
+      format = format?.replace(/@\[([^\]]+)\]/g, function (_, p1) {
         if (/^[i]+$/.test(p1)) {
           const current = getRandomInt(Math.pow(10, p1.length) - 1).toString();
           const display = current.padStart(p1.length, "0");
@@ -112,7 +114,7 @@ export default function Show() {
                 setError(checkError(value));
               }}
               className="mentions"
-              a11ySuggestionsListLabel={"Suggested mentions"}
+              // a11ySuggestionsListLabel={"Suggested mentions"}
               allowSuggestionsAboveCursor
               autoComplete="off"
               placeholder={t("core.formatingSeries.placeholder")}
