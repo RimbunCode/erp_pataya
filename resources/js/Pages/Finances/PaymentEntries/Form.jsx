@@ -10,15 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import FormInput from "@/Components/FormInput";
-import React from "react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
+
 import CurrencyInput from "@/Components/CurrencyInput";
-import DatetimePicker from "@/Components/DatetimePicker";
-import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
-import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
+import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
+import DatetimePicker from "@/Components/DatetimePicker";
+import FormInput from "@/Components/FormInput";
+import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
+import React from "react";
+import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { data, setData } = useFormPage();
@@ -89,6 +90,11 @@ export default function Form() {
           >
             <Select
               readOnly={true}
+              placeholder={t(
+                "finances.paymentEntry.columns.payment_type.placeholder",
+              )}
+              optionTrans="finances.paymentEntry.columns.payment_type.options"
+              options={["receive", "pay"]}
               value={data.payment_type}
               onValueChange={(val) => {
                 setData({
@@ -101,25 +107,7 @@ export default function Form() {
                         : null,
                 });
               }}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t(
-                    "finances.paymentEntry.columns.payment_type.placeholder",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="receive">
-                  {t(
-                    "finances.paymentEntry.columns.payment_type.options.receive",
-                  )}
-                </SelectItem>
-                <SelectItem value="pay">
-                  {t("finances.paymentEntry.columns.payment_type.options.pay")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+            />
           </FormInput>
           {data.payment_type && (
             <FormInput
