@@ -14,11 +14,24 @@ use function PHPSTORM_META\type;
 
 class PaymentSchedule extends Model {
   use HasUlids, SoftDeletes, DataTable;
+  protected $withs = [
+    'referenceTo.'
+  ];
 
+
+  protected static function loadRelationsOnShow()
+  {
+    return [
+      'referenceTo',
+      'paymentMethod',
+    ];
+  }
   protected $configColumns = [
     'referenceTo' => [
+      'type' => 'relation',
       'order' => 0,
       'show' => true,
+      'disabledNavigation' => true,
       'isLink' => true,
     ],
     'due_date' => [
@@ -41,8 +54,23 @@ class PaymentSchedule extends Model {
     ],
     'paymentTerm',
     'paymentMethod',
+
+    'base_currency_code' => [
+      'ignore' => true
+    ],
+    'base_outstanding_amount' => [
+      'ignore' => true
+    ],
+    'base_paid_amount' => [
+      'ignore' => true
+    ],
+    'base_payment_amount' => [
+      'ignore' => true
+    ],
   ];
   protected $appends = ['status'];
+
+  public string $translateKey = 'finances.paymentSchedule';
 
   protected $casts = [
     'due_date' => 'datetime',
@@ -71,7 +99,8 @@ class PaymentSchedule extends Model {
   public function paymentMethod() {
     return $this->belongsTo(PaymentMethod::class);
   }
-  public function referenceTo() {
-    return $this->morphTo();
+  public function referenceTo()
+  {
+    return $this->morphTo('payment_scheduleable');
   }
 }

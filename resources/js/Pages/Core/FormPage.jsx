@@ -438,6 +438,7 @@ const FormPage = memo(
       children,
       submitable = false,
       ignoreDraft = false,
+      defaultValues,
       deleteable = true,
     },
     ref,
@@ -445,7 +446,7 @@ const FormPage = memo(
     const route = window.route;
     const { deleteItem } = useDeleteModal();
     const { t } = useLaravelReactI18n();
-    const defaultData = usePage().props[name] ?? {};
+    const defaultData = usePage().props[name] ?? defaultValues ?? {};
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
     const {
       data,

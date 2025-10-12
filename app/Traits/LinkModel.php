@@ -13,14 +13,17 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use ReflectionClass;
 use ReflectionMethod;
 
-trait LinkModel {
-  protected static function bootLinkModel() {
+trait LinkModel
+{
+  protected static function bootLinkModel()
+  {
     static::addGlobalScope(new DataTableScope);
   }
   /**
@@ -28,7 +31,8 @@ trait LinkModel {
    * @var bool
    */
   // protected static bool $is_submitable;
-  public function isSubmitable() {
+  public function isSubmitable()
+  {
     return static::$is_submitable ?? false;
   }
   public function updateHaveTransactions(bool $value = true, bool $save = true) {
@@ -55,19 +59,23 @@ trait LinkModel {
       return "";
     return static::templateLink();
   }
-  protected function getRouteAttribute() {
+  protected function getRouteAttribute()
+  {
     return Str::plural($this->getNameClass());
   }
 
-  public function getNameClass() {
+  public function getNameClass()
+  {
     return Str::camel(Str::afterLast(static::class, '\\'));
   }
 
-  public static function getTableName() {
+  public static function getTableName()
+  {
     return with(new static)->getTable();
   }
 
-  private static function parseColumnType(array $dataColumn, array $casts) {
+  private static function parseColumnType(array $dataColumn, array $casts)
+  {
     $definition = $dataColumn['type'];
     // Regex:
     // - Group 1: nama tipe (varchar, int, enum, dll)
@@ -157,7 +165,8 @@ trait LinkModel {
     ];
   }
 
-  private static function getColumnConfig(&$columns, $key): array {
+  private static function getColumnConfig(&$columns, $key): array
+  {
     foreach ($columns as $keyCol => $column) {
       if (\is_numeric($keyCol) && $column == $key) {
         unset($columns[$keyCol]);
@@ -174,7 +183,8 @@ trait LinkModel {
     }
     return [];
   }
-  private static function mergeConfigColumns(array ...$configs) {
+  private static function mergeConfigColumns(array ...$configs)
+  {
     $newConfigs = [];
     foreach ($configs as $config) {
       foreach ($config as $key => $value) {
@@ -187,7 +197,8 @@ trait LinkModel {
     return $newConfigs;
   }
 
-  public static function getColumns(...$excepts) {
+  public static function getColumns(...$excepts)
+  {
     $instance = new static();
     $columns = Schema::getColumns($instance->getTable());
     $casts = $instance->getCasts();
@@ -256,17 +267,26 @@ trait LinkModel {
       if (in_array($classRelation, $excepts)) {
         continue;
       }
-      if ($rel instanceof BelongsTo) {
+      // if ($key == "referenceTo")
+      //   dd($rel);
+      if ($rel instanceof MorphTo) {
+        $newKey = $rel->getRelationName();
+        unset($newColumns[$rel->getForeignKeyName()]);
+        unset($newColumns[$rel->getMorphType()]);
+      } else if ($rel instanceof BelongsTo) {
         unset($newColumns[$rel->getForeignKeyName()]);
         $type = "relation";
         $route = $rel->getRelated()->route;
+        $newKey = Str::snake($key);
       } else if ($rel instanceof HasOne || $rel instanceof MorphOne) {
         $type = "relation";
+        $newKey = Str::snake($key);
+      } else {
+        $newKey = Str::snake($key);
       }
       if (isset($config['ignore']) && $config['ignore']) {
         continue;
       }
-      $newKey = Str::snake($key);
       $newColumns[$newKey] = [
         "name" => $newKey,
         "type" => $type,

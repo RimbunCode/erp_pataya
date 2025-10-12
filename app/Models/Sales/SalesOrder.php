@@ -27,8 +27,9 @@ class SalesOrder extends Model {
   }
   public $keyBreadcrumb = "code";
 
-  public static function templateLink() {
-    return ":name (:code)";
+  public static function templateLink()
+  {
+    return ":code";
   }
   public $translateKey = 'sales.salesOrder';
   protected $configColumns = [

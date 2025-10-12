@@ -140,6 +140,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
   // Payment Schedules
   Route::resourceDetail('paymentSchedule', \App\Http\Controllers\Finances\PaymentScheduleController::class);
+  // Payment Entries
+  Route::resourceDetail('paymentEntry', \App\Http\Controllers\Finances\PaymentEntryController::class);
 });
 
 

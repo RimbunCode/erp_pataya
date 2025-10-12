@@ -8,8 +8,10 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
-class FormatingSeriesService {
-  public function get(string $model, array $data): string {
+class FormatingSeriesService
+{
+  public function get(string $model, array $data): string
+  {
     $ref = FormatingSeries::where('model', $model)->first();
 
     $keyFormat = $this->getKeyLogs($ref, $codeRelations);
@@ -69,7 +71,8 @@ class FormatingSeriesService {
 
     return $result;
   }
-  private function getCodeRelations(string $model) {
+  private function getCodeRelations(string $model)
+  {
     $objectModel = new $model;
     $codeRelations = collect(
       \method_exists($objectModel, 'codeRelations') ?
@@ -87,7 +90,8 @@ class FormatingSeriesService {
     })->toArray();
     return $codeRelations;
   }
-  public function getKeyLogs(FormatingSeries $formatingSeries, array|null &$codeRelations = null) {
+  public function getKeyLogs(FormatingSeries $formatingSeries, array|null &$codeRelations = null)
+  {
     $codeRelations = $this->getCodeRelations($formatingSeries->model);
     preg_replace_callback('/@\[([myi]|(?:\w+))+\]/', function ($matches) use (&$key, $codeRelations) {
       $char = $matches[1];
@@ -101,7 +105,8 @@ class FormatingSeriesService {
     sort($key);
     return implode($key);
   }
-  public function getKeyLogsForInit(string $model, string $format) {
+  public function getKeyLogsForInit(string $model, string $format)
+  {
     $codeRelations = $this->getCodeRelations($model);
     preg_replace_callback('/@\[([myi]|(?:\w+))+\]/', function ($matches) use (&$key, $codeRelations) {
       $char = $matches[1];
