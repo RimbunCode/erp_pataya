@@ -4,13 +4,11 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
   /**
    * Run the migrations.
    */
-  public function up(): void
-  {
+  public function up(): void {
     Schema::create('payment_schedules', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->string('reference_to')->nullable();
@@ -27,7 +25,6 @@ return new class extends Migration
       $table->timestamp('payment_date')->nullable();
       $table->timestamp('due_date');
       $table->boolean('for_internal');
-      $table->boolean('is_submitted')->default(false);
       $table->double('exchange_rate')->default(1);
       $table->string('currency_code')->nullable();
       $table->string('base_currency_code')->nullable();
@@ -35,6 +32,7 @@ return new class extends Migration
       $table->double('base_payment_amount')->storedAs('payment_amount * exchange_rate');
       $table->double('base_paid_amount')->default(0);
       $table->double('base_outstanding_amount')->storedAs('base_payment_amount - base_paid_amount');
+      $table->timestamp('submitted_at')->nullable();
       $table->timestamps();
       $table->softDeletes();
     });
@@ -43,8 +41,7 @@ return new class extends Migration
   /**
    * Reverse the migrations.
    */
-  public function down(): void
-  {
+  public function down(): void {
     Schema::dropIfExists('payment_schedules');
   }
 };

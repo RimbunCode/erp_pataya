@@ -15,7 +15,7 @@ export default forwardRef(function SupplierLinkModel(
       onValueChange={onValueChange}
       model="App\Models\Purchase\Supplier"
       titleDialog={t("purchase.supplier.new")}
-      classNameDialog="max-w-(--breakpoint-lg)"
+      classNameDialog="max-w-(--breakpoint-lg)!"
       form={<Form />}
       {...props}
       ref={ref}

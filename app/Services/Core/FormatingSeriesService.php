@@ -116,7 +116,6 @@ class FormatingSeriesService
       }
       $key[] = $codeRelations[$char]["relation"];
     }, $format);
-
     sort($key);
     return implode($key);
   }

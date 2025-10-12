@@ -52,10 +52,12 @@ class WorkOrder extends Model {
     'code' => [
       'isLink' => true,
       'show' => true,
+      'order' => 0,
     ],
     'date' => [
       'type' => 'date',
       'show' => true,
+      'order' => 1,
     ],
     'branch' => [
       'ignore' => true,
@@ -64,19 +66,23 @@ class WorkOrder extends Model {
       'type' => 'boolean',
       'show' => true,
       'width' => 'fit',
+      'order' => 3,
     ],
     'items',
     'customer' => [
       'show' => true,
+      'order' => 4,
     ],
     'customerBranch' => [
       'disabledNavigation' => true
     ],
     'itemService' => [
       'show' => true,
+      'order' => 5,
     ],
     'status' => [
-      'show' => true
+      'show' => true,
+      'order' => 6,
     ]
   ];
 

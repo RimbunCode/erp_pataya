@@ -3,13 +3,6 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/Components/ui/select";
 
 import BranchForm from "@/Pages/Settings/Branches/Form";
 import { Button } from "@/Components/ui/button";
@@ -18,6 +11,7 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
 import React from "react";
+import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -69,23 +63,10 @@ export default function Form() {
             <Select
               value={data?.is_disabled ? "0" : "1"}
               onValueChange={(v) => setData("is_disabled", v === "0")}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t(
-                    "sales.customer.columns.is_disabled.placeholder",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">
-                  {t("sales.customer.columns.is_disabled.options.active")}
-                </SelectItem>
-                <SelectItem value="0">
-                  {t("sales.customer.columns.is_disabled.options.disabled")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              placeholder={t("sales.customer.columns.is_disabled.placeholder")}
+              optionTrans="sales.customer.columns.is_disabled.options"
+              options={["1", "0"]}
+            />
           </FormInput>
         </div>
       </FormPageContent>

@@ -61,6 +61,12 @@ const navList = [
         url: "/units",
         urlPattern: "/units/*",
       },
+
+      {
+        title: "Stock Entries",
+        url: "/stockEntries",
+        urlPattern: "/stockEntries/*",
+      },
     ],
   },
   {

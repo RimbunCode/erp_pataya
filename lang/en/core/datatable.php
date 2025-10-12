@@ -46,6 +46,7 @@ return [
   'columns' => [
     'trigger' => 'Show/Hide Columns',
     'select_column' => 'Select Column',
+    'reset' => 'Reset to Default',
     'apply' => 'Apply'
   ],
 ];

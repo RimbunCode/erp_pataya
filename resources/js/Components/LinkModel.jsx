@@ -316,7 +316,7 @@ export default memo(
     };
 
     useDidMountEffect(() => {
-      if (!allowSearch || !open) return;
+      if (!allowSearch) return;
       setLoading(true);
       const reloadModel = setTimeout(() => {
         getModels();
@@ -324,7 +324,17 @@ export default memo(
       return () => {
         clearTimeout(reloadModel);
       };
-    }, [search, open]);
+    }, [search]);
+    useDidMountEffect(() => {
+      if (!open) return;
+      setLoading(true);
+      const reloadModel = setTimeout(() => {
+        getModels();
+      }, 100);
+      return () => {
+        clearTimeout(reloadModel);
+      };
+    }, [open]);
     const onInputKeyDown = (e) => {
       if (e.key == "Enter" && open) return;
       if (
@@ -416,7 +426,7 @@ export default memo(
                     }}
                     className={cn(
                       "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
-                      diff.same && "text-",
+                      // diff.same && "text-",
                     )}
                     placeholder={placeholder}
                   />

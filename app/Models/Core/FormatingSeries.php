@@ -63,4 +63,18 @@ class FormatingSeries extends Model {
 
     return $codeFormats;
   }
+
+  protected $configColumns = [
+    'name' => [
+      'isLink' => true,
+      'show' => true,
+      'order' => 0
+    ],
+    'format' => [
+      'show' => true,
+      'order' => 1
+    ]
+  ];
+
+  public string $translateKey = "core.formatingSeries";
 }

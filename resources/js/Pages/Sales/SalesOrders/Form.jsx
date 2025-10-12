@@ -4,6 +4,8 @@ import {
   useFormPage,
 } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect, useMemo } from "react";
+import SelectModel, { loadFromModel } from "@/Components/SelectModel";
+
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -13,24 +15,17 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
+import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
 import SalesOrderLinkModel from "./SalesOrderLinkModel";
+import Select from "@/Components/Select";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
-import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/Components/ui/select";
 import { generateRandom } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -405,25 +400,12 @@ export default function Form() {
               value={data}
               onValueChange={(val) => setData("discount_type", val)}
               {...attributes}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t(
-                    "sales.salesOrder.columns.discount_type.placeholder",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="percentage">
-                  {t(
-                    "sales.salesOrder.columns.discount_type.options.percentage",
-                  )}
-                </SelectItem>
-                <SelectItem value="amount">
-                  {t("sales.salesOrder.columns.discount_type.options.amount")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              placeholder={t(
+                "sales.salesOrder.columns.discount_type.placeholder",
+              )}
+              optionTrans="sales.salesOrder.columns.discount_type.options"
+              options={["percentage", "amount"]}
+            />
           );
         },
       },

@@ -5,15 +5,14 @@ namespace App\Services\Inventory;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\ItemVariantAttribute;
+use App\Models\Inventory\Unit;
 
-class ItemServices
-{
+class ItemServices {
   /**
    * Summary of getSku
    * @param \App\Models\Inventory\ItemVariant|\App\Models\Inventory\Item $item
    */
-  public static function getSku(mixed $item, array|null $attributes = null)
-  {
+  public static function getSku(mixed $item, array|null $attributes = null) {
 
     if ($item->format_variant === null || $item->format_variant === '') {
       return $item->item_code;
@@ -28,9 +27,9 @@ class ItemServices
     }, $item->format_variant ?? $item->item->format_variant);
     return $result;
   }
-  public function updateUom(Item $item, array $uoms)
-  {
+  public function updateUom(Item $item, array $uoms) {
     foreach ($uoms as $uom) {
+      Unit::find($uom['id'])->updateHaveTransactions();
       $item->uom()->updateOrCreate([
         'unit_id' => $uom['id'],
       ], [
@@ -44,8 +43,7 @@ class ItemServices
     }
   }
 
-  public function updateVariants(Item $item, string $formatVariants, array $attributes)
-  {
+  public function updateVariants(Item $item, string $formatVariants, array $attributes) {
     if (isset($attributes) && \count($attributes) > 0) {
       if (isset($formatVariants)) {
         $attribute_map = array_column(array_column($attributes, 'attribute'), 'id', 'name');
@@ -99,13 +97,14 @@ class ItemServices
         'item_name' => $item->name,
         'category_id' => $item->category_id,
         'default_unit_id' => $item->default_unit_id,
+        'is_stock_item' => $item->is_stock_item,
+        'conversion_factor' => $item->conversion_factor,
       ]);
       return $itemVariant;
     }
   }
 
-  private function generateVariants($variants, Item $item, array $attributes, array $prefix = [])
-  {
+  private function generateVariants($variants, Item $item, array $attributes, array $prefix = []) {
     if (!$attributes) {
       $variant = $variants->where(function ($variant) use ($prefix) {
         if (\count($variant->values ?? []) != \count($prefix)) return false;
@@ -125,6 +124,8 @@ class ItemServices
           'format_variant' => $item->format_variant,
           'category_id' => $item->category_id,
           'default_unit_id' => $item->default_unit_id,
+          'is_stock_item' => $item->is_stock_item,
+          'conversion_factor' => $item->conversion_factor,
         ])->id;
         foreach ($prefix as $attribute) {
           $attribute->values()->create([
@@ -141,6 +142,7 @@ class ItemServices
           'item_name' => $item->name,
           'category_id' => $item->category_id,
           'default_unit_id' => $item->default_unit_id,
+          'is_stock_item' => $item->is_stock_item,
         ]);
         $variantId = $variant->id;
       }
@@ -172,8 +174,7 @@ class ItemServices
     }
   }
 
-  public function updateBarcodes(ItemVariant|null $variant, array $barcodes)
-  {
+  public function updateBarcodes(ItemVariant|null $variant, array $barcodes) {
     if (!$variant) return;
     $variant->barcodes()->delete();
     foreach ($barcodes as $barcode) {

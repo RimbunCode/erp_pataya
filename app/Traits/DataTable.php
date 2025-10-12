@@ -28,12 +28,12 @@ use Inertia\Inertia;
  * @method static void dataTable(\Illuminate\Http\Request $request)
  * @method void dataTable(\Illuminate\Http\Request $request)
  */
-trait DataTable
-{
-
+trait DataTable {
   protected $defaultConfigColumns = [];
-  public function initializeDataTable()
-  {
+  public function initializeDataTable() {
+    $this->mergeCasts([
+      'have_transactions' => 'boolean'
+    ]);
     $this->defaultConfigColumns = array_merge($this->defaultConfigColumns, [
       'created_at' => [
         'title' => __('core/form.created_at'),
@@ -43,6 +43,9 @@ trait DataTable
       ],
       'deleted_at' => [
         'title' => __('core/form.deleted_at'),
+      ],
+      'submitted_at' => [
+        'title' => __('core/form.submitted_at'),
       ],
       'logs' => [
         'title' => __('core/form.logs'),
@@ -56,6 +59,9 @@ trait DataTable
       'files' => [
         'title' => __('core/form.files'),
       ],
+      'have_transactions' => [
+        'ignore' => true,
+      ]
     ]);
   }
   public function fillForUpdate(array $attributes, bool $fillOnly = false)
@@ -237,11 +243,6 @@ trait DataTable
     }
     $this->load($toLoad);
   }
-  public static function codeRelations()
-  {
-    return with(new static)->codeRelations() ?? [];
-  }
-
 
   /**
    * Berikan nama module untuk model ini
@@ -321,6 +322,13 @@ trait DataTable
       if (!Schema::hasColumns($tableName, ['created_by'])) {
         Schema::table($tableName, function (Blueprint $table) {
           $table->foreignUlid('created_by')->references('id')->on('users')->restrictOnDelete();
+          $table->timestamp('submitted_at')->nullable();
+        });
+      }
+
+      if (!Schema::hasColumns($tableName, ['code'])) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->string('code')->unique();
         });
       }
       if (!Schema::hasColumns($tableName, ['status'])) {
@@ -387,8 +395,42 @@ trait DataTable
   public function showDetail()
   {
     Inertia::share([
+      'translateKey' => $this->translateKey ?? null,
       'connections' => Inertia::defer(function () {
-        return ModelConnection::search(static::class, $this->getKey())->get();
+
+        $data = \collect(ModelConnection::search(static::class, $this->getKey())
+          ->get()
+          ->toArray())
+          ->groupBy('reference_type')
+          ->mapWithKeys(function ($connections) {
+            $reference_type = $connections[0]["reference_type"];
+            $model = new $reference_type;
+            return [[
+              'reference_type' => $reference_type,
+              'model' => Str::title(Str::replace("_", " ", Str::snake($model->getNameClass()))),
+              'count' => count($connections),
+              'route' => Str::plural($model->getNameClass()) . ".index",
+              'query' => [],
+              'items' => $connections->map(function ($connection) {
+                $model = new $connection["reference_type"];
+                return [
+                  ...((array) $connection),
+                  'route' => Str::plural($model->getNameClass()) . ".show",
+                ];
+              })
+            ]];
+          });
+        return $data;
+        // return \array_map
+        // ->map(function ($connection) {
+        //   $model = new $connection->reference_type;
+        //   return [
+        //     ...((array) $connection),
+        //     'model' => $model->getNameClass(),
+        //     'route' => Str::plural($model->getNameClass()).".index",
+        //     'query' => []
+        //   ];
+        //   });
       }),
       'logs' => Inertia::defer(function () {
         return Log::with('user')

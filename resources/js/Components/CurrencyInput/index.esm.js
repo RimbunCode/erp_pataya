@@ -79,6 +79,7 @@ typeof SuppressedError === "function"
  * Escape regex char
  *
  * See: https://stackoverflow.com/questions/17885855/use-dynamic-variable-string-as-regex-pattern-in-javascript
+ * @param stringToGoIntoTheRegex
  */
 var escapeRegExp = function (stringToGoIntoTheRegex) {
   return stringToGoIntoTheRegex.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
@@ -87,6 +88,8 @@ var escapeRegExp = function (stringToGoIntoTheRegex) {
 var abbrMap = { k: 1000, m: 1000000, b: 1000000000 };
 /**
  * Parse a value with abbreviation e.g 1k = 1000
+ * @param value
+ * @param decimalSeparator
  */
 var parseAbbrValue = function (value, decimalSeparator) {
   if (decimalSeparator === void 0) {
@@ -108,6 +111,8 @@ var parseAbbrValue = function (value, decimalSeparator) {
 
 /**
  * Remove group separator from value eg. 1,000 > 1000
+ * @param value
+ * @param separator
  */
 var removeSeparators = function (value, separator) {
   if (separator === void 0) {
@@ -119,6 +124,8 @@ var removeSeparators = function (value, separator) {
 
 /**
  * Remove invalid characters
+ * @param value
+ * @param validChars
  */
 var removeInvalidChars = function (value, validChars) {
   var chars = escapeRegExp(validChars.join(""));
@@ -128,6 +135,7 @@ var removeInvalidChars = function (value, validChars) {
 
 /**
  * Remove prefix, separators and extra decimals from value
+ * @param _a
  */
 var cleanValue = function (_a) {
   var value = _a.value,
@@ -255,6 +263,7 @@ var getSuffix = function (value, _a) {
 
 /**
  * Format value with decimal separator, group separator and prefix
+ * @param options
  */
 var formatValue = function (options) {
   var _value = options.value,
@@ -354,6 +363,9 @@ var formatValue = function (options) {
 };
 /**
  * Before converting to Number, decimal separator has to be .
+ * @param value
+ * @param decimalSeparator
+ * @param isNegative
  */
 var replaceDecimalSeparator = function (value, decimalSeparator, isNegative) {
   var newValue = value;
@@ -440,6 +452,7 @@ var defaultConfig = {
 };
 /**
  * Get locale config from input or default
+ * @param intlConfig
  */
 var getLocaleConfig = function (intlConfig) {
   var _a = intlConfig || {},
@@ -514,6 +527,7 @@ var padTrimValue = function (value, decimalSeparator, decimalScale) {
 /**
  * Based on the last key stroke and the cursor position, update the value
  * and reposition the cursor to the right place
+ * @param _a
  */
 var repositionCursor = function (_a) {
   var selectionStart = _a.selectionStart,
@@ -707,6 +721,8 @@ var CurrencyInput = forwardRef(function (_a, ref) {
   });
   /**
    * Process change in value
+   * @param value
+   * @param selectionStart
    */
   var processChange = function (value, selectionStart) {
     setDirty(true);
@@ -767,6 +783,7 @@ var CurrencyInput = forwardRef(function (_a, ref) {
   };
   /**
    * Handle change event
+   * @param event
    */
   var handleOnChange = function (event) {
     var _a = event.target,
@@ -777,6 +794,7 @@ var CurrencyInput = forwardRef(function (_a, ref) {
   };
   /**
    * Handle focus event
+   * @param event
    */
   var handleOnFocus = function (event) {
     onFocus && onFocus(event);
@@ -786,6 +804,7 @@ var CurrencyInput = forwardRef(function (_a, ref) {
    * Handle blur event
    *
    * Format value by padding/trimming decimals if required by
+   * @param event
    */
   var handleOnBlur = function (event) {
     var value = event.target.value;
@@ -823,6 +842,7 @@ var CurrencyInput = forwardRef(function (_a, ref) {
    * Handle key down event
    *
    * Increase or decrease value by step
+   * @param event
    */
   var handleOnKeyDown = function (event) {
     var key = event.key;
@@ -868,6 +888,7 @@ var CurrencyInput = forwardRef(function (_a, ref) {
    * Handle key up event
    *
    * Move cursor if there is a suffix to prevent user typing past suffix
+   * @param event
    */
   var handleOnKeyUp = function (event) {
     var key = event.key,

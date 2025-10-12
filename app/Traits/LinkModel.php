@@ -4,6 +4,7 @@ namespace App\Traits;
 
 use App\Casts\FormStatusCast;
 use App\Casts\Json;
+use App\FormStatus;
 use App\Models\Scopes\DataTableScope;
 use App\Models\User\Permission;
 use Closure;
@@ -34,17 +35,26 @@ trait LinkModel
   {
     return static::$is_submitable ?? false;
   }
-  protected function getArrayableAppends()
-  {
+  public function updateHaveTransactions(bool $value = true, bool $save = true) {
+    $this->have_transactions = $value;
+    if ($save)
+      $this->save();
+  }
+  protected function getArrayableAppends() {
     $this->appends = array_unique(array_merge(
       $this->appends,
-      ['route'],
-      \method_exists(static::class, "templateLink") ? ['templateLink'] : []
+      ['route', 'canDelete'],
+      \method_exists(static::class, "templateLink") ? ['templateLink'] : [],
     ));
     return parent::getArrayableAppends();
   }
-  protected function getTemplateLinkAttribute(): string
-  {
+  protected function getCanDeleteAttribute(): bool {
+    $condition = (static::$is_submitable ?? false) ? $this->status == FormStatus::DRAFT : !($this->have_transactions ?? false);
+    if (!\method_exists(static::class, "canDelete"))
+      return $condition;
+    return $condition && $this->canDelete();
+  }
+  protected function getTemplateLinkAttribute(): string {
     if (!\method_exists(static::class, "templateLink"))
       return "";
     return static::templateLink();

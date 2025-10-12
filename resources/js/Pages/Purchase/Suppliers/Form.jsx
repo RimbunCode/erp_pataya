@@ -1,14 +1,8 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useMemo } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/Components/ui/select";
 
 import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
@@ -49,10 +43,16 @@ export default function Form() {
         title={t("purchase.supplier.supplier_detail")}
         value="supplier_detail"
       >
+        <FormCheckbox
+          label={t("purchase.supplier.columns.is_disabled")}
+          checked={data?.is_disabled}
+          onCheckedChange={(e) => setData("is_disabled", e)}
+        />
         <FormInput
           label={t("purchase.supplier.columns.name")}
           required={true}
           name="name"
+          className="mt-4"
         >
           <Input
             value={data?.name ?? ""}
@@ -76,9 +76,10 @@ export default function Form() {
                 notIn: data?.branches?.map((x) => x.id) ?? [],
               },
             }}
+            disabledAddButton
           />
         </FormInput>
-        <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-3">
+        <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-2">
           <FormInput
             label={t("purchase.supplier.columns.email")}
             required={true}
@@ -98,42 +99,16 @@ export default function Form() {
               onChange={(e) => setData("phone", e.target.value)}
             />
           </FormInput>
-          <FormInput
-            label={t("purchase.supplier.columns.is_disabled")}
-            required={true}
-          >
-            <Select
-              value={data?.is_disabled ? "0" : "1"}
-              onValueChange={(v) => setData("is_disabled", v === "0")}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t(
-                    "purchase.supplier.columns.is_disabled.placeholder",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">
-                  {t("purchase.supplier.columns.is_disabled.options.active")}
-                </SelectItem>
-                <SelectItem value="0">
-                  {t("purchase.supplier.columns.is_disabled.options.disabled")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </FormInput>
-
-          <FormTable
-            label={t("purchase.supplier.columns.banks")}
-            className="col-span-full"
-            columns={banksColumns}
-            value={data.banks ?? []}
-            onValueChange={(val) => {
-              setData("banks", val);
-            }}
-          />
         </div>
+        <FormTable
+          label={t("purchase.supplier.columns.banks")}
+          className="mt-4"
+          columns={banksColumns}
+          value={data.banks ?? []}
+          onValueChange={(val) => {
+            setData("banks", val);
+          }}
+        />
       </FormPageContent>
       <FormPageContent
         title={t("purchase.supplier.address")}

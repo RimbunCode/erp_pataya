@@ -19,10 +19,10 @@ export default memo(function FormStockLevels() {
   const { t } = useLaravelReactI18n();
   useEffect(() => {
     setMaxStocksActual(
-      stocks?.reduce((acc, stock) => acc + stock.actual_stock, 0) ?? 0,
+      stocks?.reduce((acc, stock) => acc + stock.actual_quantity, 0) ?? 0,
     );
     setMaxReservedStock(
-      stocks?.reduce((acc, stock) => acc + stock.reserved_stock, 0) ?? 0,
+      stocks?.reduce((acc, stock) => acc + stock.reserved_quantity, 0) ?? 0,
     );
   }, [stocks]);
   return (
@@ -51,56 +51,56 @@ export default memo(function FormStockLevels() {
                     <TooltipTrigger asChild>
                       <div className="pr-0.5 flex flex-col items-end justify-center border-r border-muted-foreground/25 ">
                         <span className="px-1 text-xs">
-                          {stock.reserved_stock}
+                          {stock.reserved_quantity}
                         </span>
                         <span
                           className={cn(
                             "rounded-l-full h-1.5 ",
-                            stock.reserved_stock == 0
+                            stock.reserved_quantity == 0
                               ? "bg-muted"
                               : "bg-foreground",
                           )}
                           style={{
                             width:
-                              stock.reserved_stock == 0
+                              stock.reserved_quantity == 0
                                 ? "15%"
-                                : maxReservedStock === stock.reserved_stock
+                                : maxReservedStock === stock.reserved_quantity
                                   ? "100%"
-                                  : `${(stock.reserved_stock / maxReservedStock) * 100}%`,
+                                  : `${(stock.reserved_quantity / maxReservedStock) * 100}%`,
                           }}
                         />
                       </div>
                     </TooltipTrigger>
                     <TooltipContent align="end">
-                      Reserved Stock: {stock.reserved_stock}
+                      Reserved Stock: {stock.reserved_quantity}
                     </TooltipContent>
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="pl-0.5 flex flex-col items-start justify-center">
                         <span className="px-1 text-xs">
-                          {stock.actual_stock}
+                          {stock.actual_quantity}
                         </span>
                         <span
                           className={cn(
                             "rounded-r-full h-1.5 ",
-                            stock.actual_stock == 0
+                            stock.actual_quantity == 0
                               ? "bg-muted"
                               : "bg-foreground",
                           )}
                           style={{
                             width:
-                              stock.actual_stock == 0
+                              stock.actual_quantity == 0
                                 ? "15%"
-                                : maxStocksActual === stock.actual_stock
+                                : maxStocksActual === stock.actual_quantity
                                   ? "100%"
-                                  : `${(stock.actual_stock / maxStocksActual) * 100}%`,
+                                  : `${(stock.actual_quantity / maxStocksActual) * 100}%`,
                           }}
                         />
                       </div>
                     </TooltipTrigger>
                     <TooltipContent align="start">
-                      Actual Stock: {stock.actual_stock}
+                      Actual Stock: {stock.actual_quantity}
                     </TooltipContent>
                   </Tooltip>
                   <span className="px-2 ml-6 text-center">

@@ -2,7 +2,7 @@
 
 return [
   'title' => 'Manage Customers',
-  'addButton' => 'Add Customer',
+  'add' => 'Add Customer',
   'basic_info' => 'Basic Information',
   'customers' => 'Customers',
   'customer_detail' => 'Customer Details',

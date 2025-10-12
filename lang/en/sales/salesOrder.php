@@ -2,7 +2,7 @@
 
 return [
   'title' => 'Sales Orders',
-  'addButton' => 'New Sales Orders',
+  'add' => 'New Sales Orders',
   'customer' => 'Customer',
   'for_rental' => 'For Rental?',
   'rental_date' => 'Rental Date',
@@ -17,7 +17,10 @@ return [
   'currency' => 'Currency',
   'currency.placeholder' => 'Select a Currency',
   'columns' => [
+    'code' => 'Code',
     'so' => 'SO Number',
+    'customer' => 'Customer',
+    'customer_branch' => 'Customer Branch',
     'item' => 'Item',
     'item.placeholder' => 'Select an item',
     'date' => 'SO Date',

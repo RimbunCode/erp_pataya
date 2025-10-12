@@ -139,11 +139,12 @@ class PermissionSeeder extends Seeder
         if (
           in_array(DataTable::class, class_uses_recursive($className), true)
         ) {
+          print_r("\e[39m" . $className . " \e[93m(RUNNING) \e[39m" . \PHP_EOL);
           $className::initPermissions();
         }
       } catch (\Throwable $e) {
         print_r("\e[39m" . $className . " \e[91m(ERROR) \e[39m" . \PHP_EOL);
-        print_r(value: $e);
+        print_r($e);
       }
     }
   }

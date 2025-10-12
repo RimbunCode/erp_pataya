@@ -19,7 +19,17 @@ class Branch extends Model {
   ];
 
 
-  protected $appends = ['title'];
+  protected $appends = [
+    'title',
+    'shippingAddress',
+    'billingAddress'
+  ];
+  public function getShippingAddressAttribute() {
+    return "{$this->shipping_street}, {$this->shipping_city}, {$this->shipping_province}, {$this->shippingCountry?->name} {$this->shipping_zip_code}";
+  }
+  public function getBillingAddressAttribute() {
+    return "{$this->billing_street}, {$this->billing_city}, {$this->billing_province}, {$this->billingCountry?->name} {$this->billing_zip_code}";
+  }
 
   public function title(): Attribute {
     return new Attribute(
@@ -29,18 +39,6 @@ class Branch extends Model {
           return "{$this->name} ({$main})";
         }
         return $this->name;
-      }
-    );
-  }
-
-  public function shippingAddress() {
-    return new Attribute(
-      get: function ($value) {
-        if ($this->is_main_branch) {
-          return [
-            'street'
-          ];
-        }
       }
     );
   }
@@ -60,11 +58,28 @@ class Branch extends Model {
   }
 
   public string $formComponent = 'Settings/Branches/Form';
-
+  public string $translateKey = "core.branch";
   protected $configColumns = [
+    'title' => [
+      'isLink' => true,
+      'show' => true,
+      'order' => 0,
+    ],
+    'is_main_branch' => [
+      'show' => true,
+      'order' => 1,
+    ],
+    'shippingAddress' => [
+      'show' => true,
+      'order' => 2,
+    ],
+    'billingAdrress' => [
+      'show' => true,
+      'order' => 3
+    ],
     'billingCountry',
     'shippingCountry',
-    // 'users',
+    'branchable',
   ];
 
   public function billingCountry() {

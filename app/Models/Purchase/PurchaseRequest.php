@@ -7,6 +7,7 @@ use App\Models\Model;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseRequest extends Model {
@@ -26,6 +27,7 @@ class PurchaseRequest extends Model {
   }
   public $keyBreadcrumb = "code";
   public string $formComponent = 'Purchase/PurchaseRequests/Form';
+  public string $translateKey = "purchase.purchaseRequest";
   protected $configColumns = [
     "code" => [
       "show" => true,
@@ -56,10 +58,4 @@ class PurchaseRequest extends Model {
   public function items() {
     return $this->hasMany(PurchaseRequestItem::class);
   }
-
-  public string $translateKey = "purchase.purchaseRequest";
-  // protected static function loadRelationsOnShow() {
-  //   return ['items', 'items.item', 'customer', 'customer_branch', 'item_service', 'source_warehouse'];
-  // }
-
 }
