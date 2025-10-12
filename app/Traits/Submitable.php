@@ -14,7 +14,8 @@ trait Submitable {
 
   public function initializeSubmitable() {
     $this->mergeCasts([
-      'status' => FormStatusCast::class
+      'status' => FormStatusCast::class,
+      'submitted_at' => 'datetime'
     ]);
     $this->with = [
       ...$this->with ?? [],
@@ -26,7 +27,8 @@ trait Submitable {
       ],
       'status' => [
         'title' => __('core/form.status'),
-        'width' => "fit"
+        'width' => "fit",
+        'valueTrans' => 'core.form.statuses'
       ],
       'branch' => [
         'title' => __('core/branch.branch')
@@ -43,6 +45,14 @@ trait Submitable {
       }
       if ($model->created_by == null) {
         $model->created_by = Auth::id();
+      }
+    });
+    self::saving(function ($model) {
+      if (!($model->isSubmitable() ?? false)) {
+        return;
+      }
+      if ($model->status == FormStatus::SUBMITTED) {
+        $model->submitted_at = now();
       }
     });
   }

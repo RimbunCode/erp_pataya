@@ -12,13 +12,9 @@ import DataTable from "@/Pages/Core/DataTable";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import Link from "@/Components/Link";
-import { TZDate } from "@date-fns/tz";
-import { format } from "date-fns";
-import { getLocaleDate } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-// eslint-disable-next-line jsdoc/require-jsdoc
-function Index({ lang }) {
+function Index() {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const [openNewUser, setOpenNewUser] = useState(false);
@@ -72,9 +68,9 @@ function Index({ lang }) {
             {dataRow.status.replace(/(\-|\_)/g, " ")}
           </button>
         ),
-      }
+      },
     ],
-    [lang],
+    [],
   );
   return (
     <Dialog open={openNewUser} onOpenChange={setOpenNewUser}>

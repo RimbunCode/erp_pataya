@@ -15,46 +15,44 @@ import { ScrollArea } from "./scroll-area";
 import { buttonVariants } from "@/components/ui/button";
 import { usePage } from "@inertiajs/react";
 
-const DropdownMonthYear = React.memo(
-  React.forwardRef(function DropdownMonthYear(
-    { value, onChange, children },
-    ref,
-  ) {
-    const options = React.Children.toArray(children);
-    const selected = options.find((child) => child.props.value === value);
-    const handleChange = (value) => {
-      const changeEvent = {
-        target: { value },
-      };
-      onChange?.(changeEvent);
+const DropdownMonthYear = React.forwardRef(function DropdownMonthYear(
+  { value, onChange, children },
+  ref,
+) {
+  const options = React.Children.toArray(children);
+  const selected = options.find((child) => child.props.value === value);
+  const handleChange = (value) => {
+    const changeEvent = {
+      target: { value },
     };
-    return (
-      <Select
-        ref={ref}
-        value={value?.toString()}
-        onValueChange={(value) => {
-          handleChange(value);
-        }}
-      >
-        <SelectTrigger className="pr-1.5 focus:ring-0 py-1! bg-inherit">
-          <SelectValue>{selected?.props?.children}</SelectValue>
-        </SelectTrigger>
-        <SelectContent position="popper">
-          <ScrollArea className="max-h-56">
-            {options.map((option, id) => (
-              <SelectItem
-                key={`${option.props.value}-${id}`}
-                value={option.props.value?.toString() ?? ""}
-              >
-                {option.props.children}
-              </SelectItem>
-            ))}
-          </ScrollArea>
-        </SelectContent>
-      </Select>
-    );
-  }),
-);
+    onChange?.(changeEvent);
+  };
+  return (
+    <Select
+      ref={ref}
+      value={value?.toString()}
+      onValueChange={(value) => {
+        handleChange(value);
+      }}
+    >
+      <SelectTrigger className="pr-1.5 focus:ring-0 py-1! bg-inherit">
+        <SelectValue>{selected?.props?.children}</SelectValue>
+      </SelectTrigger>
+      <SelectContent position="popper">
+        <ScrollArea className="max-h-56">
+          {options.map((option, id) => (
+            <SelectItem
+              key={`${option.props.value}-${id}`}
+              value={option.props.value?.toString() ?? ""}
+            >
+              {option.props.children}
+            </SelectItem>
+          ))}
+        </ScrollArea>
+      </SelectContent>
+    </Select>
+  );
+});
 
 function Calendar({
   fromYear = 1945,

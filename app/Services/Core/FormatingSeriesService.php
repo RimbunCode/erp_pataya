@@ -71,7 +71,10 @@ class FormatingSeriesService {
   }
   private function getCodeRelations(string $model) {
     $objectModel = new $model;
-    $codeRelations = collect($objectModel->codeRelations() ?? [])->mapWithKeys(function ($value) {
+    $codeRelations = collect(
+      \method_exists($objectModel, 'codeRelations') ?
+        $objectModel->codeRelations() :  []
+    )->mapWithKeys(function ($value) {
       preg_replace_callback('/^([^:]+):([^\.]+)\.([^\.]+)$/', function ($matches) use (&$code, &$relation, &$key) {
         $code = $matches[1];
         $relation = $matches[2];
@@ -108,7 +111,6 @@ class FormatingSeriesService {
       }
       $key[] = $codeRelations[$char]["relation"];
     }, $format);
-
     sort($key);
     return implode($key);
   }

@@ -20,7 +20,7 @@ class WarehouseRequest extends FormRequest {
    */
   public function rules(): array {
     return [
-      'branch.id' => ['required', 'string', 'exists:branches,id'],
+      'branch.id' => ['nullable', 'string', 'exists:branches,id'],
       'code' => ['required', 'string', 'min:2', 'max:20', 'regex:/^[\w\-\.\\\\\/]*$/', Rule::unique('warehouses')->whereNull('deleted_at')->ignore($this->id)],
       'name' => ['required', 'string', 'min:3', 'max:255'],
       'pic.id' => ['nullable', 'string', 'exists:users,id'],

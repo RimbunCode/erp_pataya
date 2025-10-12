@@ -51,7 +51,7 @@ const FormCheckbox = React.forwardRef(
         <Checkbox
           ref={ref}
           id={id ?? defaultId}
-          checked={checked}
+          checked={checked ?? false}
           onCheckedChange={onCheckedChange}
           className={classNameCheckbox}
           readOnly={readOnly}

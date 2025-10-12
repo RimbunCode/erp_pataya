@@ -3,7 +3,6 @@
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
-
 Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable = false, $nestedShow = null) {
   $uri = \Illuminate\Support\Str::plural($name);
   Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name, $nestedShow, $isSubmmitable) {
@@ -88,6 +87,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Roles
   Route::get('/roles/permissions', [\App\Http\Controllers\User\RoleController::class, 'permissions'])->name('roles.permissions');
   Route::resourceDetail('role', \App\Http\Controllers\User\RoleController::class);
+
+  /// Inventories Group
   // Warehouse
   Route::resourceDetail('warehouse', \App\Http\Controllers\Inventory\WarehouseController::class);
   //Units
@@ -100,8 +101,11 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('itemVariant', \App\Http\Controllers\Inventory\ItemVariantController::class);
   // ItemAlternatives
   Route::resourceDetail('itemAlternative', \App\Http\Controllers\Inventory\ItemAlternativeController::class);
-  //Attributes
+  // Attributes
   Route::resourceDetail('attribute', \App\Http\Controllers\Inventory\AttributeController::class);
+  // Stock Entries
+  Route::resourceDetail('stockEntry', \App\Http\Controllers\Inventory\StockEntryController::class, isSubmmitable: true);
+  /// Inventories Group End
 
   /// Purchase Group
   // Supplier
@@ -119,12 +123,14 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Work Order
   Route::resourceDetail('workOrder', \App\Http\Controllers\Service\WorkOrderController::class, isSubmmitable: true);
   /// Service Group End
+
   /// Sales Groups
   // Sales Orders
   Route::resourceDetail('salesOrder', \App\Http\Controllers\Sales\SalesOrderController::class, isSubmmitable: true);
   // Internal Orders
   Route::resourceDetail('internalOrder', \App\Http\Controllers\Sales\InternalOrderController::class, isSubmmitable: true);
   /// Sales Groups End
+
   /// Finances
   // Taxes
   Route::resourceDetail('tax', \App\Http\Controllers\Finances\TaxesController::class);

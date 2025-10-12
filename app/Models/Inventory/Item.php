@@ -18,6 +18,7 @@ class Item extends Model {
   protected $casts = [
     'is_disabled' => 'boolean',
     'allow_alternative_item' => 'boolean',
+    'is_stock_item' => 'boolean',
   ];
 
   public static function templateLink() {
@@ -36,14 +37,23 @@ class Item extends Model {
     ];
   }
   public string $formComponent = 'Inventory/Items/Form';
+  public string $translateKey = "inventory.item";
   protected $configColumns = [
-    'attributes',
+    'code' => [
+      'show' => true,
+      'order' => 0,
+      'isLink' => true,
+    ],
+    'name' => [
+      'show' => true,
+      'order' => 1,
+    ],
+    'category' => [
+      'show' => true,
+      'order' => 2,
+    ],
     'defaultUnit',
-    // 'uom' => function ($builder, $value){
-
-    // },
-    'variants',
-    'category',
+    'image'
   ];
 
   public function attributes() {

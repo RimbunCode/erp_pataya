@@ -41,7 +41,7 @@ function Form() {
             item: item.item,
             description: item.description,
             required_date: prev.required_date,
-            quantity: item.remaining_quantity,
+            quantity: item.required_quantity,
             unit: item.unit,
             referenceable_type: model,
             referenceable_id: item.id,
@@ -255,7 +255,13 @@ function Form() {
                       filters: {
                         status: "submitted",
                       },
-                      columns: ["work_order", "item", "quantity", "unit"],
+                      columns: [
+                        "work_order",
+                        "item",
+                        "quantity",
+                        "required_quantity",
+                        "unit",
+                      ],
                     },
                   },
                 },

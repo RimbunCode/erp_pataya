@@ -30,6 +30,23 @@ class Warehouse extends Model {
     );
   }
 
+  public string $formComponent = 'Inventory/Warehouses/Form';
+  public string $translateKey = "inventory.warehouse";
+  protected $configColumns = [
+    'title' => [
+      'show' => true,
+      'order' => 0,
+      'isLink' => true
+    ],
+    'name' => [
+      'show' => true,
+      'order' => 1
+    ],
+    'pic' => [
+      'show' => true,
+      'order' => 2
+    ]
+  ];
 
   public function branch() {
     return $this->belongsTo(Branch::class);
@@ -45,5 +62,4 @@ class Warehouse extends Model {
   protected static function loadRelationsOnShow() {
     return ['branch', 'pic'];
   }
-  public string $formComponent = 'Inventory/Warehouses/Form';
 }

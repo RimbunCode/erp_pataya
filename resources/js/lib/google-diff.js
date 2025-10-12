@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/check-tag-names */
 /**
  * Diff Match and Patch
  * Copyright 2018 The diff-match-patch Authors.
@@ -1704,7 +1705,7 @@ diff_match_patch.prototype.match_bitap_ = function (text, pattern, loc) {
 /**
  * Initialise the alphabet for the Bitap algorithm.
  * @param {string} pattern The text to encode.
- * @return {!Object} Hash of character locations.
+ * @return {!object} Hash of character locations.
  * @private
  */
 diff_match_patch.prototype.match_alphabet_ = function (pattern) {
@@ -1787,7 +1788,6 @@ diff_match_patch.prototype.patch_addContext_ = function (patch, text) {
  * a = text1, b = diffs
  * Method 4 (deprecated, use method 3):
  * a = text1, b = text2, c = diffs
- *
  * @param {string|!Array.<!diff_match_patch.Diff>} a text1 (methods 1,3,4) or
  * Array of diff tuples for text1 to text2 (method 2).
  * @param {string|!Array.<!diff_match_patch.Diff>=} opt_b text2 (methods 1,4) or
@@ -2253,7 +2253,7 @@ diff_match_patch.prototype.patch_toText = function (patches) {
 /**
  * Parse a textual representation of patches and return a list of Patch objects.
  * @param {string} textline Text representation of patches.
- * @return {!Array.<!diff_match_patch.patch_obj>} Array of Patch objects.
+ * @returns {!Array.<!diff_match_patch.patch_obj>} Array of Patch objects.
  * @throws {!Error} If invalid input.
  */
 diff_match_patch.prototype.patch_fromText = function (textline) {

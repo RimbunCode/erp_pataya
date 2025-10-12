@@ -3,20 +3,15 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+import CurrencyInput from "@/Components/CurrencyInput";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import React from "react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { Textarea } from "@/Components/ui/textarea";
 import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
-import CurrencyInput from "@/Components/CurrencyInput";
+import React from "react";
+import Select from "@/components/Select";
+import { Textarea } from "@/Components/ui/textarea";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { data, setData } = useFormPage();
@@ -57,32 +52,16 @@ export default function Form() {
             <Select
               value={data.due_date_based_on}
               onValueChange={(val) => setData("due_date_based_on", val)}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t(
-                    "finances.paymentTerm.columns.due_date_based_on.placeholder",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="days_after_invoice_date">
-                  {t(
-                    "finances.paymentTerm.columns.due_date_based_on.options.days_after_invoice_date",
-                  )}
-                </SelectItem>
-                <SelectItem value="weeks_after_invoice_week">
-                  {t(
-                    "finances.paymentTerm.columns.due_date_based_on.options.weeks_after_invoice_week",
-                  )}
-                </SelectItem>
-                <SelectItem value="months_after_invoice_month">
-                  {t(
-                    "finances.paymentTerm.columns.due_date_based_on.options.months_after_invoice_month",
-                  )}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              placeholder={t(
+                "finances.paymentTerm.columns.due_date_based_on.placeholder",
+              )}
+              optionTrans="finances.paymentTerm.columns.due_date_based_on.options"
+              options={[
+                "days_after_invoice_date",
+                "weeks_after_invoice_week",
+                "months_after_invoice_month",
+              ]}
+            />
           </FormInput>
           <FormInput
             required={true}
@@ -129,27 +108,12 @@ export default function Form() {
             <Select
               value={data.discount_type}
               onValueChange={(val) => setData("discount_type", val)}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t(
-                    "finances.paymentTerm.columns.discount_type.placeholder",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="percentage">
-                  {t(
-                    "finances.paymentTerm.columns.discount_type.options.percentage",
-                  )}
-                </SelectItem>
-                <SelectItem value="amount">
-                  {t(
-                    "finances.paymentTerm.columns.discount_type.options.amount",
-                  )}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              placeholder={t(
+                "finances.paymentTerm.columns.discount_type.placeholder",
+              )}
+              optionTrans="finances.paymentTerm.columns.discount_type.options"
+              options={["percentage", "amount"]}
+            />
           </FormInput>
           {data.discount_type && (
             <FormInput

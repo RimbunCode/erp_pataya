@@ -32,9 +32,9 @@ abstract class Controller {
    * @return void
    */
   protected function setBreadcrumbs(Model|string ...$models) {
+    $instanceModel = new $this->model();
     if (empty($models)) {
-      $tableName = Str::camel($this->model::getTableName());
-      $breadcrumbs = [['name' => Str::headline($tableName)]];
+      $breadcrumbs = [['name' => ($instanceModel->translateKey ?? "") . '.title']];
     } else {
       $breadcrumbs = [];
       /**
@@ -42,18 +42,16 @@ abstract class Controller {
        */
       foreach ($models as $key => $model) {
         if (\gettype($model) == 'string') {
-          $tableName = Str::camel($this->model::getTableName());
-          $breadcrumbs[] = ['name' => Str::headline($tableName), 'link' => route("{$tableName}.index")];
+          $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? "") . '.title', 'link' => route("{$model->route}.index")];
           $breadcrumbs[] = ['name' => $model];
           break;
         }
-        $tableName = Str::camel($model->getTable());
         if ($key == 0) {
-          $breadcrumbs[] = ['name' => Str::headline($tableName), 'link' => route("{$tableName}.index")];
+          $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? "") . '.title', 'link' => route("{$model->route}.index")];
           $name = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
           $breadcrumbs[] = ($key == (count($models) - 1)) ?
             ['name' => $name] :
-            ['name' => $name, 'link' => route("{$tableName}.show", $model->id)];
+            ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
           continue;
         }
         preg_match('/([^\\\\]+)$/',  \get_class($model), matches: $className);
@@ -61,7 +59,7 @@ abstract class Controller {
         $value = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
         $breadcrumbs[] = ($key == (count($models) - 1)) ?
           ['name' => "{$alias}: {$value}"] :
-          ['name' => "{$alias}: {$value}", 'link' => route("{$tableName}.show", $model->id)];
+          ['name' => "{$alias}: {$value}", 'link' => route("{$model->route}.show", $model->id)];
       }
     }
     Inertia::share([

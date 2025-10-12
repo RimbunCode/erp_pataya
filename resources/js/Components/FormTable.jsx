@@ -41,6 +41,7 @@ import React, {
   memo,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -87,7 +88,7 @@ const Wrapper = memo(({ children, isDialog }) => {
 });
 
 Wrapper.displayName = "Wrapper";
-const Cell = memo(
+export const Cell = memo(
   forwardRef(
     (
       {
@@ -128,6 +129,9 @@ const Cell = memo(
             setData: (key, value) => updateData(index, key, value),
             attributes,
             openDialog: onOpenDialog ?? (() => {}),
+            reset: () => {
+              updateData(index, {});
+            },
             isEmpty:
               Object.keys(item).length <=
               Object.keys(defaultValueRow ?? {}).length + 1,
@@ -315,13 +319,15 @@ const FormTableItem = memo(function FormTableItem({
 
 const createHeaders = (headers, reset) => {
   const columnsMap = new Map(
-    headers.map((col) => [
-      col.name,
-      {
-        ...col,
-        show: col.required || (col.show ?? false),
-      },
-    ]),
+    headers
+      .filter((col) => col)
+      .map((col) => [
+        col.name,
+        {
+          ...col,
+          show: col.required || (col.show ?? false),
+        },
+      ]),
   );
   if (reset) return Array.from(columnsMap.values());
 
@@ -385,749 +391,808 @@ const createHeaders = (headers, reset) => {
  * @param {Function} props.onValueChange
  * @returns {React.JSX.Element}
  */
-export default memo(function FormTable({
-  name,
-  label,
-  disabled = false,
-  description,
-  ignoreDisabled = false,
-  readOnly = false,
-  className,
-  columns: columnsProps,
-  value,
-  onValueChange,
-  defaultValueRow,
-  form,
-  submitable = false,
-}) {
-  if (!columnsProps) {
-    throw new Error("columns is required");
-  }
-  const [openConfigureColumns, setOpenConfigureColumns] = useState(false);
-  const [columns, setColumns] = useState(createHeaders(columnsProps));
-  const { t } = useLaravelReactI18n();
-  const [currentIndex, setCurrentIndex] = useState(-1);
-  const [currentData, setCurrentData] = useState(null);
-  const [getRef, setRef] = useDynamicRefs();
-  const isMobile = useIsMobile();
-  const prevValueRef = useRef(value); // Simpan `value` sebelumnya untuk mencegah loop
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      // Require the mouse to move by 10 pixels before activating
-      activationConstraint: {
-        distance: 10,
-      },
-    }),
-    useSensor(TouchSensor, {
-      // Press delay of 250ms, with tolerance of 5px of movement
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    }),
-    // useSensor(KeyboardSensor, {
-    //   coordinateGetter: sortableKeyboardCoordinates,
-    // }),
-  );
-  useDidMountEffect(() => {
-    setColumns(createHeaders(columnsProps));
-  }, [columnsProps]);
-  useDidMountEffect(() => {
-    saveToLocalStorage(
-      FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
-      columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
-    );
-  }, [columns]);
-  if (value && !Array.isArray(value)) {
-    throw new Error("value must be an array");
-  }
-  value = value ?? [];
-  if (!Array.isArray(columns)) {
-    throw new Error("columns must be an array");
-  }
-
-  const filteredColumns = useMemo(
-    () => columns.filter((x) => x.required || (x.show ?? true)),
-    [columns],
-  );
-  const [_data, _setData] = useState(() => {
-    return readOnly || (disabled && value.length > 0)
-      ? value
-      : [
-          ...value.map((x) => ({
-            ...(defaultValueRow ?? {}),
-            ...x,
-            id: x.id ?? generateRandom(5),
-          })),
-          { id: generateRandom(5), ...(defaultValueRow ?? {}) }, // Row kosong selalu ada di akhir
-        ];
-  });
-
-  const getColumn = (name, attributes) => {
-    const col = columns.find((x) => x.name === name);
-    if (!col) return null;
-
-    return (
-      <FormInput
-        key={`${_data[currentIndex]?.id}-${col.name}`}
-        required={col.required}
-        label={col.titleTrans ? t(col.titleTrans) : col.title}
-        name={col.name}
-      >
-        <Cell
-          isDialog
-          defaultValueRow={defaultValueRow}
-          readOnly={readOnly}
-          disabled={disabled}
-          index={currentIndex}
-          item={_data[currentIndex]}
-          col={col}
-          updateData={updateData}
-          {...attributes}
-        />
-      </FormInput>
-    );
-  };
-  const formRef = useRef();
-  const onKeyDown = useCallback(
-    (e) => {
-      e.stopPropagation();
-      if (e.ctrlKey && e.key == "s") {
-        e.preventDefault();
-        const form = formRef.current;
-
-        if (form) {
-          form.requestSubmit();
-        }
-      }
+export default memo(
+  forwardRef(function FormTable(
+    {
+      name,
+      label,
+      disabled = false,
+      description,
+      ignoreDisabled = false,
+      readOnly = false,
+      className,
+      columns: columnsProps,
+      value,
+      onValueChange,
+      defaultValueRow,
+      form,
+      submitable = false,
+      mapItem,
     },
-    [formRef],
-  );
-
-  // Sinkronisasi data lokal hanya jika `value` berubah dari parent
-  useEffect(() => {
-    if (
-      value != prevValueRef.current &&
-      !isEqual(value, prevValueRef.current)
-    ) {
-      prevValueRef.current = value;
-      if (readOnly || (disabled && value.length > 0)) {
-        _setData([...value]);
-        return;
-      }
-      _setData([
-        ...value.map((x) => ({
-          ...(defaultValueRow ?? {}),
-          ...x,
-          id: x.id ?? generateRandom(5),
-        })),
-        { ...(defaultValueRow ?? {}), id: generateRandom(5) }, // Pastikan ada row kosong
-      ]);
+    ref,
+  ) {
+    if (!columnsProps) {
+      throw new Error("columns is required");
     }
-  }, [value, readOnly, disabled]);
-
-  // Kirim perubahan ke parent hanya jika ada perubahan nyata
-  useEffect(() => {
-    if (onValueChange) {
-      let filteredData = readOnly || disabled ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
-      // if (filteredData.length <= 0) {
-      //   filteredData = undefined;
-      // }
-      if (!isEqual(filteredData, prevValueRef.current)) {
-        prevValueRef.current = filteredData;
-        onValueChange(filteredData);
-      }
+    const [openConfigureColumns, setOpenConfigureColumns] = useState(false);
+    const [columns, setColumns] = useState(createHeaders(columnsProps));
+    const { t } = useLaravelReactI18n();
+    const [currentIndex, setCurrentIndex] = useState(-1);
+    const [currentData, setCurrentData] = useState(null);
+    const [getRef, setRef] = useDynamicRefs();
+    const isMobile = useIsMobile();
+    const prevValueRef = useRef(value); // Simpan `value` sebelumnya untuk mencegah loop
+    const sensors = useSensors(
+      useSensor(MouseSensor, {
+        // Require the mouse to move by 10 pixels before activating
+        activationConstraint: {
+          distance: 10,
+        },
+      }),
+      useSensor(TouchSensor, {
+        // Press delay of 250ms, with tolerance of 5px of movement
+        activationConstraint: {
+          delay: 250,
+          tolerance: 5,
+        },
+      }),
+      // useSensor(KeyboardSensor, {
+      //   coordinateGetter: sortableKeyboardCoordinates,
+      // }),
+    );
+    useDidMountEffect(() => {
+      setColumns(createHeaders(columnsProps));
+    }, [columnsProps]);
+    useDidMountEffect(() => {
+      saveToLocalStorage(
+        FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
+        columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
+      );
+    }, [columns]);
+    if (value && !Array.isArray(value)) {
+      throw new Error("value must be an array");
     }
-  }, [_data, value, onValueChange]);
+    value = value ?? [];
+    if (!Array.isArray(columns)) {
+      throw new Error("columns must be an array");
+    }
 
-  // Memperbarui data current
-  const updateDataCurrent = useCallback((key, newValue) => {
-    setCurrentData((prevData) => {
-      const payload =
-        typeof key === "string" || typeof key === "number"
-          ? { [key]: newValue }
-          : key;
-      return {
-        ...prevData,
-        id: prevData?.id ?? generateRandom(5),
-        ...payload,
-      };
+    const filteredColumns = useMemo(
+      () => columns.filter((x) => x.required || (x.show ?? true)),
+      [columns],
+    );
+    const [_data, _setData] = useState(() => {
+      return readOnly || (disabled && value.length > 0)
+        ? value
+        : [
+            ...value.map((x) => ({
+              ...(defaultValueRow ?? {}),
+              ...x,
+              id: x.id ?? generateRandom(5),
+            })),
+            { id: generateRandom(5), ...(defaultValueRow ?? {}) }, // Row kosong selalu ada di akhir
+          ];
     });
-  }, []);
 
-  // Memperbarui data di index tertentu
-  const updateData = useCallback(
-    (index, key, newValue) => {
-      _setData((prevData) => {
-        const isLastRow = index === prevData.length - 1;
-        if (
-          (disabled && prevData.length > 0) ||
-          (!readOnly && index === prevData.length - 1 && key == null)
-        )
-          return prevData;
-        let newData = [...prevData];
-        if (!newData[index]) return prevData;
+    useImperativeHandle(
+      ref,
+      () => ({
+        resetColumns: () => {
+          setColumns(createHeaders(columnsProps));
+        },
+        openConfigureColumns: () => {
+          setOpenConfigureColumns(true);
+        },
+        closeConfigureColumns: () => {
+          setOpenConfigureColumns(false);
+        },
+      }),
+      [columnsProps, mapItem, _data],
+    );
+    const getColumn = (name, attributes) => {
+      const col = columns.find((x) => x.name === name);
+      if (!col) return null;
 
-        const payload =
-          typeof key === "string" || typeof key === "number"
-            ? { [key]: newValue }
-            : (key ?? {});
-        const resetRow = (idx) => {
-          newData[idx] = { ...(defaultValueRow ?? {}), id: generateRandom(5) };
-        };
-        const isDuplicateValue = (colName, value) => {
-          const isDuplicate = newData.some((row, idx) => {
-            if (idx == index) return false;
-            if (row[value] == value || isEqual(row[value], value)) return true;
-            if (
-              typeof row[value] === "object" &&
-              typeof value === "object" &&
-              row[value]?.id == value?.id
-            )
-              return true;
-            return false;
-          });
-          return isDuplicate;
-        };
-        // Cek kolom unique
-        const keysToCheck =
-          typeof key === "object" ? Object.keys(payload) : [key];
-        for (const colName of keysToCheck) {
-          if (
-            typeof colName === "string" &&
-            columns.find((c) => c.name === colName)?.unique
-          ) {
-            if (isDuplicateValue(colName, payload[colName])) {
-              resetRow(index);
-              return newData;
-            }
+      return (
+        <FormInput
+          key={`${_data[currentIndex]?.id}-${col.name}`}
+          required={col.required}
+          label={col.titleTrans ? t(col.titleTrans) : col.title}
+          name={col.name}
+        >
+          <Cell
+            isDialog
+            defaultValueRow={defaultValueRow}
+            readOnly={readOnly}
+            disabled={disabled}
+            index={currentIndex}
+            item={_data[currentIndex]}
+            col={col}
+            updateData={updateData}
+            {...attributes}
+          />
+        </FormInput>
+      );
+    };
+    const formRef = useRef();
+    const onKeyDown = useCallback(
+      (e) => {
+        e.stopPropagation();
+        if (e.ctrlKey && e.key == "s") {
+          e.preventDefault();
+          const form = formRef.current;
+
+          if (form) {
+            form.requestSubmit();
           }
         }
+      },
+      [formRef],
+    );
 
-        // Jika payload null → reset row kecuali id pendek
-        if (payload == null) {
-          if (newData[index].id.length <= 5) return prevData;
-          resetRow(index);
-          return newData;
+    // Sinkronisasi data lokal hanya jika `value` berubah dari parent
+    useEffect(() => {
+      if (
+        value != prevValueRef.current &&
+        !isEqual(value, prevValueRef.current)
+      ) {
+        prevValueRef.current = value;
+        if (readOnly || (disabled && value.length > 0)) {
+          _setData([...value]);
+          return;
         }
-
-        // Cek duplikat ID di row terakhir
-        if (isLastRow && !readOnly) {
-          if (isDuplicateValue("id", payload.id ?? newData[index].id)) {
-            return prevData;
-          }
-        }
-
-        // if (isLastRow && !readOnly) {
-        //   const isDuplicate = newData.some((x, idx) => {
-        //     if (idx == index) return false;
-        //     if (x.id == (payload.id ?? newData[index].id)) return true;
-        //     return false;
-        //   });
-        //   if (isDuplicate) return prevData;
-        // }
-
-        newData[index] = {
-          ...(defaultValueRow ?? {}),
-          ...newData[index],
-          id: newData[index]?.id ?? generateRandom(5),
-          ...payload,
-        };
-
-        // Jika mengubah row terakhir, tambahkan row kosong baru
-        if (isLastRow && !readOnly) {
-          newData.push({ ...(defaultValueRow ?? {}), id: generateRandom(5) });
-        }
-
-        return newData;
-      });
-    },
-    [columns],
-  );
-  const insertRow = useCallback((index) => {
-    _setData((prev) => {
-      const newData = [...prev];
-      newData.splice(index, 0, { id: generateRandom(5) });
-      setCurrentIndex(index);
-      if (submitable) setCurrentData(newData[index]);
-      return newData;
-    });
-  }, []);
-  const duplicateRow = useCallback((index) => {
-    _setData((prev) => {
-      const newData = [...prev];
-      newData.splice(index + 1, 0, {
-        ...(defaultValueRow ?? {}),
-        ...newData[index],
-        id: generateRandom(5),
-      });
-      setCurrentIndex(index + 1);
-      if (submitable) setCurrentData(newData[index + 1]);
-      return newData;
-    });
-  }, []);
-  const deleteRow = useCallback(
-    (index) => {
-      _setData((prev) => {
-        const newData = [...prev];
-        if (index === newData.length - 1 && !(readOnly || disabled)) {
-          return newData;
-        }
-        newData.splice(index, 1);
-        if (submitable) setCurrentData(newData[currentIndex]);
-        return newData;
-      });
-    },
-    [readOnly, disabled],
-  );
-  const cellOnKeyDown = useCallback(
-    (e, currentIndex, currentCol) => {
-      if (e.key == "Enter") {
-        e.preventDefault();
-        const indexCol = columns.findIndex((x) => x.name === currentCol);
-        if (indexCol >= columns.length - 1) {
-          if (currentIndex >= _data.length - 1) return;
-          currentIndex++;
-          currentCol = columns[0].name;
-        } else currentCol = columns[indexCol + 1].name;
-      } else if (e.ctrlKey) {
-        switch (e.key) {
-          case "ArrowRight": {
-            e.preventDefault();
-
-            const indexCol = columns.findIndex((x) => x.name === currentCol);
-            if (indexCol >= columns.length - 1) {
-              if (currentIndex >= _data.length - 1) return;
-              currentIndex++;
-              currentCol = columns[0].name;
-            } else currentCol = columns[indexCol + 1].name;
-            break;
-          }
-          case "ArrowLeft": {
-            e.preventDefault();
-
-            const indexCol = columns.findIndex((x) => x.name === currentCol);
-            if (indexCol <= 0) {
-              if (currentIndex <= 0) return;
-              currentIndex--;
-              currentCol = columns[columns.length - 1].name;
-            } else currentCol = columns[indexCol - 1].name;
-            break;
-          }
-          case "ArrowUp": {
-            e.preventDefault();
-
-            if (currentIndex <= 0) return;
-            currentIndex--;
-            break;
-          }
-          case "ArrowDown": {
-            e.preventDefault();
-
-            if (currentIndex >= _data.length - 1) return;
-            currentIndex++;
-            break;
-          }
-          default:
-            return;
-        }
-      }
-      const item = _data[currentIndex];
-      getRef(`${item.id}-${currentCol}`)?.current?.focus();
-    },
-    [_data, columns],
-  );
-  const handleDragOver = useCallback(
-    (event) => {
-      const { active, over } = event;
-
-      if (active.id !== over.id) {
-        _setData((items) => {
-          const newItems = items.map((x) => x.id);
-
-          let newIndex = newItems.indexOf(over.id);
-          const oldIndex = newItems.indexOf(active.id);
-          if (oldIndex >= newItems.length - 1) return items;
-          if (newIndex >= newItems.length - 1) newIndex--;
-          return arrayMove(items, oldIndex, newIndex);
+        _setData((prev) => {
+          return [
+            ...value.map((x, index) => {
+              const data = {
+                ...(defaultValueRow ?? {}),
+                ...x,
+                id: x.id ?? generateRandom(5),
+              };
+              if (mapItem)
+                return mapItem({ item: data, dataTable: prev, index });
+              return data;
+            }),
+            { ...(defaultValueRow ?? {}), id: generateRandom(5) }, // Pastikan ada row kosong
+          ];
         });
       }
-    },
-    [_setData],
-  );
+    }, [value, readOnly, disabled, mapItem]);
 
-  const MyDialog = submitable ? AlertDialog : Dialog;
-  const MyDialogContent = submitable ? AlertDialogContent : DialogContent;
-  const MyDialogHeader = submitable ? AlertDialogHeader : DialogHeader;
-  const MyDialogTitle = submitable ? AlertDialogTitle : DialogTitle;
-  const MyDialogDescription = submitable
-    ? AlertDialogDescription
-    : DialogDescription;
-  return (
-    <>
-      <div
-        className={cn("flex flex-col gap-y-2 w-full", className)}
-        role={!ignoreDisabled ? "forminput" : ""}
-      >
-        <Label>{label}</Label>
-        {description &&
-          (typeof description == "string" ? (
-            <p className="text-sm font-normal text-muted-foreground">
-              {description}
-            </p>
-          ) : (
-            description
-          ))}
+    // Kirim perubahan ke parent hanya jika ada perubahan nyata
+    useEffect(() => {
+      if (onValueChange) {
+        let filteredData = readOnly || disabled ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
 
-        <div
-          className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm [&>div>*:last-child]:border-r [&>div>*]:border-l [&>div>*]:border-muted-foreground/25 max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center  *:border-b *:border-muted-foreground/25"
-          style={{
-            gridTemplateColumns: `auto ${filteredColumns
-              .map((x) => `${x.width ?? 1}fr`)
-              .join(" ")} auto`,
-          }}
-        >
-          <div className="grid border-t *:py-2 *:px-4 grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:py-1!">
-            <div className="justify-center! text-left">#</div>
-            {filteredColumns &&
-              filteredColumns.map((item) => {
-                return (
-                  <div key={item.name} className="justify-start! text-left">
-                    {item.titleTrans ? t(item.titleTrans) : item.title}
-                    {item.required && (
-                      <span className="ml-1 text-red-500">*</span>
-                    )}
-                  </div>
-                );
-              })}
-            <div className="text-center">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-5 pointer-events-auto!"
-                onClick={() => setOpenConfigureColumns(true)}
-              >
-                <SettingsIcon className="size-3" />
-              </Button>
-            </div>
-          </div>
-          <DndContext
-            onDragOver={handleDragOver}
-            sensors={sensors}
-            collisionDetection={closestCenter}
-          >
-            <SortableContext
-              items={_data.map((x) => x.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              {Array.isArray(_data) &&
-                _data.map((item, index) => {
-                  return (
-                    <FormTableItem
-                      disabled={disabled}
-                      readOnly={readOnly || item.readOnly}
-                      item={item}
-                      index={index}
-                      key={item.id}
-                      columns={filteredColumns}
-                      isLast={index >= _data.length - 1}
-                      setRef={setRef}
-                      cellOnKeyDown={cellOnKeyDown}
-                      updateData={updateData}
-                      submitable={submitable}
-                      setCurrentIndex={setCurrentIndex}
-                      setCurrentData={setCurrentData}
-                      deleteRow={deleteRow}
-                      defaultValueRow={defaultValueRow}
-                      className={
-                        index == _data.length - 1 ? "rounded-b-md" : ""
-                      }
-                    />
-                  );
-                })}
-            </SortableContext>
-          </DndContext>
-        </div>
-      </div>
-      <MyDialog
-        open={currentIndex >= 0}
-        onOpenChange={(e) => {
-          if (!e && !submitable) setCurrentIndex(-1);
-        }}
-      >
-        <MyDialogContent
-          hideX
-          className="max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)"
-          asChild
-        >
-          <form
-            ref={formRef}
-            onKeyDown={onKeyDown}
-            onSubmit={(e) => {
-              console.log(e);
+        if (!isEqual(filteredData, prevValueRef.current)) {
+          prevValueRef.current = filteredData;
+          onValueChange(filteredData);
+        }
+      }
+    }, [_data, value, onValueChange]);
+
+    // Memperbarui data current
+    const updateDataCurrent = useCallback(
+      (key, newValue) => {
+        setCurrentData((prevData) => {
+          const payload =
+            typeof key === "string" || typeof key === "number"
+              ? { [key]: newValue }
+              : key;
+          return {
+            ...prevData,
+            id: prevData?.id ?? generateRandom(5),
+            ...payload,
+          };
+        });
+      },
+      [setCurrentData],
+    );
+
+    // Memperbarui data di index tertentu
+    const updateData = useCallback(
+      (index, key, newValue) => {
+        _setData((prevData) => {
+          const isLastRow = index === prevData.length - 1;
+          if (
+            (disabled && prevData.length > 0) ||
+            (!readOnly && index === prevData.length - 1 && key == null)
+          )
+            return prevData;
+          let newData = [...prevData];
+          if (!newData[index]) return prevData;
+
+          const payload =
+            typeof key === "string" || typeof key === "number"
+              ? { [key]: newValue }
+              : (key ?? {});
+          const resetRow = (idx) => {
+            newData[idx] = {
+              ...(defaultValueRow ?? {}),
+              id: generateRandom(5),
+            };
+            if (mapItem)
+              newData[idx] = mapItem({
+                item: newData[idx],
+                dataTable: newData,
+                index: idx,
+              });
+          };
+          const isDuplicateValue = (colName, value) => {
+            const isDuplicate = newData.some((row, idx) => {
+              if (idx == index) return false;
+              if (row[value] == value || isEqual(row[value], value))
+                return true;
+              if (
+                typeof row[value] === "object" &&
+                typeof value === "object" &&
+                row[value]?.id == value?.id
+              )
+                return true;
+              return false;
+            });
+            return isDuplicate;
+          };
+          // Jika payload null → reset row kecuali id pendek
+          if (
+            payload == null ||
+            payload == undefined ||
+            Object.keys(payload).length <= 0
+          ) {
+            if (
+              newData[index].id.length <= 5 &&
+              Object.keys(payload).length > 0
+            )
+              return prevData;
+            resetRow(index);
+            return newData;
+          }
+          // Cek kolom unique
+          const keysToCheck =
+            typeof key === "object" ? Object.keys(payload) : [key];
+          for (const colName of keysToCheck) {
+            if (
+              typeof colName === "string" &&
+              columns.find((c) => c.name === colName)?.unique
+            ) {
+              if (isDuplicateValue(colName, payload[colName])) {
+                resetRow(index);
+                return newData;
+              }
+            }
+          }
+
+          // Cek duplikat ID di row terakhir
+          if (isLastRow && !readOnly) {
+            if (isDuplicateValue("id", payload.id ?? newData[index].id)) {
+              return prevData;
+            }
+          }
+
+          // if (isLastRow && !readOnly) {
+          //   const isDuplicate = newData.some((x, idx) => {
+          //     if (idx == index) return false;
+          //     if (x.id == (payload.id ?? newData[index].id)) return true;
+          //     return false;
+          //   });
+          //   if (isDuplicate) return prevData;
+          // }
+
+          newData[index] = {
+            ...(defaultValueRow ?? {}),
+            ...newData[index],
+            id: newData[index]?.id ?? generateRandom(5),
+            ...payload,
+          };
+          if (mapItem)
+            newData[index] = mapItem({
+              item: newData[index],
+              dataTable: newData,
+              index: index,
+            });
+
+          // Jika mengubah row terakhir, tambahkan row kosong baru
+          if (isLastRow && !readOnly) {
+            newData.push({ ...(defaultValueRow ?? {}), id: generateRandom(5) });
+          }
+
+          return newData;
+        });
+      },
+      [columns, _setData, mapItem],
+    );
+    const insertRow = useCallback(
+      (index) => {
+        _setData((prev) => {
+          const newData = [...prev];
+          newData.splice(index, 0, { id: generateRandom(5) });
+          setCurrentIndex(index);
+          if (submitable) setCurrentData(newData[index]);
+          return newData;
+        });
+      },
+      [_setData],
+    );
+    const duplicateRow = useCallback(
+      (index) => {
+        _setData((prev) => {
+          const newData = [...prev];
+          newData.splice(index + 1, 0, {
+            ...(defaultValueRow ?? {}),
+            ...newData[index],
+            id: generateRandom(5),
+          });
+          setCurrentIndex(index + 1);
+          if (submitable) setCurrentData(newData[index + 1]);
+          return newData;
+        });
+      },
+      [_setData],
+    );
+    const deleteRow = useCallback(
+      (index) => {
+        _setData((prev) => {
+          const newData = [...prev];
+          if (index === newData.length - 1 && !(readOnly || disabled)) {
+            return newData;
+          }
+          newData.splice(index, 1);
+          if (submitable) setCurrentData(newData[currentIndex]);
+          return newData;
+        });
+      },
+      [readOnly, disabled],
+    );
+    const cellOnKeyDown = useCallback(
+      (e, currentIndex, currentCol) => {
+        if (e.key == "Enter") {
+          e.preventDefault();
+          const indexCol = columns.findIndex((x) => x.name === currentCol);
+          if (indexCol >= columns.length - 1) {
+            if (currentIndex >= _data.length - 1) return;
+            currentIndex++;
+            currentCol = columns[0].name;
+          } else currentCol = columns[indexCol + 1].name;
+        } else if (e.ctrlKey) {
+          switch (e.key) {
+            case "ArrowRight": {
               e.preventDefault();
-              e.stopPropagation();
-              updateData(currentIndex, currentData);
 
-              setCurrentIndex(-1);
-              setCurrentData(null);
+              const indexCol = columns.findIndex((x) => x.name === currentCol);
+              if (indexCol >= columns.length - 1) {
+                if (currentIndex >= _data.length - 1) return;
+                currentIndex++;
+                currentCol = columns[0].name;
+              } else currentCol = columns[indexCol + 1].name;
+              break;
+            }
+            case "ArrowLeft": {
+              e.preventDefault();
+
+              const indexCol = columns.findIndex((x) => x.name === currentCol);
+              if (indexCol <= 0) {
+                if (currentIndex <= 0) return;
+                currentIndex--;
+                currentCol = columns[columns.length - 1].name;
+              } else currentCol = columns[indexCol - 1].name;
+              break;
+            }
+            case "ArrowUp": {
+              e.preventDefault();
+
+              if (currentIndex <= 0) return;
+              currentIndex--;
+              break;
+            }
+            case "ArrowDown": {
+              e.preventDefault();
+
+              if (currentIndex >= _data.length - 1) return;
+              currentIndex++;
+              break;
+            }
+            default:
+              return;
+          }
+        }
+        const item = _data[currentIndex];
+        getRef(`${item.id}-${currentCol}`)?.current?.focus();
+      },
+      [_data, columns],
+    );
+    const handleDragOver = useCallback(
+      (event) => {
+        const { active, over } = event;
+
+        if (active.id !== over.id) {
+          _setData((items) => {
+            const newItems = items.map((x) => x.id);
+
+            let newIndex = newItems.indexOf(over.id);
+            const oldIndex = newItems.indexOf(active.id);
+            if (oldIndex >= newItems.length - 1) return items;
+            if (newIndex >= newItems.length - 1) newIndex--;
+            return arrayMove(items, oldIndex, newIndex);
+          });
+        }
+      },
+      [_setData],
+    );
+
+    const MyDialog = submitable ? AlertDialog : Dialog;
+    const MyDialogContent = submitable ? AlertDialogContent : DialogContent;
+    const MyDialogHeader = submitable ? AlertDialogHeader : DialogHeader;
+    const MyDialogTitle = submitable ? AlertDialogTitle : DialogTitle;
+    const MyDialogDescription = submitable
+      ? AlertDialogDescription
+      : DialogDescription;
+    return (
+      <>
+        <div
+          className={cn("flex flex-col gap-y-2 w-full", className)}
+          role={!ignoreDisabled ? "forminput" : ""}
+        >
+          <Label>{label}</Label>
+          {description &&
+            (typeof description == "string" ? (
+              <p className="text-sm font-normal text-muted-foreground">
+                {description}
+              </p>
+            ) : (
+              description
+            ))}
+
+          <div
+            className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm [&>div>*:last-child]:border-r [&>div>*]:border-l [&>div>*]:border-muted-foreground/25 max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center  *:border-b *:border-muted-foreground/25"
+            style={{
+              gridTemplateColumns: `auto ${filteredColumns
+                .map((x) => `${x.width ?? 1}fr`)
+                .join(" ")} auto`,
             }}
           >
-            <MyDialogHeader>
-              <MyDialogTitle asChild>
-                <div className="flex items-center justify-between">
-                  <h2>{`${t("core.formtable.editing_row")} #${(currentIndex ?? 0) + 1}`}</h2>
-
-                  <div className="flex flex-row items-center justify-end gap-2">
-                    {!submitable && (
-                      <>
-                        {Object.keys(_data[currentIndex] ?? {}).length >
-                          Object.keys(defaultValueRow ?? {}).length + 1 &&
-                          !(readOnly || disabled) &&
-                          (isMobile ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  size="sm"
-                                  className="size-8"
-                                  onClick={() => insertRow(currentIndex - 1)}
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 2048 2048"
-                                  >
-                                    <path
-                                      fill="currentColor"
-                                      d="M2048 128v1664H0V128h512L384 256H128v384h640v512h384V640h768V256h-384l-128-128zM640 1280H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zM621 525l-90-90L960 6l429 429l-90 90l-275-275v774H896V250z"
-                                    ></path>
-                                  </svg>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {t("core.formtable.insert_above")}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="h-8"
-                              onClick={() => insertRow(currentIndex - 1)}
-                            >
-                              {t("core.formtable.insert_above")}
-                            </Button>
-                          ))}
-                        {Object.keys(_data[currentIndex] ?? {}).length >
-                          Object.keys(defaultValueRow ?? {}).length + 1 &&
-                          !(readOnly || disabled) &&
-                          currentIndex < _data.length - 2 &&
-                          (isMobile ? (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  size="sm"
-                                  className="size-8"
-                                  onClick={() => insertRow(currentIndex + 1)}
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 2048 2048"
-                                  >
-                                    <path
-                                      fill="currentColor"
-                                      d="M2048 128v1664h-640l128-128h384v-384h-768V768H768v512H128v384h256l128 128H0V128zM640 256H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zm-621 1139l90 90l-429 429l-429-429l90-90l275 275V896h128v774z"
-                                    ></path>
-                                  </svg>
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {t("core.formtable.insert_below")}
-                              </TooltipContent>
-                            </Tooltip>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              className="h-8"
-                              onClick={() => insertRow(currentIndex + 1)}
-                            >
-                              {t("core.formtable.insert_below")}
-                            </Button>
-                          ))}
-                      </>
-                    )}
-                    {Object.keys(_data[currentIndex] ?? {}).length >
-                      Object.keys(defaultValueRow ?? {}).length + 1 &&
-                      !(
-                        readOnly ||
-                        disabled ||
-                        _data[currentIndex]?.readOnly
-                      ) && (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="sm"
-                          className="w-8 h-8 sm:w-auto"
-                          onClick={() => duplicateRow(currentIndex)}
-                        >
-                          <CopyIcon className="size-4" />
-                          <span className="hidden lg:inline">
-                            {t("core.formtable.duplicate")}
-                          </span>
-                        </Button>
+            <div className="grid border-t *:py-2 *:px-4 grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:py-1!">
+              <div className="justify-center! text-left">#</div>
+              {filteredColumns &&
+                filteredColumns.map((item) => {
+                  return (
+                    <div key={item.name} className="justify-start! text-left">
+                      {item.titleTrans ? t(item.titleTrans) : item.title}
+                      {item.required && (
+                        <span className="ml-1 text-red-500">*</span>
                       )}
-                    {!submitable && (
-                      <>
-                        {currentIndex > 0 && (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            className="h-8 size-8"
-                            onClick={() => {
-                              setCurrentIndex((prev) => prev - 1);
-                              if (submitable)
-                                setCurrentData(_data[currentIndex - 1]);
-                            }}
-                          >
-                            <ArrowUpIcon className="size-4" />
-                          </Button>
-                        )}
-                        {currentIndex < _data.length - 1 && (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="icon"
-                            className="h-8 size-8"
-                            onClick={() => {
-                              setCurrentIndex((prev) => prev + 1);
-                              if (submitable)
-                                setCurrentData(_data[currentIndex + 1]);
-                            }}
-                          >
-                            <ArrowDownIcon className="size-4" />
-                          </Button>
-                        )}
-                      </>
-                    )}
-                    {(Object.keys(_data[currentIndex] ?? {}).length >
-                      Object.keys(defaultValueRow ?? {}).length + 1 ||
-                      currentIndex < _data.length - 1) &&
-                      !(
-                        readOnly ||
-                        disabled ||
-                        _data[currentIndex]?.readOnly
-                      ) && (
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="h-8 size-8"
-                          onClick={() => deleteRow(currentIndex)}
-                        >
-                          <Trash2Icon className="size-4" />
-                        </Button>
-                      )}
-                  </div>
-                </div>
-              </MyDialogTitle>
-              <MyDialogDescription className="sr-only" />
-            </MyDialogHeader>
-            {form ? (
-              <FormChildren
-                className={""}
-                showHeader={false}
-                errors={{}}
-                fieldNameTrans={""}
-                data={(submitable ? currentData : _data[currentIndex]) ?? {}}
-                setData={(...args) =>
-                  submitable
-                    ? updateDataCurrent(...args)
-                    : updateData(currentIndex, ...args)
-                }
+                    </div>
+                  );
+                })}
+              <div className="text-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-5 pointer-events-auto!"
+                  onClick={() => setOpenConfigureColumns(true)}
+                >
+                  <SettingsIcon className="size-3" />
+                </Button>
+              </div>
+            </div>
+            <DndContext
+              onDragOver={handleDragOver}
+              sensors={sensors}
+              collisionDetection={closestCenter}
+            >
+              <SortableContext
+                items={_data.map((x) => x.id)}
+                strategy={verticalListSortingStrategy}
               >
-                {typeof form === "function"
-                  ? form({ getColumn })
-                  : React.cloneElement(form, { getColumn })}
-              </FormChildren>
-            ) : (
-              <div
-                className={cn(
-                  columns.length <= 1
-                    ? "grid-cols-1"
-                    : columns.length <= 2
-                      ? "md:grid-cols-2"
-                      : "md:grid-cols-2 lg:grid-cols-3",
-                  "grid gap-x-4 gap-y-3",
-                )}
-              >
-                {columns &&
-                  columns.map((col) => {
+                {Array.isArray(_data) &&
+                  _data.map((item, index) => {
                     return (
-                      <FormInput
-                        key={`${_data[currentIndex]?.id}-${col.name}`}
-                        required={col.required}
-                        label={col.titleTrans ? t(col.titleTrans) : col.title}
-                        name={col.name}
-                      >
-                        <Cell
-                          isDialog
-                          defaultValueRow={defaultValueRow}
-                          disabled={disabled}
-                          readOnly={readOnly}
-                          index={currentIndex}
-                          item={_data[currentIndex]}
-                          col={col}
-                          updateData={updateData}
-                        />
-                      </FormInput>
+                      <FormTableItem
+                        disabled={disabled}
+                        readOnly={readOnly || item.readOnly}
+                        item={item}
+                        index={index}
+                        key={item.id}
+                        columns={filteredColumns}
+                        isLast={index >= _data.length - 1}
+                        setRef={setRef}
+                        cellOnKeyDown={cellOnKeyDown}
+                        updateData={updateData}
+                        submitable={submitable}
+                        setCurrentIndex={setCurrentIndex}
+                        setCurrentData={setCurrentData}
+                        deleteRow={deleteRow}
+                        defaultValueRow={defaultValueRow}
+                        className={
+                          index == _data.length - 1 ? "rounded-b-md" : ""
+                        }
+                      />
                     );
                   })}
-              </div>
-            )}
-            {submitable && (
-              <AlertDialogFooter className="order-2 mt-4">
-                <AlertDialogCancel
-                  className="h-8"
-                  onClick={() => {
-                    setCurrentIndex(-1);
-                  }}
+              </SortableContext>
+            </DndContext>
+          </div>
+        </div>
+        <MyDialog
+          open={currentIndex >= 0}
+          onOpenChange={(e) => {
+            if (!e && !submitable) setCurrentIndex(-1);
+          }}
+        >
+          <MyDialogContent
+            hideX
+            className="max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)"
+            asChild
+          >
+            <form
+              ref={formRef}
+              onKeyDown={onKeyDown}
+              onSubmit={(e) => {
+                console.log(e);
+                e.preventDefault();
+                e.stopPropagation();
+                // updateData(currentIndex, currentData);
+
+                setCurrentIndex(-1);
+                setCurrentData(null);
+              }}
+            >
+              <MyDialogHeader>
+                <MyDialogTitle asChild>
+                  <div className="flex items-center justify-between">
+                    <h2>{`${t("core.formtable.editing_row")} #${(currentIndex ?? 0) + 1}`}</h2>
+
+                    <div className="flex flex-row items-center justify-end gap-2">
+                      {!submitable && (
+                        <>
+                          {Object.keys(_data[currentIndex] ?? {}).length >
+                            Object.keys(defaultValueRow ?? {}).length + 1 &&
+                            !(readOnly || disabled) &&
+                            (isMobile ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="size-8"
+                                    onClick={() => insertRow(currentIndex - 1)}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      viewBox="0 0 2048 2048"
+                                    >
+                                      <path
+                                        fill="currentColor"
+                                        d="M2048 128v1664H0V128h512L384 256H128v384h640v512h384V640h768V256h-384l-128-128zM640 1280H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zM621 525l-90-90L960 6l429 429l-90 90l-275-275v774H896V250z"
+                                      ></path>
+                                    </svg>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t("core.formtable.insert_above")}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="h-8"
+                                onClick={() => insertRow(currentIndex - 1)}
+                              >
+                                {t("core.formtable.insert_above")}
+                              </Button>
+                            ))}
+                          {Object.keys(_data[currentIndex] ?? {}).length >
+                            Object.keys(defaultValueRow ?? {}).length + 1 &&
+                            !(readOnly || disabled) &&
+                            currentIndex < _data.length - 2 &&
+                            (isMobile ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="size-8"
+                                    onClick={() => insertRow(currentIndex + 1)}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      viewBox="0 0 2048 2048"
+                                    >
+                                      <path
+                                        fill="currentColor"
+                                        d="M2048 128v1664h-640l128-128h384v-384h-768V768H768v512H128v384h256l128 128H0V128zM640 256H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zm-621 1139l90 90l-429 429l-429-429l90-90l275 275V896h128v774z"
+                                      ></path>
+                                    </svg>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t("core.formtable.insert_below")}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="h-8"
+                                onClick={() => insertRow(currentIndex + 1)}
+                              >
+                                {t("core.formtable.insert_below")}
+                              </Button>
+                            ))}
+                        </>
+                      )}
+                      {Object.keys(_data[currentIndex] ?? {}).length >
+                        Object.keys(defaultValueRow ?? {}).length + 1 &&
+                        !(
+                          readOnly ||
+                          disabled ||
+                          _data[currentIndex]?.readOnly
+                        ) && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="w-8 h-8 sm:w-auto"
+                            onClick={() => duplicateRow(currentIndex)}
+                          >
+                            <CopyIcon className="size-4" />
+                            <span className="hidden lg:inline">
+                              {t("core.formtable.duplicate")}
+                            </span>
+                          </Button>
+                        )}
+                      {!submitable && (
+                        <>
+                          {currentIndex > 0 && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 size-8"
+                              onClick={() => {
+                                setCurrentIndex((prev) => prev - 1);
+                                if (submitable)
+                                  setCurrentData(_data[currentIndex - 1]);
+                              }}
+                            >
+                              <ArrowUpIcon className="size-4" />
+                            </Button>
+                          )}
+                          {currentIndex < _data.length - 1 && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 size-8"
+                              onClick={() => {
+                                setCurrentIndex((prev) => prev + 1);
+                                if (submitable)
+                                  setCurrentData(_data[currentIndex + 1]);
+                              }}
+                            >
+                              <ArrowDownIcon className="size-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {(Object.keys(_data[currentIndex] ?? {}).length >
+                        Object.keys(defaultValueRow ?? {}).length + 1 ||
+                        currentIndex < _data.length - 1) &&
+                        !(
+                          readOnly ||
+                          disabled ||
+                          _data[currentIndex]?.readOnly
+                        ) && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="h-8 size-8"
+                            onClick={() => deleteRow(currentIndex)}
+                          >
+                            <Trash2Icon className="size-4" />
+                          </Button>
+                        )}
+                    </div>
+                  </div>
+                </MyDialogTitle>
+                <MyDialogDescription className="sr-only" />
+              </MyDialogHeader>
+              {form ? (
+                <FormChildren
+                  className={""}
+                  showHeader={false}
+                  errors={{}}
+                  fieldNameTrans={""}
+                  data={(submitable ? currentData : _data[currentIndex]) ?? {}}
+                  setData={(...args) =>
+                    submitable
+                      ? updateDataCurrent(...args)
+                      : updateData(currentIndex, ...args)
+                  }
                 >
-                  {t("core.form.cancel")}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="h-8"
-                  type="button"
-                  onClick={() => {
-                    formRef.current?.requestSubmit();
-                  }}
+                  {typeof form === "function"
+                    ? form({ getColumn })
+                    : React.cloneElement(form, { getColumn })}
+                </FormChildren>
+              ) : (
+                <div
+                  className={cn(
+                    columns.length <= 1
+                      ? "grid-cols-1"
+                      : columns.length <= 2
+                        ? "md:grid-cols-2"
+                        : "md:grid-cols-2 lg:grid-cols-3",
+                    "grid gap-x-4 gap-y-3",
+                  )}
                 >
-                  {t("core.form.save")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            )}
-          </form>
-        </MyDialogContent>
-      </MyDialog>
-      <ConfigureColumns
-        columns={columns}
-        setColumns={setColumns}
-        open={openConfigureColumns}
-        setOpen={setOpenConfigureColumns}
-        onReset={() => {
-          setColumns(createHeaders(columnsProps, true));
-        }}
-      />
-    </>
-  );
-});
+                  {columns &&
+                    columns.map((col) => {
+                      return (
+                        <FormInput
+                          key={`${_data[currentIndex]?.id}-${col.name}`}
+                          required={col.required}
+                          label={col.titleTrans ? t(col.titleTrans) : col.title}
+                          name={col.name}
+                        >
+                          <Cell
+                            isDialog
+                            disabled={disabled}
+                            readOnly={readOnly}
+                            index={currentIndex}
+                            item={_data[currentIndex]}
+                            col={col}
+                            isLast={currentIndex >= _data.length - 1}
+                            defaultValueRow={defaultValueRow}
+                            updateData={updateData}
+                          />
+                        </FormInput>
+                      );
+                    })}
+                </div>
+              )}
+              {submitable && (
+                <AlertDialogFooter className="order-2 mt-4">
+                  <AlertDialogCancel
+                    className="h-8"
+                    onClick={() => {
+                      setCurrentIndex(-1);
+                    }}
+                  >
+                    {t("core.form.cancel")}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="h-8"
+                    type="button"
+                    onClick={() => {
+                      formRef.current?.requestSubmit();
+                    }}
+                  >
+                    {t("core.form.save")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              )}
+            </form>
+          </MyDialogContent>
+        </MyDialog>
+        <ConfigureColumns
+          columns={columns}
+          setColumns={setColumns}
+          open={openConfigureColumns}
+          setOpen={setOpenConfigureColumns}
+          onReset={() => {
+            setColumns(createHeaders(columnsProps, true));
+          }}
+        />
+      </>
+    );
+  }),
+);
 
 const ConfigureColumns = memo(function ConfigureColumns({
   columns: columnsProps,
@@ -1206,7 +1271,7 @@ const ConfigureColumns = memo(function ConfigureColumns({
                   {showedColumns.map((col) => {
                     return (
                       <ColumnItem
-                        key={col.name}
+                        key={col.name + "_showed"}
                         onChangeWidth={(name, val) => {
                           setColumns((x) => {
                             return x.map((col) => {

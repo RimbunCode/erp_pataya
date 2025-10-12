@@ -2,6 +2,7 @@
 
 namespace App\Models\Purchase;
 
+use App\Models\Core\Currency;
 use App\Models\Model;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
@@ -24,8 +25,39 @@ class PurchaseOrder extends Model {
   }
   public $keyBreadcrumb = "code";
   public string $formComponent = 'Purchase/PurchaseOrders/Form';
+  public string $translateKey = "purchase.purchaseOrder";
 
-  // protected static function loadRelationsOnShow() {
-  //   return ['items', 'items.item', 'customer', 'customer_branch', 'item_service', 'source_warehouse'];
-  // }
+  public $configColumns = [
+    'code' => [
+      'isLink' => true,
+      'show' => true,
+      'order' => 0,
+    ],
+    'date' => [
+      'show' => true,
+      'order' => 1,
+    ],
+    'supplier' => [
+      'show' => true,
+      'order' => 2,
+    ],
+    'status' => [
+      'show' => true,
+      'order' => 3,
+    ],
+
+  ];
+  protected static function loadRelationsOnShow() {
+    return ['items', 'items.item', 'supplier', 'items.unit'];
+  }
+
+  public function currency() {
+    return $this->belongsTo(Currency::class);
+  }
+  public function supplier() {
+    return $this->belongsTo(Supplier::class);
+  }
+  public function items() {
+    return $this->hasMany(PurchaseOrderItem::class);
+  }
 }

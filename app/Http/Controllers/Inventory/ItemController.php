@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\ItemRequest;
 use App\Models\Core\Branch;
+use App\Models\Inventory\Category;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\ItemVariantAttribute;
@@ -54,11 +55,16 @@ class ItemController extends Controller {
     $data['category_id'] = $data['category']['id'];
     $data['default_unit_id'] = $data['default_unit']['id'];
 
+    $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+
     DB::beginTransaction();
     $item = Item::create($data);
+    Unit::find($item->default_unit_id)->updateHaveTransactions();
+    $category = Category::find($data['category_id']);
+    $data['is_stock_item'] = $category->type != 'service';
     $this->service->updateUom($item, $data['uoms']);
     $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['variants'] ?? []);
-    $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
+    $this->service->updateBarcodes($itemVariant, barcodes: $data['barcodes'] ?? []);
     $item->logForCreated();
     DB::commit();
     if ($itemVariant) {
@@ -73,6 +79,13 @@ class ItemController extends Controller {
   public function show(Item $item) {
     $this->setBreadcrumbs($item);
     $item->showDetail();
+
+    $variant = ItemVariant::where('item_id', $item->id)
+      ->whereNull('format_variant')
+      ->first();
+    if ($variant) {
+      $variant->showStocks();
+    }
 
     return Inertia::render('Inventory/Items/Show', [
       'item' => function () use ($item) {
@@ -101,27 +114,7 @@ class ItemController extends Controller {
               'total_stock' => $totalStock
             ];
           });
-      }),
-      'stocks' => Inertia::defer(function () use ($item) {
-        $variant = ItemVariant::where('item_id', $item->id)
-          ->whereNull('format_variant')
-          ->first();
-        if (!$variant) return [];
-        $warehouses = Warehouse::with(['stocks' => fn($query) => $query->where('item_variant_id', $variant->id), 'stocks.unit', 'branch']);
-        if (Session::has('currentBranch')) {
-          $branch = Branch::find(Session::get('currentBranch'));
-          if (!$branch->is_main_branch) {
-            $warehouses->where('warehouses.branch_id', $branch->id);
-          }
-        }
-        $warehouses = $warehouses->get()
-          ->map(fn($warehouse) => [
-            ...$warehouse->toArray(),
-            'actual_stock' => $warehouse->stocks->sum('quantity'),
-            'reserved_stock' => 0,
-          ]);
-        return $warehouses;
-      }),
+      })
     ]);
   }
 
@@ -131,9 +124,15 @@ class ItemController extends Controller {
   public function update(ItemRequest $request, Item $item) {
     $data = $request->validated();
     $data['category_id'] = $data['category']['id'];
-    $data['default_unit_id'] = $data['default_unit']['id'];
+    if (!$item->have_transactions) {
+      $data['default_unit_id'] = $data['default_unit']['id'];
+    }
+    $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
 
     DB::beginTransaction();
+    Unit::find($item->default_unit_id)->updateHaveTransactions();
+    $category = Category::find($data['category_id']);
+    $data['is_stock_item'] = $category->type != 'service';
     $item->fillForUpdate($data);
     $this->service->updateUom($item, $data['uoms']);
     $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['attributes'] ?? []);

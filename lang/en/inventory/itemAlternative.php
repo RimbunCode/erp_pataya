@@ -8,10 +8,10 @@ return [
   'delete.confirm' => 'Delete',
   'cancel' => 'Cancel',
   'columns' => [
-    'item_code' => 'Item Code',
-    'item_code.placeholder' => 'Select an item',
-    'alternative_item_code' => 'Alternative Item Code',
-    'alternative_item_code.placeholder' => 'Select an alternative item',
+    'item' => 'Item',
+    'item.placeholder' => 'Select an item',
+    'alternative' => 'Alternative Item',
+    'alternative.placeholder' => 'Select an alternative item',
     'two_way' => 'Two Way',
   ],
 ];

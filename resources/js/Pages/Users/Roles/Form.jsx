@@ -1,17 +1,17 @@
 import { Checkbox, FormCheckbox } from "@/Components/ui/checkbox";
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { PlusIcon, Trash2Icon } from "lucide-react";
+import React, { useCallback } from "react";
 
 import { Button } from "@/Components/ui/button";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import React, { useCallback } from "react";
+import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { generateRandom } from "@/lib/utils";
 import { toast } from "sonner";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useState } from "react";
-import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 
 function Form() {
   const { data, setData } = useFormPage();

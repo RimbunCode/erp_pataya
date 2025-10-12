@@ -3,34 +3,29 @@ import Form from "./Form";
 import Link from "@/Components/Link";
 import React from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useRef } from "react";
 
 export default function Index() {
   const route = window.route;
   const { t } = useLaravelReactI18n();
-  const tableRef = useRef();
 
   return (
-    <>
-      <DataTable2
-        ref={tableRef}
-        classNameDialog="max-w-(--breakpoint-2xl)!"
-        form={<Form />}
-        templateItem={({ dataRow }) => (
-          <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
-            <Link
-              as="button"
-              href={route("workOrders.show", dataRow.id)}
-              className=""
-            >
-              <p className="text-base font-medium text-left text-muted-foreground">
-                {t(`service.workOrder.types.${dataRow.type}`)}
-              </p>
-              <p className="text-base font-medium text-left">{dataRow.name}</p>
-            </Link>
-          </div>
-        )}
-      />
-    </>
+    <DataTable2
+      classNameDialog="max-w-(--breakpoint-2xl)!"
+      form={<Form />}
+      templateItem={({ dataRow }) => (
+        <div className="flex items-center justify-between p-4 border-b gap-x-4 border-muted-foreground/25">
+          <Link
+            as="button"
+            href={route("workOrders.show", dataRow.id)}
+            className=""
+          >
+            <p className="text-base font-medium text-left text-muted-foreground">
+              {t(`service.workOrder.types.${dataRow.type}`)}
+            </p>
+            <p className="text-base font-medium text-left">{dataRow.name}</p>
+          </Link>
+        </div>
+      )}
+    />
   );
 }

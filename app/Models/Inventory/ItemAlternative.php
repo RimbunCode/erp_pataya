@@ -20,9 +20,22 @@ class ItemAlternative extends Model {
     return ":item.code";
   }
   protected $configColumns = [
-    'item',
-    'alternative',
+    'item' => [
+      'show' => true,
+      'order' => 0,
+      'isLink' => true,
+    ],
+    'alternative' => [
+      'show' => true,
+      'order' => 1,
+      'disabledNavigation' => true
+    ],
+    'two_way' => [
+      'show' => true,
+      'order' => 2,
+    ],
   ];
+  public string $translateKey = "inventory.itemAlternative";
 
   public function item() {
     return $this->belongsTo(ItemVariant::class, 'item_id', 'id');

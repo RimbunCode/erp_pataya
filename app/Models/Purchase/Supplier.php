@@ -18,6 +18,12 @@ class Supplier extends Model {
     'is_disabled' => 'boolean',
     'banks' => FormTable::class
   ];
+  protected $appends = [
+    "address",
+  ];
+  public function getAddressAttribute() {
+    return "{$this->street}, {$this->city}, {$this->province}, {$this->country->name} {$this->zip_code}";
+  }
   public static function templateLink() {
     return ":name";
   }
@@ -31,4 +37,26 @@ class Supplier extends Model {
     return $this->hasMany(Supplier::class, 'parent_id');
   }
   public string $formComponent = "Purchase/Suppliers/Form";
+  public string $translateKey = "purchase.supplier";
+  protected $configColumns = [
+    'name' => [
+      'isLink' => true,
+      'show' => true,
+      'order' => 0,
+    ],
+    'phone' => [
+      'show' => true,
+      'order' => 1,
+    ],
+    'email' => [
+      'show' => true,
+      'order' => 2,
+    ],
+    'address' => [
+      'show' => true,
+      'order' => 3
+    ],
+    'country',
+    'branchOf',
+  ];
 }

@@ -5,14 +5,14 @@ namespace App\Models\Finances;
 use App\FormStatus;
 use App\Models\Model;
 use App\Traits\DataTable;
+use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use function PHPSTORM_META\type;
 
-class PaymentSchedule extends Model
-{
+class PaymentSchedule extends Model {
   use HasUlids, SoftDeletes, DataTable;
 
   protected $configColumns = [
@@ -45,13 +45,14 @@ class PaymentSchedule extends Model
   protected $appends = ['status'];
 
   protected $casts = [
-    'due_date' => 'datetime'
+    'due_date' => 'datetime',
+    'payment_date' => 'datetime',
+    'submitted_at' => 'datetime',
   ];
 
   protected $guarded = ['id'];
 
-  public function status(): Attribute
-  {
+  public function status(): Attribute {
     return new Attribute(
       get: function () {
         if ($this->outstanding_amount <= 0) {
@@ -64,16 +65,13 @@ class PaymentSchedule extends Model
       }
     );
   }
-  public function paymentTerm()
-  {
+  public function paymentTerm() {
     return $this->belongsTo(PaymentTerm::class);
   }
-  public function paymentMethod()
-  {
+  public function paymentMethod() {
     return $this->belongsTo(PaymentMethod::class);
   }
-  public function referenceTo()
-  {
+  public function referenceTo() {
     return $this->morphTo();
   }
 }

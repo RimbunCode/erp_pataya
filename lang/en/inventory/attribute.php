@@ -1,7 +1,7 @@
 <?php
 return [
   'title' => 'Attributes',
-  'add_attribute' => 'Add Attribute',
+  'add' => 'Add Attribute',
   'attributes' => 'Attributes',
   'new' => 'New Attribute',
   'delete' => 'Delete Attribute',
@@ -14,6 +14,7 @@ return [
     'description' => 'Description',
     'values' => 'Values',
     'value' => 'Value',
+    'options' => 'Values',
     'is_numeric' => 'Is Numeric',
     'range' => [
       'from' => 'From Range',

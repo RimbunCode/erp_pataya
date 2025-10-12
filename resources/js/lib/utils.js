@@ -87,6 +87,13 @@ export const SingleChildContainer = ({ children, ...props }) => {
     ...props,
   });
 };
+export function toSnakeCase(text) {
+  return text
+    .replace(/\s+/g, "_") // ubah spasi jadi underscore
+    .replace(/([a-z])([A-Z])/g, "$1_$2") // pisahkan camelCase -> camel_Case
+    .replace(/-+/g, "_") // ubah dash jadi underscore
+    .toLowerCase(); // semuanya jadi lowercase
+}
 
 export function cleanedQuillOutput(str) {
   const route = window.route;
@@ -270,3 +277,38 @@ export function isDeepEmpty(value) {
   // Selain itu dianggap "ada nilai"
   return false;
 }
+
+export const calculateArray = (arr, keyColumn, operator) => {
+  if (!(keyColumn && operator)) return 0;
+  const length = arr?.length ?? 0;
+  let operatorIn = operator;
+  if (operator === "average") operatorIn = "+";
+  const result = arr
+    ? arr?.reduce((a, b) => {
+        if (typeof a === "object") a = a[keyColumn] ?? 0;
+        b = b[keyColumn] ?? 0;
+        switch (operatorIn) {
+          case "+":
+            return a + b;
+          case "-":
+            return a - b;
+          case "*":
+            return a * b;
+          case "/":
+            return a / b;
+          case "%":
+            return a % b;
+          case "^":
+            return a ** b;
+          case "&&":
+            return a && b;
+          case "||":
+            return a || b;
+          default:
+            return 0;
+        }
+      }, 0)
+    : 0;
+  if (operator === "average") return length != 0 ? result / length : 0;
+  return result;
+};

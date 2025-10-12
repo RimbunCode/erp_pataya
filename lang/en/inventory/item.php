@@ -1,7 +1,7 @@
 <?php
 return [
   'title' => 'Items',
-  'add_item' => 'Add Item',
+  'add' => 'Add Item',
   'items' => 'Items',
   'new' => 'New Item',
   'delete' => 'Delete Item',

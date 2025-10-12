@@ -55,9 +55,8 @@ class WarehouseController extends Controller {
   public function store(WarehouseRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
+
+    $data['branch_id'] = isset($data['branch']) ? $data['branch']['id'] : $request->session()->get('currentBranch');
     if (isset($data['pic'])) {
       $data['user_id'] = $data['pic']['id'];
     }
@@ -90,9 +89,7 @@ class WarehouseController extends Controller {
   public function update(WarehouseRequest $request, Warehouse $warehouse) {
     $data = $request->validated();
     DB::beginTransaction();
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
+    $data['branch_id'] = isset($data['branch']) ? $data['branch']['id'] : $request->session()->get('currentBranch');
     if (isset($data['pic'])) {
       $data['user_id'] = $data['pic']['id'];
     }

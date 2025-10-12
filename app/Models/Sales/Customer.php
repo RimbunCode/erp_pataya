@@ -21,9 +21,31 @@ class Customer extends Model {
   }
   public $translateKey = 'sales.customer';
   protected $configColumns = [
+    'name' => [
+      'isLink' => true,
+      'show' => true,
+      'order' => 0,
+    ],
+    'phone' => [
+      'show' => true,
+      'order' => 1,
+    ],
+    'email' => [
+      'show' => true,
+      'order' => 2,
+    ],
+    'address' => [
+      'show' => true,
+      'order' => 3
+    ],
     "country",
-    "branches",
   ];
+  protected $appends = [
+    "address",
+  ];
+  public function getAddressAttribute() {
+    return "{$this->street}, {$this->city}, {$this->province}, {$this->country->name} {$this->zip_code}";
+  }
   protected static function loadRelationsOnShow() {
     return ['country', 'branches' => function ($query) {
       $query->where('is_main_branch', false);

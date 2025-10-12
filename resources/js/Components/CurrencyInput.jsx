@@ -18,16 +18,16 @@ export default forwardRef(function CurrencyInput(
   const { default_currency_id } = usePage().props.preferences;
   const prevValueRef = useRef(value);
   const [data, setData] = useState({
-    value: value?.toString() ?? "",
+    value: Number.isNaN(value) ? "" : (value?.toString() ?? ""),
     values: { float: Number.isNaN(value) ? null : value },
   });
 
   // update if value changed from parent
   useDidMountEffect(() => {
-    if (prevValueRef.current === value) return;
+    if (prevValueRef.current == value) return;
     prevValueRef.current = value;
     setData({
-      value: value?.toString() ?? "",
+      value: Number.isNaN(value) ? "" : (value?.toString() ?? ""),
       values: { float: Number.isNaN(value) ? null : value },
     });
   }, [value]);
@@ -36,10 +36,11 @@ export default forwardRef(function CurrencyInput(
   useEffect(() => {
     if (!onValueChange) return;
     const float = data?.values?.float;
-    if (prevValueRef.current === float) return;
+    if (prevValueRef.current == float) return;
     prevValueRef.current = float;
     onValueChange(float);
-  }, [data, onValueChange]);
+  }, [data]);
+
   return (
     <CurrencyInputOri
       ref={ref}

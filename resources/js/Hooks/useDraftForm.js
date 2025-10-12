@@ -81,7 +81,6 @@ export const useDraftForm = (
     }
   }, [initialData]);
   useDidMountEffect(() => {
-    console.log(form.data);
     if (key != null && form.isDirty) {
       saveToLocalStorage(key, form.data, expiredDays);
     }

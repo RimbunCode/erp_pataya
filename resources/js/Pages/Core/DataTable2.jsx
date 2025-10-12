@@ -4,6 +4,7 @@ import {
   Ellipsis,
   Plus,
   RefreshCw,
+  Trash2Icon,
   X,
 } from "lucide-react";
 import { Button, buttonVariants } from "@/Components/ui/button";
@@ -42,24 +43,26 @@ import {
   useCallback,
   useImperativeHandle,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { cn, getCookieByName, setCookie } from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
+import { FormPageDialog } from "./FormPage";
 import { Label } from "@/Components/ui/label";
 import NoDataImg from "@/Components/Table/NoDataImg";
 import Pagination from "@/Components/Table/Pagination";
 import QueryString from "qs";
 import React from "react";
 import { ScrollArea } from "@/Components/ui/scroll-area";
+import Table2 from "@/Components/Table/Table2";
+import pluralize from "pluralize";
+import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import pluralize from "pluralize";
-import Table2 from "@/Components/Table/Table2";
-import { FormPageDialog } from "./FormPage";
 
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
 /**
@@ -130,7 +133,13 @@ const DATATABLE_COLUMNS_EXPIRED = 7; //days
  */
 export default memo(
   forwardRef(function DataTable2(
-    { form, classNameDialog, actions, templateItem },
+    {
+      form,
+      defaultValueForm,
+      classNameDialog,
+      actions: _actions,
+      templateItem,
+    },
     ref,
   ) {
     // const lang = usePage().props.lang;
@@ -138,7 +147,7 @@ export default memo(
     const isMobile = useIsMobile();
     const { t } = useLaravelReactI18n();
     const query = usePage().props.ziggy.query;
-    const [showNewForm, setShowNewForm] = useState(false);
+    const { deleteItem } = useDeleteModal();
     const { data, defaultSort, dataTableColumns, translateKey, name } =
       usePage().props;
     const [options, setOptions] = useState({
@@ -146,6 +155,32 @@ export default memo(
       f: query?.f ?? [],
       page: query?.page ?? 1,
     });
+    const dialogRef = useRef();
+
+    const actions = useCallback(
+      (props) => {
+        if (props.dataRow.canDelete === false) return _actions?.(props);
+        return (
+          <>
+            <Button
+              variant="destructive"
+              size="icon"
+              className="size-8"
+              onClick={() =>
+                deleteItem(
+                  `${pluralize.plural(name ?? "")}.destroy`,
+                  props.dataRow.id,
+                )
+              }
+            >
+              <Trash2Icon />
+            </Button>
+            {_actions?.(props)}
+          </>
+        );
+      },
+      [_actions, name],
+    );
     // const [columns] = useState(
     //   _columns.findIndex((x) => x.name === "created_at") > -1
     //     ? _columns
@@ -496,13 +531,15 @@ export default memo(
                   </Select>
                 </div>
               </div>
-              <Button
-                className="p-2! size- fit h-8"
-                onClick={() => setShowNewForm(true)}
-              >
-                <Plus />
-                {t(`${translateKey}.add`)}
-              </Button>
+              {form && (
+                <Button
+                  className="p-2! size- fit h-8"
+                  onClick={() => dialogRef?.current?.open()}
+                >
+                  <Plus />
+                  {t(`${translateKey}.add`)}
+                </Button>
+              )}
             </div>
           </div>
           <div className="flex flex-col flex-1 max-w-full mt-4 border rounded-lg border-muted-foreground/25">
@@ -569,15 +606,17 @@ export default memo(
             </div>
           </div>
         </AppLayout>
-        <FormPageDialog
-          title={t(`${translateKey}.new`)}
-          open={showNewForm}
-          onOpenChange={setShowNewForm}
-          className={classNameDialog}
-          name={name}
-        >
-          {form}
-        </FormPageDialog>
+        {form && (
+          <FormPageDialog
+            ref={dialogRef}
+            title={t(`${translateKey}.new`)}
+            className={classNameDialog}
+            defaultValue={defaultValueForm}
+            name={name}
+          >
+            {form}
+          </FormPageDialog>
+        )}
       </>
     );
   }),
