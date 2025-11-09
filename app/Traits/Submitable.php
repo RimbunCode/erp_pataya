@@ -14,30 +14,18 @@ trait Submitable {
 
   public function initializeSubmitable() {
     $this->mergeCasts([
-      'status' => FormStatusCast::class,
-      'submitted_at' => 'datetime'
+      'status'       => FormStatusCast::class,
+      'submitted_at' => 'datetime',
     ]);
     $this->with = [
       ...$this->with ?? [],
-      "createdBy"
+      "createdBy",
     ];
-    $this->defaultConfigColumns = array_merge($this->defaultConfigColumns, [
-      'createdBy' => [
-        'title' => __('core/form.created_by'),
-      ],
-      'status' => [
-        'title' => __('core/form.status'),
-        'width' => "fit",
-        'valueTrans' => 'core.form.statuses'
-      ],
-      'branch' => [
-        'title' => __('core/branch.branch')
-      ]
-    ]);
   }
+
   public static function bootSubmitable() {
     self::creating(function ($model) {
-      if (!($model->isSubmitable() ?? false)) {
+      if (! ($model->isSubmitable() ?? false)) {
         return;
       }
       if ($model->status == null) {
@@ -48,7 +36,7 @@ trait Submitable {
       }
     });
     self::saving(function ($model) {
-      if (!($model->isSubmitable() ?? false)) {
+      if (! ($model->isSubmitable() ?? false)) {
         return;
       }
       if ($model->status == FormStatus::SUBMITTED) {
@@ -56,9 +44,11 @@ trait Submitable {
       }
     });
   }
+
   public function createdBy() {
     return $this->belongsTo(User::class, 'created_by');
   }
+
   public function branch() {
     return $this->belongsTo(Branch::class);
   }

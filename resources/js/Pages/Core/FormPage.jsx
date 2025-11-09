@@ -1,4 +1,10 @@
 import {
+  Alert,
+  AlertIcon,
+  AlertTitle,
+  AlertToolbar,
+} from "@/Components/ui/alert";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -9,13 +15,26 @@ import {
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { ChevronDownIcon, SaveIcon } from "lucide-react";
+import {
+  ChevronDownIcon,
+  PrinterIcon,
+  SaveIcon,
+  Trash2Icon,
+} from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/Components/ui/collapsible";
-import { Head, WhenVisible, usePage } from "@inertiajs/react";
+import { Deferred, Head, WhenVisible, usePage } from "@inertiajs/react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/Components/ui/dropdown-menu";
 import {
   HoverCard,
   HoverCardContent,
@@ -42,16 +61,19 @@ import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 import AppLayout from "@/Layouts/AppLayout";
 import Attachments from "./Components/Attachments";
 import { Button } from "@/Components/ui/button";
+import { ButtonGroup } from "@/Components/ui/button-group";
 import Comments from "./Components/Comments";
 import { HoverCardArrow } from "@radix-ui/react-hover-card";
 import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
+import { RiErrorWarningFill } from "@remixicon/react";
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import { format } from "date-fns";
 import pluralize from "pluralize";
+import { toast } from "sonner";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
@@ -108,6 +130,7 @@ const FormPageContentDescription = memo(
  * @property {React.ReactNode} children
  * @property {string} className
  * @property {boolean} collapsible
+ * @property {boolean} defaultOpen
  * @property {boolean | string | string[]} showAt
  */
 /**
@@ -440,13 +463,16 @@ const FormPage = memo(
       ignoreDraft = false,
       defaultValues,
       deleteable = true,
+      printable: _printable,
     },
     ref,
   ) {
+    const printable = _printable ?? submitable;
     const route = window.route;
     const { deleteItem } = useDeleteModal();
     const { t } = useLaravelReactI18n();
     const defaultData = usePage().props[name] ?? defaultValues ?? {};
+    const prints = usePage().props.prints ?? [];
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
     const {
       data,
@@ -563,6 +589,122 @@ const FormPage = memo(
             </div>
             <div className="flex items-center gap-x-2 ">
               {typeof controls === "function" ? controls() : controls}
+              {printable && defaultData?.status != "draft" && (
+                <Deferred
+                  data={["prints"]}
+                  fallback={
+                    <li className="mb-3 first:mt-2 ms-6">
+                      <div className="text-base! font-normal text-foreground flex gap-x-4">
+                        <LoadingIcon className="size-4" />
+                        <span>{t("core.form.loading")} ...</span>
+                      </div>
+                    </li>
+                  }
+                >
+                  <ButtonGroup className="h-fit">
+                    {prints && prints.length > 0 ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="p-2! size-fit h-8"
+                        disabled={processing}
+                        asChild
+                      >
+                        <Link
+                          href={route(
+                            `${pluralize.plural(name ?? "")}.print`,
+                            defaultData.id,
+                          )}
+                        >
+                          <PrinterIcon />
+                          {t("core.form.print")}
+                        </Link>
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="p-2! size-fit h-8"
+                        disabled={processing}
+                        onClick={() => {
+                          toast.custom(
+                            (e) => (
+                              <Alert
+                                variant="mono"
+                                icon="destructive"
+                                onClose={() => toast.dismiss(e)}
+                              >
+                                <AlertIcon>
+                                  <RiErrorWarningFill />
+                                </AlertIcon>
+                                <AlertTitle>
+                                  {t("core.form.print.errors.no_template")}
+                                </AlertTitle>
+                                <AlertToolbar>
+                                  <Button>
+                                    <Link
+                                      href={route(
+                                        `${pluralize.plural(name ?? "")}.createPrintTemplate`,
+                                      )}
+                                    >
+                                      {t(
+                                        "core.form.print.errors.no_template.create",
+                                      )}
+                                    </Link>
+                                  </Button>
+                                </AlertToolbar>
+                              </Alert>
+                            ),
+                            {
+                              duration: 5000,
+                            },
+                          );
+                        }}
+                      >
+                        <PrinterIcon />
+                        {t("core.form.print")}
+                      </Button>
+                    )}
+                    {prints && prints.length > 1 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="p-2! size-fit h-8"
+                            disabled={processing}
+                            size="icon"
+                          >
+                            <ChevronDownIcon />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {prints.map((print) => (
+                            <DropdownMenuItem asChild key={print.id}>
+                              <Link
+                                href={route(
+                                  `${pluralize.plural(name ?? "")}.print`,
+                                  {
+                                    [name]: defaultData.id,
+                                    printTemplate: print.id,
+                                  },
+                                )}
+                              >
+                                {print.name}
+                                {print.is_default && (
+                                  <div className="badge secondary">
+                                    {t("core.form.default")}
+                                  </div>
+                                )}
+                              </Link>
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </ButtonGroup>
+                </Deferred>
+              )}
               {!disabled &&
                 (!submitable ||
                   (submitable && defaultData?.status == "draft")) &&
@@ -581,7 +723,7 @@ const FormPage = memo(
                       )
                     }
                   >
-                    <SaveIcon />
+                    <Trash2Icon />
                     {t("core.form.delete")}
                   </Button>
                 )}

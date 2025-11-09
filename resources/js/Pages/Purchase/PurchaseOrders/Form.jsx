@@ -44,7 +44,7 @@ function Form() {
             item: item.item,
             description: item.description,
             required_date: prev.required_date,
-            quantity: item.required_quantity,
+            quantity: item.remaining_quantity,
             unit: item.unit,
             referenceable_type: model,
             referenceable_id: item.id,
@@ -80,6 +80,7 @@ function Form() {
         loadFrom?.id,
         loadFrom?.select,
       );
+      console.log(data);
       mergeItems(data.value, data.model);
     };
     fetchData().catch(console.error);
@@ -307,6 +308,26 @@ function Form() {
                         "item",
                         "quantity",
                         "required_quantity",
+                        "unit",
+                      ],
+                    },
+                  },
+                },
+                "App\\Models\\Purchase\\PurchaseRequest": {
+                  columns: ["code", "date"],
+                  filters: {
+                    status: "submitted",
+                  },
+                  select: {
+                    items: {
+                      filters: {
+                        status: "submitted",
+                      },
+                      columns: [
+                        "purchase_request",
+                        "item",
+                        "quantity",
+                        "remaining_quantity",
                         "unit",
                       ],
                     },

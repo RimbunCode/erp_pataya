@@ -24,7 +24,7 @@ import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function Form() {
-  const { dataBefore, data, setData, disabled } = useFormPage();
+  const { dataBefore = {}, data, setData, disabled } = useFormPage();
   const { item, variants } = usePage().props;
   const route = window.route;
   const { t } = useLaravelReactI18n();
@@ -34,7 +34,7 @@ export default memo(function Form() {
   useEffect(() => {
     const list = [
       { id: "item", display: "Item Code" },
-      ...(data?.variants?.map((x) => ({
+      ...(data?.attributes?.map((x) => ({
         id: x.attribute?.id,
         display: x.attribute?.name,
       })) ?? []),
@@ -44,8 +44,9 @@ export default memo(function Form() {
           (y) => y.display.replace(/^\{(.*?)\}$/g, "$1") == x.display,
         ),
     );
+    console.log(list);
     setListFormatVariant(list);
-  }, [data.variants, formatVariantSelected]);
+  }, [data.attributes, formatVariantSelected]);
 
   const getUnits = useCallback((group) => {
     axios

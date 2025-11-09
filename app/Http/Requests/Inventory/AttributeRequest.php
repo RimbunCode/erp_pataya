@@ -25,7 +25,7 @@ class AttributeRequest extends FormRequest {
       'increment' => ['required', 'numeric']
     ] : [
       'values' => ['required', 'array', 'min:1'],
-      'values.*.value' => ['required', 'string', 'min:3', 'max:255', 'distinct']
+      'values.*.value' => ['required', 'string', 'min:1', 'max:255', 'distinct']
     ];
     return [
       'name' => [

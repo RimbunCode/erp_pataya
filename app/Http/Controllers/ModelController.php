@@ -235,7 +235,7 @@ class ModelController extends Controller {
     $with = $request->with ?? [];
     if ($request->has('filters')) {
       $query->where(function (Builder $query) use ($request, &$with) {
-        $this->filterToQuery($query, $request->filters, "and", $with);
+        $this->filterToQuery($query, $request->filters ?? [], "and", $with);
       });
     }
 
