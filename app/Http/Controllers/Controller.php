@@ -20,7 +20,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
-abstract class Controller {
+abstract class Controller
+{
   protected string $model;
   protected $permissions;
   protected string $lang;
@@ -31,7 +32,8 @@ abstract class Controller {
    * @param (\Illuminate\Database\Eloquent\Model|string)[] $models
    * @return void
    */
-  protected function setBreadcrumbs(Model|string ...$models) {
+  protected function setBreadcrumbs(Model|string ...$models)
+  {
     $instanceModel = new $this->model();
     if (empty($models)) {
       $breadcrumbs = [['name' => ($instanceModel->translateKey ?? "") . '.title']];
@@ -42,7 +44,7 @@ abstract class Controller {
        */
       foreach ($models as $key => $model) {
         if (\gettype($model) == 'string') {
-          $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? "") . '.title', 'link' => route("{$model->route}.index")];
+          $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? "") . '.title', 'link' => route("{$instanceModel->route}.index")];
           $breadcrumbs[] = ['name' => $model];
           break;
         }
@@ -67,7 +69,8 @@ abstract class Controller {
     ]);
   }
 
-  public function __construct(Request $request, string $model = null) {
+  public function __construct(Request $request, string $model = null)
+  {
     if (!$model)
       return;
     $this->lang = $request->cookie('lang') ?? 'en';
@@ -88,7 +91,8 @@ abstract class Controller {
     // dd($this->permissions->toArray());
     // Inertia::share('permissions', $this->permissions);
   }
-  protected function guard($operation) {
+  protected function guard($operation)
+  {
     $isAllow = in_array($operation, $this->permissions);
 
     if (!$isAllow) {
@@ -96,12 +100,14 @@ abstract class Controller {
     }
   }
 
-  protected function isInertiaRequest(Request $request) {
+  protected function isInertiaRequest(Request $request)
+  {
     if (!$request->ajax())
       return true;
     return $request->header('X-Inertia') == 'true' || $request->header('X-Inertia-Partial') == 'true';
   }
-  public function addComment(CommentRequest $request, $param) {
+  public function addComment(CommentRequest $request, $param)
+  {
     $request->validated();
 
     preg_match_all('/data-id="([^"]+)"/',  $request->comment, $matches);
@@ -121,7 +127,8 @@ abstract class Controller {
 
     return back();
   }
-  protected function renderShow($formPathname, $name, $title, $data, $props = [], $settings = []) {
+  protected function renderShow($formPathname, $name, $title, $data, $props = [], $settings = [])
+  {
     return Inertia::render('ShowGeneral', array_merge([
       'name' => $name,
       'title' => $title,
@@ -129,7 +136,8 @@ abstract class Controller {
       $name => $data,
     ], [...$props, 'settings' => $settings]));
   }
-  public function removeComment(Request $request, $param, Log $id) {
+  public function removeComment(Request $request, $param, Log $id)
+  {
     if ($id->user_id != $request->user()->id || !$id || $id->type != 'comment') {
       return back()->with('alert', [
         'message' => 'Failed remove comment'
@@ -141,7 +149,8 @@ abstract class Controller {
       'message' => 'Failed remove comment'
     ]);
   }
-  public function addTag(TagRequest $request, $param) {
+  public function addTag(TagRequest $request, $param)
+  {
     $request->validated();
 
     if ($request->new) {
@@ -168,7 +177,8 @@ abstract class Controller {
 
     return back();
   }
-  public function removeTag(Request $request, $param, Tag $id) {
+  public function removeTag(Request $request, $param, Tag $id)
+  {
     Taggable::where('taggable_id', $param)
       ->where('taggable_type', $this->model)
       ->where('tag_id', $id->id)->delete();
@@ -176,7 +186,8 @@ abstract class Controller {
     return back();
   }
 
-  public function addFile(Request $request, $param) {
+  public function addFile(Request $request, $param)
+  {
     DB::beginTransaction();
     preg_match('/[^\\\\]+$/', $this->model, $folderName);
 
@@ -190,7 +201,8 @@ abstract class Controller {
     DB::commit();
     return back();
   }
-  public function removeFile(Request $request, $param, File $id) {
+  public function removeFile(Request $request, $param, File $id)
+  {
     try {
       Fileable::where('fileable_id', $param)
         ->where('fileable_type', $this->model)

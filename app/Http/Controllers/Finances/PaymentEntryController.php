@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Finances;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PaymentEntryRequest;
 use App\Models\Core\Preference;
@@ -9,10 +10,7 @@ use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Sales\SalesOrder;
-use App\Models\Service\WorkOrder;
 use App\Services\Core\FormatingSeriesService;
-use App\Services\Sales\SalesOrderService;
-use Faker\Provider\ar_EG\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -159,7 +157,58 @@ class PaymentEntryController extends Controller
     return redirect()->route('paymentEntries.show', $paymentEntry);
   }
 
-  public function submit(string $id) {}
+  // Opsional: log internal order submit
+  public function submit(PaymentEntry $paymentEntry)
+  {
+    DB::beginTransaction();
+
+    try {
+      $paymentEntry->load('paymentable');
+
+      if ($paymentEntry->status === FormStatus::SUBMITTED) {
+        return back()->with('error', 'Payment Entry sudah disubmit sebelumnya.');
+      }
+
+      $paymentEntry->update([
+        'status' => FormStatus::SUBMITTED,
+      ]);
+
+      // Kalau payment_entry ini terhubung ke PaymentSchedule
+      if ($paymentEntry->paymentable_type === PaymentSchedule::class) {
+        /** @var PaymentSchedule $paymentSchedule */
+        $paymentSchedule = $paymentEntry->paymentable;
+
+        // Validasi overpayment
+        $totalPaid = $paymentSchedule->paid_amount + $paymentEntry->paid_amount;
+        if ($totalPaid > $paymentSchedule->payment_amount) {
+          DB::rollBack();
+          return back()->with('error', 'Jumlah pembayaran melebihi total yang harus dibayar.');
+        }
+
+        // Update jumlah paid & tanggal pembayaran
+        $paymentSchedule->update([
+          'paid_amount' => $totalPaid,
+          'base_paid_amount' => $paymentSchedule->base_paid_amount + $paymentEntry->based_paid_amount,
+          'payment_date' => now(),
+          'submitted_at' => now(),
+        ]);
+      }
+
+      // Log aktivitas
+      $paymentEntry->logForSubmitted();
+
+      DB::commit();
+
+      return redirect()
+        ->route('paymentEntries.show', $paymentEntry)
+        ->with('success', 'Payment Entry berhasil disubmit.');
+    } catch (\Throwable $th) {
+      DB::rollBack();
+      report($th);
+      return back()->with('error', 'Terjadi kesalahan saat submit Payment Entry.');
+    }
+  }
+
   /**
    * Remove the specified resource from storage.
    */

@@ -440,6 +440,7 @@ const FormPage = memo(
       ignoreDraft = false,
       defaultValues,
       deleteable = true,
+      banner,
     },
     ref,
   ) {
@@ -607,6 +608,7 @@ const FormPage = memo(
                 ))}
             </div>
           </div>
+          {banner}
           {errors && Object.keys(errors).length > 0 && (
             <div className="flex-col w-full mt-4 alert error">
               <h3 className="text-base font-semibold">

@@ -4,7 +4,10 @@ namespace App\Services\Sales;
 
 use App\FormStatus;
 use App\Models\Core\Preference;
+use App\Models\Inventory\Stock;
 use App\Models\Sales\InternalOrder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 use Symfony\Component\Uid\Ulid;
 
 class InternalOrderService
@@ -69,9 +72,49 @@ class InternalOrderService
 
   public function submit(InternalOrder $internalOrder)
   {
+    DB::beginTransaction();
+
     $internalOrder->update([
       'status' => FormStatus::SUBMITTED,
     ]);
+
+    $items = $internalOrder->items()->get();
+    $errorItems = [];
+
+    foreach ($items as $item) {
+      $stock = Stock::where('item_variant_id', $item->item_id)
+        ->where('warehouse_id', $item->source_warehouse_id)
+        ->lockForUpdate()
+        ->first();
+
+      if (!$stock) {
+        $errorItems[] = "Item {$item->item->name} in warehouse ID {$item->source_warehouse_id} has no stock record.";
+        continue;
+      }
+
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+
+      if ($stock->ready_quantity < $quantity) {
+        $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
+        continue;
+      }
+
+      $stock->update([
+        'reserved_quantity' => $stock->reserved_quantity + $quantity,
+      ]);
+    }
+
+    if (count($errorItems) > 0) {
+      DB::rollBack();
+      Session::flash('errorItems', $errorItems);
+      return $internalOrder;
+    }
+
+    if (method_exists($internalOrder, 'logForSubmitted')) {
+      $internalOrder->logForSubmitted();
+    }
+
+    DB::commit();
 
     return $internalOrder;
   }

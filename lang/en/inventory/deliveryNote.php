@@ -1,0 +1,33 @@
+<?php
+
+return [
+  'title'    => 'Delivery Notes',
+  'add'      => 'New Delivery Note',
+  'customer' => 'Customer',
+  'branch'   => 'Customer Branch',
+  'new'      => 'New Delivery Note',
+  'items'    => 'Items',
+  'detail'   => "Detail",
+  'status'   => 'Status',
+  'source'   => 'Source Warehouse',
+  'columns'  => [
+    'code'                         => 'Code',
+    'reference_to'                 => 'Reference To',
+    'customer'                     => 'Customer',
+    'customer_branch'              => 'Customer Branch',
+    'item'                         => 'Item',
+    'item.placeholder'             => 'Select an item',
+    'delivery_date'                => 'Delivery Date',
+    'description'                  => 'Description',
+    'source_warehouse'             => 'Source Warehouse',
+    'source_warehouse.placeholder' => 'Select a Source Warehouse',
+    'quantity'                     => 'Quantity',
+    'unit'                         => 'Unit',
+    'unit.placeholder'             => 'Select a unit',
+    'created_at'                   => 'Created at',
+    'reference_so'                 => 'Reference SO',
+    'reference_so.placeholder'     => 'Select a Reference',
+    'external_note'                => 'External Note',
+  ],
+
+];

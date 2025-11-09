@@ -18,6 +18,9 @@ return [
   'currency.placeholder' => 'Select a Currency',
   'columns' => [
     'code' => 'Code',
+    'basic_amount' => 'Basic Amount',
+    'tax_amount' => 'Tax Amount',
+    'total' => 'Total Amount',
     'so' => 'SO Number',
     'customer' => 'Customer',
     'customer_branch' => 'Customer Branch',
@@ -45,12 +48,15 @@ return [
     'payment_amount' => 'Payment Amount',
     'payment_method' => 'Payment Method',
     'payment_method.placeholder' => 'Select a payment method',
-    'discount' => 'Discount',
-    'discount_type' => 'Discount Type',
-    'discount_type.placeholder' => 'Select a discount type',
-    'discount_type.options' => [
-      'percentage' => 'Percentage',
-      'amount' => 'Amount',
+    'additional_discount' => 'Additional Discount',
+    'additional_discount_rate' => 'Additional Discount Rate',
+    'additional_discount_code' => 'Additional Discount Code',
+    'additional_discount_amount' => 'Additional Discount Amount',
+    'discount_on' => 'Apply Additional Discount On',
+    'discount_on.placeholder' => 'Select a additional discount on',
+    'discount_on.options' => [
+      'grand_total' => 'Grand Total',
+      'net_total' => 'Net Total',
     ],
     'due_date_based_on.options' => [
       'days_after_invoice_date' => 'Days after invoice date',

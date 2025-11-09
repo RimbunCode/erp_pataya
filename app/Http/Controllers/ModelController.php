@@ -13,8 +13,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
-class ModelController extends Controller {
-  private function filterOperator(Builder|JoinClause $query, $key, $operatorFilter, $value, $boolean = "and", bool $valueIsColumn = false) {
+class ModelController extends Controller
+{
+  private function filterOperator(Builder|JoinClause $query, $key, $operatorFilter, $value, $boolean = "and", bool $valueIsColumn = false)
+  {
     preg_match('/^([^\[\]]+)/', $operatorFilter, $matches);
     $operatorFilter = $matches[1] ?? "";
     if ($valueIsColumn && \in_array($key, ["column", "in", "notIn", "between", "notBetween"])) {
@@ -79,7 +81,8 @@ class ModelController extends Controller {
         $query->$function($key, '=', $value, $boolean);
     }
   }
-  private function filterToQuery(Builder|JoinClause $query, $filters, $boolean = "and", array &$with = []) {
+  private function filterToQuery(Builder|JoinClause $query, $filters, $boolean = "and", array &$with = [])
+  {
     if ($query instanceof Builder) {
       $columns = Schema::getColumnListing($query->getModel()->getTable());
     }
@@ -118,7 +121,8 @@ class ModelController extends Controller {
       }
     }
   }
-  private function queryTranslations(Builder|JoinClause $query, Request $request, $search, $boolean = "and") {
+  private function queryTranslations(Builder|JoinClause $query, Request $request, $search, $boolean = "and")
+  {
     $hasTranslate = $request->has("translate");
     if ($hasTranslate) {
       $translates = $request->translate;
@@ -153,7 +157,8 @@ class ModelController extends Controller {
     }
     return $query;
   }
-  public function __invoke(Request $request) {
+  public function __invoke(Request $request)
+  {
     if ($this->isInertiaRequest($request)) {
       abort(404);
       return;
@@ -235,7 +240,7 @@ class ModelController extends Controller {
     $with = $request->with ?? [];
     if ($request->has('filters')) {
       $query->where(function (Builder $query) use ($request, &$with) {
-        $this->filterToQuery($query, $request->filters, "and", $with);
+        $this->filterToQuery($query, $request->filters ?? [], "and", $with);
       });
     }
 
@@ -260,7 +265,8 @@ class ModelController extends Controller {
     ]);
   }
 
-  public function columns(Request $request, string $model) {
+  public function columns(Request $request, string $model)
+  {
     // if ($this->isInertiaRequest($request)) {
     //   abort(404);
     //   return;
@@ -295,7 +301,8 @@ class ModelController extends Controller {
     ]);
   }
 
-  public function datatable(Request $request) {
+  public function datatable(Request $request)
+  {
     $model = $request->model;
     $showedColumns = $request->showedColumns;
 

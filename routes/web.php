@@ -1,5 +1,4 @@
 <?php
-
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
@@ -31,8 +30,6 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
     Route::delete("/{{$name}}/file/{id}", "removeFile")->name("$uri.removeFile");
   });
 });
-
-
 
 Route::get('/', function () {
   return redirect()->route('dashboard');
@@ -105,6 +102,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('attribute', \App\Http\Controllers\Inventory\AttributeController::class);
   // Stock Entries
   Route::resourceDetail('stockEntry', \App\Http\Controllers\Inventory\StockEntryController::class, isSubmmitable: true);
+  // Delivery Notes
+  Route::resourceDetail('deliveryNote', \App\Http\Controllers\Inventory\DeliveryNoteController::class, isSubmmitable: true);
   /// Inventories Group End
 
   /// Purchase Group
@@ -129,20 +128,26 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('salesOrder', \App\Http\Controllers\Sales\SalesOrderController::class, isSubmmitable: true);
   // Internal Orders
   Route::resourceDetail('internalOrder', \App\Http\Controllers\Sales\InternalOrderController::class, isSubmmitable: true);
+  // Sales Returns
+  Route::resourceDetail('salesReturn', \App\Http\Controllers\Sales\SalesReturnController::class, isSubmmitable: true);
   /// Sales Groups End
 
   /// Finances
-  // Taxes
-  Route::resourceDetail('tax', \App\Http\Controllers\Finances\TaxesController::class);
+  //Accounts
+  Route::resourceDetail('account', \App\Http\Controllers\Finances\AccountController::class);
+  //General Ledgers
+  Route::resourceDetail('generalLedger', \App\Http\Controllers\Finances\GeneralLedgerController::class);
   // Payment Methods
   Route::resourceDetail('paymentMethod', \App\Http\Controllers\Finances\PaymentMethodController::class);
   // Payment Terms
   Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
-  // Payment Schedules
-  Route::resourceDetail('paymentSchedule', \App\Http\Controllers\Finances\PaymentScheduleController::class);
   // Payment Entries
   Route::resourceDetail('paymentEntry', \App\Http\Controllers\Finances\PaymentEntryController::class);
+  // Sales Invoices
+  Route::resourceDetail('salesInvoice', \App\Http\Controllers\Finances\SalesInvoiceController::class, isSubmmitable: true);
+  // Taxes
+  Route::resourceDetail('tax', \App\Http\Controllers\Finances\TaxesController::class);
+  /// Finances End
 });
-
 
 require __DIR__ . '/auth.php';

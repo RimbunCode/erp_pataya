@@ -9,7 +9,8 @@ use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class InternalOrder extends Model {
+class InternalOrder extends Model
+{
   use DataTable, Submitable, HasUlids, SoftDeletes;
   protected $guarded = ['id'];
   protected $casts = [
@@ -17,7 +18,8 @@ class InternalOrder extends Model {
   ];
   protected static string $defaultFormatCode = '@[branch_code]/IO-@[iiii]/@[yy]';
 
-  public function codeRelations() {
+  public function codeRelations()
+  {
     return [
       'branch_code:branch.code',
       'branch_name:branch.name'
@@ -25,14 +27,16 @@ class InternalOrder extends Model {
   }
   public $keyBreadcrumb = "code";
 
-  public function branch() {
+  public function branch()
+  {
     return $this->belongsTo(Branch::class);
   }
 
-  public function items() {
+  public function items()
+  {
     return $this->hasMany(InternalOrderItem::class);
   }
-  public string $translateKey = "purchase.supplier";
+  public string $translateKey = "sales.internalOrder";
   protected $configColumns = [
     'code' => [
       'isLink' => true,
