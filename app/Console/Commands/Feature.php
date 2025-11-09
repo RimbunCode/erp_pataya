@@ -72,9 +72,9 @@ class Feature extends Command {
         'name'    => $serviceName,
         '--force' => $this->option('force'),
       ]);
+      $this->info(Artisan::output());
     }
 
-    $this->newLine();
     $this->info('✅ Selesai. Files utama sudah dibuat.');
     return self::SUCCESS;
   }

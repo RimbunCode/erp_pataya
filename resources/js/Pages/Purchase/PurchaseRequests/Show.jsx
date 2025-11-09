@@ -62,7 +62,7 @@ export default function Show({ purchaseRequest }) {
                         ref: `purchaseRequest/${purchaseRequest?.id}`,
                       })}
                     >
-                      {t("service.purchaseRequest.actions.create_po")}
+                      {t("purchase.purchaseRequest.actions.create_po")}
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>

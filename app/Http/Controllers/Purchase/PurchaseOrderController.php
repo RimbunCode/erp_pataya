@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Purchase;
 
 use App\Http\Controllers\Controller;
 use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseRequest;
+use App\Models\Service\WorkOrder;
 use App\Services\Core\FormatingSeriesService;
 use App\Services\Purchase\PurchaseOrderService;
 use Illuminate\Http\Request;
@@ -31,12 +33,39 @@ class PurchaseOrderController extends Controller {
    * Show the form for creating a new resource.
    */
   public function create(Request $request, $ref) {
-    $references = \explode('/', $ref);
-    if (count($references) != 2) {
-      abort(404);
-    }
+    if ($ref) {
+      $select = $request->has('select') ? $request->select : null;
+      $split = \explode("/", $ref);
+      $modelOri = $split[0] ?? null;
+      if ($modelOri) {
+        $model = match ($modelOri) {
+          'workOrder' => WorkOrder::class,
+          'purchaseRequest' => PurchaseRequest::class,
+          default => null,
+        };
+        if ($select == null) {
+          $select = match ($modelOri) {
+            'workOrder' => "items",
+            'purchaseRequest' => "items",
+            default => null,
+          };
+        }
+      }
+      $id = $split[1] ?? null;
 
-    return redirect()->route('purchaseOrders.index');
+      if ($model == PurchaseRequest::class) {
+        $data = PurchaseRequest::find($id);
+      }
+    }
+    $this->setBreadcrumbs('purchase.purchaseOrder.new');
+    return Inertia::render('Purchase/PurchaseOrders/Show', [
+      'loadFrom' => isset($model) && $id ? [
+        'model' => $model,
+        'id' => $id,
+        'select' => $select,
+      ] : null,
+      'required_date' => $data?->required_date ?? null,
+    ]);
   }
 
   /**

@@ -7,10 +7,13 @@ use App\Http\Requests\Core\TagRequest;
 use App\Models\Core\File;
 use App\Models\Core\Fileable;
 use App\Models\Core\Log;
+use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
+use App\Models\User\Permission;
 use App\Models\User\RolePermission;
 use App\Models\User\User;
+use App\Utils;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -23,9 +26,8 @@ use Inertia\Inertia;
 abstract class Controller
 {
   protected string $model;
-  protected $permissions;
+  protected        $permissions;
   protected string $lang;
-
 
   /**
    * Summary of setBreadcrumbs
@@ -44,21 +46,23 @@ abstract class Controller
        */
       foreach ($models as $key => $model) {
         if (\gettype($model) == 'string') {
-          $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? "") . '.title', 'link' => route("{$instanceModel->route}.index")];
+          if ($key == 0) {
+            $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? "") . '.title', 'link' => route("{$instanceModel->route}.index")];
+          }
           $breadcrumbs[] = ['name' => $model];
           break;
         }
         if ($key == 0) {
           $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? "") . '.title', 'link' => route("{$model->route}.index")];
-          $name = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
+          $name          = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
           $breadcrumbs[] = ($key == (count($models) - 1)) ?
             ['name' => $name] :
             ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
           continue;
         }
-        preg_match('/([^\\\\]+)$/',  \get_class($model), matches: $className);
-        $alias = $model->aliasBreadcrumb ?? $className[1];
-        $value = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
+        preg_match('/([^\\\\]+)$/', \get_class($model), matches: $className);
+        $alias         = $model->aliasBreadcrumb ?? $className[1];
+        $value         = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
         $breadcrumbs[] = ($key == (count($models) - 1)) ?
           ['name' => "{$alias}: {$value}"] :
           ['name' => "{$alias}: {$value}", 'link' => route("{$model->route}.show", $model->id)];
@@ -69,16 +73,16 @@ abstract class Controller
     ]);
   }
 
-  public function __construct(Request $request, string $model = null)
-  {
-    if (!$model)
+  public function __construct(Request $request, string $model = null) {
+    if (! $model)
+
       return;
-    $this->lang = $request->cookie('lang') ?? 'en';
+    $this->lang  = $request->cookie('lang') ?? 'en';
     $this->model = $model;
-    if (!$model)
+    if (! $model)
       return;
     $this->permissions = RolePermission::getPermissions($model);
-    $currentRoute = Route::getCurrentRoute();
+    $currentRoute      = Route::getCurrentRoute();
     switch ($currentRoute->getActionMethod()) {
       case 'index':
       case "create":
@@ -91,94 +95,93 @@ abstract class Controller
     // dd($this->permissions->toArray());
     // Inertia::share('permissions', $this->permissions);
   }
-  protected function guard($operation)
-  {
+
+  protected function guard($operation) {
     $isAllow = in_array($operation, $this->permissions);
 
-    if (!$isAllow) {
+    if (! $isAllow) {
       abort(403);
     }
   }
 
-  protected function isInertiaRequest(Request $request)
-  {
-    if (!$request->ajax())
+  protected function isInertiaRequest(Request $request) {
+    if (! $request->ajax())
       return true;
     return $request->header('X-Inertia') == 'true' || $request->header('X-Inertia-Partial') == 'true';
   }
-  public function addComment(CommentRequest $request, $param)
-  {
+
+  public function addComment(CommentRequest $request, $param) {
     $request->validated();
 
-    preg_match_all('/data-id="([^"]+)"/',  $request->comment, $matches);
+    preg_match_all('/data-id="([^"]+)"/', $request->comment, $matches);
 
-    $usersMentioned  = collect($matches[1])->unique();
+    $usersMentioned = collect($matches[1])->unique();
     if ($usersMentioned->count() > 0) {
       $users = User::whereIn('id', $usersMentioned)->get();
     }
 
     Log::create([
-      'user_id' => $request->user()->id,
-      'loggable_id' => $param,
+      'user_id'       => $request->user()->id,
+      'loggable_id'   => $param,
       'loggable_type' => $this->model,
-      'type' => 'comment',
-      'activity' => $request->comment,
+      'type'          => 'comment',
+      'activity'      => $request->comment,
     ]);
 
     return back();
   }
-  protected function renderShow($formPathname, $name, $title, $data, $props = [], $settings = [])
-  {
+
+  protected function renderShow($formPathname, $name, $title, $data, $props = [], $settings = []) {
     return Inertia::render('ShowGeneral', array_merge([
-      'name' => $name,
-      'title' => $title,
+      'name'         => $name,
+      'title'        => $title,
       'formPathname' => $formPathname ?? (new $this->model())->formComponent ?? "",
-      $name => $data,
+      $name          => $data,
     ], [...$props, 'settings' => $settings]));
   }
-  public function removeComment(Request $request, $param, Log $id)
-  {
-    if ($id->user_id != $request->user()->id || !$id || $id->type != 'comment') {
+
+  public function removeComment(Request $request, $param, Log $id) {
+    if ($id->user_id != $request->user()->id || ! $id || $id->type != 'comment') {
       return back()->with('alert', [
-        'message' => 'Failed remove comment'
+        'message' => 'Failed remove comment',
       ]);
     }
     $id->delete();
 
     return back()->with('alert', [
-      'message' => 'Failed remove comment'
+      'message' => 'Failed remove comment',
     ]);
   }
-  public function addTag(TagRequest $request, $param)
-  {
+
+  public function addTag(TagRequest $request, $param) {
     $request->validated();
 
     if ($request->new) {
       $tag = Tag::create([
-        'name' => $request->name
+        'name' => $request->name,
       ]);
       $tag->logs()->create([
-        'user_id' => $request->user()->id,
+        'user_id'  => $request->user()->id,
         'activity' => [
           'en' => ':user created this',
-          'id' => ':user telah membuat ini'
-        ]
+          'id' => ':user telah membuat ini',
+        ],
       ]);
     }
     $tag = $request->isNew ? Tag::create([
-      'name' => $request->name
+      'name' => $request->name,
     ]) : Tag::find($request->id);
 
     Taggable::create([
-      'taggable_id' => $param,
+      'taggable_id'   => $param,
       'taggable_type' => $this->model,
-      'tag_id' => $tag->id
+      'tag_id'        => $tag->id,
     ]);
 
     return back();
   }
-  public function removeTag(Request $request, $param, Tag $id)
-  {
+
+  public function removeTag(Request $request, $param, Tag $id) {
     Taggable::where('taggable_id', $param)
       ->where('taggable_type', $this->model)
       ->where('tag_id', $id->id)->delete();
@@ -193,16 +196,16 @@ abstract class Controller
 
     File::uploadFile($request, $folderName[0], function ($file) use ($param) {
       Fileable::create([
-        'fileable_id' => $param,
+        'fileable_id'   => $param,
         'fileable_type' => $this->model,
-        'file_id' => $file->id
+        'file_id'       => $file->id,
       ]);
     });
     DB::commit();
     return back();
   }
-  public function removeFile(Request $request, $param, File $id)
-  {
+
+  public function removeFile(Request $request, $param, File $id) {
     try {
       Fileable::where('fileable_id', $param)
         ->where('fileable_type', $this->model)
@@ -211,5 +214,28 @@ abstract class Controller
       dd($e);
     }
     return back();
+  }
+
+  public function print(Request $request, mixed $id, PrintTemplate $printTemplate = null) {
+    $data = $this->model::find($id);
+    $data->loadRelations();
+    $printTemplate   ??= PrintTemplate::where('model', $this->model)
+      ->where('is_default', true)
+      ->first();
+    return Inertia::render('Core/Print', [
+      'data'             => $data,
+      'dataTableColumns' => $this->model::getColumns(),
+      'template'         => $printTemplate->toArray(),
+    ]);
+  }
+
+  public function createPrintTemplate() {
+    $model         = Permission::where('model', $this->model)->first();
+    $printTemplate = PrintTemplate::create([
+      'model'      => $this->model,
+      'name'       => $model->name . "-" . Utils::generateRandom(5),
+      'name_model' => $model->name,
+    ]);
+    return redirect()->route('printTemplates.show', $printTemplate);
   }
 }

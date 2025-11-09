@@ -14,9 +14,9 @@ return [
   'items'              => 'Items',
   'connections'        => 'Connections',
   'actions'            => [
-    'create_io' => 'Create IO',
-    'create_so' => 'Create SO',
-    'create_pr' => 'Create PR',
+    'create_io' => 'Create Internal Order',
+    'create_so' => 'Create Sales Order',
+    'create_pr' => 'Create Purchase Request',
   ],
   'columns'            => [
     'code'                         => 'Code',

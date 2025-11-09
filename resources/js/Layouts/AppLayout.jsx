@@ -48,9 +48,9 @@ export default memo(
 
     return (
       <MasterLayout>
-        <div className="relative mx-auto max-w-[1920px]">
+        <div className="relative mx-auto max-w-[1920px] print:invisible print:bg-white!">
           <SidebarProvider>
-            <AppSidebar />
+            <AppSidebar className="print:hidden " />
             <SidebarInset>
               <Navbar setShowSearch={setShowSearch} />
               {/* <CommandDialog open={showSearch} onOpenChange={setShowSearch}>

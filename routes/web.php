@@ -8,16 +8,20 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
     Route::get("/", "index")->name("$uri.index");
     Route::post("/", "store")->name("$uri.store");
     Route::get("/create/{ref?}", "create")->name("$uri.create")->where('ref', '.*');
+
+    if ($isSubmmitable) {
+      Route::put("/{{$name}}/submit", "submit")->name("$uri.submit");
+      Route::put("/{{$name}}/{level?}", "update")->name("$uri.update");
+      Route::get("/create-print-template", 'createPrintTemplate')->name("$uri.createPrintTemplate");
+      Route::get("/{{$name}}/print/{printTemplate?}", 'print')->name("$uri.print");
+    } else {
+      Route::put("/{{$name}}", action: "update")->name("$uri.update");
+    }
+
     if ($nestedShow) {
       Route::prefix("/{{$name}}")->group($nestedShow)->name("$uri.show");
     }
     Route::get("/{{$name}}", "show")->name("$uri.show");
-    if ($isSubmmitable) {
-      Route::put("/{{$name}}/submit", "submit")->name("$uri.submit");
-      Route::put("/{{$name}}/{level?}", "update")->name("$uri.update");
-    } else {
-      Route::put("/{{$name}}", "update")->name("$uri.update");
-    }
     Route::delete("/{{$name}}", "destroy")->name("$uri.destroy");
 
     Route::post("/{{$name}}/comment", "addComment")->name("$uri.addComment");
@@ -73,6 +77,9 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     // Branches
     Route::resourceDetail('branch', \App\Http\Controllers\Core\BranchController::class);
     Route::resourceDetail('formatingSeries', \App\Http\Controllers\Core\FormatingSeriesController::class);
+
+    Route::resourceDetail('printTemplates', \App\Http\Controllers\Core\PrintTemplateController::class);
+    Route::get('/printTemplates/{printTemplates}/editor', [\App\Http\Controllers\Core\PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
   });
   // Tags
   Route::resourceDetail('tag', \App\Http\Controllers\Core\TagController::class);

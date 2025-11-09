@@ -63,7 +63,7 @@ class ItemController extends Controller {
     $item = Item::create($data);
     Unit::find($item->default_unit_id)->updateHaveTransactions();
     $this->service->updateUom($item, $data['uoms']);
-    $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['variants'] ?? []);
+    $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['attributes'] ?? []);
     $this->service->updateBarcodes($itemVariant, barcodes: $data['barcodes'] ?? []);
     $item->logForCreated();
     DB::commit();
