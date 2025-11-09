@@ -56,6 +56,6 @@ class PurchaseRequest extends Model {
     ];
   }
   public function items() {
-    return $this->hasMany(PurchaseRequestItem::class);
+    return $this->hasMany(PurchaseRequestItem::class)->with(['item', 'unit']);
   }
 }

@@ -91,17 +91,30 @@ const Select = memo(
     useEffect(() => {
       if (open) return;
 
-      if (!option && search) {
-        const findOption = options.find(
+      if (search) {
+        const findOption = oriOptions.find(
           (x) => x.label.toLowerCase() == search.toLowerCase(),
         );
-        if (findOption) {
-          setOption(findOption);
-          return;
+        // if (findOption) {
+        setOption(findOption);
+        // return;
+        // }
+        if (!findOption) {
+          setSearch("");
         }
-        setSearch("");
       }
     }, [open]);
+    useEffect(() => {
+      if (search) {
+        const findOption = oriOptions.find(
+          (x) => x.label.toLowerCase() == search.toLowerCase(),
+        );
+        setOption(findOption);
+        if (!findOption) {
+          setSearch("");
+        }
+      }
+    }, [_options]);
     useEffect(() => {
       if (option) {
         setSearch(option.label);
@@ -124,9 +137,9 @@ const Select = memo(
         return;
       }
       if (readOnly || disabled) return;
-      if (option) {
-        setOption(null);
-      }
+      // if (option) {
+      //   setOption(null);
+      // }
       if (!open) {
         setOpen(true);
       }

@@ -13,4 +13,5 @@ class AdditionalCost extends Model {
   public function referenceable() {
     return $this->morphTo();
   }
+  public string $translateKey = 'finances.additionalCost';
 }

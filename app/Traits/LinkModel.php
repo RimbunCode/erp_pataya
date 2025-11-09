@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Casts\FormStatusCast;
 use App\Casts\Json;
 use App\FormStatus;
+use App\Models\Inventory\StockEntryItem;
 use App\Models\Scopes\DataTableScope;
 use App\Models\User\Permission;
 use Closure;
@@ -22,9 +23,52 @@ use ReflectionMethod;
 
 trait LinkModel
 {
+  protected $defaultConfigColumns = [];
   protected static function bootLinkModel()
   {
     static::addGlobalScope(new DataTableScope);
+  }
+  public function initializeLinkModel(){
+    $this->defaultConfigColumns = array_merge([
+      'created_at'        => [
+        'title' => __('core/form.created_at'),
+      ],
+      'updated_at'        => [
+        'title' => __('core/form.updated_at'),
+      ],
+      'deleted_at'        => [
+        'title' => __('core/form.deleted_at'),
+      ],
+      'submitted_at'      => [
+        'title' => __('core/form.submitted_at'),
+      ],
+      'logs'              => [
+        'title'  => __('core/form.logs'),
+        'filter' => [
+            'type' => 'comment',
+          ],
+      ],
+      'tags'              => [
+        'title' => __('core/form.tags'),
+      ],
+      'files'             => [
+        'title' => __('core/form.files'),
+      ],
+      'have_transactions' => [
+        'ignore' => true,
+      ],
+      'createdBy'         => [
+        'title' => __('core/form.created_by'),
+      ],
+      'status'            => [
+        'title'      => __('core/form.status'),
+        'width'      => "fit",
+        'valueTrans' => 'core.form.statuses',
+      ],
+      'branch'            => [
+        'title' => __('core/branch.branch'),
+      ],
+    ]);
   }
   /**
    * Jika model ini untuk form yang submitable
@@ -196,7 +240,6 @@ trait LinkModel
     }
     return $newConfigs;
   }
-
   public static function getColumns(...$excepts)
   {
     $instance = new static();
@@ -267,8 +310,6 @@ trait LinkModel
       if (in_array($classRelation, $excepts)) {
         continue;
       }
-      // if ($key == "referenceTo")
-      //   dd($rel);
       if ($rel instanceof MorphTo) {
         $newKey = $rel->getRelationName();
         unset($newColumns[$rel->getForeignKeyName()]);
@@ -280,6 +321,9 @@ trait LinkModel
         $newKey = Str::snake($key);
       } else if ($rel instanceof HasOne || $rel instanceof MorphOne) {
         $type = "relation";
+        $newKey = Str::snake($key);
+      }else if($rel instanceof MorphMany){
+        $type = "relations";
         $newKey = Str::snake($key);
       } else {
         $newKey = Str::snake($key);

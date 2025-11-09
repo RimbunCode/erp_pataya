@@ -116,7 +116,7 @@ class ItemServices {
         return true;
       })->first() ?? null;
       if (!$variant) {
-        $variantId = ItemVariant::create([
+        $variant = ItemVariant::create([
           'item_id' => $item->id,
           'code' => static::getSku($item, $prefix),
           'item_code' => $item->code,
@@ -126,16 +126,15 @@ class ItemServices {
           'default_unit_id' => $item->default_unit_id,
           'is_stock_item' => $item->is_stock_item,
           'conversion_factor' => $item->conversion_factor,
-        ])->id;
+        ]);
         foreach ($prefix as $attribute) {
-          $attribute->values()->create([
-            'item_variant_id' => $variantId,
+          $variant->values()->create([
             ...$attribute
           ]);
         }
         return;
       } else {
-        $variantId = $variant->update([
+        $variant = $variant->update([
           'format_variant' => $item->format_variant,
           'code' => static::getSku($item, $prefix),
           'item_code' => $item->code,
@@ -144,12 +143,9 @@ class ItemServices {
           'default_unit_id' => $item->default_unit_id,
           'is_stock_item' => $item->is_stock_item,
         ]);
-        $variantId = $variant->id;
       }
       foreach ($prefix as $attribute) {
-        $attribute->values()->updateOrCreate([
-          'item_variant_id' => $variantId,
-        ], [
+        $variant->values()->updateOrCreate([], [
           ...$attribute
         ]);
       }

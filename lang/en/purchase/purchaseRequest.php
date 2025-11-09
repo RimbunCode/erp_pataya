@@ -13,7 +13,7 @@ return [
   'items' => 'Items',
   'connections' => 'Connections',
   'actions' => [
-    'create_po' => 'Create PO',
+    'create_po' => 'Create Purchase Order',
   ],
   'import_items' => 'Import Items',
   'columns' => [
@@ -26,6 +26,7 @@ return [
     'item_service' => 'Item Service',
     'item_service.placeholder' => 'Select a item service',
     'external_note' => 'External Note',
+    'items' => 'Items',
     'item' => 'Item',
     'item.placeholder' => "Select a item",
     'description' => 'Description',

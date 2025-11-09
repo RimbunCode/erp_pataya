@@ -208,6 +208,11 @@ const navList = [
         urlPattern: "/settings/formatingSeries/*",
       },
       {
+        title: "Print Templates",
+        url: "/settings/printTemplates",
+        urlPattern: "/settings/printTemplates/*",
+      },
+      {
         title: "Database Backup",
         url: "/settings/backup",
         urlPattern: "/settings/backup/*",

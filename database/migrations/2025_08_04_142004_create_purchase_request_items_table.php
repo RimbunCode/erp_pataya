@@ -8,8 +8,7 @@ return new class extends Migration {
   /**
    * Run the migrations.
    */
-  public function up(): void
-  {
+  public function up(): void {
     Schema::create('purchase_request_items', function (Blueprint $table) {
       $table->ulid("id")->primary();
       $table->foreignUlid('purchase_request_id')->references('id')->on('purchase_requests')->cascadeOnDelete();
@@ -17,7 +16,6 @@ return new class extends Migration {
       $table->foreignUlid('item_variant_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->string('item_name')->nullable();
       $table->timestamp('required_date')->nullable();
-      $table->foreignUlid('target_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
       $table->double('quantity')->default(1);
       $table->double('ordered_quantity')->default(0);
       $table->double('remaining_quantity')->storedAs('quantity - ordered_quantity');
@@ -33,8 +31,7 @@ return new class extends Migration {
   /**
    * Reverse the migrations.
    */
-  public function down(): void
-  {
+  public function down(): void {
     Schema::dropIfExists('purchase_request_items');
   }
 };

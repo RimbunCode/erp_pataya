@@ -13,9 +13,8 @@ return [
   'items' => 'Items',
   'connections' => 'Connections',
   'actions' => [
-    'create_io' => 'Create IO',
-    'create_so' => 'Create SO',
-    'create_pr' => 'Create PR',
+    'create_purchase_receipt' => 'Create Purchase Receipt',
+    'create_purchase_invoice' => 'Create Purchase Invoice',
   ],
   'import_items' => 'Import Items',
   'columns' => [
@@ -38,6 +37,7 @@ return [
     'for_internal' => 'For Internal?',
     'status' => 'Status',
     'currency' => 'Currency',
+    'currency.placeholder' => 'Select a Currency',
     'exchange_rate' => 'Exchange Rate',
   ],
 ];

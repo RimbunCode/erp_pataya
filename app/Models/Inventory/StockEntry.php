@@ -11,44 +11,45 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockEntry extends Model {
   use HasUlids, SoftDeletes, DataTable, Submitable;
-  protected $guarded = ["id"];
-  protected $casts = [
-    'date' => 'datetime',
+  protected               $guarded           = ["id"];
+  protected               $casts             = [
+    'date'          => 'datetime',
     'received_date' => 'datetime',
-    'using_transit' => 'boolean'
+    'using_transit' => 'boolean',
   ];
-  public string $keyBreadcrumb = "code";
+  public string           $keyBreadcrumb     = "code";
   protected static string $defaultFormatCode = 'StockEntry-@[iiii]/@[yy]';
+
   public function codeRelations() {
     return [
       'branch_code:branch.code',
-      'branch_name:branch.name'
+      'branch_name:branch.name',
     ];
   }
-
-  public string $translateKey = 'inventory.stockEntry';
-  protected $configColumns = [
-    'code' => [
+  public string $translateKey  = 'inventory.stockEntry';
+  protected     $configColumns = [
+    'code'   => [
       'isLink' => true,
-      'show' => true,
-      'order' => 0,
+      'show'   => true,
+      'order'  => 0,
     ],
-    'date' => [
-      'show' => true,
+    'date'   => [
+      'show'  => true,
       'order' => 1,
     ],
-    'type' => [
-      'show' => true,
-      'order' => 2,
+    'type'   => [
+      'show'       => true,
+      'order'      => 2,
       'valueTrans' => 'inventory.stockEntry.types',
     ],
     'status' => [
-      'show' => true,
+      'show'  => true,
       'order' => 3,
     ],
     'branch' => [
       'ignore' => true,
     ],
+    'items', 'additionalCosts',
   ];
 
   protected static function loadRelationsOnShow() {
@@ -65,6 +66,7 @@ class StockEntry extends Model {
   public function items() {
     return $this->hasMany(StockEntryItem::class);
   }
+
   public function additionalCosts() {
     return $this->morphMany(AdditionalCost::class, 'referenceable');
   }

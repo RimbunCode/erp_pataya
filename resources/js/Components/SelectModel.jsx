@@ -7,7 +7,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
-import Select from "./Select";
 import { cn, generateRandom } from "@/lib/utils";
 import {
   forwardRef,
@@ -25,6 +24,7 @@ import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import { PlusIcon } from "lucide-react";
 import QueryString from "qs";
 import React from "react";
+import Select from "./Select";
 import Table2 from "./Table/Table2";
 import { TooltipProvider } from "./ui/tooltip";
 import axios from "axios";
@@ -496,7 +496,7 @@ export const loadFromModel = async (model, id, select) => {
     let data, dataModel;
     if (select) {
       data = dataRes?.data?.[select];
-      dataModel = dataRes.dataTableColumns.filter((x) => x.name == select)?.[0]
+      dataModel = dataRes.dataTableColumns.filter((x) => x.wname == select)?.[0]
         ?.related;
     } else {
       data = dataRes?.data;

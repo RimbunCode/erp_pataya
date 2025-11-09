@@ -810,7 +810,7 @@ html {
 
 @layer base {
   body {
-    @apply w-full max-w-full;
+    @apply w-full max-w-full print:invisible print:bg-white!;
   }
   :root {
     --background: 0 0% 100%;
@@ -894,5 +894,64 @@ html {
 @layer components {
   #dropdown-theme input[type="radio"]:checked + label {
     @apply bg-gray-100 dark:bg-gray-600 dark:text-white;
+  }
+}
+
+.gjs-table {
+  border: 1px solid #ccc;
+  border-collapse: collapse;
+}
+
+.gjs-table th,
+.gjs-table td {
+  border: 1px solid #ddd;
+  padding: 6px;
+}
+
+.table-toolbar button {
+  background: #f4f4f4;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.table-toolbar button:hover {
+  background: #e2e2e2;
+}
+.gjs-toolbar [title]::after {
+  content: attr(title);
+  position: absolute;
+  background: #333;
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  transform: translate(-50%, -120%);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.gjs-toolbar [title]:hover::after {
+  opacity: 1;
+}
+
+@media print {
+  @page {
+    size: a4 potrait;
+    margin-top: 2cm;
+    margin-bottom: 2cm;
+    margin-right: 2cm;
+    margin-left: 2cm;
+
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages); /* Page numbers in the bottom right footer */
+      font-size: 10pt;
+    }
+  }
+  * {
+    font-family: "Times New Roman", Times, serif;
+    font-size: 12pt;
   }
 }

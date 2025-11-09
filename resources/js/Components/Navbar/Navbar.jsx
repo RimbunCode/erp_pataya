@@ -110,7 +110,7 @@ export default memo(function Navbar({ setShowSearch }) {
     );
   }, [breadcrumbs, isMobile, loading]);
   return (
-    <header className="overflow-hidden sticky top-0 bg-background z-10 max-w-full w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+    <header className="print:hidden overflow-hidden sticky top-0 bg-background z-10 max-w-full w-full border-b border-muted-foreground/50 flex h-16 justify-between shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
       <div className="overflow-hidden flex w-full items-center gap-2 px-4">
         <SidebarTrigger className="-ml-1" />
         <Separator orientation="vertical" className="h-4 mr-2" />
