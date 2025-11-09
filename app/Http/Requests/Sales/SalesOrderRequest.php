@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Sales;
 
+use App\Models\Core\Preference;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -22,7 +23,8 @@ class SalesOrderRequest extends FormRequest
    */
   public function rules(): array
   {
-    // dd($this->all());
+    $default_currency = Preference::find('default_currency_id')?->value;
+    // dd($default_currency, $this->currency['code']);
     return [
       'date' => ['required', 'date'],
       'start_date' => [Rule::requiredIf($this->is_rent ?? false), 'date', 'nullable'],
@@ -39,6 +41,9 @@ class SalesOrderRequest extends FormRequest
       'customer_branch.*' => ['nullable'],
       'reference_so.id' => ['nullable', 'exists:sales_orders,id'],
       'reference_so.*' => ['nullable'],
+      'discount_on' => ['nullable', 'in:grand_total,net_total'],
+      'discount_rate' => ['nullable', 'numeric', 'min:0', 'max:100', Rule::requiredIf($this->has('discount_on'))],
+      'discount_amount' => ['nullable', 'numeric', 'min:0', Rule::requiredIf($this->has('discount_on'))],
       'items' => ['required', 'array', 'min:1'],
       'items.*.id' => ['required', 'string'],
       'items.*.item.id' => ['required', 'exists:item_variants,id'],
@@ -52,7 +57,7 @@ class SalesOrderRequest extends FormRequest
       'items.*.price' => ['nullable', 'numeric'],
       'items.*.source_warehouse.id' => ['nullable', 'exists:warehouses,id'],
       'currency.code' => ['nullable', 'exists:currencies,code'],
-      'exchange_rate' => [Rule::requiredIf($this->currency), 'numeric'],
+      'exchange_rate' => ['nullable', Rule::requiredIf($this->currency && $this->currency['code'] != $default_currency), 'numeric'],
       'external_note' => ['nullable', 'string'],
       'payment_schedules' => ['nullable', 'array'],
       'payment_schedules.*.id' => ['required', 'string'],

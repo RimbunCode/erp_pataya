@@ -8,7 +8,8 @@ return new class extends Migration {
   /**
    * Run the migrations.
    */
-  public function up(): void {
+  public function up(): void
+  {
     Schema::create('sales_orders', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->foreignUlid('customer_id')->nullable()->references('id')->on('customers')->nullOnDelete();
@@ -26,8 +27,11 @@ return new class extends Migration {
       $table->string('base_currency_code')->nullable();
       $table->foreign('base_currency_code')->references('code')->on('currencies')->nullOnDelete();
       $table->double('exchange_rate')->nullable();
-      $table->double('total_amount')->default(0);
-      $table->double('total_amount_base_currency')->default(0);
+      $table->double('discount_amount')->default(0);
+      $table->double('discount_rate')->default(0);
+      $table->string('discount_on')->nullable();
+      $table->double('amount')->default(0);
+      $table->double('amount_base_currency')->default(0);
       $table->softDeletes();
       $table->timestamps();
     });
@@ -36,7 +40,8 @@ return new class extends Migration {
   /**
    * Reverse the migrations.
    */
-  public function down(): void {
+  public function down(): void
+  {
     Schema::dropIfExists('sales_orders');
   }
 };

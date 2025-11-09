@@ -45,7 +45,7 @@ function validateWithOperators(value, operators, logic = "and") {
         break;
       }
       case "not":
-        result = value != operators[key];
+        result = value != val;
         break;
       case "=":
         result = value == val;
@@ -98,7 +98,6 @@ function validate(value, filters, logic = "and") {
   for (let key in filters) {
     const val = filters[key];
     key = key.match(/^([^\[\]]+)/)?.[1] ?? key;
-    // key = (key.match(/^raw\((.+)\)$/)?.[1] ?? key).split(".").pop();
     let result = false;
     if (/^raw\((.+)\)$/.test(key)) {
       result = true;

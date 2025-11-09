@@ -23,7 +23,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
-abstract class Controller {
+abstract class Controller
+{
   protected string $model;
   protected        $permissions;
   protected string $lang;
@@ -33,7 +34,8 @@ abstract class Controller {
    * @param (\Illuminate\Database\Eloquent\Model|string)[] $models
    * @return void
    */
-  protected function setBreadcrumbs(Model|string ...$models) {
+  protected function setBreadcrumbs(Model|string ...$models)
+  {
     $instanceModel = new $this->model();
     if (empty($models)) {
       $breadcrumbs = [['name' => ($instanceModel->translateKey ?? "") . '.title']];
@@ -187,7 +189,8 @@ abstract class Controller {
     return back();
   }
 
-  public function addFile(Request $request, $param) {
+  public function addFile(Request $request, $param)
+  {
     DB::beginTransaction();
     preg_match('/[^\\\\]+$/', $this->model, $folderName);
 

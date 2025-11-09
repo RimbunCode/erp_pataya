@@ -9,6 +9,9 @@ use App\Models\Inventory\Stock;
 use App\Models\ItemReserved;
 use App\Models\Sales\SalesOrder;
 use App\Utils;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
+use Inertia\Inertia;
 use Symfony\Component\Uid\Ulid;
 
 class SalesOrderService
@@ -43,6 +46,7 @@ class SalesOrderService
     $data['unit_id'] = $data['unit']['id'];
     $data['conversion_factor'] = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
     $data['tax_id'] = $data['tax']['id'];
+    $data['tax_rate'] = $data['tax']['rate'];
     $data['currency_code'] = $salesOrder->currency_code;
     $data['base_currency_code'] = $salesOrder->base_currency_code;
     $data['exchange_rate'] = $salesOrder->exchange_rate;
@@ -115,6 +119,8 @@ class SalesOrderService
       }
       $salesOrder->paymentSchedules()->create($payment_schedule);
     }
+
+
     $salesOrder->logForUpdated();
     return $salesOrder;
   }
@@ -122,61 +128,42 @@ class SalesOrderService
 
   public function submit(SalesOrder $salesOrder)
   {
+    DB::beginTransaction();
     $salesOrder->update([
-      'status' => FormStatus::SUBMITTED,
+      'status' => FormStatus::TO_DELIVER_AND_BILL,
     ]);
 
     $items = $salesOrder->items()
       ->get();
-
+    $errorItems = [];
     foreach ($items as $item) {
-      $remaining_qty = $item->quantity;
-      $stocks = Stock::with(["unit"])
-        ->where('item_variant_id', $item->id)
+      // dd($item);
+      $stock = Stock::where('item_variant_id', $item->item_id)
         ->where('warehouse_id', $item->source_warehouse_id)
-        ->where('ready_quantity', '>', 0)
-        ->orderBy('created_at')
-        ->get();
-      foreach ($stocks as $stock) {
-        if (Utils::convertQuantity($stock->ready_quantity, $stock->conversion_factor, $item->conversion_factor) > $remaining_qty) {
-          $stocks->reserved_quantity = $remaining_qty;
-          $remaining_qty = 0;
-        }
+        ->lockForUpdate()
+        ->first();
+      if (!$stock) {
+        // dd($item->item, $item->source_warehouse);
+        $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
+        continue;
       }
-    }
-
-
-
-    foreach ($stocks as $stock) {
-      $item = $items->firstWhere('item_variant_id', $stock->item_variant_id);
-
-      $reserved = ItemReserved::fill([
-        'reserveable_type' => SalesOrder::class,
-        'reserveable_id' => $salesOrder->id,
-        'item_variant_id' => $stock->item_variant_id,
-        'stock_id' => $stock->id,
-        'quantity' => 0,
-        'unit_id' => $item->unit_id,
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      if ($stock->ready_quantity < $quantity) {
+        $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
+        continue;
+      }
+      $stock->update([
+        'reserved_quantity' => $stock->reserved_quantity + $quantity,
       ]);
-
-      if ($item->unit_id == $stock->unit_id) {
-        $reservedQty = $item->quantity;
-        $reserved->unit_id = $item->unit_id;
-      } else {
-        if ($item->unit->conversion_factor > $stock->unit->conversion_factor) {
-          $reservedQty = $item->quantity * $item->unit->conversion_factor / $stock->unit->conversion_factor;
-          $reserved->unit_id = $stock->unit_id;
-        } else {
-          $reservedQty = $item->quantity * $stock->unit->conversion_factor / $item->unit->conversion_factor;
-          $reserved->unit_id = $item->unit_id;
-        }
-      }
-
-      $reserved->quantity = $reservedQty;
-      $reserved->save();
+    }
+    if (count($errorItems) > 0) {
+      DB::rollBack();
+      Session::flash('errorItems', $errorItems);
+      return $salesOrder;
     }
 
     $salesOrder->logForSubmitted();
+    DB::commit();
 
     return $salesOrder;
   }

@@ -5,7 +5,6 @@ import {
 } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect, useMemo } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
-
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -23,15 +22,65 @@ import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { generateRandom } from "@/lib/utils";
+import { calculateArray, generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
   const { data, setData, disabled } = useFormPage();
+  const { default_currency_id } = usePage().props.preferences;
   const loadFrom = usePage().props.loadFrom;
 
+  const basic_amount = useMemo(() => {
+    return calculateArray(data.items, "basic_amount", "+");
+  }, [data.items]);
+
+  const tax_amount = useMemo(() => {
+    return calculateArray(data.items, "tax_amount", "+");
+  }, [data.items]);
+
+  const amount = useMemo(() => {
+    return basic_amount + tax_amount;
+  }, [basic_amount, tax_amount]);
+  const setDiscount = useCallback(
+    (key, value) => {
+      setData((prev) => {
+        let discount_on = prev.discount_on;
+        let discount_rate = prev.discount_rate ?? 0;
+        let discount_amount = prev.discount_amount ?? 0;
+        const basic_amount = calculateArray(prev.items, "basic_amount", "+");
+        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
+        if (key == "discount_on") {
+          discount_on = value;
+        }
+        const total =
+          discount_on == "grand_total"
+            ? basic_amount + tax_amount
+            : discount_on == "net_total"
+              ? basic_amount
+              : 0;
+        if (key == "discount_rate") {
+          discount_rate = value;
+          discount_amount = (total * discount_rate) / 100;
+        }
+        if (key == "discount_amount") {
+          discount_amount = value;
+          discount_rate = (discount_amount * 100) / total;
+        }
+        if (key == "discount_on") {
+          discount_amount = (total * discount_rate) / 100;
+        }
+        return {
+          ...prev,
+          discount_on,
+          discount_rate,
+          discount_amount,
+        };
+      });
+    },
+    [data],
+  );
   const mergeItems = useCallback(
     (value, model) => {
       setData((prev) => {
@@ -251,7 +300,7 @@ export default function Form() {
       {
         name: "payment_term",
         titleTrans: "sales.salesOrder.columns.payment_term",
-        required: true,
+        show: true,
         cell({ data: paymentTerm, setData, attributes }) {
           return (
             <PaymentTermLinkModel
@@ -262,8 +311,6 @@ export default function Form() {
               onValueChange={(val) => {
                 const due_date = new Date(data?.date);
                 console.log(due_date, data?.date);
-                const payment_amount =
-                  data?.amount * (val?.invoice_portion / 100);
                 switch (val?.due_date_based_on) {
                   case "days_after_invoice_date": {
                     due_date.setDate(
@@ -293,8 +340,6 @@ export default function Form() {
                   discount_type: val?.discount_type,
                   discount: val?.discount,
                   payment_method: val?.payment_method,
-                  payment_amount,
-                  outstanding_amount: payment_amount,
                 });
               }}
               {...attributes}
@@ -358,6 +403,7 @@ export default function Form() {
         name: "payment_amount",
         titleTrans: "sales.salesOrder.columns.payment_amount",
         required: true,
+        readOnly: true,
         width: 1,
         cell({ data: payment_amount, setData, attributes }) {
           return (
@@ -548,7 +594,12 @@ export default function Form() {
             name="exchange_rate"
           >
             <CurrencyInput
-              disabled={!data.currency}
+              disabled={
+                !(
+                  data?.currency?.code &&
+                  data?.currency?.code !== default_currency_id
+                )
+              }
               className="text-left"
               decimalScale={2}
               value={data.exchange_rate}
@@ -667,7 +718,136 @@ export default function Form() {
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}
+            mapItem={({ item }) => {
+              const amount = item.quantity * item.price;
+              const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
+              return {
+                ...item,
+                tax_amount: rateAmount,
+                basic_amount: amount,
+              };
+            }}
           />
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("sales.salesOrder.columns.basic_amount")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={basic_amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("sales.salesOrder.columns.basic_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              decimalScale={2}
+              className="text-right"
+              value={basic_amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("sales.salesOrder.columns.tax_amount")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={tax_amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("sales.salesOrder.columns.tax_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              decimalScale={2}
+              className="text-right"
+              value={tax_amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("sales.salesOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("sales.salesOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              className="text-right"
+              decimalScale={2}
+              value={amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+        </div>
+      </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("sales.salesOrder.columns.additional_discount")}
+        collapsible
+        defaultOpen
+      >
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+          <FormInput label={t("sales.salesOrder.columns.discount_on")}>
+            <Select
+              value={data.discount_on}
+              onValueChange={(val) => setDiscount("discount_on", val)}
+              placeholder={t(
+                "sales.salesOrder.columns.discount_on.placeholder",
+              )}
+              optionTrans="sales.salesOrder.columns.discount_on.options"
+              options={["net_total", "grand_total"]}
+            />
+          </FormInput>
+          <FormInput
+            disabled={!data?.discount_on}
+            label={`${t("sales.salesOrder.columns.additional_discount_rate")}`}
+          >
+            <CurrencyInput
+              className="text-right"
+              value={data.discount_rate}
+              onValueChange={(val) => setDiscount("discount_rate", val)}
+              suffix="%"
+            ></CurrencyInput>
+          </FormInput>
+
+          <FormInput
+            className="col-start-2"
+            disabled={!data?.discount_on}
+            label={`${t("sales.salesOrder.columns.additional_discount_amount")}`}
+          >
+            <CurrencyInput
+              className="text-right "
+              decimalScale={2}
+              value={data.discount_amount}
+              onValueChange={(val) => setDiscount("discount_amount", val)}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
         </div>
       </FormPageContent>
       <FormPageContent
@@ -685,6 +865,7 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
+
       <FormPageContent
         value="terms"
         title={t("sales.salesOrder.columns.terms")}
@@ -697,6 +878,14 @@ export default function Form() {
             columns={paymentScheduleColumns}
             value={data?.payment_schedules ?? []}
             onValueChange={(v) => setData("payment_schedules", v)}
+            mapItem={({ item }) => {
+              const payment_amount = amount * (item?.invoice_portion / 100);
+              return {
+                ...item,
+                payment_amount,
+                outstanding_amount: payment_amount,
+              };
+            }}
           />
         </div>
       </FormPageContent>

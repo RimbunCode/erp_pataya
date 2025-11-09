@@ -67,6 +67,11 @@ const navList = [
         url: "/stockEntries",
         urlPattern: "/stockEntries/*",
       },
+      {
+        title: "Delivery Notes",
+        url: "/deliveryNotes",
+        urlPattern: "/deliveryNotes/*",
+      },
     ],
   },
   {
@@ -139,6 +144,11 @@ const navList = [
         url: "/internalOrders",
         urlPattern: "/internalOrders/*",
       },
+      {
+        title: "Sales Returns",
+        url: "/salesReturns",
+        urlPattern: "/salesReturns/*",
+      },
     ],
   },
   {
@@ -146,9 +156,9 @@ const navList = [
     icon: <HandCoins />,
     items: [
       {
-        title: "Taxes",
-        url: "/taxes",
-        urlPattern: "/taxes/*",
+        title: "Accounts",
+        url: "/accounts",
+        urlPattern: "/accounts/*",
       },
       {
         title: "Payment Methods",
@@ -161,14 +171,24 @@ const navList = [
         urlPattern: "/paymentTerms/*",
       },
       {
-        title: "Payment Schedules",
-        url: "/paymentSchedules",
-        urlPattern: "/paymentSchedules/*",
-      },
-      {
         title: "Payment Entries",
         url: "/paymentEntries",
         urlPattern: "/paymentEntries/*",
+      },
+      {
+        title: "Sales Invoice",
+        url: "/salesInvoices",
+        urlPattern: "/salesInvoices/*",
+      },
+      {
+        title: "Taxes",
+        url: "/taxes",
+        urlPattern: "/taxes/*",
+      },
+      {
+        title: "General Ledgers",
+        url: "/generalLedgers",
+        urlPattern: "/generalLedgers/*",
       },
     ],
   },

@@ -119,14 +119,6 @@ class SalesOrderController extends Controller
 
     $so = $this->service->update($salesOrder, $data);
 
-    $so->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini',
-      ]
-    ]);
-
     DB::commit();
     return redirect()->back();
   }
@@ -136,19 +128,8 @@ class SalesOrderController extends Controller
    */
   public function submit(Request $request, SalesOrder $salesOrder)
   {
-    DB::beginTransaction();
-
     $so = $this->service->submit($salesOrder);
-
-    $so->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user submitted this',
-        'id' => ':user telah mensubmit ini',
-      ]
-    ]);
-
-    DB::commit();
+    return redirect()->back();
   }
 
   /**

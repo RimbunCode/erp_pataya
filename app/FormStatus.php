@@ -2,36 +2,29 @@
 
 namespace App;
 
-enum FormStatus: string
-{
-  case DRAFT = 'draft';
-  case SUBMITTED = 'submitted';
-  case CANCELED = 'canceled';
-  case APPROVED = 'approved';
-  case REJECTED = 'rejected';
+enum FormStatus: string {
+  case DRAFT                           = 'draft';
+  case SUBMITTED                       = 'submitted';
+  case CANCELED                        = 'canceled';
+  case APPROVED                        = 'approved';
+  case REJECTED                        = 'rejected';
+  case DELIVERED                       = 'delivered';
+  case PENDING                         = 'pending';
+  case CLOSED                          = 'closed';
+  case IN_PROGRESS                     = 'in_progress';
+  case DELETED                         = 'deleted';
+  case ACTIVE                          = 'active';
+  case INACTIVE                        = 'inactive';
+  case RESERVED                        = 'reserved';
+  case COMPLETED                       = 'completed';
+  case PARTIALLY_PAID                  = 'partially_paid';
+  case PARTIALLY_DELIVERED             = 'partially_delivered';
+  case PARTIALLY_DELIVERED_AND_TO_BILL = 'partially_delivered_and_to_bill';
+  case TO_BILL                         = 'to_bill';
+  case TO_DELIVER                      = 'to_deliver';
+  case TO_DELIVER_AND_BILL             = 'to_deliver_and_bill';
 
-  case PENDING = 'pending';
-
-  case CLOSED = 'closed';
-
-  case IN_PROGRESS = 'in_progress';
-
-  case DELETED = 'deleted';
-
-  case ACTIVE = 'active';
-
-  case INACTIVE = 'inactive';
-
-  case RESERVED = 'reserved';
-
-  case COMPLETED = 'completed';
-
-  case PARTIALLY_PAID = 'partially_paid';
-  case TO_BILL = 'to_bill';
-
-
-  public function label()
-  {
+  public function label() {
     return __("status." . $this->value);
   }
 }
