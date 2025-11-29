@@ -23,7 +23,7 @@ export default function Index() {
           </Link>
         </div>
       )}
-      classNameDialog="max-w-(--breakpoint-2xl)!"
+      classNameDialog="max-w-(--breakpoint-lg)!"
       form={<Form />}
     />
   );

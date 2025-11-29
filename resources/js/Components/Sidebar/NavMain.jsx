@@ -20,11 +20,17 @@ import {
 import { ChevronRight } from "lucide-react";
 import Link from "../Link";
 import { checkUrlPath } from "@/lib/utils";
+import { useEffect } from "react";
 import { useIsMobile } from "@/Hooks/use-mobile";
+import { useScreen } from "@/Hooks/useScreen";
 
 export function NavMain({ items }) {
   const isMobile = useIsMobile();
-  const { open } = useSidebar();
+  const isLargeDesktop = useScreen("108rem");
+  const { open, setOpen } = useSidebar();
+  useEffect(() => {
+    setOpen(isLargeDesktop);
+  }, [isLargeDesktop]);
   return (
     <SidebarGroup>
       {/* <SidebarGroupLabel>Platform</SidebarGroupLabel> */}
@@ -85,7 +91,7 @@ export function NavMain({ items }) {
                           >
                             {item.icon}
                             <span>{item.title}</span>
-                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/popPopover:rotate-90" />
+                            <ChevronRight className="ml-auto transition-transform duration-200 " />
                           </SidebarMenuButton>
                         </PopoverTrigger>
                         <PopoverContent

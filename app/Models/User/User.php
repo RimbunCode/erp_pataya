@@ -19,9 +19,7 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable {
   /** @use HasFactory<\Database\Factories\UserFactory> */
   use HasFactory, Notifiable, HasUlids, SoftDeletes, DataTable, LinkModel;
-
   protected $guarded = ['id'];
-
   /**
    * The attributes that should be hidden for serialization.
    *
@@ -40,15 +38,8 @@ class User extends Authenticatable {
   protected function casts(): array {
     return [
       'email_verified_at' => 'datetime',
-      'password' => 'hashed',
+      'password'          => 'hashed',
     ];
-  }
-
-  protected $appends = [
-    'templateLink'
-  ];
-  protected function getTemplateLinkAttribute() {
-    return ":name";
   }
 
   public static function templateLink() {

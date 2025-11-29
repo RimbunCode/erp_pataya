@@ -1,10 +1,8 @@
-import {
-  FormPageContent,
-  FormPageContentTitle,
-  useFormPage,
-} from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect, useMemo } from "react";
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+import React, { memo, useCallback, useEffect, useMemo } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
+import { calculateArray, generateRandom } from "@/lib/utils";
+
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -14,6 +12,7 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import LinkModel from "@/Components/LinkModel";
 import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
 import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
 import SalesOrderLinkModel from "./SalesOrderLinkModel";
@@ -22,17 +21,84 @@ import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { calculateArray, generateRandom } from "@/lib/utils";
+import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
-export default function Form() {
+export default memo(function Form() {
   const { t } = useLaravelReactI18n();
   const { data, setData, disabled } = useFormPage();
   const { default_currency_id } = usePage().props.preferences;
+  const { defaultData } = usePage().props;
   const loadFrom = usePage().props.loadFrom;
+  const isLockDoc = useMemo(() => {
+    const referenceable_type =
+      data?.referenceable_type ?? defaultData?.referenceable_type;
+    if (referenceable_type == "App\\Models\\Service\\WorkOrder") return true;
 
-  const basic_amount = useMemo(() => {
+    return false;
+  }, [defaultData, data]);
+  const setDiscount = useCallback(
+    (key, value) => {
+      setData((prev) => {
+        let latestDiscountKey = prev.latestDiscountKey ?? "discount_rate";
+        let discount_on = prev.discount_on;
+        let discount_rate = prev.discount_rate ?? 0;
+        let discount_amount = prev.discount_amount ?? 0;
+        const net_total = calculateArray(prev.items, "basic_amount", "+");
+        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
+        if (key == "discount_on") {
+          if (discount_on == value) return prev;
+          discount_on = value;
+          if (!value)
+            return {
+              ...prev,
+              discount_on,
+              latestDiscountKey,
+            };
+        }
+        const total =
+          discount_on == "grand_total"
+            ? net_total + tax_amount
+            : discount_on == "net_total"
+              ? net_total
+              : 0;
+
+        if (key == "discount_on") {
+          key = latestDiscountKey;
+          value = prev[key] ?? 0;
+        }
+        if (key == "discount_rate") {
+          latestDiscountKey = "discount_rate";
+          discount_rate = value;
+          discount_amount = (total * discount_rate) / 100;
+        }
+        if (key == "discount_amount") {
+          latestDiscountKey = "discount_amount";
+          discount_amount = value;
+          discount_rate = (discount_amount * 100) / total;
+        }
+        if (
+          !(
+            prev.discount_on != discount_on ||
+            prev.discount_rate != discount_rate ||
+            prev.discount_amount != discount_amount
+          )
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          discount_on,
+          discount_rate,
+          discount_amount,
+          latestDiscountKey,
+        };
+      });
+    },
+    [data],
+  );
+  const net_total = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
@@ -40,47 +106,15 @@ export default function Form() {
     return calculateArray(data.items, "tax_amount", "+");
   }, [data.items]);
 
+  useDidMountEffect(() => {
+    const latestKey = data.latestDiscountKey ?? "discount_rate";
+    setDiscount(latestKey, data[latestKey] ?? 0);
+  }, [net_total, tax_amount]);
+
   const amount = useMemo(() => {
-    return basic_amount + tax_amount;
-  }, [basic_amount, tax_amount]);
-  const setDiscount = useCallback(
-    (key, value) => {
-      setData((prev) => {
-        let discount_on = prev.discount_on;
-        let discount_rate = prev.discount_rate ?? 0;
-        let discount_amount = prev.discount_amount ?? 0;
-        const basic_amount = calculateArray(prev.items, "basic_amount", "+");
-        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
-        if (key == "discount_on") {
-          discount_on = value;
-        }
-        const total =
-          discount_on == "grand_total"
-            ? basic_amount + tax_amount
-            : discount_on == "net_total"
-              ? basic_amount
-              : 0;
-        if (key == "discount_rate") {
-          discount_rate = value;
-          discount_amount = (total * discount_rate) / 100;
-        }
-        if (key == "discount_amount") {
-          discount_amount = value;
-          discount_rate = (discount_amount * 100) / total;
-        }
-        if (key == "discount_on") {
-          discount_amount = (total * discount_rate) / 100;
-        }
-        return {
-          ...prev,
-          discount_on,
-          discount_rate,
-          discount_amount,
-        };
-      });
-    },
-    [data],
-  );
+    return net_total + tax_amount - data.discount_amount;
+  }, [net_total, tax_amount, data.discount_amount]);
+
   const mergeItems = useCallback(
     (value, model) => {
       setData((prev) => {
@@ -141,6 +175,7 @@ export default function Form() {
     };
     fetchData().catch(console.error);
   }, []);
+
   const itemColumns = useMemo(() => {
     return [
       {
@@ -179,14 +214,17 @@ export default function Form() {
         show: false,
         type: "text",
         width: 2,
-        cell({ dataRow, data, setData, attributes }) {
+        cell({ dataRow, data: value, setData, attributes }) {
           return (
             <Textarea
               disabled={!dataRow?.item}
               rows={1}
-              value={data ?? ""}
+              value={value ?? ""}
               onChange={(e) => setData("description", e.target.value)}
               {...attributes}
+              readOnly={
+                attributes.readOnly && !(data.submitted_at && isLockDoc)
+              }
             />
           );
         },
@@ -198,16 +236,17 @@ export default function Form() {
         type: "text",
         width: 2,
         required: true,
-        cell({ dataRow, data, setData, attributes }) {
+        cell({ dataRow, data: value, setData, attributes }) {
           return (
             <WarehouseLinkModel
               disabled={!dataRow?.item}
               placeholder={t(
                 "sales.salesOrder.columns.source_warehouse.placeholder",
               )}
-              value={data}
+              value={value}
               onValueChange={(val) => setData("source_warehouse", val)}
               {...attributes}
+              readOnly={data.submitted_at && !isLockDoc}
             />
           );
         },
@@ -258,16 +297,17 @@ export default function Form() {
         titleTrans: "sales.salesOrder.columns.tax",
         required: true,
         width: 1,
-        cell({ data, setData, attributes, dataRow }) {
+        cell({ data: value, setData, attributes, dataRow }) {
           return (
             <TaxLinkModel
               disabled={!dataRow?.item}
               placeholder={t("sales.salesOrder.columns.tax.placeholder")}
-              value={data}
+              value={value}
               onValueChange={(val) => {
                 setData("tax", val);
               }}
               {...attributes}
+              readOnly={data.submitted_at && !isLockDoc}
             />
           );
         },
@@ -288,12 +328,13 @@ export default function Form() {
                 setData("price", val);
               }}
               {...attributes}
+              readOnly={data.submitted_at && !isLockDoc}
             />
           );
         },
       },
     ];
-  }, [data]);
+  }, [data, isLockDoc]);
 
   const paymentScheduleColumns = useMemo(() => {
     return [
@@ -518,13 +559,29 @@ export default function Form() {
               onValueChange={(val) => setData("date", val)}
             />
           </FormInput>
-          <FormCheckbox
-            checked={data.is_rent}
-            onCheckedChange={(val) => setData("is_rent", val)}
-            className="pt-4"
-          >
-            {t("sales.salesOrder.for_rental")}
-          </FormCheckbox>
+          {data.referenceable && (
+            <FormInput
+              name="date"
+              className="pointer-events-auto!"
+              label={t("sales.salesOrder.columns.reference_to")}
+              readOnly
+            >
+              <LinkModel
+                disabledAddButton
+                model={data.referenceable_type}
+                value={data.referenceable}
+              />
+            </FormInput>
+          )}
+          {!isLockDoc && (
+            <FormCheckbox
+              checked={data.is_rent}
+              onCheckedChange={(val) => setData("is_rent", val)}
+              className="pt-4"
+            >
+              {t("sales.salesOrder.for_rental")}
+            </FormCheckbox>
+          )}
 
           {data.is_rent && (
             <FormInput
@@ -544,6 +601,7 @@ export default function Form() {
             className="col-start-1"
             label={t("sales.salesOrder.customer")}
             required={true}
+            readOnly={isLockDoc}
             name="customer"
           >
             <CustomerLinkModel
@@ -562,6 +620,7 @@ export default function Form() {
           <FormInput
             label={t("sales.salesOrder.branch")}
             required
+            readOnly={isLockDoc}
             name="customer_branch"
           >
             <BranchLinkModel
@@ -629,7 +688,8 @@ export default function Form() {
         value="detail"
         title={t("sales.salesOrder.items")}
         actions={
-          (!data.status || data.status == "draft") && (
+          !data.submitted_at &&
+          !isLockDoc && (
             <SelectModel
               from={{
                 "App\\Models\\Service\\WorkOrder": {
@@ -656,34 +716,6 @@ export default function Form() {
           )
         }
       >
-        <FormPageContentTitle className="flex items-center justify-between gap-x-4">
-          {t("sales.salesOrder.items")}
-          {(!data.status || data.status == "draft") && (
-            <SelectModel
-              from={{
-                "App\\Models\\Service\\WorkOrder": {
-                  columns: ["code", "date"],
-                  filters: {
-                    status: "submitted",
-                  },
-                  select: {
-                    items: {
-                      filters: {
-                        status: "submitted",
-                      },
-                      columns: ["work_order", "item", "quantity", "unit"],
-                    },
-                  },
-                },
-              }}
-              label={t("purchase.purchaseRequest.import_items")}
-              className="w-fit"
-              variant="secondary"
-              size="sm"
-              onSelected={mergeItems}
-            />
-          )}
-        </FormPageContentTitle>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormInput
             label={t("sales.salesOrder.columns.source_warehouse")}
@@ -714,7 +746,7 @@ export default function Form() {
           <FormTable
             name="items"
             className="col-start-1 col-span-2"
-            readOnly={disabled}
+            readOnly={disabled || isLockDoc}
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}
@@ -732,24 +764,24 @@ export default function Form() {
             data?.currency?.code !== default_currency_id && (
               <FormInput
                 readOnly
-                label={`${t("sales.salesOrder.columns.basic_amount")} (${default_currency_id.toUpperCase()})`}
+                label={`${t("sales.salesOrder.columns.net_total")} (${default_currency_id.toUpperCase()})`}
               >
                 <CurrencyInput
                   className="text-right"
-                  value={basic_amount * (data?.exchange_rate ?? 1)}
+                  value={net_total * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
             )}
           <FormInput
             readOnly
-            label={`${t("sales.salesOrder.columns.basic_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            label={`${t("sales.salesOrder.columns.net_total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
             <CurrencyInput
               decimalScale={2}
               className="text-right"
-              value={basic_amount}
+              value={net_total}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -782,24 +814,24 @@ export default function Form() {
             data?.currency?.code !== default_currency_id && (
               <FormInput
                 readOnly
-                label={`${t("sales.salesOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
+                label={`${t("sales.salesOrder.columns.grand_total")} (${default_currency_id.toUpperCase()})`}
               >
                 <CurrencyInput
                   className="text-right"
-                  value={amount * (data?.exchange_rate ?? 1)}
+                  value={(net_total + tax_amount) * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
             )}
           <FormInput
             readOnly
-            label={`${t("sales.salesOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            label={`${t("sales.salesOrder.columns.grand_total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
             <CurrencyInput
               className="text-right"
               decimalScale={2}
-              value={amount}
+              value={net_total + tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -850,6 +882,37 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
+      {data.discount_on && (
+        <FormPageContent value="detail">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4 border-t -mt-4 pt-4">
+            {data?.currency?.code &&
+              data?.currency?.code !== default_currency_id && (
+                <FormInput
+                  readOnly
+                  label={`${t("sales.salesOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
+                >
+                  <CurrencyInput
+                    className="text-right"
+                    value={amount * (data?.exchange_rate ?? 1)}
+                    currencyCode="default"
+                  ></CurrencyInput>
+                </FormInput>
+              )}
+            <FormInput
+              readOnly
+              label={`${t("sales.salesOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+              className="col-start-2"
+            >
+              <CurrencyInput
+                className="text-right"
+                decimalScale={2}
+                value={amount}
+                currencyCode={data?.currency?.code ?? "default"}
+              ></CurrencyInput>
+            </FormInput>
+          </div>
+        </FormPageContent>
+      )}
       <FormPageContent
         value="detail"
         title={t("sales.salesOrder.columns.external_note")}
@@ -889,12 +952,6 @@ export default function Form() {
           />
         </div>
       </FormPageContent>
-      {/* {(data.status ?? "draft") != "draft" && (
-        <FormPageContent
-          value="connections"
-          title={t("core.form.connections")}
-        ></FormPageContent>
-      )} */}
     </>
   );
-}
+});

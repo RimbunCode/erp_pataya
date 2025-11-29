@@ -236,22 +236,6 @@ export function getValueObject(obj, key) {
   return newValue;
 }
 
-export function getThemeByStatus(status) {
-  switch (status) {
-    case "submitted":
-      return "primary";
-    case "pending":
-      return "warning";
-    case "approved":
-      return "success";
-    case "rejected":
-      return "error";
-    case "draft":
-    default:
-      return "secondary";
-  }
-}
-
 export function camelize(str) {
   return str
     .replace(/(?:^\w|[A-Z]|\b\w)/g, function (word, index) {
@@ -311,4 +295,14 @@ export const calculateArray = (arr, keyColumn, operator) => {
     : 0;
   if (operator === "average") return length != 0 ? result / length : 0;
   return result;
+};
+export const getFonts = async () => {
+  try {
+    const availableFonts = await window.queryLocalFonts();
+    const list = Array.from(availableFonts).map((font) => font.family);
+    return [...new Set(list)];
+  } catch (err) {
+    console.error(err.name, err.message);
+    return [];
+  }
 };

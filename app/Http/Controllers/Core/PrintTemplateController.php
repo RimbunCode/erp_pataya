@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Core;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\PrintTemplateRequest;
 use App\Models\Core\PrintTemplate;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Str;
 
 class PrintTemplateController extends Controller {
   public function __construct(Request $request) {
@@ -39,10 +41,13 @@ class PrintTemplateController extends Controller {
     }
     $data = $request->validated();
     DB::beginTransaction();
-    $data['permission_id'] = $data['permission']['id'];
-    $data['model']         = $data['permission']['model'];
-    $data['name_model']    = $data['permission']['name'];
-    $printTemplate         = PrintTemplate::create($data);
+    $data['permission_id'] = isset($data['permission']) ? $data['permission']['id'] : null;
+    $data['model']         = isset($data['permission']) ? $data['permission']['model'] : null;
+    $data['name_model']    = isset($data['permission']) ? $data['permission']['name'] : null;
+
+    $data['letter_head_id'] = isset($data['letter_head']) ? $data['letter_head']['id'] : null;
+
+    $printTemplate = PrintTemplate::create($data);
     $printTemplate->logForCreated();
     DB::commit();
     return redirect()->route('printTemplates.show', $printTemplate);
@@ -57,21 +62,22 @@ class PrintTemplateController extends Controller {
     }
     $this->setBreadcrumbs($printTemplates);
     $printTemplates->showDetail();
-    $printTemplates->loadRelations();
-    return $this->renderShow(
-      'Core/PrintTemplate/Form',
-      "printTemplate",
-      $printTemplates->name,
-      $printTemplates,
-    );
+    return Inertia::render('Core/PrintTemplate/Show', [
+      'printTemplate' => function () use ($printTemplates) {
+        $printTemplates->loadRelations();
+        return $printTemplates;
+      },
+    ]);
   }
 
   public function editor(Request $request, PrintTemplate $printTemplates) {
     $this->setBreadcrumbs($printTemplates, __('core/form.editor'));
+    $printTemplates->loadRelations();
+
     return Inertia::render('Core/PrintTemplate/Editor', [
       'printTemplate'    => $printTemplates,
       'csrfToken'        => csrf_token(),
-      'dataTableColumns' => $printTemplates->model::getColumns(),
+      'dataTableColumns' => $printTemplates->columns,
     ]);
   }
 
@@ -81,9 +87,12 @@ class PrintTemplateController extends Controller {
   public function update(PrintTemplateRequest $request, PrintTemplate $printTemplates) {
     $data = $request->validated();
     DB::beginTransaction();
-    $data['permission_id'] = $data['permission']['id'];
-    $data['model']         = $data['permission']['model'];
-    $data['name_model']    = $data['permission']['name'];
+    $data['permission_id'] = isset($data['permission']) ? $data['permission']['id'] : null;
+    $data['model']         = isset($data['permission']) ? $data['permission']['model'] : null;
+    $data['name_model']    = isset($data['permission']) ? $data['permission']['name'] : null;
+
+    $data['letter_head_id'] = isset($data['letter_head']) ? $data['letter_head']['id'] : null;
+
     $printTemplates->fillForUpdate($data);
     $printTemplates->logForUpdated();
     DB::commit();

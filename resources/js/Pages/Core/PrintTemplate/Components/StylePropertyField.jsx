@@ -9,12 +9,12 @@ import {
 } from "lucide-react";
 import { Input, InputWrapper } from "@/Components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/Components/ui/radio-group";
+import { Slider, SliderThumb } from "@/Components/ui/slider";
 
 import { Button } from "@/Components/ui/button";
 import FormInput from "@/Components/FormInput";
 import { Label } from "@/Components/ui/label";
 import Select from "@/Components/Select";
-import { Slider } from "@/Components/ui/slider";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@grapesjs/react";
 
@@ -59,28 +59,6 @@ export default function StylePropertyField({ prop, ...rest }) {
 
   switch (type) {
     case "radio":
-      {
-        const radioProp = prop;
-        inputToRender = (
-          <RadioGroup value={value} onValueChange={onChange} row>
-            {radioProp.getOptions().map((option) => (
-              <div
-                className="flex items-center gap-3"
-                key={radioProp.getOptionId(option)}
-              >
-                <RadioGroupItem
-                  value={radioProp.getOptionId(option)}
-                  id={radioProp.getOptionId(option)}
-                />
-                <Label htmlFor="r1">
-                  label={radioProp.getOptionLabel(option)}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-        );
-      }
-      break;
     case "select":
       {
         const selectProp = prop;
@@ -123,16 +101,24 @@ export default function StylePropertyField({ prop, ...rest }) {
     case "slider":
       {
         const sliderProp = prop;
+        console.log({
+          value: parseFloat(value),
+          min: sliderProp.getMin(),
+          max: sliderProp.getMax(),
+          step: sliderProp.getStep(),
+        });
         inputToRender = (
           <Slider
             size="small"
-            value={parseFloat(value)}
+            className="col-span-full"
+            value={[parseFloat(value)]}
             min={sliderProp.getMin()}
             max={sliderProp.getMax()}
             step={sliderProp.getStep()}
-            onChange={onChange}
-            valueLabelDisplay="auto"
-          />
+            onValueChange={(val) => onChange(val[0])}
+          >
+            <SliderThumb />
+          </Slider>
         );
       }
       break;
@@ -158,7 +144,7 @@ export default function StylePropertyField({ prop, ...rest }) {
       {
         const compositeProp = prop;
         inputToRender = (
-          <div className={cn("grid gap-2 grid-cols-2")}>
+          <div className={cn("grid gap-2 grid-cols-subgrid col-span-full")}>
             {compositeProp.getProperties().map((prop) => (
               <StylePropertyField key={prop.getId()} prop={prop} />
             ))}
@@ -224,25 +210,30 @@ export default function StylePropertyField({ prop, ...rest }) {
   }
 
   return (
-    <FormInput
-      label={prop.getLabel()}
-      className={cn((type == "composite" || type == "stack") && "col-span-2")}
+    <div
+      className={cn(
+        type == "composite" && "col-span-full grid grid-cols-subgrid ",
+        (type == "stack" || type == "slider") && "col-span-full ",
+      )}
     >
-      {inputToRender}
-      {/* {canClear && (
-          <Button variant="ghost">
-            <XIcon />
-          </Button>
+      <FormInput
+        label={prop.getLabel()}
+        className={cn(
+          type == "composite" && "col-span-full grid grid-cols-subgrid",
         )}
-        {type === "stack" && (
-          <Button
-            variant="icon"
-            className="!ml-2"
-            onClick={() => prop.addLayer({}, { at: 0 })}
-          >
-            <PlusIcon />
-          </Button>
-        )} */}
-    </FormInput>
+      >
+        {inputToRender}
+      </FormInput>
+
+      {type === "stack" && (
+        <Button
+          variant="icon"
+          className="!ml-2"
+          onClick={() => prop.addLayer({}, { at: 0 })}
+        >
+          <PlusIcon />
+        </Button>
+      )}
+    </div>
   );
 }

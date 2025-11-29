@@ -8,38 +8,37 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\ItemReserved;
 use App\Models\Service\WorkOrder;
+use App\Utils;
 use Symfony\Component\Uid\Ulid;
 
-class WorkOrderService
-{
-  private function fillRelations(array $data)
-  {
-    if (!($data['for_internal'] ?? false)) {
-      $data['customer_id'] = $data['customer']['id'];
+class WorkOrderService {
+  private function fillRelations(array $data) {
+    if (! ($data['for_internal'] ?? false)) {
+      $data['customer_id']   = $data['customer']['id'];
       $data['customer_name'] = $data['customer']['name'];
     }
-    $data['customer_branch_id'] = $data['customer_branch']['id'];
+    $data['customer_branch_id']   = $data['customer_branch']['id'];
     $data['customer_branch_name'] = $data['customer_branch']['name'];
-    $data['address'] = [];
-    $data['item_service_id'] = $data['item_service']['id'];
-    $data['item_service_name'] = $data['item_service']['sku'];
+    $data['address']              = [];
+    $data['item_service_id']      = $data['item_service']['id'];
+    $data['item_service_name']    = $data['item_service']['sku'];
     if (isset($data['branch'])) {
       $data['branch_id'] = $data['branch']['id'];
     }
 
     return $data;
   }
-  private function fillItemRelations(array $data)
-  {
-    $data['item_variant_id'] = $data['item']['id'];
-    $data['item_name'] = $data['item']['sku'];
-    $data['unit_id'] = $data['unit']['id'];
-    $data['unit_name'] = $data['unit']['name'];
+
+  private function fillItemRelations(array $data) {
+    $data['item_variant_id']   = $data['item']['id'];
+    $data['item_name']         = $data['item']['sku'];
+    $data['unit_id']           = $data['unit']['id'];
+    $data['unit_name']         = $data['unit']['name'];
     $data['conversion_factor'] = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
     return $data;
   }
-  public function create(array $data)
-  {
+
+  public function create(array $data) {
     $wo = WorkOrder::create($this->fillRelations($data));
 
     foreach ($data['items'] as $item) {
@@ -49,8 +48,8 @@ class WorkOrderService
     $wo->logForCreated();
     return $wo;
   }
-  public function update(WorkOrder $workOrder, array $data)
-  {
+
+  public function update(WorkOrder $workOrder, array $data) {
     $workOrder->fillForUpdate($this->fillRelations($data));
 
     $workOrder->items()
@@ -75,49 +74,35 @@ class WorkOrderService
     return $workOrder;
   }
 
-  public function submit(WorkOrder $workOrder)
-  {
+  public function submit(WorkOrder $workOrder) {
     $workOrder->update([
-      'status' => FormStatus::SUBMITTED,
+      'status' => Utils::replaceStatus($workOrder->status, FormStatus::DRAFT, FormStatus::PENDING),
     ]);
 
-    // $items = $workOrder->items()
-    //   ->without(['unit'])
-    //   ->get();
+    return $workOrder;
+  }
 
-    // $itemsId = $items->pluck('id');
+  public function start(WorkOrder $workOrder) {
+    $status = Utils::replaceStatus($workOrder->status, FormStatus::PENDING, FormStatus::IN_PROGRESS);
 
+    $workOrder->fillForUpdate([
+      'status'     => $status,
+      'started_at' => now(),
+    ]);
 
-    // $itemInStocks = [];
-    // foreach ($items as $item) {
+    $workOrder->logForUpdated();
+    return $workOrder;
+  }
 
-    //   $reserved = ItemReserved::fill([
-    //     'reserveable_type' => WorkOrder::class,
-    //     'reserveable_id' => $workOrder->id,
-    //     'item_variant_id' => $stock->item_variant_id,
-    //     'quantity' => 0,
-    //     'unit_id' => $item->unit_id,
-    //   ]);
+  public function complate(WorkOrder $workOrder) {
+    $status = Utils::replaceStatus($workOrder->status, FormStatus::IN_PROGRESS, FormStatus::COMPLETED);
 
-    //   if ($item->unit_id == $stock->unit_id) {
-    //     $reservedQty = $item->quantity;
-    //     $reserved->unit_id = $item->unit_id;
-    //   } else {
-    //     if ($item->unit->conversion_factor > $stock->unit->conversion_factor) {
-    //       $reservedQty = $item->quantity * $item->unit->conversion_factor / $stock->unit->conversion_factor;
-    //       $reserved->unit_id = $stock->unit_id;
-    //     } else {
-    //       $reservedQty = $item->quantity * $stock->unit->conversion_factor / $item->unit->conversion_factor;
-    //       $reserved->unit_id = $item->unit_id;
-    //     }
-    //   }
+    $workOrder->fillForUpdate([
+      'status'       => $status,
+      'complated_at' => now(),
+    ]);
 
-    //   $reserved->quantity = $reservedQty;
-    //   $reserved->save();
-    // }
-
-    $workOrder->logForSubmitted();
-
+    $workOrder->logForUpdated();
     return $workOrder;
   }
 }

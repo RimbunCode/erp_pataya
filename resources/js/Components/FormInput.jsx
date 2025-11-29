@@ -41,10 +41,10 @@ function FormInput({
   const _name = name || child.props?.name;
   return (
     <div
-      className={cn("flex flex-col gap-y-2", className)}
+      className={cn("grid grid-cols-1 gap-y-2", className)}
       role={!ignoreDisabled ? "forminput" : ""}
     >
-      <Label htmlFor={id}>
+      <Label htmlFor={id} className="truncate h-auto">
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>
       {typeof child == "function"

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\FormStatus;
 use App\Http\Requests\Core\CommentRequest;
 use App\Http\Requests\Core\TagRequest;
+use App\Models\ApprovalInstance;
 use App\Models\Core\File;
 use App\Models\Core\Fileable;
 use App\Models\Core\Log;
@@ -23,8 +25,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
-abstract class Controller
-{
+abstract class Controller {
   protected string $model;
   protected        $permissions;
   protected string $lang;
@@ -34,8 +35,7 @@ abstract class Controller
    * @param (\Illuminate\Database\Eloquent\Model|string)[] $models
    * @return void
    */
-  protected function setBreadcrumbs(Model|string ...$models)
-  {
+  protected function setBreadcrumbs(Model|string ...$models) {
     $instanceModel = new $this->model();
     if (empty($models)) {
       $breadcrumbs = [['name' => ($instanceModel->translateKey ?? "") . '.title']];
@@ -60,7 +60,7 @@ abstract class Controller
             ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
           continue;
         }
-        preg_match('/([^\\\\]+)$/', \get_class($model), matches: $className);
+        preg_match('/([^\\\\]+)$/', \get_class($model), $className);
         $alias         = $model->aliasBreadcrumb ?? $className[1];
         $value         = Arr::get($model->toArray(), $model->keyBreadcrumb ?? "", $model->name);
         $breadcrumbs[] = ($key == (count($models) - 1)) ?
@@ -73,7 +73,7 @@ abstract class Controller
     ]);
   }
 
-  public function __construct(Request $request, string $model = null) {
+  public function __construct(Request $request, ?string $model = null) {
     if (! $model)
 
       return;
@@ -83,7 +83,8 @@ abstract class Controller
       return;
     $this->permissions = RolePermission::getPermissions($model);
     $currentRoute      = Route::getCurrentRoute();
-    switch ($currentRoute->getActionMethod()) {
+    $method            = $currentRoute->getActionMethod();
+    switch ($method) {
       case 'index':
       case "create":
       case "store":
@@ -92,8 +93,6 @@ abstract class Controller
       case "submit":
       case "destroy":
     }
-    // dd($this->permissions->toArray());
-    // Inertia::share('permissions', $this->permissions);
   }
 
   protected function guard($operation) {
@@ -183,14 +182,13 @@ abstract class Controller
 
   public function removeTag(Request $request, $param, Tag $id) {
     Taggable::where('taggable_id', $param)
-      ->where('taggable_type', $this->model)
+      ->where('taggable_type', operator: $this->model)
       ->where('tag_id', $id->id)->delete();
 
     return back();
   }
 
-  public function addFile(Request $request, $param)
-  {
+  public function addFile(Request $request, $param) {
     DB::beginTransaction();
     preg_match('/[^\\\\]+$/', $this->model, $folderName);
 
@@ -216,16 +214,23 @@ abstract class Controller
     return back();
   }
 
-  public function print(Request $request, mixed $id, PrintTemplate $printTemplate = null) {
+  public function print(Request $request, mixed $id, ?PrintTemplate $printTemplate = null) {
     $data = $this->model::find($id);
+    $this->setBreadcrumbs($data, __('core/form.print_preview'));
     $data->loadRelations();
-    $printTemplate   ??= PrintTemplate::where('model', $this->model)
+    $printTemplate ??= PrintTemplate::where('model', $this->model)
       ->where('is_default', true)
       ->first();
+    $printTemplate->loadRelations();
     return Inertia::render('Core/Print', [
-      'data'             => $data,
-      'dataTableColumns' => $this->model::getColumns(),
-      'template'         => $printTemplate->toArray(),
+      'data'          => $data,
+      'document'      => [
+        [
+          'name'       => 'name',
+          'titleTrans' => $data->translateKey . ".name",
+        ],
+      ],
+      'printTemplate' => $printTemplate->toArray(),
     ]);
   }
 
@@ -237,5 +242,23 @@ abstract class Controller
       'name_model' => $model->name,
     ]);
     return redirect()->route('printTemplates.show', $printTemplate);
+  }
+
+  public function amend(string $id) {
+    $data = $this->model::find($id);
+    if (! $data) return back();
+    DB::beginTransaction();
+    $codeFlat = Str::replaceEnd("-{$data->revision_number}", "", $data->code);
+    $data->update([
+      'revision_number' => $data->revision_number + 1,
+      'code'            => "{$codeFlat}-{$data->revision_number}",
+      'submitted_at'    => null,
+      'cancelled_at'    => null,
+      'status'          => FormStatus::DRAFT,
+    ]);
+
+    $data->logForAmend();
+    DB::commit();
+    return redirect()->back();
   }
 }

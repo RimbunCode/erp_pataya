@@ -1,4 +1,7 @@
+import { Avatar, AvatarFallback } from "@/Components/ui/avatar";
+import { Dialog, DialogTrigger } from "@/Components/ui/dialog";
 import { FormPage, FormPageContent, useFormPage } from "../Core/FormPage";
+import React, { useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -6,14 +9,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
+import { Trash2Icon, UploadIcon } from "lucide-react";
 
+import { AvatarImage } from "@/Components/ui/avatar";
+import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import React from "react";
 import { Textarea } from "@/Components/ui/textarea";
+import UploadDialog from "../Core/Components/UploadDialog";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -384,20 +395,87 @@ function Form() {
     </>
   );
 }
-export default function Company() {
+export default function Company({ company }) {
+  const route = window.route;
   const { t } = useLaravelReactI18n();
-
+  const [openAttachment, setOpenAttachment] = useState(false);
+  const alias = company.company_name
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n.charAt(0))
+    .join("");
   // useEffect(() => {
   //   axios.get(
   //     "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.min.json",
   //   ).then('data');
   // })
-
+  const avatar = useMemo(() => {
+    if (!company.company_image) return null;
+    return (
+      <AvatarImage
+        src={
+          route("files.preview", company.company_image) +
+          (company.updated_at
+            ? `?v=${new Date(company.updated_at).getTime()}`
+            : "")
+        }
+        alt={company.name}
+        className=" transition-[filter] duration-300 group-hover:blur-sm"
+      />
+    );
+  }, [company.company_image]);
   return (
     <FormPage
       name="company"
       title={t("core.company.title")}
-      sidebarContent={false}
+      sidebarContent={() => {
+        return (
+          <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
+            <Avatar className="relative  h-auto border rounded-xl aspect-square w-64 group">
+              {avatar}
+              <AvatarFallback className="rounded-lg ">
+                <p className="w-full font-semibold text-center text-muted-foreground text-9xl  transition-[filter]">
+                  {alias}
+                </p>
+              </AvatarFallback>
+              <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DialogTrigger asChild>
+                      <Button variant="default" size="icon" type="button">
+                        <UploadIcon className="size-5!" />
+                      </Button>
+                    </DialogTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent align="center">Upload</TooltipContent>
+                </Tooltip>
+                {company.company_image && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="destructive" size="icon" type="button">
+                        <Trash2Icon className="size-5!" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent align="center">Remove</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </Avatar>
+            <UploadDialog
+              open={openAttachment}
+              single
+              imageOnly
+              options={{
+                route: route(route().current()) + "/image",
+                reset: ["company", "auth"],
+              }}
+              onClose={() => {
+                setOpenAttachment(false);
+              }}
+            />
+          </Dialog>
+        );
+      }}
       bottombarContent={false}
     >
       <Form />

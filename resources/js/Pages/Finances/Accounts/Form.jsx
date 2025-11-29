@@ -1,14 +1,13 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React from "react";
+
+import AccountLinkModel from "./AccountLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
-import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
+import { Input } from "@/Components/ui/input";
+import React from "react";
 import Select from "@/Components/Select";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
-import AccountLinkModel from "./AccountLinkModel";
-import { Input } from "@/Components/ui/input";
 
 const accountTypes = {
   asset: [
@@ -31,9 +30,10 @@ const accountTypes = {
     "current_liability",
     "liability",
     "service_received_but_not_billed",
+    "expenses_included_in_valuation",
     "tax",
   ],
-  equity: ["equity", "temporary"],
+  equity: ["equity", "temporary", "stock"],
   income: [
     "income_account",
     "direct_income",
@@ -55,9 +55,9 @@ const accountTypes = {
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
-  const { default_currency_id } = usePage().props.preferences;
-  console.log(data);
+  const { data, setData } = useFormPage();
+  // const { default_currency_id } = usePage().props.preferences;
+
   return (
     <>
       <FormPageContent value="detail" title={t("finances.account.detail")}>
@@ -66,24 +66,26 @@ export default function Form() {
             name="parent_account"
             label={t("finances.account.columns.parent_account")}
             required
+            readOnly={data?.have_transactions}
           >
             <AccountLinkModel
               placeholder={t(
                 "finances.account.columns.parent_account.placeholder",
               )}
               value={data.parent_account}
+              disabledAddButton
               onValueChange={(val) => {
                 setData((prev) => ({
                   ...prev,
                   parent_account: val,
                   root_type: val?.root_type,
                   report_type: val?.report_type,
+                  balance_type: val?.balance_type,
                 }));
               }}
               filters={{
                 is_group: true,
                 id: { not: data?.id },
-                is_disabled: false,
               }}
             />
           </FormInput>
@@ -92,6 +94,7 @@ export default function Form() {
               checked={data.is_group}
               onCheckedChange={(val) => setData("is_group", val)}
               className="pt-4"
+              disabled={data?.have_transactions}
             >
               {t("finances.account.columns.is_group")}
             </FormCheckbox>
@@ -128,7 +131,7 @@ export default function Form() {
           <FormInput
             name="root_type"
             label={t("finances.account.columns.root_type")}
-            readOnly
+            disabled
           >
             <Input
               value={
@@ -143,8 +146,7 @@ export default function Form() {
           <FormInput
             name="report_type"
             label={t("finances.account.columns.report_type")}
-            readOnly
-            required
+            disabled
           >
             <Input
               value={
@@ -156,11 +158,23 @@ export default function Form() {
               }
             />
           </FormInput>
-
+          <FormInput
+            name="balance_type"
+            label={t("finances.account.columns.balance_type")}
+            disabled
+          >
+            <Select
+              value={data.balance_type}
+              onValueChange={(val) => setData("balance_type", val)}
+              optionTrans="finances.account.columns.balance_type.options"
+              options={["debit", "credit"]}
+            />
+          </FormInput>
           <FormInput
             name="account_type"
             label={t("finances.account.columns.account_type")}
             disabled={data.is_group}
+            readOnly={data?.have_transactions}
           >
             <Select
               placeholder={t(
@@ -175,17 +189,6 @@ export default function Form() {
             />
           </FormInput>
 
-          <FormInput
-            name="balance_type"
-            label={t("finances.account.columns.balance_type")}
-          >
-            <Select
-              value={data.balance_type}
-              onValueChange={(val) => setData("balance_type", val)}
-              optionTrans="finances.account.columns.balance_type.options"
-              options={["debit", "credit"]}
-            />
-          </FormInput>
           {/* {!data.is_group && (
             <FormInput
               name="currency"

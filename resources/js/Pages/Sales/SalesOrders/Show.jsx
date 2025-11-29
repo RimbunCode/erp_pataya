@@ -1,42 +1,30 @@
-import { cn, getThemeByStatus } from "@/lib/utils";
-import Form from "./Form";
-import { FormPage } from "@/Pages/Core/FormPage";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useMemo } from "react";
-import { usePage } from "@inertiajs/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import Link from "@/Components/Link";
+
 import { Button } from "@/Components/ui/button";
+import { ChevronsUpDown } from "lucide-react";
+import Form from "./Form";
+import { FormPage } from "@/Pages/Core/FormPage";
+import Link from "@/Components/Link";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ salesOrder, flash }) {
+export default function Show({ salesOrder, defaultData, flash }) {
   const { t } = useLaravelReactI18n();
-  const loadFrom = usePage().props.loadFrom;
   const route = window.route;
-  const statusBadge = useMemo(() => {
-    if (!salesOrder) return;
-
-    const status = t(`core.form.statuses.${salesOrder?.status}`);
-    const theme = getThemeByStatus(salesOrder?.status);
-
-    return (
-      <span className={cn("text-sm badge capitalize", theme)}>{status}</span>
-    );
-  }, [salesOrder?.status, t]);
 
   return (
     <FormPage
       isCreate={!salesOrder}
-      ignoreDraft={loadFrom}
+      ignoreDraft={defaultData}
       name="salesOrder"
       title={salesOrder ? salesOrder.code : t("sales.salesOrder.new")}
-      disabled={(salesOrder?.status ?? "draft") != "draft"}
+      disabled={salesOrder?.submitted_at}
       submitable
-      badge={statusBadge}
+      defaultValues={defaultData}
       banner={
         flash.errorItems && (
           <div className="flex flex-col gap-x-2 text-sm alert error p-4">
@@ -54,7 +42,7 @@ export default function Show({ salesOrder, flash }) {
         )
       }
       controls={() => {
-        if ((salesOrder.status ?? "draft") != "draft") {
+        if (salesOrder?.submitted_at) {
           return (
             <>
               <DropdownMenu>
@@ -65,6 +53,7 @@ export default function Show({ salesOrder, flash }) {
                     variant="secondary"
                   >
                     {t("core.form.actions")}
+                    <ChevronsUpDown />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent>

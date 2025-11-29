@@ -2,6 +2,7 @@
 
 namespace App\Models\Inventory;
 
+use App\Models\Finances\Account;
 use App\Models\Finances\AdditionalCost;
 use App\Models\Model;
 use App\Traits\DataTable;
@@ -60,7 +61,12 @@ class StockEntry extends Model {
       'items.sourceWarehouse',
       'items.targetWarehouse',
       'additionalCosts',
+      'differenceAccount',
     ];
+  }
+
+  public function differenceAccount() {
+    return $this->belongsTo(Account::class, 'difference_account_id');
   }
 
   public function items() {

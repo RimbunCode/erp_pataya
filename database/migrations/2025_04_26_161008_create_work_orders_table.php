@@ -1,10 +1,11 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
+
   /**
    * Run the migrations.
    */
@@ -19,6 +20,8 @@ return new class extends Migration {
       $table->string('item_service_name')->nullable();
       $table->timestamp('date')->nullable();
       $table->text('external_note')->nullable();
+      $table->timestamp('started_on')->nullable();
+      $table->timestamp('complated_on')->nullable();
       $table->timestamps();
       $table->softDeletes();
     });

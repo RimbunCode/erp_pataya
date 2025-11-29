@@ -7,24 +7,24 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class AccountSeeder extends Seeder {
-  private function createAccounts(array $data, Account $accountParent = null) {
+  private function createAccounts(array $data, ?Account $accountParent = null) {
     foreach ($data as $account) {
-      $children         = $account['children'] ?? [];
-      $haveTransactions = \array_key_exists('children', $account);
+      $children = $account['children'] ?? [];
       unset($account['children']);
 
-      $acc = Account::firstOrCreate(
+      $acc = Account::updateOrCreate(
         [
-          'account_name'   => $account['account_name'],
           'account_number' => $account['account_number'],
         ],
         [
-          'have_transactions' => $haveTransactions,
+          'account_name'      => $account['account_name'],
+          'have_transactions' => true,
           ...$account,
           ...($accountParent ? [
-            'parent_account_id' => $accountParent->id,
-            'root_type'         => $accountParent->root_type,
-            'report_type'       => $accountParent->report_type,
+            'parent_id'    => $accountParent->id,
+            'root_type'    => $accountParent->root_type,
+            'report_type'  => $accountParent->report_type,
+            'balance_type' => $accountParent->balance_type,
           ] : []),
         ],
       );
@@ -45,6 +45,7 @@ class AccountSeeder extends Seeder {
         'is_group'       => true,
         'root_type'      => 'asset',
         'report_type'    => 'balance_sheet',
+        'balance_type'   => 'debit',
         'children'       => [
           [
             'account_name'   => 'Asset Tetap',
@@ -83,7 +84,6 @@ class AccountSeeder extends Seeder {
                     'account_name'   => 'Piutang Dagang',
                     'account_number' => '1231',
                     'account_type'   => 'receivable',
-
                   ],
                 ],
               ],
@@ -96,7 +96,25 @@ class AccountSeeder extends Seeder {
                     'account_name'   => 'Persediaan Barang',
                     'account_type'   => 'stock',
                     'account_number' => '1241',
-
+                  ],
+                ],
+              ],
+              [
+                'account_number' => '1250',
+                'account_name'   => 'Current Assets',
+                'is_group'       => true,
+                'children'       => [
+                  [
+                    'account_number' => '1251',
+                    'account_name'   => 'Work in Progress',
+                    'is_group'       => true,
+                    'children'       => [
+                      [
+                        'account_number' => '1251.1',
+                        'account_name'   => 'WIP Service',
+                        'account_type'   => 'current_asset',
+                      ],
+                    ],
                   ],
                 ],
               ],
@@ -110,6 +128,7 @@ class AccountSeeder extends Seeder {
         'is_group'       => true,
         'root_type'      => 'liability',
         'report_type'    => 'balance_sheet',
+        'balance_type'   => 'credit',
         'children'       => [
           [
             'account_name'   => 'Liability Tetap',
@@ -121,7 +140,6 @@ class AccountSeeder extends Seeder {
                 'is_group'       => true,
                 'account_number' => '2110',
               ],
-
             ],
           ],
           [
@@ -135,21 +153,26 @@ class AccountSeeder extends Seeder {
                 'is_group'       => true,
                 'children'       => [
                   [
-                    'account_name'   => 'Hutang Dagang',
-                    'account_number' => '2210',
-                    'is_group'       => true,
-                    'children'       => [
-                      [
-                        'account_name'   => 'Hutang Dagang Dalam Negeri',
-                        'account_number' => '2211',
-                        'account_type'   => 'payable',
-                      ],
-                      [
-                        'account_name'   => 'Hutang Dagang Luar Negeri',
-                        'account_number' => '2212',
-                        'account_type'   => 'payable',
-                      ],
-                    ],
+                    'account_name'   => 'Hutang Dagang Dalam Negeri',
+                    'account_number' => '2211',
+                    'account_type'   => 'payable',
+                  ],
+                  [
+                    'account_name'   => 'Hutang Dagang Luar Negeri',
+                    'account_number' => '2212',
+                    'account_type'   => 'payable',
+                  ],
+                ],
+              ],
+              [
+                'account_name'   => 'Biaya Yang Harus Dibayar',
+                'account_number' => '2220',
+                'is_group'       => true,
+                'children'       => [
+                  [
+                    'account_name'   => 'Biaya Yang Harus Dibayar',
+                    'account_number' => '2221',
+                    'account_type'   => 'expense_included_in_valuation',
                   ],
                 ],
               ],
@@ -175,11 +198,19 @@ class AccountSeeder extends Seeder {
         'is_group'       => true,
         'root_type'      => 'equity',
         'report_type'    => 'balance_sheet',
+        'balance_type'   => 'credit',
         'children'       => [
           [
             'account_name'   => 'Modal',
             'account_number' => '3100',
             'is_group'       => true,
+            "children"       => [
+              [
+                'account_name'   => 'Pembukaan Stock',
+                'account_number' => '3110',
+                'account_type'   => 'stock',
+              ],
+            ],
           ],
           [
             'account_name'   => 'Laba',
@@ -194,6 +225,7 @@ class AccountSeeder extends Seeder {
         'is_group'       => true,
         'root_type'      => 'income',
         'report_type'    => 'profit_and_loss',
+        'balance_type'   => 'credit',
         'children'       => [
           [
             'account_name'   => 'Penjualan Barang',
@@ -237,6 +269,7 @@ class AccountSeeder extends Seeder {
         'is_group'       => true,
         'root_type'      => 'expense',
         'report_type'    => 'profit_and_loss',
+        'balance_type'   => 'debit',
         'children'       => [
           [
             'account_name'   => 'Beban Penjualan',

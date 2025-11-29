@@ -29,12 +29,12 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { cn, generateRandom } from "@/lib/utils";
 import { useForm, usePage } from "@inertiajs/react";
 
 import { Button } from "@/components/ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { FormCheckbox } from "@/Components/ui/checkbox";
-import { cn } from "@/lib/utils";
 import { useEditor } from "@grapesjs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -249,6 +249,7 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
     thead.remove();
     tbody.remove();
 
+    const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
     component.append([
       {
         type: "tableHead",
@@ -283,6 +284,9 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
                 editable: false,
                 draggable: false,
                 content: "#",
+                attributes: {
+                  "data-id": genId("cell"),
+                },
               },
               ...columns.map((col) => ({
                 tagName: "th",
@@ -293,6 +297,7 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
                 editable: false,
                 draggable: false,
                 attributes: {
+                  "data-id": genId("cell"),
                   name: col.name,
                   class:
                     "border border-gray-400 px-2 py-1 text-left bg-gray-100",
@@ -338,6 +343,9 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
                 editable: false,
                 draggable: false,
                 content: "{{idx}}",
+                attributes: {
+                  "data-id": genId("cell"),
+                },
               },
               ...columns.map((col) => ({
                 tagName: "td",
@@ -349,6 +357,7 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
                 editable: false,
                 draggable: false,
                 attributes: {
+                  "data-id": genId("cell"),
                   name: col.name,
                   class: "border border-gray-300 px-2 py-1",
                 },
@@ -477,10 +486,18 @@ export default function RelationsInspector() {
             show: false,
           };
         };
+        let dataCol =
+          dataTableColumns.find((x) => x.type == "data")?.columns ?? [];
+        const keys = attributes["data-relations"]?.split(".") ?? "";
 
-        const dataCol = dataTableColumns?.find(
-          (x) => x.name == attributes["data-relations"],
-        );
+        for (let i = 0; i < keys.length; i++) {
+          const temp = dataCol?.find((x) => x.name == keys[i]);
+          if (temp) {
+            dataCol = i == keys.length - 1 ? temp : temp.columns;
+          }
+        }
+        console.log(dataCol, keys);
+
         if (!dataCol) return;
         dataCol.columns = dataCol.columns
           ?.map((col) => {

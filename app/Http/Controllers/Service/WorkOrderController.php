@@ -14,10 +14,11 @@ use Inertia\Inertia;
 
 class WorkOrderController extends Controller {
   private FormatingSeriesService $formatingSeriesService;
-  private WorkOrderService $service;
+  private WorkOrderService       $service;
+
   public function __construct(Request $request, FormatingSeriesService $referenceCodeService, WorkOrderService $service) {
     $this->formatingSeriesService = $referenceCodeService;
-    $this->service = $service;
+    $this->service                = $service;
     parent::__construct($request, WorkOrder::class);
   }
 
@@ -27,6 +28,7 @@ class WorkOrderController extends Controller {
   public function index(Request $request) {
     $this->setBreadcrumbs();
     WorkOrder::dataTable($request);
+
     return Inertia::render(component: 'Services/WorkOrders/Index');
   }
 
@@ -44,8 +46,8 @@ class WorkOrderController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code = $this->formatingSeriesService->get(WorkOrder::class, $data);
-    $data['code'] = $code;
+    $code           = $this->formatingSeriesService->get(WorkOrder::class, $data);
+    $data['code']   = $code;
 
     $wo = $this->service->create($data);
     DB::commit();
@@ -69,10 +71,20 @@ class WorkOrderController extends Controller {
   /**
    * Update the specified resource in storage.
    */
-  public function update(WorkOrderRequest $request, WorkOrder $workOrder) {
-    $data = $request->validated();
+  public function update(WorkOrderRequest $request, WorkOrder $workOrder, mixed $level = null) {
     DB::beginTransaction();
-    $wo = $this->service->update($workOrder, $data);
+    switch ($level) {
+      case 'start':
+        $wo = $this->service->start($workOrder);
+        break;
+      case 'complate':
+        $wo = $this->service->complate($workOrder);
+        break;
+      default:
+        $data = $request->validated();
+        $wo = $this->service->update($workOrder, $data);
+        break;
+    }
 
     DB::commit();
     return back();

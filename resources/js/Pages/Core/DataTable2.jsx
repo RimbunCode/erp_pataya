@@ -387,6 +387,7 @@ export default memo(
                             if (
                               type == "relations" ||
                               type == "mixed" ||
+                              type == "json" ||
                               !sortable
                             )
                               return;
@@ -517,6 +518,7 @@ export default memo(
                           if (
                             column.type == "relations" ||
                             column.type == "mixed" ||
+                            column.type == "json" ||
                             !column.sortable
                           )
                             return;

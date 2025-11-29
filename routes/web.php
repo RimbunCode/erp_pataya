@@ -11,6 +11,8 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
 
     if ($isSubmmitable) {
       Route::put("/{{$name}}/submit", "submit")->name("$uri.submit");
+      Route::put("/{{$name}}/cancel", "cancel")->name("$uri.cancel");
+      Route::put("/{{$name}}/amend", "amend")->name("$uri.amend");
       Route::put("/{{$name}}/{level?}", "update")->name("$uri.update");
       Route::get("/create-print-template", 'createPrintTemplate')->name("$uri.createPrintTemplate");
       Route::get("/{{$name}}/print/{printTemplate?}", 'print')->name("$uri.print");
@@ -46,6 +48,8 @@ Route::controller(\App\Http\Controllers\Core\LanguageController::class)->group(f
 });
 
 // Route for Preview Image
+Route::get('/company-logo', \App\Http\Controllers\Core\CompanyLogoController::class)->name('company-logo');
+
 Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'preview'])->name('files.preview');
 // Get Data from Model Direct
 Route::post('/model', \App\Http\Controllers\ModelController::class)
@@ -73,10 +77,12 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     Route::controller(\App\Http\Controllers\Core\CompanyController::class)->group(function () {
       Route::get('company', 'index')->name('companies.index');
       Route::put('company', 'update')->name('companies.update');
+      Route::post('company/image', 'image')->name('companies.image');
     });
     // Branches
     Route::resourceDetail('branch', \App\Http\Controllers\Core\BranchController::class);
     Route::resourceDetail('formatingSeries', \App\Http\Controllers\Core\FormatingSeriesController::class);
+    Route::resourceDetail('approvalScheme', \App\Http\Controllers\Core\ApprovalSchemeController::class);
 
     Route::resourceDetail('printTemplates', \App\Http\Controllers\Core\PrintTemplateController::class);
     Route::get('/printTemplates/{printTemplates}/editor', [\App\Http\Controllers\Core\PrintTemplateController::class, 'editor'])->name('printTemplates.editor');

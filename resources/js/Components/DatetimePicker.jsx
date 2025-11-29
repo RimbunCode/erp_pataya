@@ -200,7 +200,7 @@ export default memo(
                 required={required}
                 onClick={(e) => {
                   e.preventDefault();
-                  if (!open) {
+                  if (!open && !readOnly && !disabled) {
                     setOpen(true);
                   }
                 }}

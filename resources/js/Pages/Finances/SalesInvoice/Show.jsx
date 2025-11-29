@@ -1,8 +1,6 @@
-import { cn, getThemeByStatus } from "@/lib/utils";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useMemo } from "react";
 
 export default function Show({
   salesInvoice,
@@ -22,16 +20,6 @@ export default function Show({
   external_note,
 }) {
   const { t } = useLaravelReactI18n();
-  const statusBadge = useMemo(() => {
-    if (!salesInvoice) return;
-
-    const status = t(`core.form.statuses.${salesInvoice?.status}`);
-    const theme = getThemeByStatus(salesInvoice?.status);
-
-    return (
-      <span className={cn("text-sm badge capitalize", theme)}>{status}</span>
-    );
-  }, [salesInvoice?.status, t]);
 
   return (
     <FormPage
@@ -54,9 +42,8 @@ export default function Show({
       ignoreDraft={sales_order}
       name="salesInvoice"
       title={salesInvoice ? salesInvoice.code : t("finances.salesInvoice.new")}
-      disabled={(salesInvoice?.status ?? "draft") != "draft"}
+      disabled={salesInvoice?.submitted_at}
       submitable
-      badge={statusBadge}
       banner={
         flash.errorItems && (
           <div className="flex flex-col gap-x-2 text-sm alert error p-4">

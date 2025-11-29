@@ -122,7 +122,7 @@ function Tags() {
         <span className="flex-1">{t("core.form.tags")}</span>
         <Button
           variant="ghost"
-          className="rounded-full p-0! group-data-[disabled=true]/form:hidden"
+          className="rounded-full p-0! "
           size="icon"
           type="button"
           onClick={() => setShowSearch(!showSearch)}

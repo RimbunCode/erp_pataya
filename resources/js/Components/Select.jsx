@@ -17,6 +17,7 @@ import React from "react";
 import { XIcon } from "lucide-react";
 import { useDetectClickOutside } from "react-detect-click-outside";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { useRef } from "react";
 
 const Select = memo(
   forwardRef(function Select(
@@ -24,6 +25,7 @@ const Select = memo(
       id,
       value,
       onValueChange,
+      defaultValue,
       placeholder,
       className,
       disabled,
@@ -55,22 +57,13 @@ const Select = memo(
       return options;
     }, [_options, optionTrans, t]);
 
-    const options = useMemo(() => {
-      if (!oriOptions) return [];
-      if (search) {
-        return oriOptions.filter((x) =>
-          x.label.toLowerCase().includes(search.toLowerCase()),
-        );
-      }
-
-      return oriOptions;
-    }, [oriOptions, search]);
     const getOption = useCallback(
       (val) => {
         return oriOptions.find((x) => x.value == val);
       },
       [oriOptions],
     );
+    const [isDirty, setIsDirty] = useState(false);
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(getOption(value));
     const commandRef = useDetectClickOutside({
@@ -78,20 +71,62 @@ const Select = memo(
         setOpen(false);
       },
     });
-    const option = value ? getOption(value) : _option;
+    const hasValue = value !== undefined && value !== null;
+    const option = hasValue ? getOption(value) : _option;
     const setOption = useCallback(
       (val) => {
+        setIsDirty(false);
         if (disabled || readOnly) return;
         _setOption(val);
         onValueChange?.(val?.value);
       },
       [onValueChange, _setOption, disabled, readOnly],
     );
+    const appliedDefaultKeyRef = useRef(null);
+
+    useEffect(() => {
+      if (option) return;
+      if (!defaultValue) {
+        // kalau defaultValue hilang, reset flag
+        appliedDefaultKeyRef.current = null;
+        return;
+      }
+
+      // kalau default yang sama sudah pernah diaplikasikan, jangan apa-apa
+      if (appliedDefaultKeyRef.current === defaultValue) {
+        return;
+      }
+
+      const opt = getOption(defaultValue);
+      if (!opt) {
+        return;
+      }
+
+      // apply default hanya sekali per key
+      _setOption((prev) => {
+        if (prev?.value === opt.value) return prev;
+        onValueChange?.(opt.value);
+        return opt;
+      });
+
+      appliedDefaultKeyRef.current = defaultValue;
+    }, [defaultValue, getOption, onValueChange, _setOption]);
+
+    const options = useMemo(() => {
+      if (!oriOptions) return [];
+      if (search && isDirty) {
+        return oriOptions.filter((x) =>
+          x.label.toLowerCase().includes(search.toLowerCase()),
+        );
+      }
+
+      return oriOptions;
+    }, [oriOptions, search, isDirty]);
 
     useEffect(() => {
       if (open) return;
 
-      if (search) {
+      if (search && isDirty) {
         const findOption = oriOptions.find(
           (x) => x.label.toLowerCase() == search.toLowerCase(),
         );
@@ -103,18 +138,18 @@ const Select = memo(
           setSearch("");
         }
       }
-    }, [open]);
-    useEffect(() => {
-      if (search) {
-        const findOption = oriOptions.find(
-          (x) => x.label.toLowerCase() == search.toLowerCase(),
-        );
-        setOption(findOption);
-        if (!findOption) {
-          setSearch("");
-        }
-      }
-    }, [_options]);
+    }, [open, isDirty]);
+    // useEffect(() => {
+    //   if (search) {
+    //     const findOption = oriOptions.find(
+    //       (x) => x.label.toLowerCase() == search.toLowerCase(),
+    //     );
+    //     setOption(findOption);
+    //     if (!findOption) {
+    //       setSearch("");
+    //     }
+    //   }
+    // }, [_options]);
     useEffect(() => {
       if (option) {
         setSearch(option.label);
@@ -140,6 +175,7 @@ const Select = memo(
       // if (option) {
       //   setOption(null);
       // }
+      setIsDirty(true);
       if (!open) {
         setOpen(true);
       }
@@ -190,7 +226,7 @@ const Select = memo(
                     onKeyDown={onInputKeyDown}
                     onClick={(e) => {
                       e.preventDefault();
-                      if (!(option && search) && !open) {
+                      if ((!search && !open) || (!open && option)) {
                         setOpen(true);
                       }
                     }}

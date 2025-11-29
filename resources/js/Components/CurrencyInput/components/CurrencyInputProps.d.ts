@@ -1,4 +1,4 @@
-import React, { ElementType } from "react";
+import React, { ElementType } from 'react';
 type Overwrite<T, U> = Pick<T, Exclude<keyof T, keyof U>> & U;
 /**
  * Value in different formats
@@ -6,31 +6,29 @@ type Overwrite<T, U> = Pick<T, Exclude<keyof T, keyof U>> & U;
  * @experimental
  */
 export type CurrencyInputOnChangeValues = {
-  /**
-   * Value as float or null if empty
-   *
-   * Example:
-   *   "1.99" > 1.99
-   *   "" > null
-   */
-  float: number | null;
-  /**
-   * Value after applying formatting
-   *
-   * Example: "1000000" > "1,000,0000"
-   */
-  formatted: string;
-  /**
-   * Non formatted value as string
-   */
-  value: string;
+    /**
+     * Value as float or null if empty
+     *
+     * Example:
+     *   "1.99" > 1.99
+     *   "" > null
+     */
+    float: number | null;
+    /**
+     * Value after applying formatting
+     *
+     * Example: "1000000" > "1,000,0000"
+     */
+    formatted: string;
+    /**
+     * Non formatted value as string
+     */
+    value: string;
 };
 export type IntlConfig = {
-  locale: string;
+    locale: string;
 } & Intl.NumberFormatOptions;
-export type CurrencyInputProps = Overwrite<
-  React.ComponentPropsWithRef<"input">,
-  {
+export type CurrencyInputProps = Overwrite<React.ComponentPropsWithRef<'input'>, {
     /**
      * Allow decimals
      *
@@ -61,18 +59,6 @@ export type CurrencyInputProps = Overwrite<
      * Default = <input/>
      */
     customInput?: ElementType;
-    /**
-     * currencyCode should be a ISO 4217 currency code.
-     *
-     * Example:
-     *
-     *  "default" => defaultCurrency in Preferences
-     *
-     *  "IDR" => "Rp"
-     *
-     *  "USD" => "$"
-     */
-    currencyCode?: "default" | string;
     /**
      * Limit length of decimals allowed
      *
@@ -109,11 +95,7 @@ export type CurrencyInputProps = Overwrite<
     /**
      * Handle change in value
      */
-    onValueChange?: (
-      value: string | undefined,
-      name?: string,
-      values?: CurrencyInputOnChangeValues,
-    ) => void;
+    onValueChange?: (value: string | undefined, name?: string, values?: CurrencyInputOnChangeValues) => void;
     /**
      * Placeholder if there is no value
      */
@@ -173,6 +155,5 @@ export type CurrencyInputProps = Overwrite<
      * Default = true
      */
     formatValueOnBlur?: boolean;
-  }
->;
+}>;
 export {};

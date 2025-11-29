@@ -112,8 +112,17 @@ export const useDraftForm = (
   const getOptions = useCallback(
     (options) => {
       return {
-        preserveState: true,
-        preverseScroll: true,
+        ...(isCreate
+          ? {
+              preserveState: false,
+              preverseScroll: false,
+              preserveUrl: false,
+            }
+          : {
+              reset: name ? [name, "logs"] : ["logs"],
+              preserveState: true,
+              preverseScroll: true,
+            }),
         replace: true,
         ...options,
         onSuccess: (e) => {

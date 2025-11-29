@@ -24,7 +24,6 @@ import ToggleTheme from "@/Components/ToggleTheme";
 import UserInfo from "./UserInfo";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/Hooks/use-mobile";
-import { useIsTablet } from "@/Hooks/use-tablet";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 

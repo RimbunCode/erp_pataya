@@ -6,18 +6,21 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StockEntryRequest;
 use App\Models\Core\Branch;
 use App\Models\Inventory\StockEntry;
+use App\Models\Service\WorkOrder;
 use App\Services\Core\FormatingSeriesService;
 use App\Services\Inventory\StockEntryService;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class StockEntryController extends Controller {
   private FormatingSeriesService $formatingSeriesService;
-  private StockEntryService $service;
+  private StockEntryService      $service;
+
   public function __construct(Request $request, FormatingSeriesService $referenceCodeService, StockEntryService $service) {
     $this->formatingSeriesService = $referenceCodeService;
-    $this->service = $service;
+    $this->service                = $service;
     parent::__construct($request, StockEntry::class);
   }
 
@@ -27,14 +30,45 @@ class StockEntryController extends Controller {
   public function index(Request $request) {
     $this->setBreadcrumbs();
     StockEntry::dataTable($request);
+
     return Inertia::render('Inventory/StockEntries/Index');
   }
 
   /**
    * Show the form for creating a new resource.
    */
-  public function create() {
-    //
+  public function create(Request $request, $ref) {
+    if ($ref) {
+      $select   = $request->has('select') ? $request->select : null;
+      $split    = \explode("/", $ref);
+      $modelOri = $split[0] ?? null;
+      if ($modelOri) {
+        switch ($modelOri) {
+          case 'workOrder': {
+            $workOrder = WorkOrder::find($split[1]);
+            if ($workOrder) {
+              $defaultData = [
+                'date'               => now(),
+                'referenceable_type' => WorkOrder::class,
+                'referenceable_id'   => $workOrder->id,
+                'referenceable'      => $workOrder,
+                'type'               => 'item_consumption',
+                'branch_id'          => $workOrder->branch_id,
+                'items'              => $workOrder->items->map(fn ($item) => [
+                  'id'   => Utils::generateRandom(5),
+                  'item' => $item->item,
+                ]),
+              ];
+            }
+            break;
+          }
+        }
+      }
+    }
+    $this->setBreadcrumbs('inventory.stockEntry.new');
+    return Inertia::render('Inventory/StockEntries/Show', [
+      'defaultData' => $defaultData ?? null,
+    ]);
   }
 
   /**
@@ -43,9 +77,9 @@ class StockEntryController extends Controller {
   public function store(StockEntryRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    $code = $this->formatingSeriesService->get(StockEntry::class, $data);
+    $code         = $this->formatingSeriesService->get(StockEntry::class, $data);
     $data['code'] = $code;
-    $stockEntry = $this->service->create($data);
+    $stockEntry   = $this->service->create($data);
     DB::commit();
     return redirect()->route('stockEntries.show', $stockEntry);
   }

@@ -8,8 +8,9 @@ enum FormStatus: string {
   case CANCELED                        = 'canceled';
   case APPROVED                        = 'approved';
   case REJECTED                        = 'rejected';
-  case DELIVERED                       = 'delivered';
   case PENDING                         = 'pending';
+  case SKIPPED                         = 'skipped';
+  case DELIVERED                       = 'delivered';
   case CLOSED                          = 'closed';
   case IN_PROGRESS                     = 'in_progress';
   case DELETED                         = 'deleted';
@@ -23,6 +24,8 @@ enum FormStatus: string {
   case TO_BILL                         = 'to_bill';
   case TO_DELIVER                      = 'to_deliver';
   case TO_DELIVER_AND_BILL             = 'to_deliver_and_bill';
+  case OVERDUE                         = 'overdue';
+  case NEED_APPROVAL                   = 'need_approval';
 
   public function label() {
     return __("status." . $this->value);

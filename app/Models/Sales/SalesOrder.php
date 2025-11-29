@@ -13,51 +13,53 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 
 class SalesOrder extends Model {
   use DataTable, Submitable, HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
-  protected $casts = [
-    "date" => "datetime",
+  protected               $guarded           = ['id'];
+  protected               $casts             = [
+    "date"    => "datetime",
     "is_rent" => "boolean",
   ];
   protected static string $defaultFormatCode = '@[branch_code]/SO-@[iiii]/@[yy]';
+
   public function codeRelations() {
     return [
       'branch_code:branch.code',
-      'branch_name:branch.name'
+      'branch_name:branch.name',
     ];
   }
   public $keyBreadcrumb = "code";
 
-  public static function templateLink()
-  {
+  public static function templateLink() {
     return ":code";
   }
-  public $translateKey = 'sales.salesOrder';
+  public    $translateKey  = 'sales.salesOrder';
   protected $configColumns = [
-    'code' => [
+    'code'     => [
       'isLink' => true,
-      'show' => true,
-      'order' => 0,
+      'show'   => true,
+      'order'  => 0,
     ],
     'customer' => [
-      'show' => true,
+      'show'  => true,
       'order' => 1,
     ],
-    'date' => [
-      'show' => true,
+    'date'     => [
+      'show'  => true,
       'order' => 2,
     ],
-    'status' => [
-      'show' => true,
-      'order' => 3
+    'status'   => [
+      'show'  => true,
+      'order' => 3,
     ],
     'customer_branch',
     "currency",
-    'branch' => [
+    'branch'   => [
       'ignore' => true,
-    ]
+    ],
   ];
+
   protected static function loadRelationsOnShow() {
     return [
+      'referenceable',
       'items',
       'customer',
       'customer_branch',
@@ -70,6 +72,10 @@ class SalesOrder extends Model {
       'paymentSchedules.paymentTerm',
       'paymentSchedules.paymentMethod',
     ];
+  }
+
+  public function referenceable() {
+    return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
   }
 
   public function items() {
@@ -91,6 +97,7 @@ class SalesOrder extends Model {
   public function currency() {
     return $this->belongsTo(Currency::class, 'currency_code');
   }
+
   public function paymentSchedules() {
     return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')->orderBy('payment_date', 'asc');
   }

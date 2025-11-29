@@ -1,6 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect, useMemo } from "react";
-import { loadFromModel } from "@/Components/SelectModel";
+
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
@@ -8,19 +8,19 @@ import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import LinkModel from "@/Components/LinkModel";
+import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
+import { loadFromModel } from "@/Components/SelectModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
-import LinkModel from "@/Components/LinkModel";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
   const { data, setData, disabled } = useFormPage();
-  const { default_currency_id } = usePage().props.preferences;
   const loadFrom = usePage().props.loadFrom;
   const mergeItems = useCallback(
     (value, model) => {
@@ -366,13 +366,6 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-
-      {/* {(data.status ?? "draft") != "draft" && (
-        <FormPageContent
-          value="connections"
-          title={t("core.form.connections")}
-        ></FormPageContent>
-      )} */}
     </>
   );
 }

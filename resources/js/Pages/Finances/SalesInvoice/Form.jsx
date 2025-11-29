@@ -4,6 +4,7 @@ import {
   useFormPage,
 } from "@/Pages/Core/FormPage";
 import React, { useEffect, useMemo } from "react";
+
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -14,6 +15,7 @@ import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
 import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
+import SalesOrderLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderLinkModel";
 import Select from "@/Components/Select";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
@@ -22,7 +24,6 @@ import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel"
 import { calculateArray } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import SalesOrderLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderLinkModel";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -725,12 +726,6 @@ export default function Form() {
           />
         </div>
       </FormPageContent>
-      {/* {(data.status ?? "draft") != "draft" && (
-        <FormPageContent
-          value="connections"
-          title={t("core.form.connections")}
-        ></FormPageContent>
-      )} */}
     </>
   );
 }

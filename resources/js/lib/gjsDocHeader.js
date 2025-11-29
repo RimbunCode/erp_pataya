@@ -82,19 +82,10 @@ export default function gjsDocHeader(editor) {
           }
           .doc-info {
             flex: 1;
-            padding: 10px 15px;
-            font-family: "Segoe UI", Arial, sans-serif;
-            color: #222;
+            padding: 8px 12px;
           }
           .doc-info h2 {
-            margin: 0;
-            font-size: 20pt;
-            font-weight: 600;
-          }
-          .doc-info p {
-            margin: 2px 0;
-            font-size: 10pt;
-            line-height: 1.4;
+            margin:0;
           }
         `,
         components: [
@@ -124,7 +115,7 @@ export default function gjsDocHeader(editor) {
                     dropable: false,
                     selectable: false,
                     attributes: {
-                      src: "https://via.placeholder.com/150x80?text=Logo",
+                      src: "/company-logo",
                       alt: "Company Logo",
                     },
                     toolbar: [
@@ -155,22 +146,23 @@ export default function gjsDocHeader(editor) {
                   {
                     type: "text",
                     tagName: "h2",
-                    content: "{{company:name}}",
+                    content: "{{company_name}}",
                   },
                   {
                     type: "text",
                     tagName: "p",
-                    content: "{{company:address}}",
+                    content:
+                      "{{street}}, {{city}}, {{state}}, {{country_name}}. {{zip_code}}",
                   },
                   {
                     type: "text",
                     tagName: "p",
-                    content: "Telp: {{company:telp}}",
+                    content: "Telp: {{phone}}",
                   },
                   {
                     type: "text",
                     tagName: "p",
-                    content: "Email: {{company:email}}",
+                    content: "Email: {{email}}",
                   },
                 ],
               },

@@ -25,10 +25,12 @@ import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import React from "react";
 import axios from "axios";
+import { isEqual } from "lodash";
 import pluralize from "pluralize";
 import { useDetectClickOutside } from "react-detect-click-outside";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { useRef } from "react";
 
 function validateWithOperators(value, operators, logic = "and") {
   let result = false;
@@ -71,7 +73,7 @@ function validateWithOperators(value, operators, logic = "and") {
         result = Array.isArray(val) ? !val.includes(value) : true;
         break;
       case "between":
-        result = value > val[0] && value < val[1];
+        result = value >= val[0] && value <= val[1];
         break;
       case "notBetween":
         result = value < val[0] || value > val[1];
@@ -177,6 +179,7 @@ export default memo(
       id,
       as,
       valueBefore,
+      defaultValue,
       value,
       onValueChange,
       placeholder,
@@ -185,6 +188,7 @@ export default memo(
       readOnly,
       required,
       model,
+      sort,
       limit = 10,
       filters,
       joins,
@@ -242,8 +246,12 @@ export default memo(
           const isValid = validate(val, filters);
           if (!isValid) return;
         }
-        _setOption(val);
-        onValueChange?.(val);
+        _setOption((prev) => {
+          // kalau sama, jangan trigger apa-apa
+          if (isEqual(prev, val)) return prev;
+          onValueChange?.(val);
+          return val;
+        });
       },
       [onValueChange, _setOption, disabled, readOnly, filters],
     );
@@ -287,14 +295,18 @@ export default memo(
       }
     }, [filters, option, value]);
 
-    const getModels = () => {
+    const getModels = (filterForDefaultValue = {}, callback) => {
       axios
         .post(route("model"), {
           model,
           limit: limit ?? 10,
           search: search,
           with: _with,
-          filters,
+          filters: {
+            ...filters,
+            ...filterForDefaultValue,
+          },
+          sort,
           joins,
           keywords,
           order,
@@ -304,6 +316,7 @@ export default memo(
           const data = res.data.data;
           setTotal(res.data.total ?? data.length);
           setOptions(data);
+          callback?.(data);
         })
         .catch((err) => {
           console.log(err);
@@ -323,6 +336,29 @@ export default memo(
         clearTimeout(reloadModel);
       };
     }, [search]);
+    const defaultKey = useMemo(
+      () => (defaultValue ? JSON.stringify(defaultValue) : null),
+      [defaultValue],
+    );
+
+    const loadedDefaultKeyRef = useRef(null);
+
+    useEffect(() => {
+      if (!defaultKey || option) return;
+
+      if (loadedDefaultKeyRef.current === defaultKey) return;
+      loadedDefaultKeyRef.current = defaultKey;
+
+      setLoading(true);
+      const reloadModel = setTimeout(() => {
+        getModels(defaultValue, (data) => {
+          if (data.length <= 0) return;
+          setOption(data[0]);
+        });
+      }, 500);
+
+      return () => clearTimeout(reloadModel);
+    }, [defaultKey, option]);
     useDidMountEffect(() => {
       if (!open) return;
       setLoading(true);

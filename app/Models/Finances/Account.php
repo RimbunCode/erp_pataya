@@ -5,12 +5,13 @@ namespace App\Models\Finances;
 use App\Models\Core\Currency;
 use App\Models\Model;
 use App\Traits\DataTable;
+use App\Traits\TreeView;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Account extends Model {
-  use DataTable, HasUlids, SoftDeletes;
+  use DataTable, HasUlids, SoftDeletes, TreeView;
   protected $guarded = ['id'];
   protected $casts   = [
     'is_group'    => 'boolean',
@@ -33,7 +34,7 @@ class Account extends Model {
   protected $appends = ['code'];
 
   public static function templateLink() {
-    return ":code";
+    return ":account_number - :account_name";
   }
   public    $translateKey  = 'finances.account';
   protected $configColumns = [
@@ -74,6 +75,6 @@ class Account extends Model {
   }
 
   public function parent_account() {
-    return $this->belongsTo(Account::class);
+    return $this->belongsTo(Account::class, 'parent_id');
   }
 }

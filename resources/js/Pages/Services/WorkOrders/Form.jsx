@@ -16,7 +16,8 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { dataBefore, data, setData, disabled, form } = useFormPage();
+  const { dataBefore, defaultData, data, setData, disabled, form } =
+    useFormPage();
   const itemColumns = useMemo(() => {
     return [
       {
@@ -283,6 +284,22 @@ export default function Form() {
               with={["defaultUnit", "category"]}
             />
           </FormInput>
+          {defaultData?.started_at && (
+            <FormInput
+              disabled
+              label={t("service.workOrder.columns.started_at")}
+            >
+              <DatetimePicker type="datetime" value={data.started_at} />
+            </FormInput>
+          )}
+          {defaultData?.complated_at && (
+            <FormInput
+              disabled
+              label={t("service.workOrder.columns.complated_at")}
+            >
+              <DatetimePicker type="datetime" value={data.complated_at} />
+            </FormInput>
+          )}
         </div>
       </FormPageContent>
       <FormPageContent value="detail" title={t("service.workOrder.items")}>
@@ -310,12 +327,6 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      {/* {(data.status ?? "draft") != "draft" && (
-        <FormPageContent
-          value="connections"
-          title={t("core.form.connections")}
-        ></FormPageContent>
-      )} */}
     </>
   );
 }

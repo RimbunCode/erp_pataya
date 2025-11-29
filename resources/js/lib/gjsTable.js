@@ -188,7 +188,7 @@ export default function gjsTable(editor) {
               },
             ],
             tagName: sec.get("tagName") === "thead" ? "th" : "td",
-            attributes: { "data-id": genId("cell"), contenteditable: true },
+            attributes: { "data-id": genId("cell") },
             content: "New",
           });
           cols++;
@@ -278,7 +278,7 @@ export default function gjsTable(editor) {
               },
             ],
             tagName: section.get("tagName") === "thead" ? "th" : "td",
-            attributes: { "data-id": genId("cell"), contenteditable: true },
+            attributes: { "data-id": genId("cell") },
             content: "New",
           });
           currentCols++;
@@ -381,7 +381,7 @@ export default function gjsTable(editor) {
         attributes: { "data-id": genId("row") },
         components: Array.from({ length: colCount }).map(() => ({
           tagName: section.get("tagName") === "thead" ? "th" : "td",
-          attributes: { "data-id": genId("cell"), contenteditable: true },
+          attributes: { "data-id": genId("cell") },
           content: "New Cell",
           type: "text",
           toolbar: [
@@ -527,7 +527,7 @@ export default function gjsTable(editor) {
               },
             ],
             tagName: isHeader ? "th" : "td",
-            attributes: { "data-id": genId("cell"), contenteditable: true },
+            attributes: { "data-id": genId("cell") },
             content: "New",
           };
           // ensure we don't insert beyond existing cells: append if necessary
@@ -731,7 +731,6 @@ export default function gjsTable(editor) {
                     tagName: "th",
                     attributes: {
                       "data-id": genId("cell"),
-                      contenteditable: true,
                     },
                     content: "Header 1",
                   },
@@ -784,7 +783,6 @@ export default function gjsTable(editor) {
                     tagName: "th",
                     attributes: {
                       "data-id": genId("cell"),
-                      contenteditable: true,
                     },
                     content: "Header 2",
                   },
@@ -847,7 +845,6 @@ export default function gjsTable(editor) {
                     tagName: "td",
                     attributes: {
                       "data-id": genId("cell"),
-                      contenteditable: true,
                     },
                     content: "Cell 1",
                   },
@@ -900,7 +897,6 @@ export default function gjsTable(editor) {
                     tagName: "td",
                     attributes: {
                       "data-id": genId("cell"),
-                      contenteditable: true,
                     },
                     content: "Cell 2",
                   },
@@ -963,7 +959,6 @@ export default function gjsTable(editor) {
                     tagName: "td",
                     attributes: {
                       "data-id": genId("cell"),
-                      contenteditable: true,
                     },
                     content: "Footer 1",
                   },
@@ -1016,7 +1011,6 @@ export default function gjsTable(editor) {
                     tagName: "td",
                     attributes: {
                       "data-id": genId("cell"),
-                      contenteditable: true,
                     },
                     content: "Footer 2",
                   },

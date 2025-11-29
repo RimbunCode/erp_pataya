@@ -2,9 +2,13 @@
 
 namespace App\Traits;
 
-use App\Casts\FormStatusCast;
+use App\Casts\FormStatusesCast;
 use App\FormStatus;
+use App\Http\Controllers\Core\ApprovalInstanceController;
+use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
+use App\Models\Finances\GeneralLedger;
+use App\Models\Inventory\StockLedgerEntry;
 use App\Models\User\User;
 use Illuminate\Support\Facades\Auth;
 
@@ -14,7 +18,7 @@ trait Submitable {
 
   public function initializeSubmitable() {
     $this->mergeCasts([
-      'status'       => FormStatusCast::class,
+      'status'       => FormStatusesCast::class,
       'submitted_at' => 'datetime',
     ]);
     $this->with = [
@@ -39,10 +43,39 @@ trait Submitable {
       if (! ($model->isSubmitable() ?? false)) {
         return;
       }
-      if ($model->status == FormStatus::SUBMITTED) {
-        $model->submitted_at = now();
+
+      if ($model->status == null) {
+        $model->status = FormStatus::DRAFT;
       }
+
+      if (! \in_array(FormStatus::DRAFT, $model->status)) {
+        $model->submitted_at = now();
+        $model->logForSubmitted();
+      }
+      if (\in_array(FormStatus::CANCELED, $model->status)) {
+        $model->canceled_at = now();
+        GeneralLedger::where("referenceable_type", get_class($model))->where("referenceable_id", $model->id)->update([
+          'deleted_at' => now(),
+        ]);
+        StockLedgerEntry::where("referenceable_type", get_class($model))->where("referenceable_id", $model->id)->update([
+          'deleted_at' => now(),
+        ]);
+        if (\method_exists($model, 'onCancel')) {
+          $model->onCancel();
+        }
+      }
+
     });
+  }
+
+  /**
+   * Summary of replaceStatus
+   * @param FormStatus|array<FormStatus> $from
+   * @param FormStatus|array<FormStatus> $to
+   * @return FormStatus|array<FormStatus>
+   */
+  public function replaceStatus($from, $to) {
+    return \array_replace($this->status, $from, $to);
   }
 
   public function createdBy() {
@@ -51,5 +84,16 @@ trait Submitable {
 
   public function branch() {
     return $this->belongsTo(Branch::class);
+  }
+
+  protected function approvalable() {
+    $this->morphOne(ApprovalInstance::class, 'approvalable', 'document_type', 'document_id');
+  }
+
+  public function checkApproval(array $options = []) {
+    return app()->call(\join([ApprovalInstanceController::class, '@', 'checkApproval']), [
+      'data'    => $this,
+      'options' => $options,
+    ]);
   }
 }

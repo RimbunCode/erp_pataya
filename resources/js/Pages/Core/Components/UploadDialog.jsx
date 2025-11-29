@@ -96,6 +96,7 @@ function UploadDialog({
         formData.append(`name[${index}]`, file.name || file.file.name);
       });
     }
+    console.log(routeProp);
     router.post(
       routeProp ?? route(route().current(), route().params) + "/file",
       formData,
@@ -113,6 +114,7 @@ function UploadDialog({
         onSuccess: () => {
           setFiles([]);
           onClose();
+          setProgress(false);
         },
       },
     );
@@ -292,7 +294,7 @@ function UploadDialog({
       )}
       <DialogFooter
         className={cn(
-          files.length > 0 && menu === "home"
+          files.length > 0 && menu === "home" && !single
             ? "justify-between!"
             : "justify-end!",
           "flex flex-row!  pt-2 border-t gap-x-2",
@@ -300,14 +302,16 @@ function UploadDialog({
       >
         {files.length > 0 && menu === "home" && (
           <>
-            <Button
-              variant="secondary"
-              size="sm"
-              asChild
-              className="cursor-pointer"
-            >
-              <label htmlFor={id}>Browse</label>
-            </Button>
+            {!single && (
+              <Button
+                variant="secondary"
+                size="sm"
+                asChild
+                className="cursor-pointer"
+              >
+                <label htmlFor={id}>Browse</label>
+              </Button>
+            )}
 
             <input
               id={id}
