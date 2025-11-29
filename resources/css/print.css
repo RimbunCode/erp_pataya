@@ -1,0 +1,7 @@
+@reference "./app.css";
+
+@layer components {
+  [data-role="print-preview"] {
+    @apply flex-1 max-w-3xl mx-auto **:cursor-default border  bg-white! h-full text-black! print:p-0! w-full print:bg-white;
+  }
+}

@@ -1,10 +1,11 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
+
   /**
    * Run the migrations.
    */
@@ -15,7 +16,6 @@ return new class extends Migration {
       $table->text('path')->nullable();
       $table->string('extension')->nullable();
       $table->string('mime_type');
-      $table->foreignUlid('folder_id')->nullable()->references('id')->on('files')->cascadeOnDelete();
       $table->boolean('is_public')->default(false);
       $table->foreignUlid('user_id')->nullable()->references('id')->on('users')->cascadeOnDelete();
 

@@ -33,6 +33,7 @@ import {
 } from "@/lib/utils";
 import { router, usePage } from "@inertiajs/react";
 
+import BadgeStatus from "../BadgeStatus";
 import { Checkbox } from "../ui/checkbox";
 import ColumnsFilter from "./ColumnsFilter";
 import { Dialog } from "../ui/dialog";
@@ -112,27 +113,24 @@ const Cell = memo(
           </span>
         );
       case "formStatus": {
-        const theme = {
-          draft: "secondary",
-          submitted: "primary",
-          cancelled: "error",
-          approved: "success",
-          rejected: "error",
-          pending: "warning",
-          completed: "success",
-          active: "success",
-          inactive: "error",
-          deleted: "error",
-          closed: "error",
-          in_progress: "warning",
-        }[value];
         return (
           <div className="text-center">
-            <div
-              className={cn("text-center badge w-fit", theme ?? "secondary")}
-            >
-              {t(`core.form.statuses.${value}`)}
-            </div>
+            <BadgeStatus status={value} />
+          </div>
+        );
+      }
+      case "formStatuses": {
+        return (
+          <div
+            className={cn(
+              value.length > 1
+                ? "flex gap-x-2 gap-y-2 flex-wrap w-full"
+                : "text-center",
+            )}
+          >
+            {value.map((status, idx) => (
+              <BadgeStatus key={idx} status={status} />
+            ))}
           </div>
         );
       }
@@ -155,6 +153,7 @@ const Cell = memo(
         valueCell = convertTemplateLink(value);
         break;
       case "mixed":
+      case "json":
       case "relations":
         return;
       case "string":
@@ -346,7 +345,8 @@ const Table2 = forwardRef(function Table2(
     }
     columns.forEach((col) => {
       if (!col.show) return;
-      if (col.type == "relations" || col.type == "mixed") return;
+      if (col.type == "relations" || col.type == "mixed" || col.type == "json")
+        return;
       if (col.type == "relation" && col.columns) {
         newCols.push(...getShowedColumns(col.columns));
       }
@@ -379,9 +379,6 @@ const Table2 = forwardRef(function Table2(
       },
     );
   }, [showedColumns]);
-  // const showedColumns = columns.filter(
-  //   (x) => x.show && !(x.type == "relations" || x.type == "mixed"),
-  // );
   const mouseMove = useCallback(
     (e) => {
       // const ori = tableElement.current.style.gridTemplateColumns

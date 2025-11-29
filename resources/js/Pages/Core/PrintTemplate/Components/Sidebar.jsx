@@ -34,13 +34,17 @@ function VariableItem({ path = "", ...variable }) {
   const { editor } = useEditor();
   const { t } = useLaravelReactI18n();
   const fullKey = path ? `${path}.${variable.name}` : variable.name;
-  const isRelation = variable.type === "relation" && variable.columns?.length;
+  const isRelation =
+    (variable.type === "relation" ||
+      variable.type === "data" ||
+      variable.type === "preferences") &&
+    variable.columns?.length;
 
   const handleInsert = () => {
     if (!editor) return;
 
     const selected = editor.getSelected();
-    const token = `{{${fullKey}}}`;
+    const token = `{{${variable.parentType === "preferences" ? `companyDetail "${variable.name}"` : variable.name}}}`;
 
     if (selected && selected.is("text")) {
       const current = selected.get("content") || "";
@@ -68,33 +72,39 @@ function VariableItem({ path = "", ...variable }) {
         className="flex flex-col px-2 py-1 border rounded-md hover:bg-muted cursor-pointer transition-colors mt-1"
         draggable
         onClick={() => {
-          if (variable.type === "relations") return;
+          if (
+            variable.type === "relations" ||
+            variable.type === "data" ||
+            variable.type === "preferences"
+          )
+            return;
           handleInsert();
         }}
         onDragStart={(e) => {
-          if (variable.type === "relations") {
-            e.dataTransfer.effectAllowed = "copy";
-            e.dataTransfer.setData(
-              "variable/json",
-              JSON.stringify({
-                ...variable,
-              }),
-            );
+          if (variable.type === "data" || variable.type === "preferences") {
             return;
           }
+          e.dataTransfer.effectAllowed = "copy";
           e.dataTransfer.setData(
-            "text/html",
-            `<span style='font-family:monospace;border:1px dashed #999;padding:2px 4px;border-radius:4px;'>{{${fullKey}}}</span>`,
+            "variable/json",
+            JSON.stringify({
+              ...variable,
+            }),
           );
+
+          // const token = `{{${variable.parentType == "preferences" ? "companyDetail " : ""}${fullKey}}}`;
+          // e.dataTransfer.setData("text/html", `<p>${token}</p>`);
         }}
       >
         <span className="text-sm font-medium">
           {variable.title ||
             (variable.titleTrans ? t(variable.titleTrans) : variable.name)}
         </span>
-        <code className="text-xs text-muted-foreground">
-          {`{{${variable.type === "relation" ? "relation " : ""}${variable.name}}}`}
-        </code>
+        {!(variable.type === "data" || variable.type === "preferences") && (
+          <code className="text-xs text-muted-foreground">
+            {`{{${variable.type === "relation" ? "relation " : ""}${variable.name}}}`}
+          </code>
+        )}
       </div>
     );
   }
@@ -109,17 +119,36 @@ function VariableItem({ path = "", ...variable }) {
       >
         <ChevronRight className="h-4 w-4 transition-transform duration-200" />
         <div className="flex flex-col text-left">
-          <span className="text-sm font-medium">{t(variable.titleTrans)}</span>
-          <code className="text-xs text-muted-foreground">
-            {"{{" + variable.name + "}}"}
-          </code>
+          <span className="text-sm font-medium">
+            {variable.title ||
+              (variable.titleTrans ? t(variable.titleTrans) : variable.name)}
+          </span>
+          {!(variable.type === "data" || variable.type === "preferences") && (
+            <code className="text-xs text-muted-foreground">
+              {"{{" + variable.name + "}}"}
+            </code>
+          )}
         </div>
       </CollapsibleTrigger>
 
       <CollapsibleContent className="pl-4 mt-1 border-l border-muted-foreground/25">
-        {variable.columns.map((sub) => (
-          <VariableItem key={sub.name} path={fullKey} {...sub} />
-        ))}
+        {variable.columns.map((sub) => {
+          sub.parentType =
+            variable.type === "data" || variable.type === "preferences"
+              ? variable.type
+              : variable.parentType;
+          return (
+            <VariableItem
+              key={sub.name}
+              path={
+                variable.type === "data" || variable.type === "preferences"
+                  ? ""
+                  : fullKey
+              }
+              {...sub}
+            />
+          );
+        })}
       </CollapsibleContent>
     </Collapsible>
   );

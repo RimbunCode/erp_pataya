@@ -1,40 +1,27 @@
-import { cn, getThemeByStatus } from "@/lib/utils";
-import Form from "./Form";
-import { FormPage } from "@/Pages/Core/FormPage";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useMemo } from "react";
-import { usePage } from "@inertiajs/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import Link from "@/Components/Link";
+
 import { Button } from "@/Components/ui/button";
+import Form from "./Form";
+import { FormPage } from "@/Pages/Core/FormPage";
+import Link from "@/Components/Link";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ deliveryNote, flash }) {
   const { t } = useLaravelReactI18n();
   const route = window.route;
-  const statusBadge = useMemo(() => {
-    if (!deliveryNote) return;
-
-    const status = t(`core.form.statuses.${deliveryNote?.status}`);
-    const theme = getThemeByStatus(deliveryNote?.status);
-
-    return (
-      <span className={cn("text-sm badge capitalize", theme)}>{status}</span>
-    );
-  }, [deliveryNote?.status, t]);
 
   return (
     <FormPage
       isCreate={!deliveryNote}
       name="deliveryNote"
       title={deliveryNote ? deliveryNote.code : t("sales.deliveryNote.new")}
-      disabled={(deliveryNote?.status ?? "draft") != "draft"}
+      disabled={(deliveryNote?.submitted_at)}
       submitable
-      badge={statusBadge}
       banner={
         flash.errorItems && (
           <div className="flex flex-col gap-x-2 text-sm alert error p-4">
@@ -52,7 +39,7 @@ export default function Show({ deliveryNote, flash }) {
         )
       }
       controls={() => {
-        if ((deliveryNote.status ?? "draft") != "draft") {
+        if ((deliveryNote.submitted_at) {
           return (
             <>
               <DropdownMenu>

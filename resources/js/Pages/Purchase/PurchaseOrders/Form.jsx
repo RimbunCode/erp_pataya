@@ -290,7 +290,7 @@ function Form() {
         value="detail"
         title={t("purchase.purchaseOrder.items")}
         actions={
-          (!data.status || data.status == "draft") && (
+          !data.submitted_at && (
             <SelectModel
               from={{
                 "App\\Models\\Service\\WorkOrder": {

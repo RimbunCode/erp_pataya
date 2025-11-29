@@ -17,21 +17,26 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class WorkOrder extends Model {
   use HasUlids, SoftDeletes, DataTable, Submitable;
   protected $guarded = ['id'];
-  protected $casts = [
-    "date" => "datetime",
+  protected $casts   = [
+    "date"         => "datetime",
+    'started_at'   => 'datetime',
+    'complated_at' => 'datetime',
   ];
   protected $appends = ['for_internal'];
+
   protected function forInternal(): Attribute {
-    return new Attribute(get: fn() => $this->customer_id == null);
+    return new Attribute(get: fn () => $this->customer_id == null);
   }
   protected static string $defaultFormatCode = '@[branch_code]/WO-@[iiii]/@[yy]';
+
   public function codeRelations() {
     return [
       'branch_code:branch.code',
-      'branch_name:branch.name'
+      'branch_name:branch.name',
     ];
   }
   public $keyBreadcrumb = "code";
+
   protected static function loadRelationsOnShow() {
     return [
       'items',
@@ -39,65 +44,69 @@ class WorkOrder extends Model {
       'items.unit',
       'customer',
       'customerBranch',
-      'itemService'
+      'itemService',
     ];
   }
+
   public static function templateLink() {
     return ":code";
   }
-
   public string $formComponent = 'Services/WorkOrders/Form';
-  public string $translateKey = "service.workOrder";
-  protected $configColumns = [
-    'code' => [
+  public string $translateKey  = "service.workOrder";
+  protected     $configColumns = [
+    'code'           => [
       'isLink' => true,
-      'show' => true,
-      'order' => 0,
+      'show'   => true,
+      'order'  => 0,
     ],
-    'date' => [
-      'type' => 'date',
-      'show' => true,
+    'date'           => [
+      'type'  => 'date',
+      'show'  => true,
       'order' => 1,
     ],
-    'branch' => [
+    'branch'         => [
       'ignore' => true,
     ],
-    'for_internal' => [
-      'type' => 'boolean',
-      'show' => true,
+    'for_internal'   => [
+      'type'  => 'boolean',
+      'show'  => true,
       'width' => 'fit',
       'order' => 3,
     ],
     'items',
-    'customer' => [
-      'show' => true,
+    'customer'       => [
+      'show'  => true,
       'order' => 4,
     ],
     'customerBranch' => [
-      'disabledNavigation' => true
+      'disabledNavigation' => true,
     ],
-    'itemService' => [
-      'show' => true,
+    'itemService'    => [
+      'show'  => true,
       'order' => 5,
     ],
-    'status' => [
-      'show' => true,
+    'status'         => [
+      'show'  => true,
       'order' => 6,
-    ]
+    ],
   ];
 
   public function branch() {
     return $this->belongsTo(Branch::class);
   }
+
   public function items() {
     return $this->hasMany(WorkOrderItem::class)->with(['item', 'unit']);
   }
+
   public function customer() {
     return $this->belongsTo(Customer::class);
   }
+
   public function customerBranch() {
     return $this->belongsTo(Branch::class, 'customer_branch_id');
   }
+
   public function itemService() {
     return $this->belongsTo(ItemVariant::class, 'item_service_id');
   }

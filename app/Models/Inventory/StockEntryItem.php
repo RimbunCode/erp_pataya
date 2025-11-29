@@ -10,7 +10,7 @@ class StockEntryItem extends Model {
   use HasUlids;
   use SoftDeletes;
   protected $guarded       = ["id"];
-  public    $translateKey  = 'inventory.stockEntry.columns.items';
+  public    $translateKey  = 'inventory.stockEntry.item_columns';
   protected $configColumns = [
     'sourceWarehouse' => [
       'show'  => true,
@@ -31,6 +31,10 @@ class StockEntryItem extends Model {
     'unit'            => [
       'show'  => true,
       'order' => 4,
+    ],
+    'basic_rate'      => [
+      'type'         => 'currency',
+      'decimalScale' => 2,
     ],
   ];
 

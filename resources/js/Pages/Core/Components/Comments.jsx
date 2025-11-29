@@ -129,7 +129,7 @@ export default memo(function Comments() {
             {user.image && (
               <AvatarImage
                 src={
-                  route("files.show", user.image) +
+                  route("files.preview", user.image) +
                   `?v=${new Date(user.updated_at).getTime()}`
                 }
                 alt={user.name}
@@ -205,7 +205,7 @@ export default memo(function Comments() {
                             {user.image && (
                               <AvatarImage
                                 src={
-                                  route("files.show", user.image) +
+                                  route("files.preview", user.image) +
                                   `?v=${new Date(user.updated_at).getTime()}`
                                 }
                                 alt={user.name}

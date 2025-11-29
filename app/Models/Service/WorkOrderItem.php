@@ -2,6 +2,7 @@
 
 namespace App\Models\Service;
 
+use App\FormStatus;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
 use App\Models\Model;
@@ -10,27 +11,27 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class WorkOrderItem extends Model {
   use HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
-
-  public string $translateKey = "service.workOrder.workOrderItem";
-  protected $configColumns = [
+  protected     $guarded       = ['id'];
+  public string $translateKey  = "service.workOrder.workOrderItem";
+  protected     $configColumns = [
     'workOrder' => [
-      'show' => true,
+      'show'  => true,
       'order' => 0,
     ],
-    'item' => [
-      'show' => true,
+    'item'      => [
+      'show'  => true,
       'order' => 1,
     ],
-    'quantity' => [
-      'show' => true,
+    'quantity'  => [
+      'show'  => true,
       'order' => 2,
     ],
-    'unit' => [
-      'show' => true,
+    'unit'      => [
+      'show'  => true,
       'order' => 3,
     ],
   ];
+
   public function workOrder() {
     return $this->belongsTo(WorkOrder::class);
   }
@@ -38,13 +39,13 @@ class WorkOrderItem extends Model {
   public function parentRelation() {
     return $this->workOrder();
   }
+
   public function item(): mixed {
-    return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')->withTrashed($this->status != "draft")
-      ->with(["defaultUnit" => function ($q) {
-        return $q->withTrashed($this->status != "draft");
-      }]);
+    return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')
+      ->with(["defaultUnit"]);
   }
+
   public function unit() {
-    return $this->belongsTo(Unit::class, 'unit_id', 'id')->withTrashed($this->status != "draft");
+    return $this->belongsTo(Unit::class, 'unit_id', 'id');
   }
 }

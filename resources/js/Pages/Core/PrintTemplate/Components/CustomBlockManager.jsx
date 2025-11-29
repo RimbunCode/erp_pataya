@@ -21,7 +21,6 @@ export default function CustomBlockManager({
                   "flex flex-col items-center border rounded cursor-pointer py-2 px-5 transition-colors",
                 )}
                 onDragStart={(ev) => {
-                  console.log(dragStart, block, ev.nativeEvent);
                   dragStart(block, ev.nativeEvent);
                 }}
                 onDragEnd={() => dragStop(false)}

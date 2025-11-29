@@ -1,160 +1,8 @@
+import { generateRandom } from "./utils";
+
 export default function gjsRelationsTable(editor) {
-  // 1️⃣ Tangkap event drop manual
-  editor.on("load", () => {
-    const iframe = editor.Canvas.getFrameEl();
-    if (!iframe) return;
+  const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
 
-    const iframeDoc = iframe.contentDocument;
-
-    // Izinkan drag over
-    iframeDoc.addEventListener("dragover", (e) => {
-      e.preventDefault();
-    });
-
-    // Tangani drop manual
-    iframeDoc.addEventListener("drop", (e) => {
-      e.preventDefault();
-
-      const json = e.dataTransfer.getData("variable/json");
-      if (!json) return;
-
-      let payload;
-      try {
-        payload = JSON.parse(json);
-      } catch {
-        console.error("Invalid JSON payload from drag:", json);
-        return;
-      }
-
-      if (payload.type === "relations") {
-        const columns =
-          payload.columns
-            ?.filter((col) => col.show)
-            .sort((a, b) => a.order - b.order) || [];
-
-        editor.addComponents({
-          type: "gjsRelationsTable",
-          attributes: {
-            "data-relations": payload.name,
-          },
-          components: [
-            {
-              type: "tableHead",
-              tagName: "thead",
-              toolbars: [],
-              selectable: false,
-              droppable: false,
-              layerable: false,
-              editable: false,
-              draggable: false,
-              components: [
-                {
-                  type: "html-comment",
-                  attributes: {
-                    text: `{{#infoColumns @root.dataTableColumns key="${payload.name}" }}`,
-                  },
-                },
-                {
-                  tagName: "tr",
-                  toolbars: [],
-                  selectable: false,
-                  droppable: false,
-                  layerable: false,
-                  editable: false,
-                  draggable: false,
-                  components: [
-                    {
-                      tagName: "th",
-                      selectable: false,
-                      droppable: false,
-                      layerable: false,
-                      editable: false,
-                      draggable: false,
-                      content: "#",
-                    },
-                    ...columns.map((col) => ({
-                      tagName: "th",
-                      content: `{{trans ${col.name}}}`,
-                      selectable: false,
-                      droppable: false,
-                      layerable: false,
-                      editable: false,
-                      draggable: false,
-                      attributes: {
-                        name: col.name,
-                        titleTrans: col.titleTrans,
-                        class:
-                          "border border-gray-400 px-2 py-1 text-left bg-gray-100",
-                      },
-                      toolbars: [],
-                    })),
-                  ],
-                },
-                {
-                  type: "html-comment",
-                  attributes: { text: `{{/infoColumns}}` },
-                },
-              ],
-            },
-            {
-              tagName: "tbody",
-              toolbars: [],
-              selectable: false,
-              droppable: false,
-              layerable: false,
-              editable: false,
-              draggable: false,
-              components: [
-                {
-                  type: "html-comment",
-                  attributes: { text: `{{#each ${payload.name}}}` },
-                },
-                {
-                  tagName: "tr",
-                  toolbars: [],
-                  selectable: false,
-                  droppable: false,
-                  layerable: false,
-                  editable: false,
-                  draggable: false,
-                  components: [
-                    {
-                      tagName: "td",
-                      toolbars: [],
-                      selectable: false,
-                      droppable: false,
-                      layerable: false,
-                      editable: false,
-                      draggable: false,
-                      content: "{{idx}}",
-                    },
-                    ...columns.map((col) => ({
-                      tagName: "td",
-                      content: `{{${col.type == "relation" ? "relation " : ""}${col.name}}}`,
-                      toolbars: [],
-                      selectable: false,
-                      droppable: false,
-                      layerable: false,
-                      editable: false,
-                      draggable: false,
-                      attributes: {
-                        name: col.name,
-                        class: "border border-gray-300 px-2 py-1",
-                      },
-                    })),
-                  ],
-                },
-                {
-                  type: "html-comment",
-                  attributes: { text: `{{/each}}` },
-                },
-              ],
-            },
-          ],
-        });
-      }
-    });
-  });
   editor.Components.addType("html-comment", {
     model: {
       defaults: {
@@ -165,7 +13,13 @@ export default function gjsRelationsTable(editor) {
         layerable: false,
         attributes: {
           text: "default comment",
+          class: "gjs-html-comment",
         },
+        styles: `
+          .gjs-html-comment{
+            display:none !important;
+          }
+        `,
       },
       toHTML() {
         const comment = this.getAttributes().text || "";
@@ -208,6 +62,7 @@ export default function gjsRelationsTable(editor) {
             tagName: "th",
             content: col,
             attributes: {
+              "data-id": genId("cell"),
               class: "border border-gray-400 px-2 py-1 text-left bg-gray-100",
             },
           })),

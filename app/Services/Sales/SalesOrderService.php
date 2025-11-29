@@ -14,55 +14,49 @@ use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Symfony\Component\Uid\Ulid;
 
-class SalesOrderService
-{
-  private function fillRelations(array $data)
-  {
-
-    $data['customer_id'] = $data['customer']['id'];
+class SalesOrderService {
+  private function fillRelations(array $data) {
+    $data['customer_id']   = $data['customer']['id'];
     $data['customer_name'] = $data['customer']['name'];
 
-
     // relasi cabang customer
-    $data['customer_branch_id'] = $data['customer_branch']['id'];
+    $data['customer_branch_id']   = $data['customer_branch']['id'];
     $data['customer_branch_name'] = $data['customer_branch']['name'];
-
 
     // optional branch
     if (isset($data['branch'])) {
       $data['branch_id'] = $data['branch']['id'];
     }
 
-    $defaultCurrency = Preference::find('default_currency_id')->value;
-    $data['currency_code'] = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $defaultCurrency            = Preference::find('default_currency_id')->value;
+    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
+
     return $data;
   }
 
-  private function fillItemRelations(array $data, SalesOrder $salesOrder)
-  {
+  private function fillItemRelations(array $data, SalesOrder $salesOrder) {
     // dd($data);
-    $data['item_id'] = $data['item']['id'];
-    $data['unit_id'] = $data['unit']['id'];
-    $data['conversion_factor'] = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
-    $data['tax_id'] = $data['tax']['id'];
-    $data['tax_rate'] = $data['tax']['rate'];
-    $data['currency_code'] = $salesOrder->currency_code;
-    $data['base_currency_code'] = $salesOrder->base_currency_code;
-    $data['exchange_rate'] = $salesOrder->exchange_rate;
+    $data['item_id']             = $data['item']['id'];
+    $data['unit_id']             = $data['unit']['id'];
+    $data['conversion_factor']   = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
+    $data['tax_id']              = $data['tax']['id'];
+    $data['tax_rate']            = $data['tax']['rate'];
+    $data['currency_code']       = $salesOrder->currency_code;
+    $data['base_currency_code']  = $salesOrder->base_currency_code;
+    $data['exchange_rate']       = $salesOrder->exchange_rate;
     $data['source_warehouse_id'] = $data['source_warehouse']['id'];
-    $data['price'] = $data['price'] ?? 0;
-    $data['price_base_currency'] =  0;
+    $data['price']               = $data['price'] ?? 0;
+    $data['price_base_currency'] = 0;
 
     return $data;
   }
 
-  private function fillPaymentScheduleRelations(array $data, SalesOrder $salesOrder)
-  {
-    $data['for_internal'] = false;
-    $data['currency_code'] = $salesOrder->currency_code;
+  private function fillPaymentScheduleRelations(array $data, SalesOrder $salesOrder) {
+    $data['for_internal']       = false;
+    $data['currency_code']      = $salesOrder->currency_code;
     $data['base_currency_code'] = $salesOrder->base_currency_code;
-    $data['exchange_rate'] = $salesOrder->exchange_rate;
+    $data['exchange_rate']      = $salesOrder->exchange_rate;
 
     if (isset($data['payment_term'])) {
       $data['payment_term_id'] = $data['payment_term']['id'];
@@ -73,11 +67,10 @@ class SalesOrderService
     return $data;
   }
 
-  public function create(array $data)
-  {
+  public function create(array $data) {
     $salesOrder = SalesOrder::create($this->fillRelations($data));
     foreach ($data['items'] as $item) {
-      $item = $this->fillItemRelations($item,  $salesOrder);
+      $item = $this->fillItemRelations($item, $salesOrder);
       $salesOrder->items()->create($item);
     }
     foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
@@ -88,8 +81,7 @@ class SalesOrderService
     return $salesOrder;
   }
 
-  public function update(SalesOrder $salesOrder, array $data)
-  {
+  public function update(SalesOrder $salesOrder, array $data) {
     $salesOrder->fillForUpdate($this->fillRelations($data));
 
     $salesOrder->items()
@@ -120,30 +112,21 @@ class SalesOrderService
       $salesOrder->paymentSchedules()->create($payment_schedule);
     }
 
-
     $salesOrder->logForUpdated();
     return $salesOrder;
   }
 
-
-  public function submit(SalesOrder $salesOrder)
-  {
+  public function submit(SalesOrder $salesOrder) {
     DB::beginTransaction();
-    $salesOrder->update([
-      'status' => FormStatus::TO_DELIVER_AND_BILL,
-    ]);
-
-    $items = $salesOrder->items()
+    $items      = $salesOrder->items()
       ->get();
     $errorItems = [];
     foreach ($items as $item) {
-      // dd($item);
       $stock = Stock::where('item_variant_id', $item->item_id)
         ->where('warehouse_id', $item->source_warehouse_id)
         ->lockForUpdate()
         ->first();
-      if (!$stock) {
-        // dd($item->item, $item->source_warehouse);
+      if (! $stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
       }
@@ -156,15 +139,69 @@ class SalesOrderService
         'reserved_quantity' => $stock->reserved_quantity + $quantity,
       ]);
     }
-    if (count($errorItems) > 0) {
+    if (\count($errorItems) > 0) {
       DB::rollBack();
       Session::flash('errorItems', $errorItems);
       return $salesOrder;
     }
 
-    $salesOrder->logForSubmitted();
     DB::commit();
+    $salesOrder->checkApproval();
 
     return $salesOrder;
+  }
+
+  public function onApproved(SalesOrder $salesOrder) {
+    $salesOrder->update([
+      'status' => [
+        FormStatus::TO_DELIVER,
+        FormStatus::TO_BILL,
+      ],
+    ]);
+    return $salesOrder;
+  }
+
+  private function rolllbackItems(SalesOrder $salesOrder) {
+    $items = $salesOrder->items()
+      ->get();
+    foreach ($items as $item) {
+      $stock = Stock::where('item_variant_id', $item->item_id)
+        ->where('warehouse_id', $item->source_warehouse_id)
+        ->lockForUpdate()
+        ->first();
+
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $stock->update([
+        'reserved_quantity' => $stock->reserved_quantity - $quantity,
+      ]);
+    }
+  }
+
+  public function onRejected(SalesOrder $salesOrder) {
+    return DB::transaction(function () use ($salesOrder) {
+      $salesOrder->update([
+        'status' => [
+          FormStatus::REJECTED,
+        ],
+      ]);
+
+      $this->rolllbackItems($salesOrder);
+
+      return $salesOrder;
+    });
+  }
+
+  public function cancel(SalesOrder $salesOrder) {
+    return DB::transaction(function () use ($salesOrder) {
+      $salesOrder->update([
+        'status' => [
+          FormStatus::CANCELED,
+        ],
+      ]);
+
+      $this->rolllbackItems($salesOrder);
+
+      return $salesOrder;
+    });
   }
 }

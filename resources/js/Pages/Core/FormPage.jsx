@@ -31,8 +31,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
 import {
@@ -60,6 +58,7 @@ import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 
 import AppLayout from "@/Layouts/AppLayout";
 import Attachments from "./Components/Attachments";
+import BadgeStatus from "@/Components/BadgeStatus";
 import { Button } from "@/Components/ui/button";
 import { ButtonGroup } from "@/Components/ui/button-group";
 import Comments from "./Components/Comments";
@@ -136,108 +135,106 @@ const FormPageContentDescription = memo(
 /**
  * @type {React.ForwardRefRenderFunction<HTMLHeadingElement, FormPageContentProps>}
  */
-const FormPageContent = memo(
-  forwardRef(function FormPageContent(
-    {
+const FormPageContent = forwardRef(function FormPageContent(
+  {
+    title,
+    value,
+    children,
+    className,
+    actions,
+    collapsible = false,
+    defaultOpen = false,
+    showAt = false,
+    show = true,
+  },
+  ref,
+) {
+  const { menus, addMenu, menuSelected, removeMenu } = useFormPage();
+  const [id] = useState(generateRandom(8));
+  const [openCollapsible, setOpenCollapsible] = useState(defaultOpen);
+  useEffect(() => {
+    if (showAt) return;
+    if (!show) {
+      removeMenu(id);
+      return;
+    }
+    addMenu({
+      id,
       title,
       value,
-      children,
-      className,
-      actions,
-      collapsible = false,
-      defaultOpen = false,
-      showAt = false,
-      show = true,
-    },
-    ref,
-  ) {
-    const { menus, addMenu, menuSelected, removeMenu } = useFormPage();
-    const [id] = useState(generateRandom(8));
-    const [openCollapsible, setOpenCollapsible] = useState(defaultOpen);
-    useEffect(() => {
-      if (showAt) return;
-      if (!show) {
-        removeMenu(id);
-        return;
-      }
-      addMenu({
-        id,
-        title,
-        value,
-      });
-    }, [show]);
-    const headerChildren = Children.toArray(children).filter((child) => {
-      return (
+    });
+  }, [show]);
+  const headerChildren = Children.toArray(children).filter((child) => {
+    return (
+      child?.type == FormPageContentTitle ||
+      child?.type == FormPageContentDescription
+    );
+  });
+  const isSingle = menus.length <= 1 || !menus.some((x) => x.id == id);
+  if (headerChildren.length > 0 || isSingle) {
+    var contentChildren = Children.toArray(children).filter((child) => {
+      return !(
         child?.type == FormPageContentTitle ||
         child?.type == FormPageContentDescription
       );
     });
-    const isSingle = menus.length <= 1 || !menus.some((x) => x.id == id);
-    if (headerChildren.length > 0 || isSingle) {
-      var contentChildren = Children.toArray(children).filter((child) => {
-        return !(
-          child?.type == FormPageContentTitle ||
-          child?.type == FormPageContentDescription
-        );
-      });
-    }
-    const haveTitle =
-      Children.toArray(children).findIndex(
-        (child) => child?.type == FormPageContentTitle,
-      ) >= 0;
-    const Trigger = collapsible
-      ? CollapsibleTrigger
-      : (props) => <div {...props} />;
-    const Content = collapsible ? CollapsibleContent : Fragment;
-    return (
-      <TabsContent
-        value={
-          showAt
-            ? typeof showAt === "string"
-              ? showAt
-              : Array.isArray(showAt)
-                ? (showAt.find(
-                    (item) => item === (menuSelected ?? menus?.[0]?.value),
-                  ) ?? value)
-                : (menuSelected ?? menus?.[0]?.value)
-            : value
-        }
-        className="mt-0"
-      >
-        <Collapsible open={openCollapsible} onOpenChange={setOpenCollapsible}>
-          <div
-            ref={ref}
-            className={cn("px-4 py-4 mt-0! border-b-0", className)}
-            role="content"
-          >
-            {headerChildren.length > 0 ||
-            (isSingle && collapsible) ||
-            (isSingle && title) ||
-            (title && collapsible) ? (
-              <>
-                <Trigger className="w-full pt-0 pb-1 mb-3 border-b border-muted-foreground/25 [&[data-state=open]_svg]:rotate-180">
-                  {(!haveTitle || (!haveTitle && actions)) && (
-                    <FormPageContentTitle className="flex items-center justify-between gap-x-4">
-                      {title || value}
-                      {actions}
-                      {collapsible && (
-                        <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
-                      )}
-                    </FormPageContentTitle>
-                  )}
-                  {headerChildren}
-                </Trigger>
-                <Content>{contentChildren}</Content>
-              </>
-            ) : (
-              children
-            )}
-          </div>
-        </Collapsible>
-      </TabsContent>
-    );
-  }),
-);
+  }
+  const haveTitle =
+    Children.toArray(children).findIndex(
+      (child) => child?.type == FormPageContentTitle,
+    ) >= 0;
+  const Trigger = collapsible
+    ? CollapsibleTrigger
+    : (props) => <div {...props} />;
+  const Content = collapsible ? CollapsibleContent : Fragment;
+  return (
+    <TabsContent
+      value={
+        showAt
+          ? typeof showAt === "string"
+            ? showAt
+            : Array.isArray(showAt)
+              ? (showAt.find(
+                  (item) => item === (menuSelected ?? menus?.[0]?.value),
+                ) ?? value)
+              : (menuSelected ?? menus?.[0]?.value)
+          : value
+      }
+      className="mt-0"
+    >
+      <Collapsible open={openCollapsible} onOpenChange={setOpenCollapsible}>
+        <div
+          ref={ref}
+          className={cn("px-4 py-4 mt-0! border-b-0", className)}
+          role="content"
+        >
+          {headerChildren.length > 0 ||
+          (isSingle && collapsible) ||
+          (isSingle && title) ||
+          (title && collapsible) ? (
+            <>
+              <Trigger className="w-full pt-0 pb-1 mb-3 border-b border-muted-foreground/25 [&[data-state=open]_svg]:rotate-180">
+                {(!haveTitle || (!haveTitle && actions)) && (
+                  <FormPageContentTitle className="flex items-center justify-between gap-x-4">
+                    {title || value}
+                    {actions}
+                    {collapsible && (
+                      <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
+                    )}
+                  </FormPageContentTitle>
+                )}
+                {headerChildren}
+              </Trigger>
+              <Content>{contentChildren}</Content>
+            </>
+          ) : (
+            children
+          )}
+        </div>
+      </Collapsible>
+    </TabsContent>
+  );
+});
 
 /**
  * @typedef {object} FormPageBottomBarProps
@@ -262,6 +259,8 @@ const FormChildren = memo(function FormChildren({
   form,
   hasConnections,
 }) {
+  const tabsListRef = useRef(null);
+
   const { t } = useLaravelReactI18n();
   const [_menus, setMenus] = useState([]);
 
@@ -302,9 +301,15 @@ const FormChildren = memo(function FormChildren({
         )}
       >
         <TabsList
+          ref={tabsListRef}
+          data-tabs
+          style={{
+            "--tabs-top": showHeader ? "3.5rem" : "0rem",
+            top: "var(--tabs-top)",
+          }}
           className={cn(
             menus?.length <= 1 && !hasConnections ? "hidden" : "",
-            showHeader ? "top-14" : "top-0",
+            // showHeader ? "top-14" : "top-0",
             "transition-[top] duration-300 ease-in-out sticky z-9 w-full p-0! h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
           )}
         >
@@ -380,24 +385,40 @@ const FormPageProvider = memo(function FormPageProvider({
   dataBefore,
   form,
 }) {
+  const contextValue = useMemo(
+    () => ({
+      disabled,
+      menus,
+      addMenu,
+      removeMenu,
+      menuSelected,
+      setMenuSelected,
+      errors,
+      fieldNameTrans,
+      defaultData,
+      data,
+      setData,
+      dataBefore: dataBefore ?? {},
+      form,
+    }),
+    [
+      disabled,
+      menus,
+      addMenu,
+      removeMenu,
+      menuSelected,
+      setMenuSelected,
+      errors,
+      fieldNameTrans,
+      defaultData,
+      data,
+      setData,
+      dataBefore,
+      form,
+    ],
+  );
   return (
-    <FormPageContext.Provider
-      value={{
-        disabled,
-        menus,
-        addMenu,
-        removeMenu,
-        menuSelected,
-        setMenuSelected,
-        errors,
-        fieldNameTrans,
-        defaultData,
-        data,
-        setData,
-        dataBefore: dataBefore ?? {},
-        form,
-      }}
-    >
+    <FormPageContext.Provider value={contextValue}>
       {children}
     </FormPageContext.Provider>
   );
@@ -468,7 +489,7 @@ const FormPage = memo(
     },
     ref,
   ) {
-    const printable = _printable ?? submitable;
+    const printable = !isCreate && (_printable ?? submitable);
     const route = window.route;
     const { deleteItem } = useDeleteModal();
     const { t } = useLaravelReactI18n();
@@ -501,26 +522,33 @@ const FormPage = memo(
       },
       [route, name, isCreate, defaultData, data],
     );
-    // const permissions = usePage().props.permissions;
-    const [showHeader, setShowHeader] = useState(true);
-    // eslint-disable-next-line no-unused-vars
-    const [lastPosition, setLastPosition] = useState(0);
     const [showAlertBeforeSubmit, setShowAlertBeforeSubmit] = useState(false);
     const formRef = useRef();
-    const handleScroll = useCallback(
-      (e) => {
-        const { scrollTop, scrollHeight, clientHeight } = e.target;
-        const position = Math.ceil(
-          (scrollTop / (scrollHeight - clientHeight)) * 100,
-        );
-        setLastPosition((prev) => {
-          if (prev === position) return prev;
-          setShowHeader(position <= prev);
-          return position;
-        });
-      },
-      [setLastPosition, setShowHeader],
-    );
+    const layoutRef = useRef(null); // wrapper AppLayout
+    const lastPositionRef = useRef(0);
+    const showHeaderRef = useRef(true);
+    const handleScroll = useCallback((e) => {
+      const { scrollTop, scrollHeight, clientHeight } = e.target;
+      const position = Math.ceil(
+        (scrollTop / (scrollHeight - clientHeight)) * 100,
+      );
+      const prev = lastPositionRef.current;
+      if (prev === position) return;
+      lastPositionRef.current = position;
+
+      const nextShow = position <= prev;
+      if (showHeaderRef.current === nextShow) return;
+      showHeaderRef.current = nextShow;
+
+      // toggle kelas header tanpa re-render
+      const headerEl = layoutRef.current?.querySelector("[data-header]");
+      headerEl?.classList.toggle("is-hidden", !nextShow);
+
+      // update top TabsList via CSS variable
+      const tabsEl = layoutRef.current?.querySelector("[data-tabs]");
+      tabsEl?.style.setProperty("--tabs-top", nextShow ? "3.5rem" : "0px");
+    }, []);
+
     const onKeyDown = useCallback(
       (e) => {
         if (e.ctrlKey && e.key == "s") {
@@ -557,6 +585,7 @@ const FormPage = memo(
 
     return (
       <AppLayout
+        ref={layoutRef}
         data-disabled={disabled}
         className="pt-0! relative group/form"
         onScroll={handleScroll}
@@ -573,14 +602,23 @@ const FormPage = memo(
           }}
         >
           <div
+            data-header
             className={cn(
-              showHeader ? "top-0" : "-top-16",
+              // showHeader ? "top-0" : "-top-16",
               " transition-[top] duration-300 ease-in-out sticky z-10 flex items-center justify-between pt-4 pb-2 border-b gap-x-4 bg-background border-muted-foreground/25",
             )}
           >
             <Head title={title} />
             <div className="flex items-center gap-x-2">
               {title && <h1 className="text-xl font-bold">{title}</h1>}
+              {data.status &&
+                (Array.isArray(data.status) ? (
+                  data.status.map((status, idx) => (
+                    <BadgeStatus key={idx} status={status} />
+                  ))
+                ) : (
+                  <BadgeStatus status={data.status} />
+                ))}
               {isDirty && (
                 <span className="text-sm badge warning">
                   {t("core.form.not_saved")}
@@ -589,17 +627,22 @@ const FormPage = memo(
               {badge}
             </div>
             <div className="flex items-center gap-x-2 ">
-              {typeof controls === "function" ? controls() : controls}
+              {typeof controls === "function" ? controls({ form }) : controls}
               {printable && defaultData?.status != "draft" && (
                 <Deferred
                   data={["prints"]}
                   fallback={
-                    <li className="mb-3 first:mt-2 ms-6">
-                      <div className="text-base! font-normal text-foreground flex gap-x-4">
-                        <LoadingIcon className="size-4" />
-                        <span>{t("core.form.loading")} ...</span>
-                      </div>
-                    </li>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="p-2! size-fit h-8"
+                      disabled={processing}
+                    >
+                      <PrinterIcon />
+                      {t("core.form.print")}
+
+                      <LoadingIcon className="size-4" />
+                    </Button>
                   }
                 >
                   <ButtonGroup className="h-fit">
@@ -728,15 +771,25 @@ const FormPage = memo(
                     {t("core.form.delete")}
                   </Button>
                 )}
-              {!disabled &&
-                (submitable && !isDirty ? (
+              {defaultData?.status != "canceled" &&
+                ((submitable && !isDirty) || isCreate ? (
                   <Button
                     type="button"
                     className="p-2! size-fit h-8"
                     disabled={processing}
                     onClick={submit}
+                    variant={
+                      defaultData?.submitted_at ? "destructive" : "primary"
+                    }
                   >
-                    {t("core.form.submit")}
+                    {t(
+                      "core.form." +
+                        (defaultData?.status == "draft"
+                          ? "submit"
+                          : defaultData?.status == "canceled"
+                            ? "amend"
+                            : "cancel"),
+                    )}
                   </Button>
                 ) : (
                   <Button
@@ -779,7 +832,7 @@ const FormPage = memo(
               ref={ref}
               disabled={disabled}
               className={className}
-              showHeader={showHeader}
+              // showHeader={showHeader}
               errors={errors}
               fieldNameTrans={fieldNameTrans}
               defaultData={defaultData}
@@ -908,10 +961,10 @@ const SidebarChildren = memo(
     const defaultSidebarChildren = useMemo(() => {
       return (
         <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
-          <li role="forminput">
+          <li>
             <Attachments />
           </li>
-          <li role="forminput">
+          <li>
             <Tags />
           </li>
         </ul>
@@ -930,7 +983,7 @@ const SidebarChildren = memo(
         ref={ref}
         className={cn(
           className,
-          "flex flex-col order-2 lg:col-start-2 lg:row-span-2 h-fit  gap-y-4 lg:sticky lg:top-[73px]",
+          "flex flex-col z-10 order-2 lg:max-w-64 lg:col-start-2 lg:row-span-2 h-fit  gap-y-4 lg:sticky lg:top-[73px]",
         )}
       >
         {sidebarChildren}
@@ -1438,24 +1491,30 @@ const FormPageDiff = memo(
     const route = window.route;
     const { t } = useLaravelReactI18n();
     const { dataAfter: data, dataBefore, log, lang } = usePage().props;
-    // const permissions = usePage().props.permissions;
-    const [showHeader, setShowHeader] = useState(true);
-    // eslint-disable-next-line no-unused-vars
-    const [lastPosition, setLastPosition] = useState(0);
-    const handleScroll = useCallback(
-      (e) => {
-        const { scrollTop, scrollHeight, clientHeight } = e.target;
-        const position = Math.ceil(
-          (scrollTop / (scrollHeight - clientHeight)) * 100,
-        );
-        setLastPosition((prev) => {
-          if (prev === position) return prev;
-          setShowHeader(position <= prev);
-          return position;
-        });
-      },
-      [setLastPosition, setShowHeader],
-    );
+    const layoutRef = useRef(null); // wrapper AppLayout
+    const lastPositionRef = useRef(0);
+    const showHeaderRef = useRef(true);
+    const handleScroll = useCallback((e) => {
+      const { scrollTop, scrollHeight, clientHeight } = e.target;
+      const position = Math.ceil(
+        (scrollTop / (scrollHeight - clientHeight)) * 100,
+      );
+      const prev = lastPositionRef.current;
+      if (prev === position) return;
+      lastPositionRef.current = position;
+
+      const nextShow = position <= prev;
+      if (showHeaderRef.current === nextShow) return;
+      showHeaderRef.current = nextShow;
+
+      // toggle kelas header tanpa re-render
+      const headerEl = layoutRef.current?.querySelector("[data-header]");
+      headerEl?.classList.toggle("is-hidden", !nextShow);
+
+      // update top TabsList via CSS variable
+      const tabsEl = layoutRef.current?.querySelector("[data-tabs]");
+      tabsEl?.style.setProperty("--tabs-top", nextShow ? "3.5rem" : "0px");
+    }, []);
     const alias = useMemo(() => {
       return log.user.name
         .split(" ")
@@ -1476,8 +1535,9 @@ const FormPageDiff = memo(
           }}
         >
           <div
+            data-header
             className={cn(
-              showHeader ? "top-0" : "-top-16",
+              // showHeader ? "top-0" : "-top-16",
               " transition-[top] duration-300 ease-in-out sticky z-10 flex items-center justify-between pt-4 pb-2 border-b gap-x-4 bg-background border-muted-foreground/25",
             )}
           >
@@ -1504,7 +1564,7 @@ const FormPageDiff = memo(
               ref={ref}
               disabled={true}
               className={className}
-              showHeader={showHeader}
+              // showHeader={showHeader}
               dataBefore={dataBefore ?? {}}
               data={data ?? {}}
               setData={() => {}}
@@ -1533,7 +1593,7 @@ const FormPageDiff = memo(
                           {log.user.image && (
                             <AvatarImage
                               src={
-                                route("files.show", log.user.image) +
+                                route("files.preview", log.user.image) +
                                 `?v=${new Date(log.user.updated_at).getTime()}`
                               }
                               alt={log.user.name}

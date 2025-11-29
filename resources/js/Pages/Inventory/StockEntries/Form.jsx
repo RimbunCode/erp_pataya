@@ -1,6 +1,7 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useMemo, useRef } from "react";
 
+import AccountLinkModel from "@/Pages/Finances/Accounts/AccountLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -16,7 +17,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 export default function Form() {
-  const { data, setData, disabled } = useFormPage();
+  const { defaultData, data, setData, disabled } = useFormPage();
   const { currentBranch } = usePage().props.branchSettings;
   const { t } = useLaravelReactI18n();
   const itemsTableRef = useRef();
@@ -91,7 +92,7 @@ export default function Form() {
         data.type == "item_issue") && {
         name: "source_warehouse",
         titleTrans:
-          "inventory.stockEntry.columns.items.columns.source_warehouse",
+          "inventory.stockEntry.item_columns.columns.source_warehouse",
         show: true,
         type: "text",
         width: 2,
@@ -101,7 +102,7 @@ export default function Form() {
             <WarehouseLinkModel
               disabled={!dataRow?.item}
               placeholder={t(
-                "inventory.stockEntry.columns.items.columns.source_warehouse.placeholder",
+                "inventory.stockEntry.item_columns.columns.source_warehouse.placeholder",
               )}
               value={data}
               onValueChange={(val) => setData("source_warehouse", val)}
@@ -118,7 +119,7 @@ export default function Form() {
       (data.type == "item_transfer" || data.type == "item_receipt") && {
         name: "target_warehouse",
         titleTrans:
-          "inventory.stockEntry.columns.items.columns.target_warehouse",
+          "inventory.stockEntry.item_columns.columns.target_warehouse",
         show: true,
         type: "text",
         width: 2,
@@ -128,7 +129,7 @@ export default function Form() {
             <WarehouseLinkModel
               disabled={!dataRow?.item}
               placeholder={t(
-                "inventory.stockEntry.columns.items.columns.target_warehouse.placeholder",
+                "inventory.stockEntry.item_columns.columns.target_warehouse.placeholder",
               )}
               value={data}
               onValueChange={(val) => setData("target_warehouse", val)}
@@ -144,14 +145,14 @@ export default function Form() {
       },
       {
         name: "item",
-        titleTrans: "inventory.stockEntry.columns.items.columns.item",
+        titleTrans: "inventory.stockEntry.item_columns.columns.item",
         required: true,
         width: 2,
         cell({ dataRow, setData, attributes, reset }) {
           return (
             <ItemVariantLinkModel
               placeholder={t(
-                "inventory.stockEntry.columns.items.columns.item.placeholder",
+                "inventory.stockEntry.item_columns.columns.item.placeholder",
               )}
               value={dataRow.item}
               onValueChange={(val) => {
@@ -183,7 +184,7 @@ export default function Form() {
 
       {
         name: "description",
-        titleTrans: "inventory.stockEntry.columns.items.columns.description",
+        titleTrans: "inventory.stockEntry.item_columns.columns.description",
         show: false,
         type: "text",
         width: 2,
@@ -201,7 +202,7 @@ export default function Form() {
       },
       {
         name: "quantity",
-        titleTrans: "inventory.stockEntry.columns.items.columns.quantity",
+        titleTrans: "inventory.stockEntry.item_columns.columns.quantity",
         required: true,
         type: "number",
         width: 1,
@@ -224,14 +225,14 @@ export default function Form() {
       },
       {
         name: "unit",
-        titleTrans: "inventory.stockEntry.columns.items.columns.unit",
+        titleTrans: "inventory.stockEntry.item_columns.columns.unit",
         required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
             <UnitLinkModel
               disabled={!dataRow?.item}
               placeholder={t(
-                "inventory.stockEntry.columns.items.columns.unit.placeholder",
+                "inventory.stockEntry.item_columns.columns.unit.placeholder",
               )}
               value={data}
               onValueChange={(val) =>
@@ -251,7 +252,7 @@ export default function Form() {
       {
         name: "conversion_factor",
         titleTrans:
-          "inventory.stockEntry.columns.items.columns.conversion_factor",
+          "inventory.stockEntry.item_columns.columns.conversion_factor",
         type: "number",
         cell({ dataRow, data, setData, attributes }) {
           return (
@@ -268,7 +269,7 @@ export default function Form() {
       },
       {
         name: "basic_rate",
-        titleTrans: "inventory.stockEntry.columns.items.columns.basic_rate",
+        titleTrans: "inventory.stockEntry.item_columns.columns.basic_rate",
         required: data.type == "item_receipt",
         show: true,
         type: "number",
@@ -287,7 +288,7 @@ export default function Form() {
       },
       {
         name: "basic_amount",
-        titleTrans: "inventory.stockEntry.columns.items.columns.basic_amount",
+        titleTrans: "inventory.stockEntry.item_columns.columns.basic_amount",
         disabled: true,
         type: "number",
         cell({ dataRow, attributes }) {
@@ -307,7 +308,7 @@ export default function Form() {
             {
               name: "additional_cost",
               titleTrans:
-                "inventory.stockEntry.columns.items.columns.additional_cost",
+                "inventory.stockEntry.item_columns.columns.additional_cost",
               disabled: true,
               type: "number",
               cell({ dataRow, attributes }) {
@@ -325,7 +326,7 @@ export default function Form() {
             {
               name: "valuation_rate",
               titleTrans:
-                "inventory.stockEntry.columns.items.columns.valuation_rate",
+                "inventory.stockEntry.item_columns.columns.valuation_rate",
               disabled: true,
               type: "number",
               cell({ dataRow, attributes }) {
@@ -342,7 +343,7 @@ export default function Form() {
             },
             {
               name: "amount",
-              titleTrans: "inventory.stockEntry.columns.items.columns.amount",
+              titleTrans: "inventory.stockEntry.item_columns.columns.amount",
               disabled: true,
               type: "number",
               cell({ dataRow, attributes }) {
@@ -364,6 +365,31 @@ export default function Form() {
 
   const additionalCostColumns = useMemo(() => {
     return [
+      {
+        name: "expense_account",
+        required: true,
+        titleTrans: "finances.additionalCost.columns.expense_account",
+        cell({ data, setData, attributes }) {
+          return (
+            <AccountLinkModel
+              onValueChange={(val) => setData("expense_account", val)}
+              value={data}
+              filters={{
+                account_type: {
+                  in: [
+                    "tax",
+                    "chargeable",
+                    "income_account",
+                    "expenses_included_in_valuation",
+                    "expenses_included_in_asset_valuation",
+                  ],
+                },
+              }}
+              {...attributes}
+            />
+          );
+        },
+      },
       {
         name: "purpose",
         titleTrans: "finances.additionalCost.columns.purpose",
@@ -429,12 +455,7 @@ export default function Form() {
               onValueChange={(val) => setData("type", val)}
               placeholder={t("inventory.stockEntry.columns.type.placeholder")}
               optionTrans="inventory.stockEntry.types"
-              options={[
-                "item_transfer",
-                "item_receipt",
-                "item_issue",
-                "item_consumption",
-              ]}
+              options={["item_transfer", "item_receipt", "item_issue"]}
             />
           </FormInput>
           {data.type == "item_transfer" && (
@@ -534,6 +555,7 @@ export default function Form() {
         title={t("inventory.stockEntry.columns.notes")}
         value="detail"
         collapsible
+        defaultOpen={defaultData?.notes}
       >
         <FormInput name="notes">
           <Textarea
@@ -590,6 +612,32 @@ export default function Form() {
               currencyCode="default"
               decimalScale={2}
               value={totalAdditionalCost}
+            />
+          </FormInput>
+        </div>
+      </FormPageContent>
+      <FormPageContent
+        value="accounting"
+        title={t("inventory.stockEntry.accounting")}
+      >
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 grid-cols-1">
+          <FormInput
+            required
+            label={t("inventory.stockEntry.columns.difference_account")}
+          >
+            <AccountLinkModel
+              value={data.difference_account}
+              onValueChange={(val) => setData("difference_account", val)}
+              filters={{
+                is_group: false,
+                root_type: {
+                  in: ["liability", "equity", "expense"],
+                },
+              }}
+              defaultValue={{
+                root_type: "expense",
+                account_type: "stock_adjustment",
+              }}
             />
           </FormInput>
         </div>

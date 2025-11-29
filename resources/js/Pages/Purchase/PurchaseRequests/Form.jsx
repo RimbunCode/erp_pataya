@@ -1,6 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect } from "react";
-import SelectModel, { loadFromModel } from "@/Components/SelectModel";
+import React, { useCallback } from "react";
 
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -8,17 +7,16 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import SelectModel from "@/Components/SelectModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
-import { usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
   const { data, setData, disabled } = useFormPage();
-  const loadFrom = usePage().props.loadFrom;
 
   const mergeItems = useCallback(
     (value, model) => {
@@ -69,18 +67,6 @@ function Form() {
     },
     [setData],
   );
-  useEffect(() => {
-    if (!loadFrom) return;
-    const fetchData = async () => {
-      const data = await loadFromModel(
-        loadFrom?.model,
-        loadFrom?.id,
-        loadFrom?.select,
-      );
-      mergeItems(data.value, data.model);
-    };
-    fetchData().catch(console.error);
-  }, []);
   const itemColumns = useMemo(() => {
     return [
       {
@@ -242,7 +228,7 @@ function Form() {
         value="detail"
         title={t("purchase.purchaseRequest.items")}
         actions={
-          (!data.status || data.status == "draft") && (
+          !data.submitted_at && (
             <SelectModel
               from={{
                 "App\\Models\\Service\\WorkOrder": {

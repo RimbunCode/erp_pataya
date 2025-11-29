@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { useIsMobile } from "@/Hooks/use-mobile";
+import { useScreen } from "@/Hooks/useScreen";
 
 export const SIDEBAR_COOKIE_NAME = "sidebar:state";
 export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -250,14 +251,14 @@ Sidebar.displayName = "Sidebar";
 const SidebarTrigger = React.forwardRef(
   ({ className, onClick, ...props }, ref) => {
     const { toggleSidebar } = useSidebar();
-
+    const isLargeDesktop = useScreen("108rem");
     return (
       <Button
         ref={ref}
         data-sidebar="trigger"
         variant="ghost"
         size="icon"
-        className={cn("h-7 w-7", className)}
+        className={cn("h-7 w-7", isLargeDesktop && "hidden!", className)}
         onClick={(event) => {
           onClick?.(event);
           toggleSidebar();
@@ -280,6 +281,7 @@ SidebarTrigger.displayName = "SidebarTrigger";
 
 const SidebarRail = React.forwardRef(({ className, ...props }, ref) => {
   const { toggleSidebar } = useSidebar();
+  const isLargeDesktop = useScreen("108rem");
 
   return (
     <button
@@ -296,6 +298,7 @@ const SidebarRail = React.forwardRef(({ className, ...props }, ref) => {
         "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full group-data-[collapsible=offcanvas]:hover:bg-sidebar",
         "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
         "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
+        isLargeDesktop && "hidden!",
         className,
       )}
       {...props}

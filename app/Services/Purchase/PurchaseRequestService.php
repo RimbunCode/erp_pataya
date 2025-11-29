@@ -85,8 +85,6 @@ class PurchaseRequestService {
       ]);
     }
 
-    $purchaseRequest->logForSubmitted();
-
     return $purchaseRequest;
   }
 }

@@ -95,7 +95,7 @@ class DeliveryNoteService {
         ->where('warehouse_id', $item->source_warehouse_id)
         ->lockForUpdate()
         ->first();
-      if (!$stock) {
+      if (! $stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
       }
@@ -124,8 +124,8 @@ class DeliveryNoteService {
 
           $quantityRequest = 0;
         } else {
-          $quantityRequest  -= $q['quantity'];
-          $picked[]          = $q;
+          $quantityRequest -= $q['quantity'];
+          $picked[]         = $q;
         }
       }
       $stock->update([
@@ -142,8 +142,8 @@ class DeliveryNoteService {
         'quantity_change'       => -$quantity,
         'quantity_after_change' => $stock->actual_quantity,
         'valuation_rate'        => $stock->valuation_rate,
-        'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
-        'change_in_stock_value' => -\array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $picked)),
+        'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+        'change_in_stock_value' => -\array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked)),
         'stock_queue'           => $stock->stock_queue,
         'referenceable_type'    => DeliveryNote::class,
         'referenceable_id'      => $deliveryNote->id,
@@ -184,7 +184,6 @@ class DeliveryNoteService {
       return $deliveryNote;
     }
 
-    $deliveryNote->logForSubmitted();
     DB::commit();
 
     return $deliveryNote;

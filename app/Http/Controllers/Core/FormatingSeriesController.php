@@ -15,11 +15,11 @@ use Inertia\Inertia;
 
 class FormatingSeriesController extends Controller {
   private FormatingSeriesService $service;
+
   public function __construct(Request $request, FormatingSeriesService $service) {
     $this->service = $service;
     parent::__construct($request, FormatingSeries::class);
   }
-
 
   /**
    * Display a listing of the resource.
@@ -27,6 +27,7 @@ class FormatingSeriesController extends Controller {
   public function index(Request $request) {
     $this->setBreadcrumbs();
     FormatingSeries::dataTable($request);
+
     return Inertia::render('Settings/FormatingSeries/Index');
   }
 
@@ -43,88 +44,87 @@ class FormatingSeriesController extends Controller {
       $formatingSeries,
       [
         'codeFormats' => function () use ($request, $formatingSeries) {
-          $now = Carbon::now();
-          $lang = $request->cookie('lang') ?? 'en';
+          $now             = Carbon::now();
+          $lang            = $request->cookie('lang') ?? 'en';
           $currentBranchId = $request->session()->get('currentBranch');
-          $branch = Branch::find($currentBranchId)->first();
-          $codeFormats = [
+          $branch          = Branch::find($currentBranchId)->first();
+          $codeFormats     = [
             [
-              'id' => 'yyyy',
+              'id'      => 'yyyy',
               'display' => trans("core/formatingSeries.formats.year", locale: $lang) . " ({$now->translatedFormat('Y')})",
             ],
             [
-              'id' => 'yy',
+              'id'      => 'yy',
               'display' => trans("core/formatingSeries.formats.year", locale: $lang) . " ({$now->translatedFormat('y')})",
             ],
             [
-              'id' => 'mmmm',
+              'id'      => 'mmmm',
               'display' => trans("core/formatingSeries.formats.month", locale: $lang) . " ({$now->translatedFormat('F')})",
             ],
             [
-              'id' => 'mmm',
+              'id'      => 'mmm',
               'display' => trans("core/formatingSeries.formats.month", locale: $lang) . " ({$now->translatedFormat('M')})",
             ],
             [
-              'id' => 'mm',
+              'id'      => 'mm',
               'display' => trans("core/formatingSeries.formats.month", locale: $lang) . " ({$now->translatedFormat('m')})",
             ],
           ];
 
           $currentBranchId = $request->session()->get('currentBranch');
-          $branch = Branch::find($currentBranchId)->first();
+          $branch          = Branch::find($currentBranchId)->first();
 
           $model = $formatingSeries->model;
           with(new $model, function ($objectModel) use (&$codeFormats, $branch, $lang) {
             if (method_exists($objectModel, 'codeRelations')) {
-              $codeRelations = \array_map(function ($codeRelation) use ($objectModel) {
+              $codeRelations     = \array_map(function ($codeRelation) use ($objectModel) {
                 $splitCodeRelation = \explode(":", $codeRelation);
-                $id = $splitCodeRelation[0];
-                $splitRelation = explode(".", $splitCodeRelation[1]);
-                $relation = $splitRelation[0];
-                $key = $splitRelation[1];
+                $id                = $splitCodeRelation[0];
+                $splitRelation     = explode(".", $splitCodeRelation[1]);
+                $relation          = $splitRelation[0];
+                $key               = $splitRelation[1];
                 return [
-                  'id' => $id,
+                  'id'       => $id,
                   'relation' => $relation,
-                  'model' => $objectModel->$relation()->getModel()::class,
-                  'key' => $key
+                  'model'    => $objectModel->$relation()->getModel()::class,
+                  'key'      => $key,
                 ];
               }, $objectModel->codeRelations() ?? []);
               $formatingRelation = FormatingSeries::whereIn('model', array_column($codeRelations, 'model'))->get();
               foreach ($codeRelations as $codeRelation) {
-                $id = $codeRelation['id'];
+                $id       = $codeRelation['id'];
                 $relation = $codeRelation['relation'];
                 if ($relation == 'branch') {
-                  $key = $codeRelation['key'];
+                  $key     = $codeRelation['key'];
                   $display = ($key == "code") ? $branch->code : $branch->name;
 
                   $codeFormats[] = [
-                    'id' => $id,
+                    'id'      => $id,
                     'display' => trans("core/formatingSeries.formats.branch", locale: $lang) . " ($display)",
-                    'value' => $display
+                    'value'   => $display,
                   ];
                   continue;
                 }
                 $formatingSeries = $formatingRelation->where('model', $codeRelation["model"])?->first();
                 if ($formatingSeries) {
                   $codeFormats[] = [
-                    'id' => $id,
+                    'id'      => $id,
                     'display' => Str::headline($id),
-                    'value' => $formatingSeries?->format,
+                    'value'   => $formatingSeries?->format,
                   ];
                   continue;
                 }
                 $codeFormats[] = [
-                  'id' => $id,
+                  'id'      => $id,
                   'display' => Str::headline($id),
                 ];
               }
             }
           });
 
-
           return $codeFormats;
         }
-      ]
+      ],
     );
   }
 
@@ -135,13 +135,13 @@ class FormatingSeriesController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
 
-    $logs = (array)$formatingSeries->logs;
+    $logs                    = (array) $formatingSeries->logs;
     $formatingSeries->format = $data['format'];
-    $keys = $this->service->getKeyLogs($formatingSeries);
-    if (!\array_key_exists($keys,  $logs)) {
-      $logs[$keys] = [
-        'current' => 0,
-        'updated_at' => now()
+    $keys                    = $this->service->getKeyLogs($formatingSeries);
+    if (! \array_key_exists($keys, $logs)) {
+      $logs[$keys]  = [
+        'current'    => 0,
+        'updated_at' => now(),
       ];
       $data['logs'] = $logs;
     }

@@ -1,4 +1,4 @@
-import { Code, ExpandIcon, RedoIcon, UndoIcon } from "lucide-react";
+import { Code, RedoIcon, UndoIcon } from "lucide-react";
 import React, { memo, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
@@ -21,11 +21,6 @@ const TopBar = memo(function TopBar() {
             ></path>
           </svg>
         ),
-      },
-      {
-        id: "core:fullscreen",
-        icon: <ExpandIcon />,
-        options: { target: "#root" },
       },
       {
         id: "core:open-code",

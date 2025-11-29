@@ -4,45 +4,32 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import { cn, getThemeByStatus } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useMemo } from "react";
-import { usePage } from "@inertiajs/react";
 
-export default function Show({ purchaseRequest }) {
+export default function Show({ purchaseRequest, defaultData }) {
   const { t } = useLaravelReactI18n();
-  const loadFrom = usePage().props.loadFrom;
   const route = window.route;
 
-  const statusBadge = useMemo(() => {
-    if (!purchaseRequest) return;
-    const status = t(`core.form.statuses.${purchaseRequest?.status}`);
-    const theme = getThemeByStatus(purchaseRequest?.status);
-
-    return (
-      <span className={cn("text-sm badge capitalize", theme)}>{status}</span>
-    );
-  }, [purchaseRequest?.status, t]);
   return (
     <FormPage
       isCreate={!purchaseRequest}
-      ignoreDraft={loadFrom}
+      ignoreDraft={defaultData}
+      defaultValues={defaultData}
       name="purchaseRequest"
       title={
         purchaseRequest
           ? purchaseRequest.code
           : t("purchase.purchaseRequest.new")
       }
-      disabled={(purchaseRequest?.status ?? "draft") != "draft"}
+      disabled={purchaseRequest?.submitted_at}
       submitable
-      badge={statusBadge}
       controls={() => {
-        if ((purchaseRequest?.status ?? "draft") != "draft") {
+        if (purchaseRequest?.submitted_at) {
           return (
             <>
               <DropdownMenu>

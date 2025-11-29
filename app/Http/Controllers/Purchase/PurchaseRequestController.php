@@ -7,20 +7,21 @@ use App\Http\Requests\Purchase\PurchaseRequestRequest;
 use App\Models\Core\Branch;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Service\WorkOrder;
+use App\Models\Service\WorkOrderItem;
 use App\Services\Core\FormatingSeriesService;
 use App\Services\Purchase\PurchaseRequestService;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseRequestController extends Controller {
-
   private FormatingSeriesService $formatingSeriesService;
   private PurchaseRequestService $service;
 
   public function __construct(Request $request, FormatingSeriesService $formatingSeriesService, PurchaseRequestService $service) {
     $this->formatingSeriesService = $formatingSeriesService;
-    $this->service = $service;
+    $this->service                = $service;
     parent::__construct($request, PurchaseRequest::class);
   }
 
@@ -30,27 +31,39 @@ class PurchaseRequestController extends Controller {
   public function index(Request $request) {
     $this->setBreadcrumbs();
     PurchaseRequest::dataTable($request);
+
     return Inertia::render('Purchase/PurchaseRequests/Index');
   }
 
   /**
    * Show the form for creating a new resource.
    */
-  public function create(Request $request, string $ref = null) {
+  public function create(Request $request, ?string $ref = null) {
     if ($ref) {
-      $select = $request->has('select') ? $request->select : null;
-      $split = \explode("/", $ref);
+      $select   = $request->has('select') ? $request->select : null;
+      $split    = \explode("/", $ref);
       $modelOri = $split[0] ?? null;
       if ($modelOri) {
-        $model = match ($modelOri) {
-          'workOrder' => WorkOrder::class,
-          default => null,
-        };
-        if ($select == null) {
-          $select = match ($modelOri) {
-            'workOrder' => "items",
-            default => null,
-          };
+        switch ($modelOri) {
+          case 'workOrder': {
+            $wo = WorkOrder::find($split[1]);
+            if ($wo) {
+              $defaultData = [
+                'date'  => now(),
+                'items' => $wo->items->map(fn ($item) => [
+                  'id'                 => Utils::generateRandom(5),
+                  'item'               => $item->item,
+                  'description'        => $item->description,
+                  'quantity'           => $item->required_quantity,
+                  'unit'               => $item->unit,
+                  'referenceable'      => $item,
+                  'referenceable_type' => WorkOrderItem::class,
+                  'referenceable_id'   => $item->id,
+                ]),
+              ];
+            }
+            break;
+          }
         }
       }
       $id = $split[1] ?? null;
@@ -58,11 +71,7 @@ class PurchaseRequestController extends Controller {
 
     $this->setBreadcrumbs('purchase.purchaseRequest.new');
     return Inertia::render('Purchase/PurchaseRequests/Show', [
-      'loadFrom' => isset($model) && $id ? [
-        'model' => $model,
-        'id' => $id,
-        'select' => $select,
-      ] : null,
+      'defaultData' => $defaultData ?? null,
     ]);
   }
 
@@ -73,8 +82,8 @@ class PurchaseRequestController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code = $this->formatingSeriesService->get(PurchaseRequest::class, $data);
-    $data['code'] = $code;
+    $code           = $this->formatingSeriesService->get(PurchaseRequest::class, $data);
+    $data['code']   = $code;
 
     $wo = $this->service->create($data);
     DB::commit();
@@ -95,7 +104,6 @@ class PurchaseRequestController extends Controller {
     ]);
   }
 
-
   /**
    * Update the specified resource in storage.
    */
@@ -106,12 +114,14 @@ class PurchaseRequestController extends Controller {
     DB::commit();
     return back();
   }
+
   public function submit(PurchaseRequest $purchaseRequest) {
     DB::beginTransaction();
     $this->service->submit($purchaseRequest);
     DB::commit();
     return back();
   }
+
   /**
    * Remove the specified resource from storage.
    */

@@ -228,6 +228,11 @@ const navList = [
         urlPattern: "/settings/formatingSeries/*",
       },
       {
+        title: "Approval Schemes",
+        url: "/settings/approvalSchemes",
+        urlPattern: "/settings/approvalSchemes/*",
+      },
+      {
         title: "Print Templates",
         url: "/settings/printTemplates",
         urlPattern: "/settings/printTemplates/*",

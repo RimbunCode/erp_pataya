@@ -39,21 +39,22 @@ class Feature extends Command {
 
     $module = Str::studly($module);
 
-    // 1) Controller: App\Http\Controllers\{Module}\{Name}Controller (resource)
-    $controllerName = "{$module}/{$name}Controller";
-    Artisan::call('make:controller', [
-      'name'       => $controllerName,
-      '--resource' => true,
-      '--force'    => $this->option('force'),
-    ]);
-    $this->info(Artisan::output());
-
-    // 2) Model + migration: App\Models\{Module}\{Name}
+    // 1) Model + migration: App\Models\{Module}\{Name}
     $modelName = "{$module}/{$name}";
     Artisan::call('make:model', [
       'name'    => $modelName,
       '-m'      => true, // buat migration
       '--force' => $this->option('force'),
+    ]);
+    $this->info(Artisan::output());
+
+    // 2) Controller: App\Http\Controllers\{Module}\{Name}Controller (resource)
+    $controllerName = "{$module}/{$name}Controller";
+    Artisan::call('make:controller', [
+      'name'       => $controllerName,
+      '--resource' => true,
+      '--force'    => $this->option('force'),
+      '--model'    => "App/Models/$modelName",
     ]);
     $this->info(Artisan::output());
 

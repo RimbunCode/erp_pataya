@@ -27,10 +27,10 @@ import {
 } from "@/Components/ui/tooltip";
 
 import { Button } from "@/Components/ui/button";
-import { FormCheckbox } from "@/Components/ui/Checkbox";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import DatetimePicker from "@/Components/DatetimePicker";
+import { FormCheckbox } from "@/Components/ui/Checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
@@ -76,7 +76,7 @@ export default function Show({ user, roles, branches }) {
     return (
       <AvatarImage
         src={
-          route("files.show", user.image) +
+          route("files.preview", user.image) +
           `?v=${new Date(user.updated_at).getTime()}`
         }
         alt={user.name}
@@ -113,8 +113,8 @@ export default function Show({ user, roles, branches }) {
             <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
               <Avatar className="relative w-full h-auto border rounded-xl aspect-square max-w-64 group">
                 {avatar}
-                <AvatarFallback className="rounded-lg ">
-                  <p className="w-full font-semibold text-center text-muted-foreground text-9xl  transition-[filter]">
+                <AvatarFallback className="rounded-lg">
+                  <p className="w-full font-semibold text-center text-muted-foreground text-9xl transition-[filter]">
                     {alias}
                   </p>
                 </AvatarFallback>

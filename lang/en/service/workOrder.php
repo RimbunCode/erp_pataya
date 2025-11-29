@@ -14,9 +14,12 @@ return [
   'items'              => 'Items',
   'connections'        => 'Connections',
   'actions'            => [
-    'create_io' => 'Create Internal Order',
-    'create_so' => 'Create Sales Order',
-    'create_pr' => 'Create Purchase Request',
+    'start_work'        => 'Start Work',
+    'complate_work'     => 'Complate Work',
+    'create_io'         => 'Create Internal Order',
+    'create_so'         => 'Create Sales Order',
+    'create_pr'         => 'Create Purchase Request',
+    'create_stockEntry' => 'Create Item Consumption',
   ],
   'columns'            => [
     'code'                         => 'Code',
@@ -40,6 +43,8 @@ return [
     'status'                       => 'Status',
     'source_warehouse'             => 'Source Warehouse',
     'source_warehouse.placeholder' => 'Select a source warehouse',
+    'started_at'                   => 'Started At',
+    'complated_at'                 => 'Complated At',
   ],
   'workOrderItem'      => [
     'columns' => [

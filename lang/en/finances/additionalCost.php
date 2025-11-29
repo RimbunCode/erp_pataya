@@ -15,6 +15,7 @@ return [
   'columns'            => [
     'purpose'              => 'Purpose',
     'amount'               => 'Amount',
+    'expense_account'      => 'Expense Account',
     'currency'             => 'Currency',
     'currency.placeholder' => 'Select a currency',
     'exchange_rate'        => 'Exchange Rate',

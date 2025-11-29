@@ -1,6 +1,8 @@
+import CurrencyInputOri, {
+  formatValue as formatValueOri,
+} from "@/Components/CurrencyInput/index.esm";
 import React, { forwardRef, useEffect, useRef, useState } from "react";
 
-import CurrencyInputOri from "@/Components/CurrencyInput/index.esm";
 import { cn } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -75,3 +77,9 @@ export default forwardRef(function CurrencyInput(
     />
   );
 });
+
+/**
+ * @typedef {import('@/Components/CurrencyInput/components/utils/formatValue.d.ts').FormatValueOptions} FormatValueOptions
+ * @type {FormatValueOptions}
+ */
+export const formatValue = formatValueOri;

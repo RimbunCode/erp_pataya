@@ -1,10 +1,11 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
+
   /**
    * Run the migrations.
    */
@@ -15,7 +16,7 @@ return new class extends Migration {
       $table->foreignUlid('work_order_id')->references('id')->on('work_orders')->cascadeOnDelete();
       $table->foreignUlid('item_variant_id')->nullable()->references('id')->on('item_variants')->nullOnDelete();
       $table->string('item_name')->nullable();
-      $table->double('quantity')->default(1);
+      $table->double('quantity')->default(0);
       $table->double('ordered_quantity')->default(0);
       $table->double('required_quantity')->storedAs('IF((quantity - ordered_quantity - transferred_quantity) > quantity, 0, (quantity - ordered_quantity - transferred_quantity))');
       $table->double('transferred_quantity')->default(0);

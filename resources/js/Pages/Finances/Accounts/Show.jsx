@@ -1,17 +1,16 @@
-import { cn, getThemeByStatus } from "@/lib/utils";
-import Form from "./Form";
-import { FormPage } from "@/Pages/Core/FormPage";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useMemo } from "react";
-import { usePage } from "@inertiajs/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import Link from "@/Components/Link";
+
 import { Button } from "@/Components/ui/button";
+import Form from "./Form";
+import { FormPage } from "@/Pages/Core/FormPage";
+import Link from "@/Components/Link";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
 export default function Show({ account, flash }) {
   const { t } = useLaravelReactI18n();
@@ -24,7 +23,7 @@ export default function Show({ account, flash }) {
       ignoreDraft={loadFrom}
       name="account"
       title={account ? account.code : t("sales.account.new")}
-      disabled={(account?.status ?? "draft") != "draft"}
+      disabled={account?.submitted_at}
       banner={
         flash.errorItems && (
           <div className="flex flex-col gap-x-2 text-sm alert error p-4">
@@ -42,7 +41,7 @@ export default function Show({ account, flash }) {
         )
       }
       controls={() => {
-        if ((account.status ?? "draft") != "draft") {
+        if (account.submitted_at) {
           return (
             <>
               <DropdownMenu>
