@@ -112,16 +112,16 @@ export const useDraftForm = (
   const getOptions = useCallback(
     (options) => {
       return {
-        ...(isCreate
+        ...(isCreate || isDialog
           ? {
               preserveState: false,
-              preverseScroll: false,
+              preserveScroll: false,
               preserveUrl: false,
             }
           : {
-              reset: name ? [name, "logs"] : ["logs"],
-              preserveState: true,
-              preverseScroll: true,
+              reset: name ? [name, "logs", "flash"] : ["logs", "flash"],
+              preserveState: false,
+              preserveScroll: true,
             }),
         replace: true,
         ...options,
@@ -147,6 +147,7 @@ export const useDraftForm = (
 
   return {
     ...form,
+    key,
     submit(method, url, options) {
       submitForm(method, url, getOptions(options));
     },

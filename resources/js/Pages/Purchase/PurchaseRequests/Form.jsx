@@ -16,7 +16,7 @@ import { useMemo } from "react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage();
 
   const mergeItems = useCallback(
     (value, model) => {
@@ -273,6 +273,7 @@ function Form() {
         value="detail"
         title={t("purchase.purchaseRequest.columns.external_note")}
         collapsible
+        defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
           <FormInput>

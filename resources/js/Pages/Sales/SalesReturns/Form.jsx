@@ -4,8 +4,10 @@ import {
   useFormPage,
 } from "@/Pages/Core/FormPage";
 import React, { useEffect, useMemo } from "react";
+
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
+import DeliveryNoteLinkModel from "@/Pages/Inventory/DeliveryNotes/DeliveryNoteLinkModel";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
@@ -13,13 +15,12 @@ import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import DeliveryNoteLinkModel from "@/Pages/Inventory/DeliveryNotes/DeliveryNoteLinkModel";
 import { generateRandom } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData } = useFormPage();
+  const { data, setData, defaultData } = useFormPage();
 
   const itemColumns = useMemo(() => {
     return [
@@ -258,6 +259,7 @@ export default function Form() {
         value="detail"
         title={t("sales.salesReturn.columns.external_note")}
         collapsible
+        defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
           <FormInput>

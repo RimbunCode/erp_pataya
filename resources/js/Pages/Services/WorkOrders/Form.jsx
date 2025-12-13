@@ -315,7 +315,7 @@ export default function Form() {
         value="detail"
         title={t("service.workOrder.columns.external_note")}
         collapsible
-        defaultOpen
+        defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
           <FormInput>

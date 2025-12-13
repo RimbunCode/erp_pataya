@@ -16,7 +16,7 @@ return new class extends Migration
       $table->ulidMorphs('document');
       $table->string('status')->default('draft');
       $table->json('options')->nullable();
-      $table->tinyInteger('currenct_sequence')->default(0);
+      $table->tinyInteger('current_sequence')->default(0);
       $table->softDeletes();
       $table->timestamps();
 

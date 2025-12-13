@@ -17,9 +17,10 @@ return new class extends Migration
       $table->string('approver_type');
       $table->ulidMorphs('approverable', 'approverable_index');
       $table->json('config')->nullable();
-      $table->string('status')->default('pending');
+      $table->string('status')->default('waiting');
       $table->foreignUlid('acted_by_id')->nullable()->references('id')->on('users')->nullOnDelete();
       $table->timestamp('acted_at')->nullable();
+      $table->text('notes')->nullable();
       $table->softDeletes();
       $table->timestamps();
     });

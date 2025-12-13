@@ -1,13 +1,13 @@
 <?php
 
 return [
-  'approvalScheme'     => 'Approval Scheme',
-  'approvalSchemes'    => 'Approval Schemes',
-  'title'              => 'Approval Schemes',
-  'add'                => 'Add Approval Scheme',
-  'new'                => 'New Approval Scheme',
-  'delete'             => "Delete Approval Scheme",
-  'delete.description' => 'Are you sure you want to delete this Approval Scheme?',
+  'approvalInstance'   => 'Approval Instance',
+  'approvalInstances'  => 'Approval Instances',
+  'title'              => 'Approvals',
+  'add'                => 'Add Approval Instance',
+  'new'                => 'New Approval Instance',
+  'delete'             => "Delete Approval Instance",
+  'delete.description' => 'Are you sure you want to delete this Approval Instance?',
   'delete.confirm'     => 'Delete',
   'columns'            => [
     'name'              => 'Name',
@@ -21,12 +21,13 @@ return [
     'document'          => 'Document',
     'options'           => 'Options',
     'current_sequence'  => 'Current Sequence',
-    'approval_scheme'   => 'Approval Scheme',
+    'approval_instance' => 'Approval Instance',
   ],
   'steps'              => [
+    'title'   => 'Approvals',
     'columns' => [
       'sequence'              => 'Sequence',
-      'approval_scheme'       => 'Approval Scheme',
+      'approval_instance'     => 'Document',
       'approver_type'         => 'Approver Type',
       'approver_type.options' => [
         'user' => 'User',
@@ -37,7 +38,6 @@ return [
       'acted_at'              => 'Acted At',
       'acted_by'              => 'Acted By',
       'status'                => 'Status',
-      'approval_instance'     => 'Approval Instance',
       'notes'                 => 'Notes',
     ],
   ],

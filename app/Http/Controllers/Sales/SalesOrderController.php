@@ -50,6 +50,8 @@ class SalesOrderController extends Controller {
             if ($wo) {
               $so = SalesOrder::where('referenceable_type', WorkOrder::class)
                 ->where('referenceable_id', $wo->id)
+                ->where('status', 'draft')
+                ->where('created_by', $request->user()->id)
                 ->first();
               if ($so) {
                 return redirect()->route('salesOrders.show', $so);
@@ -61,6 +63,7 @@ class SalesOrderController extends Controller {
                 'referenceable_type' => WorkOrder::class,
                 'referenceable_id'   => $wo->id,
                 'referenceable'      => $wo,
+                'external_note'      => $wo->external_note,
                 'items'              => $wo->items->map(fn ($item) => [
                   'id'       => Utils::generateRandom(5),
                   'item'     => $item->item,

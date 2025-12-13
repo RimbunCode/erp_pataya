@@ -8,6 +8,8 @@ use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Session;
 use Symfony\Component\Uid\Ulid;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\StockEntry;
@@ -78,7 +80,7 @@ class StockEntryService {
         }
       }
       $data['basic_amount'] = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked));
-      $data['basic_rate']   = $data['basic_amount'] / $data['quantity'];
+      $data['basic_rate']   = $data['basic_amount'] / ($data['quantity'] - $quantityRequest);
     } else {
       $data['basic_amount'] = $data['basic_rate'] * $data['quantity'];
     }
@@ -171,9 +173,66 @@ class StockEntryService {
     return $stockEntry;
   }
 
+  private function rolllbackItems(StockEntry $stockEntry) {
+    $items = $stockEntry->items()
+      ->get();
+    foreach ($items as $item) {
+      $stock = Stock::lockForUpdate()
+        ->where('item_variant_id', $item->item_id)
+        ->where('warehouse_id', $item->source_warehouse_id)
+        ->lockForUpdate()
+        ->first();
+
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $stock->update([
+        'reserved_quantity' => $stock->reserved_quantity - $quantity,
+      ]);
+    }
+  }
+
   public function submit(StockEntry $stockEntry) {
+    if (\in_array($stockEntry->type, ['item_issue', 'item_transfer', 'item_consumption'])) {
+      DB::beginTransaction();
+
+      $items      = $stockEntry->items()
+        ->get();
+      $errorItems = [];
+      foreach ($items as $item) {
+        $stock = Stock::lockForUpdate()
+          ->where('item_variant_id', $item->item_id)
+          ->where('warehouse_id', $item->source_warehouse_id)
+          ->lockForUpdate()
+          ->first();
+        if (! $stock) {
+          $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
+          continue;
+        }
+        $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+        if ($stock->ready_quantity < $quantity) {
+          $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
+          continue;
+        }
+        $stock->update([
+          'reserved_quantity' => $stock->reserved_quantity + $quantity,
+        ]);
+      }
+      if (\count($errorItems) > 0) {
+        DB::rollBack();
+        Session::flash('errorItems', $errorItems);
+        return $stockEntry;
+      }
+      DB::commit();
+    }
+
+    $stockEntry->checkApproval();
+
+    return $stockEntry;
+  }
+
+  public function onApproved(StockEntry $stockEntry) {
+    DB::beginTransaction();
     $stockEntry->update([
-      'status' => FormStatus::SUBMITTED,
+      'status' => FormStatus::COMPLETED,
     ]);
 
     $items           = $stockEntry->items()->with('item', 'item.item', 'item.defaultUnit', 'unit', 'sourceWarehouse', 'targetWarehouse')->get();
@@ -196,7 +255,7 @@ class StockEntryService {
       $defaultConvertionFactor = $item->item->conversion_factor;
       $qtyNeeded               = $item->quantity * ($item->conversion_factor / $defaultConvertionFactor);
 
-      if ($stockEntry->type == "item_issue" || $stockEntry->type == "item_consumption" || $stockEntry->type == "item_transfer") {
+      if (\in_array($stockEntry->type, ['item_issue', 'item_transfer', 'item_consumption'])) {
         // get stock from source warehouse
         $stockSource = Stock::lockForUpdate()->firstOrCreate([
           'item_variant_id' => $item->item_id,
@@ -237,6 +296,7 @@ class StockEntryService {
           'actual_quantity' => $stockSource->actual_quantity - $qtyNeeded,
           'stock_queue'     => $remainingQueue,
         ]);
+
         StockLedgerEntry::create([
           'item_id'               => $item->item_id,
           'warehouse_id'          => $item->source_warehouse_id,
@@ -253,7 +313,7 @@ class StockEntryService {
         ]);
       }
 
-      if ($stockEntry->type == "item_receipt" || $stockEntry->type == "item_transfer") {
+      if (\in_array($stockEntry->type, ['item_receipt', 'item_transfer'])) {
         // get stock from target warehouse
         $stockTarget = Stock::lockForUpdate()->firstOrCreate([
           'item_variant_id' => $item->item_id,
@@ -410,5 +470,35 @@ class StockEntryService {
     }
 
     return $stockEntry;
+  }
+
+  public function onRejected(StockEntry $stockEntry) {
+    DB::beginTransaction();
+    $stockEntry->update([
+      'status' => [
+        FormStatus::REJECTED,
+      ],
+    ]);
+
+    $this->rolllbackItems($stockEntry);
+
+    DB::commit();
+    return $stockEntry;
+
+  }
+
+  public function cancel(StockEntry $stockEntry) {
+    DB::beginTransaction();
+    $stockEntry->update([
+      'status' => [
+        FormStatus::CANCELED,
+      ],
+    ]);
+
+    $this->rolllbackItems($stockEntry);
+
+    DB::commit();
+    return $stockEntry;
+
   }
 }

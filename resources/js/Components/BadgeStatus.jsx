@@ -13,12 +13,14 @@ const theme = {
   deleted: "error",
   closed: "error",
   in_progress: "primary",
+  need_approval: "warning",
+  waiting: "secondary",
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();
   [status];
   return (
-    <div
+    <span
       className={cn(
         "text-center badge w-fit",
         theme[status] ?? "secondary",
@@ -64,6 +66,6 @@ export default function BadgeStatus({ status, className, ...props }) {
         </svg>
       )}
       {t(`core.form.statuses.${status}`)}
-    </div>
+    </span>
   );
 }

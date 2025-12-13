@@ -273,12 +273,13 @@ export default function Form() {
         required: data.type == "item_receipt",
         show: true,
         type: "number",
-        cell({ dataRow, data, setData, attributes }) {
+        cell({ dataRow, setData, attributes }) {
           return (
             <CurrencyInput
               {...attributes}
               disabled={!dataRow?.item}
-              value={data}
+              readOnly={data.type != "item_receipt"}
+              value={dataRow.basic_rate}
               onValueChange={(val) => setData("basic_rate", val)}
               currencyCode="default"
               decimalScale={2}

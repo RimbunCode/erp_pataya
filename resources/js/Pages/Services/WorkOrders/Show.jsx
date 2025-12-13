@@ -10,6 +10,7 @@ import { ChevronsUpDownIcon } from "lucide-react";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
+import { isValidStatus } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ workOrder }) {
@@ -23,7 +24,7 @@ export default function Show({ workOrder }) {
       disabled={workOrder?.submitted_at}
       submitable
       controls={({ form }) => {
-        if (workOrder.submitted_at) {
+        if (workOrder?.submitted_at && isValidStatus(workOrder?.status)) {
           return (
             <>
               {workOrder.submitted_at && !workOrder.complated_at && (
@@ -87,15 +88,6 @@ export default function Show({ workOrder }) {
                         "service.workOrder.actions." +
                           (workOrder?.for_internal ? "create_io" : "create_so"),
                       )}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href={route("stockEntries.create", {
-                        ref: `workOrder/${workOrder.id}`,
-                      })}
-                    >
-                      {t("service.workOrder.actions.create_stockEntry")}
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>

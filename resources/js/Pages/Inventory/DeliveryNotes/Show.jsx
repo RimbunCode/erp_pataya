@@ -9,9 +9,10 @@ import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
+import { isValidStatus } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ deliveryNote, flash }) {
+export default function Show({ deliveryNote, defaultData, flash }) {
   const { t } = useLaravelReactI18n();
   const route = window.route;
 
@@ -20,8 +21,10 @@ export default function Show({ deliveryNote, flash }) {
       isCreate={!deliveryNote}
       name="deliveryNote"
       title={deliveryNote ? deliveryNote.code : t("sales.deliveryNote.new")}
-      disabled={(deliveryNote?.submitted_at)}
+      disabled={deliveryNote?.submitted_at}
       submitable
+      ignoreDraft={defaultData}
+      defaultValues={defaultData}
       banner={
         flash.errorItems && (
           <div className="flex flex-col gap-x-2 text-sm alert error p-4">
@@ -39,7 +42,7 @@ export default function Show({ deliveryNote, flash }) {
         )
       }
       controls={() => {
-        if ((deliveryNote.submitted_at) {
+        if (deliveryNote?.submitted_at && isValidStatus(deliveryNote?.status)) {
           return (
             <>
               <DropdownMenu>

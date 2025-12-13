@@ -236,6 +236,18 @@ export function getValueObject(obj, key) {
   return newValue;
 }
 
+export function isValidStatus(status) {
+  return !inArray(status, [
+    "draft",
+    "canceled",
+    "rejected",
+    "deleted",
+    "closed",
+    "need_approval",
+    "inactive",
+  ]);
+}
+
 export function camelize(str) {
   return str
     .replace(/(?:^\w|[A-Z]|\b\w)/g, function (word, index) {
@@ -260,6 +272,28 @@ export function isDeepEmpty(value) {
 
   // Selain itu dianggap "ada nilai"
   return false;
+}
+
+export function inArray(haystack, needles) {
+  let found = false;
+  for (let i in haystack) {
+    if (Array.isArray(needles)) {
+      for (let j in needles) {
+        if (haystack[i] == needles[j]) {
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+      continue;
+    }
+    if (haystack[i] == needles) {
+      found = true;
+      break;
+    }
+  }
+
+  return found;
 }
 
 export const calculateArray = (arr, keyColumn, operator) => {

@@ -3,12 +3,14 @@
 namespace App\Services\Sales;
 
 use App\FormStatus;
+use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\ItemReserved;
 use App\Models\Sales\SalesOrder;
 use App\Utils;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
@@ -118,11 +120,26 @@ class SalesOrderService {
 
   public function submit(SalesOrder $salesOrder) {
     DB::beginTransaction();
+
+    if ($salesOrder->referenceable_type && $salesOrder->referenceable_id) {
+      ModelConnection::create([
+        'model_type'     => $salesOrder->referenceable_type,
+        'model_id'       => $salesOrder->referenceable_id,
+        'reference_type' => SalesOrder::class,
+        'reference_id'   => $salesOrder->id,
+      ]);
+      SalesOrder::where('referenceable_type', $salesOrder->referenceable_type)
+        ->where('referenceable_id', $salesOrder->referenceable_id)
+        ->where('status', 'draft')
+        ->whereNot('created_by', Auth::user()->id)
+        ->update(['status' => 'canceled']);
+    }
     $items      = $salesOrder->items()
       ->get();
     $errorItems = [];
     foreach ($items as $item) {
-      $stock = Stock::where('item_variant_id', $item->item_id)
+      $stock = Stock::lockForUpdate()
+        ->where('item_variant_id', $item->item_id)
         ->where('warehouse_id', $item->source_warehouse_id)
         ->lockForUpdate()
         ->first();
@@ -165,7 +182,8 @@ class SalesOrderService {
     $items = $salesOrder->items()
       ->get();
     foreach ($items as $item) {
-      $stock = Stock::where('item_variant_id', $item->item_id)
+      $stock = Stock::lockForUpdate()
+        ->where('item_variant_id', $item->item_id)
         ->where('warehouse_id', $item->source_warehouse_id)
         ->lockForUpdate()
         ->first();

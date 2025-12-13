@@ -27,9 +27,8 @@ import { usePage } from "@inertiajs/react";
 
 export default memo(function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage();
   const { default_currency_id } = usePage().props.preferences;
-  const { defaultData } = usePage().props;
   const loadFrom = usePage().props.loadFrom;
   const isLockDoc = useMemo(() => {
     const referenceable_type =
@@ -539,11 +538,6 @@ export default memo(function Form() {
       },
     ];
   }, [data]);
-  useEffect(() => {
-    if (!data.date) {
-      setData("date", new Date());
-    }
-  }, []);
   return (
     <>
       <FormPageContent value="detail" title={t("sales.salesOrder.detail")}>
@@ -917,6 +911,7 @@ export default memo(function Form() {
         value="detail"
         title={t("sales.salesOrder.columns.external_note")}
         collapsible
+        defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
           <FormInput>

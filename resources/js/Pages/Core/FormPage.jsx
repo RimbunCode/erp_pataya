@@ -53,10 +53,17 @@ import React, {
   useState,
 } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
-import { cn, generateRandom, getLocaleDate } from "@/lib/utils";
+import {
+  cn,
+  generateRandom,
+  getLocaleDate,
+  inArray,
+  removeFromLocalStorage,
+} from "@/lib/utils";
 import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 
 import AppLayout from "@/Layouts/AppLayout";
+import ApproverDecision from "./Components/ApproverDecision";
 import Attachments from "./Components/Attachments";
 import BadgeStatus from "@/Components/BadgeStatus";
 import { Button } from "@/Components/ui/button";
@@ -70,6 +77,7 @@ import { ScrollArea } from "@/Components/ui/scroll-area";
 import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
+import { convertTemplateLink } from "@/Components/LinkModel";
 import { format } from "date-fns";
 import pluralize from "pluralize";
 import { toast } from "sonner";
@@ -308,7 +316,9 @@ const FormChildren = memo(function FormChildren({
             top: "var(--tabs-top)",
           }}
           className={cn(
-            menus?.length <= 1 && !hasConnections ? "hidden" : "",
+            menus?.length <= 1 && !hasConnections && !defaultData?.approvalable
+              ? "hidden"
+              : "",
             // showHeader ? "top-14" : "top-0",
             "transition-[top] duration-300 ease-in-out sticky z-9 w-full p-0! h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
           )}
@@ -337,6 +347,17 @@ const FormChildren = memo(function FormChildren({
               </span>
             </TabsTrigger>
           )}
+
+          {defaultData?.approvalable && (
+            <TabsTrigger
+              value="approvals"
+              className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
+            >
+              <span className="pt-2 pb-1 border-transparent w-fit group-data-[state=active]:border-foreground border-b transition-colors duration-300 ">
+                {t("core.form.approvals")}
+              </span>
+            </TabsTrigger>
+          )}
         </TabsList>
         <FormPageProvider
           disabled={disabled}
@@ -355,6 +376,9 @@ const FormChildren = memo(function FormChildren({
         >
           {children}
           {hasConnections && <Connections />}
+          {defaultData?.approvalable && (
+            <Approvals approvals={defaultData?.approvalable.steps} />
+          )}
         </FormPageProvider>
       </div>
     </Tabs>
@@ -496,6 +520,7 @@ const FormPage = memo(
     const defaultData = usePage().props[name] ?? defaultValues ?? {};
     const prints = usePage().props.prints ?? [];
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
+    const user = usePage().props.auth.user;
     const {
       data,
       setData: _setData,
@@ -504,7 +529,9 @@ const FormPage = memo(
       processing,
       errors,
       isDirty,
+      key,
     } = form;
+    window.keyForm = key;
     const onSubmit = useCallback(
       (e) => {
         e.preventDefault();
@@ -523,6 +550,7 @@ const FormPage = memo(
       [route, name, isCreate, defaultData, data],
     );
     const [showAlertBeforeSubmit, setShowAlertBeforeSubmit] = useState(false);
+    const [showAlertBeforeCancel, setShowAlertBeforeCancel] = useState(false);
     const formRef = useRef();
     const layoutRef = useRef(null); // wrapper AppLayout
     const lastPositionRef = useRef(0);
@@ -583,6 +611,17 @@ const FormPage = memo(
       setShowAlertBeforeSubmit(true);
     }, []);
 
+    const cancel = useCallback(() => {
+      if (!submitable) new Error("This form not submitable!");
+      setShowAlertBeforeCancel(true);
+    }, []);
+    const onCancel = useCallback(() => {
+      put(route(`${pluralize.plural(name ?? "")}.cancel`, defaultData.id));
+    }, []);
+    const amend = useCallback(() => {
+      put(route(`${pluralize.plural(name ?? "")}.amend`, defaultData.id));
+    }, []);
+
     return (
       <AppLayout
         ref={layoutRef}
@@ -611,13 +650,13 @@ const FormPage = memo(
             <Head title={title} />
             <div className="flex items-center gap-x-2">
               {title && <h1 className="text-xl font-bold">{title}</h1>}
-              {data.status &&
-                (Array.isArray(data.status) ? (
-                  data.status.map((status, idx) => (
+              {defaultData?.status &&
+                (Array.isArray(defaultData?.status) ? (
+                  defaultData?.status.map((status, idx) => (
                     <BadgeStatus key={idx} status={status} />
                   ))
                 ) : (
-                  <BadgeStatus status={data.status} />
+                  <BadgeStatus status={defaultData?.status} />
                 ))}
               {isDirty && (
                 <span className="text-sm badge warning">
@@ -628,7 +667,7 @@ const FormPage = memo(
             </div>
             <div className="flex items-center gap-x-2 ">
               {typeof controls === "function" ? controls({ form }) : controls}
-              {printable && defaultData?.status != "draft" && (
+              {printable && !inArray(defaultData?.status, "draft") && (
                 <Deferred
                   data={["prints"]}
                   fallback={
@@ -749,9 +788,13 @@ const FormPage = memo(
                   </ButtonGroup>
                 </Deferred>
               )}
+              <ApproverDecision
+                name={name}
+                approval={defaultData?.approvalable}
+              />
               {!disabled &&
                 (!submitable ||
-                  (submitable && defaultData?.status == "draft")) &&
+                  (submitable && !inArray(defaultData?.status, "draft"))) &&
                 deleteable &&
                 defaultData?.canDelete &&
                 defaultData?.id && (
@@ -771,36 +814,52 @@ const FormPage = memo(
                     {t("core.form.delete")}
                   </Button>
                 )}
-              {defaultData?.status != "canceled" &&
-                ((submitable && !isDirty) || isCreate ? (
+              {!isDirty && !isCreate ? (
+                submitable &&
+                defaultData?.created_by?.id == user?.id &&
+                (!defaultData?.submitted_at ? (
                   <Button
                     type="button"
                     className="p-2! size-fit h-8"
                     disabled={processing}
                     onClick={submit}
-                    variant={
-                      defaultData?.submitted_at ? "destructive" : "primary"
-                    }
+                    variant="primary"
                   >
-                    {t(
-                      "core.form." +
-                        (defaultData?.status == "draft"
-                          ? "submit"
-                          : defaultData?.status == "canceled"
-                            ? "amend"
-                            : "cancel"),
-                    )}
+                    {t("core.form.submit")}
                   </Button>
-                ) : (
+                ) : inArray(defaultData?.status, ["canceled", "rejected"]) ? (
                   <Button
-                    type="submit"
+                    type="button"
                     className="p-2! size-fit h-8"
                     disabled={processing}
+                    onClick={amend}
+                    variant="primary"
                   >
-                    <SaveIcon />
-                    {t("core.form.save")}
+                    {t("core.form.amend")}
                   </Button>
-                ))}
+                ) : (
+                  !inArray(defaultData?.status, "completed") && (
+                    <Button
+                      type="button"
+                      className="p-2! size-fit h-8"
+                      disabled={processing}
+                      onClick={cancel}
+                      variant="destructive"
+                    >
+                      {t("core.form.cancel")}
+                    </Button>
+                  )
+                ))
+              ) : (
+                <Button
+                  type="submit"
+                  className="p-2! size-fit h-8"
+                  disabled={processing}
+                >
+                  <SaveIcon />
+                  {t("core.form.save")}
+                </Button>
+              )}
             </div>
           </div>
           {banner}
@@ -841,7 +900,9 @@ const FormPage = memo(
               defaultMenu={defaultMenu}
               form={form}
               hasConnections={
-                submitable && data?.status && data?.status != "draft"
+                submitable &&
+                defaultData?.status &&
+                !inArray(defaultData?.status, "draft")
               }
             >
               {children}
@@ -886,6 +947,43 @@ const FormPage = memo(
             </AlertDialogContent>
           </AlertDialog>
         )}
+        {defaultData?.submitted_at &&
+          !inArray(defaultData?.status, ["canceled", "complated"]) && (
+            <AlertDialog
+              open={showAlertBeforeCancel}
+              onOpenChange={setShowAlertBeforeCancel}
+            >
+              <AlertDialogContent>
+                <TooltipProvider>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("core.form.confirmation_cancel.title")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("core.form.confirmation_cancel.subtitle")}
+                    </AlertDialogDescription>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel
+                        className="h-8"
+                        onClick={() => setShowAlertBeforeCancel(false)}
+                      >
+                        {t("core.form.confirmation_cancel.cancel")}
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        className="h-8"
+                        onClick={(e) => {
+                          setShowAlertBeforeCancel(false);
+                          onCancel(e);
+                        }}
+                      >
+                        {t("core.form.confirmation_cancel.submit")}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogHeader>
+                </TooltipProvider>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
       </AppLayout>
     );
   }),
@@ -950,6 +1048,129 @@ const Connections = memo(
                 })}
             </div>
           </WhenVisible>
+        </div>
+      </TabsContent>
+    );
+  }),
+);
+
+const ApprovalItem = memo(function ApprovalItem({
+  id,
+  approver,
+  approver_type,
+  acted_by,
+  acted_at,
+  notes,
+  status,
+}) {
+  const route = window.route;
+  const { t } = useLaravelReactI18n();
+  const lang = usePage().props?.lang;
+  const [open, setOpen] = useState(false);
+
+  const hasDetail = !(
+    status == "waiting" ||
+    status == "pending" ||
+    status == "skipped"
+  );
+
+  const alias = acted_by?.name
+    ?.split(" ")
+    ?.slice(0, 2)
+    ?.map((n) => n.charAt(0))
+    ?.join("");
+
+  return (
+    <li key={id} className="mb-3 first:mt-2 ms-6">
+      <div
+        className={cn(
+          // type == "log" ? "bg-inherit" : "bg-muted border-[3px]",
+          "p-2 -mt-1.5 size-[34px] -start-[18px] border-muted flex justify-center items-center absolute rounded-full",
+        )}
+      >
+        <span
+          className={cn(
+            "block rounded-full bg-accent-foreground size-2",
+            !hasDetail && "bg-muted-foreground",
+          )}
+        />
+      </div>
+      <Collapsible open={hasDetail && open} onOpenChange={setOpen}>
+        <CollapsibleTrigger
+          className={cn(
+            "[&[data-state=open]_svg]:rotate-180 text-foreground grid grid-cols-[auto_1fr] gap-x-2 items-center",
+            !hasDetail && "text-muted-foreground",
+            hasDetail && "cursor-pointer",
+          )}
+        >
+          {hasDetail && (
+            <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
+          )}
+          <p className="text-sm font-normal leading-none ">
+            <span className="capitalize">{approver_type + ": "}</span>
+            <span>{convertTemplateLink(approver)}</span>
+            <BadgeStatus className="ml-2" status={status} />
+          </p>
+        </CollapsibleTrigger>
+        {hasDetail && (
+          <CollapsibleContent asChild>
+            <div className="ml-6 w-[calc(100%-calc(var(--spacing,0.25)*6))] text-sm space-y-1.5 mt-1">
+              <p className="truncate">
+                {t("core.approvalScheme.steps.columns.acted_by")} :
+              </p>
+              <p className="truncate flex items-center gap-x-2 w-full">
+                <Avatar className="rounded-full h-max size-10">
+                  {acted_by?.image && (
+                    <AvatarImage
+                      src={
+                        route("files.preview", acted_by?.image) +
+                        `?v=${new Date(acted_by?.updated_at).getTime()}`
+                      }
+                      alt={acted_by?.name}
+                    />
+                  )}
+                  <AvatarFallback className="text-xl font-semibold rounded-lg">
+                    {alias}
+                  </AvatarFallback>
+                </Avatar>
+                <span>{acted_by?.name}</span>
+                <span>●</span>
+                <span>
+                  {format(new TZDate(acted_at, "UTC"), "PPPp", {
+                    locale: getLocaleDate(lang),
+                  })}
+                </span>
+              </p>
+
+              {notes && (
+                <div className="rounded-lg border-muted-foreground/30 mt-2 border">
+                  <p className="truncate border-b border-muted-foreground/30 px-2 pt-2 pb-1 font-semibold">
+                    {t("core.approvalScheme.steps.columns.notes")}
+                  </p>
+                  <p className="p-2 w-full text-wrap wrap-break-word text-justify">
+                    {notes}
+                  </p>
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        )}
+      </Collapsible>
+    </li>
+  );
+});
+
+const Approvals = memo(
+  forwardRef(function Approvals({ approvals }, ref) {
+    return (
+      <TabsContent value="approvals" className="mt-0" ref={ref}>
+        <div className="p-4 mt-0! border-b-0">
+          <ol className="relative ml-3.5 border-muted border-s-2 ">
+            {approvals &&
+              approvals.map(({ id, ...approval }) => (
+                <ApprovalItem {...approval} key={id} />
+              ))}
+          </ol>
         </div>
       </TabsContent>
     );
@@ -1077,10 +1298,10 @@ const FormPageDialog = memo(
       processing,
       errors,
       isDirty,
-      recentlySuccessful,
       reset,
       setDefaults,
       clearErrors,
+      key,
     } = form;
     const disabled = disabledProps ?? processing;
 
@@ -1135,6 +1356,7 @@ const FormPageDialog = memo(
         cancel();
         reset();
         clearErrors();
+        removeFromLocalStorage(key);
       });
       setSaveAsDraft(() => {
         setOpen(false);
@@ -1151,18 +1373,19 @@ const FormPageDialog = memo(
         clearErrors();
       }
     };
-    useDidMountEffect(() => {
-      if (recentlySuccessful) {
-        setOpen(false);
-      }
-    }, [recentlySuccessful]);
     const _onSubmit = (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (disabled) return;
       if (!name) return;
       const pluralized = `${pluralize.plural(name ?? "")}.store`;
-      post(route(pluralized));
+      post(route(pluralized), {
+        preserveState: true,
+        onSuccess: () => {
+          _setData(defaultValue ?? {});
+          setOpen(false);
+        },
+      });
     };
     return (
       <AlertDialog open={open}>
@@ -1283,6 +1506,7 @@ const FormPageLinkModelDialog = memo(
       setDefaults,
       clearErrors,
       loadDraft,
+      key,
     } = useDraftForm(name, defaultValue ?? {}, {
       // onContinueDraft: () => {
       //   onOpenChange?.(true);
@@ -1292,7 +1516,7 @@ const FormPageLinkModelDialog = memo(
     });
     useEffect(() => {
       setDefaults(defaultValue ?? {});
-      reset();
+      _setData(defaultValue ?? {});
     }, [defaultValue]);
     useEffect(() => {
       if (!open) return;
@@ -1344,6 +1568,7 @@ const FormPageLinkModelDialog = memo(
         cancel();
         reset();
         clearErrors();
+        removeFromLocalStorage(key);
       });
       setSaveAsDraft(() => {
         onOpenChange(false);
@@ -1383,6 +1608,7 @@ const FormPageLinkModelDialog = memo(
         replace: true,
         ...filteredOption,
         onSuccess: (e) => {
+          _setData(defaultValue ?? {});
           if (onSuccess) onSuccess(e);
         },
       };

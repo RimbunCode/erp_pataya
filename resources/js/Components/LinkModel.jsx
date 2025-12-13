@@ -66,10 +66,32 @@ function validateWithOperators(value, operators, logic = "and") {
         break;
       case "like":
       case "in":
+        if (Array.isArray(value)) {
+          const rst = false;
+          value.forEach((item) => {
+            if (val.includes(item)) {
+              result = true;
+            }
+            return;
+          });
+          result = rst;
+          break;
+        }
         result = Array.isArray(val) ? val.includes(value) : false;
         break;
       case "notLike":
       case "notIn":
+        if (Array.isArray(value)) {
+          const rst = true;
+          value.forEach((item) => {
+            if (!val.includes(item)) {
+              result = false;
+            }
+            return;
+          });
+          result = rst;
+          break;
+        }
         result = Array.isArray(val) ? !val.includes(value) : true;
         break;
       case "between":
@@ -127,7 +149,10 @@ export const convertTemplateLink = (value, search) => {
   let item = template.replace(/:((\w[\w]+{:[\w]+})|(\w[\w.]+))/g, (match) => {
     match = match.replace(/(.*?){:(.*?)}/i, ":$2");
     const newValue = getValueObject(value, match.substring(1));
-    return newValue || match;
+    if (typeof newValue == "object") {
+      return convertTemplateLink(newValue, search);
+    }
+    return newValue ?? match;
   });
   if (search == null) {
     const titleMatch = item.match(/<title(.*?)>(.*?)<\/title>/i);

@@ -633,7 +633,6 @@ const Table2 = forwardRef(function Table2(
             columns={columns}
             open={openColumnsFilter}
             onApply={(val) => {
-              console.log(val);
               setColumns(val);
               reload?.(val);
               setOpenColumnsFilter(false);

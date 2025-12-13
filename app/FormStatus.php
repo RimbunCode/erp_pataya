@@ -12,6 +12,7 @@ enum FormStatus: string {
   case SKIPPED                         = 'skipped';
   case DELIVERED                       = 'delivered';
   case CLOSED                          = 'closed';
+  case WAITING                         = 'waiting';
   case IN_PROGRESS                     = 'in_progress';
   case DELETED                         = 'deleted';
   case ACTIVE                          = 'active';

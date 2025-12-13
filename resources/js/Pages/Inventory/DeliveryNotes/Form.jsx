@@ -20,7 +20,7 @@ import { usePage } from "@inertiajs/react";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage();
   const loadFrom = usePage().props.loadFrom;
   const mergeItems = useCallback(
     (value, model) => {
@@ -242,17 +242,13 @@ export default function Form() {
           >
             <LinkModel
               model={data.model?.model ?? ""}
+              disabledAddButton
               filters={{
                 date: {
                   "<=": data?.delivery_date ?? new Date().toISOString(),
                 },
                 status: {
-                  in: [
-                    "to_deliver_and_bill",
-                    "to_deliver",
-                    "partially_delivered",
-                    "partially_delivered_and_to_bill",
-                  ],
+                  in: ["to_deliver", "partially_delivered"],
                 },
               }}
               with={[
@@ -355,6 +351,7 @@ export default function Form() {
         value="detail"
         title={t("inventory.deliveryNote.columns.external_note")}
         collapsible
+        defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
           <FormInput>

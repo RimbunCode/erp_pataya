@@ -4,23 +4,52 @@ namespace App\Http\Controllers\Core;
 
 use App\FormStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Core\ApprovalDecisionRequest;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
+use ReflectionMethod;
 
 class ApprovalInstanceController extends Controller {
   public function __construct(Request $request) {
     parent::__construct($request, ApprovalInstance::class);
   }
 
+  public function index(Request $request) {
+    $this->setBreadcrumbs();
+    $user = $request->user();
+    ApprovalInstanceStep::query()
+      ->whereNot('status', 'waiting')
+      ->whereNot('status', 'skipped')
+      ->where(function (Builder $query) use ($user) {
+        $query->where(function (Builder $query) use ($user) {
+          $query->where('approver_type', 'role')
+            ->whereIn('approverable_id', $user->roles->pluck('id'));
+        })
+          ->orWhere(function (Builder $query) use ($user) {
+            $query->where('approver_type', 'user')
+              ->where('approverable_id', $user->id);
+          });
+      })
+      ->dataTable($request);
+
+    return Inertia::render('Core/ApprovalInstanceIndex');
+  }
+
+  public function show(ApprovalInstance $approvalInstance) {
+    $document = $approvalInstance->document;
+
+    return redirect(route("{$document->route}.show", $document->id));
+  }
+
   public function checkApproval(Model $data, array $options = []) {
-    dd($data);
-
     return DB::transaction(function () use ($data, $options) {
-
       $currentRoute     = Route::getCurrentRoute();
       $controller       = $currentRoute->getControllerClass();
       $parameters       = $currentRoute->originalParameters();
@@ -31,36 +60,76 @@ class ApprovalInstanceController extends Controller {
       ]);
 
       if (! $instanceApproval || $instanceApproval->status == FormStatus::APPROVED) {
-        $result = app()->call(\join([$controller, '@', 'onApproved'], [
-          ...$parameters,
-        ]));
+        $result = app()->call(\join([$controller, '@', 'onApproved']), [
+          ...$currentRoute->parameters(),
+        ]);
       } else if ($instanceApproval->status == FormStatus::REJECTED) {
-        $result = app()->call(\join([$controller, '@', 'onRejected'], [
-          ...$parameters,
-        ]));
+        $result = app()->call(\join([$controller, '@', 'onRejected']), [
+          ...$currentRoute->parameters(),
+        ]);
       } else {
         $data->update([
-          'status' => FormStatus::PENDING,
+          'status' => FormStatus::NEED_APPROVAL,
         ]);
       }
 
       $data->logForSubmitted();
 
+      DB::commit();
       return $result ?? null;
     });
-
   }
 
-  public function approve(ApprovalInstanceStep $approvalInstanceStep) {
+  private function callWithRouteModels(string $controller, string $method, array $rawParams) {
+    $ref         = new ReflectionMethod($controller, $method);
+    $finalParams = [];
+
+    foreach ($ref->getParameters() as $param) {
+      $name = $param->getName();
+      $type = $param->getType();
+
+      if ($type && ! $type->isBuiltin()) {
+        $className = $type->getName();
+
+        // Kalau type-nya turunan Model dan ada ID-nya di $rawParams
+        if (is_subclass_of($className, Model::class) && isset($rawParams[$name])) {
+          $finalParams[$name] = $className::findOrFail($rawParams[$name]);
+          continue;
+        }
+      }
+
+      // fallback: pakai value apa adanya
+      if (array_key_exists($name, $rawParams)) {
+        $finalParams[$name] = $rawParams[$name];
+      }
+    }
+
+    return app()->call("$controller@$method", $finalParams);
+  }
+
+  private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
     DB::beginTransaction();
     $approval = $approvalInstanceStep->approvalInstance;
 
     $approvalInstanceStep->update([
-      'status' => FormStatus::APPROVED,
+      'status'      => FormStatus::APPROVED,
+      'acted_at'    => now(),
+      'acted_by_id' => Auth::user()->id,
+      'notes'       => $notes,
     ]);
 
     $isApproved = false;
-    foreach ($approval->steps as $step) {
+
+    $approval->current_sequence += 1;
+
+    foreach ($approval->steps()->get() as $step) {
+      if ($approval->current_sequence == $step->sequence && $step->status == FormStatus::WAITING) {
+        $step->update([
+          'status' => FormStatus::PENDING,
+        ]);
+        $isApproved = false;
+        continue;
+      }
       $isApproved = match ($step->status) {
         FormStatus::PENDING, FormStatus::SKIPPED => false,
         FormStatus::APPROVED                     => true,
@@ -68,32 +137,41 @@ class ApprovalInstanceController extends Controller {
     }
 
     if ($isApproved) {
-      $approval->update([
+      $approval->fill([
         'status' => FormStatus::APPROVED,
       ]);
+      $approval->save();
       DB::commit();
-      return app()->call(\join([$approval->controller, '@', 'onApproved'], [
-        ...$approval->parameters,
-      ]));
+      return $this->callWithRouteModels(
+        (string) ($approval->options['controller'] ?? ""),
+        'onApproved',
+        $approval->options['parameters'] ?? []
+      );
     }
+    $approval->save();
     DB::commit();
     return back();
   }
 
-  public function reject(ApprovalInstanceStep $approvalInstanceStep) {
+  private function reject(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
     DB::beginTransaction();
     $approval = $approvalInstanceStep->approvalInstance;
 
     $approvalInstanceStep->update([
-      'status' => FormStatus::REJECTED,
+      'status'      => FormStatus::REJECTED,
+      'acted_at'    => now(),
+      'acted_by_id' => Auth::user()->id,
+      'notes'       => $notes,
     ]);
 
-    $isRejected = false;
-    foreach ($approval->steps as $step) {
+    $isRejected                  = false;
+    $approval->current_sequence += 1;
+    foreach ($approval->steps()->get() as $step) {
       if ($isRejected) {
         $step->update([
           'status' => FormStatus::SKIPPED,
         ]);
+        $approval->current_sequence += 1;
       }
       if ($step->status == FormStatus::REJECTED) {
         $isRejected = true;
@@ -101,15 +179,27 @@ class ApprovalInstanceController extends Controller {
     }
 
     if ($isRejected) {
-      $approval->update([
+      $approval->fill([
         'status' => FormStatus::REJECTED,
       ]);
+      $approval->save();
       DB::commit();
-      return app()->call(\join([$approval->controller, '@', 'onRejected'], [
-        ...$approval->parameters,
-      ]));
+
+      return $this->callWithRouteModels(
+        (string) ($approval->options['controller'] ?? ""),
+        'onRejected',
+        $approval->options['parameters'] ?? []
+      );
     }
+    $approval->save();
     DB::commit();
     return back();
+  }
+
+  public function decision(ApprovalDecisionRequest $request, ApprovalInstanceStep $approvalInstanceStep) {
+    $data     = $request->validated();
+    $decision = $data['decision'];
+
+    return $this->$decision($approvalInstanceStep, $data['notes'] ?? null);
   }
 }

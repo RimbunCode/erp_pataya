@@ -12,6 +12,7 @@ import {
   shouldIntercept,
 } from "@inertiajs/core";
 
+import { removeFromLocalStorage } from "@/lib/utils";
 import { useAlertDraftForm } from "@/Hooks/useDraftForm";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 
@@ -82,6 +83,7 @@ const Link = forwardRef(
         router.visit(href, visitParams);
         setShowAlert(false);
         setIsDirty(false);
+        removeFromLocalStorage(window.keyForm);
         cancel();
       });
       setSaveAsDraft(() => {

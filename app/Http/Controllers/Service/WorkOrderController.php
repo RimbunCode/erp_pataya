@@ -90,10 +90,18 @@ class WorkOrderController extends Controller {
     return back();
   }
 
-  public function submit(Request $request, WorkOrder $workOrder) {
-    DB::beginTransaction();
-    $wo = $this->service->submit($workOrder);
-    DB::commit();
+  public function submit(WorkOrder $workOrder) {
+    $this->service->submit($workOrder);
+    return back();
+  }
+
+  public function onApproved(WorkOrder $workOrder) {
+    $this->service->onApproved($workOrder);
+    return back();
+  }
+
+  public function onRejected(WorkOrder $workOrder) {
+    $this->service->onRejected($workOrder);
     return back();
   }
 

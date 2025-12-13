@@ -117,16 +117,28 @@ class StockEntryController extends Controller {
   }
 
   public function submit(Request $request, StockEntry $stockEntry) {
-    DB::beginTransaction();
-    $wo = $this->service->submit($stockEntry);
-    DB::commit();
+    $this->service->submit($stockEntry);
+    return back();
+  }
+
+  public function onApproved(StockEntry $stockEntry) {
+    $this->service->onApproved($stockEntry);
+    return back();
+  }
+
+  public function onRejected(StockEntry $stockEntry) {
+    $this->service->onRejected($stockEntry);
     return back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(string $id) {
-    //
+  public function destroy(StockEntry $stockEntry) {
+    DB::beginTransaction();
+    $stockEntry->delete();
+    $stockEntry->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

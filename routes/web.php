@@ -97,6 +97,10 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Roles
   Route::get('/roles/permissions', [\App\Http\Controllers\User\RoleController::class, 'permissions'])->name('roles.permissions');
   Route::resourceDetail('role', \App\Http\Controllers\User\RoleController::class);
+  // Approval Instance
+  Route::get('approvals', [\App\Http\Controllers\Core\ApprovalInstanceController::class, 'index'])->name('approvalInstances.index');
+  Route::get('approvals/{approvalInstance}', [\App\Http\Controllers\Core\ApprovalInstanceController::class, 'show'])->name('approvalInstances.show');
+  Route::post('approvals/{approvalInstanceStep}/decision', [\App\Http\Controllers\Core\ApprovalInstanceController::class, 'decision'])->name('approvalInstances.decision');
 
   /// Inventories Group
   // Warehouse

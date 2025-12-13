@@ -6,8 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\DeliveryNoteRequest;
 use App\Models\Core\Branch;
 use App\Models\Inventory\DeliveryNote;
+use App\Models\Sales\SalesOrder;
+use App\Models\Sales\SalesOrderItem;
+use App\Models\User\Permission;
 use App\Services\Core\FormatingSeriesService;
 use App\Services\Inventory\DeliveryNoteService;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -35,8 +39,52 @@ class DeliveryNoteController extends Controller {
   /**
    * Show the form for creating a new resource.
    */
-  public function create() {
-    //
+  public function create(Request $request, ?string $ref = null) {
+    if ($ref) {
+      $split    = \explode("/", $ref);
+      $modelOri = $split[0] ?? null;
+      if ($modelOri) {
+        switch ($modelOri) {
+          case 'salesOrder': {
+            $so = SalesOrder::find($split[1]);
+            if ($so) {
+              $do = DeliveryNote::where('referenceable_type', SalesOrder::class)
+                ->where('referenceable_id', $so->id)
+                ->where('status', 'draft')
+                ->where('created_by', $request->user()->id)
+                ->first();
+              if ($do) {
+                return redirect()->route('deliveryNotes.show', $do);
+              }
+              $defaultData = [
+                'delivery_date'      => now(),
+                'customer'           => $so->customer,
+                'customer_branch'    => $so->customerBranch,
+                'referenceable_type' => SalesOrder::class,
+                'referenceable_id'   => $so->id,
+                'referenceable'      => $so,
+                'external_note'      => $so->external_note,
+                'model'              => Permission::where('model', SalesOrder::class)->first(),
+                'items'              => $so->items->map(fn ($item) => [
+                  'id'                 => Utils::generateRandom(5),
+                  'item'               => $item->item,
+                  'quantity'           => $item->remaining_quantity,
+                  'unit'               => $item->unit,
+                  'referenceable_type' => SalesOrderItem::class,
+                  'referenceable_id'   => $item->id,
+                ]),
+              ];
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    $this->setBreadcrumbs('sales.deliveryNote.new');
+    return Inertia::render('Inventory/DeliveryNotes/Show', [
+      'defaultData' => $defaultData ?? null,
+    ]);
   }
 
   /**
