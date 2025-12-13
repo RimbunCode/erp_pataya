@@ -166,6 +166,7 @@ const Input = React.forwardRef(function Input(
     className,
     type,
     variant,
+    value,
     onValueChange,
     onChange,
     isFocused = false,
@@ -193,6 +194,7 @@ const Input = React.forwardRef(function Input(
         onValueChange?.(e.target.value);
         onChange?.(e);
       }}
+      value={value}
       {...props}
     />
   );

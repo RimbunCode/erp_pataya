@@ -17,12 +17,18 @@ class FormStatusesCast implements CastsAttributes {
     if ($value == null)
 
       return null;
-    $split = \explode(",", $value);
-    return \array_map(function ($item) {
-      if ($item == null) return null;
+    $decoded = json_decode($value, true);
 
-      return FormStatus::from($item);
-    }, $split);
+    if (! is_array($decoded)) {
+      return [];
+    }
+
+    // Convert string → enum
+    $statuses = array_map(
+      FormStatus::from(...), $decoded,
+    );
+
+    return $statuses;
   }
 
   /**
@@ -33,19 +39,25 @@ class FormStatusesCast implements CastsAttributes {
   public function set(Model $model, string $key, mixed $value, array $attributes): mixed {
     if (! \is_array($value)) {
       if (! $value instanceof FormStatus)
-        throw new InvalidArgumentException("The given value is not an instance of FormStatus");
-      $model->setAttribute($key, [$value]);
-      return $value->value;
+        throw new InvalidArgumentException("The given value is not an FormStatus or FormStatus[]");
+      $val = [$value];
+      $model->setAttribute($key, $val);
+      return json_encode($val);
     }
 
     $statuses = \array_map(function ($item) {
       if ($item == null) return null;
       if (! $item instanceof FormStatus)
-        throw new InvalidArgumentException("The given value is not an instance of FormStatus");
+        throw new InvalidArgumentException("The given value is not an FormStatus or FormStatus[]");
       return $item->value;
     }, $value);
 
-    return \implode(",", \array_filter($statuses, fn ($item) => $item != null));
+    return \json_encode(
+      \array_filter(
+        $statuses,
+        fn ($item) => $item != null
+      ),
+    );
 
   }
 }

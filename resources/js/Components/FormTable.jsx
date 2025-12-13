@@ -218,6 +218,13 @@ const FormTableItem = memo(function FormTableItem({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
+  useDidMountEffect(() => {
+    const debounce = setTimeout(() => {}, 200);
+
+    return () => clearTimeout(debounce);
+  }, [item]);
+
   return (
     <div
       key={item.id}

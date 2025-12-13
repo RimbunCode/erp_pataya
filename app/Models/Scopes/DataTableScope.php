@@ -16,6 +16,7 @@ class DataTableScope implements Scope {
   public function apply(Builder $builder, \Illuminate\Database\Eloquent\Model $model): void {
     //
   }
+
   public function extend(Builder $builder) {
     $this->addDataTable($builder);
   }
@@ -27,21 +28,21 @@ class DataTableScope implements Scope {
   protected function addDataTable(Builder $builder) {
     $builder->macro('dataTable', function (Builder $query, Request $request, array|null $showedColumns = null) {
       $dataTableColumns = \get_class($query->getModel())::getColumns();
-      $configColumns = array_column(\json_decode($_COOKIE['datatable_columns'] ?? "", true) ?? [], null, "name");
+      $configColumns    = array_column(\json_decode($_COOKIE['datatable_columns'] ?? "", true) ?? [], null, "name");
 
-      $isSubmitable =  $query->getModel()->isSubmitable();
-      $nameOfTable = $query->toBase()->from;
+      $isSubmitable = $query->getModel()->isSubmitable();
+      $nameOfTable  = $query->toBase()->from;
       $query->addSelect("$nameOfTable.*");
       $defaultShow = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
-      $show = (int) ($_COOKIE['datatable_show'] ?? $defaultShow);
-      $show = $show <= 0 ? 25 : $show;
+      $show        = (int) ($_COOKIE['datatable_show'] ?? $defaultShow);
+      $show        = $show <= 0 ? 25 : $show;
       // Sort
-      $sort = $request->input('sort', '-created_at');
-      $sortArr = explode("-", $sort);
-      $sortKey = end($sortArr);
-      $sortKey = $this->isTableIncluded($sortKey) ? $sortKey : "$nameOfTable.$sortKey";
+      $sort          = $request->input('sort', '-created_at');
+      $sortArr       = explode("-", $sort);
+      $sortKey       = end($sortArr);
+      $sortKey       = $this->isTableIncluded($sortKey) ? $sortKey : "$nameOfTable.$sortKey";
       $sortDirection = $sortArr[0] === $sortKey ? "asc" : "desc";
-      $query = $query->orderBy($sortKey, $sortDirection);
+      $query         = $query->orderBy($sortKey, $sortDirection);
 
       $relations = [];
       foreach ($dataTableColumns as $column) {
@@ -61,8 +62,9 @@ class DataTableScope implements Scope {
       $query = $query->with($with);
       if ($request->has('id')) {
         $data = $query->find($request->id);
+
         return [
-          'data' => $data,
+          'data'             => $data,
           'dataTableColumns' => $dataTableColumns,
         ];
       }
@@ -73,15 +75,15 @@ class DataTableScope implements Scope {
           foreach ($filter as $key => $payload) {
             $keyQuery = $this->isTableIncluded($payload[0]) ? $payload[0] : "$nameOfTable.$payload[0]";
             $operator = $payload[1];
-            $value = match ($payload[2]) {
-              'true' => true,
+            $value    = match ($payload[2]) {
+              'true'  => true,
               'false' => false,
               default => $payload[2]
             };
             if (in_array($operator, ['in', '!in'])) {
               $values = array_map(function ($val) {
                 return trim($val);
-              },  explode(',', $value));
+              }, explode(',', $value));
               $query->whereIn($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
             } else if (in_array($operator, ['between', '!between'])) {
               if (is_array($value) && count($value) == 2) {
@@ -94,9 +96,9 @@ class DataTableScope implements Scope {
               }
             } else {
               $operator = match ($payload[1]) {
-                'eq' => '=',
-                '!eq' => '!=',
-                'like' => 'like',
+                'eq'    => '=',
+                '!eq'   => '!=',
+                'like'  => 'like',
                 '!like' => 'not like',
                 default => $payload[1]
               };
@@ -107,7 +109,7 @@ class DataTableScope implements Scope {
       }
       if ($isSubmitable) {
         $query->where(function (Builder $query) use ($request) {
-          $query->where('status', '!=', 'draft');
+          $query->whereNotNull('submitted_at');
           $query->orWhere('created_by', $request->user()->id);
         });
       }
@@ -115,14 +117,14 @@ class DataTableScope implements Scope {
       $data = [
         'data' => $query->paginate($show),
       ];
-      if (!Utils::isInertiaRequest($request)) {
+      if (! Utils::isInertiaRequest($request)) {
         return $data;
       }
       Inertia::share([
         ...$data,
-        'defaultSort' => '-created_at',
-        'name' => $query->getModel()->getNameClass(),
-        'translateKey' => $query->getModel()->translateKey ?? null,
+        'defaultSort'      => '-created_at',
+        'name'             => $query->getModel()->getNameClass(),
+        'translateKey'     => $query->getModel()->translateKey ?? null,
         'dataTableColumns' => $dataTableColumns,
       ]);
     });

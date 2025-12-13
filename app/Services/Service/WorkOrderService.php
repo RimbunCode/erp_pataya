@@ -75,10 +75,24 @@ class WorkOrderService {
   }
 
   public function submit(WorkOrder $workOrder) {
+    $workOrder->checkApproval();
+    return $workOrder;
+  }
+
+  public function onApproved(WorkOrder $workOrder) {
     $workOrder->update([
-      'status' => Utils::replaceStatus($workOrder->status, FormStatus::DRAFT, FormStatus::PENDING),
+      'status' => FormStatus::PENDING,
     ]);
 
+    return $workOrder;
+  }
+
+  public function onRejected(WorkOrder $workOrder) {
+    $workOrder->update([
+      'status' => [
+        FormStatus::REJECTED,
+      ],
+    ]);
     return $workOrder;
   }
 

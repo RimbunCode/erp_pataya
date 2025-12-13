@@ -7,11 +7,11 @@ import {
 import BranchForm from "@/Pages/Settings/Branches/Form";
 import { Button } from "@/Components/ui/button";
 import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
 import React from "react";
-import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -56,18 +56,11 @@ export default function Form() {
               onChange={(e) => setData("phone", e.target.value)}
             />
           </FormInput>
-          <FormInput
-            label={t("sales.customer.columns.is_disabled")}
-            required={true}
-          >
-            <Select
-              value={data?.is_disabled ? "0" : "1"}
-              onValueChange={(v) => setData("is_disabled", v === "0")}
-              placeholder={t("sales.customer.columns.is_disabled.placeholder")}
-              optionTrans="sales.customer.columns.is_disabled.options"
-              options={["1", "0"]}
-            />
-          </FormInput>
+          <FormCheckbox
+            label={t("purchase.supplier.columns.is_disabled")}
+            checked={data?.is_disabled}
+            onCheckedChange={(e) => setData("is_disabled", e)}
+          />
         </div>
       </FormPageContent>
       <FormPageContent

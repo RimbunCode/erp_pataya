@@ -10,6 +10,7 @@ import { ChevronsUpDown } from "lucide-react";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
+import { isValidStatus } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ salesOrder, defaultData, flash }) {
@@ -42,7 +43,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
         )
       }
       controls={() => {
-        if (salesOrder?.submitted_at) {
+        if (salesOrder?.submitted_at && isValidStatus(salesOrder?.status)) {
           return (
             <>
               <DropdownMenu>

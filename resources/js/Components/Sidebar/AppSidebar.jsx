@@ -7,6 +7,7 @@ import {
   Receipt,
   Settings2,
   ShoppingBagIcon,
+  StampIcon,
   Users2,
 } from "lucide-react";
 import {
@@ -191,6 +192,12 @@ const navList = [
         urlPattern: "/generalLedgers/*",
       },
     ],
+  },
+  {
+    title: "Approvals",
+    icon: <StampIcon />,
+    url: "/approvals",
+    urlPattern: "/approvals/*",
   },
   {
     title: "Users",

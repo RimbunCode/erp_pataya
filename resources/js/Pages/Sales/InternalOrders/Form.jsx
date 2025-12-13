@@ -1,5 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useEffect, useMemo } from "react";
+
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
@@ -12,7 +13,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage();
   const itemColumns = useMemo(() => {
     return [
       {
@@ -190,6 +191,7 @@ export default function Form() {
         value="detail"
         title={t("sales.internalOrder.columns.external_note")}
         collapsible
+        defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
           <FormInput>

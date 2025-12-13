@@ -105,7 +105,7 @@ class ModelController extends Controller {
             $query->has($key, ">=", 1, $boolean, function (Builder $builder) use ($value) {
               $this->filterToQuery($builder, $value);
             });
-          } else if (is_array($value)) {
+          } else if (\is_array($value)) {
             $query->where(function (Builder $builder) use ($key, $value, $boolean) {
               foreach ($value as $operator => $val) {
                 $this->filterOperator($builder, $key, $operator, $val);

@@ -1,16 +1,15 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
   /**
    * Run the migrations.
    */
-  public function up(): void
-  {
+  public function up(): void {
     Schema::create('sales_invoices', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->timestamp('date');
@@ -32,7 +31,6 @@ return new class extends Migration
       $table->string('base_currency_code')->nullable();
       $table->double('exchange_rate')->nullable();
       $table->text('external_note')->nullable();
-      $table->string('status')->default('draft');
       $table->softDeletes();
       $table->timestamps();
     });
@@ -41,8 +39,7 @@ return new class extends Migration
   /**
    * Reverse the migrations.
    */
-  public function down(): void
-  {
+  public function down(): void {
     Schema::dropIfExists('sales_invoices');
   }
 };

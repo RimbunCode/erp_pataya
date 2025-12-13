@@ -50,7 +50,6 @@ trait Submitable {
 
       if (! \in_array(FormStatus::DRAFT, $model->status)) {
         $model->submitted_at = now();
-        $model->logForSubmitted();
       }
       if (\in_array(FormStatus::CANCELED, $model->status)) {
         $model->canceled_at = now();
@@ -64,7 +63,6 @@ trait Submitable {
           $model->onCancel();
         }
       }
-
     });
   }
 
@@ -86,8 +84,8 @@ trait Submitable {
     return $this->belongsTo(Branch::class);
   }
 
-  protected function approvalable() {
-    $this->morphOne(ApprovalInstance::class, 'approvalable', 'document_type', 'document_id');
+  public function approvalable() {
+    return $this->morphOne(ApprovalInstance::class, 'document', 'document_type', 'document_id');
   }
 
   public function checkApproval(array $options = []) {

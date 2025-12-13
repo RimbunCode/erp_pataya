@@ -19,7 +19,7 @@ import { usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage();
   const loadFrom = usePage().props.loadFrom;
   const { default_currency_id } = usePage().props.preferences;
 
@@ -355,6 +355,7 @@ function Form() {
         value="detail"
         title={t("purchase.purchaseOrder.columns.external_note")}
         collapsible
+        defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
           <FormInput>

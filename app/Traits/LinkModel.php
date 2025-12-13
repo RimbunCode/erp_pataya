@@ -322,6 +322,7 @@ trait LinkModel {
         $newKey = $rel->getRelationName();
         unset($newColumns[$rel->getForeignKeyName()]);
         unset($newColumns[$rel->getMorphType()]);
+        $type = "relation";
       } else if ($rel instanceof BelongsTo) {
         unset($newColumns[$rel->getForeignKeyName()]);
         $type   = "relation";
@@ -329,6 +330,7 @@ trait LinkModel {
         $newKey = Str::snake($key);
       } else if ($rel instanceof HasOne || $rel instanceof MorphOne) {
         $type   = "relation";
+        $route  = $rel->getRelated()->route;
         $newKey = Str::snake($key);
       } else if ($rel instanceof MorphMany) {
         $type   = "relations";

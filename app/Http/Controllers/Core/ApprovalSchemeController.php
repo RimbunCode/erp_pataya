@@ -38,7 +38,7 @@ class ApprovalSchemeController extends Controller {
   private function fillStepRelation(array $step, int $index) {
     $step['approverable_type'] = $step['approver_type'] == 'role' ? Role::class : User::class;
     $step['approverable_id']   = $step['approver']['id'];
-    $step['sequence']          = $index + 1;
+    $step['sequence']          = $index;
     return $step;
   }
 

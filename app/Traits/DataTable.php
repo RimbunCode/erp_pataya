@@ -2,25 +2,20 @@
 
 namespace App\Traits;
 
+use App\FormStatus;
 use App\Models\Core\File;
-use App\Models\Core\Log;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\Log;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\PrintTemplate;
+use App\Models\Core\Status;
 use App\Models\Core\Tag;
-use App\Models\Scopes\DataTableScope;
-use App\Models\Service\WorkOrder;
 use App\Models\User\Permission;
-use App\Models\User\User;
 use App\Services\Core\FormatingSeriesService;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log as FacadesLog;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -224,8 +219,11 @@ trait DataTable {
    * @return $this
    */
   public function loadRelations($relations = []) {
-    $defaultRelations = static::loadRelationsOnShow() ?? [];
-    $relations        = array_merge($defaultRelations, is_string($relations) ? [$relations] : ($relations ?? []));
+    $defaultRelations = [
+      ...static::loadRelationsOnShow() ?? [],
+      ...((static::$is_submitable ?? false) ? ['approvalable'] : []),
+    ];
+    $relations        = array_merge($defaultRelations, \is_string($relations) ? [$relations] : ($relations ?? []));
 
     $toLoad = [];
 
@@ -326,9 +324,10 @@ trait DataTable {
           $table->foreignUlid('branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();
         });
       }
+
       if (! Schema::hasColumn($tableName, 'status')) {
         Schema::table($tableName, function (Blueprint $table) {
-          $table->string('status')->default('draft');
+          $table->json('status')->nullable();
         });
       }
       if (! Schema::hasColumn($tableName, 'created_by')) {

@@ -7,19 +7,31 @@ use App\Casts\Json;
 use App\FormStatus;
 use App\Models\Core\ApprovalScheme;
 use App\Models\Model;
+use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 
 class ApprovalInstance extends Model {
   use HasUlids, SoftDeletes;
-  protected     $guarded      = ['id'];
-  protected     $casts        = [
+  protected     $guarded       = ['id'];
+  protected     $casts         = [
     'status'  => FormStatusCast::class,
     'options' => Json::class,
   ];
-  protected     $with         = ['steps'];
-  public string $translateKey = 'core.approvalScheme';
+  protected     $with          = ['steps', 'document'];
+  public string $translateKey  = 'core.approvalInstance';
+  public        $configColumns = [
+    'document' => [
+      'isLink' => true,
+      'show'   => true,
+      'order'  => 0,
+    ],
+  ];
+
+  public static function templateLink() {
+    return ":document";
+  }
 
   public function approvalScheme() {
     return $this->belongsTo(ApprovalScheme::class);
@@ -31,6 +43,10 @@ class ApprovalInstance extends Model {
 
   public function steps() {
     return $this->hasMany(ApprovalInstanceStep::class, 'approval_instance_id');
+  }
+
+  public function currentStep() {
+    return $this->hasOne(ApprovalInstanceStep::class, 'approval_instance_id')->where('sequence', $this->current_sequence);
   }
 
   public static function makeInstance(Model $data, array $options = []) {
@@ -59,6 +75,7 @@ class ApprovalInstance extends Model {
         'approver_type'     => $step->approver_type,
         'approverable_type' => $step->approverable_type,
         'approverable_id'   => $step->approverable_id,
+        'status'            => $step->sequence > 0 ? FormStatus::WAITING : FormStatus::PENDING,
       ]);
     }
     DB::commit();
