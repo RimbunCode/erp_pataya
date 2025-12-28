@@ -116,7 +116,7 @@ class StockEntryController extends Controller {
     return redirect()->route('stockEntries.show', $stockEntry);
   }
 
-  public function submit(Request $request, StockEntry $stockEntry) {
+  public function submit(StockEntry $stockEntry) {
     $this->service->submit($stockEntry);
     return back();
   }

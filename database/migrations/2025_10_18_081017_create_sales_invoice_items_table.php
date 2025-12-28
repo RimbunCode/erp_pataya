@@ -10,16 +10,16 @@ return new class extends Migration
    * Run the migrations.
    */
   public function up(): void {
-    Schema::create('sales_order_items', function (Blueprint $table) {
+    Schema::create('sales_invoice_items', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->foreignUlid('sales_order_id')->references('id')->on('sales_orders')->cascadeOnDelete();
+      $table->foreignUlid('sales_invoice_id')->references('id')->on('sales_invoices')->cascadeOnDelete();
       $table->foreignUlid('item_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->foreignUlid('unit_id')->references('id')->on('units')->cascadeOnDelete();
       $table->nullableUlidMorphs('referenceable');
       $table->foreignUlid('source_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
       $table->double('quantity')->default(0);
-      $table->double('delivered_quantity')->default(0);
-      $table->double('remaining_quantity')->storedAs('quantity - delivered_quantity');
+      $table->double('price')->default(0);
+      $table->double('price_base_currency')->default(0);
       $table->text('description')->nullable();
       $table->foreignUlid('tax_id')->nullable()->references('id', )->on('taxes')->nullOnDelete();
       $table->double('conversion_factor')->default(1);
@@ -29,14 +29,8 @@ return new class extends Migration
       $table->string('base_currency_code')->nullable();
       $table->foreign('base_currency_code')->references('code')->on('currencies')->nullOnDelete();
       $table->double('exchange_rate')->nullable();
-      $table->double('price')->default(0);
-      $table->double('price_base_currency')->storedAs('IF(exchange_rate IS NULL, price, price * exchange_rate)');
       $table->double('basic_amount')->storedAs('quantity * price');
       $table->double('tax_amount')->storedAs('basic_amount * tax_rate / 100');
-      $table->double('amount')->storedAs('basic_amount + tax_amount');
-      $table->double('basic_amount_base_currency')->storedAs('IF(exchange_rate IS NULL, basic_amount, basic_amount * exchange_rate)');
-      $table->double('tax_amount_base_currency')->storedAs('basic_amount_base_currency * tax_rate / 100');
-      $table->double('amount_base_currency')->storedAs('basic_amount_base_currency + tax_amount_base_currency');
       $table->softDeletes();
       $table->timestamps();
     });
@@ -46,6 +40,6 @@ return new class extends Migration
    * Reverse the migrations.
    */
   public function down(): void {
-    Schema::dropIfExists('sales_order_items');
+    Schema::dropIfExists('sales_invoice_items');
   }
 };

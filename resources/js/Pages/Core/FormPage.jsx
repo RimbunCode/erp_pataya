@@ -33,11 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/Components/ui/hover-card";
+import LinkModel, { convertTemplateLink } from "@/Components/LinkModel";
 import React, {
   Children,
   Fragment,
@@ -58,6 +54,7 @@ import {
   generateRandom,
   getLocaleDate,
   inArray,
+  isCompletedStatus,
   removeFromLocalStorage,
 } from "@/lib/utils";
 import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
@@ -69,15 +66,14 @@ import BadgeStatus from "@/Components/BadgeStatus";
 import { Button } from "@/Components/ui/button";
 import { ButtonGroup } from "@/Components/ui/button-group";
 import Comments from "./Components/Comments";
-import { HoverCardArrow } from "@radix-ui/react-hover-card";
+import FormInput from "@/Components/FormInput";
 import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { RiErrorWarningFill } from "@remixicon/react";
-import { ScrollArea } from "@/Components/ui/scroll-area";
 import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
-import { convertTemplateLink } from "@/Components/LinkModel";
+import { evaluate } from "@marcbachmann/cel-js";
 import { format } from "date-fns";
 import pluralize from "pluralize";
 import { toast } from "sonner";
@@ -265,7 +261,7 @@ const FormChildren = memo(function FormChildren({
   defaultMenu,
   disabled,
   form,
-  hasConnections,
+  // hasConnections,
 }) {
   const tabsListRef = useRef(null);
 
@@ -316,9 +312,7 @@ const FormChildren = memo(function FormChildren({
             top: "var(--tabs-top)",
           }}
           className={cn(
-            menus?.length <= 1 && !hasConnections && !defaultData?.approvalable
-              ? "hidden"
-              : "",
+            menus?.length <= 1 && !defaultData?.approvalable ? "hidden" : "",
             // showHeader ? "top-14" : "top-0",
             "transition-[top] duration-300 ease-in-out sticky z-9 w-full p-0! h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b",
           )}
@@ -337,7 +331,7 @@ const FormChildren = memo(function FormChildren({
             );
           })}
 
-          {hasConnections && (
+          {/* {hasConnections && (
             <TabsTrigger
               value="connections"
               className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
@@ -346,7 +340,7 @@ const FormChildren = memo(function FormChildren({
                 {t("core.form.connections")}
               </span>
             </TabsTrigger>
-          )}
+          )} */}
 
           {defaultData?.approvalable && (
             <TabsTrigger
@@ -375,7 +369,7 @@ const FormChildren = memo(function FormChildren({
           form={form}
         >
           {children}
-          {hasConnections && <Connections />}
+          {/* {hasConnections && <Connections />} */}
           {defaultData?.approvalable && (
             <Approvals approvals={defaultData?.approvalable.steps} />
           )}
@@ -493,7 +487,7 @@ const FormPage = memo(
   forwardRef(function FormPage(
     {
       name,
-      disabled,
+      disabled: _disabled,
       isCreate = false,
       fieldNameTrans,
       title,
@@ -532,6 +526,12 @@ const FormPage = memo(
       key,
     } = form;
     window.keyForm = key;
+    const disabled = useMemo(() => {
+      if (!defaultData?.disabledOn) {
+        return !!_disabled;
+      }
+      return evaluate(defaultData?.disabledOn, defaultData);
+    }, [_disabled, defaultData?.disabledOn]);
     const onSubmit = useCallback(
       (e) => {
         e.preventDefault();
@@ -621,11 +621,10 @@ const FormPage = memo(
     const amend = useCallback(() => {
       put(route(`${pluralize.plural(name ?? "")}.amend`, defaultData.id));
     }, []);
-
     return (
       <AppLayout
         ref={layoutRef}
-        data-disabled={disabled}
+        // data-disabled={disabled}
         className="pt-0! relative group/form"
         onScroll={handleScroll}
       >
@@ -650,6 +649,7 @@ const FormPage = memo(
             <Head title={title} />
             <div className="flex items-center gap-x-2">
               {title && <h1 className="text-xl font-bold">{title}</h1>}
+              {badge}
               {defaultData?.status &&
                 (Array.isArray(defaultData?.status) ? (
                   defaultData?.status.map((status, idx) => (
@@ -663,7 +663,6 @@ const FormPage = memo(
                   {t("core.form.not_saved")}
                 </span>
               )}
-              {badge}
             </div>
             <div className="flex items-center gap-x-2 ">
               {typeof controls === "function" ? controls({ form }) : controls}
@@ -788,13 +787,15 @@ const FormPage = memo(
                   </ButtonGroup>
                 </Deferred>
               )}
-              <ApproverDecision
-                name={name}
-                approval={defaultData?.approvalable}
-              />
+              {defaultData?.approvalable && (
+                <ApproverDecision
+                  name={name}
+                  approval={defaultData?.approvalable}
+                />
+              )}
               {!disabled &&
                 (!submitable ||
-                  (submitable && !inArray(defaultData?.status, "draft"))) &&
+                  (submitable && inArray(defaultData?.status, "draft"))) &&
                 deleteable &&
                 defaultData?.canDelete &&
                 defaultData?.id && (
@@ -838,7 +839,7 @@ const FormPage = memo(
                     {t("core.form.amend")}
                   </Button>
                 ) : (
-                  !inArray(defaultData?.status, "completed") && (
+                  !isCompletedStatus(defaultData?.status) && (
                     <Button
                       type="button"
                       className="p-2! size-fit h-8"
@@ -881,12 +882,23 @@ const FormPage = memo(
           )}
           <div
             className={cn(
-              disabled &&
-                "[&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
+              // disabled &&
+              //   "[&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
               "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
             )}
           >
-            {!isCreate && <SidebarChildren content={sidebarContent} />}
+            {!isCreate && (
+              <SidebarChildren
+                content={sidebarContent}
+                hasConnections={
+                  submitable &&
+                  defaultData?.status &&
+                  !inArray(defaultData?.status, "draft")
+                }
+                submitable={submitable}
+                defaultData={defaultData}
+              />
+            )}
             <FormChildren
               ref={ref}
               disabled={disabled}
@@ -947,7 +959,8 @@ const FormPage = memo(
             </AlertDialogContent>
           </AlertDialog>
         )}
-        {defaultData?.submitted_at &&
+        {submitable &&
+          defaultData?.submitted_at &&
           !inArray(defaultData?.status, ["canceled", "complated"]) && (
             <AlertDialog
               open={showAlertBeforeCancel}
@@ -989,70 +1002,70 @@ const FormPage = memo(
   }),
 );
 
-const Connections = memo(
-  forwardRef(function Connections(_, ref) {
-    const route = window.route;
-    const { t } = useLaravelReactI18n();
-    const { connections } = usePage().props;
-    const LoadingIndicator = useMemo(() => {
-      return (
-        <div className="text-base! font-normal text-foreground flex gap-x-4">
-          <LoadingIcon className="size-4" />
-          <span>{t("core.form.loading")} ...</span>
-        </div>
-      );
-    }, [t]);
-    return (
-      <TabsContent value="connections" className="mt-0" ref={ref}>
-        <div className="p-4 mt-0! border-b-0">
-          <WhenVisible data={["connections"]} fallback={LoadingIndicator}>
-            <div className="columns-sm space-y-4 gap-x-4">
-              {connections &&
-                connections?.map((connection) => {
-                  return (
-                    <HoverCard key={connection.reference_type}>
-                      <HoverCardTrigger asChild>
-                        <Link
-                          className="badge secondary gap-x-2 shadow-md"
-                          href={route(connection.route)}
-                        >
-                          {connection.model}
-                          <span className="rounded-full size-6 flex justify-center items-center bg-foreground/90 text-muted!">
-                            {connection.count}
-                          </span>
-                        </Link>
-                      </HoverCardTrigger>
-                      <HoverCardContent
-                        className="max-w-full sm:max-w-80 w-auto"
-                        side="right"
-                        align="start"
-                      >
-                        <ScrollArea className="max-h-96">
-                          {connection.items?.map((item) => {
-                            return (
-                              <div key={item.id}>
-                                <Link
-                                  href={route(item.route, item.reference_id)}
-                                  className="text-blue-800 dark:text-blue-200 hover:underline"
-                                >
-                                  {item.reference_display}
-                                </Link>
-                              </div>
-                            );
-                          })}
-                        </ScrollArea>
-                        <HoverCardArrow />
-                      </HoverCardContent>
-                    </HoverCard>
-                  );
-                })}
-            </div>
-          </WhenVisible>
-        </div>
-      </TabsContent>
-    );
-  }),
-);
+// const Connections = memo(
+//   forwardRef(function Connections(_, ref) {
+//     const route = window.route;
+//     const { t } = useLaravelReactI18n();
+//     const { connections } = usePage().props;
+//     const LoadingIndicator = useMemo(() => {
+//       return (
+//         <div className="text-base! font-normal text-foreground flex gap-x-4">
+//           <LoadingIcon className="size-4" />
+//           <span>{t("core.form.loading")} ...</span>
+//         </div>
+//       );
+//     }, [t]);
+//     return (
+//       <TabsContent value="connections" className="mt-0" ref={ref}>
+//         <div className="p-4 mt-0! border-b-0">
+//           <WhenVisible data={["connections"]} fallback={LoadingIndicator}>
+//             <div className="columns-sm space-y-4 gap-x-4">
+//               {connections &&
+//                 connections?.map((connection) => {
+//                   return (
+//                     <HoverCard key={connection.reference_type}>
+//                       <HoverCardTrigger asChild>
+//                         <Link
+//                           className="badge secondary gap-x-2 shadow-md"
+//                           href={route(connection.route)}
+//                         >
+//                           {connection.model}
+//                           <span className="rounded-full size-6 flex justify-center items-center bg-foreground/90 text-muted!">
+//                             {connection.count}
+//                           </span>
+//                         </Link>
+//                       </HoverCardTrigger>
+//                       <HoverCardContent
+//                         className="max-w-full sm:max-w-80 w-auto"
+//                         side="right"
+//                         align="start"
+//                       >
+//                         <ScrollArea className="max-h-96">
+//                           {connection.items?.map((item) => {
+//                             return (
+//                               <div key={item.id}>
+//                                 <Link
+//                                   href={route(item.route, item.reference_id)}
+//                                   className="text-blue-800 dark:text-blue-200 hover:underline"
+//                                 >
+//                                   {item.reference_display}
+//                                 </Link>
+//                               </div>
+//                             );
+//                           })}
+//                         </ScrollArea>
+//                         <HoverCardArrow />
+//                       </HoverCardContent>
+//                     </HoverCard>
+//                   );
+//                 })}
+//             </div>
+//           </WhenVisible>
+//         </div>
+//       </TabsContent>
+//     );
+//   }),
+// );
 
 const ApprovalItem = memo(function ApprovalItem({
   id,
@@ -1178,7 +1191,13 @@ const Approvals = memo(
 );
 
 const SidebarChildren = memo(
-  forwardRef(function SidebarChildren({ content, className }, ref) {
+  forwardRef(function SidebarChildren(
+    { content, className, hasConnections, submitable, defaultData },
+    ref,
+  ) {
+    const route = window.route;
+    const { connections } = usePage().props;
+    const { t } = useLaravelReactI18n();
     const defaultSidebarChildren = useMemo(() => {
       return (
         <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
@@ -1191,6 +1210,7 @@ const SidebarChildren = memo(
         </ul>
       );
     }, []);
+
     const sidebarChildren =
       content === false
         ? null
@@ -1204,9 +1224,75 @@ const SidebarChildren = memo(
         ref={ref}
         className={cn(
           className,
-          "flex flex-col z-10 order-2 lg:max-w-64 lg:col-start-2 lg:row-span-2 h-fit  gap-y-4 lg:sticky lg:top-[73px]",
+          "flex flex-col z-10 order-2 lg:max-w-72 lg:col-start-2 lg:row-span-2 h-fit  gap-y-4 lg:sticky lg:top-[73px]",
         )}
       >
+        {submitable && defaultData?.amended_from_id && (
+          <FormInput
+            label={t("core.form.amended_from")}
+            className="pointer-events-auto!"
+          >
+            <LinkModel
+              disabledAddButton
+              readOnly
+              value={defaultData?.amended_from}
+              customNavigation={(value) => {
+                window.open(route(route().current(), value?.id), "_blank");
+              }}
+            />
+          </FormInput>
+        )}
+        {hasConnections && (
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="[&[data-state=open]_svg]:rotate-180 flex items-center gap-x-2">
+              <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
+              {t("core.form.connections")}
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <WhenVisible
+                data={["connections"]}
+                fallback={
+                  <div className="text-base! font-normal text-foreground flex gap-x-4">
+                    <LoadingIcon className="size-4" />
+                    <span>{t("core.form.loading")} ...</span>
+                  </div>
+                }
+              >
+                {connections &&
+                  connections?.map((connection) => {
+                    return (
+                      <Collapsible
+                        key={connection.reference_type}
+                        className="ml-6"
+                      >
+                        <CollapsibleTrigger className="[&[data-state=open]_svg]:rotate-180  flex items-center gap-x-2">
+                          <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
+                          {connection.model}
+                          <span className="rounded-full size-6 flex justify-center items-center bg-foreground/90 text-muted!">
+                            {connection.count}
+                          </span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          {connection.items?.map((item) => {
+                            return (
+                              <div key={item.id} className="ml-6">
+                                <Link
+                                  href={route(item.route, item.reference_id)}
+                                  className="text-blue-800 dark:text-blue-200 hover:underline"
+                                >
+                                  {item.reference_display}
+                                </Link>
+                              </div>
+                            );
+                          })}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  })}
+              </WhenVisible>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
         {sidebarChildren}
       </div>
     );

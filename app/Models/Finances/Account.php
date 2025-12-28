@@ -77,4 +77,8 @@ class Account extends Model {
   public function parent_account() {
     return $this->belongsTo(Account::class, 'parent_id');
   }
+
+  public function generalLedgerEntries() {
+    return $this->hasMany(GeneralLedger::class, 'account_id');
+  }
 }

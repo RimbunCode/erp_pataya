@@ -74,6 +74,13 @@ class AccountSeeder extends Seeder {
                 'account_name'   => 'Bank',
                 'account_number' => '1220',
                 'is_group'       => true,
+                'children'       => [
+                  [
+                    'account_name'   => 'Bank Rupiah',
+                    'account_number' => '1221',
+                    'account_type'   => 'bank',
+                  ],
+                ],
               ],
               [
                 'account_name'   => 'Piutang',
@@ -240,7 +247,6 @@ class AccountSeeder extends Seeder {
               [
                 'account_name'   => 'Retur Penjualan',
                 'account_number' => '4120',
-                'account_type'   => 'income_account',
               ],
             ],
           ],

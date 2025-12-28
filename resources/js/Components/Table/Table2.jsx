@@ -190,7 +190,10 @@ const Cell = memo(
     } else if (type == "relation" && route && !colProps?.disabledNavigation) {
       return (
         <Link
-          href={window.route(route ?? "", value?.[primaryKey] ?? "")}
+          href={window.route(
+            value?.["route"] ? value?.["route"] + ".show" : (route ?? ""),
+            value?.[primaryKey] ?? "",
+          )}
           className="text-blue-800 dark:text-blue-200 hover:underline"
         >
           {valueCell}
@@ -257,7 +260,7 @@ const Table2 = forwardRef(function Table2(
 
   const minCellWidth = 120;
 
-  const [tableHeight, setTableHeight] = useState("auto");
+  // const [tableHeight, setTableHeight] = useState("auto");
   const [activeIndex, setActiveIndex] = useState(null);
   const tableElement = useRef(null);
   const [columns, setColumns] = useState(createHeaders(headers, isDynamicData));
@@ -331,9 +334,9 @@ const Table2 = forwardRef(function Table2(
     }
   }
 
-  useEffect(() => {
-    setTableHeight(tableElement.current.offsetHeight);
-  }, [tableElement]);
+  // useEffect(() => {
+  //   setTableHeight(tableElement.current.offsetHeight);
+  // }, [tableElement]);
 
   const mouseDown = (index) => {
     setActiveIndex(index);
@@ -479,7 +482,7 @@ const Table2 = forwardRef(function Table2(
     });
   };
   return (
-    <div className={cn(className)}>
+    <div className={cn("grid grid-cols-1", className)}>
       <DndContext
         onDragOver={handleDragOver}
         sensors={sensors}
@@ -522,7 +525,9 @@ const Table2 = forwardRef(function Table2(
                       <th className="py-2! px-2! pr-4! items-center">
                         <span>{t("core.datatable.action")}</span>
                         <div
-                          style={{ height: tableHeight }}
+                          style={{
+                            height: tableElement?.current?.offsetHeight,
+                          }}
                           className={cn(
                             !data || data.length === 0 ? "h-[40px]!" : "",
                             `flex opacity-100 justify-center items-center absolute w-4 -right-2 top-0 z-1`,
@@ -551,7 +556,7 @@ const Table2 = forwardRef(function Table2(
                         {...props}
                         onResize={() => mouseDown(i)}
                         onResetSize={() => resetSizeHeader(i)}
-                        tableHeight={tableHeight}
+                        tableHeight={tableElement?.current?.offsetHeight}
                       />
                     ))}
                   </SortableContext>
@@ -618,7 +623,7 @@ const Table2 = forwardRef(function Table2(
 
                     <tr>
                       <td
-                        className="border-b-0! items-center justify-center row-auto h-full"
+                        className="border-b-0! items-center justify-center row-auto h-full z-[2] relative bg-background"
                         style={{
                           gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
                         }}

@@ -22,16 +22,15 @@ class SalesOrderRequest extends FormRequest {
   public function rules(): array {
     $default_currency = Preference::find('default_currency_id')?->value;
 
-    // dd($default_currency, $this->currency['code']);
     return [
       'date'                                  => ['required', 'date'],
-      'start_date'                            => [Rule::requiredIf($this->is_rent ?? false), 'date', 'nullable'],
-      'end_date'                              => [
-          Rule::requiredIf($this->is_rent ?? false),
-          Rule::date()->afterOrEqual($this->start_date ?? now()),
-          'date',
-          'nullable',
-        ],
+      'rental_date.from'                      => [Rule::requiredIf($this->is_rent ?? false), 'date', 'nullable'],
+      'rental_date.to'                        => [
+        Rule::requiredIf($this->is_rent ?? false),
+        Rule::date()->afterOrEqual($this->start_date ?? now()),
+        'date',
+        'nullable',
+      ],
       'is_rent'                               => ['nullable', 'boolean'],
       'customer.id'                           => [Rule::requiredIf(! ($this->is_rent ?? false)), 'exists:customers,id'],
       'customer.*'                            => ['nullable'],

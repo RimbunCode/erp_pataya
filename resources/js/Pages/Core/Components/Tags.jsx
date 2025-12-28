@@ -117,7 +117,7 @@ function Tags() {
 
   return (
     <div ref={ref}>
-      <div className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
+      <div className="flex w-full items-center gap-2 overflow-hidden rounded-md py-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
         <TagsIcon />
         <span className="flex-1">{t("core.form.tags")}</span>
         <Button

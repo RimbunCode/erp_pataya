@@ -211,6 +211,7 @@ const FormTableItem = memo(function FormTableItem({
   disabled,
   className,
   defaultValueRow,
+  forceCanDelete,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id });
@@ -302,7 +303,7 @@ const FormTableItem = memo(function FormTableItem({
         >
           <PencilIcon className="size-3" />
         </Button>
-        {!(readOnly || disabled) && (
+        {(!(readOnly || disabled) || forceCanDelete) && (
           <Button
             type="button"
             variant="ghost"
@@ -415,6 +416,7 @@ export default memo(
       form,
       submitable = false,
       mapItem,
+      forceCanDelete = false,
     },
     ref,
   ) {
@@ -913,6 +915,7 @@ export default memo(
                         className={
                           index == _data.length - 1 ? "rounded-b-md" : ""
                         }
+                        forceCanDelete={!disabled && forceCanDelete}
                       />
                     );
                   })}
@@ -1090,11 +1093,12 @@ export default memo(
                       {(Object.keys(_data[currentIndex] ?? {}).length >
                         Object.keys(defaultValueRow ?? {}).length + 1 ||
                         currentIndex < _data.length - 1) &&
-                        !(
+                        (!(
                           readOnly ||
                           disabled ||
                           _data[currentIndex]?.readOnly
-                        ) && (
+                        ) ||
+                          (!disabled && forceCanDelete)) && (
                           <Button
                             type="button"
                             variant="destructive"

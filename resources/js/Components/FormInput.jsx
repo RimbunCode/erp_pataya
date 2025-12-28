@@ -39,6 +39,7 @@ function FormInput({
   const errors = errorsProps ?? form?.errors ?? {};
   const _required = required || child.props?.required;
   const _name = name || child.props?.name;
+
   return (
     <div
       className={cn("grid grid-cols-1 gap-y-2", className)}
@@ -48,15 +49,21 @@ function FormInput({
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>
       {typeof child == "function"
-        ? child({ id, required: _required, readOnly: form?.disabled, ...props })
-        : React.Children.map(children, (child) =>
-            cloneElement(child, {
+        ? child({
+            id,
+            required: _required,
+            readOnly: props.readOnly || form?.disabled,
+            ...props,
+          })
+        : React.Children.map(children, (child) => {
+            return cloneElement(child, {
               id,
-              required: _required && (child.props?.required ?? true),
-              readOnly: child.props?.readOnly || form?.disabled,
               ...props,
-            }),
-          )}
+              required: _required && (child.props?.required ?? true),
+              readOnly:
+                child.props?.readOnly || props.readOnly || form?.disabled,
+            });
+          })}
       {description &&
         (typeof description == "string" ? (
           <p className="text-sm font-normal text-muted-foreground">

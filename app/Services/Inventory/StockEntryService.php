@@ -18,19 +18,6 @@ class StockEntryService {
   private function fillRelations(array $data) {
     $data['difference_account_id'] = $data['difference_account']['id'];
 
-    // if (!($data['for_internal'] ?? false)) {
-    //   $data['customer_id'] = $data['customer']['id'];
-    //   $data['customer_name'] = $data['customer']['name'];
-    // }
-    // $data['customer_branch_id'] = $data['customer_branch']['id'];
-    // $data['customer_branch_name'] = $data['customer_branch']['name'];
-    // $data['address'] = [];
-    // $data['item_service_id'] = $data['item_service']['id'];
-    // $data['item_service_name'] = $data['item_service']['sku'];
-    // if (isset($data['branch'])) {
-    //   $data['branch_id'] = $data['branch']['id'];
-    // }
-
     return $data;
   }
 
@@ -267,34 +254,60 @@ class StockEntryService {
         ]);
 
         // update queue fifo in source warehouse
+
+        $loanQuantity    = $stock->loan_quantity ?? 0;
         $quantityRequest = $qtyNeeded;
-        $queue           = $stockSource->stock_queue;
-        $picked          = [];
-        $remainingQueue  = [];
+
+        $queue          = $stockSource->stock_queue;
+        $remainingQueue = [];
+        $picked         = [];
+        $amountPicked   = 0;
+
+        $offset = $loanQuantity;
         foreach ($queue as $q) {
-          if ($quantityRequest <= 0) {
-            $remainingQueue[] = $q;
+          // belum sampai batch target
+          if ($offset >= $q['quantity']) {
+            $offset -= $q['quantity'];
+
+            // batch tetap ada
+            if ($q['quantity'] > 0) {
+              $remainingQueue[] = $q;
+            }
             continue;
           }
-          if ($q['quantity'] > $quantityRequest) {
-            $picked[] = [
-              ...$q,
-              'quantity' => $quantityRequest,
-            ];
-            // sisa batch dikembalikan ke antrean
-            $q['quantity']    -= $quantityRequest;
-            $remainingQueue[]  = $q;
 
-            $quantityRequest = 0;
-          } else {
-            $quantityRequest -= $q['quantity'];
-            $picked[]         = $q;
+          // batch target
+          if ($offset >= 0) {
+            // ambil dari batch ini
+            $picked[] = [
+              'quantity' => $quantityRequest,
+              'rate'     => $q['rate'],
+            ];
+
+            $amountPicked += $quantityRequest * $q['rate'];
+
+            // kurangi qty
+            $q['quantity'] -= $quantityRequest;
+
+            // hanya masukkan jika masih ada sisa
+            if ($q['quantity'] > 0) {
+              $remainingQueue[] = $q;
+            }
+
+            // setelah batch target, sisanya copy apa adanya
+            $offset = -1;
+            continue;
+          }
+
+          // batch setelah target
+          if ($q['quantity'] > 0) {
+            $remainingQueue[] = $q;
           }
         }
 
         $stockSource->update([
-          'actual_quantity' => $stockSource->actual_quantity - $qtyNeeded,
-          'stock_queue'     => $remainingQueue,
+          'quantity'    => $stockSource->quantity - $qtyNeeded,
+          'stock_queue' => $remainingQueue,
         ]);
 
         StockLedgerEntry::create([
@@ -354,8 +367,8 @@ class StockEntryService {
         }
 
         $stockTarget->update([
-          'actual_quantity' => $stockTarget->actual_quantity + $qtyNeeded,
-          'stock_queue'     => $queue,
+          'quantity'    => $stockTarget->quantity + $qtyNeeded,
+          'stock_queue' => $queue,
         ]);
         StockLedgerEntry::create([
           'item_id'               => $item->item_id,
@@ -469,6 +482,7 @@ class StockEntryService {
       }
     }
 
+    DB::commit();
     return $stockEntry;
   }
 

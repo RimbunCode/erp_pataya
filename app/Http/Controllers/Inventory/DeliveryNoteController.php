@@ -56,10 +56,12 @@ class DeliveryNoteController extends Controller {
               if ($do) {
                 return redirect()->route('deliveryNotes.show', $do);
               }
+              $so->loadRelations();
+
               $defaultData = [
                 'delivery_date'      => now(),
                 'customer'           => $so->customer,
-                'customer_branch'    => $so->customerBranch,
+                'customer_branch'    => $so->customer_branch,
                 'referenceable_type' => SalesOrder::class,
                 'referenceable_id'   => $so->id,
                 'referenceable'      => $so,
@@ -68,6 +70,7 @@ class DeliveryNoteController extends Controller {
                 'items'              => $so->items->map(fn ($item) => [
                   'id'                 => Utils::generateRandom(5),
                   'item'               => $item->item,
+                  'source_warehouse'   => $item->sourceWarehouse,
                   'quantity'           => $item->remaining_quantity,
                   'unit'               => $item->unit,
                   'referenceable_type' => SalesOrderItem::class,
@@ -81,7 +84,7 @@ class DeliveryNoteController extends Controller {
       }
     }
 
-    $this->setBreadcrumbs('sales.deliveryNote.new');
+    $this->setBreadcrumbs('inventory.deliveryNote.new');
     return Inertia::render('Inventory/DeliveryNotes/Show', [
       'defaultData' => $defaultData ?? null,
     ]);
@@ -144,7 +147,7 @@ class DeliveryNoteController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
 
-    $so = $this->service->update($deliveryNote, $data);
+    $this->service->update($deliveryNote, $data);
 
     DB::commit();
     return redirect()->back();
@@ -153,12 +156,33 @@ class DeliveryNoteController extends Controller {
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(string $id) {
-    //
+  public function destroy(DeliveryNote $deliveryNote) {
+    DB::beginTransaction();
+
+    $deliveryNote->delete();
+    $deliveryNote->logForDeleted();
+
+    DB::commit();
+    return redirect()->back();
   }
 
   public function submit(DeliveryNote $deliveryNote) {
     $this->service->submit($deliveryNote);
+    return redirect()->back();
+  }
+
+  public function onApproved(DeliveryNote $deliveryNote) {
+    $this->service->onApproved($deliveryNote);
+    return redirect()->back();
+  }
+
+  public function onRejected(DeliveryNote $deliveryNote) {
+    $this->service->onRejected($deliveryNote);
+    return redirect()->back();
+  }
+
+  public function cancel(DeliveryNote $deliveryNote) {
+    $this->service->cancel($deliveryNote);
     return redirect()->back();
   }
 }

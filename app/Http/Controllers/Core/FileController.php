@@ -20,7 +20,7 @@ class FileController extends Controller {
         $files->where('mime_type', 'folder')
           ->orWhereAny(['name', 'extension'], 'like', "%{$request->search}%");
       } else {
-        $files->where('folder_id', $request->folder ?? null);
+        $files->where('parent_id', $request->folder ?? null);
       }
       $files->where(function ($query) use ($request) {
         $query->where('user_id', $request->user()->id)

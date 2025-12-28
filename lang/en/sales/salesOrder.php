@@ -16,6 +16,7 @@ return [
   'exchange_rate'        => 'Exchange Rate',
   'currency'             => 'Currency',
   'currency.placeholder' => 'Select a Currency',
+  'rental'               => 'Rental',
   'actions'              => [
     'create_sales_invoice' => 'Create Sales Invoice',
     'create_delivery_note' => 'Create Delivery Note',

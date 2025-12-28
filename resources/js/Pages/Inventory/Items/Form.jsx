@@ -234,9 +234,6 @@ export default memo(function Form() {
           value="variants"
           collapsible
         >
-          <FormPageContentTitle>
-            {t("inventory.item.menu.variants")}
-          </FormPageContentTitle>
           <WhenVisible
             data={["variants"]}
             fallback={() => (

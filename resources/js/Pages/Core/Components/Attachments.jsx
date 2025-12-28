@@ -31,7 +31,7 @@ export default memo(function Attachments() {
   }, []);
   return (
     <>
-      <div className="flex w-full items-center gap-2 rounded-md p-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
+      <div className="flex w-full items-center gap-2 rounded-md py-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
         <Paperclip />
         <span className="flex-1">{t("core.form.attachments")}</span>
 

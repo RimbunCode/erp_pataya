@@ -39,6 +39,9 @@ trait LinkModel {
       'deleted_at'        => [
         'titleTrans' => 'core.form.deleted_at',
       ],
+      'canceled_at'       => [
+        'titleTrans' => 'core.form.canceled_at',
+      ],
       'submitted_at'      => [
         'titleTrans' => 'core.form.submitted_at',
       ],
@@ -71,6 +74,15 @@ trait LinkModel {
       'templateLink'      => [
         'ignore' => true,
       ],
+      'additional_data'   => [
+        'ignore' => true,
+      ],
+      'amendedFrom'       => [
+        'titleTrans' => 'core.form.amended_from',
+      ],
+      'revision_number'   => [
+        'ignore' => true,
+      ],
     ]);
   }
 
@@ -94,6 +106,7 @@ trait LinkModel {
       $this->appends,
       ['route', 'canDelete'],
       \method_exists(static::class, "templateLink") ? ['templateLink'] : [],
+      \method_exists(static::class, "disabledOn") ? ['disabledOn'] : [],
     ));
 
     return parent::getArrayableAppends();
@@ -110,6 +123,12 @@ trait LinkModel {
     if (! \method_exists(static::class, "templateLink"))
       return "";
     return static::templateLink();
+  }
+
+  protected function getDisabledOnAttribute(): string {
+    if (! \method_exists(static::class, "disabledOn"))
+      return "";
+    return static::disabledOn();
   }
 
   protected function getRouteAttribute() {

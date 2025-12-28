@@ -13,33 +13,36 @@ use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SalesOrderItem extends Model
-{
-  use  HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
+class SalesOrderItem extends Model {
+  use HasUlids, SoftDeletes;
+  protected $guarded = [
+    'id',
+    'remaining_quantity',
+    'basic_amount',
+    'tax_amount',
+  ];
 
-  public function salesOrder()
-  {
+  public static function templateLink() {
+    return ":item";
+  }
+
+  public function salesOrder() {
     return $this->belongsTo(SalesOrder::class);
   }
 
-  public function unit()
-  {
+  public function unit() {
     return $this->belongsTo(Unit::class);
   }
 
-  public function tax()
-  {
+  public function tax() {
     return $this->belongsTo(Tax::class);
   }
 
-  public function sourceWarehouse()
-  {
+  public function sourceWarehouse() {
     return $this->belongsTo(Warehouse::class, 'source_warehouse_id');
   }
 
-  public function item()
-  {
+  public function item() {
     return $this->belongsTo(ItemVariant::class, 'item_id');
   }
 }

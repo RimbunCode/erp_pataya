@@ -48,6 +48,12 @@ class ModelController extends Controller {
       case 'notIn':
         $query->whereNotIn($key, $value, $boolean);
         break;
+      case 'jsonContains':
+        $query->whereJsonContains($key, $value, $boolean);
+        break;
+      case 'jsonDoesntContains':
+        $query->whereJsonDoesntContain($key, $value, $boolean);
+        break;
       case 'like':
         $query->$function($key, 'like', "%{$value}%", $boolean);
         break;

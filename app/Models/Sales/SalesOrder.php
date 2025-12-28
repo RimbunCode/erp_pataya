@@ -8,6 +8,8 @@ use App\Traits\Submitable;
 use App\Models\Core\Branch;
 use App\Models\Core\Currency;
 use App\Models\Finances\PaymentSchedule;
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 
@@ -15,8 +17,13 @@ class SalesOrder extends Model {
   use DataTable, Submitable, HasUlids, SoftDeletes;
   protected               $guarded           = ['id'];
   protected               $casts             = [
-    "date"    => "datetime",
-    "is_rent" => "boolean",
+    "date"       => "datetime",
+    "is_rent"    => "boolean",
+    'start_date' => 'datetime',
+    'end_date'   => 'datetime',
+  ];
+  protected               $appends           = [
+    'rental_date',
   ];
   protected static string $defaultFormatCode = '@[branch_code]/SO-@[iiii]/@[yy]';
 
@@ -25,6 +32,19 @@ class SalesOrder extends Model {
       'branch_code:branch.code',
       'branch_name:branch.name',
     ];
+  }
+
+  public function rentalDate(): Attribute {
+    return Attribute::make(
+      get: fn () => [
+        'from' => $this->start_date,
+        'to'   => $this->end_date,
+      ],
+      set: fn ($value) => [
+        'start_date' => Carbon::parse($value['from'])->utc(),
+        'end_date'   => Carbon::parse($value['to'])->utc(),
+      ]
+    );
   }
   public $keyBreadcrumb = "code";
 

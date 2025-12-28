@@ -163,6 +163,9 @@ class SalesOrderController extends Controller {
    */
   public function destroy(SalesOrder $salesOrder) {
     DB::beginTransaction();
+    if ($salesOrder->amended_from_id) {
+      $salesOrder->amendedFrom->decrement('revision_number');
+    }
     $salesOrder->delete();
     $salesOrder->logForDeleted();
     DB::commit();

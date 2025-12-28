@@ -4,6 +4,7 @@ namespace App\Services\Finances;
 
 use App\FormStatus;
 use App\Models\Core\Preference;
+use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
@@ -32,6 +33,22 @@ class SalesInvoiceService {
     return $data;
   }
 
+  private function fillItemRelations(array $data, SalesInvoice $salesInvoice) {
+    $data['item_id']             = $data['item']['id'];
+    $data['unit_id']             = $data['unit']['id'];
+    $data['conversion_factor']   = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
+    $data['tax_id']              = $data['tax']['id'];
+    $data['tax_rate']            = $data['tax']['rate'];
+    $data['currency_code']       = $salesInvoice->currency_code;
+    $data['base_currency_code']  = $salesInvoice->base_currency_code;
+    $data['exchange_rate']       = $salesInvoice->exchange_rate;
+    $data['source_warehouse_id'] = $data['source_warehouse']['id'];
+    $data['price']               = $data['price'] ?? 0;
+    $data['price_base_currency'] = 0;
+
+    return $data;
+  }
+
   private function fillPaymentScheduleRelations(array $data, SalesInvoice $salesInvoice) {
     $data['for_internal']       = false;
     $data['currency_code']      = $salesInvoice->currency_code;
@@ -49,7 +66,10 @@ class SalesInvoiceService {
 
   public function create(array $data) {
     $salesInvoice = SalesInvoice::create($this->fillRelations($data));
-
+    foreach ($data['items'] as $item) {
+      $item = $this->fillItemRelations($item, $salesInvoice);
+      $salesInvoice->items()->create($item);
+    }
     foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesInvoice);
       $salesInvoice->paymentSchedules()->create($payment_schedule);
@@ -64,8 +84,19 @@ class SalesInvoiceService {
     $salesInvoice->items()
       ->whereNotIn('id', array_column($data['items'], 'id'))
       ->delete();
+    foreach ($data['items'] as $item) {
+      $item = $this->fillItemRelations($item, $salesInvoice);
 
-    // dd($data);
+      if (Ulid::isValid($item['id'])) {
+        $salesInvoice->items()
+          ->find($item['id'])
+          ->update($item);
+        continue;
+      }
+
+      $salesInvoice->items()->create($item);
+    }
+
     $salesInvoice->paymentSchedules()
       ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
       ->delete();
@@ -82,41 +113,18 @@ class SalesInvoiceService {
   }
 
   public function submit(SalesInvoice $salesInvoice) {
+    $salesInvoice->checkApproval();
+    return $salesInvoice;
+  }
+
+  public function onApproved(SalesInvoice $salesInvoice) {
     DB::beginTransaction();
 
     $salesInvoice->update([
-      'status' => FormStatus::TO_DELIVER_AND_BILL,
+      'status' => FormStatus::UNPAID,
     ]);
 
-    $items      = $salesInvoice->items()->get();
-    $errorItems = [];
-    foreach ($items as $item) {
-      $stock = Stock::where('item_variant_id', $item->item_id)
-        ->where('warehouse_id', $item->source_warehouse_id)
-        ->lockForUpdate()
-        ->first();
-
-      if (! $stock) {
-        $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
-        continue;
-      }
-
-      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-      if ($stock->ready_quantity < $quantity) {
-        $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
-        continue;
-      }
-
-      $stock->update([
-        'reserved_quantity' => $stock->reserved_quantity + $quantity,
-      ]);
-    }
-
-    if (count($errorItems) > 0) {
-      DB::rollBack();
-      Session::flash('errorItems', $errorItems);
-      return $salesInvoice;
-    }
+    $items = $salesInvoice->items()->get();
 
     if ($salesInvoice->paymentSchedules()->count() === 0) {
       $salesInvoice->paymentSchedules()->create([
@@ -133,8 +141,47 @@ class SalesInvoiceService {
       ]);
     }
 
+    $creditAccount = Account::lockForUpdate()
+      ->where('root_type', 'asset')
+      ->where('account_type', 'stock')
+      ->latest()->first();
+    $debitAccount  = Account::lockForUpdate()
+      ->where('root_type', 'income')
+      ->where('account_type', 'income_account')
+      ->latest()->first();
+
+    $creditAccount->generalLedgerEntries()->create([
+      'against_account_id' => $debitAccount->id,
+      'credit'             => $amountPicked,
+      'debit'              => 0,
+      'referenceable_type' => SalesInvoice::class,
+      'referenceable_id'   => $salesInvoice->id,
+    ]);
+
+    $debitAccount->generalLedgerEntries()->create([
+      'against_account_id' => $creditAccount->id,
+      'credit'             => 0,
+      'debit'              => $amountPicked,
+      'referenceable_type' => SalesInvoice::class,
+      'referenceable_id'   => $salesInvoice->id,
+    ]);
+
     DB::commit();
 
+    return $salesInvoice;
+  }
+
+  public function onRejected(SalesInvoice $salesInvoice) {
+    $salesInvoice->update([
+      'status' => FormStatus::REJECTED,
+    ]);
+    return $salesInvoice;
+  }
+
+  public function cancel(SalesInvoice $salesInvoice) {
+    $salesInvoice->update([
+      'status' => FormStatus::CANCELED,
+    ]);
     return $salesInvoice;
   }
 }

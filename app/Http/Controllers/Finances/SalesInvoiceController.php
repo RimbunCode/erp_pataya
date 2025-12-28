@@ -13,33 +13,30 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class SalesInvoiceController extends Controller
-{
+class SalesInvoiceController extends Controller {
   private FormatingSeriesService $referenceCodeService;
-  private SalesInvoiceService $service;
+  private SalesInvoiceService    $service;
 
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, SalesInvoiceService $service)
-  {
+  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, SalesInvoiceService $service) {
     $this->referenceCodeService = $preferenceCodeService;
-    $this->service = $service;
+    $this->service              = $service;
     parent::__construct($request, SalesInvoice::class);
   }
 
   /**
    * Display a listing of the resource.
    */
-  public function index(Request $request)
-  {
+  public function index(Request $request) {
     $this->setBreadcrumbs();
     SalesInvoice::dataTable($request);
+
     return Inertia::render('Finances/SalesInvoice/Index');
   }
 
   /**
    * Show the form for creating a new resource.
    */
-  public function create(Request $request, string $ref = null)
-  {
+  public function create(Request $request, string $ref = null) {
     $salesOrder = Salesorder::with(
       "items",
       "customer",
@@ -56,27 +53,27 @@ class SalesInvoiceController extends Controller
       ->find($ref);
     $this->setBreadcrumbs('finances.salesInvoice.new');
     return Inertia::render('Finances/SalesInvoice/Show', [
-      'date' => now(),
-      'sales_order' => $salesOrder,
-      'customer' => $salesOrder?->customer,
-      'customer_branch' => $salesOrder?->customer_branch,
-      'currency' => $salesOrder?->currency,
-      'items' => $salesOrder?->items,
-      'paymentSchedules' => $salesOrder?->paymentSchedules,
-      'amount' => $salesOrder?->amount,
-      'discount_on' => $salesOrder?->discount_on,
-      'discount_rate' => $salesOrder?->discount_rate,
-      'discount_amount' => $salesOrder?->discount_amount,
-      'exchange_rate' => $salesOrder?->exchange_rate,
-      'external_note' => $salesOrder?->external_note,
+      'defaultData' => [
+        'date'             => now(),
+        'sales_order'      => $salesOrder,
+        'customer'         => $salesOrder?->customer,
+        'customer_branch'  => $salesOrder?->customer_branch,
+        'currency'         => $salesOrder?->currency,
+        'items'            => $salesOrder?->items,
+        'paymentSchedules' => $salesOrder?->paymentSchedules,
+        'amount'           => $salesOrder?->amount,
+        'discount_on'      => $salesOrder?->discount_on,
+        'discount_rate'    => $salesOrder?->discount_rate,
+        'discount_amount'  => $salesOrder?->discount_amount,
+        'exchange_rate'    => $salesOrder?->exchange_rate,
+        'external_note'    => $salesOrder?->external_note,],
     ]);
   }
 
   /**
    * Store a newly created resource in storage.
    */
-  public function store(SalesInvoiceRequest $request)
-  {
+  public function store(SalesInvoiceRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
 
@@ -84,8 +81,8 @@ class SalesInvoiceController extends Controller
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code = $this->referenceCodeService->get(SalesInvoice::class, $data);
-    $data['code'] = $code;
+    $code               = $this->referenceCodeService->get(SalesInvoice::class, $data);
+    $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 
     // create SO
@@ -99,8 +96,7 @@ class SalesInvoiceController extends Controller
   /**
    * Display the specified resource.
    */
-  public function show(SalesInvoice $salesInvoice)
-  {
+  public function show(SalesInvoice $salesInvoice) {
     $this->setBreadcrumbs($salesInvoice);
     $salesInvoice->showDetail();
 
@@ -115,12 +111,11 @@ class SalesInvoiceController extends Controller
   /**
    * Update the specified resource in storage.
    */
-  public function update(SalesInvoiceRequest $request, SalesInvoice $salesInvoice)
-  {
+  public function update(SalesInvoiceRequest $request, SalesInvoice $salesInvoice) {
     $data = $request->validated();
     DB::beginTransaction();
 
-    $so = $this->service->update($salesInvoice, $data);
+    $this->service->update($salesInvoice, $data);
 
     DB::commit();
     return redirect()->back();
@@ -129,8 +124,7 @@ class SalesInvoiceController extends Controller
   /**
    * Submit Sales Order.
    */
-  public function submit(Request $request, SalesInvoice $salesInvoice)
-  {
+  public function submit(SalesInvoice $salesInvoice) {
     $salesInvoice = $this->service->submit($salesInvoice);
     return redirect()->back();
   }
@@ -138,8 +132,7 @@ class SalesInvoiceController extends Controller
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(SalesInvoice $salesInvoice)
-  {
+  public function destroy(SalesInvoice $salesInvoice) {
     DB::beginTransaction();
     $salesInvoice->delete();
     $salesInvoice->logForDeleted();
