@@ -195,13 +195,6 @@ export default memo(function Form() {
                 });
               }}
               {...attributes}
-              filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
-              }}
               with={["defaultUnit", "item"]}
             />
           );
@@ -856,6 +849,7 @@ export default memo(function Form() {
             <CurrencyInput
               className="text-right"
               value={data.discount_rate}
+              decimalScale={2}
               onValueChange={(val) => setDiscount("discount_rate", val)}
               suffix="%"
             ></CurrencyInput>
@@ -868,7 +862,6 @@ export default memo(function Form() {
           >
             <CurrencyInput
               className="text-right "
-              decimalScale={2}
               value={data.discount_amount}
               onValueChange={(val) => setDiscount("discount_amount", val)}
               currencyCode={data?.currency?.code ?? "default"}

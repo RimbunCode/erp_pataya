@@ -20,7 +20,7 @@ import { usePage } from "@inertiajs/react";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage();
+  const { data, setData, defaultData } = useFormPage();
   const loadFrom = usePage().props.loadFrom;
   const mergeItems = useCallback(
     (value, model) => {
@@ -163,9 +163,7 @@ export default function Form() {
             <CurrencyInput
               {...attributes}
               disabled={!dataRow?.item}
-              readOnly={
-                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
-              }
+              readOnly={false}
               value={data}
               onValueChange={(value) => {
                 setData("quantity", value);
@@ -186,6 +184,7 @@ export default function Form() {
               value={data}
               onValueChange={(val) => setData("unit", val)}
               {...attributes}
+              readOnly={false}
               filters={{
                 group: dataRow?.item?.default_unit?.group,
               }}
@@ -215,22 +214,19 @@ export default function Form() {
                 setData("delivery_date", val);
               }}
             />
-          </FormInput>{" "}
+          </FormInput>
           <FormInput
             label={t("inventory.deliveryNote.columns.reference_to")}
             className="col-start-1"
+            required
             name="reference_to"
           >
             <PermissionLinkModel
               filters={{
                 model: { in: ["App\\Models\\Sales\\SalesOrder"] },
               }}
-              placeholder={t(
-                "inventory.deliveryNote.columns.reference_to.placeholder",
-              )}
               value={data.model}
               onValueChange={(val) => {
-                console.log(val);
                 setData("model", val);
               }}
             />
@@ -238,6 +234,7 @@ export default function Form() {
           <FormInput
             label={data.model?.name ?? "-"}
             name="referenceable"
+            required
             disabled={!data.model}
           >
             <LinkModel
@@ -248,7 +245,7 @@ export default function Form() {
                   "<=": data?.delivery_date ?? new Date().toISOString(),
                 },
                 status: {
-                  in: ["to_deliver", "partially_delivered"],
+                  jsonContains: ["to_deliver", "partially_delivered"],
                 },
               }}
               with={[
@@ -273,10 +270,7 @@ export default function Form() {
                       return {
                         ...item,
                         id: generateRandom(8),
-                        referenceable_type:
-                          data.model?.model == "App\\Models\\Sales\\SalesOrder"
-                            ? "App\\Models\\Sales\\SalesOrderItem"
-                            : "",
+                        referenceable_type: data.model?.model + "Item",
                         referenceable_id: item.id,
                         quantity: item.remaining_quantity,
                       };
@@ -327,10 +321,49 @@ export default function Form() {
       </FormPageContent>
       <FormPageContent value="detail" title={t("inventory.deliveryNote.items")}>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput
+            label={t("inventory.deliveryNote.columns.insert_item")}
+            disabled={!data.model}
+          >
+            <LinkModel
+              model={(data.model?.model ?? "") + "Item"}
+              disabledAddButton
+              with={["item", "sourceWarehouse", "unit"]}
+              filters={{
+                sales_order_id: data?.referenceable?.id,
+                remaining_quantity: {
+                  ">": 0,
+                },
+                id: {
+                  notIn: data?.items?.map((x) => x.referenceable_id),
+                },
+              }}
+              value={null}
+              onValueChange={(item) => {
+                if (!item) return;
+                setData((prev) => {
+                  return {
+                    ...prev,
+                    items: [
+                      ...prev.items,
+                      {
+                        ...item,
+                        id: generateRandom(8),
+                        referenceable_type: data.model?.model + "Item",
+                        referenceable_id: item.id,
+                        quantity: item.remaining_quantity,
+                      },
+                    ],
+                  };
+                });
+              }}
+            />
+          </FormInput>
           <FormTable
             name="items"
             className="col-start-1 col-span-2"
-            readOnly={disabled}
+            readOnly={true}
+            forceCanDelete
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}

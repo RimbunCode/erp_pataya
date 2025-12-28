@@ -18,8 +18,11 @@ use App\Models\User\User;
 use App\Utils;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -245,20 +248,15 @@ abstract class Controller {
   }
 
   public function amend(string $id) {
-    $data = $this->model::find($id);
+    $data = $this->model::findOrFail($id);
     if (! $data) return back();
-    DB::beginTransaction();
-    $codeFlat = Str::replaceEnd("-{$data->revision_number}", "", $data->code);
-    $data->update([
-      'revision_number' => $data->revision_number + 1,
-      'code'            => "{$codeFlat}-{$data->revision_number}",
-      'submitted_at'    => null,
-      'cancelled_at'    => null,
-      'status'          => FormStatus::DRAFT,
-    ]);
 
-    $data->logForAmend();
-    DB::commit();
-    return redirect()->back();
+    $test = new \App\Models\Sales\SalesOrder();
+
+    $newData = $data->amend();
+
+    $currentRoute = Route::getCurrentRoute();
+    $route        = Str::before($currentRoute->getAction()['as'], '.') . ".show";
+    return redirect()->route($route, $newData->id);
   }
 }

@@ -83,6 +83,10 @@ class SalesInvoice extends Model {
     return $this->belongsTo(SalesOrder::class, 'sales_order_id');
   }
 
+  public function items() {
+    return $this->hasMany(SalesInvoiceItem::class);
+  }
+
   public function customer() {
     return $this->belongsTo(Customer::class);
   }

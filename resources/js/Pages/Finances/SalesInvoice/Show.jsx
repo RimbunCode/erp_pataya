@@ -2,44 +2,14 @@ import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({
-  salesInvoice,
-  flash,
-  date,
-  sales_order,
-  customer,
-  customer_branch,
-  currency,
-  items,
-  paymentSchedules,
-  amount,
-  discount_on,
-  discount_rate,
-  discount_amount,
-  exchange_rate,
-  external_note,
-}) {
+export default function Show({ salesInvoice, flash, defaultData }) {
   const { t } = useLaravelReactI18n();
 
   return (
     <FormPage
-      defaultValues={{
-        sales_order,
-        date,
-        customer,
-        customer_branch,
-        currency,
-        items,
-        paymentSchedules,
-        amount,
-        discount_on,
-        discount_rate,
-        discount_amount,
-        exchange_rate,
-        external_note,
-      }}
+      defaultValues={defaultData}
       isCreate={!salesInvoice}
-      ignoreDraft={sales_order}
+      ignoreDraft={defaultData}
       name="salesInvoice"
       title={salesInvoice ? salesInvoice.code : t("finances.salesInvoice.new")}
       disabled={salesInvoice?.submitted_at}

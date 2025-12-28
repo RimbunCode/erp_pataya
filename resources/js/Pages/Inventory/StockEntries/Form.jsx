@@ -170,11 +170,7 @@ export default function Form() {
               }}
               {...attributes}
               filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
+                is_stock_item: true,
               }}
               with={["defaultUnit", "item"]}
             />
@@ -470,6 +466,32 @@ export default function Form() {
           )}
         </div>
       </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("inventory.stockEntry.accounting")}
+      >
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 grid-cols-1">
+          <FormInput
+            required
+            label={t("inventory.stockEntry.columns.difference_account")}
+          >
+            <AccountLinkModel
+              value={data.difference_account}
+              onValueChange={(val) => setData("difference_account", val)}
+              filters={{
+                is_group: false,
+                root_type: {
+                  in: ["liability", "equity", "expense"],
+                },
+              }}
+              defaultValue={{
+                root_type: "expense",
+                account_type: "stock_adjustment",
+              }}
+            />
+          </FormInput>
+        </div>
+      </FormPageContent>
       <FormPageContent title={t("inventory.stockEntry.items")} value="detail">
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 ">
           {(data.type == "item_transfer" ||
@@ -613,32 +635,6 @@ export default function Form() {
               currencyCode="default"
               decimalScale={2}
               value={totalAdditionalCost}
-            />
-          </FormInput>
-        </div>
-      </FormPageContent>
-      <FormPageContent
-        value="accounting"
-        title={t("inventory.stockEntry.accounting")}
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 grid-cols-1">
-          <FormInput
-            required
-            label={t("inventory.stockEntry.columns.difference_account")}
-          >
-            <AccountLinkModel
-              value={data.difference_account}
-              onValueChange={(val) => setData("difference_account", val)}
-              filters={{
-                is_group: false,
-                root_type: {
-                  in: ["liability", "equity", "expense"],
-                },
-              }}
-              defaultValue={{
-                root_type: "expense",
-                account_type: "stock_adjustment",
-              }}
             />
           </FormInput>
         </div>

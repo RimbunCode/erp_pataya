@@ -48,8 +48,6 @@ class SalesOrderService {
     $data['base_currency_code']  = $salesOrder->base_currency_code;
     $data['exchange_rate']       = $salesOrder->exchange_rate;
     $data['source_warehouse_id'] = $data['source_warehouse']['id'];
-    $data['price']               = $data['price'] ?? 0;
-    $data['price_base_currency'] = 0;
 
     return $data;
   }
@@ -101,6 +99,7 @@ class SalesOrderService {
 
       $salesOrder->items()->create($item);
     }
+
     // dd($data);
     $salesOrder->paymentSchedules()
       ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
@@ -128,11 +127,18 @@ class SalesOrderService {
         'reference_type' => SalesOrder::class,
         'reference_id'   => $salesOrder->id,
       ]);
+      $additionalData          = $salesOrder->referenceable->additional_data ?? [];
+      $additionalData['order'] = true;
+      $salesOrder->referenceable->update(['additional_data' => $additionalData]);
+
       SalesOrder::where('referenceable_type', $salesOrder->referenceable_type)
         ->where('referenceable_id', $salesOrder->referenceable_id)
         ->where('status', 'draft')
         ->whereNot('created_by', Auth::user()->id)
-        ->update(['status' => 'canceled']);
+        ->update([
+          'status'      => 'canceled',
+          'canceled_at' => now(),
+        ]);
     }
     $items      = $salesOrder->items()
       ->get();
@@ -179,6 +185,11 @@ class SalesOrderService {
   }
 
   private function rolllbackItems(SalesOrder $salesOrder) {
+    if ($salesOrder->referenceable_type && $salesOrder->referenceable_id) {
+      $additionalData          = $salesOrder->referenceable->additional_data ?? [];
+      $additionalData['order'] = false;
+      $salesOrder->referenceable->update(['additional_data' => $additionalData]);
+    }
     $items = $salesOrder->items()
       ->get();
     foreach ($items as $item) {
@@ -196,30 +207,30 @@ class SalesOrderService {
   }
 
   public function onRejected(SalesOrder $salesOrder) {
-    return DB::transaction(function () use ($salesOrder) {
-      $salesOrder->update([
-        'status' => [
-          FormStatus::REJECTED,
-        ],
-      ]);
+    DB::beginTransaction();
+    $salesOrder->update([
+      'status' => [
+        FormStatus::REJECTED,
+      ],
+    ]);
 
-      $this->rolllbackItems($salesOrder);
+    $this->rolllbackItems($salesOrder);
 
-      return $salesOrder;
-    });
+    DB::commit();
+    return $salesOrder;
   }
 
   public function cancel(SalesOrder $salesOrder) {
-    return DB::transaction(function () use ($salesOrder) {
-      $salesOrder->update([
-        'status' => [
-          FormStatus::CANCELED,
-        ],
-      ]);
+    DB::beginTransaction();
+    $salesOrder->update([
+      'status' => [
+        FormStatus::CANCELED,
+      ],
+    ]);
 
-      $this->rolllbackItems($salesOrder);
+    $this->rolllbackItems($salesOrder);
 
-      return $salesOrder;
-    });
+    DB::commit();
+    return $salesOrder;
   }
 }

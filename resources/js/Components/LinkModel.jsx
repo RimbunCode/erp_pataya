@@ -34,77 +34,113 @@ import { useRef } from "react";
 
 function validateWithOperators(value, operators, logic = "and") {
   let result = false;
-  for (let key in operators) {
-    const val = operators[key];
-    key = key.match(/^([^\[\]]+)/)?.[1] ?? key;
-    switch (key) {
+  for (let keyOperator in operators) {
+    const valOperator = operators[keyOperator];
+    keyOperator = keyOperator.match(/^([^\[\]]+)/)?.[1] ?? keyOperator;
+    switch (keyOperator) {
       case "and":
       case "or": {
         result =
-          Array.isArray(val) && key == "or"
-            ? val.includes(value)
-            : validateWithOperators(value, val, key);
+          Array.isArray(valOperator) && keyOperator == "or"
+            ? valOperator.includes(value)
+            : validateWithOperators(value, valOperator, keyOperator);
         break;
       }
       case "not":
-        result = value != val;
+        result = value != valOperator;
         break;
       case "=":
-        result = value == val;
+        result = value == valOperator;
         break;
       case ">":
-        result = value > val;
+        result = value > valOperator;
         break;
       case ">=":
-        result = value >= val;
+        result = value >= valOperator;
         break;
       case "<":
-        result = value < val;
+        result = value < valOperator;
         break;
       case "<=":
-        result = value <= val;
+        result = value <= valOperator;
+        break;
+      case "jsonContains":
+        if (Array.isArray(value)) {
+          let rst = false;
+          value.forEach((item) => {
+            if (valOperator.includes(item)) {
+              rst = true;
+            }
+            return;
+          });
+          result = rst;
+        }
+        break;
+      case "jsonDoesntContains":
+        if (Array.isArray(value)) {
+          let rst = true;
+          value.forEach((item) => {
+            if (!valOperator.includes(item)) {
+              rst = false;
+            }
+            return;
+          });
+          result = rst;
+        }
         break;
       case "like":
+        result = valOperator.includes(value);
+        break;
+      case "notlike":
+        result = !valOperator.includes(value);
+        break;
       case "in":
         if (Array.isArray(value)) {
-          const rst = false;
+          let rst = false;
           value.forEach((item) => {
-            if (val.includes(item)) {
-              result = true;
+            if (valOperator.includes(item)) {
+              rst = true;
             }
             return;
           });
           result = rst;
           break;
         }
-        result = Array.isArray(val) ? val.includes(value) : false;
+        result = Array.isArray(valOperator)
+          ? valOperator.includes(value)
+          : false;
         break;
-      case "notLike":
       case "notIn":
         if (Array.isArray(value)) {
-          const rst = true;
+          let rst = true;
           value.forEach((item) => {
-            if (!val.includes(item)) {
-              result = false;
+            if (!valOperator.includes(item)) {
+              rst = false;
             }
             return;
           });
           result = rst;
           break;
         }
-        result = Array.isArray(val) ? !val.includes(value) : true;
+        result = Array.isArray(valOperator)
+          ? !valOperator.includes(value)
+          : true;
         break;
       case "between":
-        result = value >= val[0] && value <= val[1];
+        result = value >= valOperator[0] && value <= valOperator[1];
         break;
       case "notBetween":
-        result = value < val[0] || value > val[1];
+        result = value < valOperator[0] || value > valOperator[1];
         break;
       default: {
-        result =
-          (value?.[key] ?? false)
-            ? validateWithOperators(value[key], val)
-            : true;
+        const keys = keyOperator.split(/\.|->/);
+        let val = value;
+
+        for (let key of keys) {
+          if (!val) break;
+          val = val[key];
+        }
+        result = val ? validateWithOperators(val, valOperator) : true;
 
         break;
       }
@@ -119,22 +155,31 @@ function validate(value, filters, logic = "and") {
     return true;
   }
 
-  for (let key in filters) {
-    const val = filters[key];
-    key = key.match(/^([^\[\]]+)/)?.[1] ?? key;
+  for (let keyFilter in filters) {
+    const valFilter = filters[keyFilter];
+    keyFilter = keyFilter.match(/^([^\[\]]+)/)?.[1] ?? keyFilter;
+
+    const keys = keyFilter.split(/\.|->/);
+    let val = value;
+
+    for (let key of keys) {
+      if (!val) break;
+      val = val[key];
+    }
+
     let result = false;
-    if (/^raw\((.+)\)$/.test(key)) {
+    if (/^raw\((.+)\)$/.test(keyFilter)) {
       result = true;
-    } else if (key === "and" || key === "or") {
-      result = validate(value, val, key);
-    } else if (val === undefined) {
+    } else if (keyFilter === "and" || keyFilter === "or") {
+      result = validate(value, valFilter, keyFilter);
+    } else if (valFilter === undefined) {
       result = true;
-    } else if (Array.isArray(val)) {
-      result = JSON.stringify(value[key]) === JSON.stringify(val);
-    } else if (typeof val !== "object" || val === null) {
-      result = value[key] == val;
+    } else if (Array.isArray(valFilter)) {
+      result = JSON.stringify(val) === JSON.stringify(valFilter);
+    } else if (typeof valFilter !== "object" || valFilter === null) {
+      result = val == valFilter;
     } else {
-      result = validateWithOperators(value[key], val);
+      result = validateWithOperators(val, valFilter);
     }
     if (logic === "and" && !result) return false;
     if (logic === "or" && result) return true;
@@ -229,6 +274,7 @@ export default memo(
       onKeyDown,
       with: _with,
       order,
+      customNavigation,
     },
     ref,
   ) {
@@ -247,11 +293,11 @@ export default memo(
         return { name: camelize(name), keyRoute };
       }
       return {
-        name: camelize(model.split("\\").pop()),
+        name: camelize((model ?? "").split("\\").pop()),
         keyRoute: "id",
       };
     }, [as, model]);
-    // const name = (as || model.split("\\").pop()).toLowerCase();
+
     const route = window.route;
     const commandRef = useDetectClickOutside({
       onTriggered: () => {
@@ -508,6 +554,12 @@ export default memo(
                             )}
                             onClick={() => {
                               if (!name || !option || !search) return;
+                              if (
+                                customNavigation &&
+                                typeof customNavigation === "function"
+                              ) {
+                                customNavigation(value);
+                              }
                               const pluralized = `${pluralize.plural(name ?? "")}.show`;
                               window.open(
                                 route(pluralized, option[keyRoute ?? "id"]),

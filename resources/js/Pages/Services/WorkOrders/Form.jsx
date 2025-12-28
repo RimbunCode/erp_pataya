@@ -40,11 +40,7 @@ export default function Form() {
               }}
               {...attributes}
               filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
+                is_stock_item: true,
               }}
               with={["defaultUnit", "item"]}
             />

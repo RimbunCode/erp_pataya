@@ -4,10 +4,13 @@ namespace App\Services\Inventory;
 
 use App\FormStatus;
 use App\Models\Core\ModelConnection;
+use App\Models\Finances\Account;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Utils;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Symfony\Component\Uid\Ulid;
@@ -77,18 +80,47 @@ class DeliveryNoteService {
   // submit function for delivery note
   public function submit(DeliveryNote $deliveryNote) {
     DB::beginTransaction();
+
+    ModelConnection::create([
+      'model_type'     => $deliveryNote->referenceable_type,
+      'model_id'       => $deliveryNote->referenceable_id,
+      'reference_type' => DeliveryNote::class,
+      'reference_id'   => $deliveryNote->id,
+    ]);
+    DeliveryNote::where('referenceable_type', $deliveryNote->referenceable_type)
+      ->where('referenceable_id', $deliveryNote->referenceable_id)
+      ->where('status', 'draft')
+      ->whereNot('created_by', Auth::user()->id)
+      ->update([
+        'status'      => 'canceled',
+        'canceled_at' => now(),
+      ]);
+    DB::commit();
+    $deliveryNote->checkApproval();
+
+    return $deliveryNote;
+  }
+
+  public function onApproved(DeliveryNote $deliveryNote) {
+    DB::beginTransaction();
     $deliveryNote->update([
       'status' => FormStatus::DELIVERED,
     ]);
 
-    $items      = $deliveryNote->items()
+    $toReference  = $deliveryNote->referenceable;
+    $items        = $deliveryNote->items()
+      ->with(['item', 'item.item', 'item.item.category'])
       ->get();
-    $errorItems = [];
+    $errorItems   = [];
+    $amountPicked = 0;
     foreach ($items as $item) {
       // update delivered quantity dari Sales Order Item
       $item->referenceable->update([
         'delivered_quantity' => $item->referenceable->delivered_quantity + $item->quantity
       ]);
+      if (! $item->item->is_stock_item) {
+        continue;
+      }
 
       // update stock
       $stock = Stock::where('item_variant_id', $item->item_id)
@@ -104,35 +136,82 @@ class DeliveryNoteService {
         $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->actual_quantity} but you need {$quantity}";
         continue;
       }
+      if ($toReference->is_rent && $item->item->item->category->type == 'vehicle') {
+        $stock->update([
+          'loan_quantity' => $quantity,
+        ]);
+        StockLedgerEntry::create([
+          'item_id'               => $item->item_id,
+          'warehouse_id'          => $item->source_warehouse_id,
+          'unit_id'               => $stock->unit_id,
+          'conversion_factor'     => $stock->conversion_factor,
+          'quantity_change'       => -$quantity,
+          'quantity_after_change' => $stock->actual_quantity,
+          'valuation_rate'        => $stock->valuation_rate,
+          'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'change_in_stock_value' => 0,
+          'stock_queue'           => $stock->stock_queue,
+          'referenceable_type'    => DeliveryNote::class,
+          'referenceable_id'      => $deliveryNote->id,
+        ]);
+        continue;
+      }
+
+      $loanQuantity    = $stock->loan_quantity ?? 0;
       $quantityRequest = $quantity;
-      $queue           = $stock->stock_queue;
-      $picked          = [];
-      $remainingQueue  = [];
+
+      $queue          = $stock->stock_queue;
+      $remainingQueue = [];
+      $picked         = [];
+      $amountPicked   = 0;
+
+      $offset = $loanQuantity;
+
       foreach ($queue as $q) {
-        if ($quantityRequest <= 0) {
-          $remainingQueue[] = $q;
+        // belum sampai batch target
+        if ($offset >= $q['quantity']) {
+          $offset -= $q['quantity'];
+
+          // batch tetap ada
+          if ($q['quantity'] > 0) {
+            $remainingQueue[] = $q;
+          }
           continue;
         }
-        if ($q['quantity'] > $quantityRequest) {
-          $picked[] = [
-            ...$q,
-            'quantity' => $quantityRequest,
-          ];
-          // sisa batch dikembalikan ke antrean
-          $q['quantity']    -= $quantityRequest;
-          $remainingQueue[]  = $q;
 
-          $quantityRequest = 0;
-        } else {
-          $quantityRequest -= $q['quantity'];
-          $picked[]         = $q;
+        // batch target
+        if ($offset >= 0) {
+          // ambil dari batch ini
+          $picked[] = [
+            'quantity' => $quantityRequest,
+            'rate'     => $q['rate'],
+          ];
+
+          $amountPicked += $quantityRequest * $q['rate'];
+
+          // kurangi qty
+          $q['quantity'] -= $quantityRequest;
+
+          // hanya masukkan jika masih ada sisa
+          if ($q['quantity'] > 0) {
+            $remainingQueue[] = $q;
+          }
+
+          // setelah batch target, sisanya copy apa adanya
+          $offset = -1;
+          continue;
+        }
+
+        // batch setelah target
+        if ($q['quantity'] > 0) {
+          $remainingQueue[] = $q;
         }
       }
+
       $stock->update([
-        'actual_quantity'   => $stock->actual_quantity - $quantity,
+        'quantity'          => $stock->quantity - $quantity,
         'reserved_quantity' => $stock->reserved_quantity - $quantity,
         'stock_queue'       => $remainingQueue,
-
       ]);
       StockLedgerEntry::create([
         'item_id'               => $item->item_id,
@@ -150,42 +229,68 @@ class DeliveryNoteService {
       ]);
     }
 
-    $toReference    = $deliveryNote->referenceable;
     $referenceItems = $toReference->items()->where('remaining_quantity', '>', 0)->get();
     if ($referenceItems->count() > 0) {
-      $status = match ($toReference->status) {
-        FormStatus::TO_DELIVER_AND_BILL, FormStatus::PARTIALLY_DELIVERED_AND_TO_BILL => FormStatus::PARTIALLY_DELIVERED_AND_TO_BILL,
-        FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED                      => FormStatus::PARTIALLY_DELIVERED,
-        default                                                                      => FormStatus::PARTIALLY_DELIVERED,
-      };
+      $status = Utils::replaceStatus(
+        $toReference->status,
+        FormStatus::TO_DELIVER,
+        FormStatus::PARTIALLY_DELIVERED,
+      );
       $toReference->update([
         'status' => $status,
       ]);
 
     } else {
-      $status = match ($toReference->status) {
-        FormStatus::TO_DELIVER_AND_BILL, FormStatus::PARTIALLY_DELIVERED_AND_TO_BILL => FormStatus::TO_BILL,
-        FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED                      => FormStatus::COMPLETED,
-        default                                                                      => FormStatus::COMPLETED,
-      };
+      $status = Utils::replaceStatus(
+        $toReference->status,
+        [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED],
+        FormStatus::DELIVERED,
+      );
       $toReference->update([
         'status' => $status,
       ]);
     }
-    ModelConnection::create([
-      'model_type'     => $deliveryNote->referenceable_type,
-      'model_id'       => $deliveryNote->referenceable_id,
-      'reference_type' => DeliveryNote::class,
-      'reference_id'   => $deliveryNote->id,
+
+    $creditAccount = Account::lockForUpdate()
+      ->where('root_type', 'asset')
+      ->where('account_type', 'stock')
+      ->latest()->first();
+    $debitAccount  = Account::lockForUpdate()
+      ->where('root_type', 'income')
+      ->where('account_type', 'cost_of_goods_sold')
+      ->latest()->first();
+
+    $creditAccount->generalLedgerEntries()->create([
+      'against_account_id' => $debitAccount->id,
+      'credit'             => $amountPicked,
+      'debit'              => 0,
+      'referenceable_type' => DeliveryNote::class,
+      'referenceable_id'   => $deliveryNote->id,
     ]);
-    if (count($errorItems) > 0) {
-      DB::rollBack();
-      Session::flash('errorItems', $errorItems);
-      return $deliveryNote;
-    }
+
+    $debitAccount->generalLedgerEntries()->create([
+      'against_account_id' => $creditAccount->id,
+      'credit'             => 0,
+      'debit'              => $amountPicked,
+      'referenceable_type' => DeliveryNote::class,
+      'referenceable_id'   => $deliveryNote->id,
+    ]);
 
     DB::commit();
+    return $deliveryNote;
+  }
 
+  public function onRejected(DeliveryNote $deliveryNote) {
+    $deliveryNote->update([
+      'status' => FormStatus::REJECTED,
+    ]);
+    return $deliveryNote;
+  }
+
+  public function cancel(DeliveryNote $deliveryNote) {
+    $deliveryNote->update([
+      'status' => FormStatus::CANCELED,
+    ]);
     return $deliveryNote;
   }
 }

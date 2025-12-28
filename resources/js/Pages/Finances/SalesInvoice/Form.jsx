@@ -3,7 +3,7 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
@@ -396,11 +396,7 @@ export default function Form() {
       },
     ];
   }, [data]);
-  useEffect(() => {
-    if (!data.date) {
-      setData("date", new Date().toISOString());
-    }
-  }, []);
+
   return (
     <>
       <FormPageContent value="detail" title={t("finances.salesInvoice.detail")}>

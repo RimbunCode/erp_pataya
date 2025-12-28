@@ -31,6 +31,28 @@ trait DataTable {
     ]);
   }
 
+  public static function bootDataTable() {
+    self::saved(function ($model) {
+      if (! $model->deleted_at) {
+        return;
+      }
+      ModelConnection::where(function ($query) use ($model) {
+        $query->where(function ($query) use ($model) {
+          $query->where('model_type', \get_class($model));
+          $query->where('model_id', $model->id);
+        });
+        $query->orWhere(function ($query) use ($model) {
+
+          $query->where('reference_type', \get_class($model));
+          $query->where('reference_id', $model->id);
+        });
+      })
+        ->update([
+          'deleted_at' => now(),
+        ]);
+    });
+  }
+
   public function fillForUpdate(array $attributes, bool $fillOnly = false) {
     $this->recordLogs();
     if ($fillOnly) {
@@ -221,7 +243,7 @@ trait DataTable {
   public function loadRelations($relations = []) {
     $defaultRelations = [
       ...static::loadRelationsOnShow() ?? [],
-      ...((static::$is_submitable ?? false) ? ['approvalable'] : []),
+      ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
     ];
     $relations        = array_merge($defaultRelations, \is_string($relations) ? [$relations] : ($relations ?? []));
 
@@ -350,6 +372,16 @@ trait DataTable {
           $table->unsignedTinyInteger('revision_number')->default(0);
         });
       }
+      if (! Schema::hasColumn($tableName, 'amended_from_id')) {
+        Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+          $table->foreignUlid('amended_from_id')->nullable()->references('id')->on($tableName)->nullOnDelete();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'additional_data')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->json('additional_data')->nullable();
+        });
+      }
 
       if (Schema::hasColumn($tableName, 'have_transactions')) {
         Schema::table($tableName, function (Blueprint $table) {
@@ -408,6 +440,17 @@ trait DataTable {
         });
       }
 
+      if (Schema::hasColumn($tableName, 'amended_from_id')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('amended_from_id');
+        });
+      }
+      if (Schema::hasColumn($tableName, 'additional_data')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('additional_data');
+        });
+      }
+
       if (! Schema::hasColumn($tableName, 'have_transactions')) {
         Schema::table($tableName, function (Blueprint $table) {
           $table->boolean('have_transactions')->default(false);
@@ -415,7 +458,6 @@ trait DataTable {
       }
     }
     if (static::$is_tree_view ?? false) {
-
       if (! Schema::hasColumn($tableName, 'parent_id')) {
         Schema::table($tableName, function (Blueprint $table) use ($tableName) {
           $table->foreignUlid('parent_id')->nullable()->references('id')->on($tableName)->nullOnDelete();
@@ -481,6 +523,7 @@ trait DataTable {
             ->mapWithKeys(function ($connections) {
               $reference_type = $connections[0]["reference_type"];
               $model          = new $reference_type;
+              $connections    = $connections->unique('reference_id');
               return [[
                 'reference_type' => $reference_type,
                 'model'          => Str::title(Str::replace("_", " ", Str::snake($model->getNameClass()))),

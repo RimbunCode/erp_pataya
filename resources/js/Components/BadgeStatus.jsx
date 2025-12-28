@@ -3,7 +3,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 const theme = {
   draft: "secondary",
   submitted: "primary",
-  cancelled: "error",
+  canceled: "error",
   approved: "success",
   rejected: "error",
   pending: "warning",
@@ -15,6 +15,11 @@ const theme = {
   in_progress: "primary",
   need_approval: "warning",
   waiting: "secondary",
+  delivered: "success",
+  billed: "success",
+  overdue: "error",
+  to_bill: "warning",
+  to_deliver: "warning",
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();

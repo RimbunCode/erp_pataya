@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default forwardRef(function AccountLinkModel(
-  { value, onValueChange, placeholder, filters, defaultValueForm, ...props },
+  { value, onValueChange, placeholder, filters, ...props },
   ref,
 ) {
   const { t } = useLaravelReactI18n();
@@ -18,9 +18,6 @@ export default forwardRef(function AccountLinkModel(
       filters={{
         is_disabled: false,
         ...filters,
-      }}
-      defaultValueForm={{
-        ...defaultValueForm,
       }}
       titleDialog={t("finances.account.new")}
       classNameDialog="max-w-(--breakpoint-lg)!"

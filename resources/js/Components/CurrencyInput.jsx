@@ -1,7 +1,7 @@
 import CurrencyInputOri, {
   formatValue as formatValueOri,
 } from "@/Components/CurrencyInput/index.esm";
-import React, { forwardRef, useEffect, useRef, useState } from "react";
+import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -13,7 +13,14 @@ import { usePage } from "@inertiajs/react";
  * @type {React.ForwardRefRenderFunction<CurrencyInputProps>}
  */
 export default forwardRef(function CurrencyInput(
-  { className, value, onValueChange, currencyCode, ...props },
+  {
+    className,
+    value,
+    onValueChange,
+    currencyCode,
+    decimalScale: _decimalScale,
+    ...props
+  },
   ref,
 ) {
   const { t, loading } = useLaravelReactI18n();
@@ -23,15 +30,68 @@ export default forwardRef(function CurrencyInput(
     value: Number.isNaN(value) ? "" : (value?.toString() ?? ""),
     values: { float: Number.isNaN(value) ? null : value },
   });
+  const [intlConfig, decimalScale] = useMemo(() => {
+    const config = {
+      locale: loading ? undefined : t("lang.locale"),
+      currency:
+        currencyCode == "default"
+          ? default_currency_id
+          : !currencyCode
+            ? undefined
+            : currencyCode,
+    };
+    try {
+      const numberFormatter = config.locale
+        ? new Intl.NumberFormat(config.locale, {
+            ...(config.currency && {
+              currency: config.currency,
+              style: "currency",
+            }),
+          })
+        : new Intl.NumberFormat();
+
+      return [
+        config,
+        numberFormatter.formatToParts(value).find((x) => x.type == "fraction")
+          ?.value.length ?? _decimalScale,
+      ];
+    } catch {
+      return [
+        {
+          locale: loading ? undefined : t("lang.locale"),
+        },
+        _decimalScale,
+      ];
+    }
+  }, [loading, currencyCode, _decimalScale]);
 
   // update if value changed from parent
   useDidMountEffect(() => {
     if (prevValueRef.current == value) return;
     prevValueRef.current = value;
-    setData({
-      value: Number.isNaN(value) ? "" : (value?.toString() ?? ""),
-      values: { float: Number.isNaN(value) ? null : value },
-    });
+    if (Number.isNaN(value)) {
+      setData({
+        value: "",
+        values: { float: null },
+      });
+    } else {
+      const numberFormatter = new Intl.NumberFormat("en-US", {
+        minimumFractionDigits:
+          props.decimalScale || props.fixedDecimalLength || 0,
+        maximumFractionDigits:
+          props.decimalScale ||
+          props.fixedDecimalLength ||
+          props.decimalsLimit ||
+          10,
+      });
+
+      const valueFormatted = numberFormatter.format(value).replace(/,/g, "");
+      console.log(numberFormatter);
+      setData({
+        value: valueFormatted,
+        values: { float: value },
+      });
+    }
   }, [value]);
 
   // update value parent
@@ -46,15 +106,7 @@ export default forwardRef(function CurrencyInput(
   return (
     <CurrencyInputOri
       ref={ref}
-      intlConfig={{
-        locale: loading ? undefined : t("lang.locale"),
-        currency:
-          currencyCode == "default"
-            ? default_currency_id
-            : !currencyCode
-              ? undefined
-              : currencyCode,
-      }}
+      intlConfig={intlConfig}
       value={data?.value ?? ""}
       onValueChange={(value, name, values) => setData({ value, name, values })}
       onKeyDown={(e) => {
@@ -68,6 +120,7 @@ export default forwardRef(function CurrencyInput(
           e.target.blur();
         }
       }}
+      decimalScale={decimalScale}
       decimalsLimit={10}
       className={cn(
         "text-right focus:border-0! flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 text-base ring-offset-background  placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",

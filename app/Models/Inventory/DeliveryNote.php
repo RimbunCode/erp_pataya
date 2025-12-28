@@ -19,7 +19,7 @@ class DeliveryNote extends Model {
   protected               $casts             = [
     "delivery_date" => "datetime",
   ];
-  protected static string $defaultFormatCode = '@[branch_code]/DeliveryNote-@[iiii]/@[yy]';
+  protected static string $defaultFormatCode = '@[branch_code]/DN-@[iiii]/@[yy]';
 
   public function codeRelations() {
     return [

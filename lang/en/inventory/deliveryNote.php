@@ -28,6 +28,8 @@ return [
     'reference_so'                 => 'Reference SO',
     'reference_so.placeholder'     => 'Select a Reference',
     'external_note'                => 'External Note',
+    'insert_item'                  => 'Insert Item',
+    'referenceable'                => 'Reference To',
   ],
 
 ];
