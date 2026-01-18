@@ -28,6 +28,9 @@ enum FormStatus: string {
   case DELIVERED           = 'delivered';
   case OVERDUE             = 'overdue';
   case NEED_APPROVAL       = 'need_approval';
+  case TO_RECEIVE          = 'to_receive';
+  case RECEIVED            = 'received';
+  case PARTIALLY_RECEIVED  = 'partially_received';
 
   public function label() {
     return __("status.{$this->value}");

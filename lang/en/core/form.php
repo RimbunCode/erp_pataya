@@ -89,6 +89,9 @@ return [
     'need_approval'                   => 'Need Approval',
     'waiting'                         => 'Waiting',
     'skipped'                         => 'Skipped',
+    'to_receive'                      => 'To Receive',
+    'received'                        => 'Received',
+    'partially_received'              => 'Partially Received',
   ],
   'approvalDecision'      => [
     'trigger'              => 'Make Decision',

@@ -10,9 +10,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ModelConnection extends Model {
   use HasUlids, SoftDeletes;
-
-  protected $guarded = [
-    "id"
+  protected $guarded       = [
+    "id",
+  ];
+  public    $translateKey  = 'core.modelConnection';
+  protected $configColumns = [
+    'model',
+    'reference',
   ];
 
   protected static function booted() {
@@ -35,6 +39,7 @@ class ModelConnection extends Model {
       return Utils::convertTemplateLink($data);
     } else {
       $keyBreadcrumb = $data->keyBreadcrumb ?? "name";
+
       return $data->$keyBreadcrumb ?? $data->name;
     }
   }
@@ -43,7 +48,7 @@ class ModelConnection extends Model {
     $query
       ->selectRaw(
         "id, IF(`model_type` = ?, `reference_type`, `model_type`) as reference_type, IF(`model_type` = ?, `reference_id`, `model_id`) as reference_id, IF(`model_type` = ?, `reference_display`, `model_display`) as reference_display",
-        [$type, $type, $type]
+        [$type, $type, $type],
       );
     return $query->where(function (Builder $query) use ($type, $id): void {
       $query->where(function (Builder $query) use ($type, $id) {
@@ -60,6 +65,7 @@ class ModelConnection extends Model {
   public function model() {
     return $this->morphTo();
   }
+
   public function reference() {
     return $this->morphTo();
   }

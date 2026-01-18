@@ -66,7 +66,8 @@ class SalesInvoiceController extends Controller {
         'discount_rate'    => $salesOrder?->discount_rate,
         'discount_amount'  => $salesOrder?->discount_amount,
         'exchange_rate'    => $salesOrder?->exchange_rate,
-        'external_note'    => $salesOrder?->external_note,],
+        'external_note'    => $salesOrder?->external_note,
+      ],
     ]);
   }
 

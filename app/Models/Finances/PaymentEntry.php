@@ -35,7 +35,7 @@ class PaymentEntry extends Model {
       'partyable',
     ];
   }
-  protected $configColumns = [
+  protected     $configColumns = [
     'date'           => [
       'order'  => 0,
       'show'   => true,
@@ -46,19 +46,19 @@ class PaymentEntry extends Model {
       'show'  => true,
     ],
     'payment_method' => [
-        'order' => 2,
-        'show'  => true,
-      ],
+      'order' => 2,
+      'show'  => true,
+    ],
     'partyable'      => [
-        'order' => 3,
-        'show'  => true,
-      ],
+      'order' => 3,
+      'show'  => true,
+    ],
     'paid_amount'    => [
-        'order' => 4,
-        'show'  => true,
-      ],
+      'order' => 4,
+      'show'  => true,
+    ],
   ];
-  public string $translateKey = 'finances.paymentEntry';
+  public string $translateKey  = 'finances.paymentEntry';
 
   public function paymentMethod() {
     return $this->belongsTo(PaymentMethod::class);

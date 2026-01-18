@@ -50,7 +50,9 @@ export default function Show({ purchaseOrder, required_date, loadFrom }) {
                         ref: `purchaseOrder/${purchaseOrder?.id}`,
                       })}
                     >
-                      {t("purchase.purchaseOrder.actions.create_po")}
+                      {t(
+                        "purchase.purchaseOrder.actions.create_purchase_receipt",
+                      )}
                     </Link>
                   </DropdownMenuItem>
                 </DropdownMenuContent>

@@ -39,14 +39,17 @@ class SalesInvoice extends Model {
       'order'  => 0,
     ],
     'date'                    => [
+      'type'  => 'date',
       'show'  => true,
       'order' => 1,
     ],
     'salesOrder'              => [
+      'type'  => 'relation',
       'show'  => true,
       'order' => 2,
     ],
     'customer'                => [
+      'type'  => 'relation',
       'show'  => true,
       'order' => 3,
     ],

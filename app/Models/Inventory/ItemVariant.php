@@ -14,15 +14,17 @@ use Inertia\Inertia;
 
 class ItemVariant extends Model {
   use HasUlids, SoftDeletes, DataTable;
-  public $keyBreadcrumb = 'sku';
-  public $aliasBreadcrumb = 'Variant';
-  protected $guarded = ['id'];
-  protected $casts = [
-    'is_disabled' => 'boolean',
+  public        $keyBreadcrumb   = 'sku';
+  public        $aliasBreadcrumb = 'Variant';
+  public string $translateKey    = 'inventories.itemVariant';
+  protected     $guarded         = ['id'];
+  protected     $casts           = [
+    'is_disabled'            => 'boolean',
     'allow_alternative_item' => 'boolean',
-    'is_stock_item' => 'boolean',
+    'is_stock_item'          => 'boolean',
   ];
-  protected $appends = ['sku'];
+  protected     $appends         = ['sku'];
+
   public function sku(): Attribute {
     return new Attribute(
       get: function () {
@@ -30,6 +32,7 @@ class ItemVariant extends Model {
       }
     );
   }
+
   protected static function loadRelationsOnShow() {
     return [
       'values',
@@ -39,26 +42,63 @@ class ItemVariant extends Model {
       'barcodes',
     ];
   }
+  protected     $configColumns = [
+    'code'          => [
+      'show'  => true,
+      'order' => 0,
+    ],
+    'item_code'     => [
+      'show'  => true,
+      'order' => 1,
+    ],
+    'item_name'     => [
+      'show'  => true,
+      'order' => 2,
+    ],
+    'is_disabled'   => [
+      'type'  => 'boolean',
+      'show'  => true,
+      'order' => 3,
+    ],
+    'is_stock_item' => [
+      'type'  => 'boolean',
+      'show'  => true,
+      'order' => 4,
+    ],
+    'values',
+    'item',
+    'stocks',
+    'uom',
+    'defaultUnit',
+    'category',
+  ];
   public string $formComponent = 'Inventory/Items/FormVariant';
+
   public static function templateLink() {
     return "<title>:code - :item_name</title><b>:code</b><br/><span>:item_name</span>";
   }
+
   public function values() {
     return $this->hasMany(ItemVariantAttribute::class, 'item_variant_id', 'id');
   }
+
   public function item() {
     return $this->belongsTo(Item::class, 'item_id', 'id')
       ->with(['category', 'defaultUnit']);
   }
+
   public function stocks() {
     return $this->hasMany(Stock::class, 'item_variant_id', 'id');
   }
+
   public function defaultUnit() {
     return $this->belongsTo(Unit::class, 'default_unit_id');
   }
+
   public function uom() {
     return $this->hasMany(ItemUnit::class, 'item_id', 'id');
   }
+
   public function category() {
     return $this->belongsTo(Category::class);
   }
@@ -85,10 +125,12 @@ class ItemVariant extends Model {
           }
         }
         $warehouses = $warehouses->get();
+
         return $warehouses;
-      })
+      }),
     ]);
   }
+
   public function barcodes() {
     return $this->hasMany(ItemBarcode::class, 'item_variant_id', 'id')
       ->with(['unit']);

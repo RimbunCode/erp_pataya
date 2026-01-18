@@ -9,7 +9,22 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DeliveryNoteItem extends Model {
   use HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
+  protected     $guarded       = ['id'];
+  public string $translateKey  = 'finances.deliveryNoteItem';
+  protected     $configColumns = [
+    'quantity'    => [
+      'type'  => 'numeric',
+      'show'  => true,
+      'order' => 0,
+    ],
+    'description' => [
+      'show'  => true,
+      'order' => 1,
+    ],
+    'referenceable',
+    'sourceWarehouse',
+    'item',
+  ];
 
   public function referenceable() {
     return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');

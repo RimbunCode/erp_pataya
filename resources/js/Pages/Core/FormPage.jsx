@@ -1467,6 +1467,7 @@ const FormPageDialog = memo(
       const pluralized = `${pluralize.plural(name ?? "")}.store`;
       post(route(pluralized), {
         preserveState: true,
+        preserveUrl: false,
         onSuccess: () => {
           _setData(defaultValue ?? {});
           setOpen(false);

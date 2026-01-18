@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\TreeView;
+use App\Models\User\User;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use App\Models\Model;
@@ -12,14 +13,34 @@ use Illuminate\Http\Request;
 
 class File extends Model {
   use HasUlids, SoftDeletes, DataTable, TreeView;
-  protected $guarded = ['id'];
-  protected $casts   = [
+  protected $guarded       = ['id'];
+  protected $casts         = [
     'is_public' => 'boolean',
   ];
-  protected $appends = ['fullname'];
+  protected $appends       = ['fullname'];
+  public    $translateKey  = 'core.file';
+  protected $configColumns = [
+    'name'      => [
+      'show'  => true,
+      'order' => 0,
+    ],
+    'mime_type' => [
+      'show'  => true,
+      'order' => 1,
+    ],
+    'folder',
+    'user',
+    'path'      => [
+      'ignore' => true,
+    ],
+  ];
 
   protected function getFullnameAttribute() {
     return "{$this->name}.{$this->extension}";
+  }
+
+  public function user() {
+    return $this->belongsTo(User::class);
   }
 
   public function folder() {

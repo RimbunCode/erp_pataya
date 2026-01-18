@@ -35,6 +35,7 @@ class StockEntry extends Model {
       'order'  => 0,
     ],
     'date'   => [
+      'type'  => 'date',
       'show'  => true,
       'order' => 1,
     ],
@@ -50,7 +51,8 @@ class StockEntry extends Model {
     'branch' => [
       'ignore' => true,
     ],
-    'items', 'additionalCosts',
+    'items',
+    'additionalCosts',
   ];
 
   protected static function loadRelationsOnShow() {

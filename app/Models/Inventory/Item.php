@@ -12,13 +12,11 @@ use Illuminate\Support\Facades\DB;
 
 class Item extends Model {
   use HasUlids, SoftDeletes, DataTable;
-
   protected $guarded = ['id'];
-
   protected $casts = [
-    'is_disabled' => 'boolean',
+    'is_disabled'            => 'boolean',
     'allow_alternative_item' => 'boolean',
-    'is_stock_item' => 'boolean',
+    'is_stock_item'          => 'boolean',
   ];
 
   public static function templateLink() {
@@ -37,23 +35,24 @@ class Item extends Model {
     ];
   }
   public string $formComponent = 'Inventory/Items/Form';
-  public string $translateKey = "inventory.item";
-  protected $configColumns = [
-    'code' => [
-      'show' => true,
-      'order' => 0,
+  public string $translateKey  = "inventory.item";
+  protected     $configColumns = [
+    'code'     => [
+      'show'   => true,
+      'order'  => 0,
       'isLink' => true,
     ],
-    'name' => [
-      'show' => true,
+    'name'     => [
+      'show'  => true,
       'order' => 1,
     ],
     'category' => [
-      'show' => true,
+      'type'  => 'relation',
+      'show'  => true,
       'order' => 2,
     ],
     'defaultUnit',
-    'image'
+    'image',
   ];
 
   public function attributes() {
@@ -63,9 +62,11 @@ class Item extends Model {
   public function defaultUnit() {
     return $this->belongsTo(Unit::class, 'default_unit_id');
   }
+
   public function uom() {
     return $this->hasMany(ItemUnit::class, 'item_id', 'id')->with(['unit']);
   }
+
   protected function barcodes() {
     $variant = $this->variants
       ->whereNull('format_variant')
@@ -76,7 +77,7 @@ class Item extends Model {
   }
 
   protected function uoms() {
-    $uom = Unit::joinSub(
+    $uom    = Unit::joinSub(
       DB::table(Unit::getTableName())
         ->select("group")
         ->where('id', $this->default_unit_id)
@@ -89,6 +90,7 @@ class Item extends Model {
       ->selectRaw('*,ISNULL(`conversion_factor`) AS `isCustom`')
       ->get();
     $uomIds = $this->uom->pluck('unit_id');
+
     return $uom->map(function (Unit $uom) use ($uomIds) {
       $uom->isCustom = $uom->isCustom == 1;
       $uom->readOnly = $uom->isCustom == 0;
@@ -98,9 +100,11 @@ class Item extends Model {
       return $uom;
     })->reject(fn(Unit $uom) => $uom->isCustom && $uom->conversion_factor == null);
   }
+
   public function category() {
     return $this->belongsTo(Category::class);
   }
+
   public function variants() {
     return $this->hasMany(ItemVariant::class, 'item_id', 'id');
   }

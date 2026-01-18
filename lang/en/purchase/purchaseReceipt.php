@@ -1,0 +1,34 @@
+<?php
+
+return [
+  'title'                => 'Purchase Receipts',
+  'add'                  => 'New Purchase Receipt',
+  'supplier'             => 'Supplier',
+  'new'                  => 'New Purchase Receipt',
+  'items'                => 'Items',
+  'detail'               => "Detail",
+  'status'               => 'Status',
+  'total'                => 'Total Price',
+  'target'               => 'Target Warehouse',
+  'exchange_rate'        => 'Exchange Rate',
+  'currency'             => 'Currency',
+  'currency.placeholder' => 'Select a Currency',
+  'columns'              => [
+    'required_date'                => 'Required Date',
+    'received_date'                => 'Received Date',
+    'code'                         => 'Code',
+    'purchase_order'               => 'Purchase Order',
+    'purchase_order.placeholder'   => 'Select a Purchase Order',
+    'supplier'                     => 'Supplier',
+    'item'                         => 'Item',
+    'item.placeholder'             => 'Select an item',
+    'description'                  => 'Description',
+    'target_warehouse'             => 'Target Warehouse',
+    'target_warehouse.placeholder' => 'Select a Target Warehouse',
+    'quantity'                     => 'Quantity',
+    'unit'                         => 'Unit',
+    'unit.placeholder'             => 'Select a unit',
+    'external_note'                => 'External Note',
+  ],
+
+];

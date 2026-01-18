@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ItemAttribute extends Model {
   use HasUlids, SoftDeletes;
-  protected $table = 'item_attributes';
+  protected $table   = 'item_attributes';
   protected $guarded = ['id'];
-  protected $casts = [
+  protected $casts   = [
     'values' => Json::class,
   ];
-  protected $configColumns = [
+  public string $translateKey  = 'inventories.itemAttributes';
+  protected     $configColumns = [
     'item',
     'attribute',
     'barcodes',
@@ -23,6 +24,7 @@ class ItemAttribute extends Model {
   public function item() {
     return $this->belongsTo(Item::class);
   }
+
   public function attribute() {
     return $this->belongsTo(Attribute::class);
   }
