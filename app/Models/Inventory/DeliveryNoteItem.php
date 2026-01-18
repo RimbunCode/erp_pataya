@@ -25,6 +25,9 @@ class DeliveryNoteItem extends Model {
     'sourceWarehouse',
     'item',
   ];
+  protected $casts   = [
+    'valuation_rates' => 'array',
+  ];
 
   public function referenceable() {
     return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
@@ -44,5 +47,9 @@ class DeliveryNoteItem extends Model {
 
   public function unit() {
     return $this->belongsTo(Unit::class);
+  }
+
+  public function returnAgainstItem() {
+    return $this->belongsTo(DeliveryNoteItem::class, 'return_against_item_id');
   }
 }

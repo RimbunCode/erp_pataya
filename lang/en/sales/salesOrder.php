@@ -4,8 +4,8 @@ return [
   'title'                => 'Sales Orders',
   'add'                  => 'New Sales Orders',
   'customer'             => 'Customer',
-  'for_rental'           => 'For Rental?',
-  'rental_date'          => 'Rental Date',
+  'for_rent'             => 'For Rent?',
+  'rent_date'            => 'Rent Date',
   'branch'               => 'Customer Branch',
   'new'                  => 'New Sales Order',
   'items'                => 'Items',
@@ -16,7 +16,7 @@ return [
   'exchange_rate'        => 'Exchange Rate',
   'currency'             => 'Currency',
   'currency.placeholder' => 'Select a Currency',
-  'rental'               => 'Rental',
+  'rent'                 => 'Rent',
   'actions'              => [
     'create_sales_invoice' => 'Create Sales Invoice',
     'create_delivery_note' => 'Create Delivery Note',
@@ -72,6 +72,8 @@ return [
       'months_after_invoice_month' => 'Months after invoice month',
     ],
     'outsanding_amount'            => 'Outstanding Amount',
+    'available_quantity'           => 'Available Quantity',
+
   ],
 
 ];

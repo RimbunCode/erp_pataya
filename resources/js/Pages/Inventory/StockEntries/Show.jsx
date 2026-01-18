@@ -21,7 +21,7 @@ export default function Show({ stockEntry, flash, defaultData }) {
             <ul className="block pl-5">
               {flash.errorItems.map((value, index) => (
                 <li key={index} className="list-disc">
-                  {value}
+                  {t(value)}
                 </li>
               ))}
             </ul>

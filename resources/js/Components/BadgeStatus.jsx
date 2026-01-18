@@ -22,6 +22,8 @@ const theme = {
   to_deliver: "warning",
   partially_received: "warning",
   received: "success",
+  returned: "gray",
+  in_rent: "primary",
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();
@@ -72,7 +74,7 @@ export default function BadgeStatus({ status, className, ...props }) {
           </circle>
         </svg>
       )}
-      {t(`core.form.statuses.${status}`)}
+      {t(`status.${status}`)}
     </span>
   );
 }

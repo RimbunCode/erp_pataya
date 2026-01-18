@@ -19,7 +19,9 @@ return new class extends Migration
       $table->foreignUlid('source_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
       $table->double('quantity')->default(0);
       $table->double('delivered_quantity')->default(0);
-      $table->double('remaining_quantity')->storedAs('quantity - delivered_quantity');
+      $table->double('undelivered_quantity')->storedAs('quantity - delivered_quantity');
+      $table->double('billed_quantity')->default(0);
+      $table->double('unbilled_quantity')->storedAs('quantity - billed_quantity');
       $table->text('description')->nullable();
       $table->foreignUlid('tax_id')->nullable()->references('id', )->on('taxes')->nullOnDelete();
       $table->double('conversion_factor')->default(1);

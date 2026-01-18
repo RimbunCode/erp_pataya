@@ -71,10 +71,48 @@ class DeliveryNoteController extends Controller {
                   'id'                 => Utils::generateRandom(5),
                   'item'               => $item->item,
                   'source_warehouse'   => $item->sourceWarehouse,
-                  'quantity'           => $item->remaining_quantity,
+                  'quantity'           => $item->undelivered_quantity,
+                  'required_quantity'  => $item->undelivered_quantity,
                   'unit'               => $item->unit,
                   'referenceable_type' => SalesOrderItem::class,
                   'referenceable_id'   => $item->id,
+                ]),
+              ];
+            }
+            break;
+          }
+          case 'deliveryNote': {
+            $doTarget = DeliveryNote::find($split[1]);
+            if ($doTarget) {
+              $do = DeliveryNote::where('return_against_id', $doTarget->id)
+                ->where('status', 'draft')
+                ->where('created_by', $request->user()->id)
+                ->first();
+              if ($do) {
+                return redirect()->route('deliveryNotes.show', $do);
+              }
+
+              $doTarget->loadRelations();
+              $defaultData = [
+                'return_against'     => $doTarget,
+                'delivery_date'      => now(),
+                'customer'           => $doTarget->customer,
+                'customer_branch'    => $doTarget->customer_branch,
+                'referenceable_type' => $doTarget->referenceable_type,
+                'referenceable_id'   => $doTarget->referenceable_id,
+                'referenceable'      => $doTarget->referenceable,
+                'external_note'      => $doTarget->external_note,
+                'model'              => Permission::where('model', $doTarget->referenceable_type)->first(),
+                'items'              => $doTarget->items->map(fn ($item) => [
+                  'id'                  => Utils::generateRandom(5),
+                  'item'                => $item->item,
+                  'source_warehouse'    => $item->sourceWarehouse,
+                  'quantity'            => $item->remaining_quantity,
+                  'required_quantity'   => $item->remaining_quantity,
+                  'unit'                => $item->unit,
+                  'referenceable_type'  => $item->referenceable_type,
+                  'referenceable_id'    => $item->referenceable_id,
+                  'return_against_item' => $item,
                 ]),
               ];
             }

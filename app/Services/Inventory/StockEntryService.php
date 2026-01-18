@@ -78,9 +78,7 @@ class StockEntryService {
   private function fillAdditionalCostRelations(array $data) {
     $data['expense_account_id'] = $data['expense_account']['id'];
     return $data;
-  }
-
-  function mapCalculateItem(array $data) {}
+  }function mapCalculateItem(array $data) {}
 
   public function create(array $data) {
     $stockEntry = StockEntry::create($this->fillRelations($data));
@@ -255,7 +253,7 @@ class StockEntryService {
 
         // update queue fifo in source warehouse
 
-        $loanQuantity    = $stock->loan_quantity ?? 0;
+        $rentedQuantity  = $stock->rented_quantity ?? 0;
         $quantityRequest = $qtyNeeded;
 
         $queue          = $stockSource->stock_queue;
@@ -263,7 +261,7 @@ class StockEntryService {
         $picked         = [];
         $amountPicked   = 0;
 
-        $offset = $loanQuantity;
+        $offset = $rentedQuantity;
         foreach ($queue as $q) {
           // belum sampai batch target
           if ($offset >= $q['quantity']) {

@@ -36,7 +36,7 @@ class ApprovalInstanceController extends Controller {
                   ->whereIn('approverable_id', $user->roles->pluck('id'));
               })->orWhere(function (Builder $query) use ($user) {
                 $query->whereIn('status', ['approved', 'rejected'])
-                  ->where('acted_by', $user->id);
+                  ->where('acted_by_id', $user->id);
               });
             });
         })

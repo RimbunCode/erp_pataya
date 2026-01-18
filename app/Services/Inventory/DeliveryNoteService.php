@@ -30,6 +30,9 @@ class DeliveryNoteService {
     if (isset($data['branch'])) {
       $data['branch_id'] = $data['branch']['id'];
     }
+    if (isset($data['return_against'])) {
+      $data['return_against_id'] = $data['return_against']['id'];
+    }
 
     return $data;
   }
@@ -40,6 +43,11 @@ class DeliveryNoteService {
     $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
     $item['conversion_factor']   = ItemUnit::getConversionFactor($item['item']['item_id'], $item['unit_id']);
     $item['quantity']            = $item['quantity'] ?? 0;
+    $item['valuation_rates']     = [];
+
+    if (isset($item['return_against_item'])) {
+      $item['return_against_item_id'] = $item['return_against_item']['id'];
+    }
 
     return $item;
   }
@@ -87,9 +95,13 @@ class DeliveryNoteService {
       'reference_type' => DeliveryNote::class,
       'reference_id'   => $deliveryNote->id,
     ]);
-    DeliveryNote::where('referenceable_type', $deliveryNote->referenceable_type)
-      ->where('referenceable_id', $deliveryNote->referenceable_id)
-      ->where('status', 'draft')
+    DeliveryNote::orWhere(function ($query) use ($deliveryNote) {
+      $query->where(function ($query) use ($deliveryNote) {
+        $query->where('referenceable_type', $deliveryNote->referenceable_type)
+          ->where('referenceable_id', $deliveryNote->referenceable_id);
+      });
+      $query->where('return_against_id', $deliveryNote->return_against_id);
+    })->where('status', 'draft')
       ->whereNot('created_by', Auth::user()->id)
       ->update([
         'status'      => 'canceled',
@@ -103,21 +115,36 @@ class DeliveryNoteService {
 
   public function onApproved(DeliveryNote $deliveryNote) {
     DB::beginTransaction();
+    $returnAgainst = $deliveryNote->returnAgainst;
     $deliveryNote->update([
-      'status' => FormStatus::DELIVERED,
+      'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::DELIVERED,
     ]);
 
-    $toReference  = $deliveryNote->referenceable;
-    $items        = $deliveryNote->items()
-      ->with(['item', 'item.item', 'item.item.category'])
+    $toReference = $deliveryNote->referenceable;
+    $items       = $deliveryNote->items()
+      ->with([
+        'item',
+        'item.item',
+        'item.item.category',
+        'referenceable',
+        'returnAgainstItem',
+        'sourceWarehouse',
+      ])
       ->get();
-    $errorItems   = [];
-    $amountPicked = 0;
+    $errorItems  = [];
+    $totalPicked = 0;
+    $isRent      = false;
     foreach ($items as $item) {
+      $availableToRent = $toReference->is_rent && $item->item->item->category->type == 'vehicle';
+      if ($availableToRent) {
+        $isRent = true;
+      }
       // update delivered quantity dari Sales Order Item
-      $item->referenceable->update([
-        'delivered_quantity' => $item->referenceable->delivered_quantity + $item->quantity
-      ]);
+      if ($returnAgainst && ! $availableToRent) {
+        $item->referenceable->decrement('delivered_quantity', $item->quantity);
+      } else {
+        $item->referenceable->increment('delivered_quantity', $item->quantity);
+      }
       if (! $item->item->is_stock_item) {
         continue;
       }
@@ -136,16 +163,29 @@ class DeliveryNoteService {
         $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->actual_quantity} but you need {$quantity}";
         continue;
       }
-      if ($toReference->is_rent && $item->item->item->category->type == 'vehicle') {
-        $stock->update([
-          'loan_quantity' => $quantity,
-        ]);
+      if ($availableToRent) {
+        $stock->updateDetails(
+          [
+            [
+              "operator" => $returnAgainst ? "decrement" : "increment",
+              "type"     => "rents",
+              "key"      => $toReference->code,
+              "value"    => $quantity,
+            ],
+            ...($returnAgainst ? [] : [[
+              "operator" => "decrement",
+              "type"     => "reservations",
+              "key"      => $toReference->code,
+              "value"    => $quantity,
+            ]]),
+          ],
+        );
         StockLedgerEntry::create([
           'item_id'               => $item->item_id,
           'warehouse_id'          => $item->source_warehouse_id,
           'unit_id'               => $stock->unit_id,
           'conversion_factor'     => $stock->conversion_factor,
-          'quantity_change'       => -$quantity,
+          'quantity_change'       => $returnAgainst ? $quantity : -$quantity,
           'quantity_after_change' => $stock->actual_quantity,
           'valuation_rate'        => $stock->valuation_rate,
           'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
@@ -157,7 +197,7 @@ class DeliveryNoteService {
         continue;
       }
 
-      $loanQuantity    = $stock->loan_quantity ?? 0;
+      $rentedQuantity  = $stock->rented_quantity ?? 0;
       $quantityRequest = $quantity;
 
       $queue          = $stock->stock_queue;
@@ -165,116 +205,163 @@ class DeliveryNoteService {
       $picked         = [];
       $amountPicked   = 0;
 
-      $offset = $loanQuantity;
+      $offset = $rentedQuantity;
 
-      foreach ($queue as $q) {
-        // belum sampai batch target
-        if ($offset >= $q['quantity']) {
-          $offset -= $q['quantity'];
+      if ($returnAgainst) {
+        $valuationRates  = $item->returnAgainstItem->valuation_rates;
+        $remainingQueue  = [
+          ...$queue, ...$valuationRates ?? [],
+        ];
+        $amountPicked    = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $valuationRates ?? []));
+        $totalPicked    += $amountPicked;
+        $item->returnAgainstItem->update([
+          'returned_quantity' => $item->returnAgainstItem->returned_quantity + $quantity
+        ]);
+        $stock->fill([
+          'quantity'    => $stock->quantity + $quantity,
+          'stock_queue' => $remainingQueue,
+        ]);
+        $stock->updateDetails('increment', 'reservations', $toReference->code, $quantity);
+        StockLedgerEntry::create([
+          'item_id'               => $item->item_id,
+          'warehouse_id'          => $item->source_warehouse_id,
+          'unit_id'               => $stock->unit_id,
+          'conversion_factor'     => $stock->conversion_factor,
+          'quantity_change'       => $quantity,
+          'quantity_after_change' => $stock->actual_quantity,
+          'valuation_rate'        => $stock->valuation_rate,
+          'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'change_in_stock_value' => $amountPicked,
+          'stock_queue'           => $stock->stock_queue,
+          'referenceable_type'    => DeliveryNote::class,
+          'referenceable_id'      => $deliveryNote->id,
+        ]);
+      } else {
+        foreach ($queue as $q) {
+          // belum sampai batch target
+          if ($offset >= $q['quantity']) {
+            $offset -= $q['quantity'];
 
-          // batch tetap ada
+            // batch tetap ada
+            if ($q['quantity'] > 0) {
+              $remainingQueue[] = $q;
+            }
+            continue;
+          }
+
+          // batch target
+          if ($offset >= 0) {
+            // ambil dari batch ini
+            $picked[] = [
+              'quantity' => $quantityRequest,
+              'rate'     => $q['rate'],
+            ];
+
+            $amountPicked += $quantityRequest * $q['rate'];
+
+            // kurangi qty
+            $q['quantity'] -= $quantityRequest;
+
+            // hanya masukkan jika masih ada sisa
+            if ($q['quantity'] > 0) {
+              $remainingQueue[] = $q;
+            }
+
+            // setelah batch target, sisanya copy apa adanya
+            $offset = -1;
+            continue;
+          }
+
+          // batch setelah target
           if ($q['quantity'] > 0) {
             $remainingQueue[] = $q;
           }
-          continue;
         }
-
-        // batch target
-        if ($offset >= 0) {
-          // ambil dari batch ini
-          $picked[] = [
-            'quantity' => $quantityRequest,
-            'rate'     => $q['rate'],
-          ];
-
-          $amountPicked += $quantityRequest * $q['rate'];
-
-          // kurangi qty
-          $q['quantity'] -= $quantityRequest;
-
-          // hanya masukkan jika masih ada sisa
-          if ($q['quantity'] > 0) {
-            $remainingQueue[] = $q;
-          }
-
-          // setelah batch target, sisanya copy apa adanya
-          $offset = -1;
-          continue;
-        }
-
-        // batch setelah target
-        if ($q['quantity'] > 0) {
-          $remainingQueue[] = $q;
-        }
+        $totalPicked += $amountPicked;
+        $item->update([
+          'valuation_rates' => $picked,
+        ]);
+        $stock->fill([
+          'quantity'    => $stock->quantity - $quantity,
+          'stock_queue' => $remainingQueue,
+        ]);
+        $stock->updateDetails('decrement', 'reservations', $toReference->code, $quantity);
+        StockLedgerEntry::create([
+          'item_id'               => $item->item_id,
+          'warehouse_id'          => $item->source_warehouse_id,
+          'unit_id'               => $stock->unit_id,
+          'conversion_factor'     => $stock->conversion_factor,
+          'quantity_change'       => -$quantity,
+          'quantity_after_change' => $stock->actual_quantity,
+          'valuation_rate'        => $stock->valuation_rate,
+          'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'change_in_stock_value' => -$amountPicked,
+          'stock_queue'           => $stock->stock_queue,
+          'referenceable_type'    => DeliveryNote::class,
+          'referenceable_id'      => $deliveryNote->id,
+        ]);
       }
-
-      $stock->update([
-        'quantity'          => $stock->quantity - $quantity,
-        'reserved_quantity' => $stock->reserved_quantity - $quantity,
-        'stock_queue'       => $remainingQueue,
-      ]);
-      StockLedgerEntry::create([
-        'item_id'               => $item->item_id,
-        'warehouse_id'          => $item->source_warehouse_id,
-        'unit_id'               => $stock->unit_id,
-        'conversion_factor'     => $stock->conversion_factor,
-        'quantity_change'       => -$quantity,
-        'quantity_after_change' => $stock->actual_quantity,
-        'valuation_rate'        => $stock->valuation_rate,
-        'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
-        'change_in_stock_value' => -\array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked)),
-        'stock_queue'           => $stock->stock_queue,
-        'referenceable_type'    => DeliveryNote::class,
-        'referenceable_id'      => $deliveryNote->id,
-      ]);
     }
 
-    $referenceItems = $toReference->items()->where('remaining_quantity', '>', 0)->get();
-    if ($referenceItems->count() > 0) {
+    $undeliveredItems      = $toReference->items()->select(['undelivered_quantity', 'quantity'])->get();
+    $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');
+    $sumQuantity           = $undeliveredItems->sum('quantity');
+    if ($countUndeliveredItems == $sumQuantity) {
+      $status = Utils::replaceStatus(
+        $toReference->status,
+        [FormStatus::DELIVERED, FormStatus::PARTIALLY_DELIVERED],
+        FormStatus::TO_DELIVER,
+      );
+    } else if ($countUndeliveredItems > 0) {
       $status = Utils::replaceStatus(
         $toReference->status,
         FormStatus::TO_DELIVER,
         FormStatus::PARTIALLY_DELIVERED,
       );
-      $toReference->update([
-        'status' => $status,
-      ]);
-
     } else {
       $status = Utils::replaceStatus(
         $toReference->status,
         [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED],
         FormStatus::DELIVERED,
       );
-      $toReference->update([
-        'status' => $status,
+    }
+    if ($isRent) {
+      if ($returnAgainst) {
+        $status = \array_filter($status, fn ($s) => $s != FormStatus::IN_RENT);
+      } else {
+        $status[] = FormStatus::IN_RENT;
+      }
+    }
+    $toReference->update([
+      'status' => $status,
+    ]);
+
+    if ($totalPicked > 0) {
+      $creditAccount = Account::lockForUpdate()
+        ->where('root_type', 'asset')
+        ->where('account_type', 'stock')
+        ->latest()->first();
+      $debitAccount  = Account::lockForUpdate()
+        ->where('root_type', 'income')
+        ->where('account_type', 'cost_of_goods_sold')
+        ->latest()->first();
+
+      $creditAccount->generalLedgerEntries()->create([
+        'against_account_id' => $debitAccount->id,
+        'credit'             => $returnAgainst ? 0 : $totalPicked,
+        'debit'              => $returnAgainst ? $totalPicked : 0,
+        'referenceable_type' => DeliveryNote::class,
+        'referenceable_id'   => $deliveryNote->id,
+      ]);
+
+      $debitAccount->generalLedgerEntries()->create([
+        'against_account_id' => $creditAccount->id,
+        'credit'             => $returnAgainst ? $totalPicked : 0,
+        'debit'              => $returnAgainst ? 0 : $totalPicked,
+        'referenceable_type' => DeliveryNote::class,
+        'referenceable_id'   => $deliveryNote->id,
       ]);
     }
-
-    $creditAccount = Account::lockForUpdate()
-      ->where('root_type', 'asset')
-      ->where('account_type', 'stock')
-      ->latest()->first();
-    $debitAccount  = Account::lockForUpdate()
-      ->where('root_type', 'income')
-      ->where('account_type', 'cost_of_goods_sold')
-      ->latest()->first();
-
-    $creditAccount->generalLedgerEntries()->create([
-      'against_account_id' => $debitAccount->id,
-      'credit'             => $amountPicked,
-      'debit'              => 0,
-      'referenceable_type' => DeliveryNote::class,
-      'referenceable_id'   => $deliveryNote->id,
-    ]);
-
-    $debitAccount->generalLedgerEntries()->create([
-      'against_account_id' => $creditAccount->id,
-      'credit'             => 0,
-      'debit'              => $amountPicked,
-      'referenceable_type' => DeliveryNote::class,
-      'referenceable_id'   => $deliveryNote->id,
-    ]);
 
     DB::commit();
     return $deliveryNote;

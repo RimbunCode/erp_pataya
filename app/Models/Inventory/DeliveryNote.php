@@ -62,6 +62,7 @@ class DeliveryNote extends Model {
       'show'  => true,
       'order' => 5,
     ],
+    'returnAgainst',
   ];
 
   protected static function loadRelationsOnShow() {
@@ -74,11 +75,12 @@ class DeliveryNote extends Model {
       'items.unit',
       'items.item',
       'items.sourceWarehouse',
+      'returnAgainst',
     ];
   }
 
   public function model() {
-    return Permission::where('model', $this->referenceable_type)->first();
+    return Permission::where('model', "=", $this->referenceable_type)->first();
   }
 
   public function items() {
@@ -99,5 +101,9 @@ class DeliveryNote extends Model {
 
   public function branch() {
     return $this->belongsTo(Branch::class);
+  }
+
+  public function returnAgainst() {
+    return $this->belongsTo(DeliveryNote::class, 'return_against_id');
   }
 }

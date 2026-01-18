@@ -18,7 +18,7 @@ class ItemVariant extends Model {
   public        $aliasBreadcrumb = 'Variant';
   public string $translateKey    = 'inventories.itemVariant';
   protected     $guarded         = ['id'];
-  protected     $casts           = [
+  protected $casts               = [
     'is_disabled'            => 'boolean',
     'allow_alternative_item' => 'boolean',
     'is_stock_item'          => 'boolean',
@@ -109,10 +109,13 @@ class ItemVariant extends Model {
         $warehouses = Warehouse::select([
           'warehouses.*',
           'stocks.id as stock_id',
+          'stocks.quantity',
           'stocks.actual_quantity',
+          'stocks.rented_quantity',
           'stocks.reserved_quantity',
           'stocks.incoming_quantity',
           'stocks.projected_quantity',
+          'stocks.ready_quantity',
           'stocks.ready_quantity',
           'stocks.valuation_rate',
         ])
@@ -120,7 +123,7 @@ class ItemVariant extends Model {
           ->where('item_variant_id', $this->id);
         if (Session::has('currentBranch')) {
           $branch = Branch::find(Session::get('currentBranch'));
-          if (!$branch->is_main_branch) {
+          if (! $branch->is_main_branch) {
             $warehouses->where('warehouses.branch_id', $branch->id);
           }
         }

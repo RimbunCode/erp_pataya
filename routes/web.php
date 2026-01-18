@@ -112,6 +112,7 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('category', \App\Http\Controllers\Inventory\CategoryController::class);
   // Items
   Route::resourceDetail('item', \App\Http\Controllers\Inventory\ItemController::class);
+  Route::post('itemVariants/info', [\App\Http\Controllers\Inventory\ItemVariantController::class, 'info'])->name('itemVariants.info');
   Route::resourceDetail('itemVariant', \App\Http\Controllers\Inventory\ItemVariantController::class);
   // ItemAlternatives
   Route::resourceDetail('itemAlternative', \App\Http\Controllers\Inventory\ItemAlternativeController::class);

@@ -58,6 +58,8 @@ export const convertColWidth = (colWidth) => {
         return "1fr";
       case "fit":
         return "max-content";
+      case "minimum":
+        return "min-content";
       default:
         return colWidth;
     }
@@ -115,7 +117,7 @@ const Cell = memo(
       case "formStatus": {
         return (
           <div className="text-center">
-            <BadgeStatus status={value} />
+            <BadgeStatus className="text-sm" status={value} />
           </div>
         );
       }
@@ -124,12 +126,16 @@ const Cell = memo(
           <div
             className={cn(
               value.length > 1
-                ? "flex gap-x-2 gap-y-2 flex-wrap w-full"
+                ? "flex gap-x-1 gap-y-1 flex-wrap w-full"
                 : "text-center",
             )}
           >
             {value.map((status, idx) => (
-              <BadgeStatus key={idx} status={status} />
+              <BadgeStatus
+                className="text-xs py-0.5 px-2"
+                key={idx}
+                status={status}
+              />
             ))}
           </div>
         );
@@ -552,7 +558,7 @@ const Table2 = forwardRef(function Table2(
                         id={props.name}
                         key={props.name}
                         ref={setRef(`col.${props.name}`)}
-                        resizeable={resizeable && i < showedColumns.length - 1}
+                        resizeable={resizeable}
                         {...props}
                         onResize={() => mouseDown(i)}
                         onResetSize={() => resetSizeHeader(i)}

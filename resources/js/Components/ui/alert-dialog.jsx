@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/Hooks/use-mobile";
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
@@ -23,41 +24,46 @@ const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 
 const AlertDialogContent = React.forwardRef(
-  ({ className, align = "top", ...props }, ref) => (
-    <AlertDialogPortal>
-      <AlertDialogOverlay />
-      <div
-        className={cn(
-          "fixed h-screen w-full z-50 flex items-center md:px-6",
-          align == "top" && "flex-col",
-          align == "bottom" && "flex-col-reverse",
-        )}
-      >
-        {align != "center" && <div className="h-[8%]"></div>}
+  ({ className, forceAsDialog = false, align = "top", ...props }, ref) => {
+    const isMobile = useIsMobile();
+    return (
+      <AlertDialogPortal>
+        <AlertDialogOverlay />
         <div
           className={cn(
-            "flex-1 w-full flex items-center",
-            align == "center" && "flex-col justify-center",
+            "fixed h-screen w-full z-50 flex items-center md:px-6",
             align == "top" && "flex-col",
             align == "bottom" && "flex-col-reverse",
           )}
         >
-          <AlertDialogPrimitive.Content
-            ref={ref}
+          {align != "center" && <div className="h-[8%]"></div>}
+          <div
             className={cn(
-              "overflow-y-auto h-screen md:h-auto grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:ease-in data-[state=closed]:ease-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:rounded-lg",
-              align == "top" &&
-                "data-[state=closed]:slide-out-to-top-[28%] data-[state=open]:slide-in-from-top-[28%]",
-              align == "bottom" &&
-                "data-[state=closed]:slide-out-to-bottom-[28%] data-[state=open]:slide-in-from-bottom-[28%]",
-              className,
+              "flex-1 w-full flex items-center",
+              align == "center" && "flex-col justify-center",
+              align == "top" && "flex-col",
+              align == "bottom" && "flex-col-reverse",
             )}
-            {...props}
-          />
+          >
+            <AlertDialogPrimitive.Content
+              ref={ref}
+              className={cn(
+                "overflow-y-auto w-full md:h-auto grid content-start max-w-lg gap-4 border bg-background p-6 shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:ease-in data-[state=closed]:ease-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:rounded-lg",
+                align == "top" &&
+                  "data-[state=closed]:slide-out-to-top-[28%] data-[state=open]:slide-in-from-top-[28%]",
+                align == "bottom" &&
+                  "data-[state=closed]:slide-out-to-bottom-[28%] data-[state=open]:slide-in-from-bottom-[28%]",
+                !forceAsDialog && "h-screen",
+                !forceAsDialog && isMobile && "max-w-full!",
+                className,
+              )}
+              {...props}
+            />
+          </div>
         </div>
-      </div>
-    </AlertDialogPortal>
-  ),
+      </AlertDialogPortal>
+    );
+  },
 );
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
 

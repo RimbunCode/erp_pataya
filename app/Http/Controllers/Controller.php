@@ -48,7 +48,7 @@ abstract class Controller {
        *  @var \Illuminate\Database\Eloquent\Model $model
        */
       foreach ($models as $key => $model) {
-        if (\gettype($model) == 'string') {
+        if (\gettype(value: $model) == 'string') {
           if ($key == 0) {
             $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? "") . '.title', 'link' => route("{$instanceModel->route}.index")];
           }

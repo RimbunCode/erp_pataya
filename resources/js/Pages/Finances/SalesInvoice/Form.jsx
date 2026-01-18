@@ -465,6 +465,7 @@ export default function Form() {
               decimalScale={2}
               value={data.discount_rate}
               suffix="%"
+              max={100}
             ></CurrencyInput>
           </FormInput>
           <FormInput

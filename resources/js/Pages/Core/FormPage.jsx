@@ -80,6 +80,7 @@ import { toast } from "sonner";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
+import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 /**
@@ -264,6 +265,7 @@ const FormChildren = memo(function FormChildren({
   // hasConnections,
 }) {
   const tabsListRef = useRef(null);
+  const isMobile = useIsMobile();
 
   const { t } = useLaravelReactI18n();
   const [_menus, setMenus] = useState([]);
@@ -294,7 +296,7 @@ const FormChildren = memo(function FormChildren({
   return (
     <Tabs
       value={menuSelected ?? menus?.[0]?.value ?? ""}
-      className={cn("w-full", className)}
+      className={cn("w-full", isMobile && "max-w-full!", className)}
       onValueChange={setMenuSelected}
       asChild
     >

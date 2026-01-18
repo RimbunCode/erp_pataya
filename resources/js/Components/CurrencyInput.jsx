@@ -1,7 +1,7 @@
 import CurrencyInputOri, {
   formatValue as formatValueOri,
 } from "@/Components/CurrencyInput/index.esm";
-import React, { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import React, { forwardRef, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -19,6 +19,8 @@ export default forwardRef(function CurrencyInput(
     onValueChange,
     currencyCode,
     decimalScale: _decimalScale,
+    min,
+    max,
     ...props
   },
   ref,
@@ -65,50 +67,56 @@ export default forwardRef(function CurrencyInput(
     }
   }, [loading, currencyCode, _decimalScale]);
 
+  const numberFormatter = useMemo(() => {
+    const numberFormatter = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: _decimalScale || props.fixedDecimalLength || 0,
+      maximumFractionDigits:
+        _decimalScale || props.fixedDecimalLength || props.decimalsLimit || 10,
+    });
+    return numberFormatter;
+  }, [props, _decimalScale]);
   // update if value changed from parent
   useDidMountEffect(() => {
     if (prevValueRef.current == value) return;
-    prevValueRef.current = value;
     if (Number.isNaN(value)) {
+      prevValueRef.current = value;
       setData({
         value: "",
         values: { float: null },
       });
     } else {
-      const numberFormatter = new Intl.NumberFormat("en-US", {
-        minimumFractionDigits:
-          props.decimalScale || props.fixedDecimalLength || 0,
-        maximumFractionDigits:
-          props.decimalScale ||
-          props.fixedDecimalLength ||
-          props.decimalsLimit ||
-          10,
-      });
+      if (max && value > max) {
+        value = max;
+      }
+      if (min && value < min) {
+        value = min;
+      }
+      prevValueRef.current = value;
 
       const valueFormatted = numberFormatter.format(value).replace(/,/g, "");
-      console.log(numberFormatter);
       setData({
         value: valueFormatted,
-        values: { float: value },
+        values: { float: parseFloat(value) },
       });
     }
   }, [value]);
 
   // update value parent
-  useEffect(() => {
-    if (!onValueChange) return;
-    const float = data?.values?.float;
-    if (prevValueRef.current == float) return;
-    prevValueRef.current = float;
-    onValueChange(float);
-  }, [data]);
 
   return (
     <CurrencyInputOri
       ref={ref}
       intlConfig={intlConfig}
       value={data?.value ?? ""}
-      onValueChange={(value, name, values) => setData({ value, name, values })}
+      onValueChange={(value, name, values) => {
+        setData({ value, name, values });
+
+        if (!onValueChange) return;
+        const float = data?.values?.float;
+        if (prevValueRef.current == float) return;
+        prevValueRef.current = float;
+        onValueChange(float);
+      }}
       onKeyDown={(e) => {
         if (
           e.key == "Enter" ||
@@ -122,6 +130,8 @@ export default forwardRef(function CurrencyInput(
       }}
       decimalScale={decimalScale}
       decimalsLimit={10}
+      min={min}
+      max={max}
       className={cn(
         "text-right focus:border-0! flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 text-base ring-offset-background  placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
         className,

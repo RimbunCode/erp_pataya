@@ -26,6 +26,8 @@ enum FormStatus: string {
   case TO_DELIVER          = 'to_deliver';
   case PARTIALLY_DELIVERED = 'partially_delivered';
   case DELIVERED           = 'delivered';
+  case RETURNED            = 'returned';
+  case IN_RENT             = 'in_rent';
   case OVERDUE             = 'overdue';
   case NEED_APPROVAL       = 'need_approval';
   case TO_RECEIVE          = 'to_receive';

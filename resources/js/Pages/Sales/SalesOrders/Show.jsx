@@ -26,13 +26,6 @@ export default function Show({ salesOrder, defaultData, flash }) {
       disabled={salesOrder?.submitted_at}
       submitable
       defaultValues={defaultData}
-      badge={
-        salesOrder?.is_rent && (
-          <span className="badge primary w-fit text-center">
-            {t("sales.salesOrder.rental")}
-          </span>
-        )
-      }
       banner={
         flash.errorItems && (
           <div className="flex flex-col gap-x-2 text-sm alert error p-4">
@@ -42,7 +35,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
             <ul className="block pl-5">
               {flash.errorItems.map((value, index) => (
                 <li key={index} className="list-disc">
-                  {value}
+                  {t(value)}
                 </li>
               ))}
             </ul>
