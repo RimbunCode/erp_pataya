@@ -27,7 +27,7 @@ class SalesInvoiceService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
@@ -50,7 +50,6 @@ class SalesInvoiceService {
   }
 
   private function fillPaymentScheduleRelations(array $data, SalesInvoice $salesInvoice) {
-    $data['for_internal']       = false;
     $data['currency_code']      = $salesInvoice->currency_code;
     $data['base_currency_code'] = $salesInvoice->base_currency_code;
     $data['exchange_rate']      = $salesInvoice->exchange_rate;

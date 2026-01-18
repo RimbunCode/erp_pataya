@@ -28,6 +28,7 @@ return [
     'grand_total'                  => 'Grand Total',
     'tax_amount'                   => 'Tax Amount',
     'total'                        => 'Total',
+    'basic_amount'                 => 'Basic Amount',
     'so'                           => 'SO Number',
     'customer'                     => 'Customer',
     'customer_branch'              => 'Customer Branch',

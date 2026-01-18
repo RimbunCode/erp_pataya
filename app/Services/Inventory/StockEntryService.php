@@ -66,7 +66,7 @@ class StockEntryService {
           $picked[]         = $q;
         }
       }
-      $data['basic_amount'] = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked));
+      $data['basic_amount'] = \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $picked));
       $data['basic_rate']   = $data['basic_amount'] / ($data['quantity'] - $quantityRequest);
     } else {
       $data['basic_amount'] = $data['basic_rate'] * $data['quantity'];
@@ -88,7 +88,7 @@ class StockEntryService {
         $stockEntry->additionalCosts()->create($this->fillAdditionalCostRelations($additional_cost));
       }
     }
-    $data['items'] = array_map(fn ($item) => $this->fillItemRelations($item, $stockEntry), $data['items']);
+    $data['items'] = array_map(fn($item) => $this->fillItemRelations($item, $stockEntry), $data['items']);
 
     $totalAdditionalCost  = \array_sum(array_column($data['additional_costs'] ?? [], 'amount'));
     $totalBasicAmountItem = \array_sum(array_column($data['items'], 'basic_amount'));
@@ -130,7 +130,7 @@ class StockEntryService {
       $stockEntry->additionalCosts()->delete();
     }
 
-    $data['items'] = array_map(fn ($item) => $this->fillItemRelations($item, $stockEntry), $data['items']);
+    $data['items'] = array_map(fn($item) => $this->fillItemRelations($item, $stockEntry), $data['items']);
 
     $totalAdditionalCost  = \array_sum(array_column($data['additional_costs'] ?? [], 'amount'));
     $totalBasicAmountItem = \array_sum(array_column($data['items'], 'basic_amount'));
@@ -188,7 +188,7 @@ class StockEntryService {
           ->where('warehouse_id', $item->source_warehouse_id)
           ->lockForUpdate()
           ->first();
-        if (! $stock) {
+        if (!$stock) {
           $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
           continue;
         }
@@ -316,8 +316,8 @@ class StockEntryService {
           'quantity_change'       => -$qtyNeeded,
           'quantity_after_change' => $stockSource->actual_quantity,
           'valuation_rate'        => $stockSource->valuation_rate,
-          'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stockSource->stock_queue)),
-          'change_in_stock_value' => -\array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked)),
+          'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stockSource->stock_queue)),
+          'change_in_stock_value' => -\array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $picked)),
           'stock_queue'           => $stockSource->stock_queue,
           'referenceable_type'    => StockEntry::class,
           'referenceable_id'      => $stockEntry->id,
@@ -339,7 +339,7 @@ class StockEntryService {
         $queue = $stockTarget->stock_queue;
         if (isset($picked)) {
           // update if item transfer from source warehouse
-          $basicAmount    = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked));
+          $basicAmount    = \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $picked));
           $basicRate      = $basicAmount / $qtyNeeded;
           $additionalCost = $totalBasicAmount != 0
             ? ($basicAmount / $totalBasicAmount) * $totalAdditionalCost
@@ -376,7 +376,7 @@ class StockEntryService {
           'quantity_change'       => $qtyNeeded,
           'quantity_after_change' => $stockTarget->actual_quantity,
           'valuation_rate'        => $stockTarget->valuation_rate,
-          'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stockTarget->stock_queue)),
+          'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stockTarget->stock_queue)),
           'change_in_stock_value' => $basicAmount + $additionalCost,
           'stock_queue'           => $stockTarget->stock_queue,
           'referenceable_type'    => StockEntry::class,

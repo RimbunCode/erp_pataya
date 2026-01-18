@@ -20,6 +20,8 @@ const theme = {
   overdue: "error",
   to_bill: "warning",
   to_deliver: "warning",
+  partially_received: "warning",
+  received: "success",
   returned: "gray",
   in_rent: "primary",
 };

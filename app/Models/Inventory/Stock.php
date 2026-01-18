@@ -44,6 +44,41 @@ class Stock extends Model {
       $model->saveQuietly();
     });
   }
+  public string $translateKey  = 'inventories.stock';
+  protected     $configColumns = [
+    'actual_quantity'    => [
+      'type'  => 'numeric',
+      'show'  => true,
+      'order' => 0,
+    ],
+    'reserved_quantity'  => [
+      'type'  => 'numeric',
+      'show'  => true,
+      'order' => 1,
+    ],
+    'incoming_quantity'  => [
+      'type'  => 'numeric',
+      'show'  => true,
+      'order' => 2,
+    ],
+    'ready_quantity'     => [
+      'type'  => 'numeric',
+      'show'  => true,
+      'order' => 3,
+    ],
+    'projected_quantity' => [
+      'type'  => 'numeric',
+      'show'  => true,
+      'order' => 4,
+    ],
+    'stock_queue'        => [
+      'type'   => 'numeric',
+      'ignore' => true,
+    ],
+    'warehouse',
+    'itemVariant',
+    'unit',
+  ];
 
   private function fillDetails(&$details, $operator, $type, $key, $value) {
     switch ($operator) {

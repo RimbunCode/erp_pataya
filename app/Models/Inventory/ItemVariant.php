@@ -14,15 +14,16 @@ use Inertia\Inertia;
 
 class ItemVariant extends Model {
   use HasUlids, SoftDeletes, DataTable;
-  public    $keyBreadcrumb   = 'sku';
-  public    $aliasBreadcrumb = 'Variant';
-  protected $guarded         = ['id'];
-  protected $casts           = [
+  public        $keyBreadcrumb   = 'sku';
+  public        $aliasBreadcrumb = 'Variant';
+  public string $translateKey    = 'inventories.itemVariant';
+  protected     $guarded         = ['id'];
+  protected $casts               = [
     'is_disabled'            => 'boolean',
     'allow_alternative_item' => 'boolean',
     'is_stock_item'          => 'boolean',
   ];
-  protected $appends         = ['sku'];
+  protected     $appends         = ['sku'];
 
   public function sku(): Attribute {
     return new Attribute(
@@ -41,6 +42,36 @@ class ItemVariant extends Model {
       'barcodes',
     ];
   }
+  protected     $configColumns = [
+    'code'          => [
+      'show'  => true,
+      'order' => 0,
+    ],
+    'item_code'     => [
+      'show'  => true,
+      'order' => 1,
+    ],
+    'item_name'     => [
+      'show'  => true,
+      'order' => 2,
+    ],
+    'is_disabled'   => [
+      'type'  => 'boolean',
+      'show'  => true,
+      'order' => 3,
+    ],
+    'is_stock_item' => [
+      'type'  => 'boolean',
+      'show'  => true,
+      'order' => 4,
+    ],
+    'values',
+    'item',
+    'stocks',
+    'uom',
+    'defaultUnit',
+    'category',
+  ];
   public string $formComponent = 'Inventory/Items/FormVariant';
 
   public static function templateLink() {

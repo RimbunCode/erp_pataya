@@ -103,6 +103,11 @@ const navList = [
         urlPattern: "/suppliers/*",
       },
       {
+        title: "Purchase Receipts",
+        url: "/purchaseReceipts",
+        urlPattern: "/purchaseReceipts/*",
+      },
+      {
         title: "Purchase Requests",
         url: "/purchaseRequests",
         urlPattern: "/purchaseRequests/*",
@@ -111,6 +116,11 @@ const navList = [
         title: "Purchase Orders",
         url: "/purchaseOrders",
         urlPattern: "/purchaseOrders/*",
+      },
+      {
+        title: "Purchase Returns",
+        url: "/purchaseReturns",
+        urlPattern: "/purchaseReturns/*",
       },
     ],
   },
@@ -177,7 +187,12 @@ const navList = [
         urlPattern: "/paymentEntries/*",
       },
       {
-        title: "Sales Invoice",
+        title: "Purchase Invoices",
+        url: "/purchaseInvoices",
+        urlPattern: "/purchaseInvoices/*",
+      },
+      {
+        title: "Sales Invoices",
         url: "/salesInvoices",
         urlPattern: "/salesInvoices/*",
       },

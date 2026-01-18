@@ -40,6 +40,7 @@ class DeliveryNote extends Model {
       'order'  => 0,
     ],
     'delivery_date'   => [
+      'type'  => 'date',
       'show'  => true,
       'order' => 1,
     ],
@@ -48,10 +49,12 @@ class DeliveryNote extends Model {
       'order' => 2,
     ],
     'customer'        => [
+      'type'  => 'relation',
       'show'  => true,
       'order' => 3,
     ],
     'customer_branch' => [
+      'type'  => 'relation',
       'show'  => true,
       'order' => 4,
     ],

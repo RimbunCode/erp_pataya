@@ -13,8 +13,7 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import LinkModel from "@/Components/LinkModel";
-import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
-import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
+import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
 import SalesOrderLinkModel from "./SalesOrderLinkModel";
 import Select from "@/Components/Select";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
@@ -357,207 +356,6 @@ export default memo(function Form() {
     ];
   }, [data, isLockDoc]);
 
-  const paymentScheduleColumns = useMemo(() => {
-    return [
-      {
-        name: "payment_term",
-        titleTrans: "sales.salesOrder.columns.payment_term",
-        show: true,
-        cell({ data: paymentTerm, setData, attributes }) {
-          return (
-            <PaymentTermLinkModel
-              placeholder={t(
-                "sales.salesOrder.columns.payment_term.placeholder",
-              )}
-              value={paymentTerm}
-              onValueChange={(val) => {
-                const due_date = new Date(data?.date);
-                switch (val?.due_date_based_on) {
-                  case "days_after_invoice_date": {
-                    due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                  case "weeks_after_invoice_week": {
-                    due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0) * 7,
-                    );
-                    break;
-                  }
-                  case "months_after_invoice_month": {
-                    due_date.setMonth(
-                      due_date.getMonth() + (val?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                }
-                setData({
-                  payment_term: val,
-                  due_date,
-                  description: val?.description,
-                  invoice_portion: val?.invoice_portion,
-                  discount_type: val?.discount_type,
-                  discount: val?.discount,
-                  payment_method: val?.payment_method,
-                });
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "due_date",
-        titleTrans: "sales.salesOrder.columns.due_date",
-        required: true,
-        cell({ data, setData, attributes }) {
-          return (
-            <DatetimePicker
-              type="datetime"
-              value={data}
-              onValueChange={(val) => setData("due_date", val)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "description",
-        titleTrans: "sales.salesOrder.columns.description",
-        show: false,
-        type: "text",
-        width: 2,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <Textarea
-              disabled={!dataRow?.item}
-              rows={1}
-              value={data ?? ""}
-              onChange={(e) => setData("description", e.target.value)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "invoice_portion",
-        titleTrans: "sales.salesOrder.columns.invoice_portion",
-        required: true,
-        width: 1,
-        cell({ data, setData, attributes }) {
-          return (
-            <CurrencyInput
-              decimalScale={2}
-              suffix="%"
-              value={data}
-              onValueChange={(val) => {
-                setData("invoice_portion", val);
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "payment_amount",
-        titleTrans: "sales.salesOrder.columns.payment_amount",
-        required: true,
-        readOnly: true,
-        width: 1,
-        cell({ data: payment_amount, setData, attributes }) {
-          return (
-            <CurrencyInput
-              decimalScale={2}
-              currencyCode={data?.currency?.code}
-              value={payment_amount}
-              onValueChange={(val) => {
-                setData("payment_amount", val);
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "payment_method",
-        titleTrans: "sales.salesOrder.columns.payment_method",
-        width: 1,
-        cell({ data, setData, attributes }) {
-          return (
-            <PaymentMethodLinkModel
-              value={data}
-              onValueChange={(val) => setData("payment_method", val)}
-              placeholder={t(
-                "finances.paymentTerm.columns.payment_method.placeholder",
-              )}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "discount_type",
-        titleTrans: "sales.salesOrder.columns.discount_type",
-        width: 1,
-        cell({ data, setData, attributes }) {
-          return (
-            <Select
-              value={data}
-              onValueChange={(val) => setData("discount_type", val)}
-              {...attributes}
-              placeholder={t(
-                "sales.salesOrder.columns.discount_type.placeholder",
-              )}
-              optionTrans="sales.salesOrder.columns.discount_type.options"
-              options={["percentage", "amount"]}
-            />
-          );
-        },
-      },
-      {
-        name: "discount",
-        titleTrans: "sales.salesOrder.columns.discount",
-        width: 1,
-        cell({ data: discount, dataRow, setData, attributes }) {
-          return (
-            <CurrencyInput
-              className="text-left"
-              value={discount}
-              currencyCode={
-                dataRow.discount_type == "percentage"
-                  ? undefined
-                  : data?.currency?.code
-              }
-              onValueChange={(value) => setData("discount", value)}
-              decimalsLimit={2}
-              suffix={dataRow.discount_type == "percentage" ? "%" : ""}
-              min={dataRow.discount_type == "percentage" && 0}
-              max={dataRow.discount_type == "percentage" && 100}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "outstanding_amount",
-        titleTrans: "sales.salesOrder.columns.outstanding_amount",
-        readOnly: true,
-        width: 1,
-        cell({ data, setData, attributes }) {
-          return (
-            <CurrencyInput
-              decimalScale={2}
-              currencyCode={data?.currency?.code}
-              value={data}
-              onValueChange={(val) => setData("outstanding_amount", val)}
-              {...attributes}
-            />
-          );
-        },
-      },
-    ];
-  }, [data]);
   return (
     <>
       <FormPageContent value="detail" title={t("sales.salesOrder.detail")}>
@@ -959,30 +757,21 @@ export default memo(function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-
-      <FormPageContent
-        value="terms"
-        title={t("sales.salesOrder.columns.terms")}
-      >
-        <div className="px-1 py-1">
-          <FormTable
-            name="paymentSchedules"
-            className="col-start-1 col-span-2"
-            readOnly={disabled}
-            columns={paymentScheduleColumns}
-            value={data?.payment_schedules ?? []}
-            onValueChange={(v) => setData("payment_schedules", v)}
-            mapItem={({ item }) => {
-              const payment_amount = amount * (item?.invoice_portion / 100);
-              return {
-                ...item,
-                payment_amount,
-                outstanding_amount: payment_amount,
-              };
-            }}
-          />
-        </div>
-      </FormPageContent>
+      <PaymentSchedule
+        readOnly={disabled}
+        value={data?.payment_schedules ?? []}
+        onValueChange={(v) => setData("payment_schedules", v)}
+        mapItem={({ item }) => {
+          const payment_amount = amount * (item?.invoice_portion / 100);
+          return {
+            ...item,
+            payment_amount,
+            outstanding_amount: payment_amount,
+          };
+        }}
+        date={data?.date}
+        currencyCode={data?.currency?.code}
+      />
     </>
   );
 });

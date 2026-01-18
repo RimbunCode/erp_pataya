@@ -101,7 +101,6 @@ function validateWithOperators(value, operators, logic = "and") {
             if (valOperator.includes(item)) {
               rst = true;
             }
-            return;
           });
           result = rst;
           break;
@@ -117,7 +116,6 @@ function validateWithOperators(value, operators, logic = "and") {
             if (!valOperator.includes(item)) {
               rst = false;
             }
-            return;
           });
           result = rst;
           break;

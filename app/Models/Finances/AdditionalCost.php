@@ -8,8 +8,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AdditionalCost extends Model {
   use HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
-  protected $with    = ['expenseAccount'];
+  protected $guarded       = ['id'];
+  protected $with          = ['expenseAccount'];
+  protected $confgiColumns = [
+    'purpose' => [
+      'show'  => true,
+      'order' => 0,
+    ],
+    'amount'  => [
+      'show'  => true,
+      'order' => 1,
+      'type'  => 'numeric',
+    ],
+  ];
 
   public function referenceable() {
     return $this->morphTo();

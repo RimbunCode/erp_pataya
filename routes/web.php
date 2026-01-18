@@ -131,6 +131,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('purchaseRequest', \App\Http\Controllers\Purchase\PurchaseRequestController::class, isSubmmitable: true);
   // Purchase Order
   Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class, isSubmmitable: true);
+  // Purchase Receipt
+  Route::resourceDetail('purchaseReceipt', \App\Http\Controllers\Purchase\PurchaseReceiptController::class, isSubmmitable: true);
   /// Purchase Group End
 
   // Customer
@@ -161,6 +163,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
   // Payment Entries
   Route::resourceDetail('paymentEntry', \App\Http\Controllers\Finances\PaymentEntryController::class);
+  // Purchase Invoices
+  Route::resourceDetail('purchaseInvoice', \App\Http\Controllers\Finances\PurchaseInvoiceController::class, isSubmmitable: true);
   // Sales Invoices
   Route::resourceDetail('salesInvoice', \App\Http\Controllers\Finances\SalesInvoiceController::class, isSubmmitable: true);
   // Taxes

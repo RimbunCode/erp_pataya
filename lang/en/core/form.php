@@ -65,7 +65,6 @@ return [
     'search' => 'Type tag name',
   ],
   'errors.title'          => 'Please fix the following errors:',
-
   'approvalDecision'      => [
     'trigger'              => 'Make Decision',
     'title'                => 'Your Decision',

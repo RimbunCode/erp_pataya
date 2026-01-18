@@ -9,7 +9,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tag extends Model {
   use HasUlids, SoftDeletes, HasFactory;
-  protected $guarded = ["id"];
+  protected $guarded       = ["id"];
+  public    $translateKey  = 'core.tag';
+  protected $configColumns = [
+    'name'        => [
+      'show'  => true,
+      'order' => 0,
+    ],
+    'description' => [
+      'show'  => true,
+      'order' => 1,
+    ],
+    'tagMorphs',
+    'logs',
+  ];
 
   public function tagMorphs() {
     return $this->morphMany(Taggable::class, "taggable");

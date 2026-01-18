@@ -1,7 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
-
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -12,10 +11,14 @@ import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
-import { generateRandom } from "@/lib/utils";
+import { calculateArray, generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
+import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
+import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
+import Select from "@/Components/Select";
 
 function Form() {
   const { t } = useLaravelReactI18n();
@@ -23,6 +26,59 @@ function Form() {
   const loadFrom = usePage().props.loadFrom;
   const { default_currency_id } = usePage().props.preferences;
 
+  const basic_amount = useMemo(() => {
+    return calculateArray(data.items, "basic_amount", "+");
+  }, [data.items]);
+
+  const tax_amount = useMemo(() => {
+    return calculateArray(data.items, "tax_amount", "+");
+  }, [data.items]);
+
+  const amount = useMemo(() => {
+    return basic_amount + tax_amount;
+  }, [basic_amount, tax_amount]);
+
+  useEffect(() => {
+    console.log(data);
+  }, [data]);
+  const setDiscount = useCallback(
+    (key, value) => {
+      setData((prev) => {
+        let discount_on = prev.discount_on;
+        let discount_rate = prev.discount_rate ?? 0;
+        let discount_amount = prev.discount_amount ?? 0;
+        const basic_amount = calculateArray(prev.items, "basic_amount", "+");
+        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
+        if (key == "discount_on") {
+          discount_on = value;
+        }
+        const total =
+          discount_on == "grand_total"
+            ? basic_amount + tax_amount
+            : discount_on == "net_total"
+              ? basic_amount
+              : 0;
+        if (key == "discount_rate") {
+          discount_rate = value;
+          discount_amount = (total * discount_rate) / 100;
+        }
+        if (key == "discount_amount") {
+          discount_amount = value;
+          discount_rate = (discount_amount * 100) / total;
+        }
+        if (key == "discount_on") {
+          discount_amount = (total * discount_rate) / 100;
+        }
+        return {
+          ...prev,
+          discount_on,
+          discount_rate,
+          discount_amount,
+        };
+      });
+    },
+    [data],
+  );
   const mergeItems = useCallback(
     (value, model) => {
       setData((prev) => {
@@ -42,6 +98,7 @@ function Form() {
             // ...item,
             id: generateRandom(5),
             item: item.item,
+            target_warehouse: item.target_warehouse,
             description: item.description,
             required_date: prev.required_date,
             quantity: item.remaining_quantity,
@@ -111,9 +168,26 @@ function Form() {
         },
       },
       {
+        name: "target_warehouse",
+        titleTrans: "purchase.purchaseOrder.columns.target_warehouse",
+        required: true,
+        type: "text",
+        width: 2,
+        cell({ dataRow, data, setData, attributes }) {
+          return (
+            <WarehouseLinkModel
+              disabled={!dataRow?.item}
+              rows={1}
+              value={data ?? ""}
+              onValueChange={(val) => setData("target_warehouse", val)}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
         name: "description",
         titleTrans: "purchase.purchaseOrder.columns.description",
-        show: true,
         type: "text",
         width: 2,
         cell({ dataRow, data, setData, attributes }) {
@@ -183,6 +257,53 @@ function Form() {
               {...attributes}
               filters={{
                 group: dataRow?.item?.default_unit?.group,
+              }}
+            />
+          );
+        },
+      },
+      {
+        name: "tax",
+        titleTrans: "purchase.purchaseOrder.columns.tax",
+        required: true,
+        cell({ data: value, setData, attributes, dataRow }) {
+          return (
+            <TaxLinkModel
+              disabled={!dataRow?.item}
+              currencyCode={data?.currency?.code}
+              placeholder={t("purchase.purchaseOrder.columns.tax.placeholder")}
+              decimalScale={2}
+              value={value}
+              onValueChange={(val) =>
+                setData({
+                  tax: val,
+                  tax_rate: val?.rate ?? 0,
+                })
+              }
+              {...attributes}
+              filters={{
+                group: dataRow?.item?.default_tax?.group,
+              }}
+            />
+          );
+        },
+      },
+      {
+        name: "rate",
+        titleTrans: "purchase.purchaseOrder.columns.rate",
+        required: true,
+        cell({ data: value, setData, attributes, dataRow }) {
+          return (
+            <CurrencyInput
+              disabled={!dataRow?.item}
+              currencyCode={data?.currency?.code}
+              placeholder={t("purchase.purchaseOrder.columns.rate.placeholder")}
+              decimalScale={2}
+              value={value}
+              onValueChange={(val) => setData("rate", val)}
+              {...attributes}
+              filters={{
+                group: dataRow?.item?.default_rate?.group,
               }}
             />
           );
@@ -343,14 +464,148 @@ function Form() {
           )
         }
       >
-        <FormTable
-          readOnly={disabled}
-          columns={itemColumns}
-          value={data?.items}
-          onValueChange={(v) => setData("items", v)}
-          form={<ItemForm />}
-        />
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <div className="col-span-full">
+            <FormTable
+              readOnly={disabled}
+              columns={itemColumns}
+              value={data?.items}
+              onValueChange={(v) => setData("items", v)}
+              form={<ItemForm />}
+              mapItem={({ item }) => {
+                const amount = item.quantity * item.rate;
+                const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
+                return {
+                  ...item,
+                  tax_amount: rateAmount,
+                  basic_amount: amount,
+                };
+              }}
+            />
+          </div>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("purchase.purchaseOrder.columns.basic_amount")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={basic_amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("purchase.purchaseOrder.columns.basic_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              decimalScale={2}
+              className="text-right"
+              value={basic_amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("purchase.purchaseOrder.columns.tax_amount")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={tax_amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("purchase.purchaseOrder.columns.tax_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              decimalScale={2}
+              className="text-right"
+              value={tax_amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("purchase.purchaseOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("purchase.purchaseOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              className="text-right"
+              decimalScale={2}
+              value={amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+        </div>
       </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("purchase.purchaseOrder.columns.additional_discount")}
+        collapsible
+        defaultOpen
+      >
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+          <FormInput label={t("purchase.purchaseOrder.columns.discount_on")}>
+            <Select
+              value={data.discount_on}
+              onValueChange={(val) => setDiscount("discount_on", val)}
+              placeholder={t(
+                "purchase.purchaseOrder.columns.discount_on.placeholder",
+              )}
+              optionTrans="purchase.purchaseOrder.columns.discount_on.options"
+              options={["net_total", "grand_total"]}
+            />
+          </FormInput>
+          <FormInput
+            disabled={!data?.discount_on}
+            label={`${t("purchase.purchaseOrder.columns.additional_discount_rate")}`}
+          >
+            <CurrencyInput
+              className="text-right"
+              value={data.discount_rate}
+              onValueChange={(val) => setDiscount("discount_rate", val)}
+              suffix="%"
+            ></CurrencyInput>
+          </FormInput>
+
+          <FormInput
+            className="col-start-2"
+            disabled={!data?.discount_on}
+            label={`${t("purchase.purchaseOrder.columns.additional_discount_amount")}`}
+          >
+            <CurrencyInput
+              className="text-right "
+              decimalScale={2}
+              value={data.discount_amount}
+              onValueChange={(val) => setDiscount("discount_amount", val)}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+        </div>
+      </FormPageContent>
+
       <FormPageContent
         value="detail"
         title={t("purchase.purchaseOrder.columns.external_note")}
@@ -367,6 +622,21 @@ function Form() {
           </FormInput>
         </div>
       </FormPageContent>
+      <PaymentSchedule
+        readOnly={disabled}
+        value={data?.payment_schedules ?? []}
+        onValueChange={(v) => setData("payment_schedules", v)}
+        mapItem={({ item }) => {
+          const payment_amount = amount * (item?.invoice_portion / 100);
+          return {
+            ...item,
+            payment_amount,
+            outstanding_amount: payment_amount,
+          };
+        }}
+        date={data?.date}
+        currencyCode={data?.currency?.code}
+      />
     </>
   );
 }

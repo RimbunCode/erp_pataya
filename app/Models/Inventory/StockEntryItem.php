@@ -13,22 +13,27 @@ class StockEntryItem extends Model {
   public    $translateKey  = 'inventory.stockEntry.item_columns';
   protected $configColumns = [
     'sourceWarehouse' => [
+      'type'  => 'relation',
       'show'  => true,
       'order' => 0,
     ],
     'targetWarehouse' => [
+      'type'  => 'relation',
       'show'  => true,
       'order' => 1,
     ],
     'item'            => [
+      'type'  => 'relation',
       'show'  => true,
       'order' => 2,
     ],
     'quantity'        => [
+      'type'  => 'numeric',
       'show'  => true,
       'order' => 3,
     ],
     'unit'            => [
+      'type'  => 'relation',
       'show'  => true,
       'order' => 4,
     ],
