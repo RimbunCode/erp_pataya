@@ -5,7 +5,6 @@ import { CardContent } from "@/Components/ui/card";
 import GuestLayout from "@/Layouts/GuestLayout";
 import InputError from "@/Components/InputError";
 import InputLabel from "@/Components/InputLabel";
-import PrimaryButton from "@/Components/PrimaryButton";
 import TextInput from "@/Components/TextInput";
 
 export default function ResetPassword({ token, email }) {

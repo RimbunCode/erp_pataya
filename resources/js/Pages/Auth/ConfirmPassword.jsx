@@ -1,10 +1,11 @@
-import InputError from "@/Components/InputError";
-import InputLabel from "@/Components/InputLabel";
-import PrimaryButton from "@/Components/PrimaryButton";
-import TextInput from "@/Components/TextInput";
+import { Head, useForm } from "@inertiajs/react";
+
+import { Button } from "@/Components/ui/button";
 import { CardContent } from "@/Components/ui/card";
 import GuestLayout from "@/Layouts/GuestLayout";
-import { Head, useForm } from "@inertiajs/react";
+import InputError from "@/Components/InputError";
+import InputLabel from "@/Components/InputLabel";
+import TextInput from "@/Components/TextInput";
 
 export default function ConfirmPassword() {
   const route = window.route;
@@ -48,9 +49,9 @@ export default function ConfirmPassword() {
           </div>
 
           <div className="flex items-center justify-end mt-4">
-            <PrimaryButton className="ms-4" disabled={processing}>
+            <Button className="ms-4" disabled={processing}>
               Confirm
-            </PrimaryButton>
+            </Button>
           </div>
         </form>
       </CardContent>

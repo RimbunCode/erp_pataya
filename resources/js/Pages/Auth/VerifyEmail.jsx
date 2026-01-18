@@ -1,9 +1,9 @@
 import { Head, useForm } from "@inertiajs/react";
 
+import { Button } from "@/Components/ui/button";
 import { CardContent } from "@/Components/ui/card";
 import GuestLayout from "@/Layouts/GuestLayout";
 import Link from "@/Components/Link";
-import PrimaryButton from "@/Components/PrimaryButton";
 
 export default function VerifyEmail({ status }) {
   const route = window.route;
@@ -35,9 +35,7 @@ export default function VerifyEmail({ status }) {
 
         <form onSubmit={submit}>
           <div className="flex items-center justify-between mt-4">
-            <PrimaryButton disabled={processing}>
-              Resend Verification Email
-            </PrimaryButton>
+            <Button disabled={processing}>Resend Verification Email</Button>
 
             <Link
               href={route("logout")}

@@ -1,13 +1,10 @@
-import DangerButton from "@/Components/DangerButton";
-import InputError from "@/Components/InputError";
-import InputLabel from "@/Components/InputLabel";
-import Modal from "@/Components/Modal";
-import SecondaryButton from "@/Components/SecondaryButton";
-import TextInput from "@/Components/TextInput";
-import { useForm } from "@inertiajs/react";
 import { useRef, useState } from "react";
 
+import { Button } from "@/Components/ui/button";
+import { useForm } from "@inertiajs/react";
+
 export default function DeleteUserForm({ className = "" }) {
+  const route = window.route;
   const [confirmingUserDeletion, setConfirmingUserDeletion] = useState(false);
   const passwordInput = useRef();
 
@@ -59,9 +56,9 @@ export default function DeleteUserForm({ className = "" }) {
         </p>
       </header>
 
-      <DangerButton onClick={confirmUserDeletion}>Delete Account</DangerButton>
+      <Button onClick={confirmUserDeletion}>Delete Account</Button>
 
-      <Modal show={confirmingUserDeletion} onClose={closeModal}>
+      {/* <Modal show={confirmingUserDeletion} onClose={closeModal}>
         <form onSubmit={deleteUser} className="p-6">
           <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
             Are you sure you want to delete your account?
@@ -103,7 +100,7 @@ export default function DeleteUserForm({ className = "" }) {
             </DangerButton>
           </div>
         </form>
-      </Modal>
+      </Modal> */}
     </section>
   );
 }

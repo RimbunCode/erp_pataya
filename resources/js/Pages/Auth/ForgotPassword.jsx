@@ -4,7 +4,6 @@ import { Button } from "@/Components/ui/button";
 import { CardContent } from "@/Components/ui/card";
 import GuestLayout from "@/Layouts/GuestLayout";
 import InputError from "@/Components/InputError";
-import PrimaryButton from "@/Components/PrimaryButton";
 import { Skeleton } from "@/Components/ui/skeleton";
 import TextInput from "@/Components/TextInput";
 import { useLaravelReactI18n } from "laravel-react-i18n";

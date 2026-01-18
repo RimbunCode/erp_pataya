@@ -1,15 +1,17 @@
+import { Link, useForm, usePage } from "@inertiajs/react";
+
+import { Button } from "@/Components/ui/button";
 import InputError from "@/Components/InputError";
 import InputLabel from "@/Components/InputLabel";
-import PrimaryButton from "@/Components/PrimaryButton";
 import TextInput from "@/Components/TextInput";
 import { Transition } from "@headlessui/react";
-import { Link, useForm, usePage } from "@inertiajs/react";
 
 export default function UpdateProfileInformation({
   mustVerifyEmail,
   status,
   className = "",
 }) {
+  const route = window.route;
   const user = usePage().props.auth.user;
 
   const { data, setData, patch, errors, processing, recentlySuccessful } =
@@ -32,7 +34,7 @@ export default function UpdateProfileInformation({
         </h2>
 
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          Update your account's profile information and email address.
+          {"Update your account's profile information and email address."}
         </p>
       </header>
 
@@ -92,7 +94,7 @@ export default function UpdateProfileInformation({
         )}
 
         <div className="flex items-center gap-4">
-          <PrimaryButton disabled={processing}>Save</PrimaryButton>
+          <Button disabled={processing}>Save</Button>
 
           <Transition
             show={recentlySuccessful}

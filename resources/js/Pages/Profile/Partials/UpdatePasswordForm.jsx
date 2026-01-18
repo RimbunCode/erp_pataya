@@ -1,6 +1,6 @@
+import { Button } from "@/Components/ui/button";
 import InputError from "@/Components/InputError";
 import InputLabel from "@/Components/InputLabel";
-import PrimaryButton from "@/Components/PrimaryButton";
 import TextInput from "@/Components/TextInput";
 import { Transition } from "@headlessui/react";
 import { useForm } from "@inertiajs/react";
@@ -20,7 +20,7 @@ export default function UpdatePasswordForm({ className = "" }) {
   const updatePassword = (e) => {
     e.preventDefault();
 
-    put(route("password.update"), {
+    put(window.route("password.update"), {
       preserveScroll: true,
       onSuccess: () => reset(),
       onError: (errors) => {
@@ -101,7 +101,7 @@ export default function UpdatePasswordForm({ className = "" }) {
         </div>
 
         <div className="flex items-center gap-4">
-          <PrimaryButton disabled={processing}>Save</PrimaryButton>
+          <Button disabled={processing}>Save</Button>
 
           <Transition
             show={recentlySuccessful}
