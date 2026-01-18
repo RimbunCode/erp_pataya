@@ -1,5 +1,5 @@
-# /bootstrap/ssr
-# /public/build
+/bootstrap/ssr
+/public/build
 /.phpunit.cache
 /node_modules
 /public/hot
