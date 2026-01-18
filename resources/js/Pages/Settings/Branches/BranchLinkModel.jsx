@@ -15,8 +15,14 @@ export default forwardRef(function BranchLinkModel(
       onValueChange={onValueChange}
       model="App\Models\Core\Branch"
       titleDialog={t("core.branch.new")}
-      classNameDialog="max-w-screen-md"
+      classNameDialog="max-w-(--breakpoint-md)"
       form={<Form />}
+      order="is_main_branch:desc"
+      translate={{
+        is_main_branch: {
+          true: t("core.branch.main"),
+        },
+      }}
       {...props}
       ref={ref}
     />

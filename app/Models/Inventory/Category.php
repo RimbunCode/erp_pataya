@@ -15,4 +15,19 @@ class Category extends Model {
   public static function templateLink() {
     return ":name";
   }
+
+  public string $formComponent = 'Inventory/Categories/Form';
+  public string $translateKey = "inventory.category";
+  protected $configColumns = [
+    'name' => [
+      'isLink' => true,
+      'show' => true,
+      'order' => 0,
+    ],
+    'type' => [
+      'show' => true,
+      'order' => 1,
+      'valueTrans' => 'inventory.category.types'
+    ]
+  ];
 }

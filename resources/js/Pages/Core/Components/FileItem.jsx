@@ -40,7 +40,7 @@ function FileItem({
               name: e.target.value,
             });
           }}
-          className="!bg-background focus-visible:!bg-muted focus-visible:mb-2 focus-visible:ring-1  border-none !pointer-events-auto text-base focus-visible:px-2 px-0 !py-1 !h-fit font-semibold truncate overflow-clip"
+          className="bg-background! focus-visible:bg-muted! focus-visible:mb-2 focus-visible:ring-1  border-none pointer-events-auto! text-base focus-visible:px-2 px-0 py-1! h-fit! font-semibold truncate overflow-clip"
         />
         {/* <h1 className="text-base font-semibold truncate overflow-clip">
           {file.name}
@@ -59,27 +59,27 @@ function FileItem({
             });
           }}
           label="Public"
-          className="mt-1 flex items-center gap-x-2 [&_*]:!pointer-events-auto"
+          className="mt-1 flex items-center gap-x-2 **:pointer-events-auto!"
         />
       </div>
-      <div className="flex items-center gap-x-0 [&_*]:!pointer-events-auto">
+      <div className="flex items-center gap-x-0 **:pointer-events-auto!">
         {/* {isNew && progress && (
           <Button
             variant="ghost"
             size="icon"
-            className=" !p-2 size-auto"
+            className=" p-2! size-auto"
             onClick={() => uploadFile(file)}
           >
-            <RefreshCw className="!size-5" />
+            <RefreshCw className="size-5!" />
           </Button>
         )} */}
         <Button
           variant="ghost"
           size="icon"
-          className="hover:text-red-500 !p-2 size-auto"
+          className="hover:text-red-500 p-2! size-auto"
           onClick={() => removeFile(id)}
         >
-          <Trash2 className="!size-5" />
+          <Trash2 className="size-5!" />
         </Button>
       </div>
     </div>

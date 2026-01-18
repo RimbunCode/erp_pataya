@@ -5,18 +5,22 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\ItemRequest;
 use App\Models\Core\Branch;
+use App\Models\Inventory\Category;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\ItemVariantAttribute;
 use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
+use App\Services\Inventory\ItemServices;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class ItemController extends Controller {
-  public function __construct(request $request) {
+  protected $service;
+  public function __construct(Request $request, ItemServices $service) {
+    $this->service = $service;
     parent::__construct($request, Item::class);
   }
 
@@ -25,7 +29,7 @@ class ItemController extends Controller {
    */
   public function index(Request $request) {
     $this->setBreadcrumbs();
-    Item::query()
+    Item::with(['variants'])
       ->leftJoin('categories', 'categories.id', '=', 'items.category_id')
       ->leftJoin('units', 'units.id', '=', 'items.default_unit_id')
       ->select([
@@ -51,75 +55,22 @@ class ItemController extends Controller {
     $data['category_id'] = $data['category']['id'];
     $data['default_unit_id'] = $data['default_unit']['id'];
 
+    $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+
     DB::beginTransaction();
+    $category = Category::find($data['category_id']);
+    $data['is_stock_item'] = $category->type != 'service';
     $item = Item::create($data);
-    foreach ($data['uom'] as $uom) {
-      if ($uom['isCustom'] ?? false) {
-        $item->uom()->create([
-          'unit_id' => $uom['id'],
-          'conversion_factor' => $uom['conversion_factor']
-        ]);
-      }
-    }
-    if (isset($data['variants']) && \count($data['variants']) > 0) {
-      if (isset($data['format_variant'])) {
-        $attribute_map = array_column(array_column($data['variants'], 'attribute'), 'id', 'name');
-        $attribute_map['Item Code'] = 'item';
-
-        // Ganti format menggunakan regex
-        $data['format_variant'] = preg_replace_callback('/\{([^}]+)\}/', function ($matches) use ($attribute_map) {
-          $name = $matches[1];
-          return isset($attribute_map[$name]) ? "@[$name]({$attribute_map[$name]})" : $matches[0];
-        }, $data['format_variant']);
-      }
-      foreach ($data['variants'] as $variant) {
-        $item->variants()->create([
-          'attribute_id' => $variant['attribute']['id'],
-          'values' => $variant['values']
-        ]);
-      }
-      $variantIds = array_column(
-        array_column($data['variants'], 'attribute'),
-        'id'
-      );
-      foreach ($item->variants as $variant) {
-        if (!\in_array(
-          $variant->attribute_id,
-          $variantIds
-        )) {
-          $variant->delete();
-        }
-      }
-      $variants = ItemVariant::selectRaw("
-        item_variants.id,
-        CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('\"', item_variant_attributes.value, '\"') SEPARATOR ', '), ']') AS `values`
-      ")
-        ->leftJoin('item_variant_attributes', 'item_variants.id', '=', 'item_variant_attributes.item_variant_id')
-        ->where('item_id', $item->id)
-        ->groupBy('item_variants.id')
-        ->withCasts([
-          'values' => 'array'
-        ])
-        ->get();
-      $this->generateVariants($variants, $item, $data['variants']);
-    } else {
-      ItemVariant::updateOrCreate([
-        'item_id' => $item->id,
-        'format_variant' => null,
-      ], [
-        'item_code' => $item->code,
-      ]);
-    }
-
-    $item->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
+    Unit::find($item->default_unit_id)->updateHaveTransactions();
+    $this->service->updateUom($item, $data['uoms']);
+    $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['attributes'] ?? []);
+    $this->service->updateBarcodes($itemVariant, barcodes: $data['barcodes'] ?? []);
+    $item->logForCreated();
     DB::commit();
-    return redirect()->back();
+    if ($itemVariant) {
+      return back()->with('id', $itemVariant->id);
+    }
+    return back();
   }
 
   /**
@@ -129,21 +80,19 @@ class ItemController extends Controller {
     $this->setBreadcrumbs($item);
     $item->showDetail();
 
+    $variant = ItemVariant::where('item_id', $item->id)
+      ->whereNull('format_variant')
+      ->first();
+    if ($variant) {
+      $variant->showStocks();
+    }
+
     return Inertia::render('Inventory/Items/Show', [
       'item' => function () use ($item) {
-        $item->load(['category', 'defaultUnit', 'uom', 'variants', 'variants.attribute']);
-        $uom = Unit::selectRaw('*,ISNULL(`conversion_factor`) AS `isCustom`')->where('group', $item->defaultUnit->group)->get();
-        $uomIds = $item->uom->pluck('unit_id');
+        $item->loadRelations();
         $itemArray = $item->toArray();
-        $itemArray['uom'] = $uom->map(function (Unit $uom) use ($item, $uomIds) {
-          $uom->isCustom = $uom->isCustom == 1;
-          if (\in_array($uom->id, $uomIds->toArray())) {
-            $uom->conversion_factor = $item->uom->where('unit_id', $uom->id)->first()->conversion_factor;
-          }
-          return $uom;
-        });
 
-        $variant = ItemVariant::where('item_id', $item->id)
+        $variant = $item->variants
           ->whereNull('format_variant')
           ->first();
         if ($variant) {
@@ -165,182 +114,43 @@ class ItemController extends Controller {
               'total_stock' => $totalStock
             ];
           });
-      }),
-      'stocks' => Inertia::defer(function () use ($item) {
-        $variant = ItemVariant::where('item_id', $item->id)
-          ->whereNull('format_variant')
-          ->first();
-        if (!$variant) return [];
-        $warehouses = Warehouse::with(['stocks' => fn($query) => $query->where('item_variant_id', $variant->id), 'stocks.unit', 'branch']);
-        if (Session::has('currentBranch')) {
-          $branch = Branch::find(Session::get('currentBranch'));
-          if (!$branch->is_main_branch) {
-            $warehouses->where('warehouses.branch_id', $branch->id);
-          }
-        }
-        $warehouses = $warehouses->get()
-          ->map(fn($warehouse) => [
-            ...$warehouse->toArray(),
-            'actual_stock' => $warehouse->stocks->sum('quantity'),
-            'reserved_stock' => 0,
-          ]);
-        return $warehouses;
-      }),
+      })
     ]);
   }
 
-  public function showVariant(Item $item, ItemVariant $variant) {
-    $this->setBreadcrumbs($item, $variant);
-    return Inertia::render('Inventory/Items/ShowVariant', [
-      'variant' => $variant,
-      'item' => $item
-    ]);
-  }
-
-  private function generateVariants($variants, Item $item, array $attributes, array $prefix = []) {
-    if (!$attributes) {
-      $variant = $variants->where(function ($variant) use ($prefix) {
-        if (\count($variant->values) != \count($prefix)) return false;
-        foreach ($prefix as $attribute) {
-          if (!\in_array($attribute['value'], $variant->values ?? [])) {
-            return false;
-          }
-        }
-        return true;
-      })->first() ?? null;
-      if (!$variant) {
-        $variantId = ItemVariant::create([
-          'item_id' => $item->id,
-          'item_code' => $item->code,
-          'format_variant' => $item->format_variant,
-        ])->id;
-        foreach ($prefix as $attribute) {
-          ItemVariantAttribute::create([
-            'item_variant_id' => $variantId,
-            ...$attribute
-          ]);
-        }
-        return;
-      } else {
-        $variantId = $variant->update([
-          'format_variant' => $item->format_variant,
-          'item_code' => $item->code,
-        ]);
-        $variantId = $variant->id;
-      }
-      foreach ($prefix as $attribute) {
-        ItemVariantAttribute::updateOrCreate([
-          'item_variant_id' => $variantId,
-          'attribute_id' => $attribute['attribute_id'],
-        ], [
-          ...$attribute
-        ]);
-      }
-      // $sku = $item->code . '-' . implode('-', \array_column($prefix, 'value'));
-      return;
-    }
-    $currentAttributes = array_shift($attributes);
-    foreach ($currentAttributes['values'] as $value) {
-      $this->generateVariants(
-        $variants,
-        $item,
-        $attributes,
-        [
-          ...$prefix,
-          [
-            'attribute_id' => $currentAttributes['attribute']['id'],
-            'attribute_name' => $currentAttributes['attribute']['name'],
-            'value' => $value
-          ]
-        ]
-      );
-    }
-  }
   /**
    * Update the specified resource in storage.
    */
   public function update(ItemRequest $request, Item $item) {
     $data = $request->validated();
     $data['category_id'] = $data['category']['id'];
-    $data['default_unit_id'] = $data['default_unit']['id'];
+    if (!$item->have_transactions) {
+      $data['default_unit_id'] = $data['default_unit']['id'];
+    }
+    $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+
     DB::beginTransaction();
-    $item->update($data);
-    foreach ($data['uom'] as $uom) {
-      if ($uom['isCustom'] ?? false) {
-        $item->uom()->updateOrCreate([
-          'unit_id' => $uom['id'],
-        ], [
-          'conversion_factor' => $uom['conversion_factor']
-        ]);
-      }
-    }
-    if (isset($data['variants']) && \count($data['variants']) > 0) {
-      if (isset($data['format_variant'])) {
-        $attribute_map = array_column(array_column($data['variants'], 'attribute'), 'id', 'name');
-        $attribute_map['Item Code'] = 'item';
+    Unit::find($item->default_unit_id)->updateHaveTransactions();
+    $category = Category::find($data['category_id']);
+    $data['is_stock_item'] = $category->type != 'service';
+    $item->fillForUpdate($data);
+    $this->service->updateUom($item, $data['uoms']);
+    $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['attributes'] ?? []);
+    $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
+    $item->logForUpdated();
 
-        // Ganti format menggunakan regex
-        $data['format_variant'] = preg_replace_callback('/\{([^}]+)\}/', function ($matches) use ($attribute_map) {
-          $name = $matches[1];
-          return isset($attribute_map[$name]) ? "@[$name]({$attribute_map[$name]})" : $matches[0];
-        }, $data['format_variant']);
-      }
-      foreach ($data['variants'] as $variant) {
-        $item->variants()->updateOrCreate([
-          'attribute_id' => $variant['attribute']['id'],
-        ], [
-          'values' => $variant['values']
-        ]);
-      }
-      $variantIds = array_column(
-        array_column($data['variants'], 'attribute'),
-        'id'
-      );
-      foreach ($item->variants as $variant) {
-        if (!\in_array(
-          $variant->attribute_id,
-          $variantIds
-        )) {
-          $variant->delete();
-        }
-      }
-      $variants = ItemVariant::selectRaw("
-        item_variants.id,
-        CONCAT('[', GROUP_CONCAT(DISTINCT CONCAT('\"', item_variant_attributes.value, '\"') SEPARATOR ', '), ']') AS `values`
-      ")
-        ->leftJoin('item_variant_attributes', 'item_variants.id', '=', 'item_variant_attributes.item_variant_id')
-        ->where('item_id', $item->id)
-        ->groupBy('item_variants.id')
-        ->withCasts([
-          'values' => 'array'
-        ])
-        ->get();
-      $this->generateVariants($variants, $item, $data['variants']);
-    } else {
-      $item->variants()->delete();
-      ItemVariant::updateOrCreate([
-        'item_id' => $item->id,
-        'format_variant' => null,
-      ], [
-        'item_code' => $item->code,
-      ]);
-    }
-
-    $item->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini',
-      ]
-    ]);
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
   public function destroy(Item $item) {
-    //
+    DB::beginTransaction();
+    $item->delete();
+    $item->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

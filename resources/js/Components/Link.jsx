@@ -12,6 +12,7 @@ import {
   shouldIntercept,
 } from "@inertiajs/core";
 
+import { removeFromLocalStorage } from "@/lib/utils";
 import { useAlertDraftForm } from "@/Hooks/useDraftForm";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 
@@ -73,15 +74,22 @@ const Link = forwardRef(
       headers,
       async,
     };
-    const { setContinue, isDirty, setIsDirty, setShowAlert } = useIsDirtyForm();
+    const { setLeave, setSaveAsDraft, isDirty, setIsDirty, setShowAlert } =
+      useIsDirtyForm();
     const { cancel } = useAlertDraftForm();
 
     const onVisit = (href, visitParams) => {
-      setContinue(() => {
+      setLeave(() => {
         router.visit(href, visitParams);
         setShowAlert(false);
         setIsDirty(false);
+        removeFromLocalStorage(window.keyForm);
         cancel();
+      });
+      setSaveAsDraft(() => {
+        router.visit(href, visitParams);
+        setShowAlert(false);
+        setIsDirty(false);
       });
       if (isDirty) {
         setShowAlert(true);

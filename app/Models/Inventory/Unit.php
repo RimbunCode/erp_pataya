@@ -17,6 +17,28 @@ class Unit extends Model {
   ];
 
   public static function templateLink() {
-    return ":name</title><br/><span class='text-muted-foreground'>:code</span>";
+    return ":name (:code)";
+  }
+  public string $formComponent = "Inventory/Units/Form";
+  public string $translateKey = "inventory.unit";
+  protected $configColumns = [
+    'code' => [
+      'isLink' => true,
+      'show' => true,
+      'order' => 0,
+    ],
+    'name' => [
+      'isLink' => true,
+      'show' => true,
+      'order' => 1,
+    ],
+    'group' => [
+      'show' => true,
+      'order' => 2,
+    ]
+  ];
+
+  public function canDelete() {
+    return !$this->is_default;
   }
 }

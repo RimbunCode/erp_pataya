@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\UnitRequest;
 use App\Models\Inventory\Unit;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -65,15 +66,9 @@ class UnitController extends Controller {
       $data['conversion_factor'] = null;
     }
     $unit = Unit::create($data);
-    $unit->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
+    $unit->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return back()->with('id', $unit->id);
   }
 
   /**
@@ -85,9 +80,15 @@ class UnitController extends Controller {
     if ($unit->conversion_factor == null) {
       $unit->customable = true;
     }
-    return Inertia::render('Inventory/Units/Show', [
-      'unit' => $unit,
-    ]);
+    return $this->renderShow(
+      'Inventory/Units/Form',
+      "unit",
+      $unit->name,
+      $unit,
+      settings: [
+        'disabled' => $unit->is_default,
+      ]
+    );
   }
 
   /**
@@ -99,23 +100,20 @@ class UnitController extends Controller {
     if ($data['customable'] == true) {
       $data['conversion_factor'] = null;
     }
-    $unit->update($data);
-    $unit->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini',
-      ]
-    ]);
+    $unit->fillForUpdate($data);
+    $unit->logForUpdated();
     DB::commit();
-    return redirect()->back();
+    return back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
   public function destroy(Unit $unit) {
+    DB::beginTransaction();
     $unit->delete();
-    return redirect()->back();
+    $unit->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

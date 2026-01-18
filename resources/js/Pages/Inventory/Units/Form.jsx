@@ -1,4 +1,3 @@
-import { FormCheckbox } from "@/Components/ui/checkbox";
 import {
   FormPageContent,
   FormPageContentDescription,
@@ -11,6 +10,7 @@ import { ArrowLeftRightIcon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import QueryString from "qs";
@@ -118,7 +118,10 @@ export default function Form() {
           <FormInput required={true} label={t("inventory.unit.columns.group")}>
             <Combobox
               search={searchGroup}
-              onSearchChange={setSearchGroup}
+              onSearchChange={(val) => {
+                if (data.group) return;
+                setSearchGroup(val);
+              }}
               options={groups}
               value={data.group}
               placeholder={t("inventory.unit.columns.group.placeholder")}
@@ -221,7 +224,7 @@ export default function Form() {
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="self-end !size-8"
+                className="self-end size-8!"
                 onClick={swapPlayground}
               >
                 <ArrowLeftRightIcon className="size-8" />

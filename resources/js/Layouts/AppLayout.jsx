@@ -48,15 +48,15 @@ export default memo(
 
     return (
       <MasterLayout>
-        <div className="relative mx-auto max-w-screen-2xl">
+        <div className="relative mx-auto max-w-[1920px] print:invisible print:bg-white!">
           <SidebarProvider>
-            <AppSidebar />
+            <AppSidebar className="print:hidden " />
             <SidebarInset>
               <Navbar setShowSearch={setShowSearch} />
               {/* <CommandDialog open={showSearch} onOpenChange={setShowSearch}>
               <CommandInput
                 placeholder="Type a command or search..."
-                className="!outline-0 !border-0 !shadow-none !ring-0"
+                className="outline-0! border-0! shadow-none! ring-0!"
               />
               <CommandList>
                 <CommandEmpty>No results found.</CommandEmpty>

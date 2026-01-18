@@ -1,11 +1,23 @@
 import { Children, cloneElement } from "react";
 import { enUS, id as idLocale } from "date-fns/locale";
+import {
+  every,
+  isArray,
+  isEmpty,
+  isNull,
+  isPlainObject,
+  isUndefined,
+} from "lodash";
 
+import { Buffer } from "buffer";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
+}
+export function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
 }
 export function formatBytes(bytes, decimals = 2) {
   if (bytes === 0) return "0 Bytes";
@@ -75,6 +87,13 @@ export const SingleChildContainer = ({ children, ...props }) => {
     ...props,
   });
 };
+export function toSnakeCase(text) {
+  return text
+    .replace(/\s+/g, "_") // ubah spasi jadi underscore
+    .replace(/([a-z])([A-Z])/g, "$1_$2") // pisahkan camelCase -> camel_Case
+    .replace(/-+/g, "_") // ubah dash jadi underscore
+    .toLowerCase(); // semuanya jadi lowercase
+}
 
 export function cleanedQuillOutput(str) {
   const route = window.route;
@@ -141,6 +160,54 @@ export function setCookie(name, value, { days = 1, path = "/", sameSite }) {
 
   document.cookie = cookie;
 }
+export const saveToLocalStorage = (key, data, expiredDays) => {
+  const jsonString = JSON.stringify(data);
+  const base64 = Buffer.from(jsonString).toString("base64");
+  localStorage.setItem(
+    key,
+    JSON.stringify({
+      // pathname: window.location.pathname,
+      expiredDate: expiredDays
+        ? new Date(Date.now() + expiredDays * 24 * 60 * 60 * 1000).toISOString()
+        : null,
+      updatedAt: new Date().toISOString(),
+      data: base64,
+    }),
+  );
+};
+export const getFromLocalStorage = (key) => {
+  // key = `${window.location.pathname}/${key}`;
+  let dataCookie = localStorage.getItem(key);
+  if (dataCookie != null) {
+    if (typeof dataCookie === "string") {
+      try {
+        dataCookie = JSON.parse(dataCookie);
+      } catch (e) {
+        console.error("Error parsing cookie data:", e);
+        return;
+      }
+    }
+    // if (dataCookie.pathname !== window.location.pathname) {
+    //   // console.log("Cookie data does not match current path, ignoring.");
+    //   return;
+    // }
+    if (
+      dataCookie.expiredDate &&
+      new Date(dataCookie.expiredDate) < new Date(Date.now())
+    ) {
+      localStorage.removeItem(key);
+      // removeCookie(key, window.location.pathname);
+      return;
+    }
+    const jsonString = Buffer.from(dataCookie.data, "base64").toString();
+    return JSON.parse(jsonString);
+  }
+  return null;
+};
+export const removeFromLocalStorage = (key) => {
+  // key = `${window.location.pathname}/${key}`;
+  localStorage.removeItem(key);
+};
 export const checkFileType = (patternType, fileType) => {
   const patern = "^"
     .concat(patternType)
@@ -168,3 +235,112 @@ export function getValueObject(obj, key) {
   const newValue = keys.reduce((x, y) => x[y], obj);
   return newValue;
 }
+
+export function isValidStatus(status) {
+  return !inArray(status, [
+    "draft",
+    "canceled",
+    "rejected",
+    "deleted",
+    "closed",
+    "need_approval",
+    "inactive",
+  ]);
+}
+
+export function isCompletedStatus(status) {
+  return inArray(status, ["completed", "done", "delivered", "billed"]);
+}
+
+export function camelize(str) {
+  return str
+    .replace(/(?:^\w|[A-Z]|\b\w)/g, function (word, index) {
+      return index === 0 ? word.toLowerCase() : word.toUpperCase();
+    })
+    .replace(/\s+/g, "");
+}
+
+export function isDeepEmpty(value) {
+  if (isUndefined(value)) return true;
+  if (isNull(value)) return true;
+
+  // Cek array
+  if (isArray(value)) {
+    return value.length === 0 || every(value, isDeepEmpty);
+  }
+
+  // Cek object
+  if (isPlainObject(value)) {
+    return isEmpty(value) || every(value, (v) => isDeepEmpty(v));
+  }
+
+  // Selain itu dianggap "ada nilai"
+  return false;
+}
+
+export function inArray(haystack, needles) {
+  let found = false;
+  for (let i in haystack) {
+    if (Array.isArray(needles)) {
+      for (let j in needles) {
+        if (haystack[i] == needles[j]) {
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+      continue;
+    }
+    if (haystack[i] == needles) {
+      found = true;
+      break;
+    }
+  }
+
+  return found;
+}
+
+export const calculateArray = (arr, keyColumn, operator) => {
+  if (!(keyColumn && operator)) return 0;
+  const length = arr?.length ?? 0;
+  let operatorIn = operator;
+  if (operator === "average") operatorIn = "+";
+  const result = arr
+    ? arr?.reduce((a, b) => {
+        if (typeof a === "object") a = a[keyColumn] ?? 0;
+        b = b[keyColumn] ?? 0;
+        switch (operatorIn) {
+          case "+":
+            return a + b;
+          case "-":
+            return a - b;
+          case "*":
+            return a * b;
+          case "/":
+            return a / b;
+          case "%":
+            return a % b;
+          case "^":
+            return a ** b;
+          case "&&":
+            return a && b;
+          case "||":
+            return a || b;
+          default:
+            return 0;
+        }
+      }, 0)
+    : 0;
+  if (operator === "average") return length != 0 ? result / length : 0;
+  return result;
+};
+export const getFonts = async () => {
+  try {
+    const availableFonts = await window.queryLocalFonts();
+    const list = Array.from(availableFonts).map((font) => font.family);
+    return [...new Set(list)];
+  } catch (err) {
+    console.error(err.name, err.message);
+    return [];
+  }
+};

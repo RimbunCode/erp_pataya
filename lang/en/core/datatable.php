@@ -6,6 +6,7 @@ return [
   'previous' => 'Previous',
   'next' => 'Next',
   'action' => 'Action',
+  'no_data' => 'No data available',
   'filter' => [
     'filter' => "Filter",
     'add_filter' => 'Add Filter',
@@ -45,6 +46,7 @@ return [
   'columns' => [
     'trigger' => 'Show/Hide Columns',
     'select_column' => 'Select Column',
+    'reset' => 'Reset to Default',
     'apply' => 'Apply'
   ],
 ];

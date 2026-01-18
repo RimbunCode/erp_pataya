@@ -8,7 +8,13 @@ import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function FormDetail({ data, setData, isVariant, item }) {
+export default function FormDetail({
+  dataBefore,
+  data,
+  setData,
+  isVariant,
+  item,
+}) {
   const { t } = useLaravelReactI18n();
   return (
     <FormPageContent title={t("inventory.item.menu.details")} value="detail">
@@ -87,6 +93,15 @@ export default function FormDetail({ data, setData, isVariant, item }) {
             disabled={isVariant}
             value={isVariant ? item.category : data.category}
             onValueChange={(val) => setData("category", val)}
+            filters={
+              !isVariant && data.have_transations
+                ? {
+                    type: {
+                      in: ["stock", "vehicle"],
+                    },
+                  }
+                : null
+            }
           />
         </FormInput>
 
@@ -95,6 +110,7 @@ export default function FormDetail({ data, setData, isVariant, item }) {
           label={t("inventory.item.columns.default_unit")}
         >
           <UnitLinkModel
+            readOnly={isVariant ? item.have_transations : data.have_transations}
             placeholder={t("inventory.item.columns.default_unit.placeholder")}
             disabled={isVariant}
             value={isVariant ? item.default_unit : data.default_unit}

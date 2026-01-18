@@ -1,17 +1,15 @@
-import "@/../css/mention.css";
-
 import {
   FormPageContent,
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import { Mention, MentionsInput } from "react-mentions";
+import { Mention, MentionsInput } from "@/Components/Mention";
 import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { WhenVisible, usePage } from "@inertiajs/react";
 
 import AttributeLinkModel from "../Attributes/AttributeLinkModel";
 import { Checkbox } from "@/Components/ui/checkbox";
-import CurrencyInput from "react-currency-input-field";
+import CurrencyInput from "@/Components/CurrencyInput";
 import FormBarcodes from "./FormBarcodes";
 import FormDetail from "./FormDetail";
 import FormInput from "@/Components/FormInput";
@@ -22,13 +20,12 @@ import LoadingIcon from "@/Components/LoadingIcon";
 import MultiSelect from "@/Components/MultiSelect";
 import UnitLinkModel from "../Units/UnitLinkModel";
 import axios from "axios";
-import { cn } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function Form() {
-  const { data, setData } = useFormPage();
-  const { item, lang, variants } = usePage().props;
+  const { dataBefore = {}, data, setData, disabled } = useFormPage();
+  const { item, variants } = usePage().props;
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const [formatVariantSelected, setFormatVariantSelected] = useState([]);
@@ -37,7 +34,7 @@ export default memo(function Form() {
   useEffect(() => {
     const list = [
       { id: "item", display: "Item Code" },
-      ...(data?.variants?.map((x) => ({
+      ...(data?.attributes?.map((x) => ({
         id: x.attribute?.id,
         display: x.attribute?.name,
       })) ?? []),
@@ -47,8 +44,9 @@ export default memo(function Form() {
           (y) => y.display.replace(/^\{(.*?)\}$/g, "$1") == x.display,
         ),
     );
+    console.log(list);
     setListFormatVariant(list);
-  }, [data.variants, formatVariantSelected]);
+  }, [data.attributes, formatVariantSelected]);
 
   const getUnits = useCallback((group) => {
     axios
@@ -60,10 +58,10 @@ export default memo(function Form() {
       })
       .then((res) => {
         setData(
-          "uom",
-          res.data.map((x) => ({
+          "uoms",
+          res.data.data?.map((x) => ({
             ...x,
-            readOnly: true,
+            readOnly: x.conversion_factor,
             isCustom: !x.conversion_factor,
           })),
         );
@@ -74,10 +72,10 @@ export default memo(function Form() {
   }, []);
   useDidMountEffect(() => {
     if (data.default_unit) {
-      if (data.uom?.at(0)?.group == data.default_unit.group) return;
+      if (data.uoms?.at(0)?.group == data.default_unit.group) return;
       getUnits(data.default_unit.group);
     } else {
-      setData("uom", []);
+      setData("uoms", []);
     }
   }, [data.default_unit]);
   /**
@@ -99,9 +97,15 @@ export default memo(function Form() {
                 group: data?.default_unit?.group,
                 ...(dataRow.readOnly ? {} : { conversion_factor: null }),
               }}
+              defaultValueForm={{
+                group: data?.default_unit?.group,
+              }}
               onValueChange={(value) => {
                 if (!value) return;
-                setData(value);
+                setData({
+                  ...value,
+                  isCustom: !value?.conversion_factor,
+                });
               }}
             />
           );
@@ -115,15 +119,11 @@ export default memo(function Form() {
           return (
             <CurrencyInput
               {...attributes}
-              className={cn(
-                "text-right focus:!border-0 flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 text-base ring-offset-background  placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-                attributes?.className,
-              )}
-              readOnly={dataRow.readOnly && !dataRow.isCustom}
-              placeholder="0.00"
-              value={Number.isNaN(data) ? "" : (data ?? "")}
-              intlConfig={{ locale: lang == "id" ? "id-ID" : "en-US" }}
-              decimalsLimit={6}
+              disabled={!dataRow?.code}
+              readOnly={
+                attributes.disabled || (dataRow.readOnly && !dataRow.isCustom)
+              }
+              value={data}
               onValueChange={(value) => {
                 setData("conversion_factor", value);
               }}
@@ -143,6 +143,7 @@ export default memo(function Form() {
         name: "attribute",
         titleTrans: "inventory.item.columns.attribute",
         required: true,
+        unique: true,
         cell({ dataRow, attributes, setData }) {
           return (
             <AttributeLinkModel
@@ -180,19 +181,22 @@ export default memo(function Form() {
   );
   return (
     <>
-      <FormDetail data={data} setData={setData} />
+      <FormDetail dataBefore={dataBefore} data={data} setData={setData} />
       <FormPageContent
         title={t("inventory.item.menu.variants")}
         value="variants"
       >
         <FormTable
+          name="variants"
+          disabled={disabled}
+          // readOnly={disabled}
           columns={variantColumns}
-          value={data.variants ?? []}
+          value={data.attributes ?? []}
           onValueChange={(val) => {
-            setData("variants", val);
+            setData("attributes", val);
           }}
         />
-        {data?.variants && data?.variants?.length > 0 && (
+        {data?.attributes && data?.attributes?.length > 0 && (
           <FormInput
             className="max-w-sm mt-4"
             label={t("inventory.item.columns.format_variant")}
@@ -207,7 +211,9 @@ export default memo(function Form() {
                 setData("format_variant", value);
               }}
               className="mentions"
-              placeholder={"Mention people using '@'"}
+              placeholder={t(
+                "inventory.item.columns.format_variant.placeholder",
+              )}
               a11ySuggestionsListLabel={"Suggested mentions"}
               allowSuggestionsAboveCursor
               autoComplete="off"
@@ -228,19 +234,16 @@ export default memo(function Form() {
           value="variants"
           collapsible
         >
-          <FormPageContentTitle>
-            {t("inventory.item.menu.variants")}
-          </FormPageContentTitle>
           <WhenVisible
             data={["variants"]}
             fallback={() => (
-              <div className="!text-base font-normal text-foreground flex gap-x-4">
+              <div className="text-base! font-normal text-foreground flex gap-x-4">
                 <LoadingIcon className="size-4" />
                 <span>{t("core.form.loading")} ...</span>
               </div>
             )}
           >
-            <div className="grid grid-cols-[2fr_auto_auto_auto] gap-x-6 [&>*]:px-4 border rounded-md">
+            <div className="grid grid-cols-[2fr_auto_auto_auto] gap-x-6 *:px-4 border rounded-md">
               <div className="grid py-1 border-b rounded-t-md bg-muted border-muted-foreground/25 grid-cols-subgrid col-span-full">
                 <span className="flex items-center justify-start font-bold text-center">
                   {t("inventory.item.columns.sku")}
@@ -263,8 +266,8 @@ export default memo(function Form() {
                   {variant.sku ? (
                     <Link
                       className="hover:underline"
-                      href={route("variants.show", {
-                        variant: variant.id,
+                      href={route("itemVariants.show", {
+                        itemVariant: variant.id,
                       })}
                     >
                       {variant.sku || item.code}
@@ -305,22 +308,21 @@ export default memo(function Form() {
           </WhenVisible>
         </FormPageContent>
       )}
-      {item && !(item.variants && item.variants.length > 0) && (
-        <FormStockLevels />
-      )}
-      {((data && !(data.variants && data.variants.length > 0)) ||
-        (item && !(item.variants && item.variants.length > 0))) && (
-        <FormBarcodes />
-      )}
+      <FormBarcodes disabled={disabled} />
+      {item &&
+        !(item.attributes && item.attributes.length > 0) &&
+        !disabled && <FormStockLevels />}
       <FormPageContent title={t("inventory.item.menu.uom")} value="detail">
         <FormPageContentTitle>
           {t("inventory.item.menu.uom")}
         </FormPageContentTitle>
         <FormTable
-          readOnly={!data.default_unit}
+          name="uoms"
+          // disabled={disabled}
+          // readOnly={!data.default_unit}
           columns={uomColumns}
-          value={data.uom ?? []}
-          onValueChange={useCallback((val) => setData("uom", val), [])}
+          value={data.uoms ?? []}
+          onValueChange={useCallback((val) => setData("uoms", val), [])}
         />
       </FormPageContent>
     </>

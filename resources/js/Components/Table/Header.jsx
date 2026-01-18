@@ -25,6 +25,7 @@ export default memo(
   forwardRef(function Header(
     {
       id,
+      title,
       titleTrans,
       name,
       isEmpty,
@@ -40,19 +41,7 @@ export default memo(
     ref,
   ) {
     const { t } = useLaravelReactI18n();
-    const mouseUp = useCallback(() => {
-      setActive(false);
-    }, []);
 
-    useEffect(() => {
-      window.addEventListener("mouseup", mouseUp);
-
-      return () => {
-        window.removeEventListener("mouseup", mouseUp);
-      };
-    }, []);
-
-    const [active, setActive] = useState(false);
     const { attributes, listeners, setNodeRef, transform, transition } =
       useSortable({ id: id });
     const style = {
@@ -61,7 +50,6 @@ export default memo(
     };
 
     const mouseDown = (e) => {
-      setActive(true);
       onResize(e);
     };
     const doubleClick = (e) => {
@@ -71,11 +59,11 @@ export default memo(
       <th
         ref={mergeRefs(setNodeRef, ref)}
         style={!freezeColumn ? style : {}}
-        className="!pr-3 group/header"
+        className="pr-3! group/header"
       >
         <div
           className={cn(
-            !freezeColumn && "!-ml-5",
+            !freezeColumn && "-ml-5!",
             "flex justify-between gap-x-2 group",
           )}
         >
@@ -91,15 +79,15 @@ export default memo(
                 className="flex items-center hover:underline gap-x-2 [&>svg]:size-5"
                 onClick={() => setSort(name)}
               >
-                {t(titleTrans)}
+                {title ?? t(titleTrans)}
               </button>
             ) : (
-              <span>{t(titleTrans)}</span>
+              <span>{title ?? t(titleTrans)}</span>
             )}
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="!px-1 !py-1 ">
+              <Button variant="ghost" size="sm" className="px-1! py-1! ">
                 <EllipsisVertical />
               </Button>
             </DropdownMenuTrigger>
@@ -142,17 +130,16 @@ export default memo(
           className={cn(
             style.transform ? "opacity-0" : "opacity-100",
             resizeable ? "cursor-col-resize" : "cursor-default",
-            isEmpty ? "!h-[40px]" : "",
-            `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-[1] group group-last/header:hidden`,
+            isEmpty ? "h-[40px]!" : "",
+            `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-1 group`,
           )}
         >
           <div
             className={cn(
-              active
-                ? "border-foreground border-r-[3px]"
-                : "border-r border-muted-foreground/15",
-              resizeable ? " group-hover:border-muted-foreground" : "",
-              "h-full   w-[1px]",
+              resizeable
+                ? " group-hover:border-muted-foreground  group-active:border-foreground group-active:border-r-[3px]"
+                : "",
+              "h-full w-px border-r border-muted-foreground/15",
             )}
           ></div>
         </div>

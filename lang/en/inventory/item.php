@@ -1,7 +1,7 @@
 <?php
 return [
   'title' => 'Items',
-  'add_item' => 'Add Item',
+  'add' => 'Add Item',
   'items' => 'Items',
   'new' => 'New Item',
   'delete' => 'Delete Item',
@@ -19,7 +19,7 @@ return [
   'columns' => [
     'sku' => 'SKU',
     'total_stock' => 'Total Stock',
-    'code' => 'Code',
+    'code' => 'Part No.',
     'name' => 'Name',
     'description' => 'Description',
     'category' => 'Category',
@@ -34,6 +34,7 @@ return [
       'true' => 'Disabled'
     ],
     'format_variant' => 'Format Variant',
+    'format_variant.placeholder' => 'Using "{" to display attributes',
     'attribute' => 'Attribute',
     'attribute.placeholder' => 'Select an attribute',
     'attribute_values' => 'Values',
@@ -43,5 +44,6 @@ return [
       'unit' => 'Unit',
     ],
   ],
+  'variant_of' => 'Variant of',
   'variants' => []
 ];

@@ -3,17 +3,13 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/Components/ui/select";
 
 import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
+import React from "react";
+import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import { memo } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -27,40 +23,35 @@ export default memo(function Form() {
         title={t("core.branch.branch_detail")}
         value="branch_detail"
       >
-        <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
+        <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-2">
+          <FormInput
+            label={t("core.branch.columns.code")}
+            required={true}
+            name="code"
+          >
+            <Input
+              value={data.code ?? ""}
+              onChange={(e) => setData("code", e.target.value)}
+            />
+          </FormInput>
           <FormInput
             label={t("core.branch.columns.name")}
             required={true}
             name="name"
           >
             <Input
-              value={data.name}
+              value={data.name ?? ""}
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
-          <FormInput
-            label={t("core.branch.columns.is_disabled")}
-            required={true}
-          >
-            <Select
-              value={data.is_disabled ? "0" : "1"}
-              onValueChange={(v) => setData("is_disabled", v === "0")}
-            >
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t("core.branch.columns.is_disabled.placeholder")}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1">
-                  {t("core.branch.columns.is_disabled.options.active")}
-                </SelectItem>
-                <SelectItem value="0">
-                  {t("core.branch.columns.is_disabled.options.disabled")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </FormInput>
+          <FormCheckbox
+            checked={data.is_disabled}
+            onCheckedChange={(val) => {
+              setData("is_disabled", val);
+            }}
+            label={t("core.branch.columns.is_disabled.options.disabled")}
+            className="col-start-1 flex items-center **:pointer-events-auto!"
+          />
         </div>
       </FormPageContent>
       <FormPageContent
@@ -78,32 +69,32 @@ export default memo(function Form() {
             className="col-span-full"
           >
             <Textarea
-              value={data.shipping_street}
+              value={data.shipping_street ?? ""}
               onChange={(e) => setData("shipping_street", e.target.value)}
             />
           </FormInput>
           <FormInput label={t("core.branch.columns.city")} required={true}>
             <Input
-              value={data.shipping_city}
+              value={data.shipping_city ?? ""}
               onChange={(e) => setData("shipping_city", e.target.value)}
             />
           </FormInput>
           <FormInput label={t("core.branch.columns.state")} required={true}>
             <Input
-              value={data.shipping_state}
+              value={data.shipping_state ?? ""}
               onChange={(e) => setData("shipping_state", e.target.value)}
             />
           </FormInput>
           <FormInput label={t("core.branch.columns.zip_code")} required={true}>
             <Input
-              value={data.shipping_zip_code}
+              value={data.shipping_zip_code ?? ""}
               onChange={(e) => setData("shipping_zip_code", e.target.value)}
             />
           </FormInput>
           <FormInput label={t("core.branch.columns.country")} required={true}>
             <CountryLinkModel
               placeholder={t("core.branch.columns.country.placeholder")}
-              value={data.shipping_country}
+              value={data.shipping_country ?? ""}
               onValueChange={(val) => setData("shipping_country", val)}
             />
           </FormInput>
@@ -119,71 +110,61 @@ export default memo(function Form() {
               {t("core.branch.columns.billing_address")}
             </h1>
             <Select
+              required={true}
               value={data.billing_address}
-              onValueChange={(val) => setData("billing_address", val)}
-            >
-              <SelectTrigger className="!w-fit">
-                <SelectValue
-                  placeholder={t(
-                    "core.branch.columns.billing_address.placeholder",
-                  )}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="same_main">
-                  {t("core.branch.columns.billing_address.options.same_main")}
-                </SelectItem>
-                <SelectItem value="same_shipping">
-                  {t(
-                    "core.branch.columns.billing_address.options.same_shipping",
-                  )}
-                </SelectItem>
-                <SelectItem value="separate">
-                  {t("core.branch.columns.billing_address.options.separate")}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+              onValueChange={(val) => {
+                setData("billing_address", val);
+              }}
+              placeholder={t("core.branch.columns.billing_address.placeholder")}
+              optionTrans="core.branch.columns.billing_address.options"
+              options={["same_main", "same_shipping", "separate"]}
+            />
           </FormPageContentTitle>
-          <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
-            <FormInput
-              label={t("core.branch.columns.street")}
-              required={true}
-              className="col-span-full"
-            >
-              <Textarea
-                value={data.billing_street}
-                onChange={(e) => setData("billing_street", e.target.value)}
-              />
-            </FormInput>
-            <FormInput label={t("core.branch.columns.city")} required={true}>
-              <Input
-                value={data.billing_city}
-                onChange={(e) => setData("billing_city", e.target.value)}
-              />
-            </FormInput>
-            <FormInput label={t("core.branch.columns.state")} required={true}>
-              <Input
-                value={data.billing_state}
-                onChange={(e) => setData("billing_state", e.target.value)}
-              />
-            </FormInput>
-            <FormInput
-              label={t("core.branch.columns.zip_code")}
-              required={true}
-            >
-              <Input
-                value={data.billing_zip_code}
-                onChange={(e) => setData("billing_zip_code", e.target.value)}
-              />
-            </FormInput>
-            <FormInput label={t("core.branch.columns.country")} required={true}>
-              <CountryLinkModel
-                placeholder={t("core.branch.columns.country.placeholder")}
-                value={data.billing_country}
-                onValueChange={(val) => setData("billing_country", val)}
-              />
-            </FormInput>
-          </div>
+          {data?.billing_address == "separate" && (
+            <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
+              <FormInput
+                label={t("core.branch.columns.street")}
+                required={true}
+                className="col-span-full"
+              >
+                <Textarea
+                  value={data.billing_street ?? ""}
+                  onChange={(e) => setData("billing_street", e.target.value)}
+                />
+              </FormInput>
+              <FormInput label={t("core.branch.columns.city")} required={true}>
+                <Input
+                  value={data.billing_city ?? ""}
+                  onChange={(e) => setData("billing_city", e.target.value)}
+                />
+              </FormInput>
+              <FormInput label={t("core.branch.columns.state")} required={true}>
+                <Input
+                  value={data.billing_state ?? ""}
+                  onChange={(e) => setData("billing_state", e.target.value)}
+                />
+              </FormInput>
+              <FormInput
+                label={t("core.branch.columns.zip_code")}
+                required={true}
+              >
+                <Input
+                  value={data.billing_zip_code ?? ""}
+                  onChange={(e) => setData("billing_zip_code", e.target.value)}
+                />
+              </FormInput>
+              <FormInput
+                label={t("core.branch.columns.country")}
+                required={true}
+              >
+                <CountryLinkModel
+                  placeholder={t("core.branch.columns.country.placeholder")}
+                  value={data.billing_country}
+                  onValueChange={(val) => setData("billing_country", val)}
+                />
+              </FormInput>
+            </div>
+          )}
         </FormPageContent>
       )}
     </>

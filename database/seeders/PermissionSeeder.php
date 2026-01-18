@@ -8,7 +8,8 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
-class PermissionSeeder extends Seeder {
+class PermissionSeeder extends Seeder
+{
   private $defaultPermissions = [
     'select',
     'read',
@@ -24,13 +25,15 @@ class PermissionSeeder extends Seeder {
     'share',
   ];
 
-  private function getPermissions($except = []) {
+  private function getPermissions($except = [])
+  {
     return array_values(array_diff($this->defaultPermissions, $except));
   }
   /**
    * Run the database seeds.
    */
-  public function run(): void {
+  public function run(): void
+  {
 
 
     // $modulePermissions = [
@@ -125,7 +128,6 @@ class PermissionSeeder extends Seeder {
     // load classes composer knows about
     $autoload = include base_path('/vendor/composer/autoload_classmap.php');
 
-    DB::beginTransaction();
     foreach ($autoload as $className => $path) {
       // skip if we are not in the root namespace, ie App\, to ignore other vendor packages, of which there are a lot (dd($autoload) to see)
       if (!\str_contains($className, $namespace)) {
@@ -137,12 +139,13 @@ class PermissionSeeder extends Seeder {
         if (
           in_array(DataTable::class, class_uses_recursive($className), true)
         ) {
+          print_r("\e[39m" . $className . " \e[93m(RUNNING) \e[39m" . \PHP_EOL);
           $className::initPermissions();
         }
       } catch (\Throwable $e) {
-        // do nothing
+        print_r("\e[39m" . $className . " \e[91m(ERROR) \e[39m" . \PHP_EOL);
+        print_r($e);
       }
     }
-    DB::commit();
   }
 }

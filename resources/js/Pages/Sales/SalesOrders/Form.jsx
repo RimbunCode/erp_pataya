@@ -1,0 +1,777 @@
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+import React, { memo, useCallback, useEffect, useMemo } from "react";
+import SelectModel, { loadFromModel } from "@/Components/SelectModel";
+import { calculateArray, generateRandom } from "@/lib/utils";
+
+import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
+import CurrencyInput from "@/Components/CurrencyInput";
+import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
+import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
+import DatetimePicker from "@/Components/DatetimePicker";
+import { FormCheckbox } from "@/Components/ui/checkbox";
+import FormInput from "@/Components/FormInput";
+import FormTable from "@/Components/FormTable";
+import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import LinkModel from "@/Components/LinkModel";
+import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
+import SalesOrderLinkModel from "./SalesOrderLinkModel";
+import Select from "@/Components/Select";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
+import { Textarea } from "@/Components/ui/textarea";
+import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
+import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
+import axios from "axios";
+import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
+import { useState } from "react";
+
+export default memo(function Form() {
+  const { t } = useLaravelReactI18n();
+  const { data, setData, defaultData, disabled } = useFormPage();
+  const { default_currency_id } = usePage().props.preferences;
+  const loadFrom = usePage().props.loadFrom;
+  const isLockDoc = useMemo(() => {
+    const referenceable_type =
+      data?.referenceable_type ?? defaultData?.referenceable_type;
+    if (referenceable_type == "App\\Models\\Service\\WorkOrder") return true;
+
+    return false;
+  }, [defaultData, data]);
+  const setDiscount = useCallback(
+    (key, value) => {
+      setData((prev) => {
+        let latestDiscountKey = prev.latestDiscountKey ?? "discount_rate";
+        let discount_on = prev.discount_on;
+        let discount_rate = prev.discount_rate ?? 0;
+        let discount_amount = prev.discount_amount ?? 0;
+        const net_total = calculateArray(prev.items, "basic_amount", "+");
+        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
+        if (key == "discount_on") {
+          if (discount_on == value) return prev;
+          discount_on = value;
+          if (!value)
+            return {
+              ...prev,
+              discount_on,
+              discount_rate: undefined,
+              discount_amount: undefined,
+              latestDiscountKey,
+            };
+        }
+        const total =
+          discount_on == "grand_total"
+            ? net_total + tax_amount
+            : discount_on == "net_total"
+              ? net_total
+              : 0;
+
+        if (key == "discount_on") {
+          key = latestDiscountKey;
+          value = prev[key] ?? 0;
+        }
+        if (key == "discount_rate") {
+          latestDiscountKey = "discount_rate";
+          discount_rate = value;
+          discount_amount = (total * discount_rate) / 100;
+        }
+        if (key == "discount_amount") {
+          latestDiscountKey = "discount_amount";
+          discount_amount = value;
+          discount_rate = (discount_amount * 100) / total;
+        }
+        if (
+          !(
+            prev.discount_on != discount_on ||
+            prev.discount_rate != discount_rate ||
+            prev.discount_amount != discount_amount
+          )
+        ) {
+          return prev;
+        }
+        return {
+          ...prev,
+          discount_on,
+          discount_rate,
+          discount_amount,
+          latestDiscountKey,
+        };
+      });
+    },
+    [data],
+  );
+
+  const asyncUpdateAdditionalData = useCallback(async (value, idChanges) => {
+    return await axios.post(window.route("itemVariants.info"), {
+      data: value,
+      idChanges,
+    });
+  }, []);
+
+  const net_total = useMemo(() => {
+    return calculateArray(data.items, "basic_amount", "+");
+  }, [data.items]);
+
+  const tax_amount = useMemo(() => {
+    return calculateArray(data.items, "tax_amount", "+");
+  }, [data.items]);
+
+  useDidMountEffect(() => {
+    const latestKey = data.latestDiscountKey ?? "discount_rate";
+    setDiscount(latestKey, data[latestKey] ?? 0);
+  }, [net_total, tax_amount]);
+
+  const amount = useMemo(() => {
+    return net_total + tax_amount - data.discount_amount;
+  }, [net_total, tax_amount, data.discount_amount]);
+
+  const mergeItems = useCallback(
+    (value, model) => {
+      setData((prev) => {
+        const oldItems = prev.items ?? [];
+
+        // Buat Map untuk lookup cepat
+        const itemMap = new Map(
+          oldItems.map((item) => [
+            `${item.referenceable_type}_${item.referenceable_id}`,
+            item,
+          ]),
+        );
+
+        value.forEach((item) => {
+          const key = `${model}_${item.id}`;
+          const newItem = {
+            // ...item,
+            id: generateRandom(5),
+            item: item.item,
+            description: item.description,
+            quantity: item.remaining_quantity,
+            unit: item.unit,
+            referenceable_type: model,
+            referenceable_id: item.id,
+          };
+          if (newItem.quantity <= 0) {
+            itemMap.delete(key);
+          }
+          if (itemMap.has(key)) {
+            // update quantity sesuai newItem
+            itemMap.set(key, {
+              ...itemMap.get(key),
+              ...newItem,
+            });
+          } else {
+            // tambah item baru
+            itemMap.set(key, newItem);
+          }
+        });
+
+        return {
+          ...prev,
+          items: Array.from(itemMap.values()),
+        };
+      });
+    },
+    [setData],
+  );
+  useEffect(() => {
+    if (!loadFrom) return;
+    const fetchData = async () => {
+      const data = await loadFromModel(
+        loadFrom?.model,
+        loadFrom?.id,
+        loadFrom?.select,
+      );
+      mergeItems(data.value, data.model);
+    };
+    fetchData().catch(console.error);
+  }, []);
+
+  const itemColumns = useMemo(() => {
+    return [
+      {
+        name: "item",
+        titleTrans: "sales.salesOrder.columns.item",
+        required: true,
+        width: 3,
+        cell({ dataRow, setData, attributes }) {
+          return (
+            <ItemVariantLinkModel
+              placeholder={t("sales.salesOrder.columns.item.placeholder")}
+              value={dataRow.item}
+              onValueChange={(val) => {
+                setData({
+                  item: val,
+                  unit: val?.default_unit,
+                  source_warehouse: data.source_warehouse,
+                });
+              }}
+              {...attributes}
+              with={["defaultUnit", "item"]}
+            />
+          );
+        },
+      },
+      {
+        name: "description",
+        titleTrans: "sales.salesOrder.columns.description",
+        show: false,
+        type: "text",
+        width: 2,
+        cell({ dataRow, data: value, setData, attributes }) {
+          return (
+            <Textarea
+              disabled={!dataRow?.item}
+              rows={1}
+              value={value ?? ""}
+              onChange={(e) => setData("description", e.target.value)}
+              {...attributes}
+              readOnly={
+                attributes.readOnly && !(data.submitted_at && isLockDoc)
+              }
+            />
+          );
+        },
+      },
+      {
+        name: "source_warehouse",
+        titleTrans: "sales.salesOrder.columns.source_warehouse",
+        show: true,
+        type: "text",
+        width: 3,
+        required: true,
+        cell({ dataRow, data: value, setData, attributes }) {
+          return (
+            <WarehouseLinkModel
+              disabled={!dataRow?.item}
+              placeholder={t(
+                "sales.salesOrder.columns.source_warehouse.placeholder",
+              )}
+              value={value}
+              onValueChange={(val) => setData("source_warehouse", val)}
+              {...attributes}
+              readOnly={data.submitted_at && !isLockDoc}
+            />
+          );
+        },
+      },
+      {
+        name: "available_quantity",
+        titleTrans: "sales.salesOrder.columns.available_quantity",
+        required: true,
+        type: "number",
+        width: 1,
+        cell({ additionalData, dataRow, attributes }) {
+          return (
+            <CurrencyInput
+              {...attributes}
+              disabled={!dataRow?.item}
+              readOnly={true}
+              value={additionalData?.available_stock ?? 0}
+            />
+          );
+        },
+      },
+      {
+        name: "quantity",
+        titleTrans: "sales.salesOrder.columns.quantity",
+        required: true,
+        type: "number",
+        width: 1,
+        cell({ dataRow, data, setData, attributes }) {
+          return (
+            <CurrencyInput
+              {...attributes}
+              disabled={!dataRow?.item}
+              readOnly={
+                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+              }
+              value={data}
+              onValueChange={(value) => {
+                setData("quantity", value);
+              }}
+            />
+          );
+        },
+      },
+      {
+        name: "unit",
+        titleTrans: "sales.salesOrder.columns.unit",
+        width: 2,
+        cell({ data, setData, attributes, dataRow }) {
+          return (
+            <UnitLinkModel
+              disabled={!dataRow?.item}
+              placeholder={t("sales.salesOrder.columns.unit.placeholder")}
+              value={data}
+              onValueChange={(val) => setData("unit", val)}
+              {...attributes}
+              filters={{
+                group: dataRow?.item?.default_unit?.group,
+              }}
+            />
+          );
+        },
+      },
+      {
+        name: "tax",
+        titleTrans: "sales.salesOrder.columns.tax",
+        required: true,
+        width: 2,
+        cell({ data: value, setData, attributes, dataRow }) {
+          return (
+            <TaxLinkModel
+              disabled={!dataRow?.item}
+              placeholder={t("sales.salesOrder.columns.tax.placeholder")}
+              value={value}
+              onValueChange={(val) => {
+                setData("tax", val);
+              }}
+              {...attributes}
+              readOnly={data.submitted_at && !isLockDoc}
+            />
+          );
+        },
+      },
+      {
+        name: "price",
+        titleTrans: "sales.salesOrder.columns.price",
+        required: true,
+        width: 2,
+        cell({ data: price, setData, attributes, dataRow }) {
+          return (
+            <CurrencyInput
+              decimalScale={2}
+              currencyCode={data?.currency?.code}
+              disabled={!dataRow?.item}
+              value={price}
+              onValueChange={(val) => {
+                setData("price", val);
+              }}
+              {...attributes}
+              readOnly={data.submitted_at && !isLockDoc}
+            />
+          );
+        },
+      },
+    ];
+  }, [data, isLockDoc]);
+
+  return (
+    <>
+      <FormPageContent value="detail" title={t("sales.salesOrder.detail")}>
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+          <FormInput
+            name="date"
+            label={t("sales.salesOrder.columns.date")}
+            required
+          >
+            <DatetimePicker
+              type="datetime"
+              value={data?.date}
+              onValueChange={(val) => setData("date", val)}
+            />
+          </FormInput>
+          {data.referenceable && (
+            <FormInput
+              name="date"
+              className="pointer-events-auto!"
+              label={t("sales.salesOrder.columns.reference_to")}
+              readOnly
+            >
+              <LinkModel
+                disabledAddButton
+                model={data.referenceable_type}
+                value={data.referenceable}
+              />
+            </FormInput>
+          )}
+          {!isLockDoc && (
+            <FormCheckbox
+              checked={data.is_rent}
+              onCheckedChange={(val) => setData("is_rent", val)}
+              className="pt-4"
+            >
+              {t("sales.salesOrder.for_rent")}
+            </FormCheckbox>
+          )}
+
+          {data.is_rent && (
+            <FormInput
+              required
+              label={t("sales.salesOrder.rent_date")}
+              name="rent_date"
+            >
+              <DatetimePicker
+                type="daterange"
+                value={data.rent_date}
+                onValueChange={(range) => setData("rent_date", range)}
+              />
+            </FormInput>
+          )}
+
+          <FormInput
+            className="col-start-1"
+            label={t("sales.salesOrder.customer")}
+            required={true}
+            readOnly={isLockDoc}
+            name="customer"
+          >
+            <CustomerLinkModel
+              disabled={data.for_internal}
+              with={["branches"]}
+              value={data.for_internal ? "" : data.customer}
+              onValueChange={(val) => {
+                if (val?.branches?.length <= 1) {
+                  setData("customer_branch", val.branches?.[0]);
+                }
+                setData("customer", val);
+              }}
+            />
+          </FormInput>
+
+          <FormInput
+            label={t("sales.salesOrder.branch")}
+            required
+            readOnly={isLockDoc}
+            name="customer_branch"
+          >
+            <BranchLinkModel
+              disabled={!data.customer}
+              value={data.customer_branch}
+              onValueChange={(val) => setData("customer_branch", val)}
+              disabledNavigation={true}
+              filters={{
+                branchable_type: "App\\Models\\Sales\\Customer",
+                branchable_id: data.customer?.id ?? null,
+              }}
+            />
+          </FormInput>
+          <FormInput
+            className="col-start-1"
+            label={t("sales.salesOrder.currency")}
+            name="currency"
+          >
+            <CurrencyLinkModel
+              placeholder={t("sales.salesOrder.currency.placeholder")}
+              value={data.currency}
+              onValueChange={(val) => {
+                setData("currency", val);
+              }}
+            />
+          </FormInput>
+
+          <FormInput
+            label={t("sales.salesOrder.exchange_rate")}
+            name="exchange_rate"
+          >
+            <CurrencyInput
+              disabled={
+                !(
+                  data?.currency?.code &&
+                  data?.currency?.code !== default_currency_id
+                )
+              }
+              className="text-left"
+              decimalScale={2}
+              value={data.exchange_rate}
+              onValueChange={(value) => {
+                setData("exchange_rate", value);
+              }}
+            />
+          </FormInput>
+          <FormInput
+            className="col-span-2 col-start-1"
+            label={t("sales.salesOrder.columns.reference_so")}
+            name="reference_so"
+          >
+            <SalesOrderLinkModel
+              placeholder={t(
+                "sales.salesOrder.columns.reference_so.placeholder",
+              )}
+              value={data.reference_so}
+              onValueChange={(val) => {
+                setData("reference_so", val);
+              }}
+            />
+          </FormInput>
+        </div>
+      </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("sales.salesOrder.items")}
+        actions={
+          !data.submitted_at &&
+          !isLockDoc && (
+            <SelectModel
+              from={{
+                "App\\Models\\Service\\WorkOrder": {
+                  columns: ["code", "date"],
+                  filters: {
+                    status: "submitted",
+                  },
+                  select: {
+                    items: {
+                      filters: {
+                        status: "submitted",
+                      },
+                      columns: ["work_order", "item", "quantity", "unit"],
+                    },
+                  },
+                },
+              }}
+              label={t("purchase.purchaseRequest.import_items")}
+              className="w-fit"
+              variant="secondary"
+              size="sm"
+              onSelected={mergeItems}
+            />
+          )
+        }
+      >
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput
+            label={t("sales.salesOrder.columns.source_warehouse")}
+            name="source_warehouse"
+          >
+            <WarehouseLinkModel
+              placeholder={t(
+                "sales.salesOrder.columns.source_warehouse.placeholder",
+              )}
+              value={data.source_warehouse}
+              onValueChange={(val) => {
+                setData((prev) => {
+                  if (!prev.items || prev.items?.length <= 0)
+                    return {
+                      ...prev,
+                      source_warehouse: val,
+                    };
+                  const newItems = prev.items.map((item) => {
+                    return {
+                      ...item,
+                      source_warehouse: val,
+                    };
+                  });
+                  return {
+                    ...prev,
+                    items: newItems,
+                    source_warehouse: val,
+                  };
+                });
+              }}
+            />
+          </FormInput>
+          <FormTable
+            name="items"
+            className="col-start-1 col-span-2"
+            readOnly={disabled || isLockDoc}
+            columns={itemColumns}
+            value={data?.items ?? []}
+            onValueChange={(v) => {
+              setData("items", v);
+            }}
+            asyncUpdateAdditionalData={asyncUpdateAdditionalData}
+            mapItem={({ item }) => {
+              const amount = item.quantity * item.price;
+              const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
+              return {
+                ...item,
+                tax_amount: rateAmount,
+                basic_amount: amount,
+              };
+            }}
+          />
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("sales.salesOrder.columns.net_total")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={net_total * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("sales.salesOrder.columns.net_total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              decimalScale={2}
+              className="text-right"
+              value={net_total}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("sales.salesOrder.columns.tax_amount")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={tax_amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("sales.salesOrder.columns.tax_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              decimalScale={2}
+              className="text-right"
+              value={tax_amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("sales.salesOrder.columns.grand_total")} (${default_currency_id.toUpperCase()})`}
+              >
+                <CurrencyInput
+                  className="text-right"
+                  value={(net_total + tax_amount) * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></CurrencyInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("sales.salesOrder.columns.grand_total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <CurrencyInput
+              className="text-right"
+              decimalScale={2}
+              value={net_total + tax_amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></CurrencyInput>
+          </FormInput>
+        </div>
+      </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("sales.salesOrder.columns.additional_discount")}
+        collapsible
+        defaultOpen
+      >
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+          <FormInput label={t("sales.salesOrder.columns.discount_on")}>
+            <Select
+              value={data.discount_on}
+              onValueChange={(val) => setDiscount("discount_on", val)}
+              placeholder={t(
+                "sales.salesOrder.columns.discount_on.placeholder",
+              )}
+              optionTrans="sales.salesOrder.columns.discount_on.options"
+              options={["net_total", "grand_total"]}
+            />
+          </FormInput>
+          <FormInput
+            disabled={!data?.discount_on}
+            label={`${t("sales.salesOrder.columns.additional_discount_rate")}`}
+          >
+            <CurrencyInput
+              className="text-right"
+              value={data.discount_rate}
+              decimalScale={2}
+              onValueChange={(val) => setDiscount("discount_rate", val)}
+              suffix="%"
+              min={0}
+              max={100}
+            ></CurrencyInput>
+          </FormInput>
+
+          <FormInput
+            className="col-start-2"
+            disabled={!data?.discount_on}
+            label={`${t("sales.salesOrder.columns.additional_discount_amount")}`}
+          >
+            <CurrencyInput
+              className="text-right "
+              value={data.discount_amount}
+              onValueChange={(val) => setDiscount("discount_amount", val)}
+              currencyCode={data?.currency?.code ?? "default"}
+              min={0}
+              max={
+                data.discount_on == "net_total"
+                  ? net_total
+                  : net_total + tax_amount
+              }
+            ></CurrencyInput>
+          </FormInput>
+        </div>
+      </FormPageContent>
+      {data.discount_on && (
+        <FormPageContent value="detail">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-4 border-t -mt-4 pt-4">
+            {data?.currency?.code &&
+              data?.currency?.code !== default_currency_id && (
+                <FormInput
+                  readOnly
+                  label={`${t("sales.salesOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
+                >
+                  <CurrencyInput
+                    className="text-right"
+                    value={amount * (data?.exchange_rate ?? 1)}
+                    currencyCode="default"
+                  ></CurrencyInput>
+                </FormInput>
+              )}
+            <FormInput
+              readOnly
+              label={`${t("sales.salesOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+              className="col-start-2"
+            >
+              <CurrencyInput
+                className="text-right"
+                decimalScale={2}
+                value={amount}
+                currencyCode={data?.currency?.code ?? "default"}
+              ></CurrencyInput>
+            </FormInput>
+          </div>
+        </FormPageContent>
+      )}
+      <FormPageContent
+        value="detail"
+        title={t("sales.salesOrder.columns.external_note")}
+        collapsible
+        defaultOpen={defaultData?.external_note}
+      >
+        <div className="px-1 py-1">
+          <FormInput>
+            <Textarea
+              rows={3}
+              value={data.external_note ?? ""}
+              onChange={(e) => setData("external_note", e.target.value)}
+            />
+          </FormInput>
+        </div>
+      </FormPageContent>
+      <PaymentSchedule
+        readOnly={disabled}
+        value={data?.payment_schedules ?? []}
+        onValueChange={(v) => setData("payment_schedules", v)}
+        mapItem={({ item }) => {
+          const payment_amount = amount * (item?.invoice_portion / 100);
+          return {
+            ...item,
+            payment_amount,
+            outstanding_amount: payment_amount,
+          };
+        }}
+        date={data?.date}
+        currencyCode={data?.currency?.code}
+      />
+    </>
+  );
+});

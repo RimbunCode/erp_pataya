@@ -1,0 +1,328 @@
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+import React, { useEffect, useMemo } from "react";
+
+import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
+import CurrencyInput from "@/Components/CurrencyInput";
+import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
+import DatetimePicker from "@/Components/DatetimePicker";
+import { FormCheckbox } from "@/Components/ui/checkbox";
+import FormInput from "@/Components/FormInput";
+import FormTable from "@/Components/FormTable";
+import ItemForm from "./ItemForm";
+import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import { Textarea } from "@/Components/ui/textarea";
+import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+
+export default function Form() {
+  const { t } = useLaravelReactI18n();
+  const { dataBefore, defaultData, data, setData, disabled, form } =
+    useFormPage();
+  const itemColumns = useMemo(() => {
+    return [
+      {
+        name: "item",
+        titleTrans: "service.workOrder.columns.item",
+        required: true,
+        width: 3,
+        unique: true,
+        cell({ data, setData, attributes }) {
+          return (
+            <ItemVariantLinkModel
+              placeholder={t("service.workOrder.columns.item.placeholder")}
+              value={data}
+              onValueChange={(val) => {
+                setData({
+                  item: val,
+                  unit: val?.default_unit,
+                  alternative: null,
+                });
+              }}
+              {...attributes}
+              filters={{
+                is_stock_item: true,
+              }}
+              with={["defaultUnit", "item"]}
+            />
+          );
+        },
+      },
+      {
+        name: "description",
+        titleTrans: "service.workOrder.columns.description",
+        show: true,
+        type: "text",
+        width: 2,
+        cell({ dataRow, data, setData, attributes }) {
+          return (
+            <Textarea
+              disabled={!dataRow?.item}
+              rows={1}
+              value={data ?? ""}
+              onChange={(e) => setData("description", e.target.value)}
+              {...attributes}
+            />
+          );
+        },
+      },
+      {
+        name: "quantity",
+        titleTrans: "service.workOrder.columns.quantity",
+        required: true,
+        type: "number",
+        width: 1,
+        cell({ dataRow, data, setData, attributes }) {
+          return (
+            <CurrencyInput
+              {...attributes}
+              disabled={!dataRow?.item}
+              readOnly={
+                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+              }
+              value={data}
+              onValueChange={(value) => {
+                setData("quantity", value);
+              }}
+            />
+          );
+        },
+      },
+      {
+        name: "unit",
+        titleTrans: "service.workOrder.columns.unit",
+        required: true,
+        cell({ data, setData, attributes, dataRow }) {
+          return (
+            <UnitLinkModel
+              disabled={!dataRow?.item}
+              placeholder={t("service.workOrder.columns.unit.placeholder")}
+              value={data}
+              onValueChange={(val) => setData("unit", val)}
+              {...attributes}
+              filters={{
+                group: dataRow?.item?.default_unit?.group,
+              }}
+            />
+          );
+        },
+      },
+      {
+        name: "alternative",
+        titleTrans: "service.workOrder.columns.alternative",
+        width: 3,
+        cell({ data, setData, attributes, dataRow }) {
+          return (
+            <ItemVariantLinkModel
+              disabled={
+                !(
+                  dataRow?.item?.allow_alternative_item ??
+                  dataRow?.item?.item?.allow_alternative_item
+                )
+              }
+              placeholder={t(
+                "service.workOrder.columns.alternative.placeholder",
+              )}
+              value={data}
+              onValueChange={(val) => {
+                setData("alternative", val);
+              }}
+              disabledAddButton
+              {...attributes}
+              filters={{
+                category: {
+                  type: {
+                    in: ["service", "stock"],
+                  },
+                },
+                or: {
+                  "raw(item_alternatives.item_id)": dataRow?.item?.id,
+                  and: {
+                    "raw(item_alternatives.alternative_item_id)":
+                      dataRow?.item?.id,
+                    "raw(item_alternatives.two_way)": true,
+                  },
+                },
+              }}
+              joins={{
+                item_alternatives: {
+                  on: {
+                    or: {
+                      "and[0]": {
+                        "item_alternatives.item_id": dataRow?.item?.id,
+                        "item_alternatives.alternative_item_id": {
+                          column: "item_variants.id",
+                        },
+                      },
+                      "and[1]": {
+                        "item_alternatives.alternative_item_id":
+                          dataRow?.item?.id,
+                        "item_alternatives.item_id": {
+                          column: "item_variants.id",
+                        },
+                        "item_alternatives.two_way": true,
+                      },
+                    },
+                  },
+                },
+              }}
+            />
+          );
+        },
+      },
+    ];
+  }, []);
+  useEffect(() => {
+    if (!data.date) {
+      const currentDate = new Date();
+      form.setData({ date: currentDate });
+    }
+  }, []);
+  return (
+    <>
+      <FormPageContent value="detail" title={t("service.workOrder.detail")}>
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+          <FormInput
+            label={t("service.workOrder.columns.date")}
+            required
+            name="date"
+          >
+            <DatetimePicker
+              type="datetime"
+              value={data.date}
+              onValueChange={(val) => {
+                console.log(val);
+                setData("date", val);
+              }}
+            />
+          </FormInput>
+          <FormCheckbox
+            checked={data.for_internal}
+            onCheckedChange={(val) => setData("for_internal", val)}
+            className="pt-4"
+          >
+            {t("service.workOrder.columns.for_internal")}
+          </FormCheckbox>
+          <FormInput
+            className="col-start-1"
+            label={t("service.workOrder.columns.customer")}
+            required={!data.for_internal}
+            name="customer"
+          >
+            <CustomerLinkModel
+              disabled={data.for_internal}
+              with={["branches"]}
+              valueBefore={dataBefore.customer}
+              value={data.for_internal ? "" : data.customer}
+              onValueChange={(val) => {
+                if (val?.branches?.length <= 1) {
+                  setData("customer_branch", val.branches?.[0]);
+                }
+                setData("customer", val);
+              }}
+            />
+          </FormInput>
+          <FormInput
+            label={t(
+              data.for_internal
+                ? "service.workOrder.columns.internal_branch"
+                : "service.workOrder.columns.customer_branch",
+            )}
+            required
+            name="customer_branch"
+          >
+            <BranchLinkModel
+              disabled={!(data.for_internal || data.customer)}
+              valueBefore={dataBefore.customer_branch}
+              value={data.customer_branch}
+              onValueChange={(val) => setData("customer_branch", val)}
+              disabledNavigation={!data.for_internal}
+              filters={{
+                branchable_type: data.for_internal
+                  ? null
+                  : "App\\Models\\Sales\\Customer",
+                branchable_id: data.for_internal
+                  ? null
+                  : (data.customer?.id ?? null),
+              }}
+              defaultValueForm={{
+                branchable_type: data.for_internal
+                  ? null
+                  : "App\\Models\\Sales\\Customer",
+                branchable_id: data.for_internal
+                  ? null
+                  : (data.customer?.id ?? null),
+              }}
+            />
+          </FormInput>
+
+          <FormInput
+            className="col-span-2 col-start-1"
+            label={t("service.workOrder.columns.item_service")}
+            required
+            name="item_service"
+          >
+            <ItemVariantLinkModel
+              placeholder={t(
+                "service.workOrder.columns.item_service.placeholder",
+              )}
+              valueBefore={dataBefore.item_service}
+              value={data.item_service}
+              onValueChange={(val) => {
+                setData("item_service", val);
+              }}
+              filters={{
+                category: {
+                  type: {
+                    in: ["vehicle"],
+                  },
+                },
+              }}
+              with={["defaultUnit", "category"]}
+            />
+          </FormInput>
+          {defaultData?.started_at && (
+            <FormInput
+              disabled
+              label={t("service.workOrder.columns.started_at")}
+            >
+              <DatetimePicker type="datetime" value={data.started_at} />
+            </FormInput>
+          )}
+          {defaultData?.complated_at && (
+            <FormInput
+              disabled
+              label={t("service.workOrder.columns.complated_at")}
+            >
+              <DatetimePicker type="datetime" value={data.complated_at} />
+            </FormInput>
+          )}
+        </div>
+      </FormPageContent>
+      <FormPageContent value="detail" title={t("service.workOrder.items")}>
+        <FormTable
+          readOnly={disabled}
+          columns={itemColumns}
+          value={data?.items ?? []}
+          onValueChange={(v) => setData("items", v)}
+          form={<ItemForm />}
+        />
+      </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("service.workOrder.columns.external_note")}
+        collapsible
+        defaultOpen={defaultData?.external_note}
+      >
+        <div className="px-1 py-1">
+          <FormInput>
+            <Textarea
+              rows={3}
+              value={data.external_note ?? ""}
+              onChange={(e) => setData("external_note", e.target.value)}
+            />
+          </FormInput>
+        </div>
+      </FormPageContent>
+    </>
+  );
+}

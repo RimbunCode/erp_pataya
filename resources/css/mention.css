@@ -1,54 +1,87 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
+@reference "./app.css";
 @layer components {
   .mentions {
-    @apply bg-muted h-8 rounded-md font-sans text-sm;
+    @apply bg-muted h-8 rounded-md font-sans text-sm border border-input focus-within:border-0! ring-offset-background focus-within:outline-hidden focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1;
 
     .mentions__highlighter {
-      @apply !py-1 !px-3 !border-2 !border-transparent h-8;
+      @apply py-1! px-3! border-2! border-transparent! h-8;
       strong {
-        @apply !text-sm  !py-[1px] rounded-md;
+        @apply text-sm!  py-px! rounded-md;
       }
     }
     .mentions__suggestions {
-      @apply rounded-md border border-muted bg-popover p-1 text-popover-foreground shadow-md outline-none;
+      @apply rounded-md border border-muted bg-popover! p-1 text-popover-foreground shadow-md outline-hidden;
     }
     .mentions__suggestions__item {
-      @apply relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors;
+      @apply relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden transition-colors;
     }
     .mentions__suggestions__item--focused {
       @apply bg-accent text-accent-foreground;
     }
-  }
-  .mentions input {
-    @apply focus:!border-0 flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 !text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
-  }
-
-  .mentions--singleLine .mentions__control {
-    display: inline-block;
-    width: 130px;
+    & input {
+      @apply focus:border-0! flex h-8 w-full rounded-md border-0! border-input bg-muted px-3 py-2 text-sm! ring-offset-background placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-0 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50;
+    }
   }
 
-  .mentions--singleLine .mentions__input {
-    padding: 1px;
-    border: 2px inset;
+  .mentions--singleLine {
+    & .mentions__control {
+      display: inline-block;
+      width: 130px;
+    }
+
+    & .mentions__input {
+      @apply py-1! px-3! border-2! border-transparent! h-8;
+    }
   }
 
-  .mentions--multiLine .mentions__control {
-    font-family: monospace;
-    font-size: 14pt;
+  .mentions__control {
+    width: 100% !important;
+    .mentions--singleLine & {
+      display: inline-block;
+      width: 130px;
+    }
+
+    .mentions--multiLine & {
+      font-family: monospace;
+      font-size: 14pt;
+    }
   }
-  .mentions--multiLine .mentions__highlighter {
-    border: 1px solid transparent;
-    padding: 9px;
-    min-height: 63px;
+
+  .mentions__input {
+    .mentions--singleLine & {
+      padding: 1px;
+      border: 2px inset;
+    }
+    .mentions--multiLine & {
+      border: 1px solid silver;
+      padding: 9px;
+      outline: 0;
+    }
   }
-  .mentions--multiLine .mentions__input {
-    border: 1px solid silver;
-    padding: 9px;
-    outline: 0;
+
+  .mentions--multiLine {
+    & .mentions__control {
+      font-family: monospace;
+      font-size: 14pt;
+    }
+    & .mentions__highlighter {
+      border: 1px solid transparent;
+      padding: 9px;
+      min-height: 63px;
+    }
+    & .mentions__input {
+      border: 1px solid silver;
+      padding: 9px;
+      outline: 0;
+    }
+  }
+
+  .mentions__highlighter {
+    .mentions--multiLine & {
+      border: 1px solid transparent;
+      padding: 9px;
+      min-height: 63px;
+    }
   }
 
   .mentions__suggestions__item {
@@ -73,24 +106,26 @@
     pointer-events: none;
   }
 
-  :global(.custom-textarea) {
-    top: 0px;
-    left: 0px;
-    width: 100%;
-    border: 4px solid blue;
-    bottom: 0px;
-    height: 100%;
-    min-height: 80px;
-    margin: 0px;
-    resize: none;
-    display: block;
-    padding: 12px;
-    overflow: hidden;
-    position: absolute;
-    font-size: inherit;
-    box-sizing: border-box;
-    font-family: inherit;
-    letter-spacing: inherit;
-    background-color: transparent;
+  .custom-textarea {
+    :global(&) {
+      top: 0px;
+      left: 0px;
+      width: 100%;
+      border: 4px solid blue;
+      bottom: 0px;
+      height: 100%;
+      min-height: 80px;
+      margin: 0px;
+      resize: none;
+      display: block;
+      padding: 12px;
+      overflow: hidden;
+      position: absolute;
+      font-size: inherit;
+      box-sizing: border-box;
+      font-family: inherit;
+      letter-spacing: inherit;
+      background-color: transparent;
+    }
   }
 }

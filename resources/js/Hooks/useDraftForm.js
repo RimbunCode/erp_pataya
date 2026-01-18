@@ -1,9 +1,13 @@
-import { getCookieByName, removeCookie, setCookie } from "@/lib/utils";
+import {
+  getFromLocalStorage,
+  isDeepEmpty,
+  removeFromLocalStorage,
+  saveToLocalStorage,
+} from "@/lib/utils";
 import { useCallback, useEffect } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 
 import { create } from "zustand";
-import { isEmpty } from "lodash";
 import useDidMountEffect from "./useDidMountEffect";
 import { useIsDirtyForm } from "./useIsDirtyForm";
 
@@ -22,7 +26,7 @@ export const useAlertDraftForm = create((set) => ({
  */
 
 /**
- * @param {string} key kunci untuk menyimpan data pada cookie
+ * @param {string} name kunci untuk menyimpan data pada cookie
  * @param {object} initialData
  * @typedef {object} OptionsProps
  * @property {number=} expiredDays jumlah hari berlaku cookie
@@ -31,16 +35,23 @@ export const useAlertDraftForm = create((set) => ({
  * @returns {import("@inertiajs/react").InertiaFormProps<any>}
  */
 export const useDraftForm = (
-  key,
+  name,
   initialData,
-  { expiredDays = 1, onContinueDraft } = {},
+  {
+    expiredDays = 7,
+    onContinueDraft,
+    isCreate = false,
+    isDialog = false,
+    ignoreDraft = false,
+  } = {},
 ) => {
   const { setShowAlert, setCancel, setContinue } = useAlertDraftForm();
   const { setIsDirty, setProcessing, setRecentlySuccessful } = useIsDirtyForm();
   const user = usePage().props.auth.user;
-  key = user ? `${key}_${user.id}` : null;
-  key =
-    !initialData || isEmpty(initialData) ? `${key}_create` : `${key}_update`;
+  let key = user ? `${name}_${user.id}` : null;
+  key = isCreate
+    ? `${key}_create`
+    : `${key}_update_${initialData?.id ?? initialData?.code ?? ""}`;
   const {
     submit: submitForm,
     get: getForm,
@@ -54,7 +65,7 @@ export const useDraftForm = (
   useDidMountEffect(() => {
     setIsDirty(form.isDirty);
     if (!form.isDirty) {
-      removeCookie(key, window.location.pathname);
+      removeFromLocalStorage(key);
     }
   }, [form.isDirty]);
   useDidMountEffect(() => {
@@ -71,50 +82,62 @@ export const useDraftForm = (
   }, [initialData]);
   useDidMountEffect(() => {
     if (key != null && form.isDirty) {
-      setCookie(key, JSON.stringify(form.data), {
-        days: expiredDays,
-        path: window.location.pathname,
-        sameSite: "lax",
-      });
+      saveToLocalStorage(key, form.data, expiredDays);
+    }
+    if (!form.isDirty) {
+      removeFromLocalStorage(key);
     }
   }, [form.data, form.isDirty, key, expiredDays]);
 
+  const loadDraft = useCallback(() => {
+    let dataCookie = getFromLocalStorage(key);
+    if (!dataCookie || isDeepEmpty(dataCookie)) return;
+    setCancel(() => {
+      form.reset();
+      removeFromLocalStorage(key);
+    });
+    setContinue(() => {
+      form.setData(dataCookie);
+      removeFromLocalStorage(key);
+      onContinueDraft?.();
+    });
+    setShowAlert(true);
+  }, [key]);
   useEffect(() => {
-    const dataCookie = getCookieByName(key);
-    if (dataCookie != null) {
-      setCancel(() => {
-        removeCookie(key, window.location.pathname);
-      });
-      setContinue(() => {
-        form.setData(JSON.parse(dataCookie));
-        removeCookie(key, window.location.pathname);
-        onContinueDraft?.();
-      });
-      setShowAlert(true);
-    }
+    if (isDialog) return;
+    if (ignoreDraft) return;
+    loadDraft();
   }, []);
 
   const getOptions = useCallback(
     (options) => {
       return {
-        preserveState: true,
-        preverseScroll: true,
+        ...(isCreate || isDialog
+          ? {
+              preserveState: false,
+              preserveScroll: false,
+              preserveUrl: false,
+            }
+          : {
+              reset: name ? [name, "logs", "flash"] : ["logs", "flash"],
+              preserveState: false,
+              preserveScroll: true,
+            }),
         replace: true,
         ...options,
         onSuccess: (e) => {
-          form.setDefaults(e.props.role);
+          if (!isDialog) {
+            form.setDefaults(e.props[name]);
+          }
+          setIsDirty(false);
           if (options?.onSuccess) options.onSuccess(e);
         },
         onBefore: (e) => {
-          removeCookie(key, window.location.pathname);
+          removeFromLocalStorage(key);
           if (options?.onBefore) options.onBefore(e);
         },
         onError: (e) => {
-          setCookie(key, JSON.stringify(form.data), {
-            days: expiredDays,
-            path: window.location.pathname,
-            sameSite: "lax",
-          });
+          saveToLocalStorage(key, form.data, expiredDays);
           if (options?.onError) options.onError(e);
         },
       };
@@ -124,6 +147,7 @@ export const useDraftForm = (
 
   return {
     ...form,
+    key,
     submit(method, url, options) {
       submitForm(method, url, getOptions(options));
     },
@@ -142,6 +166,7 @@ export const useDraftForm = (
     delete(url, options) {
       deleteForm(url, getOptions(options));
     },
+    loadDraft,
   };
 
   // return {

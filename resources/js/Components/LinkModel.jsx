@@ -1,15 +1,22 @@
 import { ArrowRight, PlusIcon, XIcon } from "lucide-react";
-import { Command, CommandEmpty, CommandItem, CommandList } from "./ui/command";
 import {
-  Fragment,
+  Command,
+  CommandEmpty,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "./ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
+import { camelize, cn, getValueObject, isNullOrWhitespace } from "@/lib/utils";
+import {
   forwardRef,
   memo,
   useCallback,
   useEffect,
+  useMemo,
   useState,
 } from "react";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { cn, getValueObject, isNullOrWhitespace } from "@/lib/utils";
 
 import { Button } from "./ui/button";
 import { Command as CommandPrimitive } from "cmdk";
@@ -18,55 +25,123 @@ import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import React from "react";
 import axios from "axios";
+import { isEqual } from "lodash";
 import pluralize from "pluralize";
 import { useDetectClickOutside } from "react-detect-click-outside";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { useRef } from "react";
 
 function validateWithOperators(value, operators, logic = "and") {
   let result = false;
-  for (const key in operators) {
-    const val = operators[key];
-    switch (key) {
+  for (let keyOperator in operators) {
+    const valOperator = operators[keyOperator];
+    keyOperator = keyOperator.match(/^([^\[\]]+)/)?.[1] ?? keyOperator;
+    switch (keyOperator) {
       case "and":
-      case "or":
-        result = validateWithOperators(value, val, key);
+      case "or": {
+        result =
+          Array.isArray(valOperator) && keyOperator == "or"
+            ? valOperator.includes(value)
+            : validateWithOperators(value, valOperator, keyOperator);
         break;
+      }
       case "not":
-        result = value != operators[key];
+        result = value != valOperator;
         break;
       case "=":
-        result = value == val;
+        result = value == valOperator;
         break;
       case ">":
-        result = value > val;
+        result = value > valOperator;
         break;
       case ">=":
-        result = value >= val;
+        result = value >= valOperator;
         break;
       case "<":
-        result = value < val;
+        result = value < valOperator;
         break;
       case "<=":
-        result = value <= val;
+        result = value <= valOperator;
+        break;
+      case "jsonContains":
+        if (Array.isArray(value)) {
+          let rst = false;
+          value.forEach((item) => {
+            if (valOperator.includes(item)) {
+              rst = true;
+            }
+            return;
+          });
+          result = rst;
+        }
+        break;
+      case "jsonDoesntContains":
+        if (Array.isArray(value)) {
+          let rst = true;
+          value.forEach((item) => {
+            if (!valOperator.includes(item)) {
+              rst = false;
+            }
+            return;
+          });
+          result = rst;
+        }
         break;
       case "like":
-      case "in":
-        result = Array.isArray(value) ? value.includes(val) : false;
+        result = valOperator.includes(value);
         break;
-      case "notLike":
+      case "notlike":
+        result = !valOperator.includes(value);
+        break;
+      case "in":
+        if (Array.isArray(value)) {
+          let rst = false;
+          value.forEach((item) => {
+            if (valOperator.includes(item)) {
+              rst = true;
+            }
+          });
+          result = rst;
+          break;
+        }
+        result = Array.isArray(valOperator)
+          ? valOperator.includes(value)
+          : false;
+        break;
       case "notIn":
-        result = Array.isArray(value) ? !value.includes(val) : true;
+        if (Array.isArray(value)) {
+          let rst = true;
+          value.forEach((item) => {
+            if (!valOperator.includes(item)) {
+              rst = false;
+            }
+          });
+          result = rst;
+          break;
+        }
+        result = Array.isArray(valOperator)
+          ? !valOperator.includes(value)
+          : true;
         break;
       case "between":
-        result = value > val[0] && value < val[1];
+        result = value >= valOperator[0] && value <= valOperator[1];
         break;
       case "notBetween":
-        result = value < val[0] || value > val[1];
+        result = value < valOperator[0] || value > valOperator[1];
         break;
-      default:
-        result = true;
+      default: {
+        const keys = keyOperator.split(/\.|->/);
+        let val = value;
+
+        for (let key of keys) {
+          if (!val) break;
+          val = val[key];
+        }
+        result = val ? validateWithOperators(val, valOperator) : true;
+
         break;
+      }
     }
     if (logic === "and" && !result) return false;
     if (logic === "or" && result) return true;
@@ -74,20 +149,35 @@ function validateWithOperators(value, operators, logic = "and") {
   return logic == "and";
 }
 function validate(value, filters, logic = "and") {
-  if (!filters || typeof filters !== "object" || Array.isArray(filters))
+  if (!filters || typeof filters !== "object" || Array.isArray(filters)) {
     return true;
+  }
 
-  for (const key in filters) {
-    const val = filters[key];
+  for (let keyFilter in filters) {
+    const valFilter = filters[keyFilter];
+    keyFilter = keyFilter.match(/^([^\[\]]+)/)?.[1] ?? keyFilter;
+
+    const keys = keyFilter.split(/\.|->/);
+    let val = value;
+
+    for (let key of keys) {
+      if (!val) break;
+      val = val[key];
+    }
+
     let result = false;
-    if (key === "and" || key === "or") {
-      result = validate(value, val, key);
-    } else if (Array.isArray(val)) {
-      result = JSON.stringify(value[key]) === JSON.stringify(val);
-    } else if (typeof val !== "object" || val === null) {
-      result = value[key] == val;
+    if (/^raw\((.+)\)$/.test(keyFilter)) {
+      result = true;
+    } else if (keyFilter === "and" || keyFilter === "or") {
+      result = validate(value, valFilter, keyFilter);
+    } else if (valFilter === undefined) {
+      result = true;
+    } else if (Array.isArray(valFilter)) {
+      result = JSON.stringify(val) === JSON.stringify(valFilter);
+    } else if (typeof valFilter !== "object" || valFilter === null) {
+      result = val == valFilter;
     } else {
-      result = validateWithOperators(value[key], val);
+      result = validateWithOperators(val, valFilter);
     }
     if (logic === "and" && !result) return false;
     if (logic === "or" && result) return true;
@@ -95,6 +185,47 @@ function validate(value, filters, logic = "and") {
 
   return logic === "and";
 }
+
+export const convertTemplateLink = (value, search) => {
+  if (!value) return "";
+  const template = value.templateLink ?? "";
+  let item = template.replace(/:((\w[\w]+{:[\w]+})|(\w[\w.]+))/g, (match) => {
+    match = match.replace(/(.*?){:(.*?)}/i, ":$2");
+    const newValue = getValueObject(value, match.substring(1));
+    if (typeof newValue == "object") {
+      return convertTemplateLink(newValue, search);
+    }
+    return newValue ?? match;
+  });
+  if (search == null) {
+    const titleMatch = item.match(/<title(.*?)>(.*?)<\/title>/i);
+    const plainTextMatch = item.match(/^[^<]+/g);
+
+    return titleMatch
+      ? titleMatch[2].trim()
+      : plainTextMatch
+        ? plainTextMatch[0].trim()
+        : "";
+  }
+
+  item = item.replace(/<title(.*?)>(.*?)<\/title>/gi, "");
+
+  let searchWords =
+    search
+      .split(/\s+/)
+      ?.map((string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .filter((x) => !isNullOrWhitespace(x)) || [];
+
+  if (searchWords.length < 1) return item;
+
+  let regex = new RegExp(`(${searchWords.join("|")})`, "gi");
+  item = item.replace(/(<[^>]+>)|([^<]+)/g, (_, tag, text) => {
+    if (tag) return tag; // Jika ini bagian dari tag HTML, jangan ubah
+    return text.replace(regex, `<mark class="bg-yellow-500">$1</mark>`); // Hanya ubah teks biasa
+  });
+
+  return item;
+};
 
 /**
  *
@@ -107,10 +238,16 @@ function validate(value, filters, logic = "and") {
  * @param props.model
  * @param props.limit
  * @param props.filters
+ * @param props.joins
+ * @param props.keywords
  */
 export default memo(
   forwardRef(function LinkModel(
     {
+      id,
+      as,
+      valueBefore,
+      defaultValue,
       value,
       onValueChange,
       placeholder,
@@ -119,15 +256,23 @@ export default memo(
       readOnly,
       required,
       model,
-      limit,
+      sort,
+      limit = 10,
       filters,
+      joins,
+      keywords,
+      translate,
       titleDialog,
       classNameDialog,
       disabledNavigation,
       disabledAddButton,
+      defaultValueForm,
       form,
       postOption,
       onKeyDown,
+      with: _with,
+      order,
+      customNavigation,
     },
     ref,
   ) {
@@ -135,11 +280,22 @@ export default memo(
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(value);
     const [search, setSearch] = useState("");
+    const [total, setTotal] = useState(0);
     const [options, setOptions] = useState([]);
     const [allowSearch, setAllowSearch] = useState(true);
     const [loading, setLoading] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
-    const name = model.split("\\").pop().toLowerCase();
+    const { name, keyRoute } = useMemo(() => {
+      if (as) {
+        const [name, keyRoute] = as.split(":");
+        return { name: camelize(name), keyRoute };
+      }
+      return {
+        name: camelize((model ?? "").split("\\").pop()),
+        keyRoute: "id",
+      };
+    }, [as, model]);
+
     const route = window.route;
     const commandRef = useDetectClickOutside({
       onTriggered: () => {
@@ -148,57 +304,32 @@ export default memo(
     });
     const option = value ?? _option;
 
-    const convertTemplateLink = useCallback((value, search) => {
-      const template = value.templateLink ?? "";
-
-      let item = template.replace(/:(\w[\w.]*)/g, (match) => {
-        const newValue = getValueObject(value, match.substring(1));
-        return newValue || match;
-      });
-      if (search == null) {
-        const titleMatch = item.match(/<title(.*?)>(.*?)<\/title>/i);
-        const plainTextMatch = item.match(/^[^<]+/g);
-
-        return titleMatch
-          ? titleMatch[2].trim()
-          : plainTextMatch
-            ? plainTextMatch[0].trim()
-            : "";
-      }
-
-      item = item.replace(/<title(.*?)>(.*?)<\/title>/gi, "<b$1>$2</b>");
-
-      let searchWords =
-        search
-          .split(/\s+/)
-          ?.map((string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-          .filter((x) => !isNullOrWhitespace(x)) || [];
-
-      if (searchWords.length < 1) return item;
-
-      let regex = new RegExp(`(${searchWords.join("|")})`, "gi");
-      item = item.replace(/(<[^>]+>)|([^<]+)/g, (_, tag, text) => {
-        if (tag) return tag; // Jika ini bagian dari tag HTML, jangan ubah
-        return text.replace(regex, `<mark class="bg-yellow-500">$1</mark>`); // Hanya ubah teks biasa
-      });
-
-      return item;
-    }, []);
-
     useDidMountEffect(() => {
       _setOption(value);
     }, [value]);
 
     const setOption = useCallback(
       (val) => {
-        _setOption(val);
-        onValueChange?.(val);
+        if (disabled || readOnly) return;
+        if (val) {
+          const isValid = validate(val, filters);
+          if (!isValid) return;
+        }
+        _setOption((prev) => {
+          // kalau sama, jangan trigger apa-apa
+          if (isEqual(prev, val)) return prev;
+          onValueChange?.(val);
+          return val;
+        });
       },
-      [onValueChange, _setOption],
+      [onValueChange, _setOption, disabled, readOnly, filters],
     );
 
     useEffect(() => {
-      if (!open && !option && !search) {
+      if (open) return;
+
+      setLoading(false);
+      if (!option && search) {
         const findOption = options.find(
           (x) => convertTemplateLink(x).toLowerCase() == search.toLowerCase(),
         );
@@ -222,24 +353,39 @@ export default memo(
     }, [option]);
 
     useEffect(() => {
+      if (valueBefore !== undefined) {
+        return;
+      }
       if (!(option || value)) return;
       const isValid = validate(option || value, filters);
 
       if (!isValid) {
         setOption(null);
       }
-    }, [filters]);
+    }, [filters, option, value]);
 
-    const getModels = () => {
+    const getModels = (filterForDefaultValue = {}, callback) => {
       axios
         .post(route("model"), {
           model,
           limit: limit ?? 10,
           search: search,
-          filters,
+          with: _with,
+          filters: {
+            ...filters,
+            ...filterForDefaultValue,
+          },
+          sort,
+          joins,
+          keywords,
+          order,
+          translate,
         })
         .then((res) => {
-          setOptions(res.data);
+          const data = res.data.data;
+          setTotal(res.data.total ?? data.length);
+          setOptions(data);
+          callback?.(data);
         })
         .catch((err) => {
           console.log(err);
@@ -251,14 +397,47 @@ export default memo(
 
     useDidMountEffect(() => {
       if (!allowSearch) return;
+      setLoading(true);
       const reloadModel = setTimeout(() => {
-        setLoading(true);
         getModels();
       }, 500);
       return () => {
         clearTimeout(reloadModel);
       };
     }, [search]);
+    const defaultKey = useMemo(
+      () => (defaultValue ? JSON.stringify(defaultValue) : null),
+      [defaultValue],
+    );
+
+    const loadedDefaultKeyRef = useRef(null);
+
+    useEffect(() => {
+      if (!defaultKey || option) return;
+
+      if (loadedDefaultKeyRef.current === defaultKey) return;
+      loadedDefaultKeyRef.current = defaultKey;
+
+      setLoading(true);
+      const reloadModel = setTimeout(() => {
+        getModels(defaultValue, (data) => {
+          if (data.length <= 0) return;
+          setOption(data[0]);
+        });
+      }, 500);
+
+      return () => clearTimeout(reloadModel);
+    }, [defaultKey, option]);
+    useDidMountEffect(() => {
+      if (!open) return;
+      setLoading(true);
+      const reloadModel = setTimeout(() => {
+        getModels();
+      }, 100);
+      return () => {
+        clearTimeout(reloadModel);
+      };
+    }, [open]);
     const onInputKeyDown = (e) => {
       if (e.key == "Enter" && open) return;
       if (
@@ -280,90 +459,154 @@ export default memo(
         setOpen(true);
       }
     };
+
+    const onSuccessFormPageLinkModelDialog = (e) => {
+      setOpen(false);
+      axios
+        .post(route("model"), {
+          model,
+          with: _with,
+          id: e.props.flash.id ?? null,
+        })
+        .then((res) => {
+          setOption(res.data);
+        })
+        .catch((err) => {
+          console.log(err);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
+
+    const diff = useMemo(() => {
+      const before = convertTemplateLink(valueBefore);
+      const after = convertTemplateLink(value);
+      return {
+        before: before != after && before,
+        after,
+        same: before == after,
+      };
+    }, [value, valueBefore]);
     return (
       <Popover open={open} onOpenChange={() => {}}>
         <Command
-          className="relative h-auto overflow-visible bg-transparent"
+          className="relative h-full overflow-visible bg-transparent"
           ref={commandRef}
           loop
         >
-          <PopoverTrigger
-            asChild
-            className={cn(
-              "flex h-8 bg-muted overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-              disabled && "cursor-not-allowed opacity-50",
-              className,
-            )}
-          >
-            <div>
-              <Input
-                ref={ref}
-                disabled={disabled}
-                readOnly={readOnly}
-                onKeyDown={onInputKeyDown}
-                onDoubleClick={(e) => {
-                  e.preventDefault();
-                  if (!option || !search) {
-                    setOpen(true);
-                    getModels();
-                  }
-                }}
-                required={required}
-                value={search}
-                onChange={(e) => {
-                  setAllowSearch(true);
-                  setSearch(e.target.value);
-                }}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger
+                asChild
                 className={cn(
-                  "focus:!border-0 !bg-inherit disabled:!opacity-100 h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
+                  "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+                  valueBefore !== undefined &&
+                    !diff?.same &&
+                    "bg-yellow-200 dark:bg-yellow-900",
+                  disabled && "cursor-not-allowed opacity-50",
+                  className,
                 )}
-                placeholder={placeholder}
-              />
-              <div className="flex items-center h-8 pr-2 gap-x-2">
-                {!disabledNavigation && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      "size-6 hidden",
-                      option &&
-                        search &&
-                        "group-focus-within/model:inline-flex",
-                    )}
-                    onClick={() => {
-                      if (!name || !option || !search) return;
-                      const pluralized = `${pluralize.plural(name ?? "")}.show`;
-                      window.open(route(pluralized, option.id), "_blank");
+              >
+                <div>
+                  <Input
+                    id={id}
+                    ref={ref}
+                    disabled={disabled}
+                    readOnly={readOnly}
+                    onKeyDown={onInputKeyDown}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!(option && search) && !open) {
+                        setOpen(true);
+                      }
                     }}
-                  >
-                    <ArrowRight className="size-3" />
-                  </Button>
+                    required={required}
+                    value={search}
+                    onChange={(e) => {
+                      setAllowSearch(true);
+                      setSearch(e.target.value);
+                    }}
+                    className={cn(
+                      "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
+                      // diff.same && "text-",
+                    )}
+                    placeholder={placeholder}
+                  />
+                  <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
+                    {loading ? (
+                      <LoadingIcon className="size-4" />
+                    ) : (
+                      <>
+                        {!disabledNavigation && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "size-6 hidden",
+                              valueBefore && "inline-flex!",
+                              option &&
+                                search &&
+                                "group-focus-within/model:inline-flex",
+                            )}
+                            onClick={() => {
+                              if (!name || !option || !search) return;
+                              if (
+                                customNavigation &&
+                                typeof customNavigation === "function"
+                              ) {
+                                customNavigation(value);
+                              }
+                              const pluralized = `${pluralize.plural(name ?? "")}.show`;
+                              window.open(
+                                route(pluralized, option[keyRoute ?? "id"]),
+                                "_blank",
+                              );
+                            }}
+                          >
+                            <ArrowRight className="size-3" />
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={cn(
+                            "size-6 ",
+                            (!search || disabled || readOnly) && "hidden",
+                          )}
+                          onClick={() => {
+                            setOption(null);
+                            setSearch("");
+                          }}
+                        >
+                          <XIcon className="size-3" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            {valueBefore && !diff?.same && (
+              <TooltipContent side="top" align="start">
+                {diff?.before && (
+                  <>
+                    <s>{diff?.before}</s>
+                    <br />
+                  </>
                 )}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "size-6 ",
-                    (!search || disabled || readOnly) && "hidden",
-                  )}
-                  onClick={() => {
-                    setOption(null);
-                    setSearch("");
-                  }}
-                >
-                  <XIcon className="size-3" />
-                </Button>
-              </div>
-            </div>
-          </PopoverTrigger>
+                <span>{diff?.after}</span>
+              </TooltipContent>
+            )}
+          </Tooltip>
           {!(disabled || readOnly) && (
             <PopoverContent
               onOpenAutoFocus={(e) => e.preventDefault()}
               align="start"
               side="bottom"
-              className="relative z-50  w-[--radix-popover-trigger-width] p-0 "
+              className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
               forceMount
               asChild
             >
@@ -397,6 +640,19 @@ export default memo(
                           </CommandItem>
                         );
                       })}
+                    {total > limit && !disabledAddButton && (
+                      <CommandSeparator />
+                    )}
+                    {total > limit && (
+                      <CommandItem
+                        className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
+                        onSelect={() => {
+                          // setOpenDialog(true);
+                        }}
+                      >
+                        {t("core.form.linkmodel.more")}
+                      </CommandItem>
+                    )}
                     {!disabledAddButton && (
                       <CommandItem
                         onSelect={() => {
@@ -427,6 +683,8 @@ export default memo(
             open={openDialog}
             onOpenChange={setOpenDialog}
             className={cn("max-w-lg", classNameDialog)}
+            defaultValue={defaultValueForm}
+            onSuccess={onSuccessFormPageLinkModelDialog}
             postOption={postOption}
           >
             {form}

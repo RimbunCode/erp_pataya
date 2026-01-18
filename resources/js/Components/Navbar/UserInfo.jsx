@@ -30,7 +30,7 @@ export default memo(function UserInfo() {
           {user.image && (
             <AvatarImage
               src={
-                route("files.show", user.image) +
+                route("files.preview", user.image) +
                 `?v=${new Date(user.updated_at).getTime()}`
               }
               alt={user.name}
@@ -53,7 +53,7 @@ export default memo(function UserInfo() {
               {user.image && (
                 <AvatarImage
                   src={
-                    route("files.show", user.image) +
+                    route("files.preview", user.image) +
                     `?v=${new Date(user.updated_at).getTime()}`
                   }
                   alt={user.name}
@@ -102,7 +102,7 @@ export default memo(function UserInfo() {
             href={route("logout")}
             method="post"
             as="button"
-            className="w-full text-red-500 hover:!text-red-500"
+            className="w-full text-red-500 hover:text-red-500!"
           >
             <LogOut />
             Log out

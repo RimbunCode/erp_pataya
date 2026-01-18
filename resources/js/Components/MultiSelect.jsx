@@ -37,9 +37,15 @@ export default forwardRef(function MultiSelect(
     },
   });
 
-  const convertValues = useCallback((values) => {
-    return values?.join(", ") ?? "";
-  }, []);
+  const convertValues = useCallback(
+    (values) => {
+      const options = optionsProps
+        ?.filter((opt) => values.includes(opt.value))
+        .map((opt) => opt.label);
+      return options?.join(", ") ?? "";
+    },
+    [options],
+  );
 
   const setSearch = useCallback(
     (search) => {
@@ -179,7 +185,7 @@ export default forwardRef(function MultiSelect(
                 setSearch(e.target.value);
               }}
               className={cn(
-                "focus:!border-0 !bg-inherit h-8 w-full !rounded-none !pr-2 !border-0  focus-visible:!ring-0 focus-visible:!ring-offset-0  ",
+                "focus:border-0! bg-inherit! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
               )}
               placeholder={placeholder}
             />
@@ -208,7 +214,7 @@ export default forwardRef(function MultiSelect(
             ref={popoverRef}
             align="start"
             side="bottom"
-            className="relative z-50  w-[--radix-popover-trigger-width] p-0 "
+            className="relative z-50  w-(--radix-popover-trigger-width) p-0 "
             forceMount
             asChild
           >
@@ -238,7 +244,7 @@ export default forwardRef(function MultiSelect(
                           htmlFor={`${opt.value}-checkbox`}
                           className="flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                         >
-                          {opt.value}
+                          {opt.label}
                         </span>
                       </label>
                     </CommandItem>

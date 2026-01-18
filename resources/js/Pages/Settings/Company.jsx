@@ -1,4 +1,7 @@
-import { FormPage, FormPageContent } from "../Core/FormPage";
+import { Avatar, AvatarFallback } from "@/Components/ui/avatar";
+import { Dialog, DialogTrigger } from "@/Components/ui/dialog";
+import { FormPage, FormPageContent, useFormPage } from "../Core/FormPage";
+import React, { useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -6,36 +9,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
+import { Trash2Icon, UploadIcon } from "lucide-react";
 
+import { AvatarImage } from "@/Components/ui/avatar";
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
 import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
-import React from "react";
-import { SaveIcon } from "lucide-react";
 import { Textarea } from "@/Components/ui/textarea";
-import { useDraftForm } from "@/Hooks/useDraftForm";
+import UploadDialog from "../Core/Components/UploadDialog";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
-export default function Company({ preferences, currencies, countries }) {
-  const route = window.route;
+function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, post, processing, errors, isDirty } = useDraftForm(
-    "company_details",
-    preferences,
-  );
-  const onSubmit = (e) => {
-    e.preventDefault();
-
-    post(route("company.index"));
-  };
-  // useEffect(() => {
-  //   axios.get(
-  //     "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.min.json",
-  //   ).then('data');
-  // })
+  const { currencies, countries, timezones } = usePage().props;
+  const { data, setData } = useFormPage();
   const onUpdatePerPageOptions = (list) => {
     setData(
       "per_page_options",
@@ -43,37 +39,12 @@ export default function Company({ preferences, currencies, countries }) {
     );
   };
   return (
-    <FormPage
-      errors={errors}
-      disabled={processing}
-      title={t("core.company.title")}
-      onSubmit={onSubmit}
-      badge={
-        isDirty && (
-          <span className="text-sm badge warning">
-            {t("core.form.not_saved")}
-          </span>
-        )
-      }
-      controls={
-        <Button
-          type="submit"
-          role="save"
-          className="!p-2 size-fit h-8"
-          disabled={processing}
-        >
-          <SaveIcon />
-          {t("core.form.save")}
-        </Button>
-      }
-      sidebarContent={false}
-      bottombarContent={false}
-    >
+    <>
       <FormPageContent
         value="company_details"
         title={t("core.company.company_details.title")}
       >
-        <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+        <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-2">
           <FormInput
             label={t("core.company.company_details.name")}
             required={true}
@@ -81,6 +52,15 @@ export default function Company({ preferences, currencies, countries }) {
             <Input
               value={data.company_name}
               onChange={(e) => setData("company_name", e.target.value)}
+            />
+          </FormInput>
+          <FormInput
+            label={t("core.company.company_details.short_name")}
+            required={true}
+          >
+            <Input
+              value={data.short_name}
+              onChange={(e) => setData("short_name", e.target.value)}
             />
           </FormInput>
           <FormInput
@@ -176,7 +156,7 @@ export default function Company({ preferences, currencies, countries }) {
         value="email_setup"
         title={t("core.company.email_setup.title")}
       >
-        <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
+        <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
             label={t("core.company.email_setup.protocol")}
             required={true}
@@ -288,13 +268,13 @@ export default function Company({ preferences, currencies, countries }) {
                 "core.company.preferences.default_currency.placeholder",
               )}
               templateTrigger={(currency_code) => {
-                const currency = currencies.find(
+                const currency = currencies?.find(
                   (c) => c.code === currency_code,
                 );
                 return (
                   <span>
-                    {currency.name}{" "}
-                    <span className="uppercase">({currency.code})</span>
+                    {currency?.name}{" "}
+                    <span className="uppercase">({currency?.code})</span>
                   </span>
                 );
               }}
@@ -316,10 +296,39 @@ export default function Company({ preferences, currencies, countries }) {
               }}
             />
           </FormInput>
+          <FormInput
+            label={t("core.company.preferences.timezone")}
+            required={true}
+            className=""
+          >
+            <Combobox
+              options={timezones}
+              value={data.timezone}
+              placeholder={t("core.company.preferences.timezone.placeholder")}
+              templateTrigger={(timezone) => {
+                return <span>{timezone}</span>;
+              }}
+              templateItem={(timezone) => {
+                return (
+                  <CommandItem
+                    key={timezone}
+                    value={timezone}
+                    keywords={[timezone]}
+                    onSelect={() => {
+                      setData("timezone", timezone);
+                    }}
+                    className="block px-4 "
+                  >
+                    {timezone}
+                  </CommandItem>
+                );
+              }}
+            />
+          </FormInput>
           <div className="grid [&>div]:px-3 gap-x-1 grid-cols-[auto_1fr_auto] text-sm [&>div>*]:px-1h max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center [&>div>*]:py-2 [&>div>*:not(:last-child)]:border-0">
             <div className="grid grid-cols-subgrid col-span-full items-center rounded-md bg-muted [&>div]:font-bold [&>div]:text-sm lg:[&>div]:text-base">
-              <div className="!pr-2 !pl-2 !justify-start text-left">No.</div>
-              <div className="!justify-start text-left">Rows per Page</div>
+              <div className="pr-2! pl-2! justify-start! text-left">No.</div>
+              <div className="justify-start! text-left">Rows per Page</div>
               <div className="text-center">Default</div>
             </div>
             {data?.per_page_options &&
@@ -329,10 +338,10 @@ export default function Company({ preferences, currencies, countries }) {
                     key={item}
                     className="grid border-b col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base"
                   >
-                    <div className="!pr-2 !pl-2 !justify-start text-left">
+                    <div className="pr-2! pl-2! justify-start! text-left">
                       {index + 1}
                     </div>
-                    <div className="!justify-start text-left">
+                    <div className="justify-start! text-left">
                       <Input
                         type="number"
                         defaultValue={item}
@@ -361,10 +370,10 @@ export default function Company({ preferences, currencies, countries }) {
               })}
 
             <div className="grid border-b col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base">
-              <div className="!pr-2 !pl-2 !justify-start text-left">
+              <div className="pr-2! pl-2! justify-start! text-left">
                 {data.per_page_options.length + 1}
               </div>
-              <div className="!justify-start text-left">
+              <div className="justify-start! text-left">
                 <Input
                   type="number"
                   onBlur={(e) => {
@@ -383,6 +392,93 @@ export default function Company({ preferences, currencies, countries }) {
           </div>
         </div>
       </FormPageContent>
+    </>
+  );
+}
+export default function Company({ company }) {
+  const route = window.route;
+  const { t } = useLaravelReactI18n();
+  const [openAttachment, setOpenAttachment] = useState(false);
+  const alias = company.company_name
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n.charAt(0))
+    .join("");
+  // useEffect(() => {
+  //   axios.get(
+  //     "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.min.json",
+  //   ).then('data');
+  // })
+  const avatar = useMemo(() => {
+    if (!company.company_image) return null;
+    return (
+      <AvatarImage
+        src={
+          route("files.preview", company.company_image) +
+          (company.updated_at
+            ? `?v=${new Date(company.updated_at).getTime()}`
+            : "")
+        }
+        alt={company.name}
+        className=" transition-[filter] duration-300 group-hover:blur-sm"
+      />
+    );
+  }, [company.company_image]);
+  return (
+    <FormPage
+      name="company"
+      title={t("core.company.title")}
+      sidebarContent={() => {
+        return (
+          <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
+            <Avatar className="relative  h-auto border rounded-xl aspect-square w-64 group">
+              {avatar}
+              <AvatarFallback className="rounded-lg ">
+                <p className="w-full font-semibold text-center text-muted-foreground text-9xl  transition-[filter]">
+                  {alias}
+                </p>
+              </AvatarFallback>
+              <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DialogTrigger asChild>
+                      <Button variant="default" size="icon" type="button">
+                        <UploadIcon className="size-5!" />
+                      </Button>
+                    </DialogTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent align="center">Upload</TooltipContent>
+                </Tooltip>
+                {company.company_image && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="destructive" size="icon" type="button">
+                        <Trash2Icon className="size-5!" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent align="center">Remove</TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </Avatar>
+            <UploadDialog
+              open={openAttachment}
+              single
+              imageOnly
+              options={{
+                route: route(route().current()) + "/image",
+                reset: ["company", "auth"],
+              }}
+              onClose={() => {
+                setOpenAttachment(false);
+              }}
+            />
+          </Dialog>
+        );
+      }}
+      bottombarContent={false}
+    >
+      <Form />
     </FormPage>
   );
 }

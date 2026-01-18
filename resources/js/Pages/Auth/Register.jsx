@@ -54,7 +54,7 @@ export default function Register() {
           <ToggleTheme className="size-4" />
         </div>
       </CardHeader>
-      <CardContent className="!pt-0">
+      <CardContent className="pt-0!">
         <form onSubmit={submit}>
           <div className="grid gap-6">
             <div className="grid gap-6">

@@ -23,6 +23,7 @@ class PreferenceSeeder extends Seeder {
         300
       ],
       "company_name" => "PATAYA",
+      'short_name' => "PSN",
       "email" => "pataya@gmail.com",
       "phone" => "asdas",
       "street" => "Jl. Rungkut Mejoyo Selatan No.9",
@@ -30,7 +31,8 @@ class PreferenceSeeder extends Seeder {
       "state" => "Jawa Timur",
       "zip_code" => "60293",
       "country_id" => "IDN",
-      "default_currency_id" => "idr"
+      "default_currency_id" => "idr",
+      "timezone" => "Asia/Jakarta",
     ];
     $preferences = collect($preferencesArr)->map(fn($value, $key) => [
       'key' => $key,
@@ -38,6 +40,7 @@ class PreferenceSeeder extends Seeder {
     ])->values();
     Preference::insert($preferences->toArray());
     Branch::create([
+      'code' => $preferencesArr['short_name'],
       'name' => $preferencesArr['company_name'],
       'is_main_branch' => true,
       'shipping_street' => $preferencesArr['street'],

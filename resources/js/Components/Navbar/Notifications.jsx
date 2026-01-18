@@ -3,6 +3,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/Components/ui/popover";
+
 import { Button } from "../ui/button";
 
 function Notifications() {
@@ -32,7 +33,7 @@ function Notifications() {
       <PopoverContent
         side="bottom"
         align="end"
-        className="!p-0 overflow-hidden h-[460px] w-96"
+        className="p-0! overflow-hidden h-[460px] w-96 flex flex-col"
       >
         <div className="sticky top-0 flex items-center justify-between px-4 py-1 bg-white shadow-md dark:bg-gray-800">
           <h3 className="text-base font-bold">Notifications</h3>
@@ -50,6 +51,10 @@ function Notifications() {
               </svg>
             </Button>
           </div>
+        </div>
+        <div className=" flex flex-col h-full text-center justify-center items-center">
+          <p className="font-bold text-lg">Under Development </p>
+          <p>Please wait for the next update, thank you.</p>
         </div>
       </PopoverContent>
     </Popover>

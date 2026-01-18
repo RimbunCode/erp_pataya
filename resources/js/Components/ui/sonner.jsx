@@ -1,29 +1,40 @@
+import * as React from "react";
+
+import {
+  CircleCheckIcon,
+  InfoIcon,
+  Loader2Icon,
+  OctagonXIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
+
 import { Toaster as Sonner } from "sonner";
 import useTheme from "@/Hooks/useTheme";
 
 const Toaster = ({ ...props }) => {
-  const { currentTheme = "system" } = useTheme();
+  const { currentTheme } = useTheme();
 
   return (
     <Sonner
       theme={currentTheme}
-      className="toaster group data-rich-colors=true"
-      position="bottom-right"
-      richColors
-      visibleToasts={5}
-      closeButton
+      className="group toaster [&_[data-type=success]>[data-icon]]:text-success [&_[data-type=success]_[data-title]]:text-success [&_[data-type=info]_[data-title]]:text-info [&_[data-type=error]>[data-icon]]:text-destructive [&_[data-type=error]_[data-title]]:text-destructive"
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:[&:not([data-type])]:bg-background group-[.toaster]:[&:not([data-type])]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground! group-[.toaster]:border-border group-[.toaster]:shadow-lg has-[[role=alert]]:border-0! has-[[role=alert]]:shadow-none! has-[[role=alert]]:bg-transparent!",
           description: "group-[.toast]:text-muted-foreground",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
+            "group-[.toast]:rounded-md! group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
-          closeButton: "[&>svg]:size-4 size-7",
-          icon: "mr-4",
+            "group-[.toast]:rounded-md! group-[.toast]:bg-secondary group-[.toast]:text-secondary-foreground!",
         },
+      }}
+      icons={{
+        success: <CircleCheckIcon className="size-4" />,
+        info: <InfoIcon className="size-4" />,
+        warning: <TriangleAlertIcon className="size-4" />,
+        error: <OctagonXIcon className="size-4" />,
+        loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
       {...props}
     />

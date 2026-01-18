@@ -5,6 +5,7 @@ return [
   'company_details' => [
     'title' => 'Company Details',
     'name' => 'Company Name',
+    'short_name' => 'Short Name',
     'email' => 'Email',
     'phone' => 'Phone',
     'street' => 'Street',
@@ -19,6 +20,8 @@ return [
     'title' => 'Preferences',
     'default_currency' => 'Default Currency',
     'default_currency.placeholder' => 'Select a default currency',
+    'timezone' => 'Timezone',
+    'timezone.placeholder' => 'Select a timezone',
   ],
   'email_setup' => [
     'title' => 'Email Setup',

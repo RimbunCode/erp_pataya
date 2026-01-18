@@ -22,7 +22,7 @@ export default function Toasts() {
   }, [alerts]);
 
   return (
-    <div className="flex flex-col-reverse fixed right-0  bottom-0 z-[999] w-full max-w-[352px] overflow-x-hidden bg-transparent">
+    <div className="flex flex-col-reverse fixed right-0  bottom-0 z-999 w-full max-w-[352px] overflow-x-hidden bg-transparent">
       {toasts.map((toast) => {
         return (
           <Toast
@@ -76,7 +76,7 @@ const Toast = React.memo(({ id, type, title, message, timeout }) => {
         <div className={`toast ${type}`}>
           <div className="h-0.5 w-full bg-inherit">
             <div
-              className={`progress h-0.5 transition-all ease-linear rounded-full ${progressBar ? "w-[0%]" : "w-[100%]"}`}
+              className={`progress h-0.5 transition-all ease-linear rounded-full ${progressBar ? "w-[0%]" : "w-full"}`}
               style={{ transitionDuration: `${timeout}ms` }}
               onTransitionEnd={() => {
                 setVisible(false);
@@ -103,7 +103,7 @@ const Toast = React.memo(({ id, type, title, message, timeout }) => {
               <div className="mt-1 text-sm message">{message}</div>
             </div>
             <button
-              className="button ml-2 !p-1 text-gray-700 dark:text-gray-500"
+              className="button ml-2 p-1! text-gray-700 dark:text-gray-500"
               type="button"
               onClick={() => {
                 setVisible(false);

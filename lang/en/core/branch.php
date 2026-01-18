@@ -1,16 +1,22 @@
 <?php
 
 return [
+  'branch' => 'Branch',
   'branches' => 'Branches',
   'title' => 'Branches Company',
-  'add_branch' => 'Add Branch',
+  'add' => 'Add Branch',
   'branch_detail' => 'Branch Details',
   'new' => 'New Branch',
-  'delete' => 'Delete Branch',
+  'delete' => "Delete Branch",
   'delete.description' => 'Are you sure you want to delete this branch?',
   'delete.confirm' => 'Delete',
   'cancel' => 'Cancel',
+  'add_row' => 'Add Row',
+  'empty' => 'Empty',
+  'main' => 'Main',
   'columns' => [
+    'title' => 'Code',
+    'code' => 'Code',
     'name' => 'Name',
     'email' => 'Email',
     'phone' => 'Phone',
@@ -21,6 +27,7 @@ return [
     'zip_code' => 'Zip Code',
     'country' => 'Country',
     'country.placeholder' => 'Select a country',
+    'billingAddress' => 'Billing Address',
     'billing_address' => 'Billing Address',
     'billing_address.placeholder' => 'Select billing address source',
     'billing_address.options' => [
@@ -33,6 +40,7 @@ return [
     'billing_state' => 'Billing State',
     'billing_zip_code' => 'Billing Zip Code',
     'billing_country' => 'Billing Country',
+    'shippingAddress' => 'Shipping Address',
     'shipping_address' => 'Shipping Address',
     'shipping_street' => 'Shipping Street',
     'shipping_city' => 'Shipping City',

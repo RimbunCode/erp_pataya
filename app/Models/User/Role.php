@@ -10,15 +10,19 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Role extends Model {
   use HasUlids, SoftDeletes, DataTable;
   protected $guarded = ['id'];
-
-  protected $casts = [
-    'is_disabled' => 'boolean'
+  protected $casts   = [
+    'is_disabled' => 'boolean',
   ];
+
+  public static function templateLink() {
+    return ":name";
+  }
 
   public function users() {
     return $this->belongsToMany(User::class, 'user_roles', 'role_id', 'user_id');
   }
+
   public function rules() {
-    return $this->hasMany(RolePermission::class);
+    return $this->hasMany(RolePermission::class)->orderBy('name')->orderBy('level');
   }
 }

@@ -59,7 +59,7 @@ export default function Login() {
           <ToggleTheme className="size-4" />
         </div>
       </CardHeader>
-      <CardContent className="!pt-2">
+      <CardContent className="pt-2!">
         <form onSubmit={submit}>
           <div className="grid gap-6">
             <div className="grid gap-6">

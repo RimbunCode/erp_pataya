@@ -1,4 +1,4 @@
-import React, { Children, cloneElement, memo, useId } from "react";
+import React, { cloneElement, memo, useId } from "react";
 
 import InputError from "./InputError";
 import { Label } from "./ui/label";
@@ -15,6 +15,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * @param {string} props.className
  * @param {string} props.name
  * @param {object} props.errors
+ * @param {string} props.error
  * @param {string | React.JSX.Element} props.description
  * @param {React.ReactNode} props.children
  * @returns {React.JSX.Element}
@@ -25,26 +26,44 @@ function FormInput({
   className,
   name,
   errors: errorsProps,
+  error,
   children,
   description,
   ignoreDisabled = false,
+  ...props
 }) {
   const form = useFormPage();
   const id = useId();
   const { t } = useLaravelReactI18n();
-  const child =
-    typeof children == "function" ? children : Children.only(children);
+  const child = typeof children == "function" ? children : children;
   const errors = errorsProps ?? form?.errors ?? {};
   const _required = required || child.props?.required;
   const _name = name || child.props?.name;
+
   return (
     <div
-      className={cn("flex flex-col gap-y-2", className)}
+      className={cn("grid grid-cols-1 gap-y-2", className)}
       role={!ignoreDisabled ? "forminput" : ""}
     >
-      <Label htmlFor={id}>
+      <Label htmlFor={id} className="truncate h-auto">
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>
+      {typeof child == "function"
+        ? child({
+            id,
+            required: _required,
+            readOnly: props.readOnly || form?.disabled,
+            ...props,
+          })
+        : React.Children.map(children, (child) => {
+            return cloneElement(child, {
+              id,
+              ...props,
+              required: _required && (child.props?.required ?? true),
+              readOnly:
+                child.props?.readOnly || props.readOnly || form?.disabled,
+            });
+          })}
       {description &&
         (typeof description == "string" ? (
           <p className="text-sm font-normal text-muted-foreground">
@@ -53,21 +72,16 @@ function FormInput({
         ) : (
           description
         ))}
-      {typeof child == "function"
-        ? child({ id, required: _required })
-        : cloneElement(child, {
-            id,
-            required: _required,
-          })}
-      {_name in (errors ?? {}) && (
+      {(error || _name in (errors ?? {})) && (
         <InputError
           message={
-            form.fieldNameTrans
+            error ??
+            (form.fieldNameTrans
               ? errors?.[_name].replace(
                   _name,
                   t(`${form.fieldNameTrans}.${_name}`),
                 )
-              : errors?.[_name]
+              : errors?.[_name])
           }
           className=""
         />

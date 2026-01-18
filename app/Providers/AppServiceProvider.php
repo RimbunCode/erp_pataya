@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Notifications\Channels\DatabaseChannel as IlluminateDatabaseChannel;
 use Illuminate\Notifications\Notification as IlluminateNotification;

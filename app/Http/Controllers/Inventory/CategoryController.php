@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\CategoryRequest;
 use App\Models\Inventory\Category;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -22,13 +23,6 @@ class CategoryController extends Controller {
     Category::dataTable($request);
     return Inertia::render(
       'Inventory/Categories/Index',
-      [
-        'types' => [
-          'stock' => __('inventory/category.types.stock'),
-          'vehicle' => __('inventory/category.types.vehicle'),
-          'service' => __('inventory/category.types.service'),
-        ]
-      ]
     );
   }
 
@@ -46,15 +40,9 @@ class CategoryController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $category = Category::create($data);
-    $category->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user telah membuat ini',
-      ]
-    ]);
+    $category->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return redirect()->back()->with('id', $category->id);
   }
 
   /**
@@ -63,14 +51,12 @@ class CategoryController extends Controller {
   public function show(Category $category) {
     $this->setBreadcrumbs($category);
     $category->showDetail();
-    return Inertia::render('Inventory/Categories/Show', [
-      'category' => $category,
-      'types' => [
-        'stock' => __('inventory/category.types.stock'),
-        'vehicle' => __('inventory/category.types.vehicle'),
-        'service' => __('inventory/category.types.service'),
-      ]
-    ]);
+    return $this->renderShow(
+      'Inventory/Categories/Form',
+      "category",
+      $category->name,
+      $category
+    );
   }
   /**
    * Update the specified resource in storage.
@@ -78,23 +64,21 @@ class CategoryController extends Controller {
   public function update(CategoryRequest $request, Category $category) {
     $data = $request->validated();
     DB::beginTransaction();
-    $category->update($data);
-    $category->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user telah memperbarui ini',
-      ]
-    ]);
+    $category->fillForUpdate($data);
+    $category->logForUpdated();
     DB::commit();
-    return redirect()->back();
+    // dd($request->all());
+    return back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
   public function destroy(Category $category) {
+    DB::beginTransaction();
     $category->delete();
-    return redirect()->back();
+    $category->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

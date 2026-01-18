@@ -21,7 +21,7 @@ import {
   arrayMove,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { cn, getCookieByName, setCookie } from "@/lib/utils";
+import { cn, getFromLocalStorage, saveToLocalStorage } from "@/lib/utils";
 
 import { Checkbox } from "../ui/checkbox";
 import ColumnsFilter from "./ColumnsFilter";
@@ -63,7 +63,7 @@ export const createHeaders = (headers) => {
   );
 
   let finalColumns = [];
-  const columnsFromCookie = JSON.parse(getCookieByName(DATATABLE_COLUMNS_KEY));
+  const columnsFromCookie = getFromLocalStorage(DATATABLE_COLUMNS_KEY);
   if (!columnsFromCookie) {
     return Array.from(columnsMap.values());
   }
@@ -95,7 +95,6 @@ function Table({
   setSort,
   resetSorting,
 }) {
-  const route = window.route;
   const { t } = useLaravelReactI18n();
   const [data, setData] = useState(initialData);
   useDidMountEffect(() => {
@@ -148,14 +147,10 @@ function Table({
     // }),
   );
   useDidMountEffect(() => {
-    setCookie(
+    saveToLocalStorage(
       DATATABLE_COLUMNS_KEY,
-      JSON.stringify(columns.map((x) => ({ name: x.name, show: x.show }))),
-      {
-        days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      },
+      columns.map((x) => ({ name: x.name, show: x.show })),
+      DATATABLE_COLUMNS_EXPIRED,
     );
   }, [columns]);
   function handleDragOver(event) {
@@ -319,7 +314,7 @@ function Table({
                     strategy={horizontalListSortingStrategy}
                   >
                     {selectable && (
-                      <th className="!py-2 !px-2 !pr-4 items-center">
+                      <th className="py-2! px-2! pr-4! items-center">
                         <Checkbox
                           checked={data.every((x) => x.isSelected ?? false)}
                           onCheckedChange={checkAll}
@@ -327,18 +322,18 @@ function Table({
                       </th>
                     )}
                     {actions && (
-                      <th className="!py-2 !px-2 !pr-4 items-center">
+                      <th className="py-2! px-2! pr-4! items-center">
                         <span>{t("core.datatable.action")}</span>
                         <div
                           style={{ height: tableHeight }}
                           className={cn(
-                            !data || data.length === 0 ? "!h-[40px]" : "",
-                            `flex opacity-100 justify-center items-center absolute w-4 -right-2 top-0 z-[1]`,
+                            !data || data.length === 0 ? "h-[40px]!" : "",
+                            `flex opacity-100 justify-center items-center absolute w-4 -right-2 top-0 z-1`,
                           )}
                         >
                           <div
                             className={cn(
-                              "h-full border-r border-muted-foreground/15 w-[1px]",
+                              "h-full border-r border-muted-foreground/15 w-px",
                             )}
                           ></div>
                         </div>
@@ -369,7 +364,7 @@ function Table({
                 {!data || data.length === 0 ? (
                   <tr>
                     <td
-                      className="!border-b-0 items-center justify-center"
+                      className="border-b-0! items-center justify-center"
                       style={{
                         gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
                       }}
@@ -382,7 +377,7 @@ function Table({
                     {data.map((row, i) => (
                       <tr key={i}>
                         {selectable && (
-                          <td className="!py-2 !px-2 items-center">
+                          <td className="py-2! px-2! items-center">
                             <Checkbox
                               checked={row.isSelected ?? false}
                               onCheckedChange={(check) => checklist(row, check)}
@@ -441,7 +436,7 @@ function Table({
 
                     <tr>
                       <td
-                        className="!border-b-0 items-center justify-center row-auto h-full"
+                        className="border-b-0! items-center justify-center row-auto h-full"
                         style={{
                           gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
                         }}

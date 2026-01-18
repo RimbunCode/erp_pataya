@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/Hooks/use-mobile";
 
 const AlertDialog = AlertDialogPrimitive.Root;
 
@@ -22,19 +23,48 @@ const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ));
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 
-const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => (
-  <AlertDialogPortal>
-    <AlertDialogOverlay />
-    <AlertDialogPrimitive.Content
-      ref={ref}
-      className={cn(
-        "overflow-y-auto max-h-screen fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
-        className,
-      )}
-      {...props}
-    />
-  </AlertDialogPortal>
-));
+const AlertDialogContent = React.forwardRef(
+  ({ className, forceAsDialog = false, align = "top", ...props }, ref) => {
+    const isMobile = useIsMobile();
+    return (
+      <AlertDialogPortal>
+        <AlertDialogOverlay />
+        <div
+          className={cn(
+            "fixed h-screen w-full z-50 flex items-center md:px-6",
+            align == "top" && "flex-col",
+            align == "bottom" && "flex-col-reverse",
+          )}
+        >
+          {align != "center" && <div className="h-[8%]"></div>}
+          <div
+            className={cn(
+              "flex-1 w-full flex items-center",
+              align == "center" && "flex-col justify-center",
+              align == "top" && "flex-col",
+              align == "bottom" && "flex-col-reverse",
+            )}
+          >
+            <AlertDialogPrimitive.Content
+              ref={ref}
+              className={cn(
+                "overflow-y-auto w-full md:h-auto grid content-start max-w-lg gap-4 border bg-background p-6 shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:ease-in data-[state=closed]:ease-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:rounded-lg",
+                align == "top" &&
+                  "data-[state=closed]:slide-out-to-top-[28%] data-[state=open]:slide-in-from-top-[28%]",
+                align == "bottom" &&
+                  "data-[state=closed]:slide-out-to-bottom-[28%] data-[state=open]:slide-in-from-bottom-[28%]",
+                !forceAsDialog && "h-screen",
+                !forceAsDialog && isMobile && "max-w-full!",
+                className,
+              )}
+              {...props}
+            />
+          </div>
+        </div>
+      </AlertDialogPortal>
+    );
+  },
+);
 AlertDialogContent.displayName = AlertDialogPrimitive.Content.displayName;
 
 const AlertDialogHeader = ({ className, ...props }) => (
@@ -86,9 +116,10 @@ const AlertDialogAction = React.forwardRef(
       ref={ref}
       className={cn(
         buttonVariants({
-          variant: variant ?? "default",
-          size: size ?? "default",
+          variant: variant ?? "primary",
+          size: size ?? "lg",
         }),
+        "p-2 md:size-fit",
         className,
       )}
       {...props}
@@ -104,9 +135,9 @@ const AlertDialogCancel = React.forwardRef(
       className={cn(
         buttonVariants({
           variant: variant ?? "outline",
-          size: size ?? "default",
+          size: size ?? "lg",
         }),
-        "mt-2 sm:mt-0",
+        "mt-2 sm:mt-0 p-2 md:size-fit ",
         className,
       )}
       {...props}

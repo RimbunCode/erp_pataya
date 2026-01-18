@@ -35,22 +35,25 @@ class ItemRequest extends FormRequest {
       'default_unit.id' => ['required', 'string', 'exists:units,id'],
       'is_disabled' => ['nullable', 'boolean'],
       'allow_alternative_item' => ['nullable', 'boolean'],
-      'uom' => ['required', 'array', 'min:1'],
-      'uom.*.id' => ['required', 'string', 'exists:units,id'],
-      'uom.*.conversion_factor' => ['required', 'numeric'],
-      'uom.*.isCustom' => ['nullable', 'boolean'],
-      ...($this->variants && count($this->variants) > 0 ?
-        ['format_variant' => ['required', 'string', 'min:3', new FormatVariantValidation($this->variants)]] :
+      'uoms' => ['required', 'array', 'min:1'],
+      'uoms.*.id' => ['required', 'string', 'exists:units,id'],
+      'uoms.*.conversion_factor' => ['required', 'numeric'],
+      'uoms.*.isCustom' => ['nullable', 'boolean'],
+      ...($this->get("attributes") && count($this->get("attributes")) > 0 ?
+        ['format_variant' => ['required', 'string', 'min:3', new FormatVariantValidation($this->get("attributes"))]] :
         []),
-      'variants' => ['nullable', 'array'],
-      'variants.*.attribute.id'  => ['required', 'string', 'exists:attributes,id'],
-      'variants.*.attribute.name'  => [
+      'attributes' => ['nullable', 'array'],
+      'attributes.*.attribute.id'  => ['required', 'string', 'exists:attributes,id'],
+      'attributes.*.attribute.name'  => [
         'required',
         'string',
         'min:3',
         'max:255',
       ],
-      'variants.*.values' => ['required', 'array', 'min:1'],
+      'attributes.*.values' => ['required', 'array', 'min:1'],
+      'barcodes' => ['nullable', 'array'],
+      'barcodes.*.barcode' => ['required', 'string', 'min:3', 'max:255'],
+      'barcodes.*.unit.id' => ['required', 'string', 'exists:units,id'],
     ];
   }
 }

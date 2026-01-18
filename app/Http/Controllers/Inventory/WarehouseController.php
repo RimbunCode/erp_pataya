@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\WarehouseRequest;
 use App\Models\Core\Branch;
 use App\Models\Inventory\Warehouse;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -54,24 +55,15 @@ class WarehouseController extends Controller {
   public function store(WarehouseRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
+
+    $data['branch_id'] = isset($data['branch']) ? $data['branch']['id'] : $request->session()->get('currentBranch');
     if (isset($data['pic'])) {
       $data['user_id'] = $data['pic']['id'];
     }
     $warehouse = Warehouse::create($data);
-    $warehouse->logs()->create(
-      [
-        'user_id' => $request->user()->id,
-        'activity' => [
-          'en' => ':user created this',
-          'id' => ':user telah membuat ini',
-        ]
-      ]
-    );
+    $warehouse->logForCreated();
     DB::commit();
-    return redirect()->back();
+    return back()->with('id', $warehouse->id);
   }
 
   /**
@@ -80,12 +72,15 @@ class WarehouseController extends Controller {
   public function show(Warehouse $warehouse) {
     $this->setBreadcrumbs($warehouse);
     $warehouse->showDetail();
-    return Inertia::render('Inventory/Warehouses/Show', [
-      'warehouse' => function () use ($warehouse) {
-        $warehouse->load(['pic', 'branch']);
+    return $this->renderShow(
+      'Inventory/Warehouses/Form',
+      "warehouse",
+      $warehouse->title,
+      function () use ($warehouse) {
+        $warehouse->loadRelations();
         return $warehouse;
       },
-    ]);
+    );
   }
 
   /**
@@ -94,20 +89,12 @@ class WarehouseController extends Controller {
   public function update(WarehouseRequest $request, Warehouse $warehouse) {
     $data = $request->validated();
     DB::beginTransaction();
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
+    $data['branch_id'] = isset($data['branch']) ? $data['branch']['id'] : $request->session()->get('currentBranch');
     if (isset($data['pic'])) {
       $data['user_id'] = $data['pic']['id'];
     }
-    $warehouse->update($data);
-    $warehouse->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
+    $warehouse->fillForUpdate($data);
+    $warehouse->logForUpdated();
     DB::commit();
     return back();
   }
@@ -116,7 +103,10 @@ class WarehouseController extends Controller {
    * Remove the specified resource from storage.
    */
   public function destroy(Warehouse $warehouse) {
+    DB::beginTransaction();
     $warehouse->delete();
-    return redirect()->back();
+    $warehouse->logForDeleted();
+    DB::commit();
+    return back();
   }
 }

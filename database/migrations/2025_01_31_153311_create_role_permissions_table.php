@@ -15,13 +15,13 @@ return new class extends Migration {
       $table->string('name');
       $table->text('model');
       $table->foreignUlid('role_id')->references('id')->on('roles')->cascadeOnDelete();
-      $table->unsignedSmallInteger('level')->default(0);
+      $table->unsignedTinyInteger('level')->default(0);
       $table->boolean('only_creator')->default(false);
-      $table->boolean('is_submittable')->default(false);
+      $table->boolean('is_submitable')->default(false);
       $table->json('permissions')->nullable();
       $table->timestamps();
       $table->softDeletes();
-      $table->unique(['role_id', 'permission_id', 'only_creator', 'deleted_at'], 'role_permissions_unique');
+      $table->unique(['role_id', 'permission_id', "level", 'only_creator', 'deleted_at'], 'role_permissions_unique');
     });
   }
 

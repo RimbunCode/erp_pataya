@@ -2,15 +2,22 @@
 
 namespace App\Traits;
 
+use App\FormStatus;
 use App\Models\Core\File;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\Log;
+use App\Models\Core\ModelConnection;
+use App\Models\Core\PrintTemplate;
+use App\Models\Core\Status;
 use App\Models\Core\Tag;
-use App\Models\Scopes\DataTableScope;
 use App\Models\User\Permission;
-use App\Models\User\User;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log as FacadesLog;
+use App\Services\Core\FormatingSeriesService;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 /**
@@ -18,28 +25,259 @@ use Inertia\Inertia;
  * @method void dataTable(\Illuminate\Http\Request $request)
  */
 trait DataTable {
-  public static function bootDataTable() {
-    static::addGlobalScope(new DataTableScope);
+  public function initializeDataTable() {
+    $this->mergeCasts([
+      'have_transactions' => 'boolean',
+    ]);
   }
-  public static function getTableName() {
-    return with(new static)->getTable();
+
+  public static function bootDataTable() {
+    self::saved(function ($model) {
+      if (! $model->deleted_at) {
+        return;
+      }
+      ModelConnection::where(function ($query) use ($model) {
+        $query->where(function ($query) use ($model) {
+          $query->where('model_type', \get_class($model));
+          $query->where('model_id', $model->id);
+        });
+        $query->orWhere(function ($query) use ($model) {
+
+          $query->where('reference_type', \get_class($model));
+          $query->where('reference_id', $model->id);
+        });
+      })
+        ->update([
+          'deleted_at' => now(),
+        ]);
+    });
+  }
+
+  public function fillForUpdate(array $attributes, bool $fillOnly = false) {
+    $this->recordLogs();
+    if ($fillOnly) {
+      return $this->fill($attributes);
+    }
+    $this->fill($attributes);
+
+    if ($this->isDirty()) {
+      $this->fireModelEvent('saving', true);
+      $this->fireModelEvent('updating', true);
+    }
+
+    return $this->save();
+  }
+
+  public function logForCreated() {
+    if (get_class($this) == Log::class) {
+      return;
+    }
+    $this->loadRelations();
+    $keys            = $this->logableFields();
+    $this->dataAfter = \array_replace(
+      \array_fill_keys($keys, null),
+      \array_intersect_key($this->toArray(), array_flip($keys)),
+    );
+    Log::create([
+      'user_id'       => Auth::user()->id,
+      'loggable_id'   => $this->id,
+      'loggable_type' => get_class($this),
+      'activity'      => [
+        'en' => ':user created this',
+        'id' => ':user telah membuat ini',
+      ],
+      'data_before'   => $this->dataBefore ?? null,
+      'data_after'    => $this->dataAfter,
+    ]);
+  }
+
+  public function logForUpdated() {
+    if (get_class($this) == Log::class) {
+      return;
+    }
+    if (! $this->dataBefore) {
+      return;
+    }
+    $this->loadRelations();
+    $keys             = $this->logableFields();
+    $this->dataAfter  = \array_replace(
+      \array_fill_keys($keys, null),
+      \array_intersect_key($this->toArray(), array_flip($keys)),
+    );
+    $this->dataBefore = \array_replace(
+      \array_fill_keys($keys, null),
+      \array_intersect_key($this->dataBefore, array_flip($keys)),
+    );
+
+    Log::create([
+      'user_id'       => Auth::user()->id,
+      'loggable_id'   => $this->id,
+      'loggable_type' => get_class($this),
+      'activity'      => [
+        'en' => ':user updated this',
+        'id' => ':user memperbarui ini',
+      ],
+      'data_before'   => $this->dataBefore,
+      'data_after'    => $this->dataAfter,
+    ]);
+  }
+
+  public function logForDeleted() {
+    if (get_class($this) == Log::class) {
+      return;
+    }
+    Log::create([
+      'user_id'       => Auth::user()->id,
+      'loggable_id'   => $this->id,
+      'loggable_type' => get_class($this),
+      'activity'      => [
+        'en' => ':user deleted this',
+        'id' => ':user menghapus ini',
+      ],
+    ]);
+  }
+
+  public function logForRestore() {
+    if (get_class($this) == Log::class) {
+      return;
+    }
+    Log::create([
+      'user_id'       => Auth::user()->id,
+      'loggable_id'   => $this->id,
+      'loggable_type' => get_class($this),
+      'activity'      => [
+        'en' => ':user restored this',
+        'id' => ':user mengembalikan ini',
+      ],
+    ]);
+  }
+
+  public function logForSubmitted() {
+    if (get_class($this) == Log::class) {
+      return;
+    }
+
+    Log::create([
+      'user_id'       => Auth::user()->id,
+      'loggable_id'   => $this->id,
+      'loggable_type' => get_class($this),
+      'activity'      => [
+        'en' => ':user submitted this',
+        'id' => ':user telah mengajukan ini',
+      ],
+    ]);
+  }
+
+  public function logForCancelled() {
+    if (get_class($this) == Log::class) {
+      return;
+    }
+    Log::create([
+      'user_id'       => Auth::user()->id,
+      'loggable_id'   => $this->id,
+      'loggable_type' => get_class($this),
+      'activity'      => [
+        'en' => ':user canceled this',
+        'id' => ':user telah membatalkan',
+      ],
+    ]);
+  }
+
+  public function logForAmended() {
+    if (get_class($this) == Log::class) {
+      return;
+    }
+    Log::create([
+      'user_id'       => Auth::user()->id,
+      'loggable_id'   => $this->id,
+      'loggable_type' => get_class($this),
+      'activity'      => [
+        'en' => ':user amended this',
+        'id' => ':user telah mengembalikan ini',
+      ],
+    ]);
+  }
+  private array $dataBefore = [];
+
+  private function recordLogs(): void {
+    $this->loadRelations();
+    $this->dataBefore = $this->toArray();
+  }
+
+  protected function getDefaultLogableField(array $except = []) {
+    $except = array_merge($except, ['id', 'created_at', 'updated_at']);
+    if ($this->exists) {
+      $keys = array_keys($this->toArray());
+    } else {
+      $keysRelations = [];
+      foreach (static::loadRelationsOnShow() ?? [] as $key => $value) {
+        if (\is_int($key)) {
+          $keysRelations[] = $value;
+          continue;
+        }
+        $keysRelations[] = $key;
+      }
+      $keys = array_merge(
+        Schema::getColumnListing($this->getTable()),
+        $this->attributesToArray(),
+        $keysRelations,
+      );
+    }
+    return array_values(array_diff($keys, $except));
+  }
+
+  protected static function loadRelationsOnShow() {
+    return [];
+  }
+
+  protected function logableFields() {
+    return $this->getDefaultLogableField();
   }
 
   /**
-   * Jika model ini untuk form yang submitable
-   * @var bool
+   * Eager load relations on the model.
+   *
+   * @param  array|string $relations
+   * @return $this
    */
-  protected static bool $is_submitable = false;
+  public function loadRelations($relations = []) {
+    $defaultRelations = [
+      ...static::loadRelationsOnShow() ?? [],
+      ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
+    ];
+    $relations        = array_merge($defaultRelations, \is_string($relations) ? [$relations] : ($relations ?? []));
+
+    $toLoad = [];
+
+    foreach ($relations as $key => $relation) {
+      $relationName = is_int($key) ? $relation : $key;
+
+      if (! method_exists($this, $relationName)) {
+        $toLoad[$key] = $relation;
+        continue;
+      }
+
+      $result = $this->$relationName();
+
+      if ($result instanceof Relation) {
+        $toLoad[$key] = $relation;
+      } else {
+        $this->setRelation($relationName, $result);
+      }
+    }
+    $this->load($toLoad);
+  }
+
   /**
    * Berikan nama module untuk model ini
    * @var string
    */
-  protected static string|null $module = null;
+  // protected static string|null $module;
   /**
    *
    * @var string
    */
-  protected static string|null $alias = null;
+  // protected static string|null $alias;
   /**
    * Custom permissions for this model
       select,
@@ -63,15 +301,16 @@ trait DataTable {
       'write',
       'create',
       'delete',
-      'print',
       'import',
       'export',
       'share',
     ];
   }
+
   private static function getShortName() {
     return substr(static::class, strrpos(static::class, '\\') + 1);
   }
+
   private static function getModule() {
     $shortName = static::getShortName();
     // Hapus prefix "App\Models\"
@@ -85,50 +324,258 @@ trait DataTable {
 
     return $module ?: null;
   }
+
   public static function initPermissions() {
-    $module = static::$module ?? static::getModule();
-    if (!$module) {
-      \print_r("\e[39m" . static::class . " \e[91m(Module name not found)" . \PHP_EOL);
+    $tableName = static::getTableName();
+    $nameModel = Str::afterLast(static::class, '\\');
+    $alias     = static::$alias ??
+      \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
+    $module    = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), "\\");
+    if (! $module) {
+      \print_r("\e[39m" . static::class . " \e[91m(Module name not found) \e[39m" . \PHP_EOL);
       return;
     }
+    if (static::$is_submitable ?? false) {
+      if (! Schema::hasColumn($tableName, 'code')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->string('code')->unique();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'branch_id')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->foreignUlid('branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();
+        });
+      }
+
+      if (! Schema::hasColumn($tableName, 'status')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->json('status')->nullable();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'created_by')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->foreignUlid('created_by')->references('id')->on('users')->restrictOnDelete();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'submitted_at')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->timestamp('submitted_at')->nullable();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'canceled_at')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->timestamp('canceled_at')->nullable();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'revision_number')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->unsignedTinyInteger('revision_number')->default(0);
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'amended_from_id')) {
+        Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+          $table->foreignUlid('amended_from_id')->nullable()->references('id')->on($tableName)->nullOnDelete();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'additional_data')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->json('additional_data')->nullable();
+        });
+      }
+
+      if (Schema::hasColumn($tableName, 'have_transactions')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('have_transactions');
+        });
+      }
+
+      $formatingSeries = FormatingSeries::where('model', static::class)->first();
+      if (! $formatingSeries) {
+        FormatingSeries::create([
+          'model'  => static::class,
+          'name'   => Str::singular($alias),
+          'format' => static::$defaultFormatCode ?? '@[iiii]',
+          'logs'   => [
+            (new FormatingSeriesService())->getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [
+              'current'    => 0,
+              'updated_at' => now(),
+            ],
+          ],
+        ]);
+      } else {
+        $logs = (array) $formatingSeries->logs;
+        $key  = (new FormatingSeriesService())->getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
+        if (! \array_key_exists($key, $logs)) {
+          $logs[$key] = [
+            'current'    => 0,
+            'updated_at' => now(),
+          ];
+        }
+        $formatingSeries->update([
+          'name'   => Str::singular($alias),
+          'format' => static::$defaultFormatCode ?? '@[iiii]',
+          'logs'   => $logs,
+        ]);
+      }
+
+    } else {
+      if (Schema::hasColumn($tableName, 'created_by')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('created_by');
+        });
+      }
+      if (Schema::hasColumn($tableName, 'submitted_at')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('submitted_at');
+        });
+      }
+      if (Schema::hasColumn($tableName, 'canceled_at')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('canceled_at');
+        });
+      }
+      if (Schema::hasColumn($tableName, 'revision_number')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('revision_number');
+        });
+      }
+
+      if (Schema::hasColumn($tableName, 'amended_from_id')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('amended_from_id');
+        });
+      }
+      if (Schema::hasColumn($tableName, 'additional_data')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('additional_data');
+        });
+      }
+
+      if (! Schema::hasColumn($tableName, 'have_transactions')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->boolean('have_transactions')->default(false);
+        });
+      }
+    }
+    if (static::$is_tree_view ?? false) {
+      if (! Schema::hasColumn($tableName, 'parent_id')) {
+        Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+          $table->foreignUlid('parent_id')->nullable()->references('id')->on($tableName)->nullOnDelete();
+        });
+      }
+      if (! Schema::hasColumns($tableName, ['lft', 'rgt', 'depth'])) {
+        Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+          $table->unsignedInteger('lft')->default(0);
+          $table->unsignedInteger('rgt')->default(0);
+          $table->unsignedInteger('depth')->default(0);
+          $table->index('lft', 'lft_index');
+          $table->index('rgt', 'rgt_index');
+          $table->index('depth', 'depth_index');
+          $table->index(['depth', 'lft'], 'idx_depth_lft');
+          $table->index(['parent_id', 'lft'], 'idx_parent_lft');
+        });
+      }
+    } else {
+      if (Schema::hasColumn($tableName, 'parent_id')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('parent_id');
+        });
+      }
+      if (Schema::hasColumns($tableName, ['lft', 'rgt', 'depth'])) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropIndex('lft_index');
+          $table->dropIndex('rgt_index');
+          $table->dropIndex('depth_index');
+          $table->dropIndex('idx_depth_lft');
+          $table->dropIndex('idx_parent_lft');
+          $table->dropColumn(['lft', 'rgt', 'depth']);
+        });
+      }
+    }
+
     Permission::updateOrCreate([
-      'model' => static::class
+      'model' => static::class,
     ], [
-      'module' => $module,
-      'name' => static::$alias ??
-        \ucwords(str_replace(['_', '-'], ' ', static::getTableName())),
-      'permissions' => static::$is_submitable ? [...static::permissions(), 'submit', 'cancel', 'amend'] : static::permissions(),
-      'is_submittable' => static::$is_submitable,
+      'module'        => $module,
+      'name'          => Str::plural($alias),
+      'route'         => Str::plural(Str::camel($nameModel)),
+      'permissions'   => (static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions(),
+      'is_submitable' => (static::$is_submitable ?? false),
     ]);
-    print_r("\e[39m" . static::class . " \e[92m(SUCCESS)" . \PHP_EOL);
+    print_r("\e[39m" . static::class . " \e[92m(SUCCESS) \e[39m" . \PHP_EOL);
   }
+
   public function showDetail() {
+    if (static::$is_submitable ?? false) {
+      Inertia::share([
+        'prints' => Inertia::defer(
+          fn () => PrintTemplate::where('model', static::class)->get()),
+      ]);
+    }
     Inertia::share([
-      'logs' => Inertia::defer(function () {
-        return Log::with('user')
+      'translateKey' => $this->translateKey ?? null,
+      'connections'  => Inertia::defer(
+        function () {
+          $data = \collect(ModelConnection::search(static::class, $this->getKey())
+            ->get()
+            ->toArray())
+            ->groupBy('reference_type')
+            ->mapWithKeys(function ($connections) {
+              $reference_type = $connections[0]["reference_type"];
+              $model          = new $reference_type;
+              $connections    = $connections->unique('reference_id');
+              return [[
+                'reference_type' => $reference_type,
+                'model'          => Str::title(Str::replace("_", " ", Str::snake($model->getNameClass()))),
+                'count'          => count($connections),
+                'route'          => Str::plural($model->getNameClass()) . ".index",
+                'query'          => [],
+                'items'          => $connections->map(function ($connection) {
+                  $model = new $connection["reference_type"];
+                  return [
+                    ...((array) $connection),
+                    'route' => Str::plural($model->getNameClass()) . ".show",
+                  ];
+                }),
+              ]];
+            });
+          return $data;
+          // return \array_map
+          // ->map(function ($connection) {
+          //   $model = new $connection->reference_type;
+          //   return [
+          //     ...((array) $connection),
+          //     'model' => $model->getNameClass(),
+          //     'route' => Str::plural($model->getNameClass()).".index",
+          //     'query' => []
+          //   ];
+          //   });
+        }),
+      'logs'         => Inertia::defer(
+        fn () => Log::with('user')
           ->where('loggable_type', static::class)
           ->where('loggable_id', operator: $this->id)
           ->orderByDesc('created_at')
-          ->get();
-      }, 'logs'),
-      'tags' => Inertia::defer(function () {
-        return $this->tags()
-          ->get(['id', 'name']);
-      }, 'tags'),
-      'attachments' => Inertia::defer(function () {
-        return $this->files()
-          ->get(['id', 'name']);
-      }, 'attachments')
+          ->get(),
+        'logs'),
+      'tags'         => Inertia::defer(
+        fn () => $this->tags()->get(['id', 'name']),
+        'tags'),
+      'attachments'  => Inertia::defer(
+        fn () => $this->files()->get(['id', 'name']),
+        'attachments'),
     ]);
   }
 
   public function logs() {
     return $this->morphMany(Log::class, 'loggable');
   }
+
   public function tags() {
     return $this->morphToMany(Tag::class, 'taggable')
       ->whereNull('taggables.deleted_at');
   }
+
   public function files() {
     return $this->morphToMany(File::class, 'fileable')
       ->whereNull('fileables.deleted_at');

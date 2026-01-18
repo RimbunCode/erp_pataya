@@ -30,7 +30,7 @@ class BranchController extends Controller {
   public function switch(Request $request, string $id) {
     $request->session()->forget('currentBranch');
     $request->session()->put('currentBranch', $id);
-    return redirect()->back();
+    return back();
   }
 
   /**
@@ -47,32 +47,31 @@ class BranchController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     if (isset($data['shipping_country'])) {
-      $data['shipping_country_id'] = $data['shipping_country']['id'];
+      $data['shipping_country_id'] = $data['shipping_country']['code'];
     }
     if (isset($data['billing_country'])) {
-      $data['billing_country_id'] = $data['billing_country']['id'];
+      $data['billing_country_id'] = $data['billing_country']['code'];
     }
     $branch = Branch::create($data);
-    $branch->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user created this',
-        'id' => ':user membuat ini'
-      ]
-    ]);
+    $branch->logForCreated();
     DB::commit();
-    return back();
+    return back()->with('id', $branch->id);
   }
 
   /**
    * Display the specified resource.
    */
   public function show(Branch $branch) {
+    if ($branch->branchable_type) {
+      abort(404);
+    }
     $this->setBreadcrumbs($branch);
     $branch->showDetail();
-    $branch->load('shipping_country', 'billing_country');
     return Inertia::render('Settings/Branches/Show', [
-      'branch' => $branch,
+      'branch' => function () use ($branch) {
+        $branch->loadRelations();
+        return $branch;
+      },
     ]);
   }
 
@@ -81,22 +80,19 @@ class BranchController extends Controller {
    * Update the specified resource in storage.
    */
   public function update(BranchRequest $request, Branch $branch) {
+    if ($branch->branchable_type) {
+      abort(404);
+    }
     $data = $request->validated();
     DB::beginTransaction();
     if (isset($data['shipping_country'])) {
-      $data['shipping_country_id'] = $data['shipping_country']['id'];
+      $data['shipping_country_id'] = $data['shipping_country']['code'];
     }
     if (isset($data['billing_country'])) {
-      $data['billing_country_id'] = $data['billing_country']['id'];
+      $data['billing_country_id'] = $data['billing_country']['code'];
     }
-    $branch->update($data);
-    $branch->logs()->create([
-      'user_id' => $request->user()->id,
-      'activity' => [
-        'en' => ':user updated this',
-        'id' => ':user memperbarui ini'
-      ]
-    ]);
+    $branch->fillForUpdate($data);
+    $branch->logForUpdated();
     DB::commit();
     return back();
   }
@@ -109,6 +105,7 @@ class BranchController extends Controller {
       abort(403);
     }
     $branch->delete();
+    $branch->logForDeleted();
     return back();
   }
 }

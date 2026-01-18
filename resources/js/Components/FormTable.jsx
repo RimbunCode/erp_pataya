@@ -1,4 +1,16 @@
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
+import {
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogFooter,
+} from "./ui/alert-dialog";
+import {
   ArrowDownIcon,
   ArrowUpIcon,
   CopyIcon,
@@ -29,6 +41,7 @@ import React, {
   memo,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -40,11 +53,18 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { cn, generateRandom, getCookieByName, setCookie } from "@/lib/utils";
+import {
+  cn,
+  generateRandom,
+  getFromLocalStorage,
+  saveToLocalStorage,
+} from "@/lib/utils";
 
 import { Button } from "./ui/button";
 import { CSS } from "@dnd-kit/utilities";
+import CurrencyInput from "./CurrencyInput";
 import { FormCheckbox } from "./ui/checkbox";
+import { FormChildren } from "@/Pages/Core/FormPage";
 import FormInput from "./FormInput";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -55,23 +75,51 @@ import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const FORMTABLE_COLUMNS_KEY = "formtable-columns";
-const FORMTABLE_COLUMNS_EXPIRED = 7;
+// const FORMTABLE_COLUMNS_EXPIRED = 7;
 
-const Cell = memo(
+const Wrapper = memo(({ children, isDialog }) => {
+  if (isDialog) return <>{children}</>;
+  else
+    return (
+      <div className="focus-within:border-0 focus-within:ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1 h-full focus-visible:ring-offset-1 m-0.5">
+        {children}
+      </div>
+    );
+});
+
+Wrapper.displayName = "Wrapper";
+export const Cell = memo(
   forwardRef(
     (
-      { index, item, col, isLast, updateData, readOnly, className, ...props },
+      {
+        index,
+        item,
+        col,
+        isLast,
+        updateData,
+        readOnly,
+        disabled,
+        className,
+        onOpenDialog,
+        defaultValueRow,
+        isDialog,
+        additionalData,
+        ...props
+      },
       ref,
     ) => {
       if (!item) return;
       const attributes = {
         ...props,
         ...col.props,
-        readOnly: readOnly || col.readonly || false,
+        readOnly: readOnly || disabled || col.readOnly || false,
         required:
-          (Object.keys(item ?? {}).length > 1 || !isLast) && col.required,
+          (Object.keys(item ?? {}).length >
+            Object.keys(defaultValueRow ?? {}).length + 1 ||
+            !isLast) &&
+          col.required,
         name: col.name,
-        className: cn(className, col.props?.className),
+        className: cn(!isDialog && "h-full", className, col.props?.className),
         ref,
       };
       if (col.cell) {
@@ -80,14 +128,22 @@ const Cell = memo(
             dataRow: item,
             data: item[col.name],
             setData: (key, value) => updateData(index, key, value),
+            additionalData: additionalData?.[item.id],
             attributes,
+            openDialog: onOpenDialog ?? (() => {}),
+            reset: () => {
+              updateData(index, {});
+            },
+            isEmpty:
+              Object.keys(item).length <=
+              Object.keys(defaultValueRow ?? {}).length + 1,
           },
           index,
         );
       }
       switch (col.type) {
         default:
-          return (
+          return isDialog ? (
             <Input
               type={col.type ?? "text"}
               value={col.name ? (item[col.name] ?? "") : ""}
@@ -99,12 +155,42 @@ const Cell = memo(
                 );
               }}
               {...attributes}
+              className={cn(
+                attributes.className,
+                !isDialog &&
+                  "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
+              )}
               // onBlur={(e) => {
               //   if (!e.target.value) return;
               //   e.target.value = null;
               //   e.target.focus();
               // }}
             />
+          ) : (
+            <div className="w-full focus-within:border-0 focus-within:ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-0 h-full focus-visible:ring-offset-1 m-0.5">
+              <Input
+                type={col.type ?? "text"}
+                value={col.name ? (item[col.name] ?? "") : ""}
+                onChange={(e) => {
+                  updateData(
+                    index,
+                    col.name,
+                    col.type == "number" ? +e.target.value : e.target.value,
+                  );
+                }}
+                {...attributes}
+                className={cn(
+                  attributes.className,
+                  !isDialog &&
+                    "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
+                )}
+                // onBlur={(e) => {
+                //   if (!e.target.value) return;
+                //   e.target.value = null;
+                //   e.target.focus();
+                // }}
+              />
+            </div>
           );
       }
     },
@@ -119,10 +205,16 @@ const FormTableItem = memo(function FormTableItem({
   setRef,
   cellOnKeyDown,
   updateData,
+  submitable,
   setCurrentIndex,
+  setCurrentData,
   deleteRow,
   readOnly,
+  disabled,
   className,
+  defaultValueRow,
+  forceCanDelete,
+  additionalData,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id });
@@ -130,21 +222,25 @@ const FormTableItem = memo(function FormTableItem({
     transform: CSS.Transform.toString(transform),
     transition,
   };
+
   return (
     <div
       key={item.id}
       ref={setNodeRef}
       style={style}
       className={cn(
-        "grid group col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base",
+        "grid group min-h-10 col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>*:last-child]:border-r [&>*]:border-l [&>*]:border-muted-foreground/25 [&>*]:h-full [&>*]:items-center [&>*]:flex [&>*]:justify-center",
         className,
       )}
     >
-      <div className="px-2 !justify-center text-left ">
+      <div className="px-1 justify-center! text-left ">
         <span
           className={cn(
-            !(Object.keys(item).length <= 1 && isLast) &&
-              !readOnly &&
+            !(
+              Object.keys(item).length <=
+                Object.keys(defaultValueRow ?? {}).length + 1 && isLast
+            ) &&
+              !(readOnly || disabled) &&
               "group-hover:hidden",
           )}
         >
@@ -152,9 +248,13 @@ const FormTableItem = memo(function FormTableItem({
         </span>
         <button
           className={cn(
-            "hidden cursor-move group-hover:inline",
-            ((Object.keys(item).length <= 1 && isLast) || readOnly) &&
-              "!hidden",
+            "hidden cursor-move group-hover:inline ",
+            ((Object.keys(item).length <=
+              Object.keys(defaultValueRow ?? {}).length + 1 &&
+              isLast) ||
+              readOnly ||
+              disabled) &&
+              "hidden!",
           )}
           type="button"
           {...listeners}
@@ -166,14 +266,21 @@ const FormTableItem = memo(function FormTableItem({
       {columns &&
         columns.map((col) => {
           return (
-            <div key={col.name} className="">
+            <div key={col.name} className="has-[.custom-cell]:block!">
               <Cell
+                onOpenDialog={() => {
+                  setCurrentIndex(index);
+                  if (submitable) setCurrentData(item);
+                }}
                 ref={setRef(`${item.id}-${col.name}`)}
+                disabled={disabled}
                 readOnly={readOnly}
                 index={index}
                 item={item}
+                additionalData={additionalData}
                 col={col}
                 isLast={isLast}
+                defaultValueRow={defaultValueRow}
                 onKeyDown={(e) => cellOnKeyDown(e, index, col.name)}
                 updateData={updateData}
                 className="rounded-none border-0 focus-visible:ring-offset-1 bg-background m-0.5"
@@ -181,24 +288,30 @@ const FormTableItem = memo(function FormTableItem({
             </div>
           );
         })}
-      <div className="flex items-center px-2 gap-x-2">
+      <div className="flex items-center px-1 gap-x-1">
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="size-6"
-          onClick={() => setCurrentIndex(index)}
+          className="size-6 pointer-events-auto!"
+          onClick={() => {
+            setCurrentIndex(index);
+            if (submitable) setCurrentData(item);
+          }}
         >
           <PencilIcon className="size-3" />
         </Button>
-        {!readOnly && (
+        {(!(readOnly || disabled) || forceCanDelete) && (
           <Button
             type="button"
             variant="ghost"
             size="icon"
             className={cn(
               "size-6",
-              Object.keys(item).length <= 1 && isLast && "hidden",
+              Object.keys(item).length <=
+                Object.keys(defaultValueRow ?? {}).length + 1 &&
+                isLast &&
+                "hidden",
             )}
             onClick={() => deleteRow(index)}
           >
@@ -212,18 +325,20 @@ const FormTableItem = memo(function FormTableItem({
 
 const createHeaders = (headers, reset) => {
   const columnsMap = new Map(
-    headers.map((col) => [
-      col.name,
-      {
-        ...col,
-        show: col.required || (col.show ?? false),
-      },
-    ]),
+    headers
+      .filter((col) => col)
+      .map((col) => [
+        col.name,
+        {
+          ...col,
+          show: col.required || (col.show ?? false),
+        },
+      ]),
   );
   if (reset) return Array.from(columnsMap.values());
 
   let finalColumns = [];
-  const columnsFromCookie = JSON.parse(getCookieByName(FORMTABLE_COLUMNS_KEY));
+  const columnsFromCookie = getFromLocalStorage(FORMTABLE_COLUMNS_KEY);
   if (!columnsFromCookie) {
     return Array.from(columnsMap.values());
   }
@@ -264,6 +379,7 @@ const createHeaders = (headers, reset) => {
  * @property {"left" | "center" | "right"} align
  * @property {number} width value width in fr, default is 1
  * @property {boolean} required default is false, require
+ * @property {boolean} unique default is false
  * @property {boolean} show default is false, but will be true when required is true
  * @property {object} props
  * @property {CellCallback} Cell
@@ -279,513 +395,883 @@ const createHeaders = (headers, reset) => {
  * @param {ColumnProps[]} props.columns
  * @param {object} props.value
  * @param {Function} props.onValueChange
+ * @param {Function} props.asyncUpdateAdditionalData
  * @returns {React.JSX.Element}
  */
-export default memo(function FormTable({
-  label,
-  description,
-  ignoreDisabled = false,
-  readOnly = false,
-  className,
-  columns: columnsProps,
-  value,
-  onValueChange,
-}) {
-  if (!columnsProps) {
-    throw new Error("columns is required");
-  }
-  const [openConfigureColumns, setOpenConfigureColumns] = useState(false);
-  const [columns, setColumns] = useState(createHeaders(columnsProps));
-  const { t } = useLaravelReactI18n();
-  const [currentIndex, setCurrentIndex] = useState(-1);
-  const [getRef, setRef] = useDynamicRefs();
-  const isMobile = useIsMobile();
-  const prevValueRef = useRef(value); // Simpan `value` sebelumnya untuk mencegah loop
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      // Require the mouse to move by 10 pixels before activating
-      activationConstraint: {
-        distance: 10,
-      },
-    }),
-    useSensor(TouchSensor, {
-      // Press delay of 250ms, with tolerance of 5px of movement
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    }),
-    // useSensor(KeyboardSensor, {
-    //   coordinateGetter: sortableKeyboardCoordinates,
-    // }),
-  );
-  useDidMountEffect(() => {
-    setColumns(createHeaders(columnsProps));
-  }, [columnsProps]);
-  useDidMountEffect(() => {
-    setCookie(
-      FORMTABLE_COLUMNS_KEY,
-      JSON.stringify(
-        columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
-      ),
-      {
-        days: FORMTABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      },
+export default memo(
+  forwardRef(function FormTable(
+    {
+      name,
+      label,
+      disabled = false,
+      description,
+      ignoreDisabled = false,
+      readOnly = false,
+      className,
+      columns: columnsProps,
+      value,
+      onValueChange,
+      defaultValueRow,
+      form,
+      submitable = false,
+      mapItem,
+      forceCanDelete = false,
+      additionalData: _additionalData,
+      asyncUpdateAdditionalData,
+    },
+    ref,
+  ) {
+    if (!columnsProps) {
+      throw new Error("columns is required");
+    }
+    const [__additionalData, setAdditionalData] = useState({});
+    const additionalData = _additionalData ?? __additionalData;
+    const [openConfigureColumns, setOpenConfigureColumns] = useState(false);
+    const [columns, setColumns] = useState(createHeaders(columnsProps));
+    const { t } = useLaravelReactI18n();
+    const [currentIndex, setCurrentIndex] = useState(-1);
+    const [currentData, setCurrentData] = useState(null);
+    const [getRef, setRef] = useDynamicRefs();
+    const isMobile = useIsMobile();
+    const prevValueRef = useRef(value); // Simpan `value` sebelumnya untuk mencegah loop
+    const sensors = useSensors(
+      useSensor(MouseSensor, {
+        // Require the mouse to move by 10 pixels before activating
+        activationConstraint: {
+          distance: 10,
+        },
+      }),
+      useSensor(TouchSensor, {
+        // Press delay of 250ms, with tolerance of 5px of movement
+        activationConstraint: {
+          delay: 250,
+          tolerance: 5,
+        },
+      }),
+      // useSensor(KeyboardSensor, {
+      //   coordinateGetter: sortableKeyboardCoordinates,
+      // }),
     );
-  }, [columns]);
 
-  if (!value || !Array.isArray(value)) {
-    throw new Error("value must be an array");
-  }
-  if (!Array.isArray(columns)) {
-    throw new Error("columns must be an array");
-  }
-
-  const filteredColumns = useMemo(
-    () => columns.filter((x) => x.required || (x.show ?? true)),
-    [columns],
-  );
-  const [_data, _setData] = useState(() =>
-    readOnly
-      ? value
-      : [
-          ...value.map((x) => ({ ...x, id: x.id ?? generateRandom(5) })),
-          { id: generateRandom(5) }, // Row kosong selalu ada di akhir
-        ],
-  );
-
-  // Sinkronisasi data lokal hanya jika `value` berubah dari parent
-  useEffect(() => {
-    if (!isEqual(value, prevValueRef.current)) {
-      prevValueRef.current = value;
-      if (readOnly) {
-        _setData([...value]);
-        return;
-      }
-      _setData([
-        ...value.map((x) => ({ ...x, id: x.id ?? generateRandom(5) })),
-        { id: generateRandom(5) }, // Pastikan ada row kosong
-      ]);
+    useDidMountEffect(() => {
+      setColumns(createHeaders(columnsProps));
+    }, [columnsProps]);
+    useDidMountEffect(() => {
+      saveToLocalStorage(
+        FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
+        columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
+      );
+    }, [columns]);
+    if (value && !Array.isArray(value)) {
+      throw new Error("value must be an array");
     }
-  }, [value, readOnly]);
-
-  // Kirim perubahan ke parent hanya jika ada perubahan nyata
-  useEffect(() => {
-    if (onValueChange) {
-      const filteredData = readOnly ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
-      if (!isEqual(filteredData, prevValueRef.current)) {
-        prevValueRef.current = filteredData;
-        onValueChange(filteredData);
-      }
+    value = value ?? [];
+    if (!Array.isArray(columns)) {
+      throw new Error("columns must be an array");
     }
-  }, [_data, value, onValueChange]);
 
-  // Memperbarui data di index tertentu
-  const updateData = useCallback((index, key, newValue) => {
-    _setData((prevData) => {
-      let newData = [...prevData];
+    const filteredColumns = useMemo(
+      () => columns.filter((x) => x.required || (x.show ?? true)),
+      [columns],
+    );
+    const [_data, _setData] = useState(() => {
+      return readOnly || (disabled && value.length > 0)
+        ? value
+        : [
+            ...value.map((x) => ({
+              ...(defaultValueRow ?? {}),
+              ...x,
+              id: x.id ?? generateRandom(5),
+            })),
+            { id: generateRandom(5), ...(defaultValueRow ?? {}) }, // Row kosong selalu ada di akhir
+          ];
+    });
 
-      if (!newData[index]) return prevData;
+    const idChanges = useRef(new Set(value.map((x) => x.id)));
+    useEffect(() => {
+      const debounce = setTimeout(async () => {
+        if (idChanges.current?.size === 0) return;
+        try {
+          const result = await asyncUpdateAdditionalData(
+            value,
+            Array.from(idChanges.current?.values() ?? []).filter(Boolean),
+          );
+          const data = result?.data ?? {};
+          for (const id in data ?? {}) {
+            idChanges.current?.delete(id);
+          }
+          setAdditionalData((prev) => ({ ...prev, ...data }));
+        } catch {}
+      }, 200);
 
-      const payload =
-        typeof key === "string" || typeof key === "number"
-          ? { [key]: newValue }
-          : key;
+      return () => clearTimeout(debounce);
+    }, [_data]);
 
-      if (index === newData.length - 1 && !readOnly) {
-        const isDuplicate = newData.some((x, idx) => {
-          if (idx == index) return false;
-          if (x.id === (payload.id ?? newData[index].id)) return true;
-          return false;
+    useImperativeHandle(
+      ref,
+      () => ({
+        resetColumns: () => {
+          setColumns(createHeaders(columnsProps));
+        },
+        openConfigureColumns: () => {
+          setOpenConfigureColumns(true);
+        },
+        closeConfigureColumns: () => {
+          setOpenConfigureColumns(false);
+        },
+      }),
+      [columnsProps, mapItem, _data],
+    );
+    const getColumn = (name, attributes) => {
+      const col = columns.find((x) => x.name === name);
+      if (!col) return null;
+
+      return (
+        <FormInput
+          key={`${_data[currentIndex]?.id}-${col.name}`}
+          required={col.required}
+          label={col.titleTrans ? t(col.titleTrans) : col.title}
+          name={col.name}
+        >
+          <Cell
+            isDialog
+            defaultValueRow={defaultValueRow}
+            readOnly={readOnly}
+            disabled={disabled}
+            index={currentIndex}
+            item={_data[currentIndex]}
+            additionalData={additionalData}
+            col={col}
+            updateData={updateData}
+            {...attributes}
+          />
+        </FormInput>
+      );
+    };
+    const formRef = useRef();
+    const onKeyDown = useCallback(
+      (e) => {
+        e.stopPropagation();
+        if (e.ctrlKey && e.key == "s") {
+          e.preventDefault();
+          const form = formRef.current;
+
+          if (form) {
+            form.requestSubmit();
+          }
+        }
+      },
+      [formRef],
+    );
+
+    // Sinkronisasi data lokal hanya jika `value` berubah dari parent
+    useEffect(() => {
+      if (
+        value != prevValueRef.current &&
+        !isEqual(value, prevValueRef.current)
+      ) {
+        prevValueRef.current = value;
+        idChanges.current = new Set(value.map((x) => x.id));
+        if (readOnly || (disabled && value.length > 0)) {
+          _setData([...value]);
+          return;
+        }
+        _setData((prev) => {
+          return [
+            ...value.map((x, index) => {
+              const data = {
+                ...(defaultValueRow ?? {}),
+                ...x,
+                id: x.id ?? generateRandom(5),
+              };
+              if (mapItem)
+                return mapItem({ item: data, dataTable: prev, index });
+              return data;
+            }),
+            { ...(defaultValueRow ?? {}), id: generateRandom(5) }, // Pastikan ada row kosong
+          ];
         });
-        if (isDuplicate) return prevData;
       }
+    }, [value, readOnly, disabled, mapItem]);
 
-      newData[index] = {
-        ...newData[index],
-        id: newData[index]?.id ?? generateRandom(5),
-        ...payload,
-      };
+    // Kirim perubahan ke parent hanya jika ada perubahan nyata
 
-      // Jika mengubah row terakhir, tambahkan row kosong baru
-      if (index === newData.length - 1 && !readOnly) {
-        newData.push({ id: generateRandom(5) });
-      }
+    const updateParent = useCallback(
+      (data, key) => {
+        if (onValueChange) {
+          let filteredData = readOnly || disabled ? data : data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
 
-      return newData;
-    });
-  }, []);
-  const insertRow = useCallback((index) => {
-    _setData((prev) => {
-      const newData = [...prev];
-      newData.splice(index, 0, { id: generateRandom(5) });
-      setCurrentIndex(index);
-      return newData;
-    });
-  }, []);
-  const duplicateRow = useCallback((index) => {
-    _setData((prev) => {
-      const newData = [...prev];
-      newData.splice(index + 1, 0, {
-        ...newData[index],
-        id: generateRandom(5),
-      });
-      setCurrentIndex(index + 1);
-      return newData;
-    });
-  });
-  const deleteRow = useCallback((index) => {
-    _setData((prev) => {
-      const newData = [...prev];
-      newData.splice(index, 1);
-      return newData;
-    });
-  }, []);
-  const cellOnKeyDown = useCallback(
-    (e, currentIndex, currentCol) => {
-      if (e.key == "Enter") {
-        e.preventDefault();
-        const indexCol = columns.findIndex((x) => x.name === currentCol);
-        if (indexCol >= columns.length - 1) {
-          if (currentIndex >= _data.length - 1) return;
-          currentIndex++;
-          currentCol = columns[0].name;
-        } else currentCol = columns[indexCol + 1].name;
-      } else if (e.ctrlKey) {
-        switch (e.key) {
-          case "ArrowRight": {
-            e.preventDefault();
-
-            const indexCol = columns.findIndex((x) => x.name === currentCol);
-            if (indexCol >= columns.length - 1) {
-              if (currentIndex >= _data.length - 1) return;
-              currentIndex++;
-              currentCol = columns[0].name;
-            } else currentCol = columns[indexCol + 1].name;
-            break;
+          if (!isEqual(filteredData, prevValueRef.current)) {
+            prevValueRef.current = filteredData;
+            if (key) idChanges.current?.add(key);
+            onValueChange(filteredData, key);
           }
-          case "ArrowLeft": {
-            e.preventDefault();
+        }
+      },
+      [onValueChange],
+    );
 
-            const indexCol = columns.findIndex((x) => x.name === currentCol);
-            if (indexCol <= 0) {
-              if (currentIndex <= 0) return;
-              currentIndex--;
-              currentCol = columns[columns.length - 1].name;
-            } else currentCol = columns[indexCol - 1].name;
-            break;
+    // Memperbarui data current
+    const updateDataCurrent = useCallback(
+      (key, newValue) => {
+        setCurrentData((prevData) => {
+          const payload =
+            typeof key === "string" || typeof key === "number"
+              ? { [key]: newValue }
+              : key;
+          return {
+            ...prevData,
+            id: prevData?.id ?? generateRandom(5),
+            ...payload,
+          };
+        });
+      },
+      [setCurrentData],
+    );
+
+    // Memperbarui data di index tertentu
+    const updateData = useCallback(
+      (index, key, newValue) => {
+        const update = (prevData) => {
+          const isLastRow = index === prevData.length - 1;
+          if (
+            (disabled && prevData.length > 0) ||
+            (!readOnly && index === prevData.length - 1 && key == null)
+          )
+            return prevData;
+          let newData = [...prevData];
+          if (!newData[index]) return prevData;
+
+          const payload =
+            typeof key === "string" || typeof key === "number"
+              ? { [key]: newValue }
+              : (key ?? {});
+          const resetRow = (idx) => {
+            newData[idx] = {
+              ...(defaultValueRow ?? {}),
+              id: generateRandom(5),
+            };
+            if (mapItem)
+              newData[idx] = mapItem({
+                item: newData[idx],
+                dataTable: newData,
+                index: idx,
+              });
+          };
+          const isDuplicateValue = (colName, value) => {
+            const isDuplicate = newData.some((row, idx) => {
+              if (idx == index) return false;
+              if (row[value] == value || isEqual(row[value], value))
+                return true;
+              if (
+                typeof row[value] === "object" &&
+                typeof value === "object" &&
+                row[value]?.id == value?.id
+              )
+                return true;
+              return false;
+            });
+            return isDuplicate;
+          };
+          // Jika payload null → reset row kecuali id pendek
+          if (
+            payload == null ||
+            payload == undefined ||
+            Object.keys(payload).length <= 0
+          ) {
+            if (
+              newData[index].id.length <= 5 &&
+              Object.keys(payload).length > 0
+            )
+              return prevData;
+            resetRow(index);
+            return newData;
           }
-          case "ArrowUp": {
-            e.preventDefault();
-
-            if (currentIndex <= 0) return;
-            currentIndex--;
-            break;
+          // Cek kolom unique
+          const keysToCheck =
+            typeof key === "object" ? Object.keys(payload) : [key];
+          for (const colName of keysToCheck) {
+            if (
+              typeof colName === "string" &&
+              columns.find((c) => c.name === colName)?.unique
+            ) {
+              if (isDuplicateValue(colName, payload[colName])) {
+                resetRow(index);
+                return newData;
+              }
+            }
           }
-          case "ArrowDown": {
-            e.preventDefault();
 
+          // Cek duplikat ID di row terakhir
+          if (isLastRow && !readOnly) {
+            if (isDuplicateValue("id", payload.id ?? newData[index].id)) {
+              return prevData;
+            }
+          }
+
+          // if (isLastRow && !readOnly) {
+          //   const isDuplicate = newData.some((x, idx) => {
+          //     if (idx == index) return false;
+          //     if (x.id == (payload.id ?? newData[index].id)) return true;
+          //     return false;
+          //   });
+          //   if (isDuplicate) return prevData;
+          // }
+
+          newData[index] = {
+            ...(defaultValueRow ?? {}),
+            ...newData[index],
+            id: newData[index]?.id ?? generateRandom(5),
+            ...payload,
+          };
+          if (mapItem)
+            newData[index] = mapItem({
+              item: newData[index],
+              dataTable: newData,
+              index: index,
+            });
+
+          // Jika mengubah row terakhir, tambahkan row kosong baru
+          if (isLastRow && !readOnly) {
+            newData.push({ ...(defaultValueRow ?? {}), id: generateRandom(5) });
+          }
+
+          return newData;
+        };
+
+        _setData((prevData) => {
+          const result = update(prevData);
+          updateParent(result, result[index]?.id);
+          return result;
+        });
+      },
+      [columns, _setData, mapItem],
+    );
+    const insertRow = useCallback(
+      (index) => {
+        const update = (prev) => {
+          const newData = [...prev];
+          newData.splice(index, 0, { id: generateRandom(5) });
+          setCurrentIndex(index);
+          if (submitable) setCurrentData(newData[index]);
+          return newData;
+        };
+        _setData((prevData) => {
+          const result = update(prevData);
+          updateParent(result, result[index]?.id);
+          return result;
+        });
+      },
+      [_setData],
+    );
+    const duplicateRow = useCallback(
+      (index) => {
+        const update = (prev) => {
+          const newData = [...prev];
+          newData.splice(index + 1, 0, {
+            ...(defaultValueRow ?? {}),
+            ...newData[index],
+            id: generateRandom(5),
+          });
+          setCurrentIndex(index + 1);
+          if (submitable) setCurrentData(newData[index + 1]);
+          return newData;
+        };
+        _setData((prevData) => {
+          const result = update(prevData);
+          updateParent(result, result[index]?.id);
+          return result;
+        });
+      },
+      [_setData],
+    );
+    const deleteRow = useCallback(
+      (index) => {
+        _setData((prev) => {
+          const newData = [...prev];
+          if (index === newData.length - 1 && !(readOnly || disabled)) {
+            return newData;
+          }
+          newData.splice(index, 1);
+          if (submitable) setCurrentData(newData[currentIndex]);
+
+          updateParent(newData);
+          return newData;
+        });
+      },
+      [readOnly, disabled],
+    );
+    const cellOnKeyDown = useCallback(
+      (e, currentIndex, currentCol) => {
+        if (e.key == "Enter") {
+          e.preventDefault();
+          const indexCol = columns.findIndex((x) => x.name === currentCol);
+          if (indexCol >= columns.length - 1) {
             if (currentIndex >= _data.length - 1) return;
             currentIndex++;
-            break;
+            currentCol = columns[0].name;
+          } else currentCol = columns[indexCol + 1].name;
+        } else if (e.ctrlKey) {
+          switch (e.key) {
+            case "ArrowRight": {
+              e.preventDefault();
+
+              const indexCol = columns.findIndex((x) => x.name === currentCol);
+              if (indexCol >= columns.length - 1) {
+                if (currentIndex >= _data.length - 1) return;
+                currentIndex++;
+                currentCol = columns[0].name;
+              } else currentCol = columns[indexCol + 1].name;
+              break;
+            }
+            case "ArrowLeft": {
+              e.preventDefault();
+
+              const indexCol = columns.findIndex((x) => x.name === currentCol);
+              if (indexCol <= 0) {
+                if (currentIndex <= 0) return;
+                currentIndex--;
+                currentCol = columns[columns.length - 1].name;
+              } else currentCol = columns[indexCol - 1].name;
+              break;
+            }
+            case "ArrowUp": {
+              e.preventDefault();
+
+              if (currentIndex <= 0) return;
+              currentIndex--;
+              break;
+            }
+            case "ArrowDown": {
+              e.preventDefault();
+
+              if (currentIndex >= _data.length - 1) return;
+              currentIndex++;
+              break;
+            }
+            default:
+              return;
           }
-          default:
-            return;
         }
-      }
-      const item = _data[currentIndex];
-      getRef(`${item.id}-${currentCol}`)?.current?.focus();
-    },
-    [_data, columns],
-  );
-  const handleDragOver = useCallback(
-    (event) => {
-      const { active, over } = event;
+        const item = _data[currentIndex];
+        getRef(`${item.id}-${currentCol}`)?.current?.focus();
+      },
+      [_data, columns],
+    );
+    const handleDragOver = useCallback(
+      (event) => {
+        const { active, over } = event;
 
-      if (active.id !== over.id) {
-        _setData((items) => {
-          const newItems = items.map((x) => x.id);
+        if (active.id !== over.id) {
+          _setData((items) => {
+            const newItems = items.map((x) => x.id);
 
-          let newIndex = newItems.indexOf(over.id);
-          const oldIndex = newItems.indexOf(active.id);
-          if (oldIndex >= newItems.length - 1) return items;
-          if (newIndex >= newItems.length - 1) newIndex--;
-          return arrayMove(items, oldIndex, newIndex);
-        });
-      }
-    },
-    [_setData],
-  );
+            let newIndex = newItems.indexOf(over.id);
+            const oldIndex = newItems.indexOf(active.id);
+            if (oldIndex >= newItems.length - 1) return items;
+            if (newIndex >= newItems.length - 1) newIndex--;
+            const result = arrayMove(items, oldIndex, newIndex);
 
-  return (
-    <>
-      <div
-        className={cn("flex flex-col gap-y-2 w-full", className)}
-        role={!ignoreDisabled ? "forminput" : ""}
-      >
-        <Label>{label}</Label>
-        {description &&
-          (typeof description == "string" ? (
-            <p className="text-sm font-normal text-muted-foreground">
-              {description}
-            </p>
-          ) : (
-            description
-          ))}
+            updateParent(result);
+            return result;
+          });
+        }
+      },
+      [_setData],
+    );
 
+    const MyDialog = submitable ? AlertDialog : Dialog;
+    const MyDialogContent = submitable ? AlertDialogContent : DialogContent;
+    const MyDialogHeader = submitable ? AlertDialogHeader : DialogHeader;
+    const MyDialogTitle = submitable ? AlertDialogTitle : DialogTitle;
+    const MyDialogDescription = submitable
+      ? AlertDialogDescription
+      : DialogDescription;
+    return (
+      <>
         <div
-          className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm [&>div>*:last-child]:border-r [&>div>*]:border-l [&>div>*]:border-muted-foreground/25 max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center  [&>*]:border-b [&>*]:border-muted-foreground/25"
-          style={{
-            gridTemplateColumns: `auto ${filteredColumns
-              .map((x) => `${x.width ?? 1}fr`)
-              .join(" ")} auto`,
-          }}
+          className={cn("flex flex-col gap-y-2 w-full", className)}
+          role={!ignoreDisabled ? "forminput" : ""}
         >
-          <div className="grid border-t [&>*]:py-2 [&>*]:px-4 grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:!py-1">
-            <div className="!justify-center text-left">#</div>
-            {filteredColumns &&
-              filteredColumns.map((item) => {
-                return (
-                  <div key={item.name} className="!justify-start text-left">
-                    {item.titleTrans ? t(item.titleTrans) : item.title}
-                    {item.required && (
-                      <span className="ml-1 text-red-500">*</span>
-                    )}
-                  </div>
-                );
-              })}
-            <div className="text-center">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-5"
-                onClick={() => setOpenConfigureColumns(true)}
-              >
-                <SettingsIcon className="size-3" />
-              </Button>
-            </div>
-          </div>
-          <DndContext
-            onDragOver={handleDragOver}
-            sensors={sensors}
-            collisionDetection={closestCenter}
+          <Label>{label}</Label>
+          {description &&
+            (typeof description == "string" ? (
+              <p className="text-sm font-normal text-muted-foreground">
+                {description}
+              </p>
+            ) : (
+              description
+            ))}
+
+          <div
+            className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm  max-w-full w-full overflow-x-auto   *:border-b *:border-muted-foreground/25"
+            style={{
+              gridTemplateColumns: `auto ${filteredColumns
+                .map((x) => `${x.width ?? 1}fr`)
+                .join(" ")} auto`,
+            }}
           >
-            <SortableContext
-              items={_data.map((x) => x.id)}
-              strategy={verticalListSortingStrategy}
+            <div
+              className="relative grid border-t *:py-2 *:px-2 grid-cols-subgrid col-span-full
+            items-center rounded-t-md bg-muted [&>p]:font-semibold [&>p]:text-sm lg:[&>p]:text-sm [&>p]:py-0.5! [&>p:last-child]:border-r [&>p]:border-l [&>p]:border-muted-foreground/25 [&>p]:flex"
             >
-              {Array.isArray(_data) &&
-                _data.map((item, index) => {
+              <p className="justify-center! text-center px-4! ">#</p>
+              {filteredColumns &&
+                filteredColumns.map((item) => {
                   return (
-                    <FormTableItem
-                      readOnly={readOnly || item.readOnly}
-                      item={item}
-                      index={index}
-                      key={item.id}
-                      columns={filteredColumns}
-                      isLast={index >= _data.length - 1}
-                      setRef={setRef}
-                      cellOnKeyDown={cellOnKeyDown}
-                      updateData={updateData}
-                      setCurrentIndex={setCurrentIndex}
-                      deleteRow={deleteRow}
-                      className={
-                        index == _data.length - 1 ? "rounded-b-md" : ""
-                      }
-                    />
+                    <Tooltip key={item.name}>
+                      <TooltipTrigger asChild>
+                        <p className="relative text-center justify-start! w-full line-clamp-2 break-words leading-snug">
+                          {item.titleTrans ? t(item.titleTrans) : item.title}
+                          {item.required && (
+                            <span className="ml-1 text-red-500">*</span>
+                          )}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {item.titleTrans ? t(item.titleTrans) : item.title}
+                          {item.required && (
+                            <span className="ml-1 text-red-500">*</span>
+                          )}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
                   );
                 })}
-            </SortableContext>
-          </DndContext>
-        </div>
-      </div>
-      <Dialog
-        open={currentIndex >= 0}
-        onOpenChange={(e) => {
-          if (!e) setCurrentIndex(-1);
-        }}
-      >
-        <DialogContent
-          hideX
-          className="max-w-full sm:max-w-screen-sm md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-screen-lg"
-        >
-          <DialogHeader>
-            <DialogTitle asChild>
-              <div className="flex items-center justify-between">
-                <h2>{`${t("core.formtable.editing_row")} #${(currentIndex ?? 0) + 1}`}</h2>
-
-                <div className="flex flex-row items-center justify-end gap-2">
-                  {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readOnly &&
-                    (isMobile ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="size-8"
-                            onClick={() => insertRow(currentIndex - 1)}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 2048 2048"
-                            >
-                              <path
-                                fill="currentColor"
-                                d="M2048 128v1664H0V128h512L384 256H128v384h640v512h384V640h768V256h-384l-128-128zM640 1280H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zM621 525l-90-90L960 6l429 429l-90 90l-275-275v774H896V250z"
-                              ></path>
-                            </svg>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {t("core.formtable.insert_above")}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-8"
-                        onClick={() => insertRow(currentIndex - 1)}
-                      >
-                        {t("core.formtable.insert_above")}
-                      </Button>
-                    ))}
-                  {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readOnly &&
-                    currentIndex < _data.length - 2 &&
-                    (isMobile ? (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="size-8"
-                            onClick={() => insertRow(currentIndex + 1)}
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 2048 2048"
-                            >
-                              <path
-                                fill="currentColor"
-                                d="M2048 128v1664h-640l128-128h384v-384h-768V768H768v512H128v384h256l128 128H0V128zM640 256H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zm-621 1139l90 90l-429 429l-429-429l90-90l275 275V896h128v774z"
-                              ></path>
-                            </svg>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {t("core.formtable.insert_below")}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="h-8"
-                        onClick={() => insertRow(currentIndex + 1)}
-                      >
-                        {t("core.formtable.insert_below")}
-                      </Button>
-                    ))}
-                  {Object.keys(_data[currentIndex] ?? {}).length > 1 &&
-                    !readOnly && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="w-8 h-8 sm:w-auto"
-                        onClick={() => duplicateRow(currentIndex)}
-                      >
-                        <CopyIcon className="size-4" />
-                        <span className="hidden lg:inline">
-                          {t("core.formtable.duplicate")}
-                        </span>
-                      </Button>
-                    )}
-                  {currentIndex > 0 && (
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-8 size-8"
-                      onClick={() => setCurrentIndex(currentIndex - 1)}
-                    >
-                      <ArrowUpIcon className="size-4" />
-                    </Button>
-                  )}
-                  {currentIndex < _data.length - 1 && (
-                    <Button
-                      variant="secondary"
-                      size="icon"
-                      className="h-8 size-8"
-                      onClick={() => setCurrentIndex(currentIndex + 1)}
-                    >
-                      <ArrowDownIcon className="size-4" />
-                    </Button>
-                  )}
-                  {(Object.keys(_data[currentIndex] ?? {}).length > 1 ||
-                    currentIndex < _data.length - 1) &&
-                    !readOnly && (
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="h-8 size-8"
-                        onClick={() => deleteRow(currentIndex)}
-                      >
-                        <Trash2Icon className="size-4" />
-                      </Button>
-                    )}
-                </div>
-              </div>
-            </DialogTitle>
-            <DialogDescription className="sr-only" />
-          </DialogHeader>
-          <div
-            className={cn(
-              columns.length <= 1
-                ? "grid-cols-1"
-                : columns.length <= 2
-                  ? "md:grid-cols-2"
-                  : "md:grid-cols-2 lg:grid-cols-3",
-              "grid gap-x-4 gap-y-3",
-            )}
-          >
-            {columns &&
-              columns.map((col) => {
-                return (
-                  <FormInput
-                    key={`${_data[currentIndex]?.id}-${col.name}`}
-                    required={col.required}
-                    label={col.titleTrans ? t(col.titleTrans) : col.title}
-                    name={col.name}
-                  >
-                    <Cell
-                      readonly={readOnly}
-                      index={currentIndex}
-                      item={_data[currentIndex]}
-                      col={col}
-                      updateData={updateData}
-                    />
-                  </FormInput>
-                );
-              })}
+              <p className="text-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-5 pointer-events-auto!"
+                  onClick={() => setOpenConfigureColumns(true)}
+                >
+                  <SettingsIcon className="size-3" />
+                </Button>
+              </p>
+            </div>
+            <DndContext
+              onDragOver={handleDragOver}
+              sensors={sensors}
+              collisionDetection={closestCenter}
+            >
+              <SortableContext
+                items={_data.map((x) => x.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                {Array.isArray(_data) &&
+                  _data.map((item, index) => {
+                    return (
+                      <FormTableItem
+                        disabled={disabled}
+                        readOnly={readOnly || item.readOnly}
+                        item={item}
+                        index={index}
+                        key={item.id}
+                        columns={filteredColumns}
+                        isLast={index >= _data.length - 1}
+                        setRef={setRef}
+                        cellOnKeyDown={cellOnKeyDown}
+                        updateData={updateData}
+                        submitable={submitable}
+                        setCurrentIndex={setCurrentIndex}
+                        setCurrentData={setCurrentData}
+                        deleteRow={deleteRow}
+                        defaultValueRow={defaultValueRow}
+                        additionalData={additionalData}
+                        className={
+                          index == _data.length - 1 ? "rounded-b-md" : ""
+                        }
+                        forceCanDelete={!disabled && forceCanDelete}
+                      />
+                    );
+                  })}
+              </SortableContext>
+            </DndContext>
           </div>
-        </DialogContent>
-      </Dialog>
-      <ConfigureColumns
-        columns={columns}
-        setColumns={setColumns}
-        open={openConfigureColumns}
-        setOpen={setOpenConfigureColumns}
-        onReset={() => {
-          setColumns(createHeaders(columnsProps, true));
-        }}
-      />
-    </>
-  );
-});
+        </div>
+        <MyDialog
+          open={currentIndex >= 0}
+          onOpenChange={(e) => {
+            if (!e && !submitable) setCurrentIndex(-1);
+          }}
+        >
+          <MyDialogContent
+            hideX
+            className="max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)"
+            asChild
+          >
+            <form
+              ref={formRef}
+              onKeyDown={onKeyDown}
+              onSubmit={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                // updateData(currentIndex, currentData);
+
+                setCurrentIndex(-1);
+                setCurrentData(null);
+              }}
+            >
+              <MyDialogHeader>
+                <MyDialogTitle asChild>
+                  <div className="flex items-center justify-between">
+                    <h2>{`${t("core.formtable.editing_row")} #${(currentIndex ?? 0) + 1}`}</h2>
+
+                    <div className="flex flex-row items-center justify-end gap-2">
+                      {!submitable && (
+                        <>
+                          {Object.keys(_data[currentIndex] ?? {}).length >
+                            Object.keys(defaultValueRow ?? {}).length + 1 &&
+                            !(readOnly || disabled) &&
+                            (isMobile ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="size-8"
+                                    onClick={() => insertRow(currentIndex - 1)}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      viewBox="0 0 2048 2048"
+                                    >
+                                      <path
+                                        fill="currentColor"
+                                        d="M2048 128v1664H0V128h512L384 256H128v384h640v512h384V640h768V256h-384l-128-128zM640 1280H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zM621 525l-90-90L960 6l429 429l-90 90l-275-275v774H896V250z"
+                                      ></path>
+                                    </svg>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t("core.formtable.insert_above")}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="h-8"
+                                onClick={() => insertRow(currentIndex - 1)}
+                              >
+                                {t("core.formtable.insert_above")}
+                              </Button>
+                            ))}
+                          {Object.keys(_data[currentIndex] ?? {}).length >
+                            Object.keys(defaultValueRow ?? {}).length + 1 &&
+                            !(readOnly || disabled) &&
+                            currentIndex < _data.length - 2 &&
+                            (isMobile ? (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    className="size-8"
+                                    onClick={() => insertRow(currentIndex + 1)}
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      viewBox="0 0 2048 2048"
+                                    >
+                                      <path
+                                        fill="currentColor"
+                                        d="M2048 128v1664h-640l128-128h384v-384h-768V768H768v512H128v384h256l128 128H0V128zM640 256H128v384h512zm640 0H768v384h512zm640 0h-512v384h512zm-621 1139l90 90l-429 429l-429-429l90-90l275 275V896h128v774z"
+                                      ></path>
+                                    </svg>
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t("core.formtable.insert_below")}
+                                </TooltipContent>
+                              </Tooltip>
+                            ) : (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                className="h-8"
+                                onClick={() => insertRow(currentIndex + 1)}
+                              >
+                                {t("core.formtable.insert_below")}
+                              </Button>
+                            ))}
+                        </>
+                      )}
+                      {Object.keys(_data[currentIndex] ?? {}).length >
+                        Object.keys(defaultValueRow ?? {}).length + 1 &&
+                        !(
+                          readOnly ||
+                          disabled ||
+                          _data[currentIndex]?.readOnly
+                        ) && (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            className="w-8 h-8 sm:w-auto"
+                            onClick={() => duplicateRow(currentIndex)}
+                          >
+                            <CopyIcon className="size-4" />
+                            <span className="hidden lg:inline">
+                              {t("core.formtable.duplicate")}
+                            </span>
+                          </Button>
+                        )}
+                      {!submitable && (
+                        <>
+                          {currentIndex > 0 && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 size-8"
+                              onClick={() => {
+                                setCurrentIndex((prev) => prev - 1);
+                                if (submitable)
+                                  setCurrentData(_data[currentIndex - 1]);
+                              }}
+                            >
+                              <ArrowUpIcon className="size-4" />
+                            </Button>
+                          )}
+                          {currentIndex < _data.length - 1 && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="icon"
+                              className="h-8 size-8"
+                              onClick={() => {
+                                setCurrentIndex((prev) => prev + 1);
+                                if (submitable)
+                                  setCurrentData(_data[currentIndex + 1]);
+                              }}
+                            >
+                              <ArrowDownIcon className="size-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {(Object.keys(_data[currentIndex] ?? {}).length >
+                        Object.keys(defaultValueRow ?? {}).length + 1 ||
+                        currentIndex < _data.length - 1) &&
+                        (!(
+                          readOnly ||
+                          disabled ||
+                          _data[currentIndex]?.readOnly
+                        ) ||
+                          (!disabled && forceCanDelete)) && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="h-8 size-8"
+                            onClick={() => deleteRow(currentIndex)}
+                          >
+                            <Trash2Icon className="size-4" />
+                          </Button>
+                        )}
+                    </div>
+                  </div>
+                </MyDialogTitle>
+                <MyDialogDescription className="sr-only" />
+              </MyDialogHeader>
+              {form ? (
+                <FormChildren
+                  className={""}
+                  showHeader={false}
+                  errors={{}}
+                  fieldNameTrans={""}
+                  data={(submitable ? currentData : _data[currentIndex]) ?? {}}
+                  setData={(...args) =>
+                    submitable
+                      ? updateDataCurrent(...args)
+                      : updateData(currentIndex, ...args)
+                  }
+                >
+                  {typeof form === "function"
+                    ? form({ getColumn })
+                    : React.cloneElement(form, { getColumn })}
+                </FormChildren>
+              ) : (
+                <div
+                  className={cn(
+                    columns.length <= 1
+                      ? "grid-cols-1"
+                      : columns.length <= 2
+                        ? "md:grid-cols-2"
+                        : "md:grid-cols-2 lg:grid-cols-3",
+                    "grid gap-x-4 gap-y-3",
+                  )}
+                >
+                  {columns &&
+                    columns.map((col) => {
+                      return (
+                        <FormInput
+                          key={`${_data[currentIndex]?.id}-${col.name}`}
+                          required={col.required}
+                          label={col.titleTrans ? t(col.titleTrans) : col.title}
+                          name={col.name}
+                        >
+                          <Cell
+                            isDialog
+                            disabled={disabled}
+                            readOnly={readOnly}
+                            index={currentIndex}
+                            item={_data[currentIndex]}
+                            additionalData={additionalData}
+                            col={col}
+                            isLast={currentIndex >= _data.length - 1}
+                            defaultValueRow={defaultValueRow}
+                            updateData={updateData}
+                          />
+                        </FormInput>
+                      );
+                    })}
+                </div>
+              )}
+              {submitable && (
+                <AlertDialogFooter className="order-2 mt-4">
+                  <AlertDialogCancel
+                    className="h-8"
+                    onClick={() => {
+                      setCurrentIndex(-1);
+                    }}
+                  >
+                    {t("core.form.cancel")}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    className="h-8"
+                    type="button"
+                    onClick={() => {
+                      formRef.current?.requestSubmit();
+                    }}
+                  >
+                    {t("core.form.save")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              )}
+            </form>
+          </MyDialogContent>
+        </MyDialog>
+        <ConfigureColumns
+          columns={columns}
+          setColumns={setColumns}
+          open={openConfigureColumns}
+          setOpen={setOpenConfigureColumns}
+          onReset={() => {
+            setColumns(createHeaders(columnsProps, true));
+          }}
+        />
+      </>
+    );
+  }),
+);
 
 const ConfigureColumns = memo(function ConfigureColumns({
   columns: columnsProps,
@@ -850,13 +1336,13 @@ const ConfigureColumns = memo(function ConfigureColumns({
             sensors={sensors}
             collisionDetection={closestCenter}
           >
-            <div className="overflow-x-hidden grid border rounded-lg border-muted-foreground/25 grid-cols-[auto_2fr_minmax(auto,1fr)_auto]  text-sm max-w-full w-full [&>div]:h-fit [&>*:not(:last-child)]:border-b [&>*]:border-muted-foreground/25">
-              <div className="grid grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:!py-1 [&>*]:px-2">
+            <div className="overflow-x-hidden grid border rounded-lg border-muted-foreground/25 grid-cols-[auto_2fr_minmax(auto,1fr)_auto]  text-sm max-w-full w-full [&>div]:h-fit [&>*:not(:last-child)]:border-b *:border-muted-foreground/25">
+              <div className="grid grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:py-1! *:px-2">
                 <div></div>
                 <div>{t("core.formtable.column")}</div>
                 <div>{t("core.formtable.width")}</div>
               </div>
-              <div className="overflow-y-auto overflow-x-hidden grid grid-cols-subgrid col-span-full [&>div>*]:py-1 [&>div>*]:px-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b [&>*]:border-muted-foreground/25">
+              <div className="overflow-y-auto overflow-x-hidden grid grid-cols-subgrid col-span-full [&>div>*]:py-1 [&>div>*]:px-2 [&>div>*]:border-muted-foreground/25 [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div]:h-fit [&>*:not(:last-child)]:border-b *:border-muted-foreground/25">
                 <SortableContext
                   items={showedColumns.map((x) => x.name)}
                   strategy={verticalListSortingStrategy}
@@ -864,7 +1350,7 @@ const ConfigureColumns = memo(function ConfigureColumns({
                   {showedColumns.map((col) => {
                     return (
                       <ColumnItem
-                        key={col.name}
+                        key={col.name + "_showed"}
                         onChangeWidth={(name, val) => {
                           setColumns((x) => {
                             return x.map((col) => {
@@ -894,6 +1380,7 @@ const ConfigureColumns = memo(function ConfigureColumns({
             </div>
           </DndContext>
           <Button
+            type="button"
             variant="ghost"
             size="sm"
             className="inline h-6 -mt-3 font-medium text-left w-fit"
@@ -904,6 +1391,7 @@ const ConfigureColumns = memo(function ConfigureColumns({
           <DialogFooter className="pt-2 -mb-2 border-t border-muted-foreground/25">
             <DialogClose asChild>
               <Button
+                type="button"
                 variant="secondary"
                 className="h-8"
                 onClick={() => onReset()}
@@ -912,7 +1400,11 @@ const ConfigureColumns = memo(function ConfigureColumns({
               </Button>
             </DialogClose>
             <DialogClose asChild>
-              <Button className="h-8" onClick={() => setColumnsProps(columns)}>
+              <Button
+                className="h-8"
+                onClick={() => setColumnsProps(columns)}
+                type="button"
+              >
                 {t("core.formtable.apply")}
               </Button>
             </DialogClose>
@@ -967,7 +1459,7 @@ const SelectColumn = memo(function SelectColumn({
                       )}
                     </>
                   }
-                  classNameCheckbox="!pointer-events-auto"
+                  classNameCheckbox="pointer-events-auto!"
                   disabled={col.required}
                   checked={col.required || col.show}
                   onCheckedChange={(val) => {
@@ -1001,7 +1493,11 @@ const SelectColumn = memo(function SelectColumn({
             {t("core.formtable.select_all")}
           </Button>
           <DialogClose asChild>
-            <Button className="h-8" onClick={() => setColumnsProps(columns)}>
+            <Button
+              className="h-8"
+              onClick={() => setColumnsProps(columns)}
+              type="button"
+            >
               {t("core.formtable.apply")}
             </Button>
           </DialogClose>
@@ -1028,7 +1524,12 @@ const ColumnItem = memo(function ColumnItem({
       style={style}
       className="grid bg-background group col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base"
     >
-      <button className="cursor-move " {...listeners} {...attributes}>
+      <button
+        className="cursor-move "
+        {...listeners}
+        {...attributes}
+        type="button"
+      >
         <GripVerticalIcon className="transition-[color,opacity] group-hover:text-foreground text-muted-foreground/50 size-5" />
       </button>
       <div>
@@ -1036,14 +1537,14 @@ const ColumnItem = memo(function ColumnItem({
         {column.required && <span className="ml-1 text-red-500">*</span>}
       </div>
       <div>
-        <Input
-          type="number"
+        <CurrencyInput
+          className="text-left"
           min="1"
           max="10"
           step="1"
           value={column.width ?? 1}
-          onChange={(e) => {
-            onChangeWidth(column.name, e.target.value);
+          onValueChange={(val) => {
+            onChangeWidth(column.name, val);
           }}
         />
       </div>

@@ -22,6 +22,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
+import { Head, router, usePage } from "@inertiajs/react";
 import {
   Select,
   SelectContent,
@@ -42,8 +43,12 @@ import {
   useImperativeHandle,
   useState,
 } from "react";
-import { cn, getCookieByName, getLocaleDate, setCookie } from "@/lib/utils";
-import { router, usePage } from "@inertiajs/react";
+import {
+  cn,
+  getFromLocalStorage,
+  getLocaleDate,
+  saveToLocalStorage,
+} from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable from "@/Components/Table/FilterTable";
@@ -135,7 +140,6 @@ export default memo(
     const lang = usePage().props.lang;
     const isMobile = useIsMobile();
     const { t } = useLaravelReactI18n();
-    const route = window.route;
     const query = usePage().props.ziggy.query;
     const { data, defaultSort } = usePage().props;
     const [options, setOptions] = useState({
@@ -169,10 +173,9 @@ export default memo(
     );
 
     const loadData = useCallback(() => {
+      console.log(options);
       router.get(
-        route(route().current(), route().params) +
-          "?" +
-          QueryString.stringify(options),
+        window.location.pathname + "?" + QueryString.stringify(options),
         {},
         {
           reset: ["data", "ziggy"],
@@ -239,27 +242,24 @@ export default memo(
         per_page_options: [25, 50, 100],
       };
     const [show, setShow] = useState(
-      getCookieByName("datatable_show") ?? numPerPage,
+      getFromLocalStorage("datatable_show") ?? numPerPage,
     );
     const setShowNumber = useCallback((value) => {
       setShow(value);
-      setCookie("datatable_show", value, {
-        days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      });
+      saveToLocalStorage("datatable_show", value, DATATABLE_COLUMNS_EXPIRED);
       loadData();
     }, []);
 
     return (
       <AppLayout>
+        <Head title={title} />
         <div className="flex items-center justify-between gap-x-4">
           <h1 className="text-xl font-bold">{title}</h1>
           <div className="flex items-center gap-x-4 ">
             <div className="flex items-center gap-x-4 lg:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="secondary" className="!p-2 size-fit ">
+                  <Button variant="secondary" className="p-2! size-fit ">
                     <Ellipsis />
                   </Button>
                 </DropdownMenuTrigger>
@@ -352,7 +352,7 @@ export default memo(
                 <TooltipTrigger asChild>
                   <Button
                     variant="secondary"
-                    className="!p-2 size-fit "
+                    className="p-2! size-fit "
                     onClick={loadData}
                   >
                     <RefreshCw />
@@ -370,7 +370,7 @@ export default memo(
                 />
                 {Object.keys(options.f).length > 0 && (
                   <Button
-                    className="!py-0 h-8 !px-2 rounded-l-none"
+                    className="py-0! h-8 px-2! rounded-l-none"
                     variant="secondary"
                     onClick={() =>
                       setOptions({
@@ -388,7 +388,7 @@ export default memo(
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button
-                      className="!py-0 h-8 !px-2 rounded-r-none border-r  border-muted-foreground/50"
+                      className="py-0! h-8 px-2! rounded-r-none border-r  border-muted-foreground/50"
                       variant="secondary"
                       onClick={() => setSort(optionsSortKey)}
                     >
@@ -412,7 +412,7 @@ export default memo(
                   <SelectTrigger
                     className={cn(
                       buttonVariants({ variant: "secondary", size: "default" }),
-                      "flex-1 !py-0 h-8 !px-2 !border-none rounded-l-none !ring-0",
+                      "flex-1 py-0! h-8 px-2! border-none! rounded-l-none ring-0!",
                     )}
                   >
                     <SelectValue placeholder="Sort By" />
@@ -431,7 +431,7 @@ export default memo(
             </div>
             {addButton?.title && (
               <Button
-                className="!p-2 size- fit h-8"
+                className="p-2! size- fit h-8"
                 onClick={addButton?.onClick}
               >
                 <Plus />
@@ -482,7 +482,7 @@ export default memo(
                   value={`${show}`}
                   onValueChange={(e) => setShowNumber(e)}
                 >
-                  <SelectTrigger className="!w-fit gap-x-2">
+                  <SelectTrigger className="w-fit! gap-x-2">
                     <SelectValue placeholder="Show"></SelectValue>
                   </SelectTrigger>
                   <SelectContent>

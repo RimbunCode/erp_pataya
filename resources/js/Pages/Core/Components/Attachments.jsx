@@ -31,18 +31,15 @@ export default memo(function Attachments() {
   }, []);
   return (
     <>
-      <div className="flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
+      <div className="flex w-full items-center gap-2 rounded-md py-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
         <Paperclip />
         <span className="flex-1">{t("core.form.attachments")}</span>
 
         <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
-          <DialogTrigger
-            asChild
-            className="group-data-[disabled=true]/form:hidden"
-          >
+          <DialogTrigger asChild>
             <Button
               variant="ghost"
-              className="rounded-full !p-0"
+              className="rounded-full p-0!"
               size="icon"
               type="button"
             >
@@ -61,7 +58,7 @@ export default memo(function Attachments() {
         data={["attachments"]}
         fallback={
           <div className="mb-3 first:mt-2 ms-6">
-            <div className="!text-base font-normal text-foreground flex gap-x-4">
+            <div className="text-base! font-normal text-foreground flex gap-x-4">
               <LoadingIcon className="size-4" />
               <span>{t("core.form.loading")} ...</span>
             </div>
@@ -70,7 +67,7 @@ export default memo(function Attachments() {
       >
         <ul
           className={cn(
-            "ml-3.5 w-full flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border pl-2.5 py-0.5 pr-3.5",
+            "ml-3.5 w-[calc(100%-calc(var(--spacing,0.25rem)*3.5))] flex min-w-0 translate-x-px flex-col gap-1 border-l border-sidebar-border pl-2.5 py-0.5 pr-3.5",
           )}
         >
           {attachments &&
@@ -92,9 +89,9 @@ export default memo(function Attachments() {
                           target="_blank"
                           rel="noreferrer"
                           href={route("files.preview", id)}
-                          className="hover:underline"
+                          className="hover:underline truncate"
                         >
-                          <p className="text-sm truncate ">{name}</p>
+                          <p className="text-sm truncate">{name}</p>
                         </a>
                       </div>
                     </TooltipTrigger>
@@ -103,7 +100,7 @@ export default memo(function Attachments() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="rounded-full !p-0 group-data-[disabled=true]/form:hidden"
+                    className="rounded-full p-0!"
                     onClick={() => {
                       removeFile(id);
                     }}

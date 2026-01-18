@@ -19,9 +19,10 @@ class SupplierRequest extends FormRequest {
    */
   public function rules(): array {
     return [
+      'branch_of.id' => ['nullable', 'string', 'exists:suppliers,id'],
       'name' => ['required', 'string', 'min:3', 'max:255'],
       'phone' => ['required', 'string', 'min:3', 'max:255'],
-      'email' => ['required', 'string', 'min:3', 'max:255'],
+      'email' => ['required', 'string', 'min:3', 'max:255', 'email:rfc'],
       'banks' => ['required', 'array', 'min:1'],
       'banks.*.bank' => ['required', 'string', 'min:3'],
       'banks.*.no_acc' => ['required', 'numeric', 'min:5'],
