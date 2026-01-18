@@ -65,8 +65,8 @@ trait LinkModel {
       ],
       'status'            => [
         'titleTrans' => 'core.form.status',
-        'width'      => "fit",
-        'valueTrans' => 'core.form.statuses',
+        'width'      => "minimum",
+        'valueTrans' => 'status',
       ],
       'branch'            => [
         'titleTrans' => 'core.branch.branch',
@@ -104,12 +104,16 @@ trait LinkModel {
   protected function getArrayableAppends() {
     $this->appends = array_unique(array_merge(
       $this->appends,
-      ['route', 'canDelete'],
+      ['route', 'canDelete', 'keyModel'],
       \method_exists(static::class, "templateLink") ? ['templateLink'] : [],
       \method_exists(static::class, "disabledOn") ? ['disabledOn'] : [],
     ));
 
     return parent::getArrayableAppends();
+  }
+
+  protected function getKeyModelAttribute() {
+    return \get_class($this) . "-" . $this->id;
   }
 
   protected function getCanDeleteAttribute(): bool {

@@ -141,7 +141,9 @@ class SalesOrderService {
         ]);
     }
     $items      = $salesOrder->items()
+      ->with(['item', 'item.item.category'])
       ->get();
+    $isValid    = ! $salesOrder->is_rent;
     $errorItems = [];
     foreach ($items as $item) {
       $stock = Stock::lockForUpdate()
@@ -149,6 +151,11 @@ class SalesOrderService {
         ->where('warehouse_id', $item->source_warehouse_id)
         ->lockForUpdate()
         ->first();
+
+      $availableToRent = $item->item->item->category->type == 'vehicle';
+      if ($salesOrder->is_rent && $availableToRent) {
+        $isValid = true;
+      }
       if (! $stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
@@ -158,9 +165,10 @@ class SalesOrderService {
         $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
         continue;
       }
-      $stock->update([
-        'reserved_quantity' => $stock->reserved_quantity + $quantity,
-      ]);
+      $stock->updateDetails('increment', 'reservations', $salesOrder->code, $quantity);
+    }
+    if (! $isValid) {
+      $errorItems[] = "This order is not valid for renting";
     }
     if (\count($errorItems) > 0) {
       DB::rollBack();
@@ -199,10 +207,9 @@ class SalesOrderService {
         ->lockForUpdate()
         ->first();
 
-      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-      $stock->update([
-        'reserved_quantity' => $stock->reserved_quantity - $quantity,
-      ]);
+      // $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+
+      $stock->updateDetails('decrement', 'reservations', $salesOrder->code);
     }
   }
 

@@ -47,7 +47,7 @@ function formatData(data, columns, opts = {}) {
         break;
       }
       case "formStatus": {
-        newData[key] = opts.t(`core.form.statuses.${value}`);
+        newData[key] = opts.t(`status.${value}`);
         break;
       }
 

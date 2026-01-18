@@ -103,6 +103,7 @@ export const Cell = memo(
         onOpenDialog,
         defaultValueRow,
         isDialog,
+        additionalData,
         ...props
       },
       ref,
@@ -127,6 +128,7 @@ export const Cell = memo(
             dataRow: item,
             data: item[col.name],
             setData: (key, value) => updateData(index, key, value),
+            additionalData: additionalData?.[item.id],
             attributes,
             openDialog: onOpenDialog ?? (() => {}),
             reset: () => {
@@ -212,6 +214,7 @@ const FormTableItem = memo(function FormTableItem({
   className,
   defaultValueRow,
   forceCanDelete,
+  additionalData,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: item.id });
@@ -220,23 +223,17 @@ const FormTableItem = memo(function FormTableItem({
     transition,
   };
 
-  useDidMountEffect(() => {
-    const debounce = setTimeout(() => {}, 200);
-
-    return () => clearTimeout(debounce);
-  }, [item]);
-
   return (
     <div
       key={item.id}
       ref={setNodeRef}
       style={style}
       className={cn(
-        "grid group min-h-10 col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>div]:text-sm lg:[&>div]:text-base",
+        "grid group min-h-10 col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>*:last-child]:border-r [&>*]:border-l [&>*]:border-muted-foreground/25 [&>*]:h-full [&>*]:items-center [&>*]:flex [&>*]:justify-center",
         className,
       )}
     >
-      <div className="px-2 justify-center! text-left ">
+      <div className="px-1 justify-center! text-left ">
         <span
           className={cn(
             !(
@@ -280,6 +277,7 @@ const FormTableItem = memo(function FormTableItem({
                 readOnly={readOnly}
                 index={index}
                 item={item}
+                additionalData={additionalData}
                 col={col}
                 isLast={isLast}
                 defaultValueRow={defaultValueRow}
@@ -290,7 +288,7 @@ const FormTableItem = memo(function FormTableItem({
             </div>
           );
         })}
-      <div className="flex items-center px-2 gap-x-2">
+      <div className="flex items-center px-1 gap-x-1">
         <Button
           type="button"
           variant="ghost"
@@ -397,6 +395,7 @@ const createHeaders = (headers, reset) => {
  * @param {ColumnProps[]} props.columns
  * @param {object} props.value
  * @param {Function} props.onValueChange
+ * @param {Function} props.asyncUpdateAdditionalData
  * @returns {React.JSX.Element}
  */
 export default memo(
@@ -417,12 +416,16 @@ export default memo(
       submitable = false,
       mapItem,
       forceCanDelete = false,
+      additionalData: _additionalData,
+      asyncUpdateAdditionalData,
     },
     ref,
   ) {
     if (!columnsProps) {
       throw new Error("columns is required");
     }
+    const [__additionalData, setAdditionalData] = useState({});
+    const additionalData = _additionalData ?? __additionalData;
     const [openConfigureColumns, setOpenConfigureColumns] = useState(false);
     const [columns, setColumns] = useState(createHeaders(columnsProps));
     const { t } = useLaravelReactI18n();
@@ -449,6 +452,7 @@ export default memo(
       //   coordinateGetter: sortableKeyboardCoordinates,
       // }),
     );
+
     useDidMountEffect(() => {
       setColumns(createHeaders(columnsProps));
     }, [columnsProps]);
@@ -483,6 +487,26 @@ export default memo(
           ];
     });
 
+    const idChanges = useRef(new Set(value.map((x) => x.id)));
+    useEffect(() => {
+      const debounce = setTimeout(async () => {
+        if (idChanges.current?.size === 0) return;
+        try {
+          const result = await asyncUpdateAdditionalData(
+            value,
+            Array.from(idChanges.current?.values() ?? []).filter(Boolean),
+          );
+          const data = result?.data ?? {};
+          for (const id in data ?? {}) {
+            idChanges.current?.delete(id);
+          }
+          setAdditionalData((prev) => ({ ...prev, ...data }));
+        } catch {}
+      }, 200);
+
+      return () => clearTimeout(debounce);
+    }, [_data]);
+
     useImperativeHandle(
       ref,
       () => ({
@@ -516,6 +540,7 @@ export default memo(
             disabled={disabled}
             index={currentIndex}
             item={_data[currentIndex]}
+            additionalData={additionalData}
             col={col}
             updateData={updateData}
             {...attributes}
@@ -546,6 +571,7 @@ export default memo(
         !isEqual(value, prevValueRef.current)
       ) {
         prevValueRef.current = value;
+        idChanges.current = new Set(value.map((x) => x.id));
         if (readOnly || (disabled && value.length > 0)) {
           _setData([...value]);
           return;
@@ -569,16 +595,21 @@ export default memo(
     }, [value, readOnly, disabled, mapItem]);
 
     // Kirim perubahan ke parent hanya jika ada perubahan nyata
-    useEffect(() => {
-      if (onValueChange) {
-        let filteredData = readOnly || disabled ? _data : _data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
 
-        if (!isEqual(filteredData, prevValueRef.current)) {
-          prevValueRef.current = filteredData;
-          onValueChange(filteredData);
+    const updateParent = useCallback(
+      (data, key) => {
+        if (onValueChange) {
+          let filteredData = readOnly || disabled ? data : data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
+
+          if (!isEqual(filteredData, prevValueRef.current)) {
+            prevValueRef.current = filteredData;
+            if (key) idChanges.current?.add(key);
+            onValueChange(filteredData, key);
+          }
         }
-      }
-    }, [_data, value, onValueChange]);
+      },
+      [onValueChange],
+    );
 
     // Memperbarui data current
     const updateDataCurrent = useCallback(
@@ -601,7 +632,7 @@ export default memo(
     // Memperbarui data di index tertentu
     const updateData = useCallback(
       (index, key, newValue) => {
-        _setData((prevData) => {
+        const update = (prevData) => {
           const isLastRow = index === prevData.length - 1;
           if (
             (disabled && prevData.length > 0) ||
@@ -706,25 +737,36 @@ export default memo(
           }
 
           return newData;
+        };
+
+        _setData((prevData) => {
+          const result = update(prevData);
+          updateParent(result, result[index]?.id);
+          return result;
         });
       },
       [columns, _setData, mapItem],
     );
     const insertRow = useCallback(
       (index) => {
-        _setData((prev) => {
+        const update = (prev) => {
           const newData = [...prev];
           newData.splice(index, 0, { id: generateRandom(5) });
           setCurrentIndex(index);
           if (submitable) setCurrentData(newData[index]);
           return newData;
+        };
+        _setData((prevData) => {
+          const result = update(prevData);
+          updateParent(result, result[index]?.id);
+          return result;
         });
       },
       [_setData],
     );
     const duplicateRow = useCallback(
       (index) => {
-        _setData((prev) => {
+        const update = (prev) => {
           const newData = [...prev];
           newData.splice(index + 1, 0, {
             ...(defaultValueRow ?? {}),
@@ -734,6 +776,11 @@ export default memo(
           setCurrentIndex(index + 1);
           if (submitable) setCurrentData(newData[index + 1]);
           return newData;
+        };
+        _setData((prevData) => {
+          const result = update(prevData);
+          updateParent(result, result[index]?.id);
+          return result;
         });
       },
       [_setData],
@@ -747,6 +794,8 @@ export default memo(
           }
           newData.splice(index, 1);
           if (submitable) setCurrentData(newData[currentIndex]);
+
+          updateParent(newData);
           return newData;
         });
       },
@@ -821,7 +870,10 @@ export default memo(
             const oldIndex = newItems.indexOf(active.id);
             if (oldIndex >= newItems.length - 1) return items;
             if (newIndex >= newItems.length - 1) newIndex--;
-            return arrayMove(items, oldIndex, newIndex);
+            const result = arrayMove(items, oldIndex, newIndex);
+
+            updateParent(result);
+            return result;
           });
         }
       },
@@ -852,27 +904,42 @@ export default memo(
             ))}
 
           <div
-            className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm [&>div>*:last-child]:border-r [&>div>*]:border-l [&>div>*]:border-muted-foreground/25 max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center  *:border-b *:border-muted-foreground/25"
+            className="rounded-md grid grid-cols-[auto_1fr_auto] text-sm  max-w-full w-full overflow-x-auto   *:border-b *:border-muted-foreground/25"
             style={{
               gridTemplateColumns: `auto ${filteredColumns
                 .map((x) => `${x.width ?? 1}fr`)
                 .join(" ")} auto`,
             }}
           >
-            <div className="grid border-t *:py-2 *:px-4 grid-cols-subgrid col-span-full items-center rounded-t-md bg-muted [&>div]:font-semibold [&>div]:text-sm lg:[&>div]:text-sm [&>div]:py-1!">
-              <div className="justify-center! text-left">#</div>
+            <div
+              className="relative grid border-t *:py-2 *:px-2 grid-cols-subgrid col-span-full
+            items-center rounded-t-md bg-muted [&>p]:font-semibold [&>p]:text-sm lg:[&>p]:text-sm [&>p]:py-0.5! [&>p:last-child]:border-r [&>p]:border-l [&>p]:border-muted-foreground/25 [&>p]:flex"
+            >
+              <p className="justify-center! text-center px-4! ">#</p>
               {filteredColumns &&
                 filteredColumns.map((item) => {
                   return (
-                    <div key={item.name} className="justify-start! text-left">
-                      {item.titleTrans ? t(item.titleTrans) : item.title}
-                      {item.required && (
-                        <span className="ml-1 text-red-500">*</span>
-                      )}
-                    </div>
+                    <Tooltip key={item.name}>
+                      <TooltipTrigger asChild>
+                        <p className="relative text-center justify-start! w-full line-clamp-2 break-words leading-snug">
+                          {item.titleTrans ? t(item.titleTrans) : item.title}
+                          {item.required && (
+                            <span className="ml-1 text-red-500">*</span>
+                          )}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>
+                          {item.titleTrans ? t(item.titleTrans) : item.title}
+                          {item.required && (
+                            <span className="ml-1 text-red-500">*</span>
+                          )}
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
                   );
                 })}
-              <div className="text-center">
+              <p className="text-center">
                 <Button
                   type="button"
                   variant="ghost"
@@ -882,7 +949,7 @@ export default memo(
                 >
                   <SettingsIcon className="size-3" />
                 </Button>
-              </div>
+              </p>
             </div>
             <DndContext
               onDragOver={handleDragOver}
@@ -912,6 +979,7 @@ export default memo(
                         setCurrentData={setCurrentData}
                         deleteRow={deleteRow}
                         defaultValueRow={defaultValueRow}
+                        additionalData={additionalData}
                         className={
                           index == _data.length - 1 ? "rounded-b-md" : ""
                         }
@@ -938,7 +1006,6 @@ export default memo(
               ref={formRef}
               onKeyDown={onKeyDown}
               onSubmit={(e) => {
-                console.log(e);
                 e.preventDefault();
                 e.stopPropagation();
                 // updateData(currentIndex, currentData);
@@ -1157,6 +1224,7 @@ export default memo(
                             readOnly={readOnly}
                             index={currentIndex}
                             item={_data[currentIndex]}
+                            additionalData={additionalData}
                             col={col}
                             isLast={currentIndex >= _data.length - 1}
                             defaultValueRow={defaultValueRow}

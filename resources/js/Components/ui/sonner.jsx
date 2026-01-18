@@ -1,6 +1,12 @@
-"use client";
-
 import * as React from "react";
+
+import {
+  CircleCheckIcon,
+  InfoIcon,
+  Loader2Icon,
+  OctagonXIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 
 import { Toaster as Sonner } from "sonner";
 import useTheme from "@/Hooks/useTheme";
@@ -22,6 +28,13 @@ const Toaster = ({ ...props }) => {
           cancelButton:
             "group-[.toast]:rounded-md! group-[.toast]:bg-secondary group-[.toast]:text-secondary-foreground!",
         },
+      }}
+      icons={{
+        success: <CircleCheckIcon className="size-4" />,
+        info: <InfoIcon className="size-4" />,
+        warning: <TriangleAlertIcon className="size-4" />,
+        error: <OctagonXIcon className="size-4" />,
+        loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
       {...props}
     />
