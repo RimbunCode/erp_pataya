@@ -1,0 +1,1 @@
+import{R as r}from"./app-lGSIJjhp.js";const n=new Map;function o(e){if(!e)return console.warn("useDynamicRefs: Cannot set ref without key ");const t=r.createRef();return n.set(e,t),t}function f(e){return e?n.get(e):console.warn("useDynamicRefs: Cannot get ref without key")}function u(){return[f,o]}export{u};
