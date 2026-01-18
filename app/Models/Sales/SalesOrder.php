@@ -23,7 +23,7 @@ class SalesOrder extends Model {
     'end_date'   => 'datetime',
   ];
   protected               $appends           = [
-    'rental_date',
+    'rent_date',
   ];
   protected static string $defaultFormatCode = '@[branch_code]/SO-@[iiii]/@[yy]';
 
@@ -34,7 +34,7 @@ class SalesOrder extends Model {
     ];
   }
 
-  public function rentalDate(): Attribute {
+  public function rentDate(): Attribute {
     return Attribute::make(
       get: fn () => [
         'from' => $this->start_date,

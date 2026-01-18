@@ -24,8 +24,8 @@ class SalesOrderRequest extends FormRequest {
 
     return [
       'date'                                  => ['required', 'date'],
-      'rental_date.from'                      => [Rule::requiredIf($this->is_rent ?? false), 'date', 'nullable'],
-      'rental_date.to'                        => [
+      'rent_date.from'                        => [Rule::requiredIf($this->is_rent ?? false), 'date', 'nullable'],
+      'rent_date.to'                          => [
         Rule::requiredIf($this->is_rent ?? false),
         Rule::date()->afterOrEqual($this->start_date ?? now()),
         'date',

@@ -72,7 +72,7 @@ const AlertDialogs = memo(() => {
         open={showAlertDirtyForm}
         onOpenChange={setShowAlertDirtyForm}
       >
-        <AlertDialogContent align="center">
+        <AlertDialogContent forceAsDialog align="center">
           <AlertDialogHeader>
             <AlertDialogTitle>{t("core.form.leave.title")}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -99,7 +99,7 @@ const AlertDialogs = memo(() => {
 
       {/* Alert for continue draft form */}
       <AlertDialog open={showAlertDrafForm} onOpenChange={setShowAlertDrafForm}>
-        <AlertDialogContent align="center">
+        <AlertDialogContent forceAsDialog align="center">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {t("core.form.unfinished.title")}
@@ -132,7 +132,11 @@ const AlertDialogs = memo(() => {
           }
         }}
       >
-        <AlertDialogContent align="center" onKeyDown={handleKeyDown}>
+        <AlertDialogContent
+          forceAsDialog
+          align="center"
+          onKeyDown={handleKeyDown}
+        >
           <AlertDialogHeader>
             <AlertDialogTitle>{t(`${translateKey}.delete`)}</AlertDialogTitle>
             <AlertDialogDescription>

@@ -21,9 +21,11 @@ import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
+import axios from "axios";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import { useState } from "react";
 
 export default memo(function Form() {
   const { t } = useLaravelReactI18n();
@@ -53,6 +55,8 @@ export default memo(function Form() {
             return {
               ...prev,
               discount_on,
+              discount_rate: undefined,
+              discount_amount: undefined,
               latestDiscountKey,
             };
         }
@@ -97,6 +101,14 @@ export default memo(function Form() {
     },
     [data],
   );
+
+  const asyncUpdateAdditionalData = useCallback(async (value, idChanges) => {
+    return await axios.post(window.route("itemVariants.info"), {
+      data: value,
+      idChanges,
+    });
+  }, []);
+
   const net_total = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
@@ -181,7 +193,7 @@ export default memo(function Form() {
         name: "item",
         titleTrans: "sales.salesOrder.columns.item",
         required: true,
-        width: 2,
+        width: 3,
         cell({ dataRow, setData, attributes }) {
           return (
             <ItemVariantLinkModel
@@ -226,7 +238,7 @@ export default memo(function Form() {
         titleTrans: "sales.salesOrder.columns.source_warehouse",
         show: true,
         type: "text",
-        width: 2,
+        width: 3,
         required: true,
         cell({ dataRow, data: value, setData, attributes }) {
           return (
@@ -239,6 +251,23 @@ export default memo(function Form() {
               onValueChange={(val) => setData("source_warehouse", val)}
               {...attributes}
               readOnly={data.submitted_at && !isLockDoc}
+            />
+          );
+        },
+      },
+      {
+        name: "available_quantity",
+        titleTrans: "sales.salesOrder.columns.available_quantity",
+        required: true,
+        type: "number",
+        width: 1,
+        cell({ additionalData, dataRow, attributes }) {
+          return (
+            <CurrencyInput
+              {...attributes}
+              disabled={!dataRow?.item}
+              readOnly={true}
+              value={additionalData?.available_stock ?? 0}
             />
           );
         },
@@ -268,7 +297,7 @@ export default memo(function Form() {
       {
         name: "unit",
         titleTrans: "sales.salesOrder.columns.unit",
-        required: true,
+        width: 2,
         cell({ data, setData, attributes, dataRow }) {
           return (
             <UnitLinkModel
@@ -288,7 +317,7 @@ export default memo(function Form() {
         name: "tax",
         titleTrans: "sales.salesOrder.columns.tax",
         required: true,
-        width: 1,
+        width: 2,
         cell({ data: value, setData, attributes, dataRow }) {
           return (
             <TaxLinkModel
@@ -308,7 +337,7 @@ export default memo(function Form() {
         name: "price",
         titleTrans: "sales.salesOrder.columns.price",
         required: true,
-        width: 1,
+        width: 2,
         cell({ data: price, setData, attributes, dataRow }) {
           return (
             <CurrencyInput
@@ -343,7 +372,6 @@ export default memo(function Form() {
               value={paymentTerm}
               onValueChange={(val) => {
                 const due_date = new Date(data?.date);
-                console.log(due_date, data?.date);
                 switch (val?.due_date_based_on) {
                   case "days_after_invoice_date": {
                     due_date.setDate(
@@ -364,7 +392,6 @@ export default memo(function Form() {
                     break;
                   }
                 }
-                console.log(due_date);
                 setData({
                   payment_term: val,
                   due_date,
@@ -566,20 +593,20 @@ export default memo(function Form() {
               onCheckedChange={(val) => setData("is_rent", val)}
               className="pt-4"
             >
-              {t("sales.salesOrder.for_rental")}
+              {t("sales.salesOrder.for_rent")}
             </FormCheckbox>
           )}
 
           {data.is_rent && (
             <FormInput
               required
-              label={t("sales.salesOrder.rental_date")}
-              name="rental_date"
+              label={t("sales.salesOrder.rent_date")}
+              name="rent_date"
             >
               <DatetimePicker
                 type="daterange"
-                value={data.rental_date}
-                onValueChange={(range) => setData("rental_date", range)}
+                value={data.rent_date}
+                onValueChange={(range) => setData("rent_date", range)}
               />
             </FormInput>
           )}
@@ -715,6 +742,11 @@ export default memo(function Form() {
               value={data.source_warehouse}
               onValueChange={(val) => {
                 setData((prev) => {
+                  if (!prev.items || prev.items?.length <= 0)
+                    return {
+                      ...prev,
+                      source_warehouse: val,
+                    };
                   const newItems = prev.items.map((item) => {
                     return {
                       ...item,
@@ -736,7 +768,10 @@ export default memo(function Form() {
             readOnly={disabled || isLockDoc}
             columns={itemColumns}
             value={data?.items ?? []}
-            onValueChange={(v) => setData("items", v)}
+            onValueChange={(v) => {
+              setData("items", v);
+            }}
+            asyncUpdateAdditionalData={asyncUpdateAdditionalData}
             mapItem={({ item }) => {
               const amount = item.quantity * item.price;
               const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
@@ -852,6 +887,8 @@ export default memo(function Form() {
               decimalScale={2}
               onValueChange={(val) => setDiscount("discount_rate", val)}
               suffix="%"
+              min={0}
+              max={100}
             ></CurrencyInput>
           </FormInput>
 
@@ -865,6 +902,12 @@ export default memo(function Form() {
               value={data.discount_amount}
               onValueChange={(val) => setDiscount("discount_amount", val)}
               currencyCode={data?.currency?.code ?? "default"}
+              min={0}
+              max={
+                data.discount_on == "net_total"
+                  ? net_total
+                  : net_total + tax_amount
+              }
             ></CurrencyInput>
           </FormInput>
         </div>

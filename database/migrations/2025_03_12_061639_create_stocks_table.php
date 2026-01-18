@@ -18,13 +18,14 @@ return new class extends Migration
       $table->double('quantity')->default(0);
       $table->double('reserved_quantity')->default(0);
       $table->double('incoming_quantity')->default(0);
-      $table->double('loan_quantity')->default(0);
-      $table->double('actual_quantity')->storedAs('quantity - loan_quantity');
+      $table->double('rented_quantity')->default(0);
+      $table->double('actual_quantity')->storedAs('quantity - rented_quantity');
       $table->double('ready_quantity')->storedAs('actual_quantity - reserved_quantity');
       $table->double('projected_quantity')->storedAs('quantity + incoming_quantity - reserved_quantity');
       $table->double('conversion_factor');
       $table->double('valuation_rate')->default(0);
       $table->json('stock_queue')->nullable();
+      $table->json('details')->nullable();
       $table->timestamps();
       $table->softDeletes();
     });

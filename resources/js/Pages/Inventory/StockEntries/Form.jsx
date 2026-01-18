@@ -87,6 +87,40 @@ export default function Form() {
 
   const itemColumns = useMemo(() => {
     return [
+      {
+        name: "item",
+        titleTrans: "inventory.stockEntry.item_columns.columns.item",
+        required: true,
+        width: 2,
+        cell({ dataRow, setData, attributes, reset }) {
+          return (
+            <ItemVariantLinkModel
+              placeholder={t(
+                "inventory.stockEntry.item_columns.columns.item.placeholder",
+              )}
+              value={dataRow.item}
+              onValueChange={(val) => {
+                if (!val) {
+                  reset();
+                  return;
+                }
+                setData({
+                  item: val,
+                  unit: val?.default_unit,
+                  conversion_factor: val?.default_unit?.conversion_factor,
+                  source_warehouse: data.default_source_warehouse ?? undefined,
+                  target_warehouse: data.default_target_warehouse ?? undefined,
+                });
+              }}
+              {...attributes}
+              filters={{
+                is_stock_item: true,
+              }}
+              with={["defaultUnit", "item"]}
+            />
+          );
+        },
+      },
       (data.type == "item_transfer" ||
         data.type == "item_consumption" ||
         data.type == "item_issue") && {
@@ -144,41 +178,6 @@ export default function Form() {
         },
       },
       {
-        name: "item",
-        titleTrans: "inventory.stockEntry.item_columns.columns.item",
-        required: true,
-        width: 2,
-        cell({ dataRow, setData, attributes, reset }) {
-          return (
-            <ItemVariantLinkModel
-              placeholder={t(
-                "inventory.stockEntry.item_columns.columns.item.placeholder",
-              )}
-              value={dataRow.item}
-              onValueChange={(val) => {
-                if (!val) {
-                  reset();
-                  return;
-                }
-                setData({
-                  item: val,
-                  unit: val?.default_unit,
-                  conversion_factor: val?.default_unit?.conversion_factor,
-                  source_warehouse: data.default_source_warehouse ?? undefined,
-                  target_warehouse: data.default_target_warehouse ?? undefined,
-                });
-              }}
-              {...attributes}
-              filters={{
-                is_stock_item: true,
-              }}
-              with={["defaultUnit", "item"]}
-            />
-          );
-        },
-      },
-
-      {
         name: "description",
         titleTrans: "inventory.stockEntry.item_columns.columns.description",
         show: false,
@@ -222,7 +221,7 @@ export default function Form() {
       {
         name: "unit",
         titleTrans: "inventory.stockEntry.item_columns.columns.unit",
-        required: true,
+
         cell({ data, setData, attributes, dataRow }) {
           return (
             <UnitLinkModel
@@ -246,28 +245,11 @@ export default function Form() {
         },
       },
       {
-        name: "conversion_factor",
-        titleTrans:
-          "inventory.stockEntry.item_columns.columns.conversion_factor",
-        type: "number",
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <CurrencyInput
-              {...attributes}
-              disabled={!dataRow?.item}
-              readOnly={dataRow?.unit?.conversion_factor}
-              value={data}
-              onValueChange={(val) => setData("conversion_factor", val)}
-              decimalScale={2}
-            />
-          );
-        },
-      },
-      {
         name: "basic_rate",
         titleTrans: "inventory.stockEntry.item_columns.columns.basic_rate",
         required: data.type == "item_receipt",
         show: true,
+        width: 2,
         type: "number",
         cell({ dataRow, setData, attributes }) {
           return (

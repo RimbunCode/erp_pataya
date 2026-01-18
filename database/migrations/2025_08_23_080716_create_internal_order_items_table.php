@@ -1,16 +1,15 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
   /**
    * Run the migrations.
    */
-  public function up(): void
-  {
+  public function up(): void {
     Schema::create('internal_order_items', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->foreignUlid('internal_order_id')->references('id')->on('internal_orders');
@@ -20,8 +19,8 @@ return new class extends Migration
       $table->nullableUlidMorphs('referenceable');
       $table->double('conversion_factor')->default(1);
       $table->double('quantity')->default(0);
-      $table->double('ordered_quantity')->default(0);
-      $table->double('remaining_quantity')->storedAs('quantity - ordered_quantity');
+      $table->double('delivered_quantity')->default(0);
+      $table->double('undelivered_quantity')->storedAs('quantity - delivered_quantity');
       $table->text('description')->nullable();
       $table->timestamps();
       $table->softDeletes();
@@ -31,8 +30,7 @@ return new class extends Migration
   /**
    * Reverse the migrations.
    */
-  public function down(): void
-  {
+  public function down(): void {
     Schema::dropIfExists('internal_order_items');
   }
 };

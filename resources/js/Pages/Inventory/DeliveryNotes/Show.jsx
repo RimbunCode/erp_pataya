@@ -1,15 +1,9 @@
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/Components/ui/dropdown-menu";
+import { calculateArray, inArray, isValidStatus } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
-import { isValidStatus } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ deliveryNote, defaultData, flash }) {
@@ -34,7 +28,7 @@ export default function Show({ deliveryNote, defaultData, flash }) {
             <ul className="block pl-5">
               {flash.errorItems.map((value, index) => (
                 <li key={index} className="list-disc">
-                  {value}
+                  {t(value)}
                 </li>
               ))}
             </ul>
@@ -42,32 +36,27 @@ export default function Show({ deliveryNote, defaultData, flash }) {
         )
       }
       controls={() => {
-        if (deliveryNote?.submitted_at && isValidStatus(deliveryNote?.status)) {
+        if (
+          deliveryNote?.submitted_at &&
+          isValidStatus(deliveryNote?.status) &&
+          inArray(deliveryNote?.status, "delivered") &&
+          calculateArray(deliveryNote?.items, "remaining_quantity", "+") > 0
+        ) {
           return (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    className="p-2! size-fit h-8"
-                    variant="secondary"
-                  >
-                    {t("core.form.actions")}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href={route("salesInvoices.create", {
-                        ref: deliveryNote.id,
-                      })}
-                    >
-                      {t("sales.deliveryNote.actions.create_sales_invoice")}
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+            <Button
+              type="button"
+              className="p-2! size-fit h-8"
+              variant="secondary"
+              asChild
+            >
+              <Link
+                href={route("deliveryNotes.create", {
+                  ref: `deliveryNote/${deliveryNote?.id}`,
+                })}
+              >
+                {t("inventory.deliveryNote.actions.create_sales_return")}
+              </Link>
+            </Button>
           );
         }
       }}

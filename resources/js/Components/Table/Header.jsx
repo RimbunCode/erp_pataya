@@ -41,19 +41,7 @@ export default memo(
     ref,
   ) {
     const { t } = useLaravelReactI18n();
-    const mouseUp = useCallback(() => {
-      setActive(false);
-    }, []);
 
-    useEffect(() => {
-      window.addEventListener("mouseup", mouseUp);
-
-      return () => {
-        window.removeEventListener("mouseup", mouseUp);
-      };
-    }, []);
-
-    const [active, setActive] = useState(false);
     const { attributes, listeners, setNodeRef, transform, transition } =
       useSortable({ id: id });
     const style = {
@@ -62,7 +50,6 @@ export default memo(
     };
 
     const mouseDown = (e) => {
-      setActive(true);
       onResize(e);
     };
     const doubleClick = (e) => {
@@ -144,16 +131,15 @@ export default memo(
             style.transform ? "opacity-0" : "opacity-100",
             resizeable ? "cursor-col-resize" : "cursor-default",
             isEmpty ? "h-[40px]!" : "",
-            `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-1 group group-last/header:hidden`,
+            `flex transition-opacity justify-center items-center absolute w-4 -right-2 top-0 z-1 group`,
           )}
         >
           <div
             className={cn(
-              active
-                ? "border-foreground border-r-[3px]"
-                : "border-r border-muted-foreground/15",
-              resizeable ? " group-hover:border-muted-foreground" : "",
-              "h-full   w-px",
+              resizeable
+                ? " group-hover:border-muted-foreground  group-active:border-foreground group-active:border-r-[3px]"
+                : "",
+              "h-full w-px border-r border-muted-foreground/15",
             )}
           ></div>
         </div>

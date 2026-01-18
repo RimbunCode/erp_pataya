@@ -30,6 +30,11 @@ return [
     'external_note'                => 'External Note',
     'insert_item'                  => 'Insert Item',
     'referenceable'                => 'Reference To',
+    'return_against'               => 'Return Against',
+    'is_return'                    => 'Is Return',
+  ],
+  'actions'  => [
+    'create_sales_return' => 'Create Sales Return',
   ],
 
 ];

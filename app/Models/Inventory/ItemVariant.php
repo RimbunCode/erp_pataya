@@ -14,15 +14,16 @@ use Inertia\Inertia;
 
 class ItemVariant extends Model {
   use HasUlids, SoftDeletes, DataTable;
-  public $keyBreadcrumb = 'sku';
-  public $aliasBreadcrumb = 'Variant';
-  protected $guarded = ['id'];
-  protected $casts = [
-    'is_disabled' => 'boolean',
+  public    $keyBreadcrumb   = 'sku';
+  public    $aliasBreadcrumb = 'Variant';
+  protected $guarded         = ['id'];
+  protected $casts           = [
+    'is_disabled'            => 'boolean',
     'allow_alternative_item' => 'boolean',
-    'is_stock_item' => 'boolean',
+    'is_stock_item'          => 'boolean',
   ];
-  protected $appends = ['sku'];
+  protected $appends         = ['sku'];
+
   public function sku(): Attribute {
     return new Attribute(
       get: function () {
@@ -30,6 +31,7 @@ class ItemVariant extends Model {
       }
     );
   }
+
   protected static function loadRelationsOnShow() {
     return [
       'values',
@@ -40,25 +42,32 @@ class ItemVariant extends Model {
     ];
   }
   public string $formComponent = 'Inventory/Items/FormVariant';
+
   public static function templateLink() {
     return "<title>:code - :item_name</title><b>:code</b><br/><span>:item_name</span>";
   }
+
   public function values() {
     return $this->hasMany(ItemVariantAttribute::class, 'item_variant_id', 'id');
   }
+
   public function item() {
     return $this->belongsTo(Item::class, 'item_id', 'id')
       ->with(['category', 'defaultUnit']);
   }
+
   public function stocks() {
     return $this->hasMany(Stock::class, 'item_variant_id', 'id');
   }
+
   public function defaultUnit() {
     return $this->belongsTo(Unit::class, 'default_unit_id');
   }
+
   public function uom() {
     return $this->hasMany(ItemUnit::class, 'item_id', 'id');
   }
+
   public function category() {
     return $this->belongsTo(Category::class);
   }
@@ -69,10 +78,13 @@ class ItemVariant extends Model {
         $warehouses = Warehouse::select([
           'warehouses.*',
           'stocks.id as stock_id',
+          'stocks.quantity',
           'stocks.actual_quantity',
+          'stocks.rented_quantity',
           'stocks.reserved_quantity',
           'stocks.incoming_quantity',
           'stocks.projected_quantity',
+          'stocks.ready_quantity',
           'stocks.ready_quantity',
           'stocks.valuation_rate',
         ])
@@ -80,15 +92,17 @@ class ItemVariant extends Model {
           ->where('item_variant_id', $this->id);
         if (Session::has('currentBranch')) {
           $branch = Branch::find(Session::get('currentBranch'));
-          if (!$branch->is_main_branch) {
+          if (! $branch->is_main_branch) {
             $warehouses->where('warehouses.branch_id', $branch->id);
           }
         }
         $warehouses = $warehouses->get();
+
         return $warehouses;
-      })
+      }),
     ]);
   }
+
   public function barcodes() {
     return $this->hasMany(ItemBarcode::class, 'item_variant_id', 'id')
       ->with(['unit']);

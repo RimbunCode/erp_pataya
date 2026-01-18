@@ -8,80 +8,72 @@ use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
 use function PHPSTORM_META\type;
 
-class PaymentSchedule extends Model
-{
+class PaymentSchedule extends Model {
   use HasUlids, SoftDeletes, DataTable;
   protected $withs = [
-    'referenceTo.'
+    'referenceTo.',
   ];
 
-
-  protected static function loadRelationsOnShow()
-  {
+  protected static function loadRelationsOnShow() {
     return [
       'referenceTo',
       'paymentMethod',
     ];
   }
   protected $configColumns = [
-    'referenceTo' => [
-      'type' => 'relation',
-      'order' => 0,
-      'show' => true,
+    'referenceTo'             => [
+      'type'               => 'relation',
+      'order'              => 0,
+      'show'               => true,
       'disabledNavigation' => true,
-      'isLink' => true,
+      'isLink'             => true,
     ],
-    'due_date' => [
+    'due_date'                => [
       'order' => 1,
-      'show' => true,
+      'show'  => true,
     ],
-    'payment_amount' => [
+    'payment_amount'          => [
       'order' => 2,
-      'show' => true,
+      'show'  => true,
     ],
-    'outstanding_amount' => [
+    'outstanding_amount'      => [
       'order' => 3,
-      'show' => true,
+      'show'  => true,
     ],
-    'status' => [
-      'type' => 'string',
-      'order' => 4,
-      'show' => true,
-      'valueTrans' => 'core.form.statuses'
+    'status'                  => [
+      'type'       => 'string',
+      'order'      => 4,
+      'show'       => true,
+      'valueTrans' => 'status',
     ],
     'paymentTerm',
     'paymentMethod',
 
-    'base_currency_code' => [
-      'ignore' => true
+    'base_currency_code'      => [
+      'ignore' => true,
     ],
     'base_outstanding_amount' => [
-      'ignore' => true
+      'ignore' => true,
     ],
-    'base_paid_amount' => [
-      'ignore' => true
+    'base_paid_amount'        => [
+      'ignore' => true,
     ],
-    'base_payment_amount' => [
-      'ignore' => true
+    'base_payment_amount'     => [
+      'ignore' => true,
     ],
   ];
-  protected $appends = ['status'];
-
+  protected $appends       = ['status'];
   public string $translateKey = 'finances.paymentSchedule';
-
   protected $casts = [
-    'due_date' => 'datetime',
+    'due_date'     => 'datetime',
     'payment_date' => 'datetime',
     'submitted_at' => 'datetime',
   ];
-
   protected $guarded = ['id'];
 
-  public function status(): Attribute
-  {
+  public function status(): Attribute {
     return new Attribute(
       get: function () {
         if ($this->outstanding_amount <= 0) {
@@ -94,16 +86,16 @@ class PaymentSchedule extends Model
       }
     );
   }
-  public function paymentTerm()
-  {
+
+  public function paymentTerm() {
     return $this->belongsTo(PaymentTerm::class);
   }
-  public function paymentMethod()
-  {
+
+  public function paymentMethod() {
     return $this->belongsTo(PaymentMethod::class);
   }
-  public function referenceTo()
-  {
+
+  public function referenceTo() {
     return $this->morphTo('payment_scheduleable');
   }
 }

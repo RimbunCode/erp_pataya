@@ -394,7 +394,7 @@ var CurrencyInput = forwardRef(function (_a, ref) {
         decimalSeparator: decimalSeparator,
         groupSeparator: groupSeparator,
         allowDecimals: allowDecimals,
-        decimalsLimit: decimalsLimit || fixedDecimalLength || 2,
+        decimalsLimit: decimalsLimit || fixedDecimalLength || 10,
         allowNegativeValue: allowNegativeValue,
         disableAbbreviations: disableAbbreviations,
         prefix: prefix || localeConfig.prefix,
@@ -480,6 +480,7 @@ var CurrencyInput = forwardRef(function (_a, ref) {
      * Format value by padding/trimming decimals if required by
      */
     var handleOnBlur = function (event) {
+        setDirty(false);
         var value = event.target.value;
         var valueOnly = cleanValue(__assign({ value: value }, cleanValueOptions));
         if (valueOnly === '-' || valueOnly === decimalSeparator || !valueOnly) {
@@ -490,12 +491,25 @@ var CurrencyInput = forwardRef(function (_a, ref) {
         var fixedDecimals = fixedDecimalValue(valueOnly, decimalSeparator, fixedDecimalLength);
         var newValue = padTrimValue(fixedDecimals, decimalSeparator, decimalScale !== undefined ? decimalScale : fixedDecimalLength);
         var numberValue = parseFloat(newValue);
-        var formattedValue = formatValue(__assign(__assign({}, formatValueOptions), { value: newValue }));
+        if (min) {
+            var minNumber = parseFloat(min === null || min === void 0 ? void 0 : min.toString());
+            if (numberValue < minNumber) {
+                numberValue = minNumber;
+            }
+        }
+        if (max) {
+            var maxNumber = parseFloat(max === null || max === void 0 ? void 0 : max.toString());
+            if (numberValue > maxNumber) {
+                numberValue = maxNumber;
+            }
+        }
+        var stringNumber = numberValue.toString();
+        var formattedValue = formatValue(__assign(__assign({}, formatValueOptions), { value: stringNumber }));
         if (onValueChange && formatValueOnBlur) {
-            onValueChange(newValue, name, {
+            onValueChange(stringNumber, name, {
                 float: numberValue,
                 formatted: formattedValue,
-                value: newValue,
+                value: stringNumber,
             });
         }
         setStateValue(formattedValue);

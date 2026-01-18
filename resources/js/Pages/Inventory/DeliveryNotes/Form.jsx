@@ -1,10 +1,12 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
+import DeliveryNoteLinkModel from "./DeliveryNoteLinkModel";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
@@ -14,73 +16,11 @@ import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
-import { loadFromModel } from "@/Components/SelectModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
   const { data, setData, defaultData } = useFormPage();
-  const loadFrom = usePage().props.loadFrom;
-  const mergeItems = useCallback(
-    (value, model) => {
-      setData((prev) => {
-        const oldItems = prev.items ?? [];
-
-        const itemMap = new Map(
-          oldItems.map((item) => [
-            `${item.referenceable_type}_${item.referenceable_id}`,
-            item,
-          ]),
-        );
-
-        value.forEach((item) => {
-          const key = `${model}_${item.id}`;
-          const newItem = {
-            // ...item,
-            id: generateRandom(5),
-            item: item.item,
-            description: item.description,
-            quantity: item.remaining_quantity,
-            unit: item.unit,
-            referenceable_type: model,
-            referenceable_id: item.id,
-          };
-          if (newItem.quantity <= 0) {
-            itemMap.delete(key);
-          }
-          if (itemMap.has(key)) {
-            // update quantity sesuai newItem
-            itemMap.set(key, {
-              ...itemMap.get(key),
-              ...newItem,
-            });
-          } else {
-            // tambah item baru
-            itemMap.set(key, newItem);
-          }
-        });
-
-        return {
-          ...prev,
-          items: Array.from(itemMap.values()),
-        };
-      });
-    },
-    [setData],
-  );
-  useEffect(() => {
-    if (!loadFrom) return;
-    const fetchData = async () => {
-      const data = await loadFromModel(
-        loadFrom?.model,
-        loadFrom?.id,
-        loadFrom?.select,
-      );
-      mergeItems(data.value, data.model);
-    };
-    fetchData().catch(console.error);
-  }, []);
   const itemColumns = useMemo(() => {
     return [
       {
@@ -168,6 +108,7 @@ export default function Form() {
               onValueChange={(value) => {
                 setData("quantity", value);
               }}
+              max={dataRow.required_quantity}
             />
           );
         },
@@ -245,7 +186,9 @@ export default function Form() {
                   "<=": data?.delivery_date ?? new Date().toISOString(),
                 },
                 status: {
-                  jsonContains: ["to_deliver", "partially_delivered"],
+                  jsonContains: defaultData?.return_against
+                    ? ["delivered", "partially_delivered"]
+                    : ["to_deliver", "partially_delivered"],
                 },
               }}
               with={[
@@ -272,7 +215,8 @@ export default function Form() {
                         id: generateRandom(8),
                         referenceable_type: data.model?.model + "Item",
                         referenceable_id: item.id,
-                        quantity: item.remaining_quantity,
+                        quantity: item.undelivered_quantity,
+                        required_quantity: item.undelivered_quantity,
                       };
                     }),
                     external_note: val?.external_note,
@@ -317,6 +261,24 @@ export default function Form() {
               }}
             />
           </FormInput>
+          {defaultData?.return_against && (
+            <>
+              <FormCheckbox
+                name="is_return"
+                readOnly
+                label={t("inventory.deliveryNote.columns.is_return")}
+                checked={!!data.return_against}
+              />
+              <FormInput
+                className="col-start-1"
+                label={t("inventory.deliveryNote.columns.return_against")}
+                name="return_against"
+                readOnly
+              >
+                <DeliveryNoteLinkModel value={data.return_against} />
+              </FormInput>
+            </>
+          )}
         </div>
       </FormPageContent>
       <FormPageContent value="detail" title={t("inventory.deliveryNote.items")}>
@@ -331,7 +293,7 @@ export default function Form() {
               with={["item", "sourceWarehouse", "unit"]}
               filters={{
                 sales_order_id: data?.referenceable?.id,
-                remaining_quantity: {
+                undelivered_quantity: {
                   ">": 0,
                 },
                 id: {
@@ -351,7 +313,7 @@ export default function Form() {
                         id: generateRandom(8),
                         referenceable_type: data.model?.model + "Item",
                         referenceable_id: item.id,
-                        quantity: item.remaining_quantity,
+                        quantity: item.undelivered_quantity,
                       },
                     ],
                   };

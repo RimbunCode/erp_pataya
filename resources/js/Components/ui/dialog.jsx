@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/Hooks/use-mobile";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -27,53 +28,68 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
 const DialogContent = React.forwardRef(
-  ({ className, children, align = "top", hideX, ...props }, ref) => (
-    <DialogPortal>
-      <DialogOverlay />
-      <div
-        className={cn(
-          "fixed h-screen w-full z-50 flex items-center md:px-6",
-          align == "top" && "flex-col",
-          align == "bottom" && "flex-col-reverse",
-        )}
-      >
-        {align != "center" && <div className="h-[8%]"></div>}
+  (
+    {
+      className,
+      forceAsDialog = false,
+      children,
+      align = "top",
+      hideX,
+      ...props
+    },
+    ref,
+  ) => {
+    const isMobile = useIsMobile();
+    return (
+      <DialogPortal>
+        <DialogOverlay />
         <div
           className={cn(
-            "flex-1 w-full flex items-center",
-            align == "center" && "flex-col justify-center",
+            "fixed h-screen w-full z-50 flex items-center md:px-6",
             align == "top" && "flex-col",
             align == "bottom" && "flex-col-reverse",
           )}
         >
-          <DialogPrimitive.Content
-            ref={ref}
+          {align != "center" && <div className="h-[8%]"></div>}
+          <div
             className={cn(
-              "relative overflow-y-auto h-screen max-h-screen md:h-auto grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:ease-in data-[state=closed]:ease-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:rounded-lg",
-              align == "top" &&
-                "data-[state=closed]:slide-out-to-top-[28%] data-[state=open]:slide-in-from-top-[28%]",
-              align == "bottom" &&
-                "data-[state=closed]:slide-out-to-bottom-[28%] data-[state=open]:slide-in-from-bottom-[28%]",
-              className,
+              "flex-1 w-full flex items-center",
+              align == "center" && "flex-col justify-center",
+              align == "top" && "flex-col",
+              align == "bottom" && "flex-col-reverse",
             )}
-            {...props}
           >
-            {!hideX ? (
-              <>
-                {children}
-                <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-                  <X className="w-4 h-4" />
-                  <span className="sr-only">Close</span>
-                </DialogPrimitive.Close>
-              </>
-            ) : (
-              children
-            )}
-          </DialogPrimitive.Content>
+            <DialogPrimitive.Content
+              ref={ref}
+              className={cn(
+                "relative overflow-y-auto md:h-auto grid content-start items w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:ease-in data-[state=closed]:ease-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 sm:rounded-lg",
+                align == "top" &&
+                  "data-[state=closed]:slide-out-to-top-[28%] data-[state=open]:slide-in-from-top-[28%]",
+                align == "bottom" &&
+                  "data-[state=closed]:slide-out-to-bottom-[28%] data-[state=open]:slide-in-from-bottom-[28%]",
+                !forceAsDialog && "h-screen",
+                !forceAsDialog && isMobile && "max-w-full!",
+                className,
+              )}
+              {...props}
+            >
+              {!hideX ? (
+                <>
+                  {children}
+                  <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+                    <X className="w-4 h-4" />
+                    <span className="sr-only">Close</span>
+                  </DialogPrimitive.Close>
+                </>
+              ) : (
+                children
+              )}
+            </DialogPrimitive.Content>
+          </div>
         </div>
-      </div>
-    </DialogPortal>
-  ),
+      </DialogPortal>
+    );
+  },
 );
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
