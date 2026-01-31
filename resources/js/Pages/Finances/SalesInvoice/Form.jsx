@@ -21,7 +21,7 @@ import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { calculateArray } from "@/lib/utils";
+import { calculateArray, generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 import PaymentSchedule from "../Components/PaymentSchedule";
@@ -87,27 +87,6 @@ export default function Form() {
               rows={1}
               value={data ?? ""}
               onChange={(e) => setData("description", e.target.value)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "source_warehouse",
-        titleTrans: "finances.salesInvoice.columns.source_warehouse",
-        show: true,
-        type: "text",
-        width: 2,
-        required: true,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <WarehouseLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t(
-                "finances.salesInvoice.columns.source_warehouse.placeholder",
-              )}
-              value={data}
-              onValueChange={(val) => setData("source_warehouse", val)}
               {...attributes}
             />
           );
@@ -222,7 +201,7 @@ export default function Form() {
                   "<=": data?.date ?? new Date().toISOString(),
                 },
                 status: {
-                  in: ["to_deliver_and_bill", "to_bill"],
+                  jsonContains: ["to_bill"],
                 },
               }}
               placeholder={t(
@@ -246,12 +225,27 @@ export default function Form() {
                 setData((prev) => {
                   return {
                     ...prev,
+                    id: generateRandom(5),
                     sales_order: val,
                     customer: val?.customer,
                     customer_branch: val?.customer_branch,
                     currency: val?.currency,
-                    items: val?.items,
-                    paymentSchedules: val?.paymentSchedules,
+                    items: val?.items?.map((item) => {
+                      return {
+                        ...item,
+                        id: generateRandom(8),
+                        referenceable_type:
+                          "App\\Models\\Sales\\SalesOrderItem",
+                        referenceable_id: item.id,
+                      };
+                    }),
+                    payment_schedules:
+                      val?.payment_schedules?.map((paymentSchedule) => {
+                        return {
+                          ...paymentSchedule,
+                          id: generateRandom(8),
+                        };
+                      }) ?? [],
                     amount: val?.amount,
                     discount_on: val?.discount_on,
                     discount_rate: val?.discount_rate,

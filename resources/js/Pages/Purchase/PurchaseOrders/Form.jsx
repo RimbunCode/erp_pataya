@@ -152,6 +152,9 @@ function Form() {
         cell({ dataRow, setData, attributes }) {
           return (
             <ItemVariantLinkModel
+              filters={{
+                is_stock_item: true,
+              }}
               placeholder={t("purchase.purchaseOrder.columns.item.placeholder")}
               value={dataRow?.item}
               onValueChange={(val) => {
@@ -205,7 +208,6 @@ function Form() {
       {
         name: "required_date",
         titleTrans: "purchase.purchaseOrder.columns.required_date",
-        required: true,
         type: "date",
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
@@ -246,7 +248,6 @@ function Form() {
       {
         name: "unit",
         titleTrans: "purchase.purchaseOrder.columns.unit",
-        required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
             <UnitLinkModel

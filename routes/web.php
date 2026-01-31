@@ -133,6 +133,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class, isSubmmitable: true);
   // Purchase Receipt
   Route::resourceDetail('purchaseReceipt', \App\Http\Controllers\Purchase\PurchaseReceiptController::class, isSubmmitable: true);
+  // Purchase Return
+  Route::resourceDetail('purchaseReturn', \App\Http\Controllers\Purchase\PurchaseReturnController::class, isSubmmitable: true);
   /// Purchase Group End
 
   // Customer

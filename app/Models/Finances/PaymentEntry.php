@@ -71,4 +71,8 @@ class PaymentEntry extends Model {
   public function partyable() {
     return $this->morphTo('partyable');
   }
+
+  public function paymentSchedules() {
+    return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')->orderBy('payment_date', 'asc');
+  }
 }

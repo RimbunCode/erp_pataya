@@ -16,7 +16,6 @@ return new class extends Migration
       $table->foreignUlid('item_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->foreignUlid('unit_id')->references('id')->on('units')->cascadeOnDelete();
       $table->nullableUlidMorphs('referenceable');
-      $table->foreignUlid('source_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
       $table->double('quantity')->default(0);
       $table->double('price')->default(0);
       $table->double('price_base_currency')->default(0);

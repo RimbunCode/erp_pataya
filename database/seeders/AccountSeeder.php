@@ -20,6 +20,7 @@ class AccountSeeder extends Seeder {
           'account_name'      => $account['account_name'],
           'have_transactions' => true,
           ...$account,
+          'account_type'      => ($account['is_group'] ?? false) ? null : $account['account_type'] ?? null,
           ...($accountParent ? [
             'parent_id'    => $accountParent->id,
             'root_type'    => $accountParent->root_type,
@@ -162,12 +163,17 @@ class AccountSeeder extends Seeder {
                   [
                     'account_name'   => 'Hutang Dagang Dalam Negeri',
                     'account_number' => '2211',
-                    'account_type'   => 'payable',
+                    'is_group'       => true,
                   ],
                   [
                     'account_name'   => 'Hutang Dagang Luar Negeri',
                     'account_number' => '2212',
-                    'account_type'   => 'payable',
+                    'is_group'       => true,
+                  ],
+                  [
+                    'account_name'   => 'Stock Diterima Tapi Belum Dibayar',
+                    'account_number' => '2214',
+                    'account_type'   => 'stock_received_but_not_billed',
                   ],
                 ],
               ],
@@ -182,6 +188,11 @@ class AccountSeeder extends Seeder {
                     'account_type'   => 'expense_included_in_valuation',
                   ],
                 ],
+              ],
+              [
+                'account_name'   => 'Hutang Pajak',
+                'account_number' => '2230',
+                'account_type'   => 'payable',
               ],
             ],
           ],

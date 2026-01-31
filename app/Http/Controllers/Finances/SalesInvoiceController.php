@@ -101,7 +101,7 @@ class SalesInvoiceController extends Controller {
     $this->setBreadcrumbs($salesInvoice);
     $salesInvoice->showDetail();
 
-    return Inertia::render('Finances/SalesInvoices/Show', [
+    return Inertia::render('Finances/SalesInvoice/Show', [
       'salesInvoice' => function () use ($salesInvoice) {
         $salesInvoice->loadRelations();
         return $salesInvoice;
@@ -128,6 +128,21 @@ class SalesInvoiceController extends Controller {
   public function submit(SalesInvoice $salesInvoice) {
     $salesInvoice = $this->service->submit($salesInvoice);
     return redirect()->back();
+  }
+
+  public function onApproved(SalesInvoice $salesInvoice) {
+    $this->service->onApproved($salesInvoice);
+    return back();
+  }
+
+  public function onRejected(SalesInvoice $salesInvoice) {
+    $this->service->onRejected($salesInvoice);
+    return back();
+  }
+
+  public function cancel(SalesInvoice $salesInvoice) {
+    $this->service->cancel($salesInvoice);
+    return back();
   }
 
   /**

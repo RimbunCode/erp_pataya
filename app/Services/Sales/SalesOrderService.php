@@ -74,7 +74,10 @@ class SalesOrderService {
     }
     foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesOrder);
-      $salesOrder->paymentSchedules()->create($payment_schedule);
+      $salesOrder->paymentSchedules()->create(attributes: [
+        ...$payment_schedule,
+        'for_internal' => false,
+      ]);
     }
     $salesOrder->logForCreated();
     return $salesOrder;
@@ -109,7 +112,10 @@ class SalesOrderService {
         $salesOrder->paymentSchedules()->find($payment_schedule['id'])->update($payment_schedule);
         continue;
       }
-      $salesOrder->paymentSchedules()->create($payment_schedule);
+      $salesOrder->paymentSchedules()->create(attributes: [
+        ...$payment_schedule,
+        'for_internal' => false,
+      ]);
     }
 
     $salesOrder->logForUpdated();
@@ -142,7 +148,7 @@ class SalesOrderService {
     $items      = $salesOrder->items()
       ->with(['item', 'item.item.category'])
       ->get();
-    $isValid    = ! $salesOrder->is_rent;
+    $isValid    = !$salesOrder->is_rent;
     $errorItems = [];
     foreach ($items as $item) {
       $stock = Stock::lockForUpdate()
@@ -155,7 +161,7 @@ class SalesOrderService {
       if ($salesOrder->is_rent && $availableToRent) {
         $isValid = true;
       }
-      if (! $stock) {
+      if (!$stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
       }
@@ -166,7 +172,7 @@ class SalesOrderService {
       }
       $stock->updateDetails('increment', 'reservations', $salesOrder->code, $quantity);
     }
-    if (! $isValid) {
+    if (!$isValid) {
       $errorItems[] = "This order is not valid for renting";
     }
     if (\count($errorItems) > 0) {

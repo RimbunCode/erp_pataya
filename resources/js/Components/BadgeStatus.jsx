@@ -20,10 +20,11 @@ const theme = {
   overdue: "error",
   to_bill: "warning",
   to_deliver: "warning",
-  partially_received: "warning",
-  received: "success",
   returned: "gray",
   in_rent: "primary",
+  to_receive: "warning",
+  received: "success",
+  partially_received: "warning",
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();

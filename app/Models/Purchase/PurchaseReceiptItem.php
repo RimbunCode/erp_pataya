@@ -28,4 +28,8 @@ class PurchaseReceiptItem extends Model {
   public function targetWarehouse() {
     return $this->belongsTo(Warehouse::class);
   }
+
+  public function returnAgainstItem() {
+    return $this->belongsTo(PurchaseReceiptItem::class, 'return_against_item_id');
+  }
 }

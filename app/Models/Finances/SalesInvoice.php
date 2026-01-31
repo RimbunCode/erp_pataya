@@ -82,6 +82,24 @@ class SalesInvoice extends Model {
     ],
   ];
 
+  protected static function loadRelationsOnShow() {
+    return [
+      'salesOrder',
+      'customer',
+      'customer_branch',
+      'branch',
+      'currency',
+      'items',
+      'items.item',
+      'items.tax',
+      'items.unit',
+      'items.sourceWarehouse',
+      'paymentSchedules',
+      'paymentSchedules.paymentTerm',
+      'paymentSchedules.paymentMethod',
+    ];
+  }
+
   public function salesOrder() {
     return $this->belongsTo(SalesOrder::class, 'sales_order_id');
   }

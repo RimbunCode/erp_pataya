@@ -5,6 +5,7 @@ namespace App\Services\Finances;
 use App\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
+use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrder;
@@ -45,6 +46,7 @@ class PurchaseInvoiceService {
     $data['currency_code']      = $purchaseInvoice->currency_code;
     $data['base_currency_code'] = $purchaseInvoice->base_currency_code;
     $data['exchange_rate']      = $purchaseInvoice->exchange_rate;
+    $data['for_internal']       = true;
 
     if (isset($data['payment_term'])) {
       $data['payment_term_id'] = $data['payment_term']['id'];
@@ -114,19 +116,67 @@ class PurchaseInvoiceService {
 
   public function onApproved(PurchaseInvoice $purchaseInvoice) {
     DB::beginTransaction();
-    $purchaseInvoice->update([
-      'status' => [
-        FormStatus::TO_BILL,
-      ],
-    ]);
-    ModelConnection::create([
-      'model_id'       => $purchaseInvoice->id,
-      'model_type'     => PurchaseInvoice::class,
-      'reference_id'   => $purchaseInvoice->purchase_order_id,
-      'reference_type' => PurchaseOrder::class,
-    ]);
-    DB::commit();
-    return $purchaseInvoice;
+
+    try {
+      $purchaseInvoice->update([
+        'status' => FormStatus::UNPAID,
+      ]);
+
+      // Create payment schedule if needed
+      if ($purchaseInvoice->paymentSchedules()->count() === 0) {
+        $purchaseInvoice->paymentSchedules()->create([
+          'payment_scheduleable_type' => PurchaseInvoice::class,
+          'payment_scheduleable_id'   => $purchaseInvoice->id,
+          'payment_amount'            => $purchaseInvoice->amount,
+          'paid_amount'               => 0,
+          'for_internal'              => true,
+          'due_date'                  => now()->addDays(30),
+          'exchange_rate'             => $purchaseInvoice->exchange_rate ?? 1,
+          'currency_code'             => $purchaseInvoice->currency_code,
+          'base_currency_code'        => $purchaseInvoice->base_currency_code,
+          'description'               => "Auto generated from Purchase Invoice {$purchaseInvoice->code}",
+        ]);
+      }
+
+      $amount = $purchaseInvoice->amount;
+
+      // Account untuk Debit (Stock/Expense)
+      $debitAccount = Account::lockForUpdate()
+        ->where('root_type', 'asset')
+        ->where('account_type', 'stock')
+        ->firstOrFail();
+
+      // Account untuk Credit (Hutang ke supplier)
+      $creditAccount = Account::lockForUpdate()
+        ->where('root_type', 'liability')
+        ->where('account_type', 'payable')
+        ->firstOrFail();
+
+      // Entry 1: DEBIT Stock
+      $debitAccount->generalLedgerEntries()->create([
+        'against_account_id' => $creditAccount->id,
+        'debit'              => $amount,
+        'credit'             => 0,
+        'referenceable_type' => PurchaseInvoice::class,
+        'referenceable_id'   => $purchaseInvoice->id,
+      ]);
+
+      // Entry 2: CREDIT Accounts Payable
+      $creditAccount->generalLedgerEntries()->create([
+        'against_account_id' => $debitAccount->id,
+        'debit'              => 0,
+        'credit'             => $amount,
+        'referenceable_type' => PurchaseInvoice::class,
+        'referenceable_id'   => $purchaseInvoice->id,
+      ]);
+
+      DB::commit();
+      return $purchaseInvoice;
+
+    } catch (\Exception $e) {
+      DB::rollBack();
+      throw $e;
+    }
   }
 
   public function onRejected(PurchaseInvoice $purchaseInvoice) {

@@ -38,33 +38,84 @@ class PurchaseReceiptController extends Controller {
    * Show the form for creating a new resource.
    */
   public function create(Request $request, string $ref = null) {
-    $purchaseOrder = PurchaseOrder::with(
-      "items",
-      "supplier",
-      "items.item",
-      "items.unit",
-      "items.targetWarehouse",
-    )
-      ->find($ref);
-    $this->setBreadcrumbs('purchase.purchaseReceipt.new');
-    return Inertia::render('Purchase/PurchaseReceipt/Show', [
-      'defaultData' => [
-        'received_date'  => now(),
-        'purchase_order' => $purchaseOrder,
-        'supplier'       => $purchaseOrder->supplier,
-        'items'          => $purchaseOrder->items->map(function ($item) {
-          return [
-            'id'                     => Utils::generateRandom(5),
-            'purchase_order_item_id' => $item->id,
-            'item'                   => $item->item,
-            'description'            => $item->description,
-            'quantity'               => $item->quantity,
-            'unit'                   => $item->unit,
-            'target_warehouse'       => $item->targetWarehouse,
-          ];
-        }),
+    if ($ref) {
+      $split    = \explode("/", $ref);
+      $modelOri = $split[0] ?? null;
+      if ($modelOri) {
+        switch ($modelOri) {
+          case 'purchaseOrder': {
+            $purchaseOrder = PurchaseOrder::find($split[1]);
+            if ($purchaseOrder) {
+              $purchaseReceipt = PurchaseReceipt::where('purchase_order_id', $purchaseOrder->id)
+                ->where('status', 'draft')
+                ->where('created_by', $request->user()->id)
+                ->first();
+              if ($purchaseReceipt) {
+                return redirect()->route('purchaseReceipts.show', $purchaseReceipt);
+              }
+              $purchaseOrder->loadRelations();
 
-      ],
+              $defaultData = [
+                'received_date'  => now(),
+                'purchase_order' => $purchaseOrder,
+                'supplier'       => $purchaseOrder->supplier,
+                'items'          => $purchaseOrder->items->map(function ($item) {
+                  return [
+                    'id'                     => Utils::generateRandom(5),
+                    'purchase_order_item_id' => $item->id,
+                    'item'                   => $item->item,
+                    'description'            => $item->description,
+                    'quantity'               => $item->quantity,
+                    'unit'                   => $item->unit,
+                    'target_warehouse'       => $item->targetWarehouse,
+                  ];
+                }),
+
+              ];
+            }
+            break;
+          }
+          case 'purchaseReceipt': {
+            $purchaseReceiptTarget = PurchaseReceipt::find($split[1]);
+            if ($purchaseReceiptTarget) {
+              $purchaseReceipt = PurchaseReceipt::where('return_against_id', $purchaseReceiptTarget->id)
+                ->where('status', 'draft')
+                ->where('created_by', $request->user()->id)
+                ->first();
+              if ($purchaseReceipt) {
+                return redirect()->route('purchaseReceipts.show', $purchaseReceipt);
+              }
+
+              $purchaseReceiptTarget->loadRelations();
+              $defaultData = [
+                'return_against' => $purchaseReceiptTarget,
+                'received_date'  => now(),
+                'purchase_order' => $purchaseReceiptTarget->purchaseOrder,
+                'supplier'       => $purchaseReceiptTarget->supplier,
+                'items'          => $purchaseReceiptTarget->items->map(function ($item) {
+                  return [
+                    'id'                     => Utils::generateRandom(5),
+                    'return_against_item_id' => $item->id,
+                    'purchase_order_item_id' => $item->purchase_order_item_id,
+                    'item'                   => $item->item,
+                    'description'            => $item->description,
+                    'quantity'               => $item->quantity,
+                    'unit'                   => $item->unit,
+                    'target_warehouse'       => $item->targetWarehouse,
+                  ];
+                }),
+
+              ];
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    $this->setBreadcrumbs('purchase.purchaseReceipt.new');
+    return Inertia::render('Purchase/PurchaseReceipts/Show', [
+      'defaultData' => $defaultData ?? [],
     ]);
   }
 
@@ -113,14 +164,46 @@ class PurchaseReceiptController extends Controller {
   /**
    * Update the specified resource in storage.
    */
-  public function update(Request $request, string $id) {
-    //
+  public function update(PurchaseReceiptRequest $request, PurchaseReceipt $purchaseReceipt) {
+    $data = $request->validated();
+    DB::beginTransaction();
+
+    $this->service->update($purchaseReceipt, $data);
+
+    DB::commit();
+    return redirect()->back();
   }
 
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(string $id) {
-    //
+  public function destroy(PurchaseReceipt $purchaseReceipt) {
+    DB::beginTransaction();
+
+    $purchaseReceipt->delete();
+    $purchaseReceipt->logForDeleted();
+
+    DB::commit();
+    return redirect()->route('purchaseReceipts.index');
+  }
+
+  public function submit(PurchaseReceipt $purchaseReceipt) {
+    $this->service->submit($purchaseReceipt);
+    return redirect()->back();
+  }
+
+  public function onApproved(PurchaseReceipt $purchaseReceipt) {
+    $this->service->onApproved($purchaseReceipt);
+    return redirect()->back();
+  }
+
+  public function onRejected(PurchaseReceipt $purchaseReceipt) {
+    $this->service->onRejected($purchaseReceipt);
+    return redirect()->back();
+  }
+
+  public function cancel(PurchaseReceipt $purchaseReceipt) {
+    $this->service->cancel($purchaseReceipt);
+    return redirect()->back();
   }
 }

@@ -32,7 +32,7 @@ class PurchaseReceipt extends Model {
   public $translateKey = 'purchase.purchaseReceipt';
 
   protected static function loadRelationsOnShow() {
-    return ['items', 'items.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder',];
+    return ['items', 'items.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
   }
   protected $configColumns = [
     'code'          => [
@@ -52,6 +52,10 @@ class PurchaseReceipt extends Model {
       'show'  => true,
       'order' => 3,
     ],
+    'status'        => [
+      'show'  => true,
+      'order' => 4,
+    ],
   ];
 
   public function purchaseOrder() {
@@ -68,5 +72,9 @@ class PurchaseReceipt extends Model {
 
   public function paymentSchedules() {
     return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')->orderBy('payment_date', 'asc');
+  }
+
+  public function returnAgainst() {
+    return $this->belongsTo(PurchaseReceipt::class, 'return_against_id');
   }
 }

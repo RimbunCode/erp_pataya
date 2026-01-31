@@ -19,11 +19,14 @@ class PurchaseReceiptRequest extends FormRequest {
    */
   public function rules(): array {
     return [
+      'return_against.id'              => ['nullable', 'exists:purchase_receipts,id'],
       'received_date'                  => ['required', 'date'],
       'purchase_order.id'              => ['required', 'exists:purchase_orders,id'],
       'supplier.id'                    => ['required', 'exists:suppliers,id'],
       'external_note'                  => ['nullable', 'string'],
       'items'                          => ['required', 'array', 'min:1'],
+      'items.*.id'                     => ['required', 'string'],
+      'items.*.return_against_item_id' => ['nullable', 'exists:purchase_receipt_items,id'],
       'items.*.purchase_order_item_id' => ['nullable', 'exists:purchase_order_items,id'],
       'items.*.item.id'                => ['required', 'exists:item_variants,id'],
       'items.*.item.*'                 => ['nullable'],
