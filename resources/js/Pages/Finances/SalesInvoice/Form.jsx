@@ -3,7 +3,8 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
+import { calculateArray, generateRandom } from "@/lib/utils";
 
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
@@ -13,23 +14,23 @@ import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
-import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
-import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
+import PaymentSchedule from "../Components/PaymentSchedule";
 import SalesOrderLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderLinkModel";
 import Select from "@/Components/Select";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
-import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { calculateArray, generateRandom } from "@/lib/utils";
+import { date } from "zod";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import PaymentSchedule from "../Components/PaymentSchedule";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, disabled } = useFormPage({
+    date: new Date(),
+  });
   const { default_currency_id } = usePage().props.preferences;
+
   const amount = useMemo(() => {
     return calculateArray(data.items, "amount", "+");
   }, [data.items]);

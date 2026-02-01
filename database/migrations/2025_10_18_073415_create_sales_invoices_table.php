@@ -13,6 +13,8 @@ return new class extends Migration
     Schema::create('sales_invoices', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->timestamp('date');
+      $table->foreignUlid('return_against_id')->nullable()->references('id')->on('sales_invoices')->nullOnDelete();
+      $table->foreignUlid('account_debit_id')->nullable()->references('id')->on('accounts')->nullOnDelete();
       $table->foreignUlid('customer_id')->nullable()->references('id')->on('customers')->nullOnDelete();
       $table->string('customer_name')->nullable();
       $table->foreignUlid('customer_branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();

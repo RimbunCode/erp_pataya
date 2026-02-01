@@ -27,7 +27,7 @@ class DataTableScope implements Scope {
 
   protected function addDataTable(Builder $builder) {
     $builder->macro('dataTable', function (Builder $query, Request $request, array|null $showedColumns = null) {
-      $dataTableColumns = \get_class($query->getModel())::getColumns();
+      $dataTableColumns = \get_class($query->getModel())::getColumns(1);
       $configColumns    = array_column(\json_decode($_COOKIE['datatable_columns'] ?? "", true) ?? [], null, "name");
 
       $isSubmitable = $query->getModel()->isSubmitable();

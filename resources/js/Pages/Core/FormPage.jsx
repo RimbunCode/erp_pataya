@@ -383,11 +383,83 @@ const FormChildren = memo(function FormChildren({
 
 const FormPageContext = createContext();
 /**
+ * @param {object|(() => object|Promise<object>)} defaultValue
+ * @param {{ trackDefaultValue?: boolean }} options
  * @typedef FormPageContextProps
- * @property {object} errors
  * @returns {FormPageContextProps}
  */
-const useFormPage = () => useContext(FormPageContext);
+const useFormPage = (defaultValue = {}, options = {}) => {
+  const { trackDefaultValue = true } = options ?? {};
+  const context = useContext(FormPageContext);
+  const appliedDefaultsRef = useRef(null);
+  const form = context?.form;
+  const stableDefaultRef = useRef(null);
+  const lastResolvedSerializedRef = useRef(null);
+  const shouldTrackDefaultValue =
+    trackDefaultValue || typeof defaultValue === "function";
+  const defaultValueEffectDep = shouldTrackDefaultValue
+    ? defaultValue
+    : trackDefaultValue;
+  const [resolvedDefaultValue, setResolvedDefaultValue] = useState(() => {
+    if (typeof defaultValue === "function") return {};
+    if (!shouldTrackDefaultValue) {
+      stableDefaultRef.current = defaultValue ?? {};
+      return stableDefaultRef.current;
+    }
+    return defaultValue ?? {};
+  });
+
+  useEffect(() => {
+    let isActive = true;
+    const resolveValue = async () => {
+      try {
+        const value =
+          typeof defaultValue === "function"
+            ? await defaultValue()
+            : shouldTrackDefaultValue
+              ? defaultValue
+              : (stableDefaultRef.current ??
+                (stableDefaultRef.current = defaultValue ?? {}));
+        if (!isActive) return;
+        const serializedResolved = JSON.stringify(value ?? {});
+        if (lastResolvedSerializedRef.current === serializedResolved) return;
+
+        lastResolvedSerializedRef.current = serializedResolved;
+        setResolvedDefaultValue(value ?? {});
+      } catch (error) {
+        console.error("Failed to resolve defaultValue in useFormPage", error);
+      }
+    };
+    resolveValue();
+    return () => {
+      isActive = false;
+    };
+  }, [defaultValueEffectDep, shouldTrackDefaultValue]);
+
+  const serializedDefaultValue = useMemo(
+    () => JSON.stringify(resolvedDefaultValue ?? {}),
+    [resolvedDefaultValue],
+  );
+  const memoizedDefaultValue = useMemo(
+    () => resolvedDefaultValue ?? {},
+    [serializedDefaultValue],
+  );
+
+  useEffect(() => {
+    if (!form) return;
+    if (Object.keys(memoizedDefaultValue ?? {}).length === 0) return;
+    if (appliedDefaultsRef.current === serializedDefaultValue) return;
+
+    appliedDefaultsRef.current = serializedDefaultValue;
+    form.setDefaults?.(memoizedDefaultValue);
+    form.setData?.((prev) => ({
+      ...(prev ?? {}),
+      ...memoizedDefaultValue,
+    }));
+  }, [form, memoizedDefaultValue, serializedDefaultValue]);
+
+  return context;
+};
 
 const FormPageProvider = memo(function FormPageProvider({
   children,
@@ -1395,7 +1467,7 @@ const FormPageDialog = memo(
 
     useEffect(() => {
       setDefaults(defaultValue ?? {});
-      reset();
+      _setData(defaultValue ?? {});
     }, [defaultValue]);
     useEffect(() => {
       if (!open) return;

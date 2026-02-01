@@ -272,7 +272,13 @@ trait LinkModel {
     return $newConfigs;
   }
 
-  public static function getColumns(...$excepts) {
+  /**
+   * Summary of getColumns
+   * @param int $maxDepth 0 = unlimited
+   * @param array[] $excepts
+   * @return array
+   */
+  public static function getColumns(int $maxDepth = 0, array ...$excepts) {
     $instance      = new static();
     $columns       = Schema::getColumns($instance->getTable());
     $casts         = $instance->getCasts();
@@ -324,6 +330,8 @@ trait LinkModel {
       ];
     }
 
+    $isContinueGetRelationColumns = $maxDepth == 0 || $maxDepth > 1;
+    $maxDepth--;
     foreach ($configColumns as $key => $relation) {
       $key    = \is_string($key) ? $key : $relation;
       $config = \is_array($relation) ? $relation : [];
@@ -373,7 +381,7 @@ trait LinkModel {
         'primaryKey'     => $rel->getRelated()->getKeyName(),
         'sortable'       => false,
         'titleTrans'     => $translateKey ? "$translateKey.columns.$newKey" : null,
-        "columns"        => $classRelation::getColumns(static::class, ...$excepts ?? []),
+        "columns"        => $isContinueGetRelationColumns ? $classRelation::getColumns(static::class, ...$excepts ?? []) : [],
         ...$config,
       ];
     }

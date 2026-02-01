@@ -27,7 +27,7 @@ class SalesInvoiceService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
