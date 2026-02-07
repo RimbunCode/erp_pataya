@@ -1,6 +1,8 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
+import { calculateArray, generateRandom } from "@/lib/utils";
+
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -8,17 +10,16 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
+import Select from "@/Components/Select";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
-import { calculateArray, generateRandom } from "@/lib/utils";
+import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
-import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
-import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
-import Select from "@/Components/Select";
 
 function Form() {
   const { t } = useLaravelReactI18n();
@@ -152,6 +153,9 @@ function Form() {
         cell({ dataRow, setData, attributes }) {
           return (
             <ItemVariantLinkModel
+              filters={{
+                is_stock_item: true,
+              }}
               placeholder={t("purchase.purchaseOrder.columns.item.placeholder")}
               value={dataRow?.item}
               onValueChange={(val) => {
@@ -205,7 +209,6 @@ function Form() {
       {
         name: "required_date",
         titleTrans: "purchase.purchaseOrder.columns.required_date",
-        required: true,
         type: "date",
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
@@ -246,7 +249,6 @@ function Form() {
       {
         name: "unit",
         titleTrans: "purchase.purchaseOrder.columns.unit",
-        required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
             <UnitLinkModel
@@ -626,13 +628,15 @@ function Form() {
         readOnly={disabled}
         value={data?.payment_schedules ?? []}
         onValueChange={(v) => setData("payment_schedules", v)}
-        mapItem={({ item }) => {
-          const payment_amount = amount * (item?.invoice_portion / 100);
-          return {
-            ...item,
-            payment_amount,
-            outstanding_amount: payment_amount,
-          };
+        additionalData={(value) => {
+          console.log(value);
+          data.payment_schedules.map((item) => {});
+          // const payment_amount = amount * (item?.invoice_portion / 100);
+          // return {
+          //   ...item,
+          //   payment_amount,
+          //   outstanding_amount: payment_amount,
+          // };
         }}
         date={data?.date}
         currencyCode={data?.currency?.code}

@@ -3,10 +3,12 @@
 namespace App\Services\Purchase;
 
 use App\FormStatus;
+use App\Models\Finances\Account;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
@@ -19,16 +21,18 @@ class PurchaseReceiptService {
     if (isset($data['branch'])) {
       $data['branch_id'] = $data['branch']['id'];
     }
+    if (isset($data['return_against'])) {
+      $data['return_against_id'] = $data['return_against']['id'];
+    }
 
     return $data;
   }
 
   private function fillItemRelations(array $data) {
-    $data['purchase_order_item_id'] = $data['purchase_order_item']['id'] ?? null;
-    $data['item_id']                = $data['item']['id'];
-    $data['unit_id']                = $data['unit']['id'] ?? '';
-    $data['conversion_factor']      = ItemUnit::getConversionFactor($data['item']["item_id"], $data['unit_id']);
-    $data['target_warehouse_id']    = $data['target_warehouse']['id'] ?? '';
+    $data['item_id']             = $data['item']['id'];
+    $data['unit_id']             = $data['unit']['id'] ?? '';
+    $data['conversion_factor']   = ItemUnit::getConversionFactor($data['item']["item_id"], $data['unit_id']);
+    $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? '';
 
     return $data;
   }
@@ -73,88 +77,152 @@ class PurchaseReceiptService {
 
   public function onApproved(PurchaseReceipt $purchaseReceipt) {
     DB::beginTransaction();
+    $returnAgainst = $purchaseReceipt->returnAgainst;
     $purchaseReceipt->update([
-      'status' => FormStatus::COMPLETED,
+      'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::RECEIVED,
     ]);
 
-    $items           = $purchaseReceipt->items()->with('item', 'item.item', 'item.defaultUnit', 'unit', 'targetWarehouse')->get();
-    $orderItems      = $purchaseReceipt->purchaseOrder->items()->get();
-    $discountAmount  = $purchaseReceipt->purchaseOrder->discount_amount;
-    $discountPerItem = $discountAmount / $orderItems->count();
+    $purchaseOrder = $purchaseReceipt->purchaseOrder;
 
-    $idItems = $items->pluck('id');
-    // $totalAmount = $orderItems->sum('amount');
+    $items = $purchaseReceipt->items()
+      ->with([
+        'item',
+        'item.item',
+        'purchaseOrderItem',
+        'targetWarehouse',
+        'returnAgainstItem',
+      ])->get();
 
-    $totalOrderQty  = 0;
-    $totalNeededQty = 0;
-
-    foreach ($orderItems as $item) {
+    $totalRates = 0;
+    foreach ($items as $item) {
       $defaultUnit             = $item->item->defaultUnit;
       $defaultConvertionFactor = $item->item->conversion_factor;
-      $qtyTotal                = $item->quantity * ($item->conversion_factor / $defaultConvertionFactor);
-      $qtyNeeded               = $itemReceipt->quantity * ($item->conversion_factor / $defaultConvertionFactor);
-
-      if (!$idItems->contains($item->id)) {
-        $totalOrderQty += $qtyTotal;
-        continue;
-      }
-      $totalNeededQty += $qtyNeeded;
-
-      $itemReceipt = $orderItems->find('id', $item->id);
-
-      $item->item->updateHaveTransactions();
-      $item->item->item->updateHaveTransactions();
-      $defaultUnit             = $item->item->defaultUnit;
-      $defaultConvertionFactor = $item->item->conversion_factor;
-      $qtyTotal                = $item->quantity * ($item->conversion_factor / $defaultConvertionFactor);
-      $qtyNeeded               = $itemReceipt->quantity * ($item->conversion_factor / $defaultConvertionFactor);
-
-      $stockTarget = Stock::lockForUpdate()->firstOrCreate([
-        'item_id'      => $item->item_id,
-        'warehouse_id' => $item->target_warehouse_id,
+      $stock                   = Stock::lockForUpdate()->firstOrCreate([
+        'item_variant_id' => $item->item_id,
+        'warehouse_id'    => $item->target_warehouse_id,
       ], [
-        'unit_id'           => $defaultUnit->id,
         'conversion_factor' => $defaultConvertionFactor,
+        'unit_id'           => $defaultUnit->id,
         'stock_queue'       => [],
       ]);
+      $quantity                = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $queue                   = $stock->stock_queue;
 
-      // update queue fifo in target warehouse
-      $queue = $stockTarget->stock_queue;
+      $totalRate   = $item->purchaseOrderItem->rate * $quantity;
+      $totalRates += $totalRate;
 
-      // update if item receipt
-      $rate           = $item->amount / $qtyTotal;
-      $totalAmount    = $item->amount;
-      $discountRate   = $totalAmount != 0
-        ? ($rate / $totalAmount) * $discountPerItem
-        : 0;
-      $valuation_rate = $rate - $discountRate;
-      $queue[]        = [
-        'rate'     => $valuation_rate,
-        'quantity' => $qtyNeeded,
+      if ($returnAgainst) {
+        for ($i = \count($queue) - 1; $i >= 0; $i--) {
+          if ($queue[$i]['rate'] == $item->purchaseOrderItem->rate) {
+            $queue[$i]['quantity'] -= $quantity;
+            break;
+          }
+        }
+
+        $stock->update([
+          'stock_queue' => $queue,
+          'quantity'    => $stock->quantity - $quantity,
+        ]);
+
+        $item->returnAgainstItem->increment('returned_quantity', $quantity);
+        $item->purchaseOrderItem->decrement('received_quantity', $quantity);
+
+        StockLedgerEntry::create([
+          'item_id'               => $item->item_id,
+          'warehouse_id'          => $item->target_warehouse_id,
+          'unit_id'               => $defaultUnit->id,
+          'conversion_factor'     => $defaultConvertionFactor,
+          'quantity_change'       => -$quantity,
+          'quantity_after_change' => $stock->actual_quantity,
+          'valuation_rate'        => $stock->valuation_rate,
+          'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'change_in_stock_value' => -$totalRate,
+          'stock_queue'           => $stock->stock_queue,
+          'referenceable_type'    => PurchaseReceipt::class,
+          'referenceable_id'      => $purchaseReceipt->id,
+        ]);
+        continue;
+      }
+
+      $queue[] = [
+        'rate'     => $item->purchaseOrderItem->rate,
+        'quantity' => $quantity,
       ];
 
-      $stockTarget->update([
-        'actual_quantity' => $stockTarget->actual_quantity + $qtyNeeded,
-        'stock_queue'     => $queue,
+      $stock->update([
+        'stock_queue' => $queue,
+        'quantity'    => $stock->quantity + $quantity,
       ]);
+      $item->purchaseOrderItem->increment('received_quantity', $quantity);
+
       StockLedgerEntry::create([
         'item_id'               => $item->item_id,
         'warehouse_id'          => $item->target_warehouse_id,
         'unit_id'               => $defaultUnit->id,
         'conversion_factor'     => $defaultConvertionFactor,
-        'quantity_change'       => $qtyNeeded,
-        'quantity_after_change' => $stockTarget->actual_quantity,
-        'valuation_rate'        => $stockTarget->valuation_rate,
-        'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stockTarget->stock_queue)),
-        'change_in_stock_value' => $valuation_rate * $qtyNeeded,
-        'stock_queue'           => $stockTarget->stock_queue,
-        'referenceable_type'    => $purchaseReceipt::class,
+        'quantity_change'       => $quantity,
+        'quantity_after_change' => $stock->actual_quantity,
+        'valuation_rate'        => $stock->valuation_rate,
+        'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+        'change_in_stock_value' => $totalRate,
+        'stock_queue'           => $stock->stock_queue,
+        'referenceable_type'    => PurchaseReceipt::class,
         'referenceable_id'      => $purchaseReceipt->id,
       ]);
+
     }
 
-    $purchaseReceipt->purchaseOrder->update([
-      'status' => $totalOrderQty == $totalNeededQty ? FormStatus::RECEIVED : FormStatus::PARTIALLY_RECEIVED,
+    $unreceived_items     = $purchaseOrder->items()->select('remaining_quantity', 'quantity');
+    $countUnreceivedItems = $unreceived_items->sum('remaining_quantity');
+    $sumQuantity          = $unreceived_items->sum('quantity');
+    if ($countUnreceivedItems == $sumQuantity) {
+      $status = Utils::replaceStatus(
+        $purchaseOrder->status,
+        [FormStatus::RECEIVED, FormStatus::PARTIALLY_RECEIVED],
+        FormStatus::TO_RECEIVE,
+      );
+    } else if ($countUnreceivedItems > 0) {
+      $status = Utils::replaceStatus(
+        $purchaseOrder->status,
+        FormStatus::TO_RECEIVE,
+        FormStatus::PARTIALLY_RECEIVED,
+      );
+    } else {
+      $status = Utils::replaceStatus(
+        $purchaseOrder->status,
+        [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED],
+        FormStatus::RECEIVED,
+      );
+    }
+
+    $purchaseOrder->update([
+      'status' => $status,
+    ]);
+
+    $debitAccount = Account::lockForUpdate()
+      ->where('root_type', 'asset')
+      ->where('account_type', 'stock')
+      ->latest()->first();
+
+    $creditAccount = Account::lockForUpdate()
+      ->where('root_type', 'liability')
+      ->where('account_type', 'stock_received_but_not_billed')
+      ->latest()->first();
+
+    $creditAccount->generalLedgerEntries()->create([
+      'against_account_id' => $debitAccount->id,
+      'credit'             => $returnAgainst ? 0 : $totalRates,
+      'debit'              => $returnAgainst ? $totalRates : 0,
+      'referenceable_type' => PurchaseReceipt::class,
+      'referenceable_id'   => $purchaseReceipt->id,
+    ]);
+
+    $debitAccount->generalLedgerEntries()->create([
+      'against_account_id' => $creditAccount->id,
+      'credit'             => $returnAgainst ? $totalRates : 0,
+      'debit'              => $returnAgainst ? 0 : $totalRates,
+      'referenceable_type' => PurchaseReceipt::class,
+      'referenceable_id'   => $purchaseReceipt->id,
     ]);
 
     DB::commit();

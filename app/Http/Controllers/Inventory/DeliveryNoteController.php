@@ -94,6 +94,7 @@ class DeliveryNoteController extends Controller {
 
               $doTarget->loadRelations();
               $defaultData = [
+                'is_return'          => true,
                 'return_against'     => $doTarget,
                 'delivery_date'      => now(),
                 'customer'           => $doTarget->customer,

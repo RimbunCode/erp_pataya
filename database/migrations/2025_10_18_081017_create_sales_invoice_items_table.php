@@ -13,11 +13,13 @@ return new class extends Migration
     Schema::create('sales_invoice_items', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->foreignUlid('sales_invoice_id')->references('id')->on('sales_invoices')->cascadeOnDelete();
+      $table->foreignUlid('sales_order_item_id')->nullable()->references('id', 'sales_order_index')->on('sales_order_items')->nullOnDelete();
+      $table->foreignUlid('return_against_item_id')->nullable()->references('id')->on('sales_invoice_items')->nullOnDelete();
       $table->foreignUlid('item_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->foreignUlid('unit_id')->references('id')->on('units')->cascadeOnDelete();
-      $table->nullableUlidMorphs('referenceable');
-      $table->foreignUlid('source_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
       $table->double('quantity')->default(0);
+      $table->double('returned_quantity')->default(0);
+      $table->double('unreturned_quantity')->storedAs('quantity - returned_quantity');
       $table->double('price')->default(0);
       $table->double('price_base_currency')->default(0);
       $table->text('description')->nullable();

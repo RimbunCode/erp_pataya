@@ -70,7 +70,8 @@ return [
       'months_after_invoice_month' => 'Months after invoice month',
     ],
     'outstanding_amount'           => 'Outstanding Amount',
-
+    'return_against'               => 'Return Against Purchase Invoice',
+    'is_return'                    => 'Is Return (Debit Note)',
   ],
 
 ];

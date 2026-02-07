@@ -26,4 +26,11 @@ return [
   'skipped'                         => 'Skipped',
   'returned'                        => 'Returned',
   'in_rent'                         => 'In Rent',
+  'to_receive'                      => 'To Receive',
+  'received'                        => 'Received',
+  'partially_received'              => 'Partially Received',
+  'overdue'                         => 'Overdue',
+  'unpaid'                          => 'Unpaid',
+  'billed'                          => 'Billed',
+  'paid'                            => 'Paid',
 ];

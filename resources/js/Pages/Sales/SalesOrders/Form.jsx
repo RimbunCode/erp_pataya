@@ -3,6 +3,7 @@ import React, { memo, useCallback, useEffect, useMemo } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
 
+import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -15,20 +16,22 @@ import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import LinkModel from "@/Components/LinkModel";
 import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
 import SalesOrderLinkModel from "./SalesOrderLinkModel";
-import Select from "@/Components/Select";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import axios from "axios";
-import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import { useState } from "react";
 
 export default memo(function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage(
+    {
+      date: new Date(),
+    },
+    { trackDefaultValue: false },
+  );
   const { default_currency_id } = usePage().props.preferences;
   const loadFrom = usePage().props.loadFrom;
   const isLockDoc = useMemo(() => {
@@ -38,77 +41,15 @@ export default memo(function Form() {
 
     return false;
   }, [defaultData, data]);
-  const setDiscount = useCallback(
-    (key, value) => {
-      setData((prev) => {
-        let latestDiscountKey = prev.latestDiscountKey ?? "discount_rate";
-        let discount_on = prev.discount_on;
-        let discount_rate = prev.discount_rate ?? 0;
-        let discount_amount = prev.discount_amount ?? 0;
-        const net_total = calculateArray(prev.items, "basic_amount", "+");
-        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
-        if (key == "discount_on") {
-          if (discount_on == value) return prev;
-          discount_on = value;
-          if (!value)
-            return {
-              ...prev,
-              discount_on,
-              discount_rate: undefined,
-              discount_amount: undefined,
-              latestDiscountKey,
-            };
-        }
-        const total =
-          discount_on == "grand_total"
-            ? net_total + tax_amount
-            : discount_on == "net_total"
-              ? net_total
-              : 0;
 
-        if (key == "discount_on") {
-          key = latestDiscountKey;
-          value = prev[key] ?? 0;
-        }
-        if (key == "discount_rate") {
-          latestDiscountKey = "discount_rate";
-          discount_rate = value;
-          discount_amount = (total * discount_rate) / 100;
-        }
-        if (key == "discount_amount") {
-          latestDiscountKey = "discount_amount";
-          discount_amount = value;
-          discount_rate = (discount_amount * 100) / total;
-        }
-        if (
-          !(
-            prev.discount_on != discount_on ||
-            prev.discount_rate != discount_rate ||
-            prev.discount_amount != discount_amount
-          )
-        ) {
-          return prev;
-        }
-        return {
-          ...prev,
-          discount_on,
-          discount_rate,
-          discount_amount,
-          latestDiscountKey,
-        };
-      });
-    },
-    [data],
-  );
-
-  const asyncUpdateAdditionalData = useCallback(async (value, idChanges) => {
+  const asyncAdditionalData = useCallback(async (value, idChanges) => {
     return await axios.post(window.route("itemVariants.info"), {
       data: value,
       idChanges,
     });
   }, []);
 
-  const net_total = useMemo(() => {
+  const net_amount = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
@@ -116,15 +57,9 @@ export default memo(function Form() {
     return calculateArray(data.items, "tax_amount", "+");
   }, [data.items]);
 
-  useDidMountEffect(() => {
-    const latestKey = data.latestDiscountKey ?? "discount_rate";
-    setDiscount(latestKey, data[latestKey] ?? 0);
-  }, [net_total, tax_amount]);
-
   const amount = useMemo(() => {
-    return net_total + tax_amount - data.discount_amount;
-  }, [net_total, tax_amount, data.discount_amount]);
-
+    return net_amount + tax_amount - (data?.discount_amount ?? 0);
+  }, [net_amount, tax_amount, data.discount_amount]);
   const mergeItems = useCallback(
     (value, model) => {
       setData((prev) => {
@@ -569,7 +504,7 @@ export default memo(function Form() {
             onValueChange={(v) => {
               setData("items", v);
             }}
-            asyncUpdateAdditionalData={asyncUpdateAdditionalData}
+            asyncAdditionalData={asyncAdditionalData}
             mapItem={({ item }) => {
               const amount = item.quantity * item.price;
               const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
@@ -588,7 +523,7 @@ export default memo(function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={net_total * (data?.exchange_rate ?? 1)}
+                  value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -601,7 +536,7 @@ export default memo(function Form() {
             <CurrencyInput
               decimalScale={2}
               className="text-right"
-              value={net_total}
+              value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -638,7 +573,7 @@ export default memo(function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={(net_total + tax_amount) * (data?.exchange_rate ?? 1)}
+                  value={(net_amount + tax_amount) * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -651,96 +586,19 @@ export default memo(function Form() {
             <CurrencyInput
               className="text-right"
               decimalScale={2}
-              value={net_total + tax_amount}
+              value={net_amount + tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("sales.salesOrder.columns.additional_discount")}
-        collapsible
-        defaultOpen
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput label={t("sales.salesOrder.columns.discount_on")}>
-            <Select
-              value={data.discount_on}
-              onValueChange={(val) => setDiscount("discount_on", val)}
-              placeholder={t(
-                "sales.salesOrder.columns.discount_on.placeholder",
-              )}
-              optionTrans="sales.salesOrder.columns.discount_on.options"
-              options={["net_total", "grand_total"]}
-            />
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("sales.salesOrder.columns.additional_discount_rate")}`}
-          >
-            <CurrencyInput
-              className="text-right"
-              value={data.discount_rate}
-              decimalScale={2}
-              onValueChange={(val) => setDiscount("discount_rate", val)}
-              suffix="%"
-              min={0}
-              max={100}
-            ></CurrencyInput>
-          </FormInput>
+      <AdditionalDiscount
+        data={data}
+        setData={setData}
+        netAmount={net_amount}
+        taxAmount={tax_amount}
+      />
 
-          <FormInput
-            className="col-start-2"
-            disabled={!data?.discount_on}
-            label={`${t("sales.salesOrder.columns.additional_discount_amount")}`}
-          >
-            <CurrencyInput
-              className="text-right "
-              value={data.discount_amount}
-              onValueChange={(val) => setDiscount("discount_amount", val)}
-              currencyCode={data?.currency?.code ?? "default"}
-              min={0}
-              max={
-                data.discount_on == "net_total"
-                  ? net_total
-                  : net_total + tax_amount
-              }
-            ></CurrencyInput>
-          </FormInput>
-        </div>
-      </FormPageContent>
-      {data.discount_on && (
-        <FormPageContent value="detail">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-4 border-t -mt-4 pt-4">
-            {data?.currency?.code &&
-              data?.currency?.code !== default_currency_id && (
-                <FormInput
-                  readOnly
-                  label={`${t("sales.salesOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
-                >
-                  <CurrencyInput
-                    className="text-right"
-                    value={amount * (data?.exchange_rate ?? 1)}
-                    currencyCode="default"
-                  ></CurrencyInput>
-                </FormInput>
-              )}
-            <FormInput
-              readOnly
-              label={`${t("sales.salesOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
-              className="col-start-2"
-            >
-              <CurrencyInput
-                className="text-right"
-                decimalScale={2}
-                value={amount}
-                currencyCode={data?.currency?.code ?? "default"}
-              ></CurrencyInput>
-            </FormInput>
-          </div>
-        </FormPageContent>
-      )}
       <FormPageContent
         value="detail"
         title={t("sales.salesOrder.columns.external_note")}
@@ -761,13 +619,18 @@ export default memo(function Form() {
         readOnly={disabled}
         value={data?.payment_schedules ?? []}
         onValueChange={(v) => setData("payment_schedules", v)}
-        mapItem={({ item }) => {
-          const payment_amount = amount * (item?.invoice_portion / 100);
-          return {
-            ...item,
-            payment_amount,
-            outstanding_amount: payment_amount,
-          };
+        additionalData={(value) => {
+          const result = {};
+          value?.forEach((item) => {
+            const payment_amount = (amount * item?.invoice_portion) / 100;
+
+            result[item.id] = {
+              payment_amount,
+              outstanding_amount: payment_amount,
+            };
+          });
+
+          return result;
         }}
         date={data?.date}
         currencyCode={data?.currency?.code}

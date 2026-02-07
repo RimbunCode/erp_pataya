@@ -10,6 +10,7 @@ import {
 } from "lodash";
 
 import { Buffer } from "buffer";
+import axios from "axios";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
@@ -343,4 +344,14 @@ export const getFonts = async () => {
     console.error(err.name, err.message);
     return [];
   }
+};
+
+export const getDataModel = async (model, filters, options = {}) => {
+  const result = await axios.post(window.route("model"), {
+    model,
+    filters,
+    ...options,
+  });
+  const data = result?.data?.data;
+  return options.limit == 1 ? data[0] : data;
 };

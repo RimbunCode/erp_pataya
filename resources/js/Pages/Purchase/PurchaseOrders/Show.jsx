@@ -46,7 +46,7 @@ export default function Show({ purchaseOrder, required_date, loadFrom }) {
                 <DropdownMenuContent>
                   <DropdownMenuItem asChild>
                     <Link
-                      href={route("purchaseOrders.create", {
+                      href={route("purchaseReceipts.create", {
                         ref: `purchaseOrder/${purchaseOrder?.id}`,
                       })}
                     >

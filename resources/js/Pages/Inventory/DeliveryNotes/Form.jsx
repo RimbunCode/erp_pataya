@@ -20,7 +20,14 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData } = useFormPage();
+  const { data, setData, defaultData } = useFormPage(
+    {
+      delivery_date: new Date(),
+    },
+    {
+      trackDefaultValue: false,
+    },
+  );
   const itemColumns = useMemo(() => {
     return [
       {
@@ -142,143 +149,168 @@ export default function Form() {
         value="detail"
         title={t("inventory.deliveryNote.detail")}
       >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput
-            name="date"
-            label={t("inventory.deliveryNote.columns.delivery_date")}
-            required
-          >
-            <DatetimePicker
-              type="datetime"
-              value={data?.delivery_date}
-              onValueChange={(val) => {
-                setData("delivery_date", val);
-              }}
-            />
-          </FormInput>
-          <FormInput
-            label={t("inventory.deliveryNote.columns.reference_to")}
-            className="col-start-1"
-            required
-            name="reference_to"
-          >
-            <PermissionLinkModel
-              filters={{
-                model: { in: ["App\\Models\\Sales\\SalesOrder"] },
-              }}
-              value={data.model}
-              onValueChange={(val) => {
-                setData("model", val);
-              }}
-            />
-          </FormInput>
-          <FormInput
-            label={data.model?.name ?? "-"}
-            name="referenceable"
-            required
-            disabled={!data.model}
-          >
-            <LinkModel
-              model={data.model?.model ?? ""}
-              disabledAddButton
-              filters={{
-                date: {
-                  "<=": data?.delivery_date ?? new Date().toISOString(),
-                },
-                status: {
-                  jsonContains: defaultData?.return_against
-                    ? ["delivered", "partially_delivered"]
-                    : ["to_deliver", "partially_delivered"],
-                },
-              }}
-              with={[
-                "items",
-                "customer",
-                "customer_branch",
-                "items.item",
-                "items.unit",
-                "items.sourceWarehouse",
-              ]}
-              value={data.referenceable}
-              onValueChange={(val) => {
-                setData((prev) => {
-                  return {
-                    ...prev,
-                    referenceable: val,
-                    referenceable_type: data.model?.model,
-                    referenceable_id: val?.id,
-                    customer: val?.customer,
-                    customer_branch: val?.customer_branch,
-                    items: val?.items.map((item) => {
-                      return {
-                        ...item,
-                        id: generateRandom(8),
-                        referenceable_type: data.model?.model + "Item",
-                        referenceable_id: item.id,
-                        quantity: item.undelivered_quantity,
-                        required_quantity: item.undelivered_quantity,
-                      };
-                    }),
-                    external_note: val?.external_note,
-                  };
-                });
-              }}
-            />
-          </FormInput>
-          <FormInput
-            className="col-start-1"
-            label={t("inventory.deliveryNote.customer")}
-            required={true}
-            name="customer"
-            readOnly
-          >
-            <CustomerLinkModel
-              disabled={data.for_internal}
-              with={["branches"]}
-              value={data.for_internal ? "" : data.customer}
-              onValueChange={(val) => {
-                if (val?.branches?.length <= 1) {
-                  setData("customer_branch", val.branches?.[0]);
-                }
-                setData("customer", val);
-              }}
-            />
-          </FormInput>
-          <FormInput
-            label={t("inventory.deliveryNote.branch")}
-            required
-            name="customer_branch"
-            readOnly
-          >
-            <BranchLinkModel
-              disabled={!data.customer}
-              value={data.customer_branch}
-              onValueChange={(val) => setData("customer_branch", val)}
-              disabledNavigation={true}
-              filters={{
-                branchable_type: "App\\Models\\Sales\\Customer",
-                branchable_id: data.customer?.id ?? null,
-              }}
-            />
-          </FormInput>
-          {defaultData?.return_against && (
-            <>
-              <FormCheckbox
-                name="is_return"
-                readOnly
-                label={t("inventory.deliveryNote.columns.is_return")}
-                checked={!!data.return_against}
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 [&>div]:grid [&>div]:gap-y-4 [&>div]:grid-cols-1 [&>div]:content-start">
+          <div>
+            <FormInput
+              name="date"
+              label={t("inventory.deliveryNote.columns.delivery_date")}
+              required
+            >
+              <DatetimePicker
+                type="datetime"
+                value={data?.delivery_date}
+                onValueChange={(val) => {
+                  setData("delivery_date", val);
+                }}
               />
+            </FormInput>
+            <FormInput
+              label={t("inventory.deliveryNote.columns.reference_to")}
+              className="col-start-1"
+              required
+              disabled={data.is_return && !data.model}
+              readOnly={data.is_return}
+              name="reference_to"
+            >
+              <PermissionLinkModel
+                filters={{
+                  model: { in: ["App\\Models\\Sales\\SalesOrder"] },
+                }}
+                value={data.model}
+                onValueChange={(val) => {
+                  setData("model", val);
+                }}
+              />
+            </FormInput>
+            <FormInput
+              label={data.model?.name ?? "-"}
+              name="referenceable"
+              required
+              disabled={!data.model}
+              readOnly={data.is_return}
+            >
+              <LinkModel
+                model={data.model?.model ?? ""}
+                disabledAddButton
+                filters={{
+                  date: {
+                    "<=": data?.delivery_date ?? new Date().toISOString(),
+                  },
+                  status: {
+                    jsonContains: defaultData?.return_against
+                      ? ["delivered", "partially_delivered"]
+                      : ["to_deliver", "partially_delivered"],
+                  },
+                }}
+                with={[
+                  "items",
+                  "customer",
+                  "customer_branch",
+                  "items.item",
+                  "items.unit",
+                  "items.sourceWarehouse",
+                ]}
+                value={data.referenceable}
+                onValueChange={(val) => {
+                  setData((prev) => {
+                    return {
+                      ...prev,
+                      referenceable: val,
+                      referenceable_type: data.model?.model,
+                      referenceable_id: val?.id,
+                      customer: val?.customer,
+                      customer_branch: val?.customer_branch,
+                      items: val?.items.map((item) => {
+                        return {
+                          ...item,
+                          id: generateRandom(8),
+                          referenceable_type: data.model?.model + "Item",
+                          referenceable_id: item.id,
+                          quantity: item.undelivered_quantity,
+                          required_quantity: item.undelivered_quantity,
+                        };
+                      }),
+                      external_note: val?.external_note,
+                    };
+                  });
+                }}
+              />
+            </FormInput>
+          </div>
+          <div>
+            <FormCheckbox
+              className="mt-8 mb-3"
+              name="is_return"
+              label={t("inventory.deliveryNote.columns.is_return")}
+              checked={data.is_return || data.return_against}
+              onCheckedChange={(val) =>
+                setData((prev) => ({
+                  ...prev,
+                  is_return: val,
+                  return_against: undefined,
+                }))
+              }
+            />
+            {data.is_return && (
               <FormInput
                 className="col-start-1"
                 label={t("inventory.deliveryNote.columns.return_against")}
                 name="return_against"
-                readOnly
+                required
               >
-                <DeliveryNoteLinkModel value={data.return_against} />
+                <DeliveryNoteLinkModel
+                  filters={{
+                    date: {
+                      "<=": data?.date ?? new Date().toISOString(),
+                    },
+                    status: {
+                      jsonContains: ["partially_delivered", "delivered"],
+                    },
+                  }}
+                  value={data.return_against}
+                  onValueChange={(val) => {
+                    setData("return_against", val);
+                  }}
+                />
               </FormInput>
-            </>
-          )}
+            )}
+            <FormInput
+              className="col-start-1"
+              label={t("inventory.deliveryNote.customer")}
+              required={true}
+              name="customer"
+              readOnly
+              disabled={!data.referenceable}
+            >
+              <CustomerLinkModel
+                with={["branches"]}
+                value={data.for_internal ? "" : data.customer}
+                onValueChange={(val) => {
+                  if (val?.branches?.length <= 1) {
+                    setData("customer_branch", val.branches?.[0]);
+                  }
+                  setData("customer", val);
+                }}
+              />
+            </FormInput>
+            <FormInput
+              label={t("inventory.deliveryNote.branch")}
+              required
+              name="customer_branch"
+              readOnly
+            >
+              <BranchLinkModel
+                disabled={!data.customer}
+                value={data.customer_branch}
+                onValueChange={(val) => setData("customer_branch", val)}
+                disabledNavigation={true}
+                filters={{
+                  branchable_type: "App\\Models\\Sales\\Customer",
+                  branchable_id: data.customer?.id ?? null,
+                }}
+              />
+            </FormInput>
+          </div>
         </div>
       </FormPageContent>
       <FormPageContent value="detail" title={t("inventory.deliveryNote.items")}>

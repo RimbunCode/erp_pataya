@@ -14,11 +14,12 @@ class UnitController extends Controller {
   public function __construct(Request $request) {
     parent::__construct($request, Unit::class);
   }
+
   /**
    * Display a listing of the resource.
    */
   public function index(Request $request) {
-    if (!$this->isInertiaRequest($request)) {
+    if (! $this->isInertiaRequest($request)) {
       if ($request->has('group')) {
         $units = Unit::where('group', $request->group)
           ->whereNotNull('conversion_factor');
@@ -36,7 +37,7 @@ class UnitController extends Controller {
   }
 
   public function getGroups(Request $request, string $search = null) {
-    if (!$this->isInertiaRequest($request)) {
+    if (! $this->isInertiaRequest($request)) {
       $groups = Unit::select('group')
         ->distinct();
       if ($search) {
@@ -62,7 +63,7 @@ class UnitController extends Controller {
   public function store(UnitRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    if ($data['customable'] == true) {
+    if (($data['customable'] ?? false) == true) {
       $data['conversion_factor'] = null;
     }
     $unit = Unit::create($data);
@@ -87,7 +88,7 @@ class UnitController extends Controller {
       $unit,
       settings: [
         'disabled' => $unit->is_default,
-      ]
+      ],
     );
   }
 
@@ -97,7 +98,7 @@ class UnitController extends Controller {
   public function update(UnitRequest $request, Unit $unit) {
     $data = $request->validated();
     DB::beginTransaction();
-    if ($data['customable'] == true) {
+    if (($data['customable'] ?? false) == true) {
       $data['conversion_factor'] = null;
     }
     $unit->fillForUpdate($data);

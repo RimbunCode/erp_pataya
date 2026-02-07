@@ -31,6 +31,13 @@ class SalesInvoice extends Model {
   public static function templateLink() {
     return ":code";
   }
+  protected $appends = [
+    'is_return',
+  ];
+
+  protected function getIsReturnAttribute() {
+    return $this->return_against_id != null;
+  }
   public    $translateKey  = 'finances.salesInvoice';
   protected $configColumns = [
     'code'                    => [
@@ -82,6 +89,30 @@ class SalesInvoice extends Model {
     ],
   ];
 
+  protected static function loadRelationsOnShow() {
+    return [
+      'salesOrder',
+      'customer',
+      'customer_branch',
+      'branch',
+      'currency',
+      'items',
+      'items.item',
+      'items.tax',
+      'items.unit',
+      'paymentSchedules',
+      'paymentSchedules.paymentTerm',
+      'paymentSchedules.paymentMethod',
+      'incomeAccount',
+      'debitAccount',
+      'returnAgainst',
+    ];
+  }
+
+  public function returnAgainst() {
+    return $this->belongsTo(SalesInvoice::class, 'return_against_id');
+  }
+
   public function salesOrder() {
     return $this->belongsTo(SalesOrder::class, 'sales_order_id');
   }
@@ -108,5 +139,13 @@ class SalesInvoice extends Model {
 
   public function paymentSchedules() {
     return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')->orderBy('payment_date', 'asc');
+  }
+
+  public function debitAccount() {
+    return $this->belongsTo(Account::class, 'debit_account_id');
+  }
+
+  public function incomeAccount() {
+    return $this->belongsTo(Account::class, 'income_account_id');
   }
 }

@@ -49,10 +49,11 @@ class ModelController extends Controller {
         $query->whereNotIn($key, $value, $boolean);
         break;
       case 'jsonContains':
-        $query->whereJsonContains($key, $value, $boolean);
+        $query->whereRaw("json_overlaps($key, ?)", [json_encode($value)], $boolean);
+        // dd($query->toRawSql());
         break;
       case 'jsonDoesntContains':
-        $query->whereJsonDoesntContain($key, $value, $boolean);
+        $query->whereRaw("not json_overlaps($key, ?)", [json_encode($value)], $boolean);
         break;
       case 'like':
         $query->$function($key, 'like', "%{$value}%", $boolean);
@@ -106,7 +107,7 @@ class ModelController extends Controller {
           if ($isMatch) {
             $key = $matches[1];
           }
-          if ($query instanceof Builder && ! $isMatch && ! in_array($key, $columns)) {
+          if ($query instanceof Builder && !$isMatch && !in_array($key, $columns)) {
             $with[] = $key;
             $query->has($key, ">=", 1, $boolean, function (Builder $builder) use ($value) {
               $this->filterToQuery($builder, $value);
@@ -182,7 +183,7 @@ class ModelController extends Controller {
     preg_match_all('/:((\w[\w]+{:[\w]+})|(\w[\w.]*))/', $template, $matches);
     // Hapus tanda `:` agar hanya mendapatkan nama atribut
     $attributes = array_map(
-      fn ($attr) =>
+      fn($attr) =>
       preg_replace('/{:.*}/', "", ltrim($attr, ':')),
       $matches[0],
     );
@@ -204,7 +205,7 @@ class ModelController extends Controller {
           preg_match_all('/[a-zA-Z0-9]+/', $item, $matches);
           // dd($matches, $item, $attributes);
 
-          if (count($matches[0]) == 1 && ! Utils::isNullOrWhitespace($item) && $item == $matches[0][0]) {
+          if (count($matches[0]) == 1 && !Utils::isNullOrWhitespace($item) && $item == $matches[0][0]) {
             $query->whereAny($attributes, 'like', "%{$item}%");
             $this->queryTranslations($query, $request, $item, "or");
             continue;
@@ -213,7 +214,7 @@ class ModelController extends Controller {
             continue;
 
           $query->where(function (Builder $query) use ($matches, $item, $attributes, $request) {
-            if (! Utils::isNullOrWhitespace($item)) {
+            if (!Utils::isNullOrWhitespace($item)) {
               $query->whereAny($attributes, 'like', "%{$item}%");
               $this->queryTranslations($query, $request, $item, "or");
             }
@@ -260,7 +261,7 @@ class ModelController extends Controller {
     }
 
     $data    = $query->get()->toArray() ?? [];
-    $results = array_map(fn ($value) => [
+    $results = array_map(fn($value) => [
       ...$value,
     ], $data);
 

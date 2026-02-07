@@ -1,5 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useMemo, useRef } from "react";
+import { calculateArray, getDataModel } from "@/lib/utils";
 
 import AccountLinkModel from "@/Pages/Finances/Accounts/AccountLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
@@ -12,12 +13,28 @@ import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "../Units/UnitLinkModel";
 import WarehouseLinkModel from "../Warehouses/WarehouseLinkModel";
-import { calculateArray } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 export default function Form() {
-  const { defaultData, data, setData, disabled } = useFormPage();
+  const defaultValue = useCallback(async () => {
+    const account = await getDataModel(
+      "App\\Models\\Finances\\Account",
+      {
+        root_type: "expense",
+        account_type: "stock_adjustment",
+      },
+      {
+        limit: 1,
+      },
+    );
+    return {
+      date: new Date(),
+      difference_account: account,
+    };
+  }, []);
+
+  const { defaultData, data, setData, disabled } = useFormPage(defaultValue);
   const { currentBranch } = usePage().props.branchSettings;
   const { t } = useLaravelReactI18n();
   const itemsTableRef = useRef();
@@ -465,10 +482,6 @@ export default function Form() {
                 root_type: {
                   in: ["liability", "equity", "expense"],
                 },
-              }}
-              defaultValue={{
-                root_type: "expense",
-                account_type: "stock_adjustment",
               }}
             />
           </FormInput>

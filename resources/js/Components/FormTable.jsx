@@ -395,7 +395,8 @@ const createHeaders = (headers, reset) => {
  * @param {ColumnProps[]} props.columns
  * @param {object} props.value
  * @param {Function} props.onValueChange
- * @param {Function} props.asyncUpdateAdditionalData
+ * @param {object | Function} props.additionalData Accepts object map keyed by row id or a callback `(value) => object`
+ * @param {Function} props.asyncAdditionalData
  * @returns {React.JSX.Element}
  */
 export default memo(
@@ -417,7 +418,7 @@ export default memo(
       mapItem,
       forceCanDelete = false,
       additionalData: _additionalData,
-      asyncUpdateAdditionalData,
+      asyncAdditionalData,
     },
     ref,
   ) {
@@ -425,7 +426,6 @@ export default memo(
       throw new Error("columns is required");
     }
     const [__additionalData, setAdditionalData] = useState({});
-    const additionalData = _additionalData ?? __additionalData;
     const [openConfigureColumns, setOpenConfigureColumns] = useState(false);
     const [columns, setColumns] = useState(createHeaders(columnsProps));
     const { t } = useLaravelReactI18n();
@@ -466,6 +466,12 @@ export default memo(
       throw new Error("value must be an array");
     }
     value = value ?? [];
+    const additionalData = useMemo(() => {
+      if (typeof _additionalData === "function") {
+        return _additionalData(value);
+      }
+      return _additionalData ?? __additionalData;
+    }, [_additionalData, __additionalData, value]);
     if (!Array.isArray(columns)) {
       throw new Error("columns must be an array");
     }
@@ -492,7 +498,7 @@ export default memo(
       const debounce = setTimeout(async () => {
         if (idChanges.current?.size === 0) return;
         try {
-          const result = await asyncUpdateAdditionalData(
+          const result = await asyncAdditionalData(
             value,
             Array.from(idChanges.current?.values() ?? []).filter(Boolean),
           );
@@ -505,7 +511,7 @@ export default memo(
       }, 200);
 
       return () => clearTimeout(debounce);
-    }, [_data]);
+    }, [value]);
 
     useImperativeHandle(
       ref,
@@ -1235,7 +1241,7 @@ export default memo(
                     })}
                 </div>
               )}
-              {submitable && (
+              {submitable ? (
                 <AlertDialogFooter className="order-2 mt-4">
                   <AlertDialogCancel
                     className="h-8"
@@ -1255,6 +1261,18 @@ export default memo(
                     {t("core.form.save")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
+              ) : (
+                <DialogFooter className="order-2 mt-4">
+                  <Button
+                    className="h-8"
+                    type="button"
+                    onClick={() => {
+                      setCurrentIndex(-1);
+                    }}
+                  >
+                    {t("core.form.close_and_apply")}
+                  </Button>
+                </DialogFooter>
               )}
             </form>
           </MyDialogContent>

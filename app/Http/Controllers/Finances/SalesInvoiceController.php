@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Finances;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\SalesInvoiceRequest;
 use App\Models\Core\Branch;
+use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
 use App\Services\Core\FormatingSeriesService;
 use App\Services\Finances\SalesInvoiceService;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -37,37 +39,106 @@ class SalesInvoiceController extends Controller {
    * Show the form for creating a new resource.
    */
   public function create(Request $request, string $ref = null) {
-    $salesOrder = Salesorder::with(
-      "items",
-      "customer",
-      "customer_branch",
-      "currency",
-      "items.item",
-      "items.tax",
-      "items.unit",
-      "items.sourceWarehouse",
-      "paymentSchedules",
-      "paymentSchedules.paymentTerm",
-      "paymentSchedules.paymentMethod",
-    )
-      ->find($ref);
+    if ($ref) {
+      $split    = \explode("/", $ref);
+      $modelOri = $split[0] ?? null;
+      if ($modelOri) {
+        switch ($modelOri) {
+          case 'salesOrder': {
+            $so = SalesOrder::find($split[1]);
+            if ($so) {
+              $salesInvoice = SalesInvoice::where('sales_order_id', $so->id)
+                ->where('status', 'draft')
+                ->where('created_by', $request->user()->id)
+                ->first();
+              if ($salesInvoice) {
+                return redirect()->route('salesInvoices.show', $salesInvoice);
+              }
+              $so->loadRelations();
+              $accounts = Account::whereIn('root_type', ['income', 'asset'])
+                ->whereIn('account_type', ['income_account', 'receivable'])
+                ->where('is_contra', false)
+                ->get();
+
+              $defaultData = [
+                'date'             => now(),
+                'sales_order'      => $so,
+                'customer'         => $so?->customer,
+                'customer_branch'  => $so?->customer_branch,
+                'income_account'   => $accounts->where('root_type', 'income')->where('account_type', 'income_account')->first(),
+                'debit_account'    => $accounts->where('root_type', 'asset')->where('account_type', 'receivable')->first(),
+                'currency'         => $so?->currency,
+                'amount'           => $so?->amount,
+                'discount_on'      => $so?->discount_on,
+                'discount_rate'    => $so?->discount_rate,
+                'discount_amount'  => $so?->discount_amount,
+                'exchange_rate'    => $so?->exchange_rate,
+                'external_note'    => $so?->external_note,
+                'items'            => $so?->items->map(fn ($item) => [
+                  ...$item->toArray(),
+                  'id'                  => Utils::generateRandom(5),
+                  'sales_order_item_id' => $item->id,
+                ]),
+                'paymentSchedules' => $so?->paymentSchedules->map(fn ($paymentSchedule) => [
+                  ...$paymentSchedule->toArray(),
+                  'id' => Utils::generateRandom(5),
+                ]),
+              ];
+            }
+            break;
+          }
+          case 'salesInvoice': {
+            $salesInvoice = SalesInvoice::find($split[1]);
+            if ($salesInvoice) {
+              $salesInvoiceTarget = SalesInvoice::where('return_against_id', $salesInvoice->id)
+                ->where('status', 'draft')
+                ->where('created_by', $request->user()->id)
+                ->first();
+              if ($salesInvoiceTarget) {
+                return redirect()->route('salesInvoices.show', $salesInvoiceTarget);
+              }
+              $account = Account::where('root_type', 'income')
+                ->where('account_type', 'income_account')
+                ->where('is_contra', true)
+                ->first();
+              $salesInvoice->loadRelations();
+              $defaultData = [
+                'return_against'   => $salesInvoice,
+                'is_return'        => true,
+                'date'             => now(),
+                'sales_order'      => $salesInvoice->salesOrder,
+                'income_account'   => $account,
+                'debit_account'    => $salesInvoice->debitAccount,
+                'customer'         => $salesInvoice?->customer,
+                'customer_branch'  => $salesInvoice?->customer_branch,
+                'currency'         => $salesInvoice?->currency,
+                'amount'           => $salesInvoice?->amount,
+                'discount_on'      => $salesInvoice?->discount_on,
+                'discount_rate'    => $salesInvoice?->discount_rate,
+                'discount_amount'  => $salesInvoice?->discount_amount,
+                'exchange_rate'    => $salesInvoice?->exchange_rate,
+                'external_note'    => $salesInvoice?->external_note,
+                'items'            => $salesInvoice?->items->map(fn ($item) => [
+                  ...$item->toArray(),
+                  'id'                     => Utils::generateRandom(5),
+                  'return_against_item_id' => $item->id,
+                ]),
+
+                'paymentSchedules' => $salesInvoice?->paymentSchedules->map(fn ($paymentSchedule) => [
+                  ...$paymentSchedule->toArray(),
+                  'id' => Utils::generateRandom(5),
+                ]),
+              ];
+            }
+            break;
+          }
+        }
+      }
+    }
+
     $this->setBreadcrumbs('finances.salesInvoice.new');
     return Inertia::render('Finances/SalesInvoice/Show', [
-      'defaultData' => [
-        'date'             => now(),
-        'sales_order'      => $salesOrder,
-        'customer'         => $salesOrder?->customer,
-        'customer_branch'  => $salesOrder?->customer_branch,
-        'currency'         => $salesOrder?->currency,
-        'items'            => $salesOrder?->items,
-        'paymentSchedules' => $salesOrder?->paymentSchedules,
-        'amount'           => $salesOrder?->amount,
-        'discount_on'      => $salesOrder?->discount_on,
-        'discount_rate'    => $salesOrder?->discount_rate,
-        'discount_amount'  => $salesOrder?->discount_amount,
-        'exchange_rate'    => $salesOrder?->exchange_rate,
-        'external_note'    => $salesOrder?->external_note,
-      ],
+      'defaultData' => $defaultData ?? [],
     ]);
   }
 
@@ -101,7 +172,7 @@ class SalesInvoiceController extends Controller {
     $this->setBreadcrumbs($salesInvoice);
     $salesInvoice->showDetail();
 
-    return Inertia::render('Finances/SalesInvoices/Show', [
+    return Inertia::render('Finances/SalesInvoice/Show', [
       'salesInvoice' => function () use ($salesInvoice) {
         $salesInvoice->loadRelations();
         return $salesInvoice;
@@ -128,6 +199,21 @@ class SalesInvoiceController extends Controller {
   public function submit(SalesInvoice $salesInvoice) {
     $salesInvoice = $this->service->submit($salesInvoice);
     return redirect()->back();
+  }
+
+  public function onApproved(SalesInvoice $salesInvoice) {
+    $this->service->onApproved($salesInvoice);
+    return back();
+  }
+
+  public function onRejected(SalesInvoice $salesInvoice) {
+    $this->service->onRejected($salesInvoice);
+    return back();
+  }
+
+  public function cancel(SalesInvoice $salesInvoice) {
+    $this->service->cancel($salesInvoice);
+    return back();
   }
 
   /**

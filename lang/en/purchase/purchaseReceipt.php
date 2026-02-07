@@ -1,19 +1,20 @@
 <?php
 
 return [
-  'title'                => 'Purchase Receipts',
-  'add'                  => 'New Purchase Receipt',
-  'supplier'             => 'Supplier',
-  'new'                  => 'New Purchase Receipt',
-  'items'                => 'Items',
-  'detail'               => "Detail",
-  'status'               => 'Status',
-  'total'                => 'Total Price',
-  'target'               => 'Target Warehouse',
-  'exchange_rate'        => 'Exchange Rate',
-  'currency'             => 'Currency',
-  'currency.placeholder' => 'Select a Currency',
-  'columns'              => [
+  'title'                  => 'Purchase Receipts',
+  'add'                    => 'New Purchase Receipt',
+  'supplier'               => 'Supplier',
+  'new'                    => 'New Purchase Receipt',
+  'items'                  => 'Items',
+  'detail'                 => "Detail",
+  'status'                 => 'Status',
+  'total'                  => 'Total Price',
+  'target'                 => 'Target Warehouse',
+  'exchange_rate'          => 'Exchange Rate',
+  'currency'               => 'Currency',
+  'currency.placeholder'   => 'Select a Currency',
+  'create_purchase_return' => 'Create Purchase Return',
+  'columns'                => [
     'required_date'                => 'Required Date',
     'received_date'                => 'Received Date',
     'code'                         => 'Code',
@@ -29,6 +30,8 @@ return [
     'unit'                         => 'Unit',
     'unit.placeholder'             => 'Select a unit',
     'external_note'                => 'External Note',
+    'return_against'               => 'Return Against Purchase Receipt',
+    'is_return'                    => 'Is Return (Purchase Return)',
   ],
 
 ];

@@ -32,6 +32,7 @@ const accountTypes = {
     "service_received_but_not_billed",
     "expenses_included_in_valuation",
     "tax",
+    "stock_received_but_not_billed",
   ],
   equity: ["equity", "temporary", "stock"],
   income: [

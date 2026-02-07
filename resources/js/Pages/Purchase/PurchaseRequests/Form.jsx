@@ -77,6 +77,9 @@ function Form() {
         cell({ dataRow, setData, attributes }) {
           return (
             <ItemVariantLinkModel
+              filters={{
+                is_stock_item: true,
+              }}
               placeholder={t(
                 "purchase.purchaseRequest.columns.item.placeholder",
               )}

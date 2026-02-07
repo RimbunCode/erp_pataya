@@ -55,10 +55,11 @@ trait DataTable {
 
   public function fillForUpdate(array $attributes, bool $fillOnly = false) {
     $this->recordLogs();
-    if ($fillOnly) {
-      return $this->fill($attributes);
-    }
+
     $this->fill($attributes);
+    if ($fillOnly) {
+      return $this;
+    }
 
     if ($this->isDirty()) {
       $this->fireModelEvent('saving', true);

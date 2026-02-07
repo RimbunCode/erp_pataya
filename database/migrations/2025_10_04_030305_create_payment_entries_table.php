@@ -20,6 +20,8 @@ return new class extends Migration
       $table->double('based_paid_amount')->default(0);
       $table->double('exchange_rate')->default(0);
       $table->string('currency_code')->nullable();
+      $table->foreignUlid('account_paid_to_id')->references('id')->on('accounts')->cascadeOnDelete();
+      $table->foreignUlid('account_paid_from_id')->references('id')->on('accounts')->cascadeOnDelete();
       $table->foreign('currency_code')->references('code')->on('currencies')->nullOnDelete();
       $table->string('base_currency_code')->nullable();
       $table->foreignUlid('payment_method_id')->nullable()->references('id')->on('payment_methods')->nullOnDelete();

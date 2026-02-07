@@ -14,10 +14,12 @@ import PurchaseOrderLinkModel from "../PurchaseOrders/PurchaseOrderLinkModel";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
+import { FormCheckbox } from "@/Components/ui/checkbox";
+import PurchaseReceiptLinkModel from "./PurchaseReceiptLinkModel";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, defaultData } = useFormPage();
 
   const itemColumns = useMemo(() => {
     return [
@@ -29,6 +31,9 @@ function Form() {
         cell({ dataRow, setData, attributes }) {
           return (
             <ItemVariantLinkModel
+              filters={{
+                is_stock_item: true,
+              }}
               placeholder={t(
                 "purchase.purchaseReceipt.columns.item.placeholder",
               )}
@@ -62,7 +67,6 @@ function Form() {
           );
         },
       },
-
       {
         name: "quantity",
         titleTrans: "purchase.purchaseReceipt.columns.quantity",
@@ -189,6 +193,24 @@ function Form() {
                 onValueChange={(val) => setData("supplier", val)}
               />
             </FormInput>
+            {defaultData?.return_against && (
+              <>
+                <FormCheckbox
+                  name="is_return"
+                  readOnly
+                  label={t("purchase.purchaseReceipt.columns.is_return")}
+                  checked={!!data.return_against}
+                />
+                <FormInput
+                  className="col-start-1"
+                  label={t("purchase.purchaseReceipt.columns.return_against")}
+                  name="return_against"
+                  readOnly
+                >
+                  <PurchaseReceiptLinkModel value={data.return_against} />
+                </FormInput>
+              </>
+            )}
           </div>
         </div>
       </FormPageContent>

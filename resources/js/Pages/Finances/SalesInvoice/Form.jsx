@@ -3,38 +3,75 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
+import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
 
+import AccountLinkModel from "../Accounts/AccountLinkModel";
+import AdditionalDiscount from "../Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
-import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
-import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
+import PaymentSchedule from "../Components/PaymentSchedule";
+import SalesInvoiceLinkModel from "./SalesInvoiceLinkModel";
 import SalesOrderLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderLinkModel";
-import Select from "@/Components/Select";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
-import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { calculateArray } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import PaymentSchedule from "../Components/PaymentSchedule";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const defaultValue = useCallback(async () => {
+    const accounts = await getDataModel("App\\Models\\Finances\\Account", {
+      root_type: {
+        in: ["income", "asset"],
+      },
+      account_type: {
+        in: ["income_account", "receivable"],
+      },
+      is_contra: false,
+    });
+    const incomeAccount = accounts.filter(
+      (x) => x.account_type == "income_account",
+    )[0];
+    const debitAccount = accounts.filter(
+      (x) => x.account_type == "receivable",
+    )[0];
+    return {
+      date: new Date(),
+      income_account: incomeAccount,
+      debit_account: debitAccount,
+    };
+  }, []);
+  const { data, setData, disabled } = useFormPage(defaultValue, {
+    notUseWhenCreate: true,
+  });
   const { default_currency_id } = usePage().props.preferences;
-  const amount = useMemo(() => {
-    return calculateArray(data.items, "amount", "+");
-  }, [data.items]);
-
-  const basic_amount = useMemo(() => {
+  const getContraIncomeAccount = (isContra) => {
+    getDataModel(
+      "App\\Models\\Finances\\Account",
+      {
+        root_type: "income",
+        account_type: "income_account",
+        is_contra: isContra,
+      },
+      { limit: 1 },
+    ).then((res) => {
+      console.log(res);
+      setData((prev) => ({
+        ...prev,
+        income_account: res,
+      }));
+    });
+  };
+  const net_amount = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
@@ -42,6 +79,9 @@ export default function Form() {
     return calculateArray(data.items, "tax_amount", "+");
   }, [data.items]);
 
+  const amount = useMemo(() => {
+    return net_amount + tax_amount - (data?.discount_amount ?? 0);
+  }, [net_amount, tax_amount, data.discount_amount]);
   const itemColumns = useMemo(() => {
     return [
       {
@@ -87,27 +127,6 @@ export default function Form() {
               rows={1}
               value={data ?? ""}
               onChange={(e) => setData("description", e.target.value)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "source_warehouse",
-        titleTrans: "finances.salesInvoice.columns.source_warehouse",
-        show: true,
-        type: "text",
-        width: 2,
-        required: true,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <WarehouseLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t(
-                "finances.salesInvoice.columns.source_warehouse.placeholder",
-              )}
-              value={data}
-              onValueChange={(val) => setData("source_warehouse", val)}
               {...attributes}
             />
           );
@@ -198,141 +217,284 @@ export default function Form() {
   return (
     <>
       <FormPageContent value="detail" title={t("finances.salesInvoice.detail")}>
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 [&>div]:grid [&>div]:gap-y-4 [&>div]:grid-cols-1 [&>div]:content-start">
+          <div>
+            <FormInput
+              name="date"
+              label={t("finances.salesInvoice.columns.date")}
+            >
+              <DatetimePicker
+                type="datetime"
+                value={data?.date}
+                onValueChange={(val) => {
+                  setData("date", val);
+                }}
+              />
+            </FormInput>
+            <FormInput
+              label={t("finances.salesInvoice.columns.sales_order")}
+              required
+              disabled={data.is_return && !data.sales_order}
+              readOnly={data.is_return}
+              name="sales_order"
+            >
+              <SalesOrderLinkModel
+                filters={{
+                  date: {
+                    "<=": data?.date ?? new Date().toISOString(),
+                  },
+                  status: {
+                    jsonContains: ["to_bill"],
+                  },
+                }}
+                placeholder={t(
+                  "finances.salesInvoice.columns.sales_order.placeholder",
+                )}
+                with={[
+                  "items",
+                  "customer",
+                  "customer_branch",
+                  "currency",
+                  "items.item",
+                  "items.tax",
+                  "items.unit",
+                  "paymentSchedules",
+                  "paymentSchedules.paymentTerm",
+                  "paymentSchedules.paymentMethod",
+                ]}
+                value={data.sales_order}
+                onValueChange={(val) => {
+                  setData((prev) => {
+                    return {
+                      ...prev,
+                      id: generateRandom(5),
+                      sales_order: val,
+                      customer: val?.customer,
+                      customer_branch: val?.customer_branch,
+                      currency: val?.currency,
+                      items: val?.items?.map((item) => {
+                        return {
+                          ...item,
+                          id: generateRandom(8),
+                          sales_order_item_id: item.id,
+                        };
+                      }),
+                      payment_schedules:
+                        val?.payment_schedules?.map((paymentSchedule) => {
+                          return {
+                            ...paymentSchedule,
+                            id: generateRandom(8),
+                          };
+                        }) ?? [],
+                      amount: val?.amount,
+                      discount_on: val?.discount_on,
+                      discount_rate: val?.discount_rate,
+                      discount_amount: val?.discount_amount,
+                      exchange_rate: val?.exchange_rate,
+                      external_note: val?.external_note,
+                    };
+                  });
+                }}
+              />
+            </FormInput>
+            <FormInput
+              className="col-start-1"
+              label={t("finances.salesInvoice.currency")}
+              name="currency"
+              readOnly
+              disabled={!data.sales_order}
+            >
+              <CurrencyLinkModel
+                placeholder={t("finances.salesInvoice.currency.placeholder")}
+                value={data.currency}
+                onValueChange={(val) => {
+                  setData("currency", val);
+                }}
+              />
+            </FormInput>
+
+            <FormInput
+              label={t("finances.salesInvoice.exchange_rate")}
+              name="exchange_rate"
+              readOnly
+            >
+              <CurrencyInput
+                disabled={
+                  !(
+                    data?.currency?.code &&
+                    data?.currency?.code !== default_currency_id
+                  )
+                }
+                className="text-left"
+                decimalScale={2}
+                value={data.exchange_rate}
+                onValueChange={(value) => {
+                  setData("exchange_rate", value);
+                }}
+              />
+            </FormInput>
+          </div>
+          <div>
+            <FormCheckbox
+              className="mt-8 mb-3"
+              checked={data.is_return}
+              onCheckedChange={(val) => {
+                getContraIncomeAccount(val);
+                setData((prev) => ({
+                  ...prev,
+                  is_return: val,
+                  sales_order: undefined,
+                  customer: undefined,
+                  customer_branch: undefined,
+                  currency: undefined,
+                  items: [],
+                  payment_schedules: [],
+                  amount: 0,
+                  discount_on: undefined,
+                  discount_rate: undefined,
+                  discount_amount: undefined,
+                  exchange_rate: undefined,
+                  external_note: undefined,
+                  return_against: undefined,
+                }));
+              }}
+              label={t("finances.salesInvoice.columns.is_return")}
+            />
+            {data.is_return && (
+              <FormInput
+                label={t("finances.salesInvoice.columns.return_against")}
+                name="return_against"
+                required
+              >
+                <SalesInvoiceLinkModel
+                  filters={{
+                    date: {
+                      "<=": data?.date ?? new Date().toISOString(),
+                    },
+                    status: {
+                      jsonContains: ["unpaid", "partially_paid", "paid"],
+                    },
+                  }}
+                  with={[
+                    "customer",
+                    "customer_branch",
+                    "salesOrder",
+                    "debitAccount",
+                    "currency",
+                    "items",
+                    "items.item",
+                    "items.tax",
+                    "items.unit",
+                  ]}
+                  value={data.return_against}
+                  onValueChange={(val) => {
+                    setData((prev) => ({
+                      ...prev,
+                      return_against: val,
+                      sales_order: val?.sales_order,
+                      customer: val?.customer,
+                      customer_branch: val?.customer_branch,
+                      currency: val?.currency,
+                      exchange_rate: val?.exchange_rate,
+                      debit_account: val?.debit_account ?? prev.debit_account,
+                      discount_on: val?.discount_on,
+                      discount_rate: val?.discount_rate,
+                      discount_amount: val?.discount_amount,
+                      items: val?.items?.map((item) => {
+                        return {
+                          ...item,
+                          id: generateRandom(8),
+                          return_against_item_id: item.id,
+                        };
+                      }),
+                    }));
+                  }}
+                />
+              </FormInput>
+            )}
+            <FormInput
+              className="col-start-1"
+              label={t("finances.salesInvoice.customer")}
+              required={true}
+              name="customer"
+              readOnly
+              disabled={!data.sales_order}
+            >
+              <CustomerLinkModel
+                disabled={data.for_internal}
+                with={["branches"]}
+                value={data.for_internal ? "" : data.customer}
+                onValueChange={(val) => {
+                  if (val?.branches?.length <= 1) {
+                    setData("customer_branch", val.branches?.[0]);
+                  }
+                  setData("customer", val);
+                }}
+              />
+            </FormInput>
+
+            <FormInput
+              label={t("finances.salesInvoice.branch")}
+              required
+              name="customer_branch"
+              readOnly
+            >
+              <BranchLinkModel
+                disabled={!data.customer}
+                value={data.customer_branch}
+                onValueChange={(val) => setData("customer_branch", val)}
+                disabledNavigation={true}
+                filters={{
+                  branchable_type: "App\\Models\\Sales\\Customer",
+                  branchable_id: data.customer?.id ?? null,
+                }}
+              />
+            </FormInput>
+          </div>
+        </div>
+      </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("finances.salesInvoice.columns.accounts")}
+      >
+        <div className="grid gap-4  grid-cols-2">
           <FormInput
-            name="date"
-            label={t("finances.salesInvoice.columns.date")}
+            label={t("finances.salesInvoice.columns.income_account")}
+            name="income_account"
             required
           >
-            <DatetimePicker
-              type="datetime"
-              value={data?.date}
-              onValueChange={(val) => {
-                setData("date", val);
-              }}
-            />
-          </FormInput>
-          <FormInput
-            label={t("finances.salesInvoice.columns.sales_order")}
-            name="sales_order"
-          >
-            <SalesOrderLinkModel
+            <AccountLinkModel
               filters={{
-                date: {
-                  "<=": data?.date ?? new Date().toISOString(),
-                },
-                status: {
-                  in: ["to_deliver_and_bill", "to_bill"],
-                },
+                root_type: "income",
+                account_type: "income_account",
+                is_contra: !!data?.is_return,
+                is_group: false,
               }}
               placeholder={t(
-                "finances.salesInvoice.columns.sales_order.placeholder",
+                "finances.salesInvoice.columns.accounts.placeholder",
               )}
-              with={[
-                "items",
-                "customer",
-                "customer_branch",
-                "currency",
-                "items.item",
-                "items.tax",
-                "items.unit",
-                "items.sourceWarehouse",
-                "paymentSchedules",
-                "paymentSchedules.paymentTerm",
-                "paymentSchedules.paymentMethod",
-              ]}
-              value={data.sales_order}
+              value={data.income_account}
               onValueChange={(val) => {
-                setData((prev) => {
-                  return {
-                    ...prev,
-                    sales_order: val,
-                    customer: val?.customer,
-                    customer_branch: val?.customer_branch,
-                    currency: val?.currency,
-                    items: val?.items,
-                    paymentSchedules: val?.paymentSchedules,
-                    amount: val?.amount,
-                    discount_on: val?.discount_on,
-                    discount_rate: val?.discount_rate,
-                    discount_amount: val?.discount_amount,
-                    exchange_rate: val?.exchange_rate,
-                    external_note: val?.external_note,
-                  };
-                });
+                setData("income_account", val);
               }}
             />
           </FormInput>
-
           <FormInput
-            className="col-start-1"
-            label={t("finances.salesInvoice.customer")}
-            required={true}
-            name="customer"
-            readOnly
-          >
-            <CustomerLinkModel
-              disabled={data.for_internal}
-              with={["branches"]}
-              value={data.for_internal ? "" : data.customer}
-              onValueChange={(val) => {
-                if (val?.branches?.length <= 1) {
-                  setData("customer_branch", val.branches?.[0]);
-                }
-                setData("customer", val);
-              }}
-            />
-          </FormInput>
-
-          <FormInput
-            label={t("finances.salesInvoice.branch")}
+            label={t("finances.salesInvoice.columns.debit_account")}
+            name="debit_account"
             required
-            name="customer_branch"
-            readOnly
           >
-            <BranchLinkModel
-              disabled={!data.customer}
-              value={data.customer_branch}
-              onValueChange={(val) => setData("customer_branch", val)}
-              disabledNavigation={true}
+            <AccountLinkModel
               filters={{
-                branchable_type: "App\\Models\\Sales\\Customer",
-                branchable_id: data.customer?.id ?? null,
+                root_type: "asset",
+                is_group: false,
               }}
-            />
-          </FormInput>
-          <FormInput
-            className="col-start-1"
-            label={t("finances.salesInvoice.currency")}
-            name="currency"
-            readOnly
-          >
-            <CurrencyLinkModel
-              placeholder={t("finances.salesInvoice.currency.placeholder")}
-              value={data.currency}
+              placeholder={t(
+                "finances.salesInvoice.columns.accounts.placeholder",
+              )}
+              value={data.debit_account}
               onValueChange={(val) => {
-                setData("currency", val);
-              }}
-            />
-          </FormInput>
-
-          <FormInput
-            label={t("finances.salesInvoice.exchange_rate")}
-            name="exchange_rate"
-            readOnly
-          >
-            <CurrencyInput
-              disabled={
-                !(
-                  data?.currency?.code &&
-                  data?.currency?.code !== default_currency_id
-                )
-              }
-              className="text-left"
-              decimalScale={2}
-              value={data.exchange_rate}
-              onValueChange={(value) => {
-                setData("exchange_rate", value);
+                setData("debit_account", val);
               }}
             />
           </FormInput>
@@ -369,7 +531,7 @@ export default function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={basic_amount * (data?.exchange_rate ?? 1)}
+                  value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -382,7 +544,7 @@ export default function Form() {
             <CurrencyInput
               decimalScale={2}
               className="text-right"
-              value={basic_amount}
+              value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -419,7 +581,7 @@ export default function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={amount * (data?.exchange_rate ?? 1)}
+                  value={(net_amount + tax_amount) * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -432,56 +594,18 @@ export default function Form() {
             <CurrencyInput
               className="text-right"
               decimalScale={2}
-              value={amount}
+              value={net_amount + tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("finances.salesInvoice.columns.additional_discount")}
-        collapsible
-        defaultOpen
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput label={t("finances.salesInvoice.columns.discount_on")}>
-            <Select
-              value={data.discount_on}
-              onValueChange={(val) => setData("discount_on", val)}
-              placeholder={t(
-                "finances.salesInvoice.columns.discount_on.placeholder",
-              )}
-              optionTrans="finances.salesInvoice.columns.discount_on.options"
-              options={["grand_total", "net_total"]}
-            />
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("finances.salesInvoice.columns.additional_discount_rate")}`}
-          >
-            <CurrencyInput
-              className="text-right"
-              decimalScale={2}
-              value={data.discount_rate}
-              suffix="%"
-              max={100}
-            ></CurrencyInput>
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("finances.salesInvoice.columns.additional_discount_amount")}`}
-            className="col-start-2"
-          >
-            <CurrencyInput
-              className="text-right"
-              decimalScale={2}
-              value={data.discount_amount}
-              currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
-          </FormInput>
-        </div>
-      </FormPageContent>
+      <AdditionalDiscount
+        data={data}
+        setData={setData}
+        netAmount={net_amount}
+        taxAmount={tax_amount}
+      />
       <FormPageContent
         value="detail"
         title={t("finances.salesInvoice.columns.external_note")}
@@ -501,13 +625,18 @@ export default function Form() {
         readOnly={disabled}
         value={data?.payment_schedules ?? []}
         onValueChange={(v) => setData("payment_schedules", v)}
-        mapItem={({ item }) => {
-          const payment_amount = amount * (item?.invoice_portion / 100);
-          return {
-            ...item,
-            payment_amount,
-            outstanding_amount: payment_amount,
-          };
+        additionalData={(value) => {
+          const result = {};
+          value.forEach((item) => {
+            const payment_amount = (amount * item?.invoice_portion) / 100;
+
+            result[item.id] = {
+              payment_amount,
+              outstanding_amount: payment_amount,
+            };
+          });
+
+          return result;
         }}
         date={data?.date}
         currencyCode={data?.currency?.code}
