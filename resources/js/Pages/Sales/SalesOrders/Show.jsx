@@ -74,7 +74,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
                     <DropdownMenuItem asChild>
                       <Link
                         href={route("salesInvoices.create", {
-                          ref: salesOrder.id,
+                          ref: `salesOrder/${salesOrder?.id}`,
                         })}
                       >
                         {t("sales.salesOrder.actions.create_sales_invoice")}

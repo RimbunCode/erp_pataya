@@ -28,7 +28,6 @@ export default function Form() {
         limit: 1,
       },
     );
-    console.log(account);
     return {
       date: new Date(),
       difference_account: account,

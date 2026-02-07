@@ -1,21 +1,22 @@
-import FormTable from "@/Components/FormTable";
-import { FormPageContent } from "@/Pages/Core/FormPage";
 import React, { useMemo } from "react";
-import PaymentTermLinkModel from "../PaymentTerms/PaymentTermLinkModel";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import DatetimePicker from "@/Components/DatetimePicker";
-import { Textarea } from "@/Components/ui/textarea";
+
 import CurrencyInput from "@/Components/CurrencyInput";
+import DatetimePicker from "@/Components/DatetimePicker";
+import { FormPageContent } from "@/Pages/Core/FormPage";
+import FormTable from "@/Components/FormTable";
 import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
+import PaymentTermLinkModel from "../PaymentTerms/PaymentTermLinkModel";
 import Select from "@/Components/Select";
+import { Textarea } from "@/Components/ui/textarea";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function PaymentSchedule({
   date,
   value,
   onValueChange,
   readOnly,
-  mapItem,
   currencyCode,
+  additionalData,
 }) {
   const { t } = useLaravelReactI18n();
   const paymentScheduleColumns = useMemo(() => {
@@ -33,7 +34,6 @@ function PaymentSchedule({
               value={paymentTerm}
               onValueChange={(val) => {
                 const due_date = new Date(date);
-                console.log(due_date, date);
                 switch (val?.due_date_based_on) {
                   case "days_after_invoice_date": {
                     due_date.setDate(
@@ -54,13 +54,13 @@ function PaymentSchedule({
                     break;
                   }
                 }
-                console.log(due_date);
                 setData({
                   payment_term: val,
                   due_date,
                   description: val?.description,
                   invoice_portion: val?.invoice_portion,
                   discount_type: val?.discount_type,
+                  discount_date: val?.discount_type ? due_date : undefined,
                   discount: val?.discount,
                   payment_method: val?.payment_method,
                 });
@@ -74,12 +74,17 @@ function PaymentSchedule({
         name: "due_date",
         titleTrans: "finances.paymentSchedule.columns.due_date",
         required: true,
-        cell({ data, setData, attributes }) {
+        cell({ dataRow, data, setData, attributes }) {
           return (
             <DatetimePicker
               type="datetime"
               value={data}
-              onValueChange={(val) => setData("due_date", val)}
+              onValueChange={(val) =>
+                setData({
+                  due_date: val,
+                  discount_date: dataRow?.discount_type ? val : undefined,
+                })
+              }
               {...attributes}
             />
           );
@@ -115,7 +120,9 @@ function PaymentSchedule({
               suffix="%"
               value={data}
               onValueChange={(val) => {
-                setData("invoice_portion", val);
+                setData({
+                  invoice_portion: val,
+                });
               }}
               {...attributes}
             />
@@ -128,15 +135,13 @@ function PaymentSchedule({
         required: true,
         readOnly: true,
         width: 1,
-        cell({ data: payment_amount, setData, attributes }) {
+        cell({ dataRow, additionalData, attributes }) {
           return (
             <CurrencyInput
+              disabled={!dataRow.invoice_portion}
               decimalScale={2}
               currencyCode={currencyCode}
-              value={payment_amount}
-              onValueChange={(val) => {
-                setData("payment_amount", val);
-              }}
+              value={additionalData?.payment_amount ?? 0}
               {...attributes}
             />
           );
@@ -163,17 +168,37 @@ function PaymentSchedule({
         name: "discount_type",
         titleTrans: "finances.paymentSchedule.columns.discount_type",
         width: 1,
-        cell({ data, setData, attributes }) {
+        cell({ dataRow, data, setData, attributes }) {
           return (
             <Select
               value={data}
-              onValueChange={(val) => setData("discount_type", val)}
+              onValueChange={(val) =>
+                setData({
+                  discount_type: val,
+                  discount_date: val ? dataRow?.due_date : undefined,
+                })
+              }
               {...attributes}
               placeholder={t(
                 "finances.paymentSchedule.columns.discount_type.placeholder",
               )}
               optionTrans="finances.paymentSchedule.columns.discount_type.options"
               options={["percentage", "amount"]}
+            />
+          );
+        },
+      },
+      {
+        name: "discount_date",
+        titleTrans: "finances.paymentSchedule.columns.discount_date",
+        width: 1,
+        cell({ data, setData, attributes }) {
+          return (
+            <DatetimePicker
+              type="datetime"
+              value={data}
+              onValueChange={(val) => setData("discount_date", val)}
+              {...attributes}
             />
           );
         },
@@ -229,10 +254,10 @@ function PaymentSchedule({
           name="paymentSchedules"
           className="col-start-1 col-span-2"
           readOnly={readOnly}
+          additionalData={additionalData}
           columns={paymentScheduleColumns}
           value={value}
           onValueChange={onValueChange}
-          mapItem={mapItem}
         />
       </div>
     </FormPageContent>

@@ -31,6 +31,8 @@ return [
     'unit'                         => 'Unit',
     'unit.placeholder'             => 'Select a unit',
     'external_note'                => 'External Note',
+    'return_against'               => 'Return Against Purchase Receipt',
+    'is_return'                    => 'Is Return (Purchase Return)',
   ],
 
 ];

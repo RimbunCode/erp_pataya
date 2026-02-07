@@ -262,6 +262,7 @@ const FormChildren = memo(function FormChildren({
   defaultMenu,
   disabled,
   form,
+  isCreate = false,
   // hasConnections,
 }) {
   const tabsListRef = useRef(null);
@@ -367,6 +368,7 @@ const FormChildren = memo(function FormChildren({
           removeMenu={removeMenu}
           menuSelected={menuSelected}
           setMenuSelected={setMenuSelected}
+          isCreate={isCreate}
           dataBefore={dataBefore}
           form={form}
         >
@@ -384,29 +386,50 @@ const FormChildren = memo(function FormChildren({
 const FormPageContext = createContext();
 /**
  * @param {object|(() => object|Promise<object>)} defaultValue
- * @param {{ trackDefaultValue?: boolean }} options
+ * @param {{ trackDefaultValue?: boolean, notUseWhenCreate:boolean }} options
  * @typedef FormPageContextProps
  * @returns {FormPageContextProps}
  */
-const useFormPage = (defaultValue = {}, options = {}) => {
-  const { trackDefaultValue = true } = options ?? {};
+const useFormPage = (
+  defaultValue = {},
+  options = { trackDefaultValue: true, notUseWhenCreate: false },
+) => {
+  const { trackDefaultValue, notUseWhenCreate } = options ?? {};
   const context = useContext(FormPageContext);
+  const { isCreate } = context ?? {};
+  const hasContextDefaultData = useMemo(() => {
+    const data = context?.defaultData;
+    if (!data) return false;
+    if (Array.isArray(data)) return data.length > 0;
+    if (typeof data === "object") return Object.keys(data).length > 0;
+    return true;
+  }, [context?.defaultData]);
+
+  // Jika ada defaultData dari context (hasil fetch server), abaikan defaultValue dari parameter
+  const effectiveDefaultValue = useMemo(
+    () =>
+      hasContextDefaultData && !(isCreate && !notUseWhenCreate)
+        ? {}
+        : defaultValue,
+    [defaultValue, isCreate, hasContextDefaultData],
+  );
   const appliedDefaultsRef = useRef(null);
   const form = context?.form;
   const stableDefaultRef = useRef(null);
   const lastResolvedSerializedRef = useRef(null);
   const shouldTrackDefaultValue =
-    trackDefaultValue || typeof defaultValue === "function";
+    !hasContextDefaultData &&
+    (trackDefaultValue || typeof effectiveDefaultValue === "function");
   const defaultValueEffectDep = shouldTrackDefaultValue
-    ? defaultValue
+    ? effectiveDefaultValue
     : trackDefaultValue;
   const [resolvedDefaultValue, setResolvedDefaultValue] = useState(() => {
-    if (typeof defaultValue === "function") return {};
+    if (typeof effectiveDefaultValue === "function") return {};
     if (!shouldTrackDefaultValue) {
-      stableDefaultRef.current = defaultValue ?? {};
+      stableDefaultRef.current = effectiveDefaultValue ?? {};
       return stableDefaultRef.current;
     }
-    return defaultValue ?? {};
+    return effectiveDefaultValue ?? {};
   });
 
   useEffect(() => {
@@ -414,12 +437,12 @@ const useFormPage = (defaultValue = {}, options = {}) => {
     const resolveValue = async () => {
       try {
         const value =
-          typeof defaultValue === "function"
-            ? await defaultValue()
+          typeof effectiveDefaultValue === "function"
+            ? await effectiveDefaultValue()
             : shouldTrackDefaultValue
-              ? defaultValue
+              ? effectiveDefaultValue
               : (stableDefaultRef.current ??
-                (stableDefaultRef.current = defaultValue ?? {}));
+                (stableDefaultRef.current = effectiveDefaultValue ?? {}));
         if (!isActive) return;
         const serializedResolved = JSON.stringify(value ?? {});
         if (lastResolvedSerializedRef.current === serializedResolved) return;
@@ -434,7 +457,7 @@ const useFormPage = (defaultValue = {}, options = {}) => {
     return () => {
       isActive = false;
     };
-  }, [defaultValueEffectDep, shouldTrackDefaultValue]);
+  }, [defaultValueEffectDep, shouldTrackDefaultValue, effectiveDefaultValue]);
 
   const serializedDefaultValue = useMemo(
     () => JSON.stringify(resolvedDefaultValue ?? {}),
@@ -476,6 +499,7 @@ const FormPageProvider = memo(function FormPageProvider({
   setMenuSelected,
   dataBefore,
   form,
+  isCreate = false,
 }) {
   const contextValue = useMemo(
     () => ({
@@ -491,6 +515,7 @@ const FormPageProvider = memo(function FormPageProvider({
       data,
       setData,
       dataBefore: dataBefore ?? {},
+      isCreate,
       form,
     }),
     [
@@ -506,6 +531,7 @@ const FormPageProvider = memo(function FormPageProvider({
       data,
       setData,
       dataBefore,
+      isCreate,
       form,
     ],
   );
@@ -610,7 +636,9 @@ const FormPage = memo(
       (e) => {
         e.preventDefault();
         if (e.action == "submit") {
-          put(route(`${pluralize.plural(name ?? "")}.submit`, defaultData.id));
+          put(route(`${pluralize.plural(name ?? "")}.submit`, defaultData.id), {
+            isSubmit: true,
+          });
           return;
         }
 
@@ -726,7 +754,10 @@ const FormPage = memo(
               {badge}
               {defaultData?.status &&
                 (Array.isArray(defaultData?.status) ? (
-                  defaultData?.status.map((status, idx) => (
+                  [
+                    ...(defaultData?.appendStatus ?? []),
+                    ...(defaultData?.status ?? []),
+                  ].map((status, idx) => (
                     <BadgeStatus key={idx} status={status} />
                   ))
                 ) : (
@@ -977,6 +1008,7 @@ const FormPage = memo(
               ref={ref}
               disabled={disabled}
               className={className}
+              isCreate={isCreate}
               // showHeader={showHeader}
               errors={errors}
               fieldNameTrans={fieldNameTrans}
@@ -1593,6 +1625,7 @@ const FormPageDialog = memo(
                   </div>
                 )}
                 <FormChildren
+                  isCreate={true}
                   disabled={disabled}
                   defaultMenu={defaultMenu}
                   className={className}
@@ -1837,6 +1870,7 @@ const FormPageLinkModelDialog = memo(
                 )}
                 <FormChildren
                   ref={ref}
+                  isCreate={true}
                   disabled={disabled}
                   defaultMenu={defaultMenu}
                   className={className}
@@ -1948,6 +1982,7 @@ const FormPageDiff = memo(
             )}
           >
             <FormChildren
+              isCreate={false}
               ref={ref}
               disabled={true}
               className={className}
