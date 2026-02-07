@@ -83,6 +83,9 @@ trait LinkModel {
       'revision_number'   => [
         'ignore' => true,
       ],
+      'appendStatus'      => [
+        'ignore' => true,
+      ],
     ]);
   }
 
@@ -104,12 +107,24 @@ trait LinkModel {
   protected function getArrayableAppends() {
     $this->appends = array_unique(array_merge(
       $this->appends,
-      ['route', 'canDelete', 'keyModel'],
+      ['route', 'canDelete', 'keyModel', 'appendStatus'],
       \method_exists(static::class, "templateLink") ? ['templateLink'] : [],
       \method_exists(static::class, "disabledOn") ? ['disabledOn'] : [],
     ));
 
     return parent::getArrayableAppends();
+  }
+
+  /**
+   * Summary of appendStatus
+   * @return FormStatus[]
+   */
+  protected function appendStatus(): array {
+    return [];
+  }
+
+  protected function getappendStatusAttribute() {
+    return $this->appendStatus();
   }
 
   protected function getKeyModelAttribute() {
@@ -331,7 +346,9 @@ trait LinkModel {
     }
 
     $isContinueGetRelationColumns = $maxDepth == 0 || $maxDepth > 1;
-    $maxDepth--;
+    if ($maxDepth > 1) {
+      $maxDepth--;
+    }
     foreach ($configColumns as $key => $relation) {
       $key    = \is_string($key) ? $key : $relation;
       $config = \is_array($relation) ? $relation : [];
@@ -381,7 +398,7 @@ trait LinkModel {
         'primaryKey'     => $rel->getRelated()->getKeyName(),
         'sortable'       => false,
         'titleTrans'     => $translateKey ? "$translateKey.columns.$newKey" : null,
-        "columns"        => $isContinueGetRelationColumns ? $classRelation::getColumns(static::class, ...$excepts ?? []) : [],
+        "columns"        => $isContinueGetRelationColumns ? $classRelation::getColumns($maxDepth, static::class, ...$excepts ?? []) : [],
         ...$config,
       ];
     }

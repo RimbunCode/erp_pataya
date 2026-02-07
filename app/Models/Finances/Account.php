@@ -16,6 +16,7 @@ class Account extends Model {
   protected $casts   = [
     'is_group'    => 'boolean',
     'is_disabled' => 'boolean',
+    'is_contra'   => 'boolean',
   ];
 
   protected static function loadRelationsOnShow() {

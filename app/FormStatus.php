@@ -22,6 +22,7 @@ enum FormStatus: string {
   case PARTIALLY_PAID      = 'partially_paid';
   case PAID                = 'paid';
   case TO_BILL             = 'to_bill';
+  case PARTIALLY_BILLED    = 'partially_billed';
   case BILLED              = 'billed';
   case TO_DELIVER          = 'to_deliver';
   case PARTIALLY_DELIVERED = 'partially_delivered';

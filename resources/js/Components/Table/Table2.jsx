@@ -122,15 +122,16 @@ const Cell = memo(
         );
       }
       case "formStatuses": {
+        const newValue = [...value, ...row.appendStatus];
         return (
           <div
             className={cn(
-              value.length > 1
+              newValue.length > 1
                 ? "flex gap-x-1 gap-y-1 flex-wrap w-full"
                 : "text-center",
             )}
           >
-            {value.map((status, idx) => (
+            {newValue.map((status, idx) => (
               <BadgeStatus
                 className="text-xs py-0.5 px-2"
                 key={idx}

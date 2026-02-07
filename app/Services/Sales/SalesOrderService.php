@@ -31,7 +31,7 @@ class SalesOrderService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
@@ -67,11 +67,21 @@ class SalesOrderService {
   }
 
   public function create(array $data) {
-    $salesOrder = SalesOrder::create($this->fillRelations($data));
+    $salesOrder  = SalesOrder::create($this->fillRelations($data));
+    $basicAmount = 0;
+    $taxAmount   = 0;
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item, $salesOrder);
-      $salesOrder->items()->create($item);
+      $item = $salesOrder->items()->create($item);
+
+      $item->refresh();
+      $basicAmount += $item->basic_amount;
+      $taxAmount   += $item->tax_amount;
     }
+    $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
+    $salesOrder->update([
+      'amount' => $totalAmount,
+    ]);
     foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesOrder);
       $salesOrder->paymentSchedules()->create(attributes: [
@@ -84,25 +94,34 @@ class SalesOrderService {
   }
 
   public function update(SalesOrder $salesOrder, array $data) {
-    $salesOrder->fillForUpdate($this->fillRelations($data));
+    $salesOrder->fillForUpdate($this->fillRelations($data), true);
 
     $salesOrder->items()
       ->whereNotIn('id', array_column($data['items'], 'id'))
       ->delete();
+    $basicAmount = 0;
+    $taxAmount   = 0;
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item, $salesOrder);
 
       if (Ulid::isValid($item['id'])) {
-        $salesOrder->items()
-          ->find($item['id'])
-          ->update($item);
-        continue;
+        $item = $salesOrder->items()
+          ->find($item['id'])->fill($item);
+        $item->save();
+      } else {
+        $item = $salesOrder->items()->create($item);
       }
 
-      $salesOrder->items()->create($item);
+      $item->refresh();
+      $basicAmount += $item->basic_amount;
+      $taxAmount   += $item->tax_amount;
     }
+    $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
+    $salesOrder->fill([
+      'amount' => $totalAmount,
+    ]);
+    $salesOrder->save();
 
-    // dd($data);
     $salesOrder->paymentSchedules()
       ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
       ->delete();
@@ -148,7 +167,7 @@ class SalesOrderService {
     $items      = $salesOrder->items()
       ->with(['item', 'item.item.category'])
       ->get();
-    $isValid    = !$salesOrder->is_rent;
+    $isValid    = ! $salesOrder->is_rent;
     $errorItems = [];
     foreach ($items as $item) {
       $stock = Stock::lockForUpdate()
@@ -161,7 +180,7 @@ class SalesOrderService {
       if ($salesOrder->is_rent && $availableToRent) {
         $isValid = true;
       }
-      if (!$stock) {
+      if (! $stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
       }
@@ -172,7 +191,7 @@ class SalesOrderService {
       }
       $stock->updateDetails('increment', 'reservations', $salesOrder->code, $quantity);
     }
-    if (!$isValid) {
+    if (! $isValid) {
       $errorItems[] = "This order is not valid for renting";
     }
     if (\count($errorItems) > 0) {

@@ -9,7 +9,7 @@ use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrder;
-use DB;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
 class PurchaseInvoiceService {
@@ -25,7 +25,7 @@ class PurchaseInvoiceService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;

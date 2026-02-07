@@ -61,7 +61,6 @@ export const useDraftForm = (
     delete: deleteForm,
     ...form
   } = useForm(initialData ?? {});
-
   useDidMountEffect(() => {
     setIsDirty(form.isDirty);
     if (!form.isDirty) {
@@ -119,8 +118,10 @@ export const useDraftForm = (
               preserveUrl: false,
             }
           : {
-              reset: name ? [name, "logs", "flash"] : ["logs", "flash"],
-              preserveState: false,
+              reset: name
+                ? [name, "errors", "logs", "flash"]
+                : ["errors", "logs", "flash"],
+              preserveState: true,
               preserveScroll: true,
             }),
         replace: true,
@@ -137,7 +138,8 @@ export const useDraftForm = (
           if (options?.onBefore) options.onBefore(e);
         },
         onError: (e) => {
-          saveToLocalStorage(key, form.data, expiredDays);
+          if (!options?.isSubmit)
+            saveToLocalStorage(key, form.data, expiredDays);
           if (options?.onError) options.onError(e);
         },
       };

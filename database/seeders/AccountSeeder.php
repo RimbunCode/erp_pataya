@@ -258,6 +258,14 @@ class AccountSeeder extends Seeder {
               [
                 'account_name'   => 'Retur Penjualan',
                 'account_number' => '4120',
+                'account_type'   => 'income_account',
+                'is_contra'      => true,
+              ],
+              [
+                'account_name'   => 'Potongan Penjualan',
+                'account_number' => '4130',
+                'account_type'   => 'discount',
+                'is_contra'      => true,
               ],
             ],
           ],

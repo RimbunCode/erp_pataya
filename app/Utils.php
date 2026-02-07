@@ -63,8 +63,7 @@ class Utils {
     return $newValue;
   }
 
-  public static function convertTemplateLink($value) {
-    if (! $value) return null;
+  public static function convertTemplateLink($value) { if (! $value) return null;
     if ($value instanceof \Illuminate\Support\Collection || $value instanceof \Illuminate\Database\Eloquent\Model) $value = $value->toArray();
     else if (! is_array($value)) return null;
     if (! isset($value['templateLink']))
@@ -261,5 +260,16 @@ class Utils {
         'type'  => 'string',
       ],
     ];
+  }
+
+  public static function countAmount($basicAmount, $taxAmount, $discountOn, $discountAmount) {
+    switch ($discountOn) {
+      case "grand_total":
+        return $basicAmount + $taxAmount - $discountAmount;
+      case "net_total":
+        return $basicAmount - $discountAmount + $taxAmount;
+      default:
+        return $basicAmount + $taxAmount;
+    }
   }
 }

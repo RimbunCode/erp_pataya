@@ -14,6 +14,10 @@ return [
   'exchange_rate'        => 'Exchange Rate',
   'currency'             => 'Currency',
   'currency.placeholder' => 'Select a Currency',
+  'actions'              => [
+    'create_payment_entry' => 'Create Payment Entry',
+    'create_credit_note'   => 'Create Credit Note',
+  ],
   'columns'              => [
     'code'                         => 'Code',
     'sales_order'                  => 'Sales Order',
@@ -28,7 +32,7 @@ return [
     'customer_branch'              => 'Customer Branch',
     'item'                         => 'Item',
     'item.placeholder'             => 'Select an item',
-    'date'                         => 'Sales Invoice Date',
+    'date'                         => 'Date',
     'description'                  => 'Description',
     'source_warehouse'             => 'Source Warehouse',
     'source_warehouse.placeholder' => 'Select a Source Warehouse',
@@ -72,7 +76,12 @@ return [
       'months_after_invoice_month' => 'Months after invoice month',
     ],
     'outstanding_amount'           => 'Outstanding Amount',
-
+    'accounts'                     => 'Accounts',
+    'accounts.placeholder'         => 'Select an account',
+    'income_account'               => 'Income Account',
+    'debit_account'                => 'Debit To',
+    'is_return'                    => 'Is Return (Credit Note) ',
+    'return_against'               => 'Return Against Sales Invoice',
   ],
 
 ];

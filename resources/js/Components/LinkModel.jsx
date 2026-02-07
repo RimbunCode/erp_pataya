@@ -33,6 +33,37 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useRef } from "react";
 
 function validateWithOperators(value, operators, logic = "and") {
+  const parseDate = (val) => {
+    if (val instanceof Date) return val;
+    if (typeof val === "string") {
+      const parsed = new Date(val);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+    return null;
+  };
+
+  const normalizeDateComparison = (left, right) => {
+    const leftDate = parseDate(left);
+
+    if (Array.isArray(right)) {
+      const rightDates = right.map(parseDate);
+      if (leftDate && rightDates.every(Boolean)) {
+        return {
+          left: leftDate.getTime(),
+          right: rightDates.map((d) => d.getTime()),
+        };
+      }
+      return { left, right };
+    }
+
+    const rightDate = parseDate(right);
+    if (leftDate && rightDate) {
+      return { left: leftDate.getTime(), right: rightDate.getTime() };
+    }
+
+    return { left, right };
+  };
+
   let result = false;
   for (let keyOperator in operators) {
     const valOperator = operators[keyOperator];
@@ -47,22 +78,40 @@ function validateWithOperators(value, operators, logic = "and") {
         break;
       }
       case "not":
-        result = value != valOperator;
+        (() => {
+          const { left, right } = normalizeDateComparison(value, valOperator);
+          result = left != right;
+        })();
         break;
       case "=":
-        result = value == valOperator;
+        (() => {
+          const { left, right } = normalizeDateComparison(value, valOperator);
+          result = left == right;
+        })();
         break;
       case ">":
-        result = value > valOperator;
+        (() => {
+          const { left, right } = normalizeDateComparison(value, valOperator);
+          result = left > right;
+        })();
         break;
       case ">=":
-        result = value >= valOperator;
+        (() => {
+          const { left, right } = normalizeDateComparison(value, valOperator);
+          result = left >= right;
+        })();
         break;
       case "<":
-        result = value < valOperator;
+        (() => {
+          const { left, right } = normalizeDateComparison(value, valOperator);
+          result = left < right;
+        })();
         break;
       case "<=":
-        result = value <= valOperator;
+        (() => {
+          const { left, right } = normalizeDateComparison(value, valOperator);
+          result = left <= right;
+        })();
         break;
       case "jsonContains":
         if (Array.isArray(value)) {
@@ -125,10 +174,22 @@ function validateWithOperators(value, operators, logic = "and") {
           : true;
         break;
       case "between":
-        result = value >= valOperator[0] && value <= valOperator[1];
+        (() => {
+          const { left, right } = normalizeDateComparison(value, valOperator);
+          result =
+            Array.isArray(right) && right.length >= 2
+              ? left >= right[0] && left <= right[1]
+              : value >= valOperator[0] && value <= valOperator[1];
+        })();
         break;
       case "notBetween":
-        result = value < valOperator[0] || value > valOperator[1];
+        (() => {
+          const { left, right } = normalizeDateComparison(value, valOperator);
+          result =
+            Array.isArray(right) && right.length >= 2
+              ? left < right[0] || left > right[1]
+              : value < valOperator[0] || value > valOperator[1];
+        })();
         break;
       default: {
         const keys = keyOperator.split(/\.|->/);
@@ -302,7 +363,11 @@ export default memo(
         setOpen(false);
       },
     });
-    const option = value ?? _option;
+
+    const option = useMemo(() => {
+      setLoading(false);
+      return value ?? _option;
+    }, [value]);
 
     useDidMountEffect(() => {
       _setOption(value);
@@ -413,7 +478,7 @@ export default memo(
     const loadedDefaultKeyRef = useRef(null);
 
     useEffect(() => {
-      if (!defaultKey || option) return;
+      if (!defaultKey || value) return;
 
       if (loadedDefaultKeyRef.current === defaultKey) return;
       loadedDefaultKeyRef.current = defaultKey;
@@ -427,7 +492,7 @@ export default memo(
       }, 500);
 
       return () => clearTimeout(reloadModel);
-    }, [defaultKey, option]);
+    }, [defaultKey, value]);
     useDidMountEffect(() => {
       if (!open) return;
       setLoading(true);
