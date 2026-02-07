@@ -11,18 +11,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaymentEntry extends Model {
   use HasUlids, SoftDeletes, DataTable, Submitable;
-  protected static string $defaultFormatCode = '@[branch_code]/PaymentEntry-@[iiii]/@[yy]';
+  protected static string $defaultFormatCode = 'PaymentEntry-@[iiii]/@[yy]';
   protected               $casts             = [
     "date" => "datetime",
   ];
-
-  public function codeRelations() {
-    return [
-      'branch_code:branch.code',
-      'branch_name:branch.name',
-    ];
-  }
-  protected $guarded = ['id'];
+  protected               $guarded           = ['id'];
 
   public static function templateLink() {
     return ":name";
@@ -33,29 +26,45 @@ class PaymentEntry extends Model {
       'paymentMethod',
       'currency',
       'partyable',
+      'paymentable',
+      'accountPaidTo',
+      'accountPaidFrom',
     ];
   }
   protected     $configColumns = [
-    'date'           => [
+    'code'               => [
       'order'  => 0,
       'show'   => true,
       'isLink' => true,
+
     ],
-    'payment_type'   => [
-      'order' => 1,
+    'date'               => [
+      'order' => 0,
       'show'  => true,
     ],
-    'payment_method' => [
+    'paymentMethod'      => [
       'order' => 2,
       'show'  => true,
     ],
-    'partyable'      => [
+    'paymentable'        => [
       'order' => 3,
       'show'  => true,
     ],
-    'paid_amount'    => [
+    'partyable'          => [
       'order' => 4,
       'show'  => true,
+    ],
+    'paid_amount'        => [
+      'order' => 5,
+      'show'  => true,
+    ],
+    'accountPaidTo',
+    'accountPaidFrom',
+    'base_currency_code' => [
+      'ignore' => true,
+    ],
+    'base_paid_amount'   => [
+      'ignore' => true,
     ],
   ];
   public string $translateKey  = 'finances.paymentEntry';
@@ -72,7 +81,15 @@ class PaymentEntry extends Model {
     return $this->morphTo('partyable');
   }
 
-  public function paymentSchedules() {
-    return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')->orderBy('payment_date', 'asc');
+  public function paymentable() {
+    return $this->morphTo('paymentable');
+  }
+
+  public function accountPaidTo() {
+    return $this->belongsTo(Account::class, 'account_paid_to_id');
+  }
+
+  public function accountPaidFrom() {
+    return $this->belongsTo(Account::class, 'account_paid_from_id');
   }
 }

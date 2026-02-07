@@ -25,6 +25,7 @@ import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import ItemForm from "./ItemForm";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -508,6 +509,7 @@ export default function Form() {
           <FormTable
             name="items"
             className="col-start-1 col-span-2"
+            form={<ItemForm />}
             disabled={true}
             columns={itemColumns}
             value={data?.items ?? []}

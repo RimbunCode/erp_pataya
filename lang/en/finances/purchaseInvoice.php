@@ -17,6 +17,8 @@ return [
     'code'                         => 'Code',
     'purchase_order'               => 'Purchase Order',
     'purchase_order.placeholder'   => 'Select a Purchase Order',
+    'target_warehouse'             => 'Target Warehouse',
+    'rate'                         => 'Rate',
     'amount'                       => 'Amount',
     'currency'                     => 'Currency',
     'basic_amount'                 => 'Basic Amount',

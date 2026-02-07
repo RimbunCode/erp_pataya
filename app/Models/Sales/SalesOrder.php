@@ -36,11 +36,11 @@ class SalesOrder extends Model {
 
   public function rentDate(): Attribute {
     return Attribute::make(
-      get: fn () => [
+      get: fn() => [
         'from' => $this->start_date,
         'to'   => $this->end_date,
       ],
-      set: fn ($value) => [
+      set: fn($value) => [
         'start_date' => Carbon::parse($value['from'])->utc(),
         'end_date'   => Carbon::parse($value['to'])->utc(),
       ]
@@ -53,26 +53,56 @@ class SalesOrder extends Model {
   }
   public    $translateKey  = 'sales.salesOrder';
   protected $configColumns = [
-    'code'     => [
+    'code'                          => [
       'isLink' => true,
       'show'   => true,
       'order'  => 0,
     ],
-    'customer' => [
+    'customer'                      => [
       'show'  => true,
       'order' => 1,
     ],
-    'date'     => [
+    'date'                          => [
       'show'  => true,
       'order' => 2,
     ],
-    'status'   => [
+    'is_rent'                       => [
       'show'  => true,
       'order' => 3,
     ],
+    'status'                        => [
+      'show'  => true,
+      'order' => 4,
+    ],
     'customer_branch',
     "currency",
-    'branch'   => [
+    'branch'                        => [
+      'ignore' => true,
+    ],
+    'customer_name'                 => [
+      'ignore' => true,
+    ],
+    'customer_branch_name'          => [
+      'ignore' => true,
+    ],
+    'discount_amount_base_currency' => [
+      'ignore' => true,
+    ],
+    'amount'                        => [
+      'ignore' => true,
+    ],
+    'amount_base_currency'          => [
+      'ignore' => true,
+    ],
+    'base_currency_code'            => [
+      'ignore' => true,
+    ],
+    'referenceable',
+    'referenceSo',
+    'start_date'                    => [
+      'ignore' => true,
+    ],
+    'end_date'                      => [
       'ignore' => true,
     ],
   ];
@@ -80,6 +110,7 @@ class SalesOrder extends Model {
   protected static function loadRelationsOnShow() {
     return [
       'referenceable',
+      'referenceSo',
       'items',
       'customer',
       'customer_branch',
@@ -96,6 +127,10 @@ class SalesOrder extends Model {
 
   public function referenceable() {
     return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
+  }
+
+  public function referenceSo() {
+    return $this->belongsTo(SalesOrder::class, 'reference_so_id');
   }
 
   public function items() {

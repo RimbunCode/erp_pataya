@@ -52,7 +52,7 @@ export default function Form() {
           </FormInput>
           <FormInput
             required={true}
-            label={t("finances.paymentSchedule.columns.reference_to")}
+            label={t("finances.paymentEntry.columns.paymentable")}
             name="reference_to"
             className="col-start-2"
           >
@@ -60,31 +60,54 @@ export default function Form() {
               className="pointer-events-auto"
               value={data.paymentable}
               model={
-                data.payment_type === "receive"
+                data.party_type === "customer"
                   ? "App\\Models\\Finances\\SalesInvoice"
-                  : data.payment_type === "pay"
+                  : data.party_type === "supplier"
                     ? "App\\Models\\Finances\\PurchaseInvoice"
                     : null
               }
               disabledAddButton={true}
               with={[
                 "currency",
-                ...(data.payment_type === "receive"
+                ...(data.party_type === "customer"
                   ? ["customer", "currency"]
-                  : data.payment_type === "pay"
-                    ? []
+                  : data.party_type === "supplier"
+                    ? ["supplier", "currency"]
                     : []),
               ]}
-              onValueChange={(val) => setData("paymentable", val)}
+              onValueChange={(val) => {
+                setData((prev) => ({
+                  ...prev,
+                  paymentable: val,
+                  currency: val?.currency,
+                  exchange_rate: val?.exchange_rate ?? undefined,
+                  partyable: val[data.party_type] ?? null,
+                }));
+              }}
+            />
+          </FormInput>
+          <FormInput name="party_type" required>
+            <Select
+              placeholder={t(
+                "finances.paymentEntry.columns.party_type.placeholder",
+              )}
+              optionTrans="finances.paymentEntry.columns.party_type.options"
+              options={["customer", "supplier"]}
+              value={data.party_type}
+              onValueChange={(val) => {
+                setData({
+                  party_type: val,
+                });
+              }}
             />
           </FormInput>
           {data.payment_type && (
             <FormInput
               required={true}
               disabled={!data.payment_type}
-              label={t("finances.paymentEntry.columns.party")}
+              label={t("finances.paymentEntry.columns.partyable")}
             >
-              {data.payment_type === "receive" ? (
+              {data.party_type === "customer" ? (
                 <CustomerLinkModel
                   value={data.partyable}
                   onValueChange={(val) => setData("partyable", val)}
@@ -104,7 +127,6 @@ export default function Form() {
             </FormInput>
           )}
           <FormInput
-            required={true}
             label={t("finances.paymentEntry.columns.currency")}
             className="col-start-1"
           >
@@ -118,10 +140,7 @@ export default function Form() {
               }}
             />
           </FormInput>
-          <FormInput
-            required={true}
-            label={t("finances.paymentEntry.columns.exchange_rate")}
-          >
+          <FormInput label={t("finances.paymentEntry.columns.exchange_rate")}>
             <CurrencyInput
               disabled={!data.currency}
               className="text-left"
@@ -136,8 +155,17 @@ export default function Form() {
             label={t("finances.paymentEntry.columns.payment_method")}
           >
             <PaymentMethodLinkModel
+              with={["defaultAccount"]}
               value={data.payment_method}
-              onValueChange={(val) => setData("payment_method", val)}
+              onValueChange={(val) => {
+                setData((prev) => ({
+                  ...prev,
+                  payment_method: val,
+                  [data.payment_type === "receive"
+                    ? "account_paid_to"
+                    : "account_paid_from"]: val?.default_account,
+                }));
+              }}
               placeholder={t(
                 "finances.paymentEntry.columns.payment_method.placeholder",
               )}
@@ -159,20 +187,34 @@ export default function Form() {
         <div className="grid md:grid-cols-2  gap-x-3 gap-y-4">
           <FormInput
             required={true}
-            label={t("finances.paymentEntry.columns.account_paid_to")}
+            label={t("finances.paymentEntry.columns.account_paid_from")}
           >
             <AccountLinkModel
-              value={data?.account_paid_to}
-              onValueChange={(val) => setData("account_paid_to", val)}
+              filters={
+                data.payment_type === "receive"
+                  ? { root_type: "asset", account_type: "receivable" }
+                  : data.payment_type === "pay"
+                    ? { root_type: "asset", is_group: false }
+                    : {}
+              }
+              value={data?.account_paid_from}
+              onValueChange={(val) => setData("account_paid_from", val)}
             />
           </FormInput>
           <FormInput
             required={true}
-            label={t("finances.paymentEntry.columns.account_paid_from")}
+            label={t("finances.paymentEntry.columns.account_paid_to")}
           >
             <AccountLinkModel
-              value={data?.account_paid_from}
-              onValueChange={(val) => setData("account_paid_from", val)}
+              filters={
+                data.payment_type === "receive"
+                  ? { root_type: "asset", is_group: false }
+                  : data.payment_type === "pay"
+                    ? { root_type: "liability", account_type: "payable" }
+                    : {}
+              }
+              value={data?.account_paid_to}
+              onValueChange={(val) => setData("account_paid_to", val)}
             />
           </FormInput>
         </div>

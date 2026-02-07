@@ -409,6 +409,7 @@ export default memo(
       ignoreDisabled = false,
       readOnly = false,
       className,
+      classNameDialog,
       columns: columnsProps,
       value,
       onValueChange,
@@ -1005,7 +1006,10 @@ export default memo(
         >
           <MyDialogContent
             hideX
-            className="max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)"
+            className={cn(
+              "max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)",
+              classNameDialog,
+            )}
             asChild
           >
             <form

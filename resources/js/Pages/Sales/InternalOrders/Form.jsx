@@ -10,6 +10,7 @@ import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import ItemForm from "./ItemForm";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -127,7 +128,7 @@ export default function Form() {
         },
       },
     ];
-  }, []);
+  }, [data]);
   useEffect(() => {
     if (!data.date) {
       setData("date", new Date());
@@ -179,7 +180,10 @@ export default function Form() {
             />
           </FormInput>
           <FormTable
+            name="items"
             className="col-start-1 col-span-2"
+            classNameDialog="max-w-(--breakpoint-lg)! w-full!"
+            form={<ItemForm />}
             readOnly={disabled}
             columns={itemColumns}
             value={data?.items ?? []}

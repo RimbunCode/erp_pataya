@@ -29,24 +29,28 @@ class PurchaseOrder extends Model {
   public string $formComponent = 'Purchase/PurchaseOrders/Form';
   public string $translateKey  = "purchase.purchaseOrder";
   protected     $configColumns = [
-    'code'     => [
+    'code'               => [
       'isLink' => true,
       'show'   => true,
       'order'  => 0,
     ],
-    'date'     => [
+    'date'               => [
       'type'  => 'date',
       'show'  => true,
       'order' => 1,
     ],
-    'supplier' => [
+    'supplier'           => [
       'type'  => 'relation',
       'show'  => true,
       'order' => 2,
     ],
-    'status'   => [
+    'status'             => [
       'show'  => true,
       'order' => 3,
+    ],
+    'currency_code',
+    'base_currency_code' => [
+      'ignore' => true,
     ],
 
   ];

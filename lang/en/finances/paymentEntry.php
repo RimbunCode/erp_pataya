@@ -11,6 +11,10 @@ return [
   'category'           => 'Category',
   'columns'            => [
     'date'                       => 'Payment Date',
+    'code'                       => 'Payment Code',
+    'paymentable'                => 'Reference To',
+    'currency_code'              => 'Currency Code',
+    'partyable'                  => 'Party',
     'account_paid_to'            => 'Account Paid To',
     'account_paid_from'          => 'Account Paid From',
     'currency'                   => 'Currency',

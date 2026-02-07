@@ -23,6 +23,8 @@ import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel"
 import axios from "axios";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+import { useState } from "react";
+import ItemForm from "./ItemForm";
 
 export default memo(function Form() {
   const { t } = useLaravelReactI18n();
@@ -497,7 +499,9 @@ export default memo(function Form() {
           </FormInput>
           <FormTable
             name="items"
+            form={<ItemForm />}
             className="col-start-1 col-span-2"
+            classNameDialog="max-w-(--breakpoint-lg)! w-full!"
             readOnly={disabled || isLockDoc}
             columns={itemColumns}
             value={data?.items ?? []}
