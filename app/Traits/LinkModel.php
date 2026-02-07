@@ -90,6 +90,8 @@ trait LinkModel {
         'ignore' => true,
       ],
       'depth'             => [
+        'ignore' => true,
+      ],
       'appendStatus'      => [
         'ignore' => true,
       ],
@@ -139,20 +141,20 @@ trait LinkModel {
   }
 
   protected function getCanDeleteAttribute(): bool {
-    $condition = (static::$is_submitable ?? false) ? \in_array(FormStatus::DRAFT, $this->status) : !($this->have_transactions ?? false);
-    if (!\method_exists(static::class, "canDelete"))
+    $condition = (static::$is_submitable ?? false) ? \in_array(FormStatus::DRAFT, $this->status) : ! ($this->have_transactions ?? false);
+    if (! \method_exists(static::class, "canDelete"))
       return $condition;
     return $condition && $this->canDelete();
   }
 
   protected function getTemplateLinkAttribute(): string {
-    if (!\method_exists(static::class, "templateLink"))
+    if (! \method_exists(static::class, "templateLink"))
       return "";
     return static::templateLink();
   }
 
   protected function getDisabledOnAttribute(): string {
-    if (!\method_exists(static::class, "disabledOn"))
+    if (! \method_exists(static::class, "disabledOn"))
       return "";
     return static::disabledOn();
   }
@@ -360,11 +362,11 @@ trait LinkModel {
       $key    = \is_string($key) ? $key : $relation;
       $config = \is_array($relation) ? $relation : [];
 
-      if (!method_exists($instance, $key))
+      if (! method_exists($instance, $key))
         continue;
 
       $rel = $instance->$key();
-      if (!$rel instanceof Relation) {
+      if (! $rel instanceof Relation) {
         continue;
       }
 
@@ -410,7 +412,7 @@ trait LinkModel {
       ];
     }
 
-    \usort($newColumns, fn($a, $b) => $a["name"] <=> $b["name"]);
+    \usort($newColumns, fn ($a, $b) => $a["name"] <=> $b["name"]);
 
     return $newColumns;
   }
