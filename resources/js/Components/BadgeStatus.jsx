@@ -25,6 +25,9 @@ const theme = {
   to_receive: "warning",
   received: "success",
   partially_received: "warning",
+  unpaid: "warning",
+  partially_paid: "warning",
+  paid: "success",
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();

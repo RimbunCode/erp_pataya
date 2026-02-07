@@ -2,6 +2,7 @@
 
 namespace App\Models\Inventory;
 
+use App\FormStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\AdditionalCost;
 use App\Models\Model;
@@ -27,6 +28,13 @@ class StockEntry extends Model {
       'branch_name:branch.name',
     ];
   }
+  // EXAMPLE appendStatus
+  /**
+   * @return FormStatus[]
+   */
+  // protected function appendStatus(): array {
+  //   return [FormStatus::OVERDUE];
+  // }
   public string $translateKey  = 'inventory.stockEntry';
   protected     $configColumns = [
     'code'   => [

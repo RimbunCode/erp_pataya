@@ -24,6 +24,7 @@ return new class extends Migration
       $table->double('tax_rate')->default(0);
       $table->boolean('is_disabled')->default(false);
       $table->double('balance_amount')->default(0);
+      $table->boolean('is_contra')->default(false);
       $table->softDeletes();
       $table->timestamps();
     });

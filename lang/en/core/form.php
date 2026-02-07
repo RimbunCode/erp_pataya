@@ -38,6 +38,7 @@ return [
   'not_saved'             => 'Not Saved',
   'save'                  => 'Save',
   'save_and_submit'       => 'Save and Submit',
+  'close_and_apply'       => 'Close & Apply',
   'default'               => 'Default',
   'print'                 => 'Print',
   'print_preview'         => 'Print Preview',
