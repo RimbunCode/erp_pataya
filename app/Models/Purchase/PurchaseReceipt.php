@@ -56,6 +56,7 @@ class PurchaseReceipt extends Model {
       'show'  => true,
       'order' => 4,
     ],
+    'returnAgainst',
   ];
 
   public function purchaseOrder() {

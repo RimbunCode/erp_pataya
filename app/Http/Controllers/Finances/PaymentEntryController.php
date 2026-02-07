@@ -11,46 +11,47 @@ use App\Models\Finances\PaymentSchedule;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Sales\SalesOrder;
 use App\Services\Core\FormatingSeriesService;
+use App\Services\Finances\PaymentEntryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class PaymentEntryController extends Controller
-{
+class PaymentEntryController extends Controller {
   private FormatingSeriesService $referenceCodeService;
+  private PaymentEntryService    $service;
 
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService)
-  {
+  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, PaymentEntryService $service) {
     $this->referenceCodeService = $preferenceCodeService;
+    $this->service              = $service;
     parent::__construct($request, PaymentEntry::class);
   }
+
   /**
    * Display a listing of the resource.
    */
-  public function index(Request $request)
-  {
+  public function index(Request $request) {
     $this->setBreadcrumbs();
     PaymentEntry::dataTable($request);
+
     return Inertia::render(
       'Finances/PaymentEntries/Index',
-      []
+      [],
     );
   }
 
   /**
    * Show the form for creating a new resource.
    */
-  public function create(Request $request, string $ref = null)
-  {
+  public function create(Request $request, string $ref = null) {
     if ($ref) {
-      $select = $request->has('select') ? $request->select : null;
-      $split = \explode("/", $ref);
+      $select   = $request->has('select') ? $request->select : null;
+      $split    = \explode("/", $ref);
       $modelOri = $split[0] ?? null;
-      $id = $split[1] ?? null;
+      $id       = $split[1] ?? null;
       if ($modelOri) {
         $model = match ($modelOri) {
           'paymentSchedule' => PaymentSchedule::class,
-          default => null,
+          default           => null,
         };
         if ($modelOri == 'paymentSchedule' && $id) {
           $paymentSchedule = PaymentSchedule::find($id);
@@ -58,67 +59,53 @@ class PaymentEntryController extends Controller
           $modelReference = $paymentSchedule->payment_scheduleable_type;
 
           if ($modelReference == SalesOrder::class) {
-            $partyable =  $paymentSchedule->referenceTo->customer;
-            $currency = $paymentSchedule->referenceTo->currency;
+            $partyable = $paymentSchedule->referenceTo->customer;
+            $currency  = $paymentSchedule->referenceTo->currency;
           }
         } else {
           $modelReference = $model;
         }
       }
       $payment_type = match ($modelReference) {
-        SalesOrder::class => 'receive',
+        SalesOrder::class    => 'receive',
         PurchaseOrder::class => 'pay',
       };
     }
 
-
-
     $this->setBreadcrumbs('finance.paymentEntry.new');
     return Inertia::render('Finances/PaymentEntries/Show', [
       'paymentable_type' => $model,
-      'paymentable_id' => $id,
-      'payment_type' => $payment_type,
-      "partyable_type" =>
-      $payment_type === "receive"
+      'paymentable_id'   => $id,
+      'payment_type'     => $payment_type,
+      "partyable_type"   =>
+        $payment_type === "receive"
         ? "App\\Models\\Sales\\Customer"
         : ($payment_type === "pay"
           ? "App\\Models\\Purchase\\Supplier"
           : null),
-      'partyable' => $partyable ?? null,
-      'currency' => $currency ?? null,
-      'paid_amount' => $paymentSchedule?->outstanding_amount ?? null,
-      'payment_method' => $paymentSchedule?->paymentMethod ?? null
+      'partyable'        => $partyable ?? null,
+      'currency'         => $currency ?? null,
+      'paid_amount'      => $paymentSchedule?->outstanding_amount ?? null,
+      'payment_method'   => $paymentSchedule?->paymentMethod ?? null
     ]);
   }
 
   /**
    * Store a newly created resource in storage.
    */
-  public function store(PaymentEntryRequest $request)
-  {
-    $data = $request->validated();
-    DB::beginTransaction();
+  public function store(PaymentEntryRequest $request) {
+    $data              = $request->validated();
     $data['branch_id'] = $request->session()->get('currentBranch');
-    $code = $this->referenceCodeService->get(PaymentEntry::class, $data);
-    $data['code'] = $code;
-    $defaultCurrency = Preference::find('default_currency_id')->value;
-    $data['currency_code'] = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
-    $data['base_currency_code'] = $defaultCurrency;
-    $data['partyable_id'] = $data['partyable']['id'];
-    if (isset($data['payment_method'])) {
-      $data['payment_method_id'] = $data['payment_method']['id'];
-    }
-    $paymentEntry = PaymentEntry::create($data);
-    $paymentEntry->logForCreated();
-    DB::commit();
+    $code              = $this->referenceCodeService->get(PaymentEntry::class, $data);
+    $data['code']      = $code;
+    $paymentEntry      = $this->service->create($data);
     return redirect()->route('paymentEntries.show', $paymentEntry);
   }
 
   /**
    * Display the specified resource.
    */
-  public function show(PaymentEntry $paymentEntry)
-  {
+  public function show(PaymentEntry $paymentEntry) {
     $this->setBreadcrumbs($paymentEntry);
     $paymentEntry->showDetail();
 
@@ -137,29 +124,14 @@ class PaymentEntryController extends Controller
   /**
    * Update the specified resource in storage.
    */
-  public function update(PaymentEntryRequest $request, PaymentEntry $paymentEntry)
-  {
-    $data = $request->validated();
-    DB::beginTransaction();
-    $data['branch_id'] = $request->session()->get('currentBranch');
-    $code = $this->referenceCodeService->get(PaymentEntry::class, $data);
-    $data['code'] = $code;
-    $defaultCurrency = Preference::find('default_currency_id')->value;
-    $data['currency_code'] = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
-    $data['base_currency_code'] = $defaultCurrency;
-    $data['partyable_id'] = $data['partyable']['id'];
-    if (isset($data['payment_method'])) {
-      $data['payment_method_id'] = $data['payment_method']['id'];
-    }
-    $paymentEntry->fillForUpdate($data);
-    $paymentEntry->logForUpdated();
-    DB::commit();
+  public function update(PaymentEntryRequest $request, PaymentEntry $paymentEntry) {
+    $data         = $request->validated();
+    $paymentEntry = $this->service->update($paymentEntry, $data);
     return redirect()->route('paymentEntries.show', $paymentEntry);
   }
 
   // Opsional: log internal order submit
-  public function submit(PaymentEntry $paymentEntry)
-  {
+  public function submit(PaymentEntry $paymentEntry) {
     DB::beginTransaction();
 
     try {
@@ -187,10 +159,10 @@ class PaymentEntryController extends Controller
 
         // Update jumlah paid & tanggal pembayaran
         $paymentSchedule->update([
-          'paid_amount' => $totalPaid,
+          'paid_amount'      => $totalPaid,
           'base_paid_amount' => $paymentSchedule->base_paid_amount + $paymentEntry->based_paid_amount,
-          'payment_date' => now(),
-          'submitted_at' => now(),
+          'payment_date'     => now(),
+          'submitted_at'     => now(),
         ]);
       }
 
@@ -212,8 +184,7 @@ class PaymentEntryController extends Controller
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(string $id)
-  {
+  public function destroy(string $id) {
     //
   }
 }

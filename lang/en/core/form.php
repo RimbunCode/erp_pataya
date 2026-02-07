@@ -20,6 +20,12 @@ return [
     'cancel'   => 'Cancel',
     'submit'   => 'Submit',
   ],
+  'confirmation_cancel'   => [
+    'title'    => 'Cancel Confirmation',
+    'subtitle' => 'Are you sure you want to cancel this form? This action cannot be undone.',
+    'cancel'   => 'No',
+    'submit'   => 'Yes',
+  ],
   'select'                => 'Select',
   'select.placeholder'    => 'Select an option',
   'select_model'          => 'Select Model',

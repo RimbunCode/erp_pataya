@@ -52,7 +52,13 @@ return [
       'net_total'   => 'Net Total',
       'grand_total' => 'Grand Total',
     ],
+    'discount_amount'            => 'Discount Amount',
+    'discount_rate'              => 'Discount Rate',
     'additional_discount_rate'   => 'Additional Discount Rate',
     'additional_discount_amount' => 'Additional Discount Amount',
+    'currency_code'              => 'Currency Code',
+    'supplier_name'              => 'Supplier Name',
+    'total_amount'               => 'Total Amount',
+    'total_amount_base_currency' => 'Total Amount Base Currency',
   ],
 ];

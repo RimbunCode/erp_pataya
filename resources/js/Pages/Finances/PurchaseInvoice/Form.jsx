@@ -22,6 +22,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import PurchaseOrderLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrderLinkModel";
+import ItemForm from "./ItemForm";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -540,6 +541,7 @@ export default function Form() {
           <FormTable
             name="items"
             className="col-start-1 col-span-2"
+            form={<ItemForm />}
             disabled={true}
             columns={itemColumns}
             value={data?.items ?? []}

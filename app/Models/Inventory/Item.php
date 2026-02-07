@@ -2,6 +2,7 @@
 
 namespace App\Models\Inventory;
 
+use App\Models\Core\File;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use App\Models\Model;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 class Item extends Model {
   use HasUlids, SoftDeletes, DataTable;
   protected $guarded = ['id'];
-  protected $casts = [
+  protected $casts   = [
     'is_disabled'            => 'boolean',
     'allow_alternative_item' => 'boolean',
     'is_stock_item'          => 'boolean',
@@ -37,26 +38,34 @@ class Item extends Model {
   public string $formComponent = 'Inventory/Items/Form';
   public string $translateKey  = "inventory.item";
   protected     $configColumns = [
-    'code'     => [
+    'code'              => [
       'show'   => true,
       'order'  => 0,
       'isLink' => true,
     ],
-    'name'     => [
+    'name'              => [
       'show'  => true,
       'order' => 1,
     ],
-    'category' => [
+    'category'          => [
       'type'  => 'relation',
       'show'  => true,
       'order' => 2,
     ],
+    'conversion_factor' => [
+      'ignore' => true,
+    ],
     'defaultUnit',
     'image',
+
   ];
 
   public function attributes() {
     return $this->hasMany(ItemAttribute::class)->with(['attribute']);
+  }
+
+  public function image() {
+    return $this->belongsTo(File::class, 'image_id');
   }
 
   public function defaultUnit() {

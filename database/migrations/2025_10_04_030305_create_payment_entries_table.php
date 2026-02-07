@@ -14,10 +14,11 @@ return new class extends Migration
       $table->ulid('id')->primary();
       $table->timestamp('date');
       $table->string('payment_type');
+      $table->string('party_type');
       $table->ulidMorphs('paymentable');
       $table->ulidMorphs('partyable');
       $table->double('paid_amount')->default(0);
-      $table->double('based_paid_amount')->default(0);
+      $table->double('base_paid_amount')->default(0);
       $table->double('exchange_rate')->default(0);
       $table->string('currency_code')->nullable();
       $table->foreignUlid('account_paid_to_id')->references('id')->on('accounts')->cascadeOnDelete();

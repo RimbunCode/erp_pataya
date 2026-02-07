@@ -35,7 +35,6 @@ class StockEntry extends Model {
       'order'  => 0,
     ],
     'date'   => [
-      'type'  => 'date',
       'show'  => true,
       'order' => 1,
     ],
@@ -53,6 +52,8 @@ class StockEntry extends Model {
     ],
     'items',
     'additionalCosts',
+    'differenceAccount',
+    'referenceable',
   ];
 
   protected static function loadRelationsOnShow() {
@@ -62,6 +63,7 @@ class StockEntry extends Model {
       'items.unit',
       'items.sourceWarehouse',
       'items.targetWarehouse',
+      'referenceable',
       'additionalCosts',
       'differenceAccount',
     ];
@@ -77,5 +79,9 @@ class StockEntry extends Model {
 
   public function additionalCosts() {
     return $this->morphMany(AdditionalCost::class, 'referenceable');
+  }
+
+  public function referenceable() {
+    return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
   }
 }

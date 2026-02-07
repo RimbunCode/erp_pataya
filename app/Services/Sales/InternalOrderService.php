@@ -12,7 +12,6 @@ use Symfony\Component\Uid\Ulid;
 
 class InternalOrderService {
   private function fillRelations(array $data) {
-    // optional branch
     if (isset($data['branch'])) {
       $data['branch_id'] = $data['branch']['id'];
     }
@@ -21,7 +20,6 @@ class InternalOrderService {
   }
 
   private function fillItemRelations(array $data) {
-    // dd($data);
     $data['item_id']             = $data['item']['id'];
     $data['unit_id']             = $data['unit']['id'];
     $data['conversion_factor']   = $data['unit']['conversion_factor'];
@@ -48,20 +46,15 @@ class InternalOrderService {
 
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item);
-      // dd($internal\rderd);
 
       if (Ulid::isValid($item['id'])) {
-        unset($item['item']);
-        unset($item['unit']);
-        unset($item['source_warehouse']);
-        $internalOrder->items()
-          ->where('id', $item['id'])
-          ->update($item);
+        $internalOrder->items()->find($item['id'])->update($item);
         continue;
       }
 
       $internalOrder->items()->create($item);
     }
+
     $internalOrder->logForUpdated();
     return $internalOrder;
   }
@@ -69,34 +62,29 @@ class InternalOrderService {
   public function submit(InternalOrder $internalOrder) {
     DB::beginTransaction();
 
-    $internalOrder->update([
-      'status' => FormStatus::SUBMITTED,
-    ]);
-
-    $items      = $internalOrder->items()->get();
+    $items      = $internalOrder->items()->with(['item'])->get();
     $errorItems = [];
 
     foreach ($items as $item) {
-      $stock = Stock::where('item_variant_id', $item->item_id)
+      $stock = Stock::lockForUpdate()
+        ->where('item_variant_id', $item->item_id)
         ->where('warehouse_id', $item->source_warehouse_id)
-        ->lockForUpdate()
         ->first();
 
-      if (! $stock) {
-        $errorItems[] = "Item {$item->item->name} in warehouse ID {$item->source_warehouse_id} has no stock record.";
+      if (!$stock) {
+        $errorItems[] = "Item {$item->item->name} not found in source warehouse";
         continue;
       }
 
       $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
 
       if ($stock->ready_quantity < $quantity) {
-        $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
+        $errorItems[] = "Item {$item->item->name} stock {$stock->ready_quantity}, need {$quantity}";
         continue;
       }
 
-      $stock->update([
-        'reserved_quantity' => $stock->reserved_quantity + $quantity,
-      ]);
+      // sama pola dengan SalesOrder
+      $stock->updateDetails('increment', 'reservations', $internalOrder->code, $quantity);
     }
 
     if (count($errorItems) > 0) {
@@ -106,7 +94,59 @@ class InternalOrderService {
     }
 
     DB::commit();
+    $internalOrder->checkApproval();
+    return $internalOrder;
+  }
 
+  public function onApproved(InternalOrder $internalOrder) {
+    $internalOrder->update([
+      'status' => [
+        FormStatus::TO_DELIVER,
+      ],
+    ]);
+    return $internalOrder;
+  }
+
+  private function rollbackItems(InternalOrder $internalOrder) {
+    $items = $internalOrder->items()->get();
+
+    foreach ($items as $item) {
+      $stock = Stock::lockForUpdate()
+        ->where('item_variant_id', $item->item_id)
+        ->where('warehouse_id', $item->source_warehouse_id)
+        ->first();
+
+      $stock->updateDetails('decrement', 'reservations', $internalOrder->code);
+    }
+  }
+
+  public function onRejected(InternalOrder $internalOrder) {
+    DB::beginTransaction();
+
+    $internalOrder->update([
+      'status' => [
+        FormStatus::REJECTED,
+      ],
+    ]);
+
+    $this->rollbackItems($internalOrder);
+
+    DB::commit();
+    return $internalOrder;
+  }
+
+  public function cancel(InternalOrder $internalOrder) {
+    DB::beginTransaction();
+
+    $internalOrder->update([
+      'status' => [
+        FormStatus::CANCELED,
+      ],
+    ]);
+
+    $this->rollbackItems($internalOrder);
+
+    DB::commit();
     return $internalOrder;
   }
 }

@@ -32,6 +32,7 @@ return [
     'items'                    => 'Items',
     'additional_costs'         => 'Additional Costs',
     'difference_account'       => 'Difference Account',
+    'referenceable'            => 'Reference To',
   ],
   'item_columns'       => [
     'title'   => 'Items',
@@ -52,6 +53,7 @@ return [
       'amount'                       => 'Amount',
       'description'                  => 'Description',
       'conversion_factor'            => 'Conversion Factor',
+
     ],
   ],
   'types'              => [
