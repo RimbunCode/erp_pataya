@@ -174,7 +174,12 @@ export default function Form() {
             >
               <PermissionLinkModel
                 filters={{
-                  model: { in: ["App\\Models\\Sales\\SalesOrder"] },
+                  model: {
+                    in: [
+                      "App\\Models\\Sales\\SalesOrder",
+                      "App\\Models\\Sales\\InternalOrder",
+                    ],
+                  },
                 }}
                 value={data.model}
                 onValueChange={(val) => {
