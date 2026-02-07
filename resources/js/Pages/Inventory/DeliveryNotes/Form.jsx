@@ -204,8 +204,9 @@ export default function Form() {
                 }}
                 with={[
                   "items",
-                  "customer",
-                  "customer_branch",
+                  ...(data.model?.model == "App\\Models\\Sales\\SalesOrder"
+                    ? ["customer", "customer_branch"]
+                    : ["branch"]),
                   "items.item",
                   "items.unit",
                   "items.sourceWarehouse",
@@ -219,7 +220,7 @@ export default function Form() {
                       referenceable_type: data.model?.model,
                       referenceable_id: val?.id,
                       customer: val?.customer,
-                      customer_branch: val?.customer_branch,
+                      customer_branch: val?.customer_branch ?? val?.branch,
                       items: val?.items.map((item) => {
                         return {
                           ...item,
