@@ -81,7 +81,7 @@ class PurchaseRequestController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code           = FormatingSeries::get(PurchaseRequest::class, $data);
+    $code           = FormatingSeries::generate(PurchaseRequest::class, $data);
     $data['code']   = $code;
 
     $wo = $this->service->create($data);
