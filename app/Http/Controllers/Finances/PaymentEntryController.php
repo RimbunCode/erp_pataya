@@ -20,8 +20,7 @@ class PaymentEntryController extends Controller {
   private PaymentEntryService $service;
 
   public function __construct(Request $request, PaymentEntryService $service) {
-    $this->referenceCodeService = $preferenceCodeService;
-    $this->service              = $service;
+    $this->service = $service;
     parent::__construct($request, PaymentEntry::class);
   }
 
@@ -95,7 +94,7 @@ class PaymentEntryController extends Controller {
   public function store(PaymentEntryRequest $request) {
     $data              = $request->validated();
     $data['branch_id'] = $request->session()->get('currentBranch');
-    $code              = FormatingSeries::get(PaymentEntry::class, $data);
+    $code              = FormatingSeries::generate(PaymentEntry::class, $data);
     $data['code']      = $code;
     $paymentEntry      = $this->service->create($data);
     return redirect()->route('paymentEntries.show', $paymentEntry);

@@ -17,7 +17,7 @@ class GeneralLedger extends Model {
   public static function boot() {
     parent::boot();
     self::creating(function ($model) {
-      $model->code = FormatingSeries::get(GeneralLedger::class, $model->toArray());
+      $model->code = FormatingSeries::generate(GeneralLedger::class, $model->toArray());
     });
   }
 }

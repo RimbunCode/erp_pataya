@@ -139,7 +139,7 @@ class DeliveryNoteController extends Controller {
       $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
       // generate code
-      $code               = FormatingSeries::get(DeliveryNote::class, $data);
+      $code               = FormatingSeries::generate(DeliveryNote::class, $data);
       $data['code']       = $code;
       $data['created_by'] = $request->user()->id;
 

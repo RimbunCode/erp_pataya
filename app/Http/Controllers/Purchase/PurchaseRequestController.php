@@ -18,9 +18,8 @@ use Inertia\Inertia;
 class PurchaseRequestController extends Controller {
   private PurchaseRequestService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $formatingSeriesService, PurchaseRequestService $service) {
-    $this->formatingSeriesService = $formatingSeriesService;
-    $this->service                = $service;
+  public function __construct(Request $request, PurchaseRequestService $service) {
+    $this->service = $service;
     parent::__construct($request, PurchaseRequest::class);
   }
 
