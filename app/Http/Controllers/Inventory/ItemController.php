@@ -18,7 +18,8 @@ use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class ItemController extends Controller {
-  protected $service;
+  protected ItemServices $service;
+
   public function __construct(Request $request, ItemServices $service) {
     $this->service = $service;
     parent::__construct($request, Item::class);
@@ -37,6 +38,7 @@ class ItemController extends Controller {
         'units.name as default_unit_name',
       ])
       ->dataTable($request);
+
     return Inertia::render('Inventory/Items/Index');
   }
 
@@ -51,16 +53,17 @@ class ItemController extends Controller {
    * Store a newly created resource in storage.
    */
   public function store(ItemRequest $request) {
-    $data = $request->validated();
-    $data['category_id'] = $data['category']['id'];
+    $data                    = $request->validated();
+    $data['category_id']     = $data['category']['id'];
     $data['default_unit_id'] = $data['default_unit']['id'];
 
-    $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+    $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn ($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
 
     DB::beginTransaction();
-    $category = Category::find($data['category_id']);
+    $category              = Category::find($data['category_id']);
     $data['is_stock_item'] = $category->type != 'service';
-    $item = Item::create($data);
+    $data['type']          = $category->type;
+    $item                  = Item::create($data);
     Unit::find($item->default_unit_id)->updateHaveTransactions();
     $this->service->updateUom($item, $data['uoms']);
     $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['attributes'] ?? []);
@@ -88,7 +91,7 @@ class ItemController extends Controller {
     }
 
     return Inertia::render('Inventory/Items/Show', [
-      'item' => function () use ($item) {
+      'item'     => function () use ($item) {
         $item->loadRelations();
         $itemArray = $item->toArray();
 
@@ -109,12 +112,12 @@ class ItemController extends Controller {
             $totalStock = $variant->stocks->sum('quantity');
 
             return [
-              'id' => $variant->id,
-              'sku' => $variant->sku,
-              'total_stock' => $totalStock
+              'id'          => $variant->id,
+              'sku'         => $variant->sku,
+              'total_stock' => $totalStock,
             ];
           });
-      })
+      }),
     ]);
   }
 
@@ -122,17 +125,18 @@ class ItemController extends Controller {
    * Update the specified resource in storage.
    */
   public function update(ItemRequest $request, Item $item) {
-    $data = $request->validated();
+    $data                = $request->validated();
     $data['category_id'] = $data['category']['id'];
-    if (!$item->have_transactions) {
+    if (! $item->have_transactions) {
       $data['default_unit_id'] = $data['default_unit']['id'];
     }
-    $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+    $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn ($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
 
     DB::beginTransaction();
     Unit::find($item->default_unit_id)->updateHaveTransactions();
-    $category = Category::find($data['category_id']);
+    $category              = Category::find($data['category_id']);
     $data['is_stock_item'] = $category->type != 'service';
+    $data['type']          = $category->type;
     $item->fillForUpdate($data);
     $this->service->updateUom($item, $data['uoms']);
     $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? "", $data['attributes'] ?? []);

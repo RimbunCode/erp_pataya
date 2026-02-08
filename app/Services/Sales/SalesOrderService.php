@@ -157,7 +157,7 @@ class SalesOrderService {
 
       SalesOrder::where('referenceable_type', $salesOrder->referenceable_type)
         ->where('referenceable_id', $salesOrder->referenceable_id)
-        ->where('status', 'draft')
+        ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
         ->whereNot('created_by', Auth::user()->id)
         ->update([
           'status'      => 'canceled',
@@ -165,7 +165,7 @@ class SalesOrderService {
         ]);
     }
     $items      = $salesOrder->items()
-      ->with(['item', 'item.item.category'])
+      ->with(['item'])
       ->get();
     $isValid    = ! $salesOrder->is_rent;
     $errorItems = [];
@@ -176,7 +176,7 @@ class SalesOrderService {
         ->lockForUpdate()
         ->first();
 
-      $availableToRent = $item->item->item->category->type == 'vehicle';
+      $availableToRent = $item->item->type == 'vehicle';
       if ($salesOrder->is_rent && $availableToRent) {
         $isValid = true;
       }
@@ -196,7 +196,9 @@ class SalesOrderService {
     }
     if (\count($errorItems) > 0) {
       DB::rollBack();
-      Session::flash('errorItems', $errorItems);
+      \Illuminate\Validation\ValidationException::withMessages([
+        'items' => $errorItems,
+      ]);
       return $salesOrder;
     }
 

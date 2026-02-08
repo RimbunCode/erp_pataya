@@ -34,6 +34,9 @@ enum FormStatus: string {
   case TO_RECEIVE          = 'to_receive';
   case RECEIVED            = 'received';
   case PARTIALLY_RECEIVED  = 'partially_received';
+  case TO_ORDER            = 'to_order';
+  case PARTIALLY_ORDERED   = 'partially_ordered';
+  case ORDERED             = 'ordered';
 
   public function label() {
     return __("status.{$this->value}");

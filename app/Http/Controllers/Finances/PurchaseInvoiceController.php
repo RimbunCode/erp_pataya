@@ -7,19 +7,17 @@ use App\Http\Requests\Finances\PurchaseInvoiceRequest;
 use App\Models\Core\Branch;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Purchase\PurchaseOrder;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Finances\PurchaseInvoiceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseInvoiceController extends Controller {
-  private FormatingSeriesService $referenceCodeService;
   private PurchaseInvoiceService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, PurchaseInvoiceService $service) {
-    $this->referenceCodeService = $preferenceCodeService;
-    $this->service              = $service;
+  public function __construct(Request $request, PurchaseInvoiceService $service) {
+    $this->service = $service;
     parent::__construct($request, PurchaseInvoice::class);
   }
 
@@ -77,7 +75,7 @@ class PurchaseInvoiceController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = $this->referenceCodeService->get(PurchaseInvoice::class, $data);
+    $code               = FormatingSeries::get(PurchaseInvoice::class, $data);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 

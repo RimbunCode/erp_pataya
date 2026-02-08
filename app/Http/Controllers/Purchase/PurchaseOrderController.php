@@ -8,19 +8,18 @@ use App\Models\Core\Branch;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Service\WorkOrder;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Purchase\PurchaseOrderService;
+use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller {
-  private FormatingSeriesService $referenceCodeService;
-  private PurchaseOrderService   $service;
+  private PurchaseOrderService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $referenceCodeService, PurchaseOrderService $service) {
-    $this->referenceCodeService = $referenceCodeService;
-    $this->service              = $service;
+  public function __construct(Request $request, PurchaseOrderService $service) {
+    $this->service = $service;
     parent::__construct($request, PurchaseOrder::class);
   }
 
@@ -39,37 +38,39 @@ class PurchaseOrderController extends Controller {
    */
   public function create(Request $request, $ref = null) {
     if ($ref) {
-      $select   = $request->has('select') ? $request->select : null;
       $split    = \explode("/", $ref);
       $modelOri = $split[0] ?? null;
       if ($modelOri) {
-        $model = match ($modelOri) {
-          'workOrder'       => WorkOrder::class,
-          'purchaseRequest' => PurchaseRequest::class,
-          default           => null,
-        };
-        if ($select == null) {
-          $select = match ($modelOri) {
-            'workOrder'       => "items",
-            'purchaseRequest' => "items",
-            default           => null,
-          };
+        switch ($modelOri) {
+          case 'workOrder': {
+            $wo = WorkOrder::find($split[1]);
+            if ($wo) {
+              $po = PurchaseOrder::where('referenceable_type', WorkOrder::class)
+                ->where('referenceable_id', $wo->id)
+                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
+                ->where('created_by', $request->user()->id)
+                ->first();
+              if ($po) {
+                return redirect()->route('purchaseOrders.show', $po);
+              }
+              $defaultData = [
+                'date'  => now(),
+                'items' => $wo->items->map(fn ($item) => [
+                  ...$item,
+                  'id'            => Utils::generateRandom(5), 'quantity' => $item->remaining_quantity,
+                  'unit'          => $item->unit,
+                  'referenceable' => $item,
+                ]),
+              ];
+            }
+            break;
+          }
         }
-      }
-      $id = $split[1] ?? null;
-
-      if ($model == PurchaseRequest::class) {
-        $data = PurchaseRequest::find($id);
       }
     }
     $this->setBreadcrumbs('purchase.purchaseOrder.new');
     return Inertia::render('Purchase/PurchaseOrders/Show', [
-      'loadFrom'      => isset($model) && $id ? [
-        'model'  => $model,
-        'id'     => $id,
-        'select' => $select,
-      ] : null,
-      'required_date' => $data?->required_date ?? null,
+      'defaultData' => $defaultData ?? null,
     ]);
   }
 
@@ -77,6 +78,7 @@ class PurchaseOrderController extends Controller {
    * Store a newly created resource in storage.
    */
   public function store(PurchaseOrderRequest $request) {
+    dd($request->all());
     $data = $request->validated();
     DB::beginTransaction();
 
@@ -84,13 +86,12 @@ class PurchaseOrderController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = $this->referenceCodeService->get(PurchaseOrder::class, $data);
+    $code               = FormatingSeries::get(PurchaseOrder::class, $data);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 
     // create PO
     $po = $this->service->create($data);
-    $po->logForCreated();
 
     DB::commit();
     return redirect()->route('purchaseOrders.show', $po);

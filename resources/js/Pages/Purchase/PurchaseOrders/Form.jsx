@@ -23,7 +23,12 @@ import { usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage(
+    {
+      date: new Date(),
+    },
+    { trackDefaultValue: false },
+  );
   const loadFrom = usePage().props.loadFrom;
   const { default_currency_id } = usePage().props.preferences;
 
@@ -39,9 +44,6 @@ function Form() {
     return basic_amount + tax_amount;
   }, [basic_amount, tax_amount]);
 
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
   const setDiscount = useCallback(
     (key, value) => {
       setData((prev) => {
@@ -138,7 +140,6 @@ function Form() {
         loadFrom?.id,
         loadFrom?.select,
       );
-      console.log(data);
       mergeItems(data.value, data.model);
     };
     fetchData().catch(console.error);
@@ -163,6 +164,7 @@ function Form() {
                   item: val,
                   unit: val?.default_unit,
                   required_date: data.required_date,
+                  target_warehouse: data.target_warehouse,
                 });
               }}
               {...attributes}
@@ -299,7 +301,6 @@ function Form() {
             <CurrencyInput
               disabled={!dataRow?.item}
               currencyCode={data?.currency?.code}
-              placeholder={t("purchase.purchaseOrder.columns.rate.placeholder")}
               decimalScale={2}
               value={value}
               onValueChange={(val) => setData("rate", val)}
@@ -315,7 +316,10 @@ function Form() {
   }, [data.required_date, t]);
   return (
     <>
-      <FormPageContent value="detail">
+      <FormPageContent
+        value="detail"
+        title={t("purchase.purchaseOrder.detail")}
+      >
         <div className="flex flex-col gap-y-4">
           <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
             <FormInput
@@ -467,6 +471,37 @@ function Form() {
         }
       >
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput
+            label={t("purchase.purchaseOrder.columns.target_warehouse")}
+            name="target_warehouse"
+          >
+            <WarehouseLinkModel
+              placeholder={t(
+                "purchase.purchaseOrder.columns.target_warehouse.placeholder",
+              )}
+              value={data.target_warehouse}
+              onValueChange={(val) => {
+                setData((prev) => {
+                  if (!prev.items || prev.items?.length <= 0)
+                    return {
+                      ...prev,
+                      target_warehouse: val,
+                    };
+                  const newItems = prev.items.map((item) => {
+                    return {
+                      ...item,
+                      target_warehouse: val,
+                    };
+                  });
+                  return {
+                    ...prev,
+                    items: newItems,
+                    target_warehouse: val,
+                  };
+                });
+              }}
+            />
+          </FormInput>
           <div className="col-span-full">
             <FormTable
               readOnly={disabled}
@@ -629,14 +664,17 @@ function Form() {
         value={data?.payment_schedules ?? []}
         onValueChange={(v) => setData("payment_schedules", v)}
         additionalData={(value) => {
-          console.log(value);
-          data.payment_schedules.map((item) => {});
-          // const payment_amount = amount * (item?.invoice_portion / 100);
-          // return {
-          //   ...item,
-          //   payment_amount,
-          //   outstanding_amount: payment_amount,
-          // };
+          const result = {};
+          value?.forEach((item) => {
+            const payment_amount = (amount * item?.invoice_portion) / 100;
+
+            result[item.id] = {
+              payment_amount,
+              outstanding_amount: payment_amount,
+            };
+          });
+
+          return result;
         }}
         date={data?.date}
         currencyCode={data?.currency?.code}

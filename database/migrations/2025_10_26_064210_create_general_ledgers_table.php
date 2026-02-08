@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-  use DataTable, HasUlids, SoftDeletes;
 
   /**
    * Run the migrations.

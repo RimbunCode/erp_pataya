@@ -19,8 +19,10 @@ return new class extends Migration
       $table->double('quantity')->default(0);
       $table->double('ordered_quantity')->default(0);
       $table->double('required_quantity')->storedAs('IF((quantity - ordered_quantity - transferred_quantity) > quantity, 0, (quantity - ordered_quantity - transferred_quantity))');
+      $table->double('received_quantity')->default(0);
+      $table->double('ready_quantity')->storedAs('quantity - (ordered_quantity - received_quantity)');
       $table->double('transferred_quantity')->default(0);
-      $table->double('remaining_quantity')->storedAs('quantity - transferred_quantity');
+      $table->double('remaining_quantity')->storedAs('ready_quantity - transferred_quantity');
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
       $table->string("unit_name")->nullable();
       $table->double('conversion_factor')->nullable()->default(1);

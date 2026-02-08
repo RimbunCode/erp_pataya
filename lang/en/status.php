@@ -33,4 +33,7 @@ return [
   'unpaid'                          => 'Unpaid',
   'billed'                          => 'Billed',
   'paid'                            => 'Paid',
+  'to_order'                        => 'To Order',
+  'partially_ordered'               => 'Partially Ordered',
+  'ordered'                         => 'Ordered',
 ];

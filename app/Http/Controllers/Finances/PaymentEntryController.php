@@ -10,17 +10,16 @@ use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Sales\SalesOrder;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PaymentEntryController extends Controller {
-  private FormatingSeriesService $referenceCodeService;
-  private PaymentEntryService    $service;
+  private PaymentEntryService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, PaymentEntryService $service) {
+  public function __construct(Request $request, PaymentEntryService $service) {
     $this->referenceCodeService = $preferenceCodeService;
     $this->service              = $service;
     parent::__construct($request, PaymentEntry::class);
@@ -96,7 +95,7 @@ class PaymentEntryController extends Controller {
   public function store(PaymentEntryRequest $request) {
     $data              = $request->validated();
     $data['branch_id'] = $request->session()->get('currentBranch');
-    $code              = $this->referenceCodeService->get(PaymentEntry::class, $data);
+    $code              = FormatingSeries::get(PaymentEntry::class, $data);
     $data['code']      = $code;
     $paymentEntry      = $this->service->create($data);
     return redirect()->route('paymentEntries.show', $paymentEntry);

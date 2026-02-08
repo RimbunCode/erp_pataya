@@ -2,6 +2,7 @@
 
 namespace App\Models\Inventory;
 
+use App\Models\Core\FormatingSeries;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -9,9 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockLedgerEntry extends Model {
   use HasUlids, SoftDeletes, DataTable;
-  protected     $guarded      = ["id"];
-  public string $translateKey = 'inventories.stockLedgerEntry';
-  protected     $configColums = [
+  protected               $guarded            = ["id"];
+  public string           $translateKey       = 'inventories.stockLedgerEntry';
+  protected               $configColums       = [
     'quantity_change'            => [
       'type'  => 'numeric',
       'show'  => true,
@@ -51,7 +52,16 @@ class StockLedgerEntry extends Model {
       'ignore' => true,
     ],
   ];
-  protected     $casts        = [
+  protected               $casts              = [
     'stock_queue' => 'array',
   ];
+  protected static string $defaultFormatCode  = 'StockLedger-@[iiii]/@[yy]';
+  protected static        $generateCodeSeries = true;
+
+  public static function boot() {
+    parent::boot();
+    self::creating(function ($model) {
+      $model->code = FormatingSeries::get(StockEntry::class, $model->toArray());
+    });
+  }
 }

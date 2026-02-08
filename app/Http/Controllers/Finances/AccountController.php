@@ -11,23 +11,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class AccountController extends Controller
-{
-
-  public function __construct(Request $request)
-  {
+class AccountController extends Controller {
+  public function __construct(Request $request) {
     parent::__construct($request, Account::class);
   }
+
   /**
    * Display a listing of the resource.
    */
-  public function index(Request $request)
-  {
+  public function index(Request $request) {
     $this->setBreadcrumbs();
     Account::dataTable($request);
+
     return Inertia::render(
       'Finances/Accounts/Index',
-      []
+      [],
     );
   }
 
@@ -37,8 +35,7 @@ class AccountController extends Controller
   /**
    * Show the form for creating a new resource.
    */
-  public function create()
-  {
+  public function create() {
     $this->setBreadcrumbs('finance.accounts.new');
 
     $parentAccounts = Account::where('is_group', true)
@@ -50,25 +47,24 @@ class AccountController extends Controller
 
     return Inertia::render('Finances/Accounts/Create', [
       'parentAccounts' => $parentAccounts,
-      'currencies' => $currencies,
+      'currencies'     => $currencies,
     ]);
   }
 
   /**
    * Store a newly created resource in storage.
    */
-  public function store(AccountRequest $request)
-  {
+  public function store(AccountRequest $request) {
     $data = $request->validated();
 
     DB::beginTransaction();
     try {
       $data['parent_account_id'] = $data['parent_account']['id'];
-      $data['currency_code'] = isset($data['currency']) ? $data['currency']['code'] : null;
-      $parent_account = Account::find($data['parent_account_id']);
-      $data['root_type'] = $parent_account->root_type;
-      $data['report_type'] = $parent_account->report_type;
-      $account = Account::create($data);
+      $data['currency_code']     = isset($data['currency']) ? $data['currency']['code'] : null;
+      $parent_account            = Account::find($data['parent_account_id']);
+      $data['root_type']         = $parent_account->root_type;
+      $data['report_type']       = $parent_account->report_type;
+      $account                   = Account::create($data);
       $account->logForCreated();
       DB::commit();
       return redirect()->route('accounts.show', $account)
@@ -82,8 +78,7 @@ class AccountController extends Controller
   /**
    * Display the specified resource.
    */
-  public function show(Account $account)
-  {
+  public function show(Account $account) {
     $this->setBreadcrumbs($account);
     $account->showDetail();
 
@@ -99,23 +94,21 @@ class AccountController extends Controller
   /**
    * Show the form for editing the specified resource.
    */
-  public function edit(string $id)
-  {
+  public function edit(string $id) {
     //
   }
 
   /**
    * Update the specified resource in storage.
    */
-  public function update(AccountRequest $request, Account $account)
-  {
+  public function update(AccountRequest $request, Account $account) {
     $data = $request->validated();
     DB::beginTransaction();
     $data['parent_account_id'] = $data['parent_account']['id'];
-    $data['currency_code'] = isset($data['currency']) ? $data['currency']['code'] : null;
-    $parent_account = Account::find($data['parent_account_id']);
-    $data['root_type'] = $parent_account->root_type;
-    $data['report_type'] = $parent_account->report_type;
+    $data['currency_code']     = isset($data['currency']) ? $data['currency']['code'] : null;
+    $parent_account            = Account::find($data['parent_account_id']);
+    $data['root_type']         = $parent_account->root_type;
+    $data['report_type']       = $parent_account->report_type;
     $account->fillForUpdate($data);
     $account->logForUpdated();
     DB::commit();
@@ -125,8 +118,7 @@ class AccountController extends Controller
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(Account $account)
-  {
+  public function destroy(Account $account) {
     DB::beginTransaction();
     $account->logForDeleted();
     $account->delete();

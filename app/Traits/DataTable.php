@@ -11,7 +11,6 @@ use App\Models\Core\PrintTemplate;
 use App\Models\Core\Status;
 use App\Models\Core\Tag;
 use App\Models\User\Permission;
-use App\Services\Core\FormatingSeriesService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
@@ -336,12 +335,42 @@ trait DataTable {
       \print_r("\e[39m" . static::class . " \e[91m(Module name not found) \e[39m" . \PHP_EOL);
       return;
     }
-    if (static::$is_submitable ?? false) {
+    if ((static::$is_submitable ?? false) || (static::$generateCodeSeries ?? false)) {
+      $formatingSeries = FormatingSeries::where('model', static::class)->first();
+      if (! $formatingSeries) {
+        FormatingSeries::create([
+          'model'  => static::class,
+          'name'   => Str::singular($alias),
+          'format' => static::$defaultFormatCode ?? '@[iiii]',
+          'logs'   => [
+            FormatingSeries::getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [
+              'current'    => 0,
+              'updated_at' => now(),
+            ],
+          ],
+        ]);
+      } else {
+        $logs = (array) $formatingSeries->logs;
+        $key  = FormatingSeries::getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
+        if (! \array_key_exists($key, $logs)) {
+          $logs[$key] = [
+            'current'    => 0,
+            'updated_at' => now(),
+          ];
+        }
+        $formatingSeries->update([
+          'name'   => Str::singular($alias),
+          'format' => static::$defaultFormatCode ?? '@[iiii]',
+          'logs'   => $logs,
+        ]);
+      }
       if (! Schema::hasColumn($tableName, 'code')) {
         Schema::table($tableName, function (Blueprint $table) {
           $table->string('code')->unique();
         });
       }
+    }
+    if (static::$is_submitable ?? false) {
       if (! Schema::hasColumn($tableName, 'branch_id')) {
         Schema::table($tableName, function (Blueprint $table) {
           $table->foreignUlid('branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();
@@ -389,36 +418,6 @@ trait DataTable {
           $table->dropColumn('have_transactions');
         });
       }
-
-      $formatingSeries = FormatingSeries::where('model', static::class)->first();
-      if (! $formatingSeries) {
-        FormatingSeries::create([
-          'model'  => static::class,
-          'name'   => Str::singular($alias),
-          'format' => static::$defaultFormatCode ?? '@[iiii]',
-          'logs'   => [
-            (new FormatingSeriesService())->getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [
-              'current'    => 0,
-              'updated_at' => now(),
-            ],
-          ],
-        ]);
-      } else {
-        $logs = (array) $formatingSeries->logs;
-        $key  = (new FormatingSeriesService())->getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
-        if (! \array_key_exists($key, $logs)) {
-          $logs[$key] = [
-            'current'    => 0,
-            'updated_at' => now(),
-          ];
-        }
-        $formatingSeries->update([
-          'name'   => Str::singular($alias),
-          'format' => static::$defaultFormatCode ?? '@[iiii]',
-          'logs'   => $logs,
-        ]);
-      }
-
     } else {
       if (Schema::hasColumn($tableName, 'created_by')) {
         Schema::table($tableName, function (Blueprint $table) {
@@ -510,24 +509,28 @@ trait DataTable {
     if (static::$is_submitable ?? false) {
       Inertia::share([
         'prints' => Inertia::defer(
-          fn () => PrintTemplate::where('model', static::class)->get()),
+          fn () => PrintTemplate::where('model', static::class)->get()
+        ),
       ]);
     }
     Inertia::share([
       'translateKey' => $this->translateKey ?? null,
       'connections'  => Inertia::defer(
         function () {
-          $data = \collect(ModelConnection::search(static::class, $this->getKey())
-            ->get()
-            ->toArray())
+          $data = \collect(
+            ModelConnection::search(static::class, $this->getKey())
+              ->get()
+              ->toArray(),
+          )
             ->groupBy('reference_type')
-            ->mapWithKeys(function ($connections) {
+            ->map(function ($connections) {
               $reference_type = $connections[0]["reference_type"];
               $model          = new $reference_type;
+              $nameModel      = Str::title(Str::replace("_", " ", Str::snake(value: $model->getNameClass())));
               $connections    = $connections->unique('reference_id');
-              return [[
+              return [
                 'reference_type' => $reference_type,
-                'model'          => Str::title(Str::replace("_", " ", Str::snake($model->getNameClass()))),
+                'model'          => $nameModel,
                 'count'          => count($connections),
                 'route'          => Str::plural($model->getNameClass()) . ".index",
                 'query'          => [],
@@ -538,8 +541,9 @@ trait DataTable {
                     'route' => Str::plural($model->getNameClass()) . ".show",
                   ];
                 }),
-              ]];
-            });
+              ];
+            })
+            ->values();
           return $data;
           // return \array_map
           // ->map(function ($connection) {
@@ -551,20 +555,24 @@ trait DataTable {
           //     'query' => []
           //   ];
           //   });
-        }),
+        }
+      ),
       'logs'         => Inertia::defer(
         fn () => Log::with('user')
           ->where('loggable_type', static::class)
           ->where('loggable_id', operator: $this->id)
           ->orderByDesc('created_at')
           ->get(),
-        'logs'),
+        'logs',
+      ),
       'tags'         => Inertia::defer(
         fn () => $this->tags()->get(['id', 'name']),
-        'tags'),
+        'tags',
+      ),
       'attachments'  => Inertia::defer(
         fn () => $this->files()->get(['id', 'name']),
-        'attachments'),
+        'attachments',
+      ),
     ]);
   }
 

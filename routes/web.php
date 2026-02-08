@@ -133,8 +133,6 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class, isSubmmitable: true);
   // Purchase Receipt
   Route::resourceDetail('purchaseReceipt', \App\Http\Controllers\Purchase\PurchaseReceiptController::class, isSubmmitable: true);
-  // Purchase Return
-  Route::resourceDetail('purchaseReturn', \App\Http\Controllers\Purchase\PurchaseReturnController::class, isSubmmitable: true);
   /// Purchase Group End
 
   // Customer
@@ -150,8 +148,6 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('salesOrder', \App\Http\Controllers\Sales\SalesOrderController::class, isSubmmitable: true);
   // Internal Orders
   Route::resourceDetail('internalOrder', \App\Http\Controllers\Sales\InternalOrderController::class, isSubmmitable: true);
-  // Sales Returns
-  Route::resourceDetail('salesReturn', \App\Http\Controllers\Sales\SalesReturnController::class, isSubmmitable: true);
   /// Sales Groups End
 
   /// Finances
