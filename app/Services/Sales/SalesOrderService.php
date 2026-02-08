@@ -31,7 +31,7 @@ class SalesOrderService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
@@ -167,7 +167,7 @@ class SalesOrderService {
     $items      = $salesOrder->items()
       ->with(['item'])
       ->get();
-    $isValid    = ! $salesOrder->is_rent;
+    $isValid    = !$salesOrder->is_rent;
     $errorItems = [];
     foreach ($items as $item) {
       $stock = Stock::lockForUpdate()
@@ -180,7 +180,7 @@ class SalesOrderService {
       if ($salesOrder->is_rent && $availableToRent) {
         $isValid = true;
       }
-      if (! $stock) {
+      if (!$stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
       }
@@ -191,7 +191,7 @@ class SalesOrderService {
       }
       $stock->updateDetails('increment', 'reservations', $salesOrder->code, $quantity);
     }
-    if (! $isValid) {
+    if (!$isValid) {
       $errorItems[] = "This order is not valid for renting";
     }
     if (\count($errorItems) > 0) {
@@ -233,9 +233,9 @@ class SalesOrderService {
         ->lockForUpdate()
         ->first();
 
-      // $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
 
-      $stock->updateDetails('decrement', 'reservations', $salesOrder->code);
+      $stock->updateDetails('decrement', 'reservations', $salesOrder->code, $quantity);
     }
   }
 

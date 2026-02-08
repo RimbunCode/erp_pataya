@@ -1,20 +1,19 @@
 <?php
 
 return [
-  'title'    => 'Delivery Notes',
-  'add'      => 'New Delivery Note',
-  'customer' => 'Customer',
-  'branch'   => 'Customer Branch',
-  'new'      => 'New Delivery Note',
-  'items'    => 'Items',
-  'detail'   => "Detail",
-  'status'   => 'Status',
-  'source'   => 'Source Warehouse',
-  'columns'  => [
+  'title'   => 'Delivery Notes',
+  'add'     => 'New Delivery Note',
+  'new'     => 'New Delivery Note',
+  'items'   => 'Items',
+  'detail'  => "Detail",
+  'status'  => 'Status',
+  'source'  => 'Source Warehouse',
+  'columns' => [
     'code'                         => 'Code',
     'reference_to'                 => 'Reference To',
     'customer'                     => 'Customer',
     'customer_branch'              => 'Customer Branch',
+    'internal_branch'              => 'Internal Branch',
     'item'                         => 'Item',
     'item.placeholder'             => 'Select an item',
     'delivery_date'                => 'Delivery Date',
@@ -33,7 +32,7 @@ return [
     'return_against'               => 'Return Against Delivery Note',
     'is_return'                    => 'Is Return (Sales Return)',
   ],
-  'actions'  => [
+  'actions' => [
     'create_sales_return' => 'Create Sales Return',
   ],
 

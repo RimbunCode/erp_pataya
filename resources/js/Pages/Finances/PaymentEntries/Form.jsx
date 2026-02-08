@@ -32,20 +32,20 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
-            className="col-start-1"
-            required={true}
-            label={t("finances.paymentEntry.columns.payment_type")}
+            name="party_type"
+            required
+            label={t("finances.paymentEntry.columns.party_type")}
           >
             <Select
               placeholder={t(
-                "finances.paymentEntry.columns.payment_type.placeholder",
+                "finances.paymentEntry.columns.party_type.placeholder",
               )}
-              optionTrans="finances.paymentEntry.columns.payment_type.options"
-              options={["receive", "pay"]}
-              value={data.payment_type}
+              optionTrans="finances.paymentEntry.columns.party_type.options"
+              options={["customer", "supplier"]}
+              value={data.party_type}
               onValueChange={(val) => {
                 setData({
-                  payment_type: val,
+                  party_type: val,
                 });
               }}
             />
@@ -54,11 +54,14 @@ export default function Form() {
             required={true}
             label={t("finances.paymentEntry.columns.paymentable")}
             name="reference_to"
-            className="col-start-2"
+            className="col-start-1"
           >
             <LinkModel
               className="pointer-events-auto"
               value={data.paymentable}
+              filters={{
+                status: { jsonContains: ["unpaid", "partially_paid"] },
+              }}
               model={
                 data.party_type === "customer"
                   ? "App\\Models\\Finances\\SalesInvoice"
@@ -86,21 +89,26 @@ export default function Form() {
               }}
             />
           </FormInput>
-          <FormInput name="party_type" required>
+          <FormInput
+            className="col-start-2"
+            required={true}
+            label={t("finances.paymentEntry.columns.payment_type")}
+          >
             <Select
               placeholder={t(
-                "finances.paymentEntry.columns.party_type.placeholder",
+                "finances.paymentEntry.columns.payment_type.placeholder",
               )}
-              optionTrans="finances.paymentEntry.columns.party_type.options"
-              options={["customer", "supplier"]}
-              value={data.party_type}
+              optionTrans="finances.paymentEntry.columns.payment_type.options"
+              options={["receive", "pay"]}
+              value={data.payment_type}
               onValueChange={(val) => {
                 setData({
-                  party_type: val,
+                  payment_type: val,
                 });
               }}
             />
           </FormInput>
+
           {data.payment_type && (
             <FormInput
               required={true}

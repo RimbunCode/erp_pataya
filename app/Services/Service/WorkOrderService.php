@@ -13,7 +13,7 @@ use Symfony\Component\Uid\Ulid;
 
 class WorkOrderService {
   private function fillRelations(array $data) {
-    if (! ($data['for_internal'] ?? false)) {
+    if (!($data['for_internal'] ?? false)) {
       $data['customer_id']   = $data['customer']['id'];
       $data['customer_name'] = $data['customer']['name'];
     }
@@ -113,7 +113,7 @@ class WorkOrderService {
 
     $workOrder->fillForUpdate([
       'status'       => $status,
-      'complated_at' => now(),
+      'completed_at' => now(),
     ]);
 
     $workOrder->logForUpdated();

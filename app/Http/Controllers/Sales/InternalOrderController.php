@@ -114,6 +114,21 @@ class InternalOrderController extends Controller {
     DB::commit();
   }
 
+  public function onApproved(InternalOrder $internalOrder) {
+    $this->service->onApproved($internalOrder);
+    return back();
+  }
+
+  public function onRejected(InternalOrder $internalOrder) {
+    $this->service->onRejected($internalOrder);
+    return back();
+  }
+
+  public function cancel(InternalOrder $internalOrder) {
+    $this->service->cancel($internalOrder);
+    return back();
+  }
+
   /**
    * Remove the specified resource from storage.
    */

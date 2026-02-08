@@ -55,9 +55,10 @@ class PurchaseOrderController extends Controller {
               }
               $defaultData = [
                 'date'  => now(),
-                'items' => $wo->items->map(fn ($item) => [
+                'items' => $wo->items->map(fn($item) => [
                   ...$item,
-                  'id'            => Utils::generateRandom(5), 'quantity' => $item->remaining_quantity,
+                  'id'            => Utils::generateRandom(5),
+                  'quantity'      => $item->remaining_quantity,
                   'unit'          => $item->unit,
                   'referenceable' => $item,
                 ]),
@@ -78,7 +79,6 @@ class PurchaseOrderController extends Controller {
    * Store a newly created resource in storage.
    */
   public function store(PurchaseOrderRequest $request) {
-    dd($request->all());
     $data = $request->validated();
     DB::beginTransaction();
 
@@ -131,6 +131,21 @@ class PurchaseOrderController extends Controller {
   public function submit(Request $request, PurchaseOrder $purchaseOrder) {
     $po = $this->service->submit($purchaseOrder);
     return redirect()->back();
+  }
+
+  public function onApproved(PurchaseOrder $purchaseOrder) {
+    $this->service->onApproved($purchaseOrder);
+    return back();
+  }
+
+  public function onRejected(PurchaseOrder $purchaseOrder) {
+    $this->service->onRejected($purchaseOrder);
+    return back();
+  }
+
+  public function cancel(PurchaseOrder $purchaseOrder) {
+    $this->service->cancel($purchaseOrder);
+    return back();
   }
 
   /**

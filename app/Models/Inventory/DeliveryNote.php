@@ -68,7 +68,7 @@ class DeliveryNote extends Model {
   protected static function loadRelationsOnShow() {
     return [
       'referenceable',
-      'model',
+      'reference_to',
       'customer',
       'customer_branch',
       'items',
@@ -79,8 +79,8 @@ class DeliveryNote extends Model {
     ];
   }
 
-  public function model() {
-    return Permission::where('model', "=", $this->referenceable_type)->first();
+  public function reference_to() {
+    return $this->belongsTo(Permission::class, 'reference_to_id');
   }
 
   public function items() {

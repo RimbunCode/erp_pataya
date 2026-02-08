@@ -108,13 +108,71 @@ class PurchaseOrderService {
   public function submit(PurchaseOrder $purchaseOrder) {
     DB::beginTransaction();
 
+    $items = $purchaseOrder->items()
+      ->get();
+    foreach ($items as $item) {
+      $stock    = Stock::lockForUpdate()
+        ->where('item_variant_id', $item->item_id)
+        ->where('warehouse_id', $item->target_warehouse_id)
+        ->lockForUpdate()
+        ->first();
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);
+    }
+
+    DB::commit();
+    $purchaseOrder->checkApproval();
+
+    return $purchaseOrder;
+  }
+
+  public function onApproved(PurchaseOrder $purchaseOrder) {
     $purchaseOrder->update([
-      'status' => FormStatus::TO_RECEIVE,
+      'status' => [FormStatus::TO_RECEIVE, FormStatus::TO_BILL],
+    ]);
+    return $purchaseOrder;
+  }
+
+  private function rolllbackItems(PurchaseOrder $purchaseOrder) {
+    $items = $purchaseOrder->items()
+      ->get();
+    foreach ($items as $item) {
+      $stock = Stock::lockForUpdate()
+        ->where('item_variant_id', $item->item_id)
+        ->where('warehouse_id', $item->target_warehouse_id)
+        ->lockForUpdate()
+        ->first();
+
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
+    }
+  }
+
+  public function onRejected(PurchaseOrder $purchaseOrder) {
+    DB::beginTransaction();
+    $purchaseOrder->update([
+      'status' => [
+        FormStatus::REJECTED,
+      ],
     ]);
 
-    $purchaseOrder->logForSubmitted();
-    DB::commit();
+    $this->rolllbackItems($purchaseOrder);
 
+    DB::commit();
+    return $purchaseOrder;
+  }
+
+  public function cancel(PurchaseOrder $purchaseOrder) {
+    DB::beginTransaction();
+    $purchaseOrder->update([
+      'status' => [
+        FormStatus::CANCELED,
+      ],
+    ]);
+
+    $this->rolllbackItems($purchaseOrder);
+
+    DB::commit();
     return $purchaseOrder;
   }
 }

@@ -72,6 +72,7 @@ class PurchaseReceiptService {
 
   public function submit(PurchaseReceipt $purchaseReceipt) {
     $purchaseReceipt->checkApproval();
+
     return $purchaseReceipt;
   }
 
@@ -124,6 +125,8 @@ class PurchaseReceiptService {
           'quantity'    => $stock->quantity - $quantity,
         ]);
 
+        $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);
+
         $item->returnAgainstItem->increment('returned_quantity', $quantity);
         $item->purchaseOrderItem->decrement('received_quantity', $quantity);
 
@@ -155,6 +158,7 @@ class PurchaseReceiptService {
       ]);
       $item->purchaseOrderItem->increment('received_quantity', $quantity);
 
+      $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
       StockLedgerEntry::create([
         'item_id'               => $item->item_id,
         'warehouse_id'          => $item->target_warehouse_id,

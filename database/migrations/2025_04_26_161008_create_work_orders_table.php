@@ -20,8 +20,8 @@ return new class extends Migration
       $table->string('item_service_name')->nullable();
       $table->timestamp('date')->nullable();
       $table->text('external_note')->nullable();
-      $table->timestamp('started_on')->nullable();
-      $table->timestamp('complated_on')->nullable();
+      $table->timestamp('started_at')->nullable();
+      $table->timestamp('completed_at')->nullable();
       $table->timestamps();
       $table->softDeletes();
     });

@@ -288,12 +288,12 @@ export default function Form() {
               <DatetimePicker type="datetime" value={data.started_at} />
             </FormInput>
           )}
-          {defaultData?.complated_at && (
+          {defaultData?.completed_at && (
             <FormInput
               disabled
-              label={t("service.workOrder.columns.complated_at")}
+              label={t("service.workOrder.columns.completed_at")}
             >
-              <DatetimePicker type="datetime" value={data.complated_at} />
+              <DatetimePicker type="datetime" value={data.completed_at} />
             </FormInput>
           )}
         </div>

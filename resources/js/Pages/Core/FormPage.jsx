@@ -1067,7 +1067,7 @@ const FormPage = memo(
         )}
         {submitable &&
           defaultData?.submitted_at &&
-          !inArray(defaultData?.status, ["canceled", "complated"]) && (
+          !inArray(defaultData?.status, ["canceled", "completed"]) && (
             <AlertDialog
               open={showAlertBeforeCancel}
               onOpenChange={setShowAlertBeforeCancel}

@@ -13,6 +13,7 @@ return new class extends Migration
     Schema::create('delivery_notes', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->timestamp('delivery_date');
+      $table->foreignUlid('reference_to_id')->references('id')->on('permissions')->cascadeOnDelete();
       $table->foreignUlid('return_against_id')->nullable()->references('id')->on('delivery_notes');
       $table->ulidMorphs('referenceable', 'delivery_note_referenceable');
       $table->foreignUlid('customer_id')->nullable()->references('id')->on('customers')->nullOnDelete();

@@ -340,7 +340,7 @@ export default memo(
     const { t } = useLaravelReactI18n();
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(value);
-    const [search, setSearch] = useState("");
+    const [search, setSearch] = useState(value);
     const [total, setTotal] = useState(0);
     const [options, setOptions] = useState([]);
     const [allowSearch, setAllowSearch] = useState(true);
@@ -366,11 +366,16 @@ export default memo(
 
     const option = useMemo(() => {
       setLoading(false);
-      return value ?? _option;
-    }, [value]);
+      return _option;
+    }, [_option]);
 
     useDidMountEffect(() => {
-      _setOption(value);
+      _setOption((prev) => {
+        // kalau sama, jangan trigger apa-apa
+        if (isEqual(prev, value)) return prev;
+
+        return value;
+      });
     }, [value]);
 
     const setOption = useCallback(
@@ -400,6 +405,7 @@ export default memo(
         );
         if (findOption) {
           setOption(findOption);
+
           return;
         }
         setAllowSearch(false);
@@ -452,9 +458,7 @@ export default memo(
           setOptions(data);
           callback?.(data);
         })
-        .catch((err) => {
-          console.log(err);
-        })
+        .catch((err) => {})
         .finally(() => {
           setLoading(false);
         });
@@ -536,9 +540,7 @@ export default memo(
         .then((res) => {
           setOption(res.data);
         })
-        .catch((err) => {
-          console.log(err);
-        })
+        .catch((err) => {})
         .finally(() => {
           setLoading(false);
         });
@@ -643,6 +645,7 @@ export default memo(
                           )}
                           onClick={() => {
                             setOption(null);
+
                             setSearch("");
                           }}
                         >
@@ -694,6 +697,7 @@ export default memo(
                             value={opt.id ?? index}
                             onSelect={() => {
                               setOption(opt);
+
                               setOpen(false);
                             }}
                           >

@@ -23,6 +23,7 @@ import { usePage } from "@inertiajs/react";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import PurchaseOrderLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrderLinkModel";
 import ItemForm from "./ItemForm";
+import AdditionalDiscount from "../Components/AdditionalDiscount";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -32,7 +33,7 @@ export default function Form() {
     return calculateArray(data.items, "amount", "+");
   }, [data.items]);
 
-  const basic_amount = useMemo(() => {
+  const net_amount = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
@@ -565,7 +566,7 @@ export default function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={basic_amount * (data?.exchange_rate ?? 1)}
+                  value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -578,7 +579,7 @@ export default function Form() {
             <CurrencyInput
               decimalScale={2}
               className="text-right"
-              value={basic_amount}
+              value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -634,49 +635,12 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("finances.purchaseInvoice.columns.additional_discount")}
-        collapsible
-        defaultOpen
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput label={t("finances.purchaseInvoice.columns.discount_on")}>
-            <Select
-              value={data.discount_on}
-              onValueChange={(val) => setData("discount_on", val)}
-              placeholder={t(
-                "finances.purchaseInvoice.columns.discount_on.placeholder",
-              )}
-              optionTrans="finances.purchaseInvoice.columns.discount_on.options"
-              options={["grand_total", "net_total"]}
-            />
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("finances.purchaseInvoice.columns.additional_discount_rate")}`}
-          >
-            <CurrencyInput
-              className="text-right"
-              decimalScale={2}
-              value={data.discount_rate}
-              suffix="%"
-            ></CurrencyInput>
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("finances.purchaseInvoice.columns.additional_discount_amount")}`}
-            className="col-start-2"
-          >
-            <CurrencyInput
-              className="text-right"
-              decimalScale={2}
-              value={data.discount_amount}
-              currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
-          </FormInput>
-        </div>
-      </FormPageContent>
+      <AdditionalDiscount
+        data={data}
+        setData={setData}
+        netAmount={net_amount}
+        taxAmount={tax_amount}
+      />
       <FormPageContent
         value="detail"
         title={t("finances.purchaseInvoice.columns.external_note")}

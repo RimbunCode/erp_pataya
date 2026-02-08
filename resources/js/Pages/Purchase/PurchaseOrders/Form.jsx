@@ -11,7 +11,6 @@ import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
-import Select from "@/Components/Select";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
@@ -20,6 +19,7 @@ import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel"
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
+import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 
 function Form() {
   const { t } = useLaravelReactI18n();
@@ -32,7 +32,7 @@ function Form() {
   const loadFrom = usePage().props.loadFrom;
   const { default_currency_id } = usePage().props.preferences;
 
-  const basic_amount = useMemo(() => {
+  const net_amount = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
@@ -41,47 +41,9 @@ function Form() {
   }, [data.items]);
 
   const amount = useMemo(() => {
-    return basic_amount + tax_amount;
-  }, [basic_amount, tax_amount]);
+    return net_amount + tax_amount;
+  }, [net_amount, tax_amount]);
 
-  const setDiscount = useCallback(
-    (key, value) => {
-      setData((prev) => {
-        let discount_on = prev.discount_on;
-        let discount_rate = prev.discount_rate ?? 0;
-        let discount_amount = prev.discount_amount ?? 0;
-        const basic_amount = calculateArray(prev.items, "basic_amount", "+");
-        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
-        if (key == "discount_on") {
-          discount_on = value;
-        }
-        const total =
-          discount_on == "grand_total"
-            ? basic_amount + tax_amount
-            : discount_on == "net_total"
-              ? basic_amount
-              : 0;
-        if (key == "discount_rate") {
-          discount_rate = value;
-          discount_amount = (total * discount_rate) / 100;
-        }
-        if (key == "discount_amount") {
-          discount_amount = value;
-          discount_rate = (discount_amount * 100) / total;
-        }
-        if (key == "discount_on") {
-          discount_amount = (total * discount_rate) / 100;
-        }
-        return {
-          ...prev,
-          discount_on,
-          discount_rate,
-          discount_amount,
-        };
-      });
-    },
-    [data],
-  );
   const mergeItems = useCallback(
     (value, model) => {
       setData((prev) => {
@@ -313,7 +275,7 @@ function Form() {
         },
       },
     ];
-  }, [data.required_date, t]);
+  }, [data, t]);
   return (
     <>
       <FormPageContent
@@ -528,7 +490,7 @@ function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={basic_amount * (data?.exchange_rate ?? 1)}
+                  value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -541,7 +503,7 @@ function Form() {
             <CurrencyInput
               decimalScale={2}
               className="text-right"
-              value={basic_amount}
+              value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -597,51 +559,12 @@ function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("purchase.purchaseOrder.columns.additional_discount")}
-        collapsible
-        defaultOpen
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput label={t("purchase.purchaseOrder.columns.discount_on")}>
-            <Select
-              value={data.discount_on}
-              onValueChange={(val) => setDiscount("discount_on", val)}
-              placeholder={t(
-                "purchase.purchaseOrder.columns.discount_on.placeholder",
-              )}
-              optionTrans="purchase.purchaseOrder.columns.discount_on.options"
-              options={["net_total", "grand_total"]}
-            />
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("purchase.purchaseOrder.columns.additional_discount_rate")}`}
-          >
-            <CurrencyInput
-              className="text-right"
-              value={data.discount_rate}
-              onValueChange={(val) => setDiscount("discount_rate", val)}
-              suffix="%"
-            ></CurrencyInput>
-          </FormInput>
-
-          <FormInput
-            className="col-start-2"
-            disabled={!data?.discount_on}
-            label={`${t("purchase.purchaseOrder.columns.additional_discount_amount")}`}
-          >
-            <CurrencyInput
-              className="text-right "
-              decimalScale={2}
-              value={data.discount_amount}
-              onValueChange={(val) => setDiscount("discount_amount", val)}
-              currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
-          </FormInput>
-        </div>
-      </FormPageContent>
+      <AdditionalDiscount
+        data={data}
+        setData={setData}
+        netAmount={net_amount}
+        taxAmount={tax_amount}
+      />
 
       <FormPageContent
         value="detail"

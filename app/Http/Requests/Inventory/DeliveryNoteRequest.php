@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Inventory;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class DeliveryNoteRequest extends FormRequest {
   /**
@@ -20,8 +21,10 @@ class DeliveryNoteRequest extends FormRequest {
   public function rules(): array {
     return [
       'return_against.id'              => ['nullable', 'exists:delivery_notes,id'],
-      'customer.id'                    => ['required', 'exists:customers,id'],
+      'customer.id'                    => [Rule::requiredIf($this->reference_to['model'] === 'App\\Models\\Sales\\SalesOrder'), 'exists:customers,id'],
       'customer_branch.id'             => ['required', 'exists:branches,id'],
+      'reference_to.id'                => ['required', 'string', 'exists:permissions,id'],
+      'reference_to.*'                 => ['nullable'],
       'referenceable_id'               => ['required', 'string'],
       'referenceable_type'             => ['required', 'string'],
       'delivery_date'                  => ['required', 'date'],
