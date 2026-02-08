@@ -78,9 +78,9 @@ class PaymentEntryController extends Controller {
       'payment_type'     => $payment_type,
       "partyable_type"   =>
         $payment_type === "receive"
-        ? "App\\Models\\Sales\\Customer"
+        ? \App\Models\Sales\Customer::class
         : ($payment_type === "pay"
-          ? "App\\Models\\Purchase\\Supplier"
+          ? \App\Models\Purchase\Supplier::class
           : null),
       'partyable'        => $partyable ?? null,
       'currency'         => $currency ?? null,

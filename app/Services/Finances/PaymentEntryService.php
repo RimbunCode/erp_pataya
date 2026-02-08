@@ -15,9 +15,9 @@ class PaymentEntryService {
     $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
     $data['partyable_id']       = $data['partyable']['id'];
-    $data['partyable_type']     = $data['payment_type'] == 'pay' ? 'App\Models\Purchase\Supplier' : 'App\Models\Sales\Customer';
+    $data['partyable_type']     = $data['payment_type'] == 'pay' ? \App\Models\Purchase\Supplier::class : \App\Models\Sales\Customer::class;
     $data['paymentable_id']     = $data['paymentable']['id'];
-    $data['paymentable_type']   = $data['payment_type'] == 'pay' ? 'App\Models\Finances\PurchaseInvoice' : 'App\Models\Finances\SalesInvoice';
+    $data['paymentable_type']   = $data['payment_type'] == 'pay' ? \App\Models\Finances\PurchaseInvoice::class : \App\Models\Finances\SalesInvoice::class;
     if (isset($data['payment_method'])) {
       $data['payment_method_id'] = $data['payment_method']['id'];
     }
