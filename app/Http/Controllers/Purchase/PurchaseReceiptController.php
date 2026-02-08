@@ -10,8 +10,8 @@ use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Core\FormatingSeries;
 use App\Services\Purchase\PurchaseReceiptService;
 use App\Utils;
-use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseReceiptController extends Controller {
@@ -127,7 +127,7 @@ class PurchaseReceiptController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = FormatingSeries::get(PurchaseReceipt::class, $data);
+    $code               = FormatingSeries::generate(PurchaseReceipt::class, $data);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 

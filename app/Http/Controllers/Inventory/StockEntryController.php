@@ -75,7 +75,7 @@ class StockEntryController extends Controller {
   public function store(StockEntryRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    $code         = FormatingSeries::get(StockEntry::class, $data);
+    $code         = FormatingSeries::generate(StockEntry::class, $data);
     $data['code'] = $code;
     $stockEntry   = $this->service->create($data);
     DB::commit();

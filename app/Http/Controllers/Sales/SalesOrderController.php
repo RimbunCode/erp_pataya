@@ -92,7 +92,7 @@ class SalesOrderController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = FormatingSeries::get(SalesOrder::class, $data);
+    $code               = FormatingSeries::generate(SalesOrder::class, $data);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 

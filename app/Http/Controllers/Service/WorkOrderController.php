@@ -44,7 +44,7 @@ class WorkOrderController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code           = FormatingSeries::get(WorkOrder::class, $data);
+    $code           = FormatingSeries::generate(WorkOrder::class, $data);
     $data['code']   = $code;
 
     $wo = $this->service->create($data);

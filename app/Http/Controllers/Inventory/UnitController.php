@@ -36,7 +36,7 @@ class UnitController extends Controller {
     return Inertia::render('Inventory/Units/Index');
   }
 
-  public function getGroups(Request $request, string $search = null) {
+  public function getGroups(Request $request, ?string $search = null) {
     if (! $this->isInertiaRequest($request)) {
       $groups = Unit::select('group')
         ->distinct();

@@ -343,7 +343,7 @@ trait DataTable {
           'name'   => Str::singular($alias),
           'format' => static::$defaultFormatCode ?? '@[iiii]',
           'logs'   => [
-            FormatingSeries::getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [
+            FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [
               'current'    => 0,
               'updated_at' => now(),
             ],
@@ -351,7 +351,7 @@ trait DataTable {
         ]);
       } else {
         $logs = (array) $formatingSeries->logs;
-        $key  = FormatingSeries::getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
+        $key  = FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
         if (! \array_key_exists($key, $logs)) {
           $logs[$key] = [
             'current'    => 0,

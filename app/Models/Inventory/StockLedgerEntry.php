@@ -61,7 +61,7 @@ class StockLedgerEntry extends Model {
   public static function boot() {
     parent::boot();
     self::creating(function ($model) {
-      $model->code = FormatingSeries::get(StockEntry::class, $model->toArray());
+      $model->code = FormatingSeries::generate(StockEntry::class, $model->toArray());
     });
   }
 }
