@@ -46,7 +46,9 @@ export default function Form() {
               }}
               {...attributes}
               filters={{
-                is_stock_item: true,
+                type: {
+                  not: "vehicle",
+                },
               }}
               with={["defaultUnit", "item"]}
             />
@@ -135,10 +137,8 @@ export default function Form() {
               disabledAddButton
               {...attributes}
               filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
+                type: {
+                  not: "vehicle",
                 },
                 or: {
                   "raw(item_alternatives.item_id)": dataRow?.item?.id,
@@ -271,11 +271,7 @@ export default function Form() {
                 setData("item_service", val);
               }}
               filters={{
-                category: {
-                  type: {
-                    in: ["vehicle"],
-                  },
-                },
+                type: "vehicle",
               }}
               with={["defaultUnit", "category"]}
             />

@@ -96,7 +96,7 @@ class FormatingSeries extends Model {
     return $codeRelations;
   }
 
-  public static function getKeyLogsForInit(string $model, string $format) {
+  public static function generateKeyLogsForInit(string $model, string $format) {
     $codeRelations = static::getCodeRelations($model);
     $key           = [];
     preg_replace_callback('/@\[([myi]|(?:\w+))+\]/', function ($matches) use (&$key, $codeRelations) {
@@ -111,7 +111,7 @@ class FormatingSeries extends Model {
     return implode($key);
   }
 
-  public function generateKeyLogs(array|null &$codeRelations = null) {
+  public function getKeyLogs(array|null &$codeRelations = null) {
     $codeRelations = static::getCodeRelations($this->model);
     $key           = [];
     preg_replace_callback('/@\[([myi]|(?:\w+))+\]/', function ($matches) use (&$key, $codeRelations) {

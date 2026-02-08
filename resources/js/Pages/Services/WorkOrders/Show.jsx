@@ -20,11 +20,13 @@ export default function Show({ workOrder }) {
 
   const canRequest = useMemo(() => {
     const totalRequiredQuantity = calculateArray(
-      workOrder.items,
+      workOrder.items?.filter((x) => x.item?.is_stock_item),
       "required_quantity",
+      "+",
     );
     return totalRequiredQuantity > 0;
   }, [workOrder]);
+  console.log(canRequest);
 
   return (
     <FormPage

@@ -77,13 +77,16 @@ function validateWithOperators(value, operators, logic = "and") {
             : validateWithOperators(value, valOperator, keyOperator);
         break;
       }
+      case "!=":
+      case "notEqual":
       case "not":
         (() => {
           const { left, right } = normalizeDateComparison(value, valOperator);
           result = left != right;
         })();
         break;
-      case "=":
+      case "equal":
+      case "==":
         (() => {
           const { left, right } = normalizeDateComparison(value, valOperator);
           result = left == right;
