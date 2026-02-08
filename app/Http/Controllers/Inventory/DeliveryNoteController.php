@@ -9,7 +9,7 @@ use App\Models\Inventory\DeliveryNote;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Models\User\Permission;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Inventory\DeliveryNoteService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -17,12 +17,10 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DeliveryNoteController extends Controller {
-  private FormatingSeriesService $referenceCodeService;
-  private DeliveryNoteService    $service;
+  private DeliveryNoteService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, DeliveryNoteService $service) {
-    $this->referenceCodeService = $preferenceCodeService;
-    $this->service              = $service;
+  public function __construct(Request $request, DeliveryNoteService $service) {
+    $this->service = $service;
     parent::__construct($request, DeliveryNote::class);
   }
 
@@ -50,7 +48,7 @@ class DeliveryNoteController extends Controller {
             if ($so) {
               $do = DeliveryNote::where('referenceable_type', SalesOrder::class)
                 ->where('referenceable_id', $so->id)
-                ->where('status', 'draft')
+                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($do) {
@@ -85,7 +83,7 @@ class DeliveryNoteController extends Controller {
             $doTarget = DeliveryNote::find($split[1]);
             if ($doTarget) {
               $do = DeliveryNote::where('return_against_id', $doTarget->id)
-                ->where('status', 'draft')
+                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($do) {
@@ -141,7 +139,7 @@ class DeliveryNoteController extends Controller {
       $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
       // generate code
-      $code               = $this->referenceCodeService->get(DeliveryNote::class, $data);
+      $code               = FormatingSeries::get(DeliveryNote::class, $data);
       $data['code']       = $code;
       $data['created_by'] = $request->user()->id;
 

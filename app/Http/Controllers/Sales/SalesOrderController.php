@@ -8,7 +8,7 @@ use App\Http\Requests\Sales\SalesOrderRequest;
 use App\Models\Core\Branch;
 use App\Models\Sales\SalesOrder;
 use App\Models\Service\WorkOrder;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -16,12 +16,10 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SalesOrderController extends Controller {
-  private FormatingSeriesService $referenceCodeService;
-  private SalesOrderService      $service;
+  private SalesOrderService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, SalesOrderService $service) {
-    $this->referenceCodeService = $preferenceCodeService;
-    $this->service              = $service;
+  public function __construct(Request $request, SalesOrderService $service) {
+    $this->service = $service;
     parent::__construct($request, SalesOrder::class);
   }
 
@@ -40,7 +38,6 @@ class SalesOrderController extends Controller {
    */
   public function create(Request $request, ?string $ref = null) {
     if ($ref) {
-      $select   = $request->has('select') ? $request->select : null;
       $split    = \explode("/", $ref);
       $modelOri = $split[0] ?? null;
       if ($modelOri) {
@@ -50,7 +47,7 @@ class SalesOrderController extends Controller {
             if ($wo) {
               $so = SalesOrder::where('referenceable_type', WorkOrder::class)
                 ->where('referenceable_id', $wo->id)
-                ->where('status', 'draft')
+                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($so) {
@@ -95,7 +92,7 @@ class SalesOrderController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = $this->referenceCodeService->get(SalesOrder::class, $data);
+    $code               = FormatingSeries::get(SalesOrder::class, $data);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 

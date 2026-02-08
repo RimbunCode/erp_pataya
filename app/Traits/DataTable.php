@@ -11,7 +11,6 @@ use App\Models\Core\PrintTemplate;
 use App\Models\Core\Status;
 use App\Models\Core\Tag;
 use App\Models\User\Permission;
-use App\Services\Core\FormatingSeriesService;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
@@ -33,7 +32,7 @@ trait DataTable {
 
   public static function bootDataTable() {
     self::saved(function ($model) {
-      if (!$model->deleted_at) {
+      if (! $model->deleted_at) {
         return;
       }
       ModelConnection::where(function ($query) use ($model) {
@@ -96,7 +95,7 @@ trait DataTable {
     if (get_class($this) == Log::class) {
       return;
     }
-    if (!$this->dataBefore) {
+    if (! $this->dataBefore) {
       return;
     }
     $this->loadRelations();
@@ -253,7 +252,7 @@ trait DataTable {
     foreach ($relations as $key => $relation) {
       $relationName = is_int($key) ? $relation : $key;
 
-      if (!method_exists($this, $relationName)) {
+      if (! method_exists($this, $relationName)) {
         $toLoad[$key] = $relation;
         continue;
       }
@@ -332,72 +331,19 @@ trait DataTable {
     $alias     = static::$alias ??
       \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
     $module    = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), "\\");
-    if (!$module) {
+    if (! $module) {
       \print_r("\e[39m" . static::class . " \e[91m(Module name not found) \e[39m" . \PHP_EOL);
       return;
     }
-    if (static::$is_submitable ?? false) {
-      if (!Schema::hasColumn($tableName, 'code')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->string('code')->unique();
-        });
-      }
-      if (!Schema::hasColumn($tableName, 'branch_id')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->foreignUlid('branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();
-        });
-      }
-
-      if (!Schema::hasColumn($tableName, 'status')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->json('status')->nullable();
-        });
-      }
-      if (!Schema::hasColumn($tableName, 'created_by')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->foreignUlid('created_by')->references('id')->on('users')->restrictOnDelete();
-        });
-      }
-      if (!Schema::hasColumn($tableName, 'submitted_at')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->timestamp('submitted_at')->nullable();
-        });
-      }
-      if (!Schema::hasColumn($tableName, 'canceled_at')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->timestamp('canceled_at')->nullable();
-        });
-      }
-      if (!Schema::hasColumn($tableName, 'revision_number')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->unsignedTinyInteger('revision_number')->default(0);
-        });
-      }
-      if (!Schema::hasColumn($tableName, 'amended_from_id')) {
-        Schema::table($tableName, function (Blueprint $table) use ($tableName) {
-          $table->foreignUlid('amended_from_id')->nullable()->references('id')->on($tableName)->nullOnDelete();
-        });
-      }
-      if (!Schema::hasColumn($tableName, 'additional_data')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->json('additional_data')->nullable();
-        });
-      }
-
-      if (Schema::hasColumn($tableName, 'have_transactions')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->dropColumn('have_transactions');
-        });
-      }
-
+    if ((static::$is_submitable ?? false) || (static::$generateCodeSeries ?? false)) {
       $formatingSeries = FormatingSeries::where('model', static::class)->first();
-      if (!$formatingSeries) {
+      if (! $formatingSeries) {
         FormatingSeries::create([
           'model'  => static::class,
           'name'   => Str::singular($alias),
           'format' => static::$defaultFormatCode ?? '@[iiii]',
           'logs'   => [
-            (new FormatingSeriesService())->getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [
+            FormatingSeries::getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [
               'current'    => 0,
               'updated_at' => now(),
             ],
@@ -405,8 +351,8 @@ trait DataTable {
         ]);
       } else {
         $logs = (array) $formatingSeries->logs;
-        $key  = (new FormatingSeriesService())->getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
-        if (!\array_key_exists($key, $logs)) {
+        $key  = FormatingSeries::getKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
+        if (! \array_key_exists($key, $logs)) {
           $logs[$key] = [
             'current'    => 0,
             'updated_at' => now(),
@@ -418,7 +364,60 @@ trait DataTable {
           'logs'   => $logs,
         ]);
       }
+      if (! Schema::hasColumn($tableName, 'code')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->string('code')->unique();
+        });
+      }
+    }
+    if (static::$is_submitable ?? false) {
+      if (! Schema::hasColumn($tableName, 'branch_id')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->foreignUlid('branch_id')->nullable()->references('id')->on('branches')->nullOnDelete();
+        });
+      }
 
+      if (! Schema::hasColumn($tableName, 'status')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->json('status')->nullable();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'created_by')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->foreignUlid('created_by')->references('id')->on('users')->restrictOnDelete();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'submitted_at')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->timestamp('submitted_at')->nullable();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'canceled_at')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->timestamp('canceled_at')->nullable();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'revision_number')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->unsignedTinyInteger('revision_number')->default(0);
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'amended_from_id')) {
+        Schema::table($tableName, function (Blueprint $table) use ($tableName) {
+          $table->foreignUlid('amended_from_id')->nullable()->references('id')->on($tableName)->nullOnDelete();
+        });
+      }
+      if (! Schema::hasColumn($tableName, 'additional_data')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->json('additional_data')->nullable();
+        });
+      }
+
+      if (Schema::hasColumn($tableName, 'have_transactions')) {
+        Schema::table($tableName, function (Blueprint $table) {
+          $table->dropColumn('have_transactions');
+        });
+      }
     } else {
       if (Schema::hasColumn($tableName, 'created_by')) {
         Schema::table($tableName, function (Blueprint $table) {
@@ -452,19 +451,19 @@ trait DataTable {
         });
       }
 
-      if (!Schema::hasColumn($tableName, 'have_transactions')) {
+      if (! Schema::hasColumn($tableName, 'have_transactions')) {
         Schema::table($tableName, function (Blueprint $table) {
           $table->boolean('have_transactions')->default(false);
         });
       }
     }
     if (static::$is_tree_view ?? false) {
-      if (!Schema::hasColumn($tableName, 'parent_id')) {
+      if (! Schema::hasColumn($tableName, 'parent_id')) {
         Schema::table($tableName, function (Blueprint $table) use ($tableName) {
           $table->foreignUlid('parent_id')->nullable()->references('id')->on($tableName)->nullOnDelete();
         });
       }
-      if (!Schema::hasColumns($tableName, ['lft', 'rgt', 'depth'])) {
+      if (! Schema::hasColumns($tableName, ['lft', 'rgt', 'depth'])) {
         Schema::table($tableName, function (Blueprint $table) use ($tableName) {
           $table->unsignedInteger('lft')->default(0);
           $table->unsignedInteger('rgt')->default(0);
@@ -510,7 +509,7 @@ trait DataTable {
     if (static::$is_submitable ?? false) {
       Inertia::share([
         'prints' => Inertia::defer(
-          fn() => PrintTemplate::where('model', static::class)->get()
+          fn () => PrintTemplate::where('model', static::class)->get()
         ),
       ]);
     }
@@ -559,7 +558,7 @@ trait DataTable {
         }
       ),
       'logs'         => Inertia::defer(
-        fn() => Log::with('user')
+        fn () => Log::with('user')
           ->where('loggable_type', static::class)
           ->where('loggable_id', operator: $this->id)
           ->orderByDesc('created_at')
@@ -567,11 +566,11 @@ trait DataTable {
         'logs',
       ),
       'tags'         => Inertia::defer(
-        fn() => $this->tags()->get(['id', 'name']),
+        fn () => $this->tags()->get(['id', 'name']),
         'tags',
       ),
       'attachments'  => Inertia::defer(
-        fn() => $this->files()->get(['id', 'name']),
+        fn () => $this->files()->get(['id', 'name']),
         'attachments',
       ),
     ]);

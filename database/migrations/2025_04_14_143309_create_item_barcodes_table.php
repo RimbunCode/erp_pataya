@@ -1,10 +1,11 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
+
   /**
    * Run the migrations.
    */
@@ -13,7 +14,7 @@ return new class extends Migration {
       $table->ulid('id')->primary();
       $table->foreignUlid('item_variant_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
-      $table->string('barcode');
+      $table->string('barcode')->unique();
       $table->timestamps();
       $table->softDeletes();
     });

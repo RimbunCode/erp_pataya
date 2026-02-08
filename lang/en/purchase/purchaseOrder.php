@@ -39,6 +39,8 @@ return [
     'for_internal'               => 'For Internal?',
     'status'                     => 'Status',
     'currency'                   => 'Currency',
+    'tax'                        => 'Tax',
+    'tax.placeholder'            => 'Select a tax',
     'currency.placeholder'       => 'Select a Currency',
     'exchange_rate'              => 'Exchange Rate',
     'basic_amount'               => 'Basic Amount',

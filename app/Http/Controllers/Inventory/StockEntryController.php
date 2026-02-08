@@ -7,7 +7,7 @@ use App\Http\Requests\Inventory\StockEntryRequest;
 use App\Models\Core\Branch;
 use App\Models\Inventory\StockEntry;
 use App\Models\Service\WorkOrder;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Inventory\StockEntryService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -15,12 +15,10 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class StockEntryController extends Controller {
-  private FormatingSeriesService $formatingSeriesService;
-  private StockEntryService      $service;
+  private StockEntryService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $referenceCodeService, StockEntryService $service) {
-    $this->formatingSeriesService = $referenceCodeService;
-    $this->service                = $service;
+  public function __construct(Request $request, StockEntryService $service) {
+    $this->service = $service;
     parent::__construct($request, StockEntry::class);
   }
 
@@ -77,7 +75,7 @@ class StockEntryController extends Controller {
   public function store(StockEntryRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    $code         = $this->formatingSeriesService->get(StockEntry::class, $data);
+    $code         = FormatingSeries::get(StockEntry::class, $data);
     $data['code'] = $code;
     $stockEntry   = $this->service->create($data);
     DB::commit();

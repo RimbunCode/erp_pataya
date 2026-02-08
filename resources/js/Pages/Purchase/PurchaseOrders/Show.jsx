@@ -11,14 +11,14 @@ import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ purchaseOrder, required_date, loadFrom }) {
+export default function Show({ purchaseOrder, required_date, defaultData }) {
   const { t } = useLaravelReactI18n();
   const route = window.route;
 
   return (
     <FormPage
       isCreate={!purchaseOrder}
-      ignoreDraft={loadFrom}
+      ignoreDraft={defaultData}
       name="purchaseOrder"
       title={
         purchaseOrder ? purchaseOrder.code : t("purchase.purchaseOrder.new")

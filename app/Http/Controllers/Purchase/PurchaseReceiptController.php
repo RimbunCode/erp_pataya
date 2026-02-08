@@ -7,7 +7,7 @@ use App\Http\Requests\Purchase\PurchaseReceiptRequest;
 use App\Models\Core\Branch;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseReceipt;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Purchase\PurchaseReceiptService;
 use App\Utils;
 use DB;
@@ -15,12 +15,10 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 
 class PurchaseReceiptController extends Controller {
-  private FormatingSeriesService $referenceCodeService;
   private PurchaseReceiptService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $referenceCodeService, PurchaseReceiptService $service) {
-    $this->referenceCodeService = $referenceCodeService;
-    $this->service              = $service;
+  public function __construct(Request $request, PurchaseReceiptService $service) {
+    $this->service = $service;
     parent::__construct($request, PurchaseReceipt::class);
   }
 
@@ -47,7 +45,7 @@ class PurchaseReceiptController extends Controller {
             $purchaseOrder = PurchaseOrder::find($split[1]);
             if ($purchaseOrder) {
               $purchaseReceipt = PurchaseReceipt::where('purchase_order_id', $purchaseOrder->id)
-                ->where('status', 'draft')
+                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($purchaseReceipt) {
@@ -79,7 +77,7 @@ class PurchaseReceiptController extends Controller {
             $purchaseReceiptTarget = PurchaseReceipt::find($split[1]);
             if ($purchaseReceiptTarget) {
               $purchaseReceipt = PurchaseReceipt::where('return_against_id', $purchaseReceiptTarget->id)
-                ->where('status', 'draft')
+                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($purchaseReceipt) {
@@ -129,7 +127,7 @@ class PurchaseReceiptController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = $this->referenceCodeService->get(PurchaseReceipt::class, $data);
+    $code               = FormatingSeries::get(PurchaseReceipt::class, $data);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 

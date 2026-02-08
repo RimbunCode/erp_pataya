@@ -101,7 +101,7 @@ class DeliveryNoteService {
           ->where('referenceable_id', $deliveryNote->referenceable_id);
       });
       $query->where('return_against_id', $deliveryNote->return_against_id);
-    })->where('status', 'draft')
+    })->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
       ->whereNot('created_by', Auth::user()->id)
       ->update([
         'status'      => 'canceled',
@@ -135,7 +135,7 @@ class DeliveryNoteService {
     $totalPicked = 0;
     $isRent      = false;
     foreach ($items as $item) {
-      $availableToRent = $toReference->is_rent && $item->item->item->category->type == 'vehicle';
+      $availableToRent = $toReference->is_rent && $item->item->type == 'vehicle';
       if ($availableToRent) {
         $isRent = true;
       }

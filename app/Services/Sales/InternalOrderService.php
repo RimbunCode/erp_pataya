@@ -8,6 +8,7 @@ use App\Models\Inventory\Stock;
 use App\Models\Sales\InternalOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
+use League\Config\Exception\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
 class InternalOrderService {
@@ -71,7 +72,7 @@ class InternalOrderService {
         ->where('warehouse_id', $item->source_warehouse_id)
         ->first();
 
-      if (!$stock) {
+      if (! $stock) {
         $errorItems[] = "Item {$item->item->name} not found in source warehouse";
         continue;
       }
@@ -89,7 +90,9 @@ class InternalOrderService {
 
     if (count($errorItems) > 0) {
       DB::rollBack();
-      Session::flash('errorItems', $errorItems);
+      \Illuminate\Validation\ValidationException::withMessages([
+        'items' => $errorItems,
+      ]);
       return $internalOrder;
     }
 

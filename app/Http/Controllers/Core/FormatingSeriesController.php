@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\FormatingSeriesRequest;
 use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
-use App\Services\Core\FormatingSeriesService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -14,10 +13,7 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class FormatingSeriesController extends Controller {
-  private FormatingSeriesService $service;
-
-  public function __construct(Request $request, FormatingSeriesService $service) {
-    $this->service = $service;
+  public function __construct(Request $request) {
     parent::__construct($request, FormatingSeries::class);
   }
 
@@ -137,7 +133,7 @@ class FormatingSeriesController extends Controller {
 
     $logs                    = (array) $formatingSeries->logs;
     $formatingSeries->format = $data['format'];
-    $keys                    = $this->service->getKeyLogs($formatingSeries);
+    $keys                    = $formatingSeries->getKeyLogs();
     if (! \array_key_exists($keys, $logs)) {
       $logs[$keys]  = [
         'current'    => 0,

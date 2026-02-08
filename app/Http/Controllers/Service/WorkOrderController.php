@@ -5,20 +5,18 @@ namespace App\Http\Controllers\Service;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Service\WorkOrderRequest;
 use App\Models\Core\Branch;
+use App\Models\Core\FormatingSeries;
 use App\Models\Service\WorkOrder;
-use App\Services\Core\FormatingSeriesService;
 use App\Services\Service\WorkOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WorkOrderController extends Controller {
-  private FormatingSeriesService $formatingSeriesService;
-  private WorkOrderService       $service;
+  private WorkOrderService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $referenceCodeService, WorkOrderService $service) {
-    $this->formatingSeriesService = $referenceCodeService;
-    $this->service                = $service;
+  public function __construct(Request $request, WorkOrderService $service) {
+    $this->service = $service;
     parent::__construct($request, WorkOrder::class);
   }
 
@@ -46,7 +44,7 @@ class WorkOrderController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code           = $this->formatingSeriesService->get(WorkOrder::class, $data);
+    $code           = FormatingSeries::get(WorkOrder::class, $data);
     $data['code']   = $code;
 
     $wo = $this->service->create($data);

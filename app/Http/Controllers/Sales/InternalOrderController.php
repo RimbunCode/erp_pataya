@@ -6,20 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\InternalOrderRequest;
 use App\Models\Core\Branch;
 use App\Models\Sales\InternalOrder;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Sales\InternalOrderService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class InternalOrderController extends Controller
-{
-  private FormatingSeriesService $referenceCodeService;
+class InternalOrderController extends Controller {
   private InternalOrderService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, InternalOrderService $service)
-  {
-    $this->referenceCodeService = $preferenceCodeService;
+  public function __construct(Request $request, InternalOrderService $service) {
     $this->service = $service;
     parent::__construct($request, InternalOrder::class);
   }
@@ -27,26 +23,24 @@ class InternalOrderController extends Controller
   /**
    * Display a listing of the resource.
    */
-  public function index(Request $request)
-  {
+  public function index(Request $request) {
     $this->setBreadcrumbs();
     InternalOrder::dataTable($request);
+
     return Inertia::render('Sales/InternalOrders/Index');
   }
 
   /**
    * Show the form for creating a new resource.
    */
-  public function create()
-  {
+  public function create() {
     //
   }
 
   /**
    * Store a newly created resource in storage.
    */
-  public function store(InternalOrderRequest $request)
-  {
+  public function store(InternalOrderRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
 
@@ -54,8 +48,8 @@ class InternalOrderController extends Controller
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code = $this->referenceCodeService->get(InternalOrder::class, $data);
-    $data['code'] = $code;
+    $code               = FormatingSeries::get(InternalOrder::class, $data);
+    $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 
     // create SO
@@ -68,8 +62,7 @@ class InternalOrderController extends Controller
   /**
    * Display the specified resource.
    */
-  public function show(InternalOrder $internalOrder)
-  {
+  public function show(InternalOrder $internalOrder) {
     $this->setBreadcrumbs($internalOrder);
     $internalOrder->showDetail();
 
@@ -84,19 +77,18 @@ class InternalOrderController extends Controller
   /**
    * Update the specified resource in storage.
    */
-  public function update(InternalOrderRequest $request, InternalOrder $internalOrder)
-  {
+  public function update(InternalOrderRequest $request, InternalOrder $internalOrder) {
     $data = $request->validated();
     DB::beginTransaction();
 
     $so = $this->service->update($internalOrder, $data);
 
     $so->logs()->create([
-      'user_id' => $request->user()->id,
+      'user_id'  => $request->user()->id,
       'activity' => [
         'en' => ':user updated this',
         'id' => ':user memperbarui ini',
-      ]
+      ],
     ]);
 
     DB::commit();
@@ -106,18 +98,17 @@ class InternalOrderController extends Controller
   /**
    * Submit Sales Order.
    */
-  public function submit(Request $request, InternalOrder $internalOrder)
-  {
+  public function submit(Request $request, InternalOrder $internalOrder) {
     DB::beginTransaction();
 
     $so = $this->service->submit($internalOrder);
 
     $so->logs()->create([
-      'user_id' => $request->user()->id,
+      'user_id'  => $request->user()->id,
       'activity' => [
         'en' => ':user submitted this',
         'id' => ':user telah mensubmit ini',
-      ]
+      ],
     ]);
 
     DB::commit();
@@ -126,8 +117,7 @@ class InternalOrderController extends Controller
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(InternalOrder $internalOrder)
-  {
+  public function destroy(InternalOrder $internalOrder) {
     DB::beginTransaction();
     $internalOrder->delete();
     $internalOrder->logForDeleted();

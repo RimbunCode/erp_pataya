@@ -16,7 +16,12 @@ import { useMemo } from "react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage(
+    {
+      date: new Date(),
+    },
+    { trackDefaultValue: false },
+  );
 
   const mergeItems = useCallback(
     (value, model) => {
@@ -178,7 +183,7 @@ function Form() {
         },
       },
     ];
-  }, []);
+  }, [data]);
   return (
     <>
       <FormPageContent

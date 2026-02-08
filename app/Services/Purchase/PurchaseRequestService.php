@@ -5,6 +5,7 @@ namespace App\Services\Purchase;
 use App\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Purchase\PurchaseRequest;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
 class PurchaseRequestService {
@@ -57,14 +58,24 @@ class PurchaseRequestService {
   }
 
   public function submit(PurchaseRequest $purchaseRequest) {
+    $purchaseRequest->checkApproval();
+
+    return $purchaseRequest;
+  }
+
+  public function onApproved(PurchaseRequest $purchaseRequest) {
+    DB::beginTransaction();
     $purchaseRequest->update([
-      'status' => FormStatus::SUBMITTED,
+      'status' => FormStatus::TO_ORDER,
     ]);
 
     $items = $purchaseRequest->items()
       ->whereNotNull('referenceable_type')
       ->whereNotNull('referenceable_id')
+      ->with(['referenceable'])
       ->get();
+
+    $modelConnections = [];
     foreach ($items as $item) {
       // Update ordered_quantity from source item
       $sourceModel = $item->referenceable_type;
@@ -75,16 +86,40 @@ class PurchaseRequestService {
       ]);
 
       // Create Model connection beetween WorkOrder and PurchaseRequest
-      $parentRelation    = $sourceItem->parentRelation();
-      $parentRelationKey = $parentRelation->getForeignKeyName();
+      $parentRelation     = $sourceItem->parentRelation();
+      $parentRelationKey  = $parentRelation->getForeignKeyName();
+      $modelConnections[] = [
+        'model_type' => \get_class($parentRelation->getRelated()),
+        'model_id'   => $sourceItem->$parentRelationKey
+      ];
+    }
+    $modelConnections = \collect($modelConnections)->unique('model_id')->toArray();
+
+    // Create ModelConnection for each item
+    foreach ($modelConnections as $modelConnection) {
       ModelConnection::firstOrCreate([
-        'model_type'     => \get_class($parentRelation->getRelated()),
-        'model_id'       => $sourceItem->$parentRelationKey,
+        'model_type'     => $modelConnection['model_type'],
+        'model_id'       => $modelConnection['model_id'],
         'reference_type' => PurchaseRequest::class,
         'reference_id'   => $purchaseRequest->id,
       ]);
     }
 
+    DB::commit();
+    return $purchaseRequest;
+  }
+
+  public function onRejected(PurchaseRequest $purchaseRequest) {
+    $purchaseRequest->update([
+      'status' => FormStatus::REJECTED,
+    ]);
+    return $purchaseRequest;
+  }
+
+  public function cancel(PurchaseRequest $purchaseRequest) {
+    $purchaseRequest->update([
+      'status' => FormStatus::CANCELED,
+    ]);
     return $purchaseRequest;
   }
 }

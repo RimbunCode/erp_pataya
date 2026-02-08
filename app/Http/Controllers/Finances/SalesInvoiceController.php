@@ -8,7 +8,7 @@ use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Finances\SalesInvoiceService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -16,12 +16,10 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SalesInvoiceController extends Controller {
-  private FormatingSeriesService $referenceCodeService;
-  private SalesInvoiceService    $service;
+  private SalesInvoiceService $service;
 
-  public function __construct(Request $request, FormatingSeriesService $preferenceCodeService, SalesInvoiceService $service) {
-    $this->referenceCodeService = $preferenceCodeService;
-    $this->service              = $service;
+  public function __construct(Request $request, SalesInvoiceService $service) {
+    $this->service = $service;
     parent::__construct($request, SalesInvoice::class);
   }
 
@@ -48,7 +46,7 @@ class SalesInvoiceController extends Controller {
             $so = SalesOrder::find($split[1]);
             if ($so) {
               $salesInvoice = SalesInvoice::where('sales_order_id', $so->id)
-                ->where('status', 'draft')
+                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($salesInvoice) {
@@ -91,7 +89,7 @@ class SalesInvoiceController extends Controller {
             $salesInvoice = SalesInvoice::find($split[1]);
             if ($salesInvoice) {
               $salesInvoiceTarget = SalesInvoice::where('return_against_id', $salesInvoice->id)
-                ->where('status', 'draft')
+                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($salesInvoiceTarget) {
@@ -153,7 +151,7 @@ class SalesInvoiceController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = $this->referenceCodeService->get(SalesInvoice::class, $data);
+    $code               = FormatingSeries::get(SalesInvoice::class, $data);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 

@@ -1,5 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
@@ -16,8 +16,14 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { dataBefore, defaultData, data, setData, disabled, form } =
-    useFormPage();
+  const { dataBefore, defaultData, data, setData, disabled } = useFormPage(
+    {
+      date: new Date(),
+    },
+    {
+      trackDefaultValue: false,
+    },
+  );
   const itemColumns = useMemo(() => {
     return [
       {
@@ -170,12 +176,6 @@ export default function Form() {
         },
       },
     ];
-  }, []);
-  useEffect(() => {
-    if (!data.date) {
-      const currentDate = new Date();
-      form.setData({ date: currentDate });
-    }
   }, []);
   return (
     <>

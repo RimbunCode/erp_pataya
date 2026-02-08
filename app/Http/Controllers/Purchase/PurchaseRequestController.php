@@ -8,7 +8,7 @@ use App\Models\Core\Branch;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Service\WorkOrder;
 use App\Models\Service\WorkOrderItem;
-use App\Services\Core\FormatingSeriesService;
+use App\Models\Core\FormatingSeries;
 use App\Services\Purchase\PurchaseRequestService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseRequestController extends Controller {
-  private FormatingSeriesService $formatingSeriesService;
   private PurchaseRequestService $service;
 
   public function __construct(Request $request, FormatingSeriesService $formatingSeriesService, PurchaseRequestService $service) {
@@ -82,7 +81,7 @@ class PurchaseRequestController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code           = $this->formatingSeriesService->get(PurchaseRequest::class, $data);
+    $code           = FormatingSeries::get(PurchaseRequest::class, $data);
     $data['code']   = $code;
 
     $wo = $this->service->create($data);
@@ -116,9 +115,22 @@ class PurchaseRequestController extends Controller {
   }
 
   public function submit(PurchaseRequest $purchaseRequest) {
-    DB::beginTransaction();
     $this->service->submit($purchaseRequest);
-    DB::commit();
+    return back();
+  }
+
+  public function cancel(PurchaseRequest $purchaseRequest) {
+    $this->service->cancel($purchaseRequest);
+    return back();
+  }
+
+  public function onApproved(PurchaseRequest $purchaseRequest) {
+    $this->service->onApproved($purchaseRequest);
+    return back();
+  }
+
+  public function onRejected(PurchaseRequest $purchaseRequest) {
+    $this->service->onRejected($purchaseRequest);
     return back();
   }
 
