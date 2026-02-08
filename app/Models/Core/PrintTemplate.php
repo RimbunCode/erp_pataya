@@ -3,7 +3,6 @@
 namespace App\Models\Core;
 
 use App\Casts\Json;
-use App\Models\Inventory\Unit;
 use App\Models\Model;
 use App\Models\User\Permission;
 use App\Traits\DataTable;
@@ -13,113 +12,128 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
-class PrintTemplate extends Model {
-  use HasUlids, DataTable, SoftDeletes;
-  protected     $guarded       = ['id'];
-  protected     $casts         = [
-    'template'             => Json::class,
-    'is_default'           => 'boolean',
-    'is_letter_head'       => 'boolean',
-    'show_absolute_values' => 'boolean',
-  ];
-  protected     $appends       = ['title', 'columns'];
-  public string $keyBreadcrumb = "name";
-  public string $translateKey  = "core.printTemplate";
+class PrintTemplate extends Model
+{
+    use DataTable, HasUlids, SoftDeletes;
 
-  public static function templateLink() {
-    return ":name";
-  }
+    protected $guarded = ['id'];
 
-  public function title(): Attribute {
-    return new Attribute(
-      get: function () {
-        $model = $this->model;
-        if ($model == null) {
-          return "";
-        }
-        $modelInstance = new $model();
+    protected $casts = [
+        'template' => Json::class,
+        'is_default' => 'boolean',
+        'is_letter_head' => 'boolean',
+        'show_absolute_values' => 'boolean',
+    ];
 
-        return "{$modelInstance->translateKey}.title";
-      }
-    );
-  }
+    protected $appends = ['title', 'columns'];
 
-  public function columns(): Attribute {
-    return new Attribute(
-      get: function () {
-        if ($this->model) {
-          $instance = new $this->model();
-          $columns  = [
-            [
-              'name'    => 'company_details',
-              'title'   => trans('core/company.company_details.title'),
-              'type'    => 'preferences',
-              'columns' => Utils::getPreferenceColumns(),
-            ], [
-              'name'       => Str::lower(Str::snake(Str::singular($this->name_model))),
-              'type'       => 'data',
-              'titleTrans' => isset($instance) ? $instance->translateKey . ".title" : Str::singular($this->name_model),
-              'columns'    => $this->model::getColumns(),
-            ],
-          ];
-        }
-        return $this->model != null ? $columns : Utils::getPreferenceColumns();
-      }
-    );
-  }
-  public $configColumns = [
-    'name'          => [
-      'show'   => true,
-      'order'  => 0,
-      'isLink' => true,
-    ],
-    'name_model'    => [
-      'show'  => true,
-      'order' => 1,
-    ],
-    'is_default'    => [
-      'show'  => true,
-      'order' => 2,
-    ],
-    'permission_id' => [
-      'ignore' => true,
-    ],
-    'model'         => [
-      'ignore' => true,
-    ],
-  ];
+    public string $keyBreadcrumb = 'name';
 
-  public static function boot() {
-    parent::boot();
+    public string $translateKey = 'core.printTemplate';
 
-    self::saved(function ($model) {
-      if ($model->is_default) {
-        PrintTemplate::where('model', $model->model)
-          ->whereNot('id', $model->id)
-          ->update(['is_default' => false]);
-      } else {
-        $counter = PrintTemplate::where('model', $model->model)
-          ->whereNot('id', $model->id)
-          ->count();
+    public static function templateLink()
+    {
+        return ':name';
+    }
 
-        if ($counter <= 0) {
-          $model->is_default = true;
-        }
-      }
+    public function title(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                $model = $this->model;
+                if ($model == null) {
+                    return '';
+                }
+                $modelInstance = new $model;
 
-      $model->saveQuietly();
-    });
-  }
+                return "{$modelInstance->translateKey}.title";
+            }
+        );
+    }
 
-  protected static function loadRelationsOnShow() {
-    return ['permission', 'letterHead'];
-  }
+    public function columns(): Attribute
+    {
+        return new Attribute(
+            get: function () {
+                if ($this->model) {
+                    $instance = new $this->model;
+                    $columns = [
+                        [
+                            'name' => 'company_details',
+                            'title' => trans('core/company.company_details.title'),
+                            'type' => 'preferences',
+                            'columns' => Utils::getPreferenceColumns(),
+                        ], [
+                            'name' => Str::lower(Str::snake(Str::singular($this->name_model))),
+                            'type' => 'data',
+                            'titleTrans' => isset($instance) ? $instance->translateKey.'.title' : Str::singular($this->name_model),
+                            'columns' => $this->model::getColumns(),
+                        ],
+                    ];
+                }
 
-  public function permission() {
-    return $this->belongsTo(Permission::class);
-  }
+                return $this->model != null ? $columns : Utils::getPreferenceColumns();
+            }
+        );
+    }
 
-  public function letterHead() {
-    return $this->belongsTo(PrintTemplate::class, 'letter_head_id');
-  }
+    public $configColumns = [
+        'name' => [
+            'show' => true,
+            'order' => 0,
+            'isLink' => true,
+        ],
+        'name_model' => [
+            'show' => true,
+            'order' => 1,
+        ],
+        'is_default' => [
+            'show' => true,
+            'order' => 2,
+        ],
+        'permission_id' => [
+            'ignore' => true,
+        ],
+        'model' => [
+            'ignore' => true,
+        ],
+    ];
+
+    public static function boot()
+    {
+        parent::boot();
+
+        self::saved(function ($model) {
+            if ($model->is_default) {
+                PrintTemplate::where('model', $model->model)
+                    ->whereNot('id', $model->id)
+                    ->update(['is_default' => false]);
+            } else {
+                $counter = PrintTemplate::where('model', $model->model)
+                    ->whereNot('id', $model->id)
+                    ->count();
+
+                if ($counter <= 0) {
+                    $model->is_default = true;
+                }
+            }
+
+            $model->saveQuietly();
+        });
+    }
+
+    protected static function loadRelationsOnShow()
+    {
+        return ['permission', 'letterHead'];
+    }
+
+    public function permission()
+    {
+        return $this->belongsTo(Permission::class);
+    }
+
+    public function letterHead()
+    {
+        return $this->belongsTo(PrintTemplate::class, 'letter_head_id');
+    }
 }

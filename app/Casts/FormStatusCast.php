@@ -7,26 +7,32 @@ use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 
-class FormStatusCast implements CastsAttributes {
-  /**
-   * Cast the given value.
-   *
-   * @param  array<string, mixed>  $attributes
-   */
-  public function get(Model $model, string $key, mixed $value, array $attributes): mixed {
-    if ($value == null) return null;
-    return FormStatus::from($value);
-  }
+class FormStatusCast implements CastsAttributes
+{
+    /**
+     * Cast the given value.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function get(Model $model, string $key, mixed $value, array $attributes): mixed
+    {
+        if ($value == null) {
+            return null;
+        }
 
-  /**
-   * Prepare the given value for storage.
-   *
-   * @param  array<string, mixed>  $attributes
-   */
-  public function set(Model $model, string $key, mixed $value, array $attributes): mixed {
-    if ($value instanceof FormStatus) {
-      return $value->value;
+        return FormStatus::from($value);
     }
-    throw new InvalidArgumentException("The given value is not an instance of FormStatus");
-  }
+
+    /**
+     * Prepare the given value for storage.
+     *
+     * @param  array<string, mixed>  $attributes
+     */
+    public function set(Model $model, string $key, mixed $value, array $attributes): mixed
+    {
+        if ($value instanceof FormStatus) {
+            return $value->value;
+        }
+        throw new InvalidArgumentException('The given value is not an instance of FormStatus');
+    }
 }

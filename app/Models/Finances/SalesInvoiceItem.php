@@ -9,35 +9,44 @@ use App\Models\Sales\SalesOrderItem;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SalesInvoiceItem extends Model {
-  use HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
+class SalesInvoiceItem extends Model
+{
+    use HasUlids, SoftDeletes;
 
-  public static function templateLink() {
-    return ":item";
-  }
+    protected $guarded = ['id'];
 
-  public function salesInvoice() {
-    return $this->belongsTo(SalesInvoice::class);
-  }
+    public static function templateLink()
+    {
+        return ':item';
+    }
 
-  public function salesOrderItem() {
-    return $this->belongsTo(SalesOrderItem::class);
-  }
+    public function salesInvoice()
+    {
+        return $this->belongsTo(SalesInvoice::class);
+    }
 
-  public function returnAgainstItem() {
-    return $this->belongsTo(SalesInvoiceItem::class, 'return_against_item_id');
-  }
+    public function salesOrderItem()
+    {
+        return $this->belongsTo(SalesOrderItem::class);
+    }
 
-  public function unit() {
-    return $this->belongsTo(Unit::class);
-  }
+    public function returnAgainstItem()
+    {
+        return $this->belongsTo(SalesInvoiceItem::class, 'return_against_item_id');
+    }
 
-  public function tax() {
-    return $this->belongsTo(Tax::class);
-  }
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
+    }
 
-  public function item() {
-    return $this->belongsTo(ItemVariant::class, 'item_id');
-  }
+    public function tax()
+    {
+        return $this->belongsTo(Tax::class);
+    }
+
+    public function item()
+    {
+        return $this->belongsTo(ItemVariant::class, 'item_id');
+    }
 }

@@ -7,25 +7,29 @@ use App\Traits\BackupDatabase;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
-class BackupDatabaseJob implements ShouldQueue {
-  use Queueable, BackupDatabase;
+class BackupDatabaseJob implements ShouldQueue
+{
+    use BackupDatabase, Queueable;
 
-  public $timeout = 300;
-  /**
-   * Create a new job instance.
-   */
-  public function __construct(public User $user) {
-    //
-  }
+    public $timeout = 300;
 
-  /**
-   * Execute the job.
-   */
-  public function handle(): void {
-    try {
-      $backupFile = $this->performBackup($this->user);
-    } catch (\Throwable $th) {
-      //throw $th;
+    /**
+     * Create a new job instance.
+     */
+    public function __construct(public User $user)
+    {
+        //
     }
-  }
+
+    /**
+     * Execute the job.
+     */
+    public function handle(): void
+    {
+        try {
+            $backupFile = $this->performBackup($this->user);
+        } catch (\Throwable $th) {
+            // throw $th;
+        }
+    }
 }

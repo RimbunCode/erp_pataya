@@ -6,21 +6,27 @@ use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class ItemBarcode extends Model {
-  use SoftDeletes, HasUlids;
-  public string $translateKey = 'inventories.itemBarcode';
-  protected     $guarded      = ['id'];
-  protected $configColumns = [
-    'barcode',
-    'item',
-    'unit',
-  ];
+class ItemBarcode extends Model
+{
+    use HasUlids, SoftDeletes;
 
-  public function item() {
-    return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id');
-  }
+    public string $translateKey = 'inventories.itemBarcode';
 
-  public function unit() {
-    return $this->belongsTo(Unit::class, 'unit_id', 'id');
-  }
+    protected $guarded = ['id'];
+
+    protected $configColumns = [
+        'barcode',
+        'item',
+        'unit',
+    ];
+
+    public function item()
+    {
+        return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id');
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class, 'unit_id', 'id');
+    }
 }

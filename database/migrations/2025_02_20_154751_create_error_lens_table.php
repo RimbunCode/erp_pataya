@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (!Schema::hasTable('error_logs')) {
+        if (! Schema::hasTable('error_logs')) {
             Schema::create('error_logs', function (Blueprint $table) {
                 $table->uuid('id')->primary();
                 $table->string('method');
@@ -37,7 +37,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('error_log_configs')) {
+        if (! Schema::hasTable('error_log_configs')) {
             Schema::create('error_log_configs', function (Blueprint $table) {
                 $table->id();
                 $table->string('key', 191)->unique();
@@ -46,7 +46,7 @@ return new class extends Migration
             });
         }
 
-        if (!Schema::hasTable('error_logs_archived')) {
+        if (! Schema::hasTable('error_logs_archived')) {
             Schema::create('error_logs_archived', function (Blueprint $table) {
                 $table->uuid('id')->primary();
                 $table->string('method');

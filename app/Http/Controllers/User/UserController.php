@@ -6,108 +6,120 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UserRequest;
 use App\Models\Core\Branch;
 use App\Models\Core\File;
-use App\Models\Core\Log;
-use App\Models\Core\Tag;
-use App\Models\User\RolePermission;
 use App\Models\User\User;
 use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class UserController extends Controller {
-
-  public function __construct(Request $request) {
-    parent::__construct($request, User::class);
-  }
-  /**
-   * Display a listing of the resource.
-   */
-  public function index(Request $request) {
-    if (!Utils::isInertiaRequest($request)) {
-      $users = User::query();
-      if ($request->has('search')) {
-        $users->whereAny(['name', 'email', 'username'], 'like', "%{$request->search}%");
-      }
-      return response()->json($users->get());
+class UserController extends Controller
+{
+    public function __construct(Request $request)
+    {
+        parent::__construct($request, User::class);
     }
-    $this->setBreadcrumbs();
-    // dd(json_decode(stripslashes($_COOKIE['datatable_columns'])));
-    User::dataTable($request);
-    return Inertia::render('Users/ManageUsers/Index',);
-  }
-  public function image(Request $request, User $user) {
-    DB::beginTransaction();
-    File::uploadFile($request, 'ImageProfile', function ($file) use ($user) {
-      $user->update([
-        'image' => $file->id,
-      ]);
-    });
-    DB::commit();
 
-    return back();
-  }
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        if (! Utils::isInertiaRequest($request)) {
+            $users = User::query();
+            if ($request->has('search')) {
+                $users->whereAny(['name', 'email', 'username'], 'like', "%{$request->search}%");
+            }
 
-  /**
-   * Show the form for creating a new resource.
-   */
-  public function create() {
-    //
-  }
+            return response()->json($users->get());
+        }
+        $this->setBreadcrumbs();
+        // dd(json_decode(stripslashes($_COOKIE['datatable_columns'])));
+        User::dataTable($request);
 
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(Request $request) {
-    //
-  }
-
-  /**
-   * Display the specified resource.
-   */
-  public function show(Request $request, User $user) {
-    if ($request->user()->id != $user->id) {
-      $this->guard('read');
+        return Inertia::render('Users/ManageUsers/Index');
     }
-    $this->setBreadcrumbs($user);
-    $user->showDetail();
-    return Inertia::render('Users/ManageUsers/Show', [
-      'user' => function () use ($user) {
-        $user->roles = $user->roles()->pluck('id');
-        $user->branches = $user->branches()->pluck('id');
-        return $user;
-      },
-      'roles' => Inertia::defer(function () {
-        return \App\Models\User\Role::all();
-      }),
-      'branches' => Inertia::defer(function () {
-        return Branch::whereNull('branchable_type')
-          ->whereNull('branchable_id')->get();
-      })
-    ]);
-  }
 
-  /**
-   * Update the specified resource in storage.
-   */
-  public function update(UserRequest $request, User $user) {
-    if ($request->user()->id != $user->id) {
-      $this->guard('write');
+    public function image(Request $request, User $user)
+    {
+        DB::beginTransaction();
+        File::uploadFile($request, 'ImageProfile', function ($file) use ($user) {
+            $user->update([
+                'image' => $file->id,
+            ]);
+        });
+        DB::commit();
+
+        return back();
     }
-    $data = $request->validated();
-    DB::beginTransaction();
-    $user->fillForUpdate($data);
-    $user->roles()->sync($data['roles']);
-    $user->branches()->sync($data['branches']);
-    $user->logForUpdated();
-    DB::commit();
-    return back();
-  }
 
-  /**
-   * Remove the specified resource from storage.
-   */
-  public function destroy(string $id) {
-    //
-  }
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        //
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(Request $request)
+    {
+        //
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Request $request, User $user)
+    {
+        if ($request->user()->id != $user->id) {
+            $this->guard('read');
+        }
+        $this->setBreadcrumbs($user);
+        $user->showDetail();
+
+        return Inertia::render('Users/ManageUsers/Show', [
+            'user' => function () use ($user) {
+                $user->roles = $user->roles()->pluck('id');
+                $user->branches = $user->branches()->pluck('id');
+
+                return $user;
+            },
+            'roles' => Inertia::defer(function () {
+                return \App\Models\User\Role::all();
+            }),
+            'branches' => Inertia::defer(function () {
+                return Branch::whereNull('branchable_type')
+                    ->whereNull('branchable_id')->get();
+            }),
+        ]);
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(UserRequest $request, User $user)
+    {
+        if ($request->user()->id != $user->id) {
+            $this->guard('write');
+        }
+        $data = $request->validated();
+        DB::beginTransaction();
+        $user->fillForUpdate($data);
+        $user->roles()->sync($data['roles']);
+        $user->branches()->sync($data['branches']);
+        $user->logForUpdated();
+        DB::commit();
+
+        return back();
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(string $id)
+    {
+        //
+    }
 }

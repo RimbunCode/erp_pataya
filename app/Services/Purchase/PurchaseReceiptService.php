@@ -12,239 +12,255 @@ use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
-class PurchaseReceiptService {
-  private function fillRelations(array $data) {
-    $data['purchase_order_id'] = $data['purchase_order']['id'];
-    $data['supplier_id']       = $data['supplier']['id'];
+class PurchaseReceiptService
+{
+    private function fillRelations(array $data)
+    {
+        $data['purchase_order_id'] = $data['purchase_order']['id'];
+        $data['supplier_id'] = $data['supplier']['id'];
 
-    // optional branch
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
-    if (isset($data['return_against'])) {
-      $data['return_against_id'] = $data['return_against']['id'];
-    }
-
-    return $data;
-  }
-
-  private function fillItemRelations(array $data) {
-    $data['item_id']             = $data['item']['id'];
-    $data['unit_id']             = $data['unit']['id'] ?? '';
-    $data['conversion_factor']   = ItemUnit::getConversionFactor($data['item']["item_id"], $data['unit_id']);
-    $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? '';
-
-    return $data;
-  }
-
-  public function create(array $data) {
-    $purchaseReceipt = PurchaseReceipt::create($this->fillRelations($data));
-    foreach ($data['items'] as $item) {
-      $item = $this->fillItemRelations($item);
-      $purchaseReceipt->items()->create($item);
-    }
-    $purchaseReceipt->logForCreated();
-    return $purchaseReceipt;
-  }
-
-  public function update(PurchaseReceipt $purchaseReceipt, array $data) {
-    $purchaseReceipt->fillForUpdate($this->fillRelations($data));
-
-    $purchaseReceipt->items()
-      ->whereNotIn('id', array_column($data['items'], 'id'))
-      ->delete();
-    foreach ($data['items'] as $item) {
-      $item = $this->fillItemRelations($item);
-
-      if (Ulid::isValid($item['id'])) {
-        $purchaseReceipt->items()
-          ->find($item['id'])
-          ->update($item);
-        continue;
-      }
-
-      $purchaseReceipt->items()->create($item);
-    }
-
-    $purchaseReceipt->logForUpdated();
-    return $purchaseReceipt;
-  }
-
-  public function submit(PurchaseReceipt $purchaseReceipt) {
-    $purchaseReceipt->checkApproval();
-    return $purchaseReceipt;
-  }
-
-  public function onApproved(PurchaseReceipt $purchaseReceipt) {
-    DB::beginTransaction();
-    $returnAgainst = $purchaseReceipt->returnAgainst;
-    $purchaseReceipt->update([
-      'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::RECEIVED,
-    ]);
-
-    $purchaseOrder = $purchaseReceipt->purchaseOrder;
-
-    $items = $purchaseReceipt->items()
-      ->with([
-        'item',
-        'item.item',
-        'purchaseOrderItem',
-        'targetWarehouse',
-        'returnAgainstItem',
-      ])->get();
-
-    $totalRates = 0;
-    foreach ($items as $item) {
-      $defaultUnit             = $item->item->defaultUnit;
-      $defaultConvertionFactor = $item->item->conversion_factor;
-      $stock                   = Stock::lockForUpdate()->firstOrCreate([
-        'item_variant_id' => $item->item_id,
-        'warehouse_id'    => $item->target_warehouse_id,
-      ], [
-        'conversion_factor' => $defaultConvertionFactor,
-        'unit_id'           => $defaultUnit->id,
-        'stock_queue'       => [],
-      ]);
-      $quantity                = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-      $queue                   = $stock->stock_queue;
-
-      $totalRate   = $item->purchaseOrderItem->rate * $quantity;
-      $totalRates += $totalRate;
-
-      if ($returnAgainst) {
-        for ($i = \count($queue) - 1; $i >= 0; $i--) {
-          if ($queue[$i]['rate'] == $item->purchaseOrderItem->rate) {
-            $queue[$i]['quantity'] -= $quantity;
-            break;
-          }
+        // optional branch
+        if (isset($data['branch'])) {
+            $data['branch_id'] = $data['branch']['id'];
+        }
+        if (isset($data['return_against'])) {
+            $data['return_against_id'] = $data['return_against']['id'];
         }
 
-        $stock->update([
-          'stock_queue' => $queue,
-          'quantity'    => $stock->quantity - $quantity,
-        ]);
-
-        $item->returnAgainstItem->increment('returned_quantity', $quantity);
-        $item->purchaseOrderItem->decrement('received_quantity', $quantity);
-
-        StockLedgerEntry::create([
-          'item_id'               => $item->item_id,
-          'warehouse_id'          => $item->target_warehouse_id,
-          'unit_id'               => $defaultUnit->id,
-          'conversion_factor'     => $defaultConvertionFactor,
-          'quantity_change'       => -$quantity,
-          'quantity_after_change' => $stock->actual_quantity,
-          'valuation_rate'        => $stock->valuation_rate,
-          'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
-          'change_in_stock_value' => -$totalRate,
-          'stock_queue'           => $stock->stock_queue,
-          'referenceable_type'    => PurchaseReceipt::class,
-          'referenceable_id'      => $purchaseReceipt->id,
-        ]);
-        continue;
-      }
-
-      $queue[] = [
-        'rate'     => $item->purchaseOrderItem->rate,
-        'quantity' => $quantity,
-      ];
-
-      $stock->update([
-        'stock_queue' => $queue,
-        'quantity'    => $stock->quantity + $quantity,
-      ]);
-      $item->purchaseOrderItem->increment('received_quantity', $quantity);
-
-      StockLedgerEntry::create([
-        'item_id'               => $item->item_id,
-        'warehouse_id'          => $item->target_warehouse_id,
-        'unit_id'               => $defaultUnit->id,
-        'conversion_factor'     => $defaultConvertionFactor,
-        'quantity_change'       => $quantity,
-        'quantity_after_change' => $stock->actual_quantity,
-        'valuation_rate'        => $stock->valuation_rate,
-        'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
-        'change_in_stock_value' => $totalRate,
-        'stock_queue'           => $stock->stock_queue,
-        'referenceable_type'    => PurchaseReceipt::class,
-        'referenceable_id'      => $purchaseReceipt->id,
-      ]);
-
+        return $data;
     }
 
-    $unreceived_items     = $purchaseOrder->items()->select('remaining_quantity', 'quantity');
-    $countUnreceivedItems = $unreceived_items->sum('remaining_quantity');
-    $sumQuantity          = $unreceived_items->sum('quantity');
-    if ($countUnreceivedItems == $sumQuantity) {
-      $status = Utils::replaceStatus(
-        $purchaseOrder->status,
-        [FormStatus::RECEIVED, FormStatus::PARTIALLY_RECEIVED],
-        FormStatus::TO_RECEIVE,
-      );
-    } else if ($countUnreceivedItems > 0) {
-      $status = Utils::replaceStatus(
-        $purchaseOrder->status,
-        FormStatus::TO_RECEIVE,
-        FormStatus::PARTIALLY_RECEIVED,
-      );
-    } else {
-      $status = Utils::replaceStatus(
-        $purchaseOrder->status,
-        [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED],
-        FormStatus::RECEIVED,
-      );
+    private function fillItemRelations(array $data)
+    {
+        $data['item_id'] = $data['item']['id'];
+        $data['unit_id'] = $data['unit']['id'] ?? '';
+        $data['conversion_factor'] = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? '';
+
+        return $data;
     }
 
-    $purchaseOrder->update([
-      'status' => $status,
-    ]);
+    public function create(array $data)
+    {
+        $purchaseReceipt = PurchaseReceipt::create($this->fillRelations($data));
+        foreach ($data['items'] as $item) {
+            $item = $this->fillItemRelations($item);
+            $purchaseReceipt->items()->create($item);
+        }
+        $purchaseReceipt->logForCreated();
 
-    $debitAccount = Account::lockForUpdate()
-      ->where('root_type', 'asset')
-      ->where('account_type', 'stock')
-      ->latest()->first();
+        return $purchaseReceipt;
+    }
 
-    $creditAccount = Account::lockForUpdate()
-      ->where('root_type', 'liability')
-      ->where('account_type', 'stock_received_but_not_billed')
-      ->latest()->first();
+    public function update(PurchaseReceipt $purchaseReceipt, array $data)
+    {
+        $purchaseReceipt->fillForUpdate($this->fillRelations($data));
 
-    $creditAccount->generalLedgerEntries()->create([
-      'against_account_id' => $debitAccount->id,
-      'credit'             => $returnAgainst ? 0 : $totalRates,
-      'debit'              => $returnAgainst ? $totalRates : 0,
-      'referenceable_type' => PurchaseReceipt::class,
-      'referenceable_id'   => $purchaseReceipt->id,
-    ]);
+        $purchaseReceipt->items()
+            ->whereNotIn('id', array_column($data['items'], 'id'))
+            ->delete();
+        foreach ($data['items'] as $item) {
+            $item = $this->fillItemRelations($item);
 
-    $debitAccount->generalLedgerEntries()->create([
-      'against_account_id' => $creditAccount->id,
-      'credit'             => $returnAgainst ? $totalRates : 0,
-      'debit'              => $returnAgainst ? 0 : $totalRates,
-      'referenceable_type' => PurchaseReceipt::class,
-      'referenceable_id'   => $purchaseReceipt->id,
-    ]);
+            if (Ulid::isValid($item['id'])) {
+                $purchaseReceipt->items()
+                    ->find($item['id'])
+                    ->update($item);
 
-    DB::commit();
+                continue;
+            }
 
-    return $purchaseReceipt;
-  }
+            $purchaseReceipt->items()->create($item);
+        }
 
-  public function onRejected(PurchaseReceipt $purchaseReceipt) {
-    $purchaseReceipt->update([
-      'status' => [
-        FormStatus::REJECTED,
-      ],
-    ]);
-    return $purchaseReceipt;
-  }
+        $purchaseReceipt->logForUpdated();
 
-  public function cancel(PurchaseReceipt $purchaseReceipt) {
-    $purchaseReceipt->update([
-      'status' => [
-        FormStatus::CANCELED,
-      ],
-    ]);
-    return $purchaseReceipt;
-  }
+        return $purchaseReceipt;
+    }
+
+    public function submit(PurchaseReceipt $purchaseReceipt)
+    {
+        $purchaseReceipt->checkApproval();
+
+        return $purchaseReceipt;
+    }
+
+    public function onApproved(PurchaseReceipt $purchaseReceipt)
+    {
+        DB::beginTransaction();
+        $returnAgainst = $purchaseReceipt->returnAgainst;
+        $purchaseReceipt->update([
+            'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::RECEIVED,
+        ]);
+
+        $purchaseOrder = $purchaseReceipt->purchaseOrder;
+
+        $items = $purchaseReceipt->items()
+            ->with([
+                'item',
+                'item.item',
+                'purchaseOrderItem',
+                'targetWarehouse',
+                'returnAgainstItem',
+            ])->get();
+
+        $totalRates = 0;
+        foreach ($items as $item) {
+            $defaultUnit = $item->item->defaultUnit;
+            $defaultConvertionFactor = $item->item->conversion_factor;
+            $stock = Stock::lockForUpdate()->firstOrCreate([
+                'item_variant_id' => $item->item_id,
+                'warehouse_id' => $item->target_warehouse_id,
+            ], [
+                'conversion_factor' => $defaultConvertionFactor,
+                'unit_id' => $defaultUnit->id,
+                'stock_queue' => [],
+            ]);
+            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $queue = $stock->stock_queue;
+
+            $totalRate = $item->purchaseOrderItem->rate * $quantity;
+            $totalRates += $totalRate;
+
+            if ($returnAgainst) {
+                for ($i = \count($queue) - 1; $i >= 0; $i--) {
+                    if ($queue[$i]['rate'] == $item->purchaseOrderItem->rate) {
+                        $queue[$i]['quantity'] -= $quantity;
+                        break;
+                    }
+                }
+
+                $stock->update([
+                    'stock_queue' => $queue,
+                    'quantity' => $stock->quantity - $quantity,
+                ]);
+
+                $item->returnAgainstItem->increment('returned_quantity', $quantity);
+                $item->purchaseOrderItem->decrement('received_quantity', $quantity);
+
+                StockLedgerEntry::create([
+                    'item_id' => $item->item_id,
+                    'warehouse_id' => $item->target_warehouse_id,
+                    'unit_id' => $defaultUnit->id,
+                    'conversion_factor' => $defaultConvertionFactor,
+                    'quantity_change' => -$quantity,
+                    'quantity_after_change' => $stock->actual_quantity,
+                    'valuation_rate' => $stock->valuation_rate,
+                    'balance_stock_value' => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+                    'change_in_stock_value' => -$totalRate,
+                    'stock_queue' => $stock->stock_queue,
+                    'referenceable_type' => PurchaseReceipt::class,
+                    'referenceable_id' => $purchaseReceipt->id,
+                ]);
+
+                continue;
+            }
+
+            $queue[] = [
+                'rate' => $item->purchaseOrderItem->rate,
+                'quantity' => $quantity,
+            ];
+
+            $stock->update([
+                'stock_queue' => $queue,
+                'quantity' => $stock->quantity + $quantity,
+            ]);
+            $item->purchaseOrderItem->increment('received_quantity', $quantity);
+
+            StockLedgerEntry::create([
+                'item_id' => $item->item_id,
+                'warehouse_id' => $item->target_warehouse_id,
+                'unit_id' => $defaultUnit->id,
+                'conversion_factor' => $defaultConvertionFactor,
+                'quantity_change' => $quantity,
+                'quantity_after_change' => $stock->actual_quantity,
+                'valuation_rate' => $stock->valuation_rate,
+                'balance_stock_value' => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+                'change_in_stock_value' => $totalRate,
+                'stock_queue' => $stock->stock_queue,
+                'referenceable_type' => PurchaseReceipt::class,
+                'referenceable_id' => $purchaseReceipt->id,
+            ]);
+
+        }
+
+        $unreceived_items = $purchaseOrder->items()->select('remaining_quantity', 'quantity');
+        $countUnreceivedItems = $unreceived_items->sum('remaining_quantity');
+        $sumQuantity = $unreceived_items->sum('quantity');
+        if ($countUnreceivedItems == $sumQuantity) {
+            $status = Utils::replaceStatus(
+                $purchaseOrder->status,
+                [FormStatus::RECEIVED, FormStatus::PARTIALLY_RECEIVED],
+                FormStatus::TO_RECEIVE,
+            );
+        } elseif ($countUnreceivedItems > 0) {
+            $status = Utils::replaceStatus(
+                $purchaseOrder->status,
+                FormStatus::TO_RECEIVE,
+                FormStatus::PARTIALLY_RECEIVED,
+            );
+        } else {
+            $status = Utils::replaceStatus(
+                $purchaseOrder->status,
+                [FormStatus::TO_RECEIVE, FormStatus::PARTIALLY_RECEIVED],
+                FormStatus::RECEIVED,
+            );
+        }
+
+        $purchaseOrder->update([
+            'status' => $status,
+        ]);
+
+        $debitAccount = Account::lockForUpdate()
+            ->where('root_type', 'asset')
+            ->where('account_type', 'stock')
+            ->latest()->first();
+
+        $creditAccount = Account::lockForUpdate()
+            ->where('root_type', 'liability')
+            ->where('account_type', 'stock_received_but_not_billed')
+            ->latest()->first();
+
+        $creditAccount->generalLedgerEntries()->create([
+            'against_account_id' => $debitAccount->id,
+            'credit' => $returnAgainst ? 0 : $totalRates,
+            'debit' => $returnAgainst ? $totalRates : 0,
+            'referenceable_type' => PurchaseReceipt::class,
+            'referenceable_id' => $purchaseReceipt->id,
+        ]);
+
+        $debitAccount->generalLedgerEntries()->create([
+            'against_account_id' => $creditAccount->id,
+            'credit' => $returnAgainst ? $totalRates : 0,
+            'debit' => $returnAgainst ? 0 : $totalRates,
+            'referenceable_type' => PurchaseReceipt::class,
+            'referenceable_id' => $purchaseReceipt->id,
+        ]);
+
+        DB::commit();
+
+        return $purchaseReceipt;
+    }
+
+    public function onRejected(PurchaseReceipt $purchaseReceipt)
+    {
+        $purchaseReceipt->update([
+            'status' => [
+                FormStatus::REJECTED,
+            ],
+        ]);
+
+        return $purchaseReceipt;
+    }
+
+    public function cancel(PurchaseReceipt $purchaseReceipt)
+    {
+        $purchaseReceipt->update([
+            'status' => [
+                FormStatus::CANCELED,
+            ],
+        ]);
+
+        return $purchaseReceipt;
+    }
 }

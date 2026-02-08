@@ -8,16 +8,21 @@ use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class GeneralLedger extends Model {
-  use HasUlids, SoftDeletes, DataTable;
-  protected               $guarded            = ['id'];
-  protected static string $defaultFormatCode  = 'GL-@[iiii]/@[yy]';
-  protected static        $generateCodeSeries = true;
+class GeneralLedger extends Model
+{
+    use DataTable, HasUlids, SoftDeletes;
 
-  public static function boot() {
-    parent::boot();
-    self::creating(function ($model) {
-      $model->code = FormatingSeries::get(GeneralLedger::class, $model->toArray());
-    });
-  }
+    protected $guarded = ['id'];
+
+    protected static string $defaultFormatCode = 'GL-@[iiii]/@[yy]';
+
+    protected static $generateCodeSeries = true;
+
+    public static function boot()
+    {
+        parent::boot();
+        self::creating(function ($model) {
+            $model->code = FormatingSeries::get(GeneralLedger::class, $model->toArray());
+        });
+    }
 }

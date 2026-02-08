@@ -10,38 +10,47 @@ use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class PurchaseOrderItem extends Model {
-  use HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
-  protected $casts   = [
-    "required_date" => "datetime",
-  ];
+class PurchaseOrderItem extends Model
+{
+    use HasUlids, SoftDeletes;
 
-  // protected $configColumns =[
+    protected $guarded = ['id'];
 
-  // ]
+    protected $casts = [
+        'required_date' => 'datetime',
+    ];
 
-  public function purchaseOrder() {
-    return $this->belongsTo(PurchaseOrder::class);
-  }
+    // protected $configColumns =[
 
-  public function unit() {
-    return $this->belongsTo(Unit::class);
-  }
+    // ]
 
-  public function tax() {
-    return $this->belongsTo(Tax::class);
-  }
+    public function purchaseOrder()
+    {
+        return $this->belongsTo(PurchaseOrder::class);
+    }
 
-  public function targetWarehouse() {
-    return $this->belongsTo(Warehouse::class, 'target_warehouse_id');
-  }
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
+    }
 
-  public function item() {
-    return $this->belongsTo(ItemVariant::class, 'item_id');
-  }
+    public function tax()
+    {
+        return $this->belongsTo(Tax::class);
+    }
 
-  public function referenceable() {
-    return $this->morphTo();
-  }
+    public function targetWarehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'target_warehouse_id');
+    }
+
+    public function item()
+    {
+        return $this->belongsTo(ItemVariant::class, 'item_id');
+    }
+
+    public function referenceable()
+    {
+        return $this->morphTo();
+    }
 }
