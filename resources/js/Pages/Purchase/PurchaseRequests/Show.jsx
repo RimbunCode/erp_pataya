@@ -1,9 +1,4 @@
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/Components/ui/dropdown-menu";
+import { calculateArray, isValidStatus } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
@@ -29,32 +24,26 @@ export default function Show({ purchaseRequest, defaultData }) {
       disabled={purchaseRequest?.submitted_at}
       submitable
       controls={() => {
-        if (purchaseRequest?.submitted_at) {
+        if (
+          purchaseRequest?.submitted_at &&
+          isValidStatus(purchaseRequest?.status) &&
+          calculateArray(purchaseRequest.items, "remaining_quantity", "+") > 0
+        ) {
           return (
-            <>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    className="p-2! size-fit h-8"
-                    variant="secondary"
-                  >
-                    {t("core.form.actions")}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem asChild>
-                    <Link
-                      href={route("purchaseOrders.create", {
-                        ref: `purchaseRequest/${purchaseRequest?.id}`,
-                      })}
-                    >
-                      {t("purchase.purchaseRequest.actions.create_po")}
-                    </Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </>
+            <Button
+              type="button"
+              className="p-2! size-fit h-8"
+              variant="secondary"
+              asChild
+            >
+              <Link
+                href={route("purchaseOrders.create", {
+                  ref: `purchaseRequest/${purchaseRequest?.id}`,
+                })}
+              >
+                {t("purchase.purchaseRequest.actions.create_po")}
+              </Link>
+            </Button>
           );
         }
       }}

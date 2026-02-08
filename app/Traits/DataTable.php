@@ -35,7 +35,7 @@ trait DataTable {
       if (! $model->deleted_at) {
         return;
       }
-      ModelConnection::where(function ($query) use ($model) {
+      ModelConnection::where(column: function ($query) use ($model) {
         $query->where(function ($query) use ($model) {
           $query->where('model_type', \get_class($model));
           $query->where('model_id', $model->id);

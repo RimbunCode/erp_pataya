@@ -85,7 +85,6 @@ class PurchaseRequestService {
         'ordered_quantity' => $orderedQty > $sourceItem->quantity ? $sourceItem->quantity : $orderedQty,
       ]);
 
-      // Create Model connection beetween WorkOrder and PurchaseRequest
       $parentRelation     = $sourceItem->parentRelation();
       $parentRelationKey  = $parentRelation->getForeignKeyName();
       $modelConnections[] = [
@@ -97,7 +96,7 @@ class PurchaseRequestService {
 
     // Create ModelConnection for each item
     foreach ($modelConnections as $modelConnection) {
-      ModelConnection::firstOrCreate([
+      ModelConnection::create([
         'model_type'     => $modelConnection['model_type'],
         'model_id'       => $modelConnection['model_id'],
         'reference_type' => PurchaseRequest::class,

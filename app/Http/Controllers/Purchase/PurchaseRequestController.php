@@ -46,25 +46,26 @@ class PurchaseRequestController extends Controller {
           case 'workOrder': {
             $wo = WorkOrder::find($split[1]);
             if ($wo) {
+              $wo->loadRelations();
               $defaultData = [
                 'date'  => now(),
-                'items' => $wo->items->map(fn ($item) => [
-                  'id'                 => Utils::generateRandom(5),
-                  'item'               => $item->item,
-                  'description'        => $item->description,
-                  'quantity'           => $item->required_quantity,
-                  'unit'               => $item->unit,
-                  'referenceable'      => $item,
-                  'referenceable_type' => WorkOrderItem::class,
-                  'referenceable_id'   => $item->id,
-                ]),
+                'items' => $wo->items->filter(fn ($item) => $item->item->is_stock_item)
+                  ->map(fn ($item) => [
+                    'id'                 => Utils::generateRandom(5),
+                    'item'               => $item->item,
+                    'description'        => $item->description,
+                    'quantity'           => $item->required_quantity,
+                    'unit'               => $item->unit,
+                    'referenceable'      => $item,
+                    'referenceable_type' => WorkOrderItem::class,
+                    'referenceable_id'   => $item->id,
+                  ]),
               ];
             }
             break;
           }
         }
       }
-      $id = $split[1] ?? null;
     }
 
     $this->setBreadcrumbs('purchase.purchaseRequest.new');
