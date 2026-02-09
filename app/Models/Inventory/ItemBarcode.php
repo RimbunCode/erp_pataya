@@ -8,13 +8,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ItemBarcode extends Model {
   use SoftDeletes, HasUlids;
-  public string $translateKey = 'inventories.itemBarcode';
-  protected     $guarded      = ['id'];
-  protected $configColumns = [
+  public string $translateKey  = 'inventories.itemBarcode';
+  protected     $guarded       = ['id'];
+  protected     $configColumns = [
     'barcode',
     'item',
     'unit',
   ];
+
+  public static function templateLink() {
+    return "<title>:barcode - :item.code/:item.item_name</title><b>:barcode</b><br/><b>(:item.code) :item.item_name</b><br/><span>1 :unit.name</span>";
+  }
 
   public function item() {
     return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id');

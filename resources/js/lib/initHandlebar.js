@@ -1,5 +1,5 @@
 import Handlebars from "handlebars";
-import { convertTemplateLink } from "@/Components/LinkModel";
+import { convertTemplateLink } from "./linkModelUtils";
 
 export function initHandlebar(trans) {
   Handlebars.registerHelper("relation", function (payload) {

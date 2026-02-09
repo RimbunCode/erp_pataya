@@ -12,6 +12,7 @@ import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import LinkModel from "@/Components/LinkModel";
@@ -121,6 +122,37 @@ export default memo(function Form() {
     };
     fetchData().catch(console.error);
   }, []);
+
+  const handleBarcodeSelect = useCallback(
+    (selected) => {
+      const selectedItem = selected?.item ?? selected;
+      const selectedUnit = selected?.unit ?? selected?.default_unit;
+      if (!selectedItem || !selectedUnit) return;
+
+      setData((prev) => {
+        const items = [...(prev?.items ?? [])];
+        const idx = items.findIndex(
+          (row) =>
+            row?.item?.id === selectedItem?.id &&
+            row?.unit?.id === selectedUnit?.id,
+        );
+        if (idx >= 0) {
+          const currentQty = items[idx]?.quantity ?? 0;
+          items[idx] = { ...items[idx], quantity: currentQty + 1 };
+        } else {
+          items.push({
+            id: generateRandom(5),
+            item: selectedItem,
+            unit: selectedUnit,
+            quantity: 1,
+            source_warehouse: prev?.source_warehouse,
+          });
+        }
+        return { ...prev, items };
+      });
+    },
+    [setData],
+  );
 
   const itemColumns = useMemo(() => {
     return [
@@ -465,6 +497,12 @@ export default memo(function Form() {
         }
       >
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
+            <ItemBarcode
+              with={["item", "unit"]}
+              onSelect={handleBarcodeSelect}
+            />
+          </FormInput>
           <FormInput
             label={t("sales.salesOrder.columns.source_warehouse")}
             name="source_warehouse"
@@ -499,7 +537,7 @@ export default memo(function Form() {
           <FormTable
             name="items"
             form={<ItemForm />}
-            className="col-start-1 col-span-2"
+            className="col-start-1 col-span-full"
             classNameDialog="max-w-(--breakpoint-lg)! w-full!"
             readOnly={disabled || isLockDoc}
             columns={itemColumns}

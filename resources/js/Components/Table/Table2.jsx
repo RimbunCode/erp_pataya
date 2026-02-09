@@ -42,7 +42,7 @@ import Link from "../Link";
 import LoadingIcon from "../LoadingIcon";
 import NoDataImg from "./NoDataImg";
 import { TZDate } from "@date-fns/tz";
-import { convertTemplateLink } from "../LinkModel";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { debounce } from "lodash";
 import { format } from "date-fns";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";

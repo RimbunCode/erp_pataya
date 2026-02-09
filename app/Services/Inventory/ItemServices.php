@@ -29,8 +29,8 @@ class ItemServices {
   }
 
   public function updateUom(Item $item, array $uoms) {
+    Unit::whereIn('id', array_column($uoms, 'id'))->update(['have_transactions' => 1]);
     foreach ($uoms as $uom) {
-      Unit::find($uom['id'])->updateHaveTransactions();
       $item->uom()->updateOrCreate([
         'unit_id' => $uom['id'],
       ], [
@@ -177,12 +177,33 @@ class ItemServices {
   }
 
   public function updateBarcodes(ItemVariant|null $variant, array $barcodes) { if (! $variant) return;
-    $variant->barcodes()->delete();
+
+    $keptIds = [];
+
     foreach ($barcodes as $barcode) {
-      $variant->barcodes()->create([
+      $payload = [
         'barcode' => $barcode['barcode'],
         'unit_id' => $barcode['unit']['id'],
-      ]);
+      ];
+
+      if (! empty($barcode['id'])) {
+        $variant->barcodes()->whereKey($barcode['id'])->update($payload);
+        $keptIds[] = $barcode['id'];
+        continue;
+      }
+
+      $model     = $variant->barcodes()->updateOrCreate(
+        ['barcode' => $barcode['barcode']],
+        $payload,
+      );
+      $keptIds[] = $model->id;
+    }
+
+    if (\count($keptIds)) {
+      $variant->barcodes()->whereNotIn('id', $keptIds)->delete();
+    } else {
+      // kosongkan semua jika input kosong
+      $variant->barcodes()->delete();
     }
   }
 }

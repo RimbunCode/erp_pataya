@@ -184,17 +184,16 @@ class ModelController extends Controller {
     $template = $model::templateLink();
     // Ekstrak daftar atribut dari template
     preg_match_all('/:((\w[\w]+{:[\w]+})|(\w[\w.]*))/', $template, $matches);
-    // Hapus tanda `:` agar hanya mendapatkan nama atribut
-    $attributes = array_map(
-      fn ($attr) =>
-      preg_replace('/{:.*}/', "", ltrim($attr, ':')),
-      $matches[0],
-    );
+
     if ($request->has('keywords')) {
-      $attributes = [
-        ...$attributes,
-        ...$request->keywords,
-      ];
+      $attributes = $request->keywords;
+    } else {
+      // Hapus tanda `:` agar hanya mendapatkan nama atribut
+      $attributes = array_map(
+        fn ($attr) =>
+        preg_replace('/{:.*}/', "", ltrim($attr, ':')),
+        $matches[0],
+      );
     }
     $attributes = collect($attributes)->unique()->toArray();
     if (\method_exists($model, 'scopeLinkModel')) {
@@ -206,7 +205,6 @@ class ModelController extends Controller {
           $hasTranslate = $request->has("translate");
 
           preg_match_all('/[a-zA-Z0-9]+/', $item, $matches);
-          // dd($matches, $item, $attributes);
 
           if (count($matches[0]) == 1 && ! Utils::isNullOrWhitespace($item) && $item == $matches[0][0]) {
             $query->whereAny($attributes, 'like', "%{$item}%");
@@ -262,7 +260,6 @@ class ModelController extends Controller {
       $orders = explode(":", $request->order);
       $query->orderBy($orders[0], $orders[1] ?? 'asc');
     }
-
     $data    = $query->get()->toArray() ?? [];
     $results = array_map(fn ($value) => [
       ...$value,

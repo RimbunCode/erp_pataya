@@ -3,11 +3,13 @@ import React, { useCallback, useEffect } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
 
+import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
@@ -19,7 +21,6 @@ import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel"
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
-import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 
 function Form() {
   const { t } = useLaravelReactI18n();
@@ -106,6 +107,39 @@ function Form() {
     };
     fetchData().catch(console.error);
   }, [loadFrom, mergeItems]);
+
+  const handleBarcodeSelect = useCallback(
+    (selected) => {
+      const selectedItem = selected?.item ?? selected;
+      const selectedUnit = selected?.unit ?? selected?.default_unit;
+      if (!selectedItem || !selectedUnit) return;
+
+      setData((prev) => {
+        const items = [...(prev?.items ?? [])];
+        const idx = items.findIndex(
+          (row) =>
+            row?.item?.id === selectedItem?.id &&
+            row?.unit?.id === selectedUnit?.id,
+        );
+        if (idx >= 0) {
+          const currentQty = items[idx]?.quantity ?? 0;
+          items[idx] = { ...items[idx], quantity: currentQty + 1 };
+        } else {
+          items.push({
+            id: generateRandom(5),
+            item: selectedItem,
+            unit: selectedUnit,
+            quantity: 1,
+            required_date: prev?.required_date,
+
+            target_warehouse: prev?.target_warehouse,
+          });
+        }
+        return { ...prev, items };
+      });
+    },
+    [setData],
+  );
   const itemColumns = useMemo(() => {
     return [
       {
@@ -116,9 +150,6 @@ function Form() {
         cell({ dataRow, setData, attributes }) {
           return (
             <ItemVariantLinkModel
-              filters={{
-                is_stock_item: true,
-              }}
               placeholder={t("purchase.purchaseOrder.columns.item.placeholder")}
               value={dataRow?.item}
               onValueChange={(val) => {
@@ -433,6 +464,12 @@ function Form() {
         }
       >
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
+            <ItemBarcode
+              with={["item", "unit"]}
+              onSelect={handleBarcodeSelect}
+            />
+          </FormInput>
           <FormInput
             label={t("purchase.purchaseOrder.columns.target_warehouse")}
             name="target_warehouse"

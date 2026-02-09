@@ -13,10 +13,10 @@ import useTheme from "@/Hooks/useTheme";
 
 const Toaster = ({ ...props }) => {
   const { currentTheme } = useTheme();
-
   return (
     <Sonner
       theme={currentTheme}
+      position="bottom-right"
       className="group toaster [&_[data-type=success]>[data-icon]]:text-success [&_[data-type=success]_[data-title]]:text-success [&_[data-type=info]_[data-title]]:text-info [&_[data-type=error]>[data-icon]]:text-destructive [&_[data-type=error]_[data-title]]:text-destructive"
       toastOptions={{
         classNames: {
@@ -35,6 +35,12 @@ const Toaster = ({ ...props }) => {
         warning: <TriangleAlertIcon className="size-4" />,
         error: <OctagonXIcon className="size-4" />,
         loading: <Loader2Icon className="size-4 animate-spin" />,
+      }}
+      style={{
+        "--normal-bg": "var(--popover)",
+        "--normal-text": "var(--popover-foreground)",
+        "--normal-border": "var(--border)",
+        "--border-radius": "var(--radius)",
       }}
       {...props}
     />

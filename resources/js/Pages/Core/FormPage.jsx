@@ -33,7 +33,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/Components/ui/dropdown-menu";
-import LinkModel, { convertTemplateLink } from "@/Components/LinkModel";
 import React, {
   Children,
   Fragment,
@@ -68,11 +67,13 @@ import { ButtonGroup } from "@/Components/ui/button-group";
 import Comments from "./Components/Comments";
 import FormInput from "@/Components/FormInput";
 import Link from "@/Components/Link";
+import LinkModel from "@/Components/LinkModel";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { RiErrorWarningFill } from "@remixicon/react";
 import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { evaluate } from "@marcbachmann/cel-js";
 import { format } from "date-fns";
 import pluralize from "pluralize";
@@ -817,7 +818,7 @@ const FormPage = memo(
                           toast.custom(
                             (e) => (
                               <Alert
-                                variant="mono"
+                                variant="destructive"
                                 icon="destructive"
                                 onClose={() => toast.dismiss(e)}
                               >

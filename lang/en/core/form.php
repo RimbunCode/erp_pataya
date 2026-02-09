@@ -59,6 +59,15 @@ return [
   'type_comment'          => 'Type a reply / comment',
   'model.placeholder'     => 'Select a model',
   'not_found'             => 'No results found',
+  'errors'                => [
+    'something_went_wrong' => 'Something went wrong',
+  ],
+  'input_barcode'         => [
+    'label'       => 'Scan Barcode',
+    'placeholder' => 'Scan a barcode',
+    'no_barcode'  => 'No barcode found',
+    'success'     => 'Successfully Added Item',
+  ],
   'search.placeholder'    => 'Search',
   'datetime.placeholder'  => 'Pick a date and time',
   'date.placeholder'      => 'Pick a date',

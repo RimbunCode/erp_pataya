@@ -22,7 +22,7 @@ class PurchaseOrderService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
@@ -109,8 +109,11 @@ class PurchaseOrderService {
     DB::beginTransaction();
 
     $items = $purchaseOrder->items()
+      ->with(['item'])
       ->get();
     foreach ($items as $item) {
+      if (! $item->item->is_stock_item) continue;
+
       $stock    = Stock::lockForUpdate()
         ->where('item_variant_id', $item->item_id)
         ->where('warehouse_id', $item->target_warehouse_id)
