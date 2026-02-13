@@ -3,6 +3,7 @@
 namespace App\Models\Service;
 
 use App\Casts\Json;
+use App\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
@@ -25,7 +26,7 @@ class WorkOrder extends Model {
   protected $appends = ['for_internal'];
 
   protected function forInternal(): Attribute {
-    return new Attribute(get: fn() => $this->customer_id == null);
+    return new Attribute(get: fn () => $this->customer_id == null);
   }
   protected static string $defaultFormatCode = '@[branch_code]/WO-@[iiii]/@[yy]';
 

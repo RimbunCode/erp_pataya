@@ -72,15 +72,16 @@ class PurchaseRequestService {
     $items = $purchaseRequest->items()
       ->whereNotNull('referenceable_type')
       ->whereNotNull('referenceable_id')
-      ->with(['referenceable'])
+      ->with([
+        'referenceable',
+      ])
       ->get();
 
     $modelConnections = [];
     foreach ($items as $item) {
       // Update ordered_quantity from source item
-      $sourceModel = $item->referenceable_type;
-      $sourceItem  = $sourceModel::find($item->referenceable_id);
-      $orderedQty  = $sourceItem->ordered_quantity + $item->quantity;
+      $sourceItem = $item->referenceable;
+      $orderedQty = $sourceItem->ordered_quantity + $item->quantity;
       $sourceItem->update([
         'ordered_quantity' => $orderedQty > $sourceItem->quantity ? $sourceItem->quantity : $orderedQty,
       ]);
@@ -89,7 +90,7 @@ class PurchaseRequestService {
       $parentRelationKey  = $parentRelation->getForeignKeyName();
       $modelConnections[] = [
         'model_type' => \get_class($parentRelation->getRelated()),
-        'model_id'   => $sourceItem->$parentRelationKey
+        'model_id'   => $sourceItem->$parentRelationKey,
       ];
     }
     $modelConnections = \collect($modelConnections)->unique('model_id')->toArray();

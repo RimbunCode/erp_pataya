@@ -754,11 +754,8 @@ const FormPage = memo(
               {title && <h1 className="text-xl font-bold">{title}</h1>}
               {badge}
               {defaultData?.status &&
-                (Array.isArray(defaultData?.status) ? (
-                  [
-                    ...(defaultData?.appendStatus ?? []),
-                    ...(defaultData?.status ?? []),
-                  ].map((status, idx) => (
+                (Array.isArray(defaultData?.appendStatus) ? (
+                  defaultData?.appendStatus?.map((status, idx) => (
                     <BadgeStatus key={idx} status={status} />
                   ))
                 ) : (

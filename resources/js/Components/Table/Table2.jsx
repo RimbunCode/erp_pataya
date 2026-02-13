@@ -114,15 +114,9 @@ const Cell = memo(
             <Checkbox readOnly checked={value} className="cursor-default" />
           </span>
         );
-      case "formStatus": {
-        return (
-          <div className="text-center">
-            <BadgeStatus className="text-sm" status={value} />
-          </div>
-        );
-      }
+      case "formStatus":
       case "formStatuses": {
-        const newValue = [...value, ...row.appendStatus];
+        const newValue = row.appendStatus;
         return (
           <div
             className={cn(

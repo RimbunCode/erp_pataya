@@ -67,16 +67,18 @@ class DeliveryNoteController extends Controller {
                 'referenceable'      => $so,
                 'external_note'      => $so->external_note,
                 'model'              => Permission::where('model', SalesOrder::class)->first(),
-                'items'              => $so->items->map(fn($item) => [
-                  'id'                 => Utils::generateRandom(5),
-                  'item'               => $item->item,
-                  'source_warehouse'   => $item->sourceWarehouse,
-                  'quantity'           => $item->undelivered_quantity,
-                  'required_quantity'  => $item->undelivered_quantity,
-                  'unit'               => $item->unit,
-                  'referenceable_type' => SalesOrderItem::class,
-                  'referenceable_id'   => $item->id,
-                ]),
+                'items'              => $so->items
+                  ->filter(fn ($item) => $item->item->is_stock_item)
+                  ->map(fn ($item) => [
+                    'id'                 => Utils::generateRandom(5),
+                    'item'               => $item->item,
+                    'source_warehouse'   => $item->sourceWarehouse,
+                    'quantity'           => $item->undelivered_quantity,
+                    'required_quantity'  => $item->undelivered_quantity,
+                    'unit'               => $item->unit,
+                    'referenceable_type' => SalesOrderItem::class,
+                    'referenceable_id'   => $item->id,
+                  ]),
               ];
             }
             break;
@@ -101,16 +103,18 @@ class DeliveryNoteController extends Controller {
                 'referenceable'      => $io,
                 'external_note'      => $io->external_note,
                 'model'              => Permission::where('model', InternalOrder::class)->first(),
-                'items'              => $io->items->map(fn($item) => [
-                  'id'                 => Utils::generateRandom(5),
-                  'item'               => $item->item,
-                  'source_warehouse'   => $item->sourceWarehouse,
-                  'quantity'           => $item->undelivered_quantity,
-                  'required_quantity'  => $item->undelivered_quantity,
-                  'unit'               => $item->unit,
-                  'referenceable_type' => InternalOrderItem::class,
-                  'referenceable_id'   => $item->id,
-                ]),
+                'items'              => $io->items
+                  ->filter(fn ($item) => $item->item->is_stock_item)
+                  ->map(fn ($item) => [
+                    'id'                 => Utils::generateRandom(5),
+                    'item'               => $item->item,
+                    'source_warehouse'   => $item->sourceWarehouse,
+                    'quantity'           => $item->undelivered_quantity,
+                    'required_quantity'  => $item->undelivered_quantity,
+                    'unit'               => $item->unit,
+                    'referenceable_type' => InternalOrderItem::class,
+                    'referenceable_id'   => $item->id,
+                  ]),
               ];
             }
             break;
@@ -139,7 +143,7 @@ class DeliveryNoteController extends Controller {
                 'referenceable'      => $doTarget->referenceable,
                 'external_note'      => $doTarget->external_note,
                 'model'              => Permission::where('model', $doTarget->referenceable_type)->first(),
-                'items'              => $doTarget->items->map(fn($item) => [
+                'items'              => $doTarget->items->map(fn ($item) => [
                   'id'                  => Utils::generateRandom(5),
                   'item'                => $item->item,
                   'source_warehouse'    => $item->sourceWarehouse,

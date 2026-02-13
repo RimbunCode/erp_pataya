@@ -93,6 +93,29 @@ export default memo(
       },
     });
 
+    const getActiveOption = useCallback(() => {
+      const el =
+        commandRef.current?.querySelector?.(
+          "[cmdk-item][data-selected='true']",
+        ) ??
+        commandRef.current?.querySelector?.(
+          "[cmdk-item][aria-selected='true']",
+        );
+
+      if (!el) return null;
+
+      const valueAttr =
+        el.getAttribute("data-value") ??
+        el.getAttribute("cmdk-value") ??
+        el.getAttribute("value");
+
+      if (!valueAttr) return null;
+
+      return options.find(
+        (opt, index) => String(opt.id ?? index) === String(valueAttr),
+      );
+    }, [commandRef, options]);
+
     const getModels = (
       keyword = latestSearchRef.current,
       callback,
@@ -267,9 +290,11 @@ export default memo(
             true,
           );
         } else if (open && search && options?.length) {
-          // manual input: enter selects item (teratas)
-          e.preventDefault();
-          onSelect(options[0]);
+          const activeOpt = getActiveOption();
+          if (activeOpt) {
+            e.preventDefault();
+            onSelect(activeOpt);
+          }
         }
         resetKeySpeed();
         return;
@@ -369,7 +394,8 @@ export default memo(
                         return (
                           <CommandItem
                             key={opt.id ?? index}
-                            value={opt.id ?? index}
+                            value={String(opt.id ?? index)}
+                            data-value={String(opt.id ?? index)}
                             onSelect={() => onSelect(opt)}
                           >
                             <p

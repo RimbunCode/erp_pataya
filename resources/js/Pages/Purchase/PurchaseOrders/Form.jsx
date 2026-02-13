@@ -434,7 +434,7 @@ function Form() {
                   },
                 },
                 "App\\Models\\Purchase\\PurchaseRequest": {
-                  columns: ["code", "date"],
+                  columns: ["code", "date", "status"],
                   filters: {
                     status: "submitted",
                   },

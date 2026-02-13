@@ -11,13 +11,12 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import LinkModel from "@/Components/LinkModel";
+import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import Select from "@/Components/Select";
-import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
@@ -50,11 +49,7 @@ export default function Form() {
               }}
               {...attributes}
               filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
+                is_stock_item: true,
               }}
               with={["defaultUnit", "item"]}
             />

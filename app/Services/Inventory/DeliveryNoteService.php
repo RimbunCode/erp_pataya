@@ -133,6 +133,15 @@ class DeliveryNoteService {
         'sourceWarehouse',
       ])
       ->get();
+
+    // Preload all needed stocks in one query to avoid N+1
+    /** @var \Illuminate\Support\Collection<string, Stock> $stocks */
+    $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+      ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
+      ->lockForUpdate()
+      ->get()
+      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+
     $errorItems  = [];
     $totalPicked = 0;
     $isRent      = false;
@@ -152,10 +161,9 @@ class DeliveryNoteService {
       }
 
       // update stock
-      $stock = Stock::where('item_variant_id', $item->item_id)
-        ->where('warehouse_id', $item->source_warehouse_id)
-        ->lockForUpdate()
-        ->first();
+      $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
+      /** @var Stock|null $stock */
+      $stock = $stocks->get($stockKey);
       if (! $stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
