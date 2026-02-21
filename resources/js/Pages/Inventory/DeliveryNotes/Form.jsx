@@ -49,11 +49,7 @@ export default function Form() {
               }}
               {...attributes}
               filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
+                is_stock_item: true,
               }}
               with={["defaultUnit", "item"]}
             />
@@ -142,7 +138,7 @@ export default function Form() {
       },
     ];
   }, [data]);
-
+  console.log(data);
   return (
     <>
       <FormPageContent
@@ -164,84 +160,97 @@ export default function Form() {
                 }}
               />
             </FormInput>
-            <FormInput
-              label={t("inventory.deliveryNote.columns.reference_to")}
-              className="col-start-1"
-              required
-              disabled={data.is_return && !data.model}
-              readOnly={data.is_return}
-              name="reference_to"
-            >
-              <PermissionLinkModel
-                filters={{
-                  model: {
-                    in: [
-                      "App\\Models\\Sales\\SalesOrder",
-                      "App\\Models\\Sales\\InternalOrder",
-                    ],
-                  },
-                }}
-                value={data.model}
-                onValueChange={(val) => {
-                  setData("model", val);
-                }}
-              />
-            </FormInput>
-            <FormInput
-              label={data.model?.name ?? "-"}
-              name="referenceable"
-              required
-              disabled={!data.model}
-              readOnly={data.is_return}
-            >
-              <LinkModel
-                model={data.model?.model ?? ""}
-                disabledAddButton
-                filters={{
-                  date: {
-                    "<=": data?.delivery_date ?? new Date().toISOString(),
-                  },
-                  status: {
-                    jsonContains: defaultData?.return_against
-                      ? ["delivered", "partially_delivered"]
-                      : ["to_deliver", "partially_delivered"],
-                  },
-                }}
-                with={[
-                  "items",
-                  ...(data.model?.model == "App\\Models\\Sales\\SalesOrder"
-                    ? ["customer", "customer_branch"]
-                    : ["branch"]),
-                  "items.item",
-                  "items.unit",
-                  "items.sourceWarehouse",
-                ]}
-                value={data.referenceable}
-                onValueChange={(val) => {
-                  setData((prev) => {
-                    return {
+            {(!data.is_return || data.return_against) && (
+              <FormInput
+                label={t("inventory.deliveryNote.columns.reference_to")}
+                className="col-start-1"
+                required
+                disabled={data.is_return && !data.reference_to}
+                readOnly={data.is_return}
+                name="reference_to"
+              >
+                <PermissionLinkModel
+                  filters={{
+                    model: {
+                      in: [
+                        "App\\Models\\Sales\\SalesOrder",
+                        "App\\Models\\Sales\\InternalOrder",
+                      ],
+                    },
+                  }}
+                  value={data.reference_to}
+                  onValueChange={(val) => {
+                    setData((prev) => ({
                       ...prev,
-                      referenceable: val,
-                      referenceable_type: data.model?.model,
-                      referenceable_id: val?.id,
-                      customer: val?.customer,
-                      customer_branch: val?.customer_branch ?? val?.branch,
-                      items: val?.items.map((item) => {
-                        return {
-                          ...item,
-                          id: generateRandom(8),
-                          referenceable_type: data.model?.model + "Item",
-                          referenceable_id: item.id,
-                          quantity: item.undelivered_quantity,
-                          required_quantity: item.undelivered_quantity,
-                        };
-                      }),
-                      external_note: val?.external_note,
-                    };
-                  });
-                }}
-              />
-            </FormInput>
+                      reference_to: val,
+                      referenceable: val ? prev.referenceable : null,
+                      customer: val ? prev.customer : null,
+                      customer_branch: val ? prev.customer_branch : null,
+                      items: val ? prev.items : null,
+                    }));
+                  }}
+                />
+              </FormInput>
+            )}
+            {data.reference_to && (
+              <FormInput
+                label={data.reference_to?.name ?? "-"}
+                name="referenceable"
+                required
+                disabled={!data.reference_to}
+                readOnly={data.is_return}
+              >
+                <LinkModel
+                  model={data.reference_to?.model ?? ""}
+                  disabledAddButton
+                  filters={{
+                    date: {
+                      "<=": data?.delivery_date ?? new Date().toISOString(),
+                    },
+                    status: {
+                      jsonContains: data?.return_against
+                        ? ["delivered", "partially_delivered"]
+                        : ["to_deliver", "partially_delivered"],
+                    },
+                  }}
+                  with={[
+                    "items",
+                    ...(data.reference_to?.model ==
+                    "App\\Models\\Sales\\SalesOrder"
+                      ? ["customer", "customer_branch"]
+                      : ["branch"]),
+                    "items.item",
+                    "items.unit",
+                    "items.sourceWarehouse",
+                  ]}
+                  value={data.referenceable}
+                  onValueChange={(val) => {
+                    setData((prev) => {
+                      return {
+                        ...prev,
+                        referenceable: val,
+                        referenceable_type: data.reference_to?.model,
+                        referenceable_id: val?.id,
+                        customer: val?.customer,
+                        customer_branch: val?.customer_branch ?? val?.branch,
+                        items: val?.items.map((item) => {
+                          return {
+                            ...item,
+                            id: generateRandom(8),
+                            referenceable_type:
+                              data.reference_to?.model + "Item",
+                            referenceable_id: item.id,
+                            quantity: item.undelivered_quantity,
+                            required_quantity: item.undelivered_quantity,
+                          };
+                        }),
+                        external_note: val?.external_note,
+                      };
+                    });
+                  }}
+                />
+              </FormInput>
+            )}
           </div>
           <div>
             <FormCheckbox
@@ -254,6 +263,11 @@ export default function Form() {
                   ...prev,
                   is_return: val,
                   return_against: undefined,
+                  referenceable: undefined,
+                  reference_to: undefined,
+                  customer: undefined,
+                  customer_branch: undefined,
+                  items: [],
                 }))
               }
             />
@@ -266,56 +280,103 @@ export default function Form() {
               >
                 <DeliveryNoteLinkModel
                   filters={{
-                    date: {
+                    delivery_date: {
                       "<=": data?.date ?? new Date().toISOString(),
                     },
                     status: {
                       jsonContains: ["partially_delivered", "delivered"],
                     },
                   }}
+                  appends={["model"]}
+                  with={[
+                    "referenceable",
+                    "reference_to",
+                    "customer",
+                    "customer_branch",
+                    "items",
+                    "items.item",
+                    "items.unit",
+                    "items.sourceWarehouse",
+                  ]}
                   value={data.return_against}
                   onValueChange={(val) => {
-                    setData("return_against", val);
+                    setData((prev) => ({
+                      ...prev,
+                      return_against: val,
+                      reference_to: val?.reference_to,
+                      referenceable: val?.referenceable,
+                      customer: val?.customer,
+                      customer_branch: val?.customer_branch,
+                      items: val?.items?.map((item) => ({
+                        ...item,
+                        id: generateRandom(8),
+                        return_against_item_id: item.id,
+                        quantity: item.remaining_quantity,
+                        required_quantity: item.remaining_quantity,
+                      })),
+                    }));
                   }}
                 />
               </FormInput>
             )}
-            <FormInput
-              className="col-start-1"
-              label={t("inventory.deliveryNote.customer")}
-              required={true}
-              name="customer"
-              readOnly
-              disabled={!data.referenceable}
-            >
-              <CustomerLinkModel
-                with={["branches"]}
-                value={data.for_internal ? "" : data.customer}
-                onValueChange={(val) => {
-                  if (val?.branches?.length <= 1) {
-                    setData("customer_branch", val.branches?.[0]);
+            {data.referenceable_type === "App\\Models\\Sales\\SalesOrder" && (
+              <FormInput
+                className="col-start-1"
+                label={t("inventory.deliveryNote.columns.customer")}
+                required={
+                  data.referenceable_type === "App\\Models\\Sales\\SalesOrder"
+                }
+                name="customer"
+                readOnly
+                disabled={!data.referenceable}
+              >
+                <CustomerLinkModel
+                  with={["branches"]}
+                  value={data.for_internal ? "" : data.customer}
+                  onValueChange={(val) => {
+                    if (val?.branches?.length <= 1) {
+                      setData("customer_branch", val.branches?.[0]);
+                    }
+                    setData("customer", val);
+                  }}
+                />
+              </FormInput>
+            )}
+            {data.referenceable && (
+              <FormInput
+                label={t(
+                  data.referenceable_type === "App\\Models\\Sales\\SalesOrder"
+                    ? "inventory.deliveryNote.columns.customer_branch"
+                    : "inventory.deliveryNote.columns.internal_branch",
+                )}
+                required
+                name="customer_branch"
+                readOnly
+              >
+                <BranchLinkModel
+                  disabled={
+                    !data?.referenceable &&
+                    data.referenceable_type ===
+                      "App\\Models\\Sales\\SalesOrder" &&
+                    !data.customer
                   }
-                  setData("customer", val);
-                }}
-              />
-            </FormInput>
-            <FormInput
-              label={t("inventory.deliveryNote.branch")}
-              required
-              name="customer_branch"
-              readOnly
-            >
-              <BranchLinkModel
-                disabled={!data.customer}
-                value={data.customer_branch}
-                onValueChange={(val) => setData("customer_branch", val)}
-                disabledNavigation={true}
-                filters={{
-                  branchable_type: "App\\Models\\Sales\\Customer",
-                  branchable_id: data.customer?.id ?? null,
-                }}
-              />
-            </FormInput>
+                  value={data.customer_branch}
+                  onValueChange={(val) => setData("customer_branch", val)}
+                  disabledNavigation={true}
+                  filters={
+                    data.referenceable_type === "App\\Models\\Sales\\SalesOrder"
+                      ? {
+                          branchable_type: "App\\Models\\Sales\\Customer",
+                          branchable_id: data.customer?.id ?? null,
+                        }
+                      : {
+                          branchable_type: null,
+                          branchable_id: null,
+                        }
+                  }
+                />
+              </FormInput>
+            )}
           </div>
         </div>
       </FormPageContent>
@@ -323,10 +384,10 @@ export default function Form() {
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormInput
             label={t("inventory.deliveryNote.columns.insert_item")}
-            disabled={!data.model}
+            disabled={!data.reference_to}
           >
             <LinkModel
-              model={(data.model?.model ?? "") + "Item"}
+              model={(data.reference_to?.model ?? "") + "Item"}
               disabledAddButton
               with={["item", "sourceWarehouse", "unit"]}
               filters={{
@@ -349,7 +410,7 @@ export default function Form() {
                       {
                         ...item,
                         id: generateRandom(8),
-                        referenceable_type: data.model?.model + "Item",
+                        referenceable_type: data.reference_to?.model + "Item",
                         referenceable_id: item.id,
                         quantity: item.undelivered_quantity,
                       },

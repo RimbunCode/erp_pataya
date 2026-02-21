@@ -13,6 +13,8 @@ export default forwardRef(function PermissionLinkModel(
       model="App\Models\User\Permission"
       disabledAddButton={true}
       disabledNavigation={true}
+      cache
+      cacheStorage="sessionStorage"
       {...props}
       ref={ref}
     />

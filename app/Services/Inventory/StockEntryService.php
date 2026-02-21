@@ -180,9 +180,12 @@ class StockEntryService {
       DB::beginTransaction();
 
       $items      = $stockEntry->items()
+        ->with(['item', 'item.item', 'item.sourceWarehouse'])
         ->get();
       $errorItems = [];
       foreach ($items as $item) {
+        $item->item->updateHaveTransactions();
+        $item->item->item->updateHaveTransactions();
         $stock = Stock::lockForUpdate()
           ->where('item_variant_id', $item->item_id)
           ->where('warehouse_id', $item->source_warehouse_id)
@@ -236,8 +239,6 @@ class StockEntryService {
 
     foreach ($items as $item) {
       unset($picked);
-      $item->item->updateHaveTransactions();
-      $item->item->item->updateHaveTransactions();
       $defaultUnit             = $item->item->defaultUnit;
       $defaultConvertionFactor = $item->item->conversion_factor;
       $qtyNeeded               = $item->quantity * ($item->conversion_factor / $defaultConvertionFactor);

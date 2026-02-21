@@ -13,6 +13,8 @@ export default forwardRef(function CountryLinkModel(
       model="App\Models\Core\Country"
       disabledNavigation
       disabledAddButton
+      cache
+      cacheStorage="sessionStorage"
       {...props}
       ref={ref}
     />

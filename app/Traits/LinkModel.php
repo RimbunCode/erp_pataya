@@ -107,6 +107,40 @@ trait LinkModel {
     return static::$is_submitable ?? false;
   }
 
+  protected static function loadRelationsOnShow() {
+    return [];
+  }
+
+  public static function getRelationKeys(bool $filterCustomRelation = true, array $relations = []) {
+    $defaultRelations = [
+      ...static::loadRelationsOnShow() ?? [],
+      ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
+    ];
+    $relations        = array_unique(array_merge($defaultRelations, \is_string($relations) ? [$relations] : ($relations ?? [])));
+
+    $instance = new static();
+    $toLoad   = [];
+
+    foreach ($relations as $key => $relation) {
+      $relationName = is_int($key) ? $relation : $key;
+
+      if (! method_exists($instance, $relationName)) {
+        $toLoad[$key] = $relation;
+        continue;
+      }
+
+      $result = $instance->$relationName();
+
+      if ($result instanceof Relation) {
+        $toLoad[$key] = $relation;
+      } else if (! $filterCustomRelation) {
+        $instance->setRelation($relationName, $result);
+      }
+    }
+
+    return $toLoad;
+  }
+
   public function updateHaveTransactions(bool $value = true, bool $save = true) {
     $this->have_transactions = $value;
     if ($save)
@@ -126,14 +160,25 @@ trait LinkModel {
 
   /**
    * Summary of appendStatus
-   * @return FormStatus[]
+   * @return FormStatus | FormStatus[]
    */
-  protected function appendStatus(): array {
+  protected function appendStatus() {
     return [];
   }
 
-  protected function getappendStatusAttribute() {
-    return $this->appendStatus();
+  protected function getAppendStatusAttribute() {
+    $baseStatus = $this->status;
+    $baseStatus = $baseStatus instanceof FormStatus ? [$baseStatus] : ($baseStatus ?? []);
+
+    $append = $this->appendStatus();
+    $append = $append instanceof FormStatus ? [$append] : ($append ?? []);
+
+    return collect($baseStatus)
+      ->merge($append)
+      ->filter()
+      ->unique(fn ($s) => $s instanceof FormStatus ? $s->value : $s)
+      ->values()
+      ->all();
   }
 
   protected function getKeyModelAttribute() {

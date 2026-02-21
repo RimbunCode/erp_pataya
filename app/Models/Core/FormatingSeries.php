@@ -88,15 +88,17 @@ class FormatingSeries extends Model {
         $relation = $matches[2];
         $key      = $matches[3];
       }, $value);
-      return [$code => [
-        'relation' => $relation,
-        'key'      => $key,
-      ]];
+      return [
+        $code => [
+          'relation' => $relation,
+          'key'      => $key,
+        ],
+      ];
     })->toArray();
     return $codeRelations;
   }
 
-  public static function getKeyLogsForInit(string $model, string $format) {
+  public static function generateKeyLogsForInit(string $model, string $format) {
     $codeRelations = static::getCodeRelations($model);
     $key           = [];
     preg_replace_callback('/@\[([myi]|(?:\w+))+\]/', function ($matches) use (&$key, $codeRelations) {
@@ -111,7 +113,7 @@ class FormatingSeries extends Model {
     return implode($key);
   }
 
-  public function generateKeyLogs(array|null &$codeRelations = null) {
+  public function getKeyLogs(array|null &$codeRelations = null) {
     $codeRelations = static::getCodeRelations($this->model);
     $key           = [];
     preg_replace_callback('/@\[([myi]|(?:\w+))+\]/', function ($matches) use (&$key, $codeRelations) {

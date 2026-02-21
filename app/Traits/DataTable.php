@@ -35,7 +35,7 @@ trait DataTable {
       if (! $model->deleted_at) {
         return;
       }
-      ModelConnection::where(function ($query) use ($model) {
+      ModelConnection::where(column: function ($query) use ($model) {
         $query->where(function ($query) use ($model) {
           $query->where('model_type', \get_class($model));
           $query->where('model_id', $model->id);
@@ -226,10 +226,6 @@ trait DataTable {
     return array_values(array_diff($keys, $except));
   }
 
-  protected static function loadRelationsOnShow() {
-    return [];
-  }
-
   protected function logableFields() {
     return $this->getDefaultLogableField();
   }
@@ -241,30 +237,7 @@ trait DataTable {
    * @return $this
    */
   public function loadRelations($relations = []) {
-    $defaultRelations = [
-      ...static::loadRelationsOnShow() ?? [],
-      ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
-    ];
-    $relations        = array_merge($defaultRelations, \is_string($relations) ? [$relations] : ($relations ?? []));
-
-    $toLoad = [];
-
-    foreach ($relations as $key => $relation) {
-      $relationName = is_int($key) ? $relation : $key;
-
-      if (! method_exists($this, $relationName)) {
-        $toLoad[$key] = $relation;
-        continue;
-      }
-
-      $result = $this->$relationName();
-
-      if ($result instanceof Relation) {
-        $toLoad[$key] = $relation;
-      } else {
-        $this->setRelation($relationName, $result);
-      }
-    }
+    $toLoad = static::getRelationKeys(false, $relations);
     $this->load($toLoad);
   }
 

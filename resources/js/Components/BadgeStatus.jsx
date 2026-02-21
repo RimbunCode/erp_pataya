@@ -28,6 +28,13 @@ const theme = {
   unpaid: "warning",
   partially_paid: "warning",
   paid: "success",
+  skipped: "secondary",
+  reserved: "warning",
+  partially_billed: "warning",
+  partially_delivered: "warning",
+  to_order: "warning",
+  partially_ordered: "warning",
+  ordered: "success",
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();

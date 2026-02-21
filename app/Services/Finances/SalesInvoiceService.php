@@ -187,10 +187,17 @@ class SalesInvoiceService {
     DB::beginTransaction();
 
     try {
+      $salesInvoice->load([
+        'debitAccount',
+        'incomeAccount',
+        'salesOrder',
+        'returnAgainst',
+        'items.returnAgainstItem',
+        'items.salesOrderItem',
+      ]);
+
       $returnAgainst = $salesInvoice->returnAgainst;
-      $items         = $salesInvoice->items()
-        ->with(['returnAgainstItem', 'salesOrderItem'])
-        ->get();
+      $items         = $salesInvoice->items;
 
       $basicAmount = 0;
       $taxAmount   = 0;
@@ -229,7 +236,7 @@ class SalesInvoiceService {
       ]);
 
       $salesOrder         = $salesInvoice->salesOrder;
-      $unbilledItems      = $salesOrder->items()->select(['unbilled_quantity', 'quantity'])->get();
+      $unbilledItems      = $salesOrder->items()->select(['id', 'unbilled_quantity', 'quantity'])->get();
       $countUnbilledItems = $unbilledItems->sum('unbilled_quantity');
       $sumQuantity        = $unbilledItems->sum('quantity');
       if ($countUnbilledItems == $sumQuantity) {

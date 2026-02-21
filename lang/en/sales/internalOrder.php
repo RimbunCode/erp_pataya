@@ -25,4 +25,7 @@ return [
     'created_at'                   => 'Created at',
     'external_note'                => 'External Note',
   ],
+  'actions' => [
+    'create_delivery_note' => 'Create Delivery Note',
+  ],
 ];

@@ -44,7 +44,7 @@ return [
     'source_warehouse'             => 'Source Warehouse',
     'source_warehouse.placeholder' => 'Select a source warehouse',
     'started_at'                   => 'Started At',
-    'complated_at'                 => 'Complated At',
+    'completed_at'                 => 'completed At',
   ],
   'workOrderItem'      => [
     'columns' => [

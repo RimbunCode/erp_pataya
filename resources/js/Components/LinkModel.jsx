@@ -8,7 +8,8 @@ import {
 } from "./ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
-import { camelize, cn, getValueObject, isNullOrWhitespace } from "@/lib/utils";
+import { camelize, cn } from "@/lib/utils";
+import { convertTemplateLink, validate } from "@/lib/linkModelUtils";
 import {
   forwardRef,
   memo,
@@ -23,7 +24,6 @@ import { Command as CommandPrimitive } from "cmdk";
 import { FormPageLinkModelDialog } from "@/Pages/Core/FormPage";
 import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
-import React from "react";
 import axios from "axios";
 import { isEqual } from "lodash";
 import pluralize from "pluralize";
@@ -31,262 +31,6 @@ import { useDetectClickOutside } from "react-detect-click-outside";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useRef } from "react";
-
-function validateWithOperators(value, operators, logic = "and") {
-  const parseDate = (val) => {
-    if (val instanceof Date) return val;
-    if (typeof val === "string") {
-      const parsed = new Date(val);
-      return isNaN(parsed.getTime()) ? null : parsed;
-    }
-    return null;
-  };
-
-  const normalizeDateComparison = (left, right) => {
-    const leftDate = parseDate(left);
-
-    if (Array.isArray(right)) {
-      const rightDates = right.map(parseDate);
-      if (leftDate && rightDates.every(Boolean)) {
-        return {
-          left: leftDate.getTime(),
-          right: rightDates.map((d) => d.getTime()),
-        };
-      }
-      return { left, right };
-    }
-
-    const rightDate = parseDate(right);
-    if (leftDate && rightDate) {
-      return { left: leftDate.getTime(), right: rightDate.getTime() };
-    }
-
-    return { left, right };
-  };
-
-  let result = false;
-  for (let keyOperator in operators) {
-    const valOperator = operators[keyOperator];
-    keyOperator = keyOperator.match(/^([^\[\]]+)/)?.[1] ?? keyOperator;
-    switch (keyOperator) {
-      case "and":
-      case "or": {
-        result =
-          Array.isArray(valOperator) && keyOperator == "or"
-            ? valOperator.includes(value)
-            : validateWithOperators(value, valOperator, keyOperator);
-        break;
-      }
-      case "not":
-        (() => {
-          const { left, right } = normalizeDateComparison(value, valOperator);
-          result = left != right;
-        })();
-        break;
-      case "=":
-        (() => {
-          const { left, right } = normalizeDateComparison(value, valOperator);
-          result = left == right;
-        })();
-        break;
-      case ">":
-        (() => {
-          const { left, right } = normalizeDateComparison(value, valOperator);
-          result = left > right;
-        })();
-        break;
-      case ">=":
-        (() => {
-          const { left, right } = normalizeDateComparison(value, valOperator);
-          result = left >= right;
-        })();
-        break;
-      case "<":
-        (() => {
-          const { left, right } = normalizeDateComparison(value, valOperator);
-          result = left < right;
-        })();
-        break;
-      case "<=":
-        (() => {
-          const { left, right } = normalizeDateComparison(value, valOperator);
-          result = left <= right;
-        })();
-        break;
-      case "jsonContains":
-        if (Array.isArray(value)) {
-          let rst = false;
-          value.forEach((item) => {
-            if (valOperator.includes(item)) {
-              rst = true;
-            }
-            return;
-          });
-          result = rst;
-        }
-        break;
-      case "jsonDoesntContains":
-        if (Array.isArray(value)) {
-          let rst = true;
-          value.forEach((item) => {
-            if (!valOperator.includes(item)) {
-              rst = false;
-            }
-            return;
-          });
-          result = rst;
-        }
-        break;
-      case "like":
-        result = valOperator.includes(value);
-        break;
-      case "notlike":
-        result = !valOperator.includes(value);
-        break;
-      case "in":
-        if (Array.isArray(value)) {
-          let rst = false;
-          value.forEach((item) => {
-            if (valOperator.includes(item)) {
-              rst = true;
-            }
-          });
-          result = rst;
-          break;
-        }
-        result = Array.isArray(valOperator)
-          ? valOperator.includes(value)
-          : false;
-        break;
-      case "notIn":
-        if (Array.isArray(value)) {
-          let rst = true;
-          value.forEach((item) => {
-            if (!valOperator.includes(item)) {
-              rst = false;
-            }
-          });
-          result = rst;
-          break;
-        }
-        result = Array.isArray(valOperator)
-          ? !valOperator.includes(value)
-          : true;
-        break;
-      case "between":
-        (() => {
-          const { left, right } = normalizeDateComparison(value, valOperator);
-          result =
-            Array.isArray(right) && right.length >= 2
-              ? left >= right[0] && left <= right[1]
-              : value >= valOperator[0] && value <= valOperator[1];
-        })();
-        break;
-      case "notBetween":
-        (() => {
-          const { left, right } = normalizeDateComparison(value, valOperator);
-          result =
-            Array.isArray(right) && right.length >= 2
-              ? left < right[0] || left > right[1]
-              : value < valOperator[0] || value > valOperator[1];
-        })();
-        break;
-      default: {
-        const keys = keyOperator.split(/\.|->/);
-        let val = value;
-
-        for (let key of keys) {
-          if (!val) break;
-          val = val[key];
-        }
-        result = val ? validateWithOperators(val, valOperator) : true;
-
-        break;
-      }
-    }
-    if (logic === "and" && !result) return false;
-    if (logic === "or" && result) return true;
-  }
-  return logic == "and";
-}
-function validate(value, filters, logic = "and") {
-  if (!filters || typeof filters !== "object" || Array.isArray(filters)) {
-    return true;
-  }
-
-  for (let keyFilter in filters) {
-    const valFilter = filters[keyFilter];
-    keyFilter = keyFilter.match(/^([^\[\]]+)/)?.[1] ?? keyFilter;
-
-    const keys = keyFilter.split(/\.|->/);
-    let val = value;
-
-    for (let key of keys) {
-      if (!val) break;
-      val = val[key];
-    }
-
-    let result = false;
-    if (/^raw\((.+)\)$/.test(keyFilter)) {
-      result = true;
-    } else if (keyFilter === "and" || keyFilter === "or") {
-      result = validate(value, valFilter, keyFilter);
-    } else if (valFilter === undefined) {
-      result = true;
-    } else if (Array.isArray(valFilter)) {
-      result = JSON.stringify(val) === JSON.stringify(valFilter);
-    } else if (typeof valFilter !== "object" || valFilter === null) {
-      result = val == valFilter;
-    } else {
-      result = validateWithOperators(val, valFilter);
-    }
-    if (logic === "and" && !result) return false;
-    if (logic === "or" && result) return true;
-  }
-
-  return logic === "and";
-}
-
-export const convertTemplateLink = (value, search) => {
-  if (!value) return "";
-  const template = value.templateLink ?? "";
-  let item = template.replace(/:((\w[\w]+{:[\w]+})|(\w[\w.]+))/g, (match) => {
-    match = match.replace(/(.*?){:(.*?)}/i, ":$2");
-    const newValue = getValueObject(value, match.substring(1));
-    if (typeof newValue == "object") {
-      return convertTemplateLink(newValue, search);
-    }
-    return newValue ?? match;
-  });
-  if (search == null) {
-    const titleMatch = item.match(/<title(.*?)>(.*?)<\/title>/i);
-    const plainTextMatch = item.match(/^[^<]+/g);
-
-    return titleMatch
-      ? titleMatch[2].trim()
-      : plainTextMatch
-        ? plainTextMatch[0].trim()
-        : "";
-  }
-
-  item = item.replace(/<title(.*?)>(.*?)<\/title>/gi, "");
-
-  let searchWords =
-    search
-      .split(/\s+/)
-      ?.map((string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-      .filter((x) => !isNullOrWhitespace(x)) || [];
-
-  if (searchWords.length < 1) return item;
-
-  let regex = new RegExp(`(${searchWords.join("|")})`, "gi");
-  item = item.replace(/(<[^>]+>)|([^<]+)/g, (_, tag, text) => {
-    if (tag) return tag; // Jika ini bagian dari tag HTML, jangan ubah
-    return text.replace(regex, `<mark class="bg-yellow-500">$1</mark>`); // Hanya ubah teks biasa
-  });
-
-  return item;
-};
 
 /**
  *
@@ -301,6 +45,8 @@ export const convertTemplateLink = (value, search) => {
  * @param props.filters
  * @param props.joins
  * @param props.keywords
+ * @param props.cache boolean | { enabled?: boolean, refreshMs?: number }
+ * @param props.cacheStorage "memory" | "localStorage" | "sessionStorage" | "indexedDB"
  */
 export default memo(
   forwardRef(function LinkModel(
@@ -317,11 +63,12 @@ export default memo(
       readOnly,
       required,
       model,
-      sort,
       limit = 10,
       filters,
       joins,
       keywords,
+      cache = false,
+      cacheStorage = "memory",
       translate,
       titleDialog,
       classNameDialog,
@@ -340,12 +87,172 @@ export default memo(
     const { t } = useLaravelReactI18n();
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(value);
-    const [search, setSearch] = useState("");
+    const [search, setSearch] = useState(value ?? "");
     const [total, setTotal] = useState(0);
     const [options, setOptions] = useState([]);
+    const [cacheLoaded, setCacheLoaded] = useState(false);
     const [allowSearch, setAllowSearch] = useState(true);
     const [loading, setLoading] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
+    const cacheConfig = useMemo(() => {
+      if (typeof cache === "object") {
+        return {
+          enabled: cache.enabled ?? true,
+          refreshMs: cache.refreshMs ?? null,
+        };
+      }
+      return {
+        enabled: !!cache,
+        refreshMs: null,
+      };
+    }, [cache]);
+
+    const stableStringify = useCallback((val) => {
+      try {
+        return JSON.stringify(val, (_key, value) => {
+          if (value && typeof value === "object" && !Array.isArray(value)) {
+            return Object.keys(value)
+              .sort()
+              .reduce((acc, k) => {
+                acc[k] = value[k];
+                return acc;
+              }, {});
+          }
+          return value;
+        });
+      } catch {
+        return JSON.stringify(val);
+      }
+    }, []);
+
+    const cacheKey = useMemo(() => {
+      if (!cacheConfig.enabled) return null;
+      return `linkmodel:${model}:${stableStringify({
+        joins,
+        filters,
+        with: _with,
+        keywords,
+        order,
+        translate,
+      })}`;
+    }, [
+      cacheConfig.enabled,
+      joins,
+      filters,
+      _with,
+      keywords,
+      order,
+      translate,
+      model,
+      stableStringify,
+    ]);
+
+    const cacheStore = useMemo(() => {
+      if (!cacheConfig.enabled) return null;
+      if (cacheStorage === "localStorage") return window?.localStorage ?? null;
+      if (cacheStorage === "sessionStorage")
+        return window?.sessionStorage ?? null;
+      if (cacheStorage === "indexedDB") return "indexedDB";
+      return null; // memory handled by state
+    }, [cacheConfig.enabled, cacheStorage]);
+
+    const memoryCacheRef = useRef(new Map());
+    const idbInstanceRef = useRef(null);
+
+    const getIdb = useCallback(() => {
+      if (idbInstanceRef.current) return idbInstanceRef.current;
+      idbInstanceRef.current = new Promise((resolve, reject) => {
+        const request = window.indexedDB.open("linkmodel-cache", 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains("entries")) {
+            db.createObjectStore("entries", { keyPath: "key" });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return idbInstanceRef.current;
+    }, []);
+
+    const readCache = useCallback(
+      async (key) => {
+        if (!cacheConfig.enabled || !key) return null;
+        if (cacheStore === "indexedDB") {
+          try {
+            const db = await getIdb();
+            return await new Promise((resolve, reject) => {
+              const tx = db.transaction("entries", "readonly");
+              const store = tx.objectStore("entries");
+              const req = store.get(key);
+              req.onsuccess = () => resolve(req.result);
+              req.onerror = () => reject(req.error);
+            });
+          } catch {
+            return null;
+          }
+        }
+        if (cacheStore) {
+          const raw = cacheStore.getItem(key);
+          return raw ? JSON.parse(raw) : null;
+        }
+        return memoryCacheRef.current.get(key) ?? null;
+      },
+      [cacheConfig.enabled, cacheStore, getIdb],
+    );
+
+    const writeCache = useCallback(
+      async (key, value) => {
+        if (!cacheConfig.enabled || !key) return;
+        if (cacheStore === "indexedDB") {
+          try {
+            const db = await getIdb();
+            await new Promise((resolve, reject) => {
+              const tx = db.transaction("entries", "readwrite");
+              tx.oncomplete = () => resolve();
+              tx.onerror = () => reject(tx.error);
+              tx.objectStore("entries").put({ key, ...value });
+            });
+          } catch {
+            // ignore cache errors
+          }
+          return;
+        }
+        if (cacheStore) {
+          cacheStore.setItem(key, JSON.stringify(value));
+          return;
+        }
+        memoryCacheRef.current.set(key, value);
+      },
+      [cacheConfig.enabled, cacheStore, getIdb],
+    );
+
+    const removeCache = useCallback(
+      async (key) => {
+        if (!cacheConfig.enabled || !key) return;
+        if (cacheStore === "indexedDB") {
+          try {
+            const db = await getIdb();
+            await new Promise((resolve, reject) => {
+              const tx = db.transaction("entries", "readwrite");
+              tx.oncomplete = () => resolve();
+              tx.onerror = () => reject(tx.error);
+              tx.objectStore("entries").delete(key);
+            });
+          } catch {
+            // ignore
+          }
+          return;
+        }
+        if (cacheStore) {
+          cacheStore.removeItem(key);
+          return;
+        }
+        memoryCacheRef.current.delete(key);
+      },
+      [cacheConfig.enabled, cacheStore, getIdb],
+    );
+
     const { name, keyRoute } = useMemo(() => {
       if (as) {
         const [name, keyRoute] = as.split(":");
@@ -366,11 +273,16 @@ export default memo(
 
     const option = useMemo(() => {
       setLoading(false);
-      return value ?? _option;
-    }, [value]);
+      return _option;
+    }, [_option]);
 
     useDidMountEffect(() => {
-      _setOption(value);
+      _setOption((prev) => {
+        // kalau sama, jangan trigger apa-apa
+        if (isEqual(prev, value)) return prev;
+
+        return value;
+      });
     }, [value]);
 
     const setOption = useCallback(
@@ -400,6 +312,7 @@ export default memo(
         );
         if (findOption) {
           setOption(findOption);
+
           return;
         }
         setAllowSearch(false);
@@ -429,39 +342,128 @@ export default memo(
       }
     }, [filters, option, value]);
 
-    const getModels = (filterForDefaultValue = {}, callback) => {
-      axios
-        .post(route("model"), {
-          model,
+    useEffect(() => {
+      if (!cacheConfig.enabled) return;
+      setCacheLoaded(false);
+      setOptions([]);
+      setTotal(0);
+      if (cacheKey) {
+        removeCache(cacheKey);
+      }
+    }, [
+      cacheConfig.enabled,
+      cacheConfig.refreshMs,
+      cacheKey,
+      removeCache,
+      model,
+    ]);
+
+    useEffect(() => {
+      if (!cacheConfig.enabled || !cacheKey) return;
+      let active = true;
+      (async () => {
+        const parsed = await readCache(cacheKey);
+        if (!parsed || !active) return;
+        const expired =
+          cacheConfig.refreshMs &&
+          parsed.ts &&
+          Date.now() - parsed.ts > cacheConfig.refreshMs;
+        if (!expired && parsed.data) {
+          setOptions(parsed.data);
+          setTotal(parsed.total ?? parsed.data.length);
+          setCacheLoaded(true);
+          setLoading(false);
+          return;
+        }
+        if (expired) {
+          removeCache(cacheKey);
+        }
+      })();
+      return () => {
+        active = false;
+      };
+    }, [
+      cacheConfig.enabled,
+      cacheConfig.refreshMs,
+      cacheKey,
+      readCache,
+      removeCache,
+    ]);
+
+    useEffect(() => {
+      if (!cacheConfig.enabled || !cacheConfig.refreshMs) return;
+      const refresh = setInterval(() => {
+        setLoading(true);
+        getModels({}, null, { cacheMode: true });
+      }, cacheConfig.refreshMs);
+      return () => clearInterval(refresh);
+    }, [
+      cacheConfig.enabled,
+      cacheConfig.refreshMs,
+      model,
+      JSON.stringify(joins),
+    ]);
+
+    const getModels = (
+      filterForDefaultValue = {},
+      callback,
+      { cacheMode = false } = {},
+    ) => {
+      const isCacheRequest = cacheMode && cacheConfig.enabled;
+      const payload = {
+        model,
+        cacheMode: isCacheRequest,
+        joins,
+      };
+
+      if (!isCacheRequest) {
+        Object.assign(payload, {
           limit: limit ?? 10,
-          search: search,
+          search,
           with: _with,
           filters: {
             ...filters,
             ...filterForDefaultValue,
           },
-          sort,
-          joins,
           keywords,
           order,
           translate,
-        })
+        });
+      }
+
+      axios
+        .post(route("model"), payload)
         .then((res) => {
           const data = res.data.data;
           setTotal(res.data.total ?? data.length);
           setOptions(data);
+          if (cacheMode) {
+            setCacheLoaded(true);
+            if (cacheKey) {
+              writeCache(cacheKey, {
+                data,
+                total: res.data.total ?? data.length,
+                ts: Date.now(),
+              });
+            }
+          }
           callback?.(data);
         })
-        .catch((err) => {
-          console.log(err);
-        })
+        .catch(() => {})
         .finally(() => {
           setLoading(false);
         });
     };
 
+    useEffect(() => {
+      if (!cacheConfig.enabled || cacheLoaded) return;
+      setLoading(true);
+      getModels({}, null, { cacheMode: true });
+    }, [cacheConfig, cacheLoaded]);
+
     useDidMountEffect(() => {
       if (!allowSearch) return;
+      if (cacheConfig.enabled) return;
       setLoading(true);
       const reloadModel = setTimeout(() => {
         getModels();
@@ -485,16 +487,32 @@ export default memo(
 
       setLoading(true);
       const reloadModel = setTimeout(() => {
-        getModels(defaultValue, (data) => {
-          if (data.length <= 0) return;
-          setOption(data[0]);
-        });
+        getModels(
+          defaultValue,
+          (data) => {
+            if (data.length <= 0) return;
+            setOption(data[0]);
+          },
+          { cacheMode: cacheConfig.enabled },
+        );
       }, 500);
 
       return () => clearTimeout(reloadModel);
     }, [defaultKey, value]);
     useDidMountEffect(() => {
       if (!open) return;
+      if (cacheConfig.enabled) {
+        if (!cacheLoaded) {
+          setLoading(true);
+          const reloadModel = setTimeout(() => {
+            getModels({}, null, { cacheMode: true });
+          }, 100);
+          return () => {
+            clearTimeout(reloadModel);
+          };
+        }
+        return;
+      }
       setLoading(true);
       const reloadModel = setTimeout(() => {
         getModels();
@@ -536,9 +554,7 @@ export default memo(
         .then((res) => {
           setOption(res.data);
         })
-        .catch((err) => {
-          console.log(err);
-        })
+        .catch(() => {})
         .finally(() => {
           setLoading(false);
         });
@@ -553,6 +569,39 @@ export default memo(
         same: before == after,
       };
     }, [value, valueBefore]);
+
+    const filteredOptions = useMemo(() => {
+      if (!cacheConfig.enabled) return options;
+      let list = filters
+        ? options.filter((opt) => validate(opt, filters))
+        : options;
+      if (cacheConfig.enabled && order) {
+        const [col, dir = "asc"] = (order ?? "").split(":");
+        list = [...list].sort((a, b) => {
+          const va = col ? a[col] : convertTemplateLink(a);
+          const vb = col ? b[col] : convertTemplateLink(b);
+          if (va == null && vb == null) return 0;
+          if (va == null) return dir === "asc" ? -1 : 1;
+          if (vb == null) return dir === "asc" ? 1 : -1;
+          if (typeof va === "number" && typeof vb === "number") {
+            return dir === "asc" ? va - vb : vb - va;
+          }
+          return (
+            String(va).localeCompare(String(vb)) * (dir === "asc" ? 1 : -1)
+          );
+        });
+      }
+      if (!search) return list;
+      const keyword = (search ?? "").toLowerCase();
+      return list.filter((opt) =>
+        convertTemplateLink(opt, "", true).toLowerCase().includes(keyword),
+      );
+    }, [cacheConfig.enabled, options, search, filters, order]);
+
+    const showMore = useMemo(
+      () => !cacheConfig.enabled && total > limit,
+      [cacheConfig.enabled, limit, total],
+    );
     return (
       <Popover open={open} onOpenChange={() => {}}>
         <Command
@@ -643,6 +692,7 @@ export default memo(
                           )}
                           onClick={() => {
                             setOption(null);
+
                             setSearch("");
                           }}
                         >
@@ -686,14 +736,15 @@ export default memo(
                 ) : (
                   <>
                     <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
-                    {options &&
-                      options?.map((opt, index) => {
+                    {filteredOptions &&
+                      filteredOptions?.map((opt, index) => {
                         return (
                           <CommandItem
                             key={opt.id ?? index}
                             value={opt.id ?? index}
                             onSelect={() => {
                               setOption(opt);
+
                               setOpen(false);
                             }}
                           >
@@ -705,10 +756,8 @@ export default memo(
                           </CommandItem>
                         );
                       })}
-                    {total > limit && !disabledAddButton && (
-                      <CommandSeparator />
-                    )}
-                    {total > limit && (
+                    {showMore && !disabledAddButton && <CommandSeparator />}
+                    {showMore && (
                       <CommandItem
                         className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
                         onSelect={() => {

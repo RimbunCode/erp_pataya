@@ -3,6 +3,7 @@
 namespace App\Models\Service;
 
 use App\Casts\Json;
+use App\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
@@ -20,7 +21,7 @@ class WorkOrder extends Model {
   protected $casts   = [
     "date"         => "datetime",
     'started_at'   => 'datetime',
-    'complated_at' => 'datetime',
+    'completed_at' => 'datetime',
   ];
   protected $appends = ['for_internal'];
 
@@ -54,40 +55,49 @@ class WorkOrder extends Model {
   public string $formComponent = 'Services/WorkOrders/Form';
   public string $translateKey  = "service.workOrder";
   protected     $configColumns = [
-    'code'           => [
+    'code'                 => [
       'isLink' => true,
       'show'   => true,
       'order'  => 0,
     ],
-    'date'           => [
+    'date'                 => [
       'type'  => 'date',
       'show'  => true,
       'order' => 1,
     ],
-    'branch'         => [
+    'branch'               => [
       'ignore' => true,
     ],
-    'for_internal'   => [
+    'for_internal'         => [
       'type'  => 'boolean',
       'show'  => true,
       'width' => 'fit',
       'order' => 3,
     ],
     'items',
-    'customer'       => [
+    'customer'             => [
       'show'  => true,
       'order' => 4,
     ],
-    'customerBranch' => [
+    'customerBranch'       => [
       'disabledNavigation' => true,
     ],
-    'itemService'    => [
+    'itemService'          => [
       'show'  => true,
       'order' => 5,
     ],
-    'status'         => [
+    'status'               => [
       'show'  => true,
-      'order' => 6,
+      'order' => 8,
+    ],
+    'customer_name'        => [
+      'ignore' => true,
+    ],
+    'customer_branch_name' => [
+      'ignore' => true,
+    ],
+    'item_service_name'    => [
+      'ignore' => true,
     ],
   ];
 

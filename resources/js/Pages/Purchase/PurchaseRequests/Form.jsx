@@ -5,6 +5,7 @@ import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import SelectModel from "@/Components/SelectModel";
@@ -184,6 +185,38 @@ function Form() {
       },
     ];
   }, [data]);
+
+  const handleBarcodeSelect = useCallback(
+    (selected) => {
+      const selectedItem = selected?.item ?? selected;
+      const selectedUnit = selected?.unit ?? selected?.default_unit;
+      if (!selectedItem || !selectedUnit) return;
+
+      setData((prev) => {
+        const items = [...(prev?.items ?? [])];
+        const idx = items.findIndex(
+          (row) =>
+            row?.item?.id === selectedItem?.id &&
+            row?.unit?.id === selectedUnit?.id,
+        );
+        if (idx >= 0) {
+          const currentQty = items[idx]?.quantity ?? 0;
+          items[idx] = { ...items[idx], quantity: currentQty + 1 };
+        } else {
+          items.push({
+            id: generateRandom(5),
+            item: selectedItem,
+            unit: selectedUnit,
+            quantity: 1,
+
+            required_date: prev?.required_date,
+          });
+        }
+        return { ...prev, items };
+      });
+    },
+    [setData],
+  );
   return (
     <>
       <FormPageContent
@@ -269,13 +302,27 @@ function Form() {
           )
         }
       >
-        <FormTable
-          readOnly={disabled}
-          columns={itemColumns}
-          value={data?.items}
-          onValueChange={(v) => setData("items", v)}
-          form={<ItemForm />}
-        />
+        <div className="grid gap-4 grid-cols-2">
+          <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
+            <ItemBarcode
+              filters={{
+                item: {
+                  type: { not: "vehicle" },
+                },
+              }}
+              with={["item", "unit"]}
+              onSelect={handleBarcodeSelect}
+            />
+          </FormInput>
+          <FormTable
+            className="col-span-full"
+            readOnly={disabled}
+            columns={itemColumns}
+            value={data?.items}
+            onValueChange={(v) => setData("items", v)}
+            form={<ItemForm />}
+          />
+        </div>
       </FormPageContent>
       <FormPageContent
         value="detail"

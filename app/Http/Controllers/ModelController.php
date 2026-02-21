@@ -78,10 +78,13 @@ class ModelController extends Controller {
           $query->whereColumn($key, "=", $value, $boolean);
         }
         break;
+      case '!=':
+      case 'notEqual':
       case 'not':
         $query->$function($key, '!=', $value, $boolean);
         break;
-      case "=":
+      case "==":
+      case 'equal':
       default:
         $query->$function($key, '=', $value, $boolean);
     }
@@ -107,7 +110,7 @@ class ModelController extends Controller {
           if ($isMatch) {
             $key = $matches[1];
           }
-          if ($query instanceof Builder && !$isMatch && !in_array($key, $columns)) {
+          if ($query instanceof Builder && ! $isMatch && ! in_array($key, $columns)) {
             $with[] = $key;
             $query->has($key, ">=", 1, $boolean, function (Builder $builder) use ($value) {
               $this->filterToQuery($builder, $value);
@@ -127,7 +130,10 @@ class ModelController extends Controller {
     }
   }
 
-  private function queryTranslations(Builder|JoinClause $query, Request $request, $search, $boolean = "and") {
+  private function queryTranslations(Builder|JoinClause $query, Request $request, $search, $boolean = "and", bool $useTranslate = true) {
+    if (! $useTranslate) {
+      return $query;
+    }
     $hasTranslate = $request->has("translate");
     if ($hasTranslate) {
       $translates = $request->translate;
@@ -169,7 +175,8 @@ class ModelController extends Controller {
       abort(404);
       return;
     }
-    $model = $request->model;
+    $isCache = $request->boolean('cacheMode');
+    $model   = $request->model;
     if ($request->has("id")) {
       $dataModel = $model::find($request->id);
       if ($request->has('with')) {
@@ -177,57 +184,62 @@ class ModelController extends Controller {
       }
       return response()->json($dataModel);
     }
-    $search   = $request->search ?? "";
+    $search   = $isCache ? "" : ($request->search ?? "");
     $template = $model::templateLink();
     // Ekstrak daftar atribut dari template
     preg_match_all('/:((\w[\w]+{:[\w]+})|(\w[\w.]*))/', $template, $matches);
-    // Hapus tanda `:` agar hanya mendapatkan nama atribut
-    $attributes = array_map(
-      fn($attr) =>
-      preg_replace('/{:.*}/', "", ltrim($attr, ':')),
-      $matches[0],
-    );
-    if ($request->has('keywords')) {
-      $attributes = [
-        ...$attributes,
-        ...$request->keywords,
-      ];
-    }
-    $attributes = collect($attributes)->unique()->toArray();
-    if (\method_exists($model, 'scopeLinkModel')) {
-      $query = $model::linkModel($search);
-    } else {
-      $query = $model::where(function (Builder $query) use ($search, $attributes, $request) {
-        $splitSearch = explode(" ", $search);
-        foreach ($splitSearch as $item) {
-          $hasTranslate = $request->has("translate");
+    if (! $isCache) {
+      if ($request->has('keywords')) {
+        $attributes = $request->keywords;
+      } else {
+        // Hapus tanda `:` agar hanya mendapatkan nama atribut
+        $attributes = array_map(
+          fn ($attr) =>
+          preg_replace('/{:.*}/', "", ltrim($attr, ':')),
+          $matches[0],
+        );
+      }
+      $attributes = collect($attributes)->unique()->toArray();
+      if (\method_exists($model, 'scopeLinkModel')) {
+        $query = $model::linkModel($search);
+      } else {
+        $query = $model::where(function (Builder $query) use ($search, $attributes, $request, $isCache) {
+          $splitSearch = explode(" ", $search);
+          foreach ($splitSearch as $item) {
+            $hasTranslate = ! $isCache && $request->has("translate");
 
-          preg_match_all('/[a-zA-Z0-9]+/', $item, $matches);
-          // dd($matches, $item, $attributes);
+            preg_match_all('/[a-zA-Z0-9]+/', $item, $matches);
 
-          if (count($matches[0]) == 1 && !Utils::isNullOrWhitespace($item) && $item == $matches[0][0]) {
-            $query->whereAny($attributes, 'like', "%{$item}%");
-            $this->queryTranslations($query, $request, $item, "or");
-            continue;
-          }
-          if (preg_match('/^[^\w]+$/', $item))
-            continue;
-
-          $query->where(function (Builder $query) use ($matches, $item, $attributes, $request) {
-            if (!Utils::isNullOrWhitespace($item)) {
+            if (count($matches[0]) == 1 && ! Utils::isNullOrWhitespace($item) && $item == $matches[0][0]) {
               $query->whereAny($attributes, 'like', "%{$item}%");
-              $this->queryTranslations($query, $request, $item, "or");
+              $this->queryTranslations($query, $request, $item, "or", ! $isCache);
+              continue;
             }
-            foreach ($matches[0] as $match) {
-              if (Utils::isNullOrWhitespace($match))
-                continue;
-              $query->orWhereAny($attributes, 'like', "%{$match}%");
-              $this->queryTranslations($query, $request, $match, "or");
-            }
-          });
-        }
-      });
+            if (preg_match('/^[^\w]+$/', $item))
+              continue;
+
+            $query->where(function (Builder $query) use ($matches, $item, $attributes, $request, $isCache) {
+              if (! Utils::isNullOrWhitespace($item)) {
+                $query->whereAny($attributes, 'like', "%{$item}%");
+                $this->queryTranslations($query, $request, $item, "or", ! $isCache);
+              }
+              foreach ($matches[0] as $match) {
+                if (Utils::isNullOrWhitespace($match))
+                  continue;
+                $query->orWhereAny($attributes, 'like', "%{$match}%");
+                $this->queryTranslations($query, $request, $match, "or", ! $isCache);
+              }
+            });
+          }
+        });
+      }
+
+    } else {
+      $query = $model::query();
     }
+    $with = $request->with ?? [];
+    $with = $isCache ? ($model::getRelationKeys(relations: $with) ?? []) : $with;
+
     if ($request->has('joins')) {
       foreach ($request->joins as $key => $join) {
         $query->select("$key.*");
@@ -243,15 +255,14 @@ class ModelController extends Controller {
       }
       $query->select($model::getTableName() . ".*");
     }
-    $with = $request->with ?? [];
-    if ($request->has('filters')) {
+    if (! $isCache && $request->has('filters')) {
       $query->where(function (Builder $query) use ($request, &$with) {
         $this->filterToQuery($query, $request->filters ?? [], "and", $with);
       });
     }
 
     $queryForCount = $query->clone();
-    if ($request->has('limit')) {
+    if (! $isCache && $request->has('limit')) {
       $query->limit($request->limit);
     }
     $query->with($with);
@@ -259,9 +270,8 @@ class ModelController extends Controller {
       $orders = explode(":", $request->order);
       $query->orderBy($orders[0], $orders[1] ?? 'asc');
     }
-
     $data    = $query->get()->toArray() ?? [];
-    $results = array_map(fn($value) => [
+    $results = array_map(fn ($value) => [
       ...$value,
     ], $data);
 

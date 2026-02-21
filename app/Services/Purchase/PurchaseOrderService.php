@@ -3,6 +3,7 @@
 namespace App\Services\Purchase;
 
 use App\FormStatus;
+use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
@@ -22,7 +23,7 @@ class PurchaseOrderService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
@@ -108,13 +109,121 @@ class PurchaseOrderService {
   public function submit(PurchaseOrder $purchaseOrder) {
     DB::beginTransaction();
 
+    $items = $purchaseOrder->items()
+      ->with(['item'])
+      ->get();
+
+    /** @var \Illuminate\Support\Collection<string, Stock> $stocks */
+    $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+      ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
+      ->lockForUpdate()
+      ->get()
+      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+
+    foreach ($items as $item) {
+      if (! $item->item->is_stock_item) continue;
+
+      $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
+      /** @var Stock|null $stock */
+      $stock    = $stocks->get($stockKey);
+      if (! $stock) continue;
+
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);
+    }
+
+    DB::commit();
+    $purchaseOrder->checkApproval();
+
+    return $purchaseOrder;
+  }
+
+  public function onApproved(PurchaseOrder $purchaseOrder) {
+    DB::beginTransaction();
     $purchaseOrder->update([
-      'status' => FormStatus::TO_RECEIVE,
+      'status' => [FormStatus::TO_RECEIVE, FormStatus::TO_BILL],
     ]);
 
-    $purchaseOrder->logForSubmitted();
-    DB::commit();
+    $items = $purchaseOrder->items()
+      ->whereNotNull('referenceable_type')
+      ->whereNotNull('referenceable_id')
+      ->with([
+        'referenceable',
+      ])
+      ->get();
 
+    $modelConnections = [];
+    foreach ($items as $item) {
+      // Update ordered_quantity from source item
+      $sourceItem = $item->referenceable;
+      $orderedQty = $sourceItem->ordered_quantity + $item->quantity;
+      $sourceItem->update([
+        'ordered_quantity' => $orderedQty > $sourceItem->quantity ? $sourceItem->quantity : $orderedQty,
+      ]);
+
+      $parentRelation     = $sourceItem->parentRelation();
+      $parentRelationKey  = $parentRelation->getForeignKeyName();
+      $modelConnections[] = [
+        'model_type' => \get_class($parentRelation->getRelated()),
+        'model_id'   => $sourceItem->$parentRelationKey,
+      ];
+    }
+    $modelConnections = \collect($modelConnections)->unique('model_id')->toArray();
+
+    // Create ModelConnection for each item
+    foreach ($modelConnections as $modelConnection) {
+      ModelConnection::create([
+        'model_type'     => $modelConnection['model_type'],
+        'model_id'       => $modelConnection['model_id'],
+        'reference_type' => PurchaseOrder::class,
+        'reference_id'   => $purchaseOrder->id,
+      ]);
+    }
+
+    DB::commit();
+    return $purchaseOrder;
+  }
+
+  private function rolllbackItems(PurchaseOrder $purchaseOrder) {
+    $items = $purchaseOrder->items()
+      ->get();
+    foreach ($items as $item) {
+      $stock = Stock::lockForUpdate()
+        ->where('item_variant_id', $item->item_id)
+        ->where('warehouse_id', $item->target_warehouse_id)
+        ->lockForUpdate()
+        ->first();
+
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
+    }
+  }
+
+  public function onRejected(PurchaseOrder $purchaseOrder) {
+    DB::beginTransaction();
+    $purchaseOrder->update([
+      'status' => [
+        FormStatus::REJECTED,
+      ],
+    ]);
+
+    $this->rolllbackItems($purchaseOrder);
+
+    DB::commit();
+    return $purchaseOrder;
+  }
+
+  public function cancel(PurchaseOrder $purchaseOrder) {
+    DB::beginTransaction();
+    $purchaseOrder->update([
+      'status' => [
+        FormStatus::CANCELED,
+      ],
+    ]);
+
+    $this->rolllbackItems($purchaseOrder);
+
+    DB::commit();
     return $purchaseOrder;
   }
 }

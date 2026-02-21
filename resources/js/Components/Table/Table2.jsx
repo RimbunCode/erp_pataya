@@ -42,7 +42,7 @@ import Link from "../Link";
 import LoadingIcon from "../LoadingIcon";
 import NoDataImg from "./NoDataImg";
 import { TZDate } from "@date-fns/tz";
-import { convertTemplateLink } from "../LinkModel";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { debounce } from "lodash";
 import { format } from "date-fns";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -114,15 +114,9 @@ const Cell = memo(
             <Checkbox readOnly checked={value} className="cursor-default" />
           </span>
         );
-      case "formStatus": {
-        return (
-          <div className="text-center">
-            <BadgeStatus className="text-sm" status={value} />
-          </div>
-        );
-      }
+      case "formStatus":
       case "formStatuses": {
-        const newValue = [...value, ...row.appendStatus];
+        const newValue = row.appendStatus;
         return (
           <div
             className={cn(

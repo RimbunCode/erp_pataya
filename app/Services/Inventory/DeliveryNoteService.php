@@ -21,7 +21,7 @@ class DeliveryNoteService {
    * Create a new class instance.
    */
   public function fillRelations(array $data) {
-    $data['customer_id'] = $data['customer']['id'];
+    $data['customer_id'] = $data['customer']['id'] ?? null;
 
     // relasi cabang customer
     $data['customer_branch_id'] = $data['customer_branch']['id'];
@@ -33,6 +33,8 @@ class DeliveryNoteService {
     if (isset($data['return_against'])) {
       $data['return_against_id'] = $data['return_against']['id'];
     }
+
+    $data['reference_to_id'] = $data['reference_to']['id'];
 
     return $data;
   }
@@ -131,6 +133,15 @@ class DeliveryNoteService {
         'sourceWarehouse',
       ])
       ->get();
+
+    // Preload all needed stocks in one query to avoid N+1
+    /** @var \Illuminate\Support\Collection<string, Stock> $stocks */
+    $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+      ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
+      ->lockForUpdate()
+      ->get()
+      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+
     $errorItems  = [];
     $totalPicked = 0;
     $isRent      = false;
@@ -150,10 +161,9 @@ class DeliveryNoteService {
       }
 
       // update stock
-      $stock = Stock::where('item_variant_id', $item->item_id)
-        ->where('warehouse_id', $item->source_warehouse_id)
-        ->lockForUpdate()
-        ->first();
+      $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
+      /** @var Stock|null $stock */
+      $stock = $stocks->get($stockKey);
       if (! $stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
@@ -172,12 +182,14 @@ class DeliveryNoteService {
               "key"      => $toReference->code,
               "value"    => $quantity,
             ],
-            ...($returnAgainst ? [] : [[
-              "operator" => "decrement",
-              "type"     => "reservations",
-              "key"      => $toReference->code,
-              "value"    => $quantity,
-            ]]),
+            ...($returnAgainst ? [] : [
+              [
+                "operator" => "decrement",
+                "type"     => "reservations",
+                "key"      => $toReference->code,
+                "value"    => $quantity,
+              ],
+            ]),
           ],
         );
         StockLedgerEntry::create([
@@ -210,7 +222,8 @@ class DeliveryNoteService {
       if ($returnAgainst) {
         $valuationRates  = $item->returnAgainstItem->valuation_rates;
         $remainingQueue  = [
-          ...$queue, ...$valuationRates ?? [],
+          ...$queue,
+          ...$valuationRates ?? [],
         ];
         $amountPicked    = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $valuationRates ?? []));
         $totalPicked    += $amountPicked;
@@ -303,7 +316,10 @@ class DeliveryNoteService {
       }
     }
 
-    $undeliveredItems      = $toReference->items()->select(['undelivered_quantity', 'quantity'])->get();
+    $undeliveredItems      = $toReference->items()
+      ->leftJoin('item_variants', 'item_variants.id', '=', 'items.item_variant_id')
+      ->where('is_stock_item', true)
+      ->select(['undelivered_quantity', 'quantity'])->get();
     $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');
     $sumQuantity           = $undeliveredItems->sum('quantity');
     if ($countUndeliveredItems == $sumQuantity) {

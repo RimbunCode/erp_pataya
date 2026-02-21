@@ -164,17 +164,24 @@ class SalesOrderService {
           'canceled_at' => now(),
         ]);
     }
-    $items      = $salesOrder->items()
-      ->with(['item'])
+    $items = $salesOrder->items()
+      ->with(['item', 'sourceWarehouse'])
       ->get();
+
+    // Ambil semua stok yang dibutuhkan sekaligus untuk menghindari N+1
+    $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+      ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
+      ->lockForUpdate()
+      ->get()
+      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+
     $isValid    = ! $salesOrder->is_rent;
     $errorItems = [];
     foreach ($items as $item) {
-      $stock = Stock::lockForUpdate()
-        ->where('item_variant_id', $item->item_id)
-        ->where('warehouse_id', $item->source_warehouse_id)
-        ->lockForUpdate()
-        ->first();
+      if (! $item->item->is_stock_item) continue;
+      $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
+      /** @var Stock $stock */
+      $stock = $stocks->get($stockKey);
 
       $availableToRent = $item->item->type == 'vehicle';
       if ($salesOrder->is_rent && $availableToRent) {
@@ -233,9 +240,9 @@ class SalesOrderService {
         ->lockForUpdate()
         ->first();
 
-      // $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
 
-      $stock->updateDetails('decrement', 'reservations', $salesOrder->code);
+      $stock->updateDetails('decrement', 'reservations', $salesOrder->code, $quantity);
     }
   }
 
