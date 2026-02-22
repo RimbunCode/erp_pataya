@@ -3,31 +3,57 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
+import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
+
+import AccountLinkModel from "../Accounts/AccountLinkModel";
+import AdditionalDiscount from "../Components/AdditionalDiscount";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
 import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
+import PurchaseOrderLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrderLinkModel";
 import Select from "@/Components/Select";
+import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { calculateArray, generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
-import PurchaseOrderLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrderLinkModel";
-import ItemForm from "./ItemForm";
-import AdditionalDiscount from "../Components/AdditionalDiscount";
 
 export default function Form() {
+  const defaultValue = useCallback(async () => {
+    const accounts = await getDataModel("App\\Models\\Finances\\Account", {
+      root_type: {
+        in: ["liability"],
+      },
+      account_type: {
+        in: ["stock_received_but_not_billed", "payable"],
+      },
+      is_contra: false,
+    });
+    const expenseHeadAccount = accounts.filter(
+      (x) => x.account_type == "stock_received_but_not_billed",
+    )[0];
+    const creditAccount = accounts.filter(
+      (x) => x.account_type == "payable",
+    )[0];
+    return {
+      date: new Date(),
+      expense_head_account: expenseHeadAccount,
+      credit_account: creditAccount,
+    };
+  }, []);
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, disabled } = useFormPage(defaultValue, {
+    notUseWhenCreate: true,
+  });
   const { default_currency_id } = usePage().props.preferences;
   const amount = useMemo(() => {
     return calculateArray(data.items, "amount", "+");
@@ -526,6 +552,54 @@ export default function Form() {
               value={data.exchange_rate}
               onValueChange={(value) => {
                 setData("exchange_rate", value);
+              }}
+            />
+          </FormInput>
+        </div>
+      </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("finances.purchaseInvoice.columns.accounts")}
+      >
+        <div className="grid gap-4  grid-cols-2">
+          <FormInput
+            label={t("finances.purchaseInvoice.columns.expense_head_account")}
+            name="expense_head_account"
+            required
+          >
+            <AccountLinkModel
+              filters={{
+                root_type: "liability",
+                account_type: "stock_received_but_not_billed",
+                is_contra: !!data?.is_return,
+                is_group: false,
+              }}
+              placeholder={t(
+                "finances.purchaseInvoice.columns.accounts.placeholder",
+              )}
+              value={data.expense_head_account}
+              onValueChange={(val) => {
+                setData("expense_head_account", val);
+              }}
+            />
+          </FormInput>
+          <FormInput
+            label={t("finances.purchaseInvoice.columns.credit_account")}
+            name="credit_account"
+            required
+          >
+            <AccountLinkModel
+              filters={{
+                root_type: "liability",
+                account_type: "payable",
+                is_group: false,
+              }}
+              placeholder={t(
+                "finances.purchaseInvoice.columns.accounts.placeholder",
+              )}
+              value={data.credit_account}
+              onValueChange={(val) => {
+                setData("credit_account", val);
               }}
             />
           </FormInput>

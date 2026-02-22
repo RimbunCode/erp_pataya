@@ -277,10 +277,12 @@ function Form() {
                   filters: {
                     status: "submitted",
                   },
-                  select: {
+                  selects: {
                     items: {
                       filters: {
-                        status: "submitted",
+                        required_quantity: {
+                          ">": 0,
+                        },
                       },
                       columns: [
                         "work_order",

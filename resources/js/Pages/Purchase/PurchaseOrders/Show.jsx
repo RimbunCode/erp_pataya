@@ -11,7 +11,7 @@ import { FormPage } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ purchaseOrder, required_date, defaultData }) {
+export default function Show({ purchaseOrder, defaultData }) {
   const { t } = useLaravelReactI18n();
   const route = window.route;
 
@@ -25,10 +25,7 @@ export default function Show({ purchaseOrder, required_date, defaultData }) {
       }
       disabled={purchaseOrder?.submitted_at}
       submitable
-      defaultValues={{
-        required_date,
-        date: new Date(),
-      }}
+      defaultValues={defaultData}
       controls={() => {
         if (purchaseOrder?.submitted_at) {
           return (
@@ -52,6 +49,17 @@ export default function Show({ purchaseOrder, required_date, defaultData }) {
                     >
                       {t(
                         "purchase.purchaseOrder.actions.create_purchase_receipt",
+                      )}
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link
+                      href={route("purchaseInvoices.create", {
+                        ref: `purchaseOrder/${purchaseOrder?.id}`,
+                      })}
+                    >
+                      {t(
+                        "purchase.purchaseOrder.actions.create_purchase_invoice",
                       )}
                     </Link>
                   </DropdownMenuItem>

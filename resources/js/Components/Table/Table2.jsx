@@ -68,9 +68,11 @@ export const convertColWidth = (colWidth) => {
   }
 };
 export const createHeaders = (headers, ignoreCookie = false) => {
-  const columnsFromCookie = JSON.parse(
-    getCookieByName(`${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`),
-  );
+  const columnsFromCookie = ignoreCookie
+    ? null
+    : JSON.parse(
+        getCookieByName(`${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`),
+      );
   // const newHeaders = { ...headers };
   Object.values(headers).forEach((col) => {
     const colFromCookie = ignoreCookie ? null : columnsFromCookie?.[col.name];

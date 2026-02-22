@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
@@ -286,17 +285,17 @@ class ModelController extends Controller {
     //   abort(404);
     //   return;
     // }
-    $model         = str_replace("/", "\\", $model);
+    $oriModel      = str_replace("/", "\\", $model);
     $showedColumns = $request->columns ?? [];
     $select        = $request->select;
     if ($select) {
-      $instance = new $model();
+      $instance = new $oriModel();
       $relation = $instance->$select();
       if ($relation instanceof Relation) {
         $model = \get_class($relation->getRelated());
       }
     }
-    $columns = $model::getColumns();
+    $columns = $model::getColumns(1);
     if (count($showedColumns) > 0) {
       foreach ($columns as $key => $column) {
         $columns[$key]["show"] = false;

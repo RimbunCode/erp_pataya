@@ -3,7 +3,6 @@
 namespace App\Models\Core;
 
 use App\Casts\Json;
-use App\Models\Inventory\Unit;
 use App\Models\Model;
 use App\Models\User\Permission;
 use App\Traits\DataTable;
