@@ -68,9 +68,7 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Branch Switcher
   Route::put('/switch_branch/{id}', [\App\Http\Controllers\Core\BranchController::class, 'switch'])->name('branch.switch');
   // Dashboard
-  Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-  })->name('dashboard');
+  Route::resourceDetail('dashboard', \App\Http\Controllers\Core\DashboardController::class);
   // Settings
   Route::prefix('/settings')->group(function () {
     // Company
@@ -86,6 +84,7 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
 
     Route::resourceDetail('printTemplates', \App\Http\Controllers\Core\PrintTemplateController::class);
     Route::get('/printTemplates/{printTemplates}/editor', [\App\Http\Controllers\Core\PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
+    Route::resourceDetail('widgets', \App\Http\Controllers\Core\WidgetController::class);
   });
   // Tags
   Route::resourceDetail('tag', \App\Http\Controllers\Core\TagController::class);
@@ -122,6 +121,8 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   Route::resourceDetail('stockEntry', \App\Http\Controllers\Inventory\StockEntryController::class, isSubmmitable: true);
   // Delivery Notes
   Route::resourceDetail('deliveryNote', \App\Http\Controllers\Inventory\DeliveryNoteController::class, isSubmmitable: true);
+  // Stock Ledgers
+  Route::resourceDetail('stockLedger', \App\Http\Controllers\Inventory\StockLedgerController::class);
   /// Inventories Group End
 
   /// Purchase Group

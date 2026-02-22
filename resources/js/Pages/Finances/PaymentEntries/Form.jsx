@@ -14,7 +14,14 @@ import AccountLinkModel from "../Accounts/AccountLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 
 export default function Form() {
-  const { data, setData } = useFormPage();
+  const { data, setData } = useFormPage(
+    {
+      date: new Date(),
+    },
+    {
+      trackDefaultValue: false,
+    },
+  );
   const { t } = useLaravelReactI18n();
 
   return (
@@ -57,10 +64,13 @@ export default function Form() {
             className="col-start-1"
           >
             <LinkModel
+              disabled={!data.party_type}
               className="pointer-events-auto"
               value={data.paymentable}
               filters={{
-                status: { jsonContains: ["unpaid", "partially_paid"] },
+                status: {
+                  jsonContains: ["unpaid", "partially_paid", "returned"],
+                },
               }}
               model={
                 data.party_type === "customer"
@@ -79,61 +89,67 @@ export default function Form() {
                     : []),
               ]}
               onValueChange={(val) => {
-                setData((prev) => ({
-                  ...prev,
-                  paymentable: val,
-                  currency: val?.currency,
-                  exchange_rate: val?.exchange_rate ?? undefined,
-                  partyable: val[data.party_type] ?? null,
-                }));
-              }}
-            />
-          </FormInput>
-          <FormInput
-            className="col-start-2"
-            required={true}
-            label={t("finances.paymentEntry.columns.payment_type")}
-          >
-            <Select
-              placeholder={t(
-                "finances.paymentEntry.columns.payment_type.placeholder",
-              )}
-              optionTrans="finances.paymentEntry.columns.payment_type.options"
-              options={["receive", "pay"]}
-              value={data.payment_type}
-              onValueChange={(val) => {
-                setData({
-                  payment_type: val,
+                setData((prev) => {
+                  console.log(
+                    prev?.party_type === "customer",
+                    !val?.return_against_id,
+
+                    prev?.party_type === "customer" && !val?.return_against_id,
+                  );
+                  return {
+                    ...prev,
+                    paymentable: val,
+                    currency: val?.currency,
+                    exchange_rate: val?.exchange_rate ?? undefined,
+                    partyable: val?.[prev.party_type] ?? null,
+                    payment_type: val
+                      ? prev?.party_type === "customer" &&
+                        !val?.return_against_id
+                        ? "receive"
+                        : "pay"
+                      : null,
+                  };
                 });
               }}
             />
           </FormInput>
-
-          {data.payment_type && (
+          {data.party_type && (
             <FormInput
               required={true}
-              disabled={!data.payment_type}
-              label={t("finances.paymentEntry.columns.partyable")}
+              disabled={!data.party_type}
+              readOnly
+              label={t(
+                "finances.paymentEntry.columns.party_type.options." +
+                  data.party_type,
+              )}
             >
               {data.party_type === "customer" ? (
                 <CustomerLinkModel
                   value={data.partyable}
                   onValueChange={(val) => setData("partyable", val)}
-                  placeholder={t(
-                    "finances.paymentEntry.columns.party.placeholder",
-                  )}
                 />
               ) : (
                 <SupplierLinkModel
                   value={data.partyable}
                   onValueChange={(val) => setData("partyable", val)}
-                  placeholder={t(
-                    "finances.paymentEntry.columns.party.placeholder",
-                  )}
                 />
               )}
             </FormInput>
           )}
+          <FormInput
+            className="col-start-1"
+            required={true}
+            label={t("finances.paymentEntry.columns.payment_type")}
+            readOnly
+          >
+            <Select
+              disabled={!data.party_type && !data.paymentable}
+              optionTrans="finances.paymentEntry.columns.payment_type.options"
+              options={["receive", "pay"]}
+              value={data.payment_type}
+            />
+          </FormInput>
+
           <FormInput
             label={t("finances.paymentEntry.columns.currency")}
             className="col-start-1"

@@ -458,7 +458,7 @@ export default memo(
           setOptions(data);
           callback?.(data);
         })
-        .catch((err) => {})
+        .catch(() => {})
         .finally(() => {
           setLoading(false);
         });
@@ -540,7 +540,7 @@ export default memo(
         .then((res) => {
           setOption(res.data);
         })
-        .catch((err) => {})
+        .catch(() => {})
         .finally(() => {
           setLoading(false);
         });

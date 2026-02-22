@@ -1,10 +1,11 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
+
   /**
    * Run the migrations.
    */
@@ -19,8 +20,6 @@ return new class extends Migration {
       $table->double('quantity_change')->default(0);
       $table->double('quantity_after_transaction')->default(0);
       $table->double('valuation_rate')->default(0);
-      $table->double('incoming_rate')->default(0);
-      $table->double('outgoing_rate')->default(0);
       $table->double('balance_stock_value')->default(0);
       $table->double('change_in_stock_value')->default(0);
       $table->json('stock_queue')->nullable();

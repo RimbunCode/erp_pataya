@@ -1,0 +1,36 @@
+<?php
+
+return [
+  'title'                => 'Widgets',
+  'add_widget'           => 'Add Widget',
+  'new'                  => 'Create Widget',
+  'new_rule'             => 'New Rule',
+  'add_rule'             => 'Add a new rule',
+  'rules'                => 'Rules',
+  'alert_already_exists' => 'Rule already exists',
+  'columns'              => [
+    'name'              => 'Name',
+    'is_disabled'       => 'Status',
+    'created_at'        => 'Created At',
+    'model'             => 'Model',
+    'model.placeholder' => 'Select a model',
+    'level'             => 'Level',
+    'only_creator'      => 'Only Creator',
+    'permissions'       => 'Permissions',
+  ],
+  'permissions'          => [
+    'all'    => 'All',
+    'select' => 'Select',
+    'read'   => 'Read',
+    'write'  => 'Write',
+    'create' => 'Create',
+    'delete' => 'Delete',
+    'print'  => 'Print',
+    'import' => 'Import',
+    'export' => 'Export',
+    'share'  => 'Share',
+    "submit" => 'Submit',
+    "cancel" => 'Cancel',
+    "amend"  => 'Amend',
+  ],
+];

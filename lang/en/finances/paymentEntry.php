@@ -29,8 +29,8 @@ return [
       'receive' => 'Receive',
       'pay'     => 'Pay',
     ],
-    'party_type'                 => 'Party',
-    'party_type.placeholder'     => 'Select a party',
+    'party_type'                 => 'Party Type',
+    'party_type.placeholder'     => 'Select a party type',
     'party_type.options'         => [
       'customer' => 'Customer',
       'supplier' => 'Supplier',
