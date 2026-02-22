@@ -9,7 +9,6 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Purchase\PurchaseOrder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Symfony\Component\Uid\Ulid;
 
 class PurchaseOrderService {
@@ -125,7 +124,7 @@ class PurchaseOrderService {
 
       $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
       /** @var Stock|null $stock */
-      $stock    = $stocks->get($stockKey);
+      $stock = $stocks->get($stockKey);
       if (! $stock) continue;
 
       $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;

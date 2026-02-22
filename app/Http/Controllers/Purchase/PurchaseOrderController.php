@@ -9,6 +9,8 @@ use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Service\WorkOrder;
 use App\Models\Core\FormatingSeries;
+use App\Models\Purchase\PurchaseRequestItem;
+use App\Models\Service\WorkOrderItem;
 use App\Services\Purchase\PurchaseOrderService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -45,23 +47,37 @@ class PurchaseOrderController extends Controller {
           case 'workOrder': {
             $wo = WorkOrder::find($split[1]);
             if ($wo) {
-              $po = PurchaseOrder::where('referenceable_type', WorkOrder::class)
-                ->where('referenceable_id', $wo->id)
-                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
-                ->where('created_by', $request->user()->id)
-                ->first();
-              if ($po) {
-                return redirect()->route('purchaseOrders.show', $po);
-              }
+              $wo->loadRelations();
               $defaultData = [
-                'date'  => now(),
-                'items' => $wo->items->map(fn($item) => [
+                'items' => $wo->items->map(fn ($item) => [
                   ...$item,
-                  'id'            => Utils::generateRandom(5),
-                  'quantity'      => $item->remaining_quantity,
-                  'unit'          => $item->unit,
-                  'referenceable' => $item,
+                  'id'                 => Utils::generateRandom(5),
+                  'quantity'           => $item->remaining_quantity,
+                  'unit'               => $item->unit,
+                  'referenceable_type' => WorkOrderItem::class,
+                  'referenceable_id'   => $item->id,
                 ]),
+              ];
+            }
+            break;
+          }
+          case 'purchaseRequest': {
+            $pr = PurchaseRequest::find($split[1]);
+            if ($pr) {
+              $pr->loadRelations();
+              $defaultData = [
+                'required_date' => $pr->required_date,
+                'items'         => $pr->items->map(function ($item) {
+                  return [
+                    ...$item->toArray(),
+                    'id'                 => Utils::generateRandom(5),
+                    'quantity'           => $item->remaining_quantity,
+                    'required_date'      => $item->required_date,
+                    'unit'               => $item->unit,
+                    'referenceable_type' => PurchaseRequestItem::class,
+                    'referenceable_id'   => $item->id,
+                  ];
+                }),
               ];
             }
             break;

@@ -87,7 +87,7 @@ export default memo(
     const { t } = useLaravelReactI18n();
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(value);
-    const [search, setSearch] = useState(value ?? "");
+    const [search, setSearch] = useState(convertTemplateLink(value ?? ""));
     const [total, setTotal] = useState(0);
     const [options, setOptions] = useState([]);
     const [cacheLoaded, setCacheLoaded] = useState(false);
@@ -592,7 +592,7 @@ export default memo(
         });
       }
       if (!search) return list;
-      const keyword = (search ?? "").toLowerCase();
+      const keyword = (search ?? "")?.toLowerCase();
       return list.filter((opt) =>
         convertTemplateLink(opt, "", true).toLowerCase().includes(keyword),
       );

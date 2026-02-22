@@ -36,7 +36,7 @@ class SalesInvoiceController extends Controller {
   /**
    * Show the form for creating a new resource.
    */
-  public function create(Request $request, string $ref = null) {
+  public function create(Request $request, ?string $ref = null) {
     if ($ref) {
       $split    = \explode("/", $ref);
       $modelOri = $split[0] ?? null;

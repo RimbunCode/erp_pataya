@@ -13,6 +13,9 @@ return new class extends Migration
     Schema::create('purchase_invoices', function (Blueprint $table) {
       $table->ulid('id')->primary();
       $table->timestamp('date');
+      $table->foreignUlid('return_against_id')->nullable()->references('id')->on('purchase_invoices')->nullOnDelete();
+      $table->foreignUlid('credit_account_id')->nullable()->references('id')->on('accounts')->nullOnDelete();
+      $table->foreignUlid('expanse_head_account_id')->nullable()->references('id')->on('accounts')->nullOnDelete();
       $table->foreignUlid('supplier_id')->nullable()->references('id')->on('suppliers')->nullOnDelete();
       $table->string('supplier_name')->nullable();
       $table->foreignUlid('purchase_order_id')->nullable()->references('id')->on('purchase_orders')->nullOnDelete();

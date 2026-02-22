@@ -2,6 +2,8 @@
 
 namespace App;
 
+use App\Models\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -271,5 +273,39 @@ class Utils {
       default:
         return $basicAmount + $taxAmount;
     }
+  }
+
+  public static function findRelationsTo(string $model, string $targetClass): array {
+    $relations = [];
+
+    // hindari query/constraint selama deteksi
+    Relation::noConstraints(function () use ($model, $targetClass, &$relations) {
+      $model   = new $model();
+      $reflect = new \ReflectionClass($model);
+
+      foreach ($reflect->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+        // lewati method bawaan Eloquent & static
+        if ($method->isStatic() || $method->getNumberOfParameters() > 0) {
+          continue;
+        }
+        $name = $method->getName();
+        if (in_array($name, ['newQuery', 'newModelQuery', 'getAttribute'])) continue;
+
+        try {
+          $relation = $model->$name();
+        } catch (\Throwable $e) {
+          continue; // skip method yang bukan relasi/throw
+        }
+
+        if (
+          $relation instanceof Relation &&
+          is_a($relation->getRelated(), $targetClass)
+        ) {
+          $relations[] = $name;
+        }
+      }
+    });
+
+    return $relations; // misal: ['items', 'itemLines']
   }
 }

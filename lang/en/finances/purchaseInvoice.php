@@ -74,6 +74,9 @@ return [
     'outstanding_amount'           => 'Outstanding Amount',
     'return_against'               => 'Return Against Purchase Invoice',
     'is_return'                    => 'Is Return (Debit Note)',
+    'accounts'                     => 'Accounts',
+    'expense_head_account'         => 'Expense Head Account',
+    'credit_account'               => 'Credit Account',
   ],
 
 ];

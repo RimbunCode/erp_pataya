@@ -2,17 +2,13 @@
 
 namespace App\Traits;
 
-use App\FormStatus;
 use App\Models\Core\File;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\Log;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\PrintTemplate;
-use App\Models\Core\Status;
 use App\Models\Core\Tag;
 use App\Models\User\Permission;
-use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;

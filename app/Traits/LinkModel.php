@@ -6,12 +6,7 @@ use App\Casts\FormStatusCast;
 use App\Casts\FormStatusesCast;
 use App\Casts\Json;
 use App\FormStatus;
-use App\Models\Inventory\StockEntryItem;
 use App\Models\Scopes\DataTableScope;
-use App\Models\User\Permission;
-use Closure;
-use Exception;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -347,7 +342,7 @@ trait LinkModel {
    * @param array[] $excepts
    * @return array
    */
-  public static function getColumns(int $maxDepth = 0, array ...$excepts) {
+  public static function getColumns(int $maxDepth = 0, ...$excepts) {
     $instance      = new static();
     $columns       = Schema::getColumns($instance->getTable());
     $casts         = $instance->getCasts();
@@ -377,6 +372,8 @@ trait LinkModel {
           'titleTrans' => $translateKey ? ($translateKey . ".columns." . $col['name']) : null,
           ...$config,
           'primaryKey' => $instance->getKeyName(),
+          "sortable"   => true,
+          "searchable" => true,
         ];
       }
     }
@@ -393,6 +390,7 @@ trait LinkModel {
         "name"       => $value,
         "type"       => "attribute",
         "sortable"   => false,
+        "searchable" => false,
         'primaryKey' => $instance->getKeyName(),
         'titleTrans' => $translateKey ? $translateKey . ".columns." . $value : null,
         ...$config,
@@ -451,6 +449,7 @@ trait LinkModel {
         "route"          => isset($route) ? "$route.show" : null,
         'primaryKey'     => $rel->getRelated()->getKeyName(),
         'sortable'       => false,
+        "searchable"     => true,
         'titleTrans'     => $translateKey ? "$translateKey.columns.$newKey" : null,
         "columns"        => $isContinueGetRelationColumns ? $classRelation::getColumns($maxDepth, static::class, ...$excepts ?? []) : [],
         ...$config,
