@@ -10,51 +10,56 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockLedgerEntry extends Model {
   use HasUlids, SoftDeletes, DataTable;
-  protected               $guarded            = ["id"];
-  public string           $translateKey       = 'inventories.stockLedgerEntry';
-  protected               $configColums       = [
-    'quantity_change'            => [
-      'type'  => 'numeric',
+  protected $guarded       = ["id"];
+  public    $translateKey  = 'inventory.stockLedger';
+  protected $configColumns = [
+    'item'                       => [
       'show'  => true,
       'order' => 0,
     ],
-    'quantity_after_transaction' => [
+    'quantity_change'            => [
       'type'  => 'numeric',
       'show'  => true,
       'order' => 1,
     ],
-    'valuation_rate'             => [
+    'quantity_after_transaction' => [
       'type'  => 'numeric',
       'show'  => true,
       'order' => 2,
     ],
-    'incoming_rate'              => [
+    'valuation_rate'             => [
       'type'  => 'numeric',
       'show'  => true,
       'order' => 3,
     ],
-    'outgoing_rate'              => [
+    'balance_stock_value'        => [
       'type'  => 'numeric',
       'show'  => true,
       'order' => 4,
     ],
-    'balance_stock_value'        => [
+    'change_in_stock_value'      => [
       'type'  => 'numeric',
       'show'  => true,
       'order' => 5,
     ],
-    'change_in_stock_value'      => [
-      'type'  => 'numeric',
+    'referenceable'              => [
       'show'  => true,
       'order' => 6,
     ],
     'stock_queue'                => [
       'ignore' => true,
     ],
+
+    'unit',
+    'warehouse',
   ];
-  protected               $casts              = [
+  protected $casts         = [
     'stock_queue' => 'array',
   ];
+
+  public function canDelete() {
+    return false;
+  }
   protected static string $defaultFormatCode  = 'StockLedger-@[iiii]/@[yy]';
   protected static        $generateCodeSeries = true;
 
@@ -63,5 +68,21 @@ class StockLedgerEntry extends Model {
     self::creating(function ($model) {
       $model->code = FormatingSeries::generate(StockEntry::class, $model->toArray());
     });
+  }
+
+  public function item() {
+    return $this->belongsTo(ItemVariant::class, 'item_id');
+  }
+
+  public function unit() {
+    return $this->belongsTo(Unit::class, 'unit_id');
+  }
+
+  public function warehouse() {
+    return $this->belongsTo(Warehouse::class, 'warehouse_id');
+  }
+
+  public function referenceable() {
+    return $this->morphTo();
   }
 }

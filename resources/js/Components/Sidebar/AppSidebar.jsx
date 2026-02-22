@@ -78,6 +78,11 @@ const navList = [
         url: "/deliveryNotes",
         urlPattern: "/deliveryNotes/*",
       },
+      {
+        title: "Stock Ledgers",
+        url: "/stockLedgers",
+        urlPattern: "/stockLedgers/*",
+      },
     ],
   },
   {
@@ -248,6 +253,16 @@ const navList = [
         title: "Print Templates",
         url: "/settings/printTemplates",
         urlPattern: "/settings/printTemplates/*",
+      },
+      {
+        title: "Widgets",
+        url: "/settings/widgets",
+        urlPattern: "/settings/widgets/*",
+      },
+      {
+        title: "Files",
+        url: "/settings/files",
+        urlPattern: "/settings/files/*",
       },
       {
         title: "Database Backup",
