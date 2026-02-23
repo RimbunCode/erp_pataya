@@ -44,9 +44,11 @@ const Select = memo(
         const label =
           typeof x === "object" && x.label
             ? x.label
-            : optionTrans
-              ? t(`${optionTrans}.${x.value ?? x}`)
-              : (x.value ?? x);
+            : x.titleTrans
+              ? t(x.titleTrans)
+              : optionTrans
+                ? t(`${optionTrans}.${x.value ?? x}`)
+                : (x.value ?? x);
 
         const value = typeof x === "object" ? x.value : x;
         return {
