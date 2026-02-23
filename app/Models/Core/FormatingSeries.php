@@ -129,7 +129,14 @@ class FormatingSeries extends Model {
     return implode($key);
   }
 
-  public static function generate(string $model, array $data, bool $isDraft = false): string {
+  /**
+   * Summary of generate
+   * @param string $model
+   * @param Model|array $data
+   * @param bool $isDraft
+   * @return string|null
+   */
+  public static function generate(string $model, mixed $data, bool $isDraft = false): string {
     $ref           = FormatingSeries::where('model', $model)->first();
     $codeRelations = [];
     $keyFormat     = $ref->getKeyLogs($codeRelations);
@@ -171,6 +178,11 @@ class FormatingSeries extends Model {
       $refLatest['current'] += 1;
     }
 
+    if (! \is_array($data)) {
+      $relations = \array_unique(\array_values(\array_map(fn ($item) => $item['relation'], $codeRelations)));
+      $data->load($relations);
+      $data = $data->toArray();
+    }
     $pattern = '/@\[(.*?)\]/';
     $result  = preg_replace_callback($pattern, function ($matches) use ($isDraft, $codeRelations, $data, $now, $refLatest) {
       $format = $matches[1];

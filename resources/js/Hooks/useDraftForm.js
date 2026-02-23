@@ -119,8 +119,8 @@ export const useDraftForm = (
             }
           : {
               reset: name
-                ? [name, "errors", "logs", "flash"]
-                : ["errors", "logs", "flash"],
+                ? [name, "errors", "logs", "flash", "breadcrumbs"]
+                : ["errors", "logs", "flash", "breadcrumbs"],
               preserveState: true,
               preserveScroll: true,
             }),
