@@ -3,6 +3,7 @@
 namespace App\Services\Purchase;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Inventory\ItemUnit;
@@ -55,6 +56,7 @@ class PurchaseOrderService {
   }
 
   public function create(array $data) {
+    $data['code']  = FormatingSeries::generate(PurchaseOrder::class, $data, true);
     $purchaseOrder = PurchaseOrder::create($this->fillRelations($data));
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item, $purchaseOrder);
@@ -107,6 +109,10 @@ class PurchaseOrderService {
 
   public function submit(PurchaseOrder $purchaseOrder) {
     DB::beginTransaction();
+
+    $purchaseOrder->update([
+      'code' => FormatingSeries::generate(PurchaseOrder::class, $purchaseOrder->toArray()),
+    ]);
 
     $items = $purchaseOrder->items()
       ->with(['item'])

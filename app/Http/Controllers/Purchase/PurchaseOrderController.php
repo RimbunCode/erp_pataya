@@ -8,7 +8,6 @@ use App\Models\Core\Branch;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Service\WorkOrder;
-use App\Models\Core\FormatingSeries;
 use App\Models\Purchase\PurchaseRequestItem;
 use App\Models\Service\WorkOrderItem;
 use App\Services\Purchase\PurchaseOrderService;
@@ -99,11 +98,7 @@ class PurchaseOrderController extends Controller {
     DB::beginTransaction();
 
     // branch dari session
-    $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-
-    // generate code
-    $code               = FormatingSeries::generate(PurchaseOrder::class, $data);
-    $data['code']       = $code;
+    $data['branch']     = Branch::find($request->session()->get('currentBranch'))->toArray();
     $data['created_by'] = $request->user()->id;
 
     // create PO

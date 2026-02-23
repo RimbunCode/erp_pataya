@@ -12,7 +12,6 @@ use App\Models\Inventory\StockLedgerEntry;
 use App\Utils;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Symfony\Component\Uid\Ulid;
 use function Laravel\Prompts\form;
 
