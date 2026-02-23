@@ -3,6 +3,7 @@
 namespace App\Services\Inventory;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Inventory\DeliveryNote;
@@ -54,6 +55,7 @@ class DeliveryNoteService {
   }
 
   public function create(array $data) {
+    $data['code'] = FormatingSeries::generate(DeliveryNote::class, $data, true);
     $deliveryNote = DeliveryNote::create($this->fillRelations($data));
 
     foreach ($data['items'] as $item) {
@@ -89,6 +91,10 @@ class DeliveryNoteService {
   // submit function for delivery note
   public function submit(DeliveryNote $deliveryNote) {
     DB::beginTransaction();
+
+    $deliveryNote->update([
+      'code' => FormatingSeries::generate(DeliveryNote::class, $deliveryNote),
+    ]);
 
     ModelConnection::create([
       'model_type'     => $deliveryNote->referenceable_type,
@@ -139,7 +145,7 @@ class DeliveryNoteService {
       ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
       ->lockForUpdate()
       ->get()
-      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+      ->keyBy(fn($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
     $errorItems  = [];
     $totalPicked = 0;
@@ -150,12 +156,12 @@ class DeliveryNoteService {
         $isRent = true;
       }
       // update delivered quantity dari Sales Order Item
-      if ($returnAgainst && ! $availableToRent) {
+      if ($returnAgainst && !$availableToRent) {
         $item->referenceable->decrement('delivered_quantity', $item->quantity);
       } else {
         $item->referenceable->increment('delivered_quantity', $item->quantity);
       }
-      if (! $item->item->is_stock_item) {
+      if (!$item->item->is_stock_item) {
         continue;
       }
 
@@ -163,7 +169,7 @@ class DeliveryNoteService {
       $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
       /** @var Stock|null $stock */
       $stock = $stocks->get($stockKey);
-      if (! $stock) {
+      if (!$stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
       }
@@ -200,7 +206,7 @@ class DeliveryNoteService {
           'quantity_change'            => $returnAgainst ? $quantity : -$quantity,
           'quantity_after_transaction' => $stock->actual_quantity,
           'valuation_rate'             => $stock->valuation_rate,
-          'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'balance_stock_value'        => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
           'change_in_stock_value'      => 0,
           'stock_queue'                => $stock->stock_queue,
           'referenceable_type'         => DeliveryNote::class,
@@ -225,7 +231,7 @@ class DeliveryNoteService {
           ...$queue,
           ...$valuationRates ?? [],
         ];
-        $amountPicked    = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $valuationRates ?? []));
+        $amountPicked    = \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $valuationRates ?? []));
         $totalPicked    += $amountPicked;
         $item->returnAgainstItem->update([
           'returned_quantity' => $item->returnAgainstItem->returned_quantity + $quantity
@@ -244,7 +250,7 @@ class DeliveryNoteService {
           'quantity_change'            => $quantity,
           'quantity_after_transaction' => $stock->actual_quantity,
           'valuation_rate'             => $stock->valuation_rate,
-          'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'balance_stock_value'        => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
           'change_in_stock_value'      => $amountPicked,
           'stock_queue'                => $stock->stock_queue,
           'referenceable_type'         => DeliveryNote::class,
@@ -309,7 +315,7 @@ class DeliveryNoteService {
           'quantity_change'            => -$quantity,
           'quantity_after_transaction' => $stock->actual_quantity,
           'valuation_rate'             => $stock->valuation_rate,
-          'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'balance_stock_value'        => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
           'change_in_stock_value'      => -$amountPicked,
           'stock_queue'                => $stock->stock_queue,
           'referenceable_type'         => DeliveryNote::class,
@@ -345,7 +351,7 @@ class DeliveryNoteService {
     }
     if ($isRent) {
       if ($returnAgainst) {
-        $status = \array_filter($status, fn ($s) => $s != FormStatus::IN_RENT);
+        $status = \array_filter($status, fn($s) => $s != FormStatus::IN_RENT);
       } else {
         $status[] = FormStatus::IN_RENT;
       }

@@ -72,12 +72,12 @@ class PurchaseInvoiceController extends Controller {
                 'discount_amount'      => $po?->discount_amount,
                 'exchange_rate'        => $po?->exchange_rate,
                 'external_note'        => $po?->external_note,
-                'items'                => $po?->items->map(fn ($item) => [
+                'items'                => $po?->items->map(fn($item) => [
                   ...$item->toArray(),
                   'id'                     => Utils::generateRandom(5),
                   'purchase_order_item_id' => $item->id,
                 ]),
-                'paymentSchedules'     => $po?->paymentSchedules->map(fn ($paymentSchedule) => [
+                'paymentSchedules'     => $po?->paymentSchedules->map(fn($paymentSchedule) => [
                   ...$paymentSchedule->toArray(),
                   'id' => Utils::generateRandom(5),
                 ]),
@@ -116,13 +116,13 @@ class PurchaseInvoiceController extends Controller {
                 'discount_amount'  => $purchaseInvoice?->discount_amount,
                 'exchange_rate'    => $purchaseInvoice?->exchange_rate,
                 'external_note'    => $purchaseInvoice?->external_note,
-                'items'            => $purchaseInvoice?->items->map(fn ($item) => [
+                'items'            => $purchaseInvoice?->items->map(fn($item) => [
                   ...$item->toArray(),
                   'id'                     => Utils::generateRandom(5),
                   'return_against_item_id' => $item->id,
                 ]),
 
-                'paymentSchedules' => $purchaseInvoice?->paymentSchedules->map(fn ($paymentSchedule) => [
+                'paymentSchedules' => $purchaseInvoice?->paymentSchedules->map(fn($paymentSchedule) => [
                   ...$paymentSchedule->toArray(),
                   'id' => Utils::generateRandom(5),
                 ]),
@@ -175,11 +175,7 @@ class PurchaseInvoiceController extends Controller {
     DB::beginTransaction();
 
     // branch dari session
-    $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-
-    // generate code
-    $code               = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
-    $data['code']       = $code;
+    $data['branch']     = Branch::find($request->session()->get('currentBranch'))->toArray();
     $data['created_by'] = $request->user()->id;
 
     // create SO

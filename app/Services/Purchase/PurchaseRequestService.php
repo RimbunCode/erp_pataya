@@ -3,6 +3,7 @@
 namespace App\Services\Purchase;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Purchase\PurchaseRequest;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,8 @@ class PurchaseRequestService {
   }
 
   public function create(array $data) {
-    $pr = PurchaseRequest::create($this->fillRelations($data));
+    $data['code'] = FormatingSeries::generate(PurchaseRequest::class, $data, true);
+    $pr           = PurchaseRequest::create($this->fillRelations($data));
 
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item);
@@ -58,6 +60,9 @@ class PurchaseRequestService {
   }
 
   public function submit(PurchaseRequest $purchaseRequest) {
+    $purchaseRequest->update([
+      'code' => FormatingSeries::generate(PurchaseRequest::class, $purchaseRequest),
+    ]);
     $purchaseRequest->checkApproval();
 
     return $purchaseRequest;

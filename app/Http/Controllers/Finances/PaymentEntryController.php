@@ -9,7 +9,6 @@ use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Sales\SalesOrder;
-use App\Models\Core\FormatingSeries;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -93,8 +92,6 @@ class PaymentEntryController extends Controller {
   public function store(PaymentEntryRequest $request) {
     $data              = $request->validated();
     $data['branch_id'] = $request->session()->get('currentBranch');
-    $code              = FormatingSeries::generate(PaymentEntry::class, $data, true);
-    $data['code']      = $code;
     $paymentEntry      = $this->service->create($data);
     return redirect()->route('paymentEntries.show', $paymentEntry);
   }
@@ -129,54 +126,8 @@ class PaymentEntryController extends Controller {
 
   // Opsional: log internal order submit
   public function submit(PaymentEntry $paymentEntry) {
-    DB::beginTransaction();
-
-    try {
-      $paymentEntry->load('paymentable');
-
-      if ($paymentEntry->status === FormStatus::SUBMITTED) {
-        return back()->with('error', 'Payment Entry sudah disubmit sebelumnya.');
-      }
-
-      $paymentEntry->update([
-        'code'   => FormatingSeries::generate(PaymentEntry::class, $paymentEntry->toArray()),
-        'status' => FormStatus::SUBMITTED,
-      ]);
-
-      // Kalau payment_entry ini terhubung ke PaymentSchedule
-      if ($paymentEntry->paymentable_type === PaymentSchedule::class) {
-        /** @var PaymentSchedule $paymentSchedule */
-        $paymentSchedule = $paymentEntry->paymentable;
-
-        // Validasi overpayment
-        $totalPaid = $paymentSchedule->paid_amount + $paymentEntry->paid_amount;
-        if ($totalPaid > $paymentSchedule->payment_amount) {
-          DB::rollBack();
-          return back()->with('error', 'Jumlah pembayaran melebihi total yang harus dibayar.');
-        }
-
-        // Update jumlah paid & tanggal pembayaran
-        $paymentSchedule->update([
-          'paid_amount'      => $totalPaid,
-          'base_paid_amount' => $paymentSchedule->base_paid_amount + $paymentEntry->based_paid_amount,
-          'payment_date'     => now(),
-          'submitted_at'     => now(),
-        ]);
-      }
-
-      // Log aktivitas
-      $paymentEntry->logForSubmitted();
-
-      DB::commit();
-
-      return redirect()
-        ->route('paymentEntries.show', $paymentEntry)
-        ->with('success', 'Payment Entry berhasil disubmit.');
-    } catch (\Throwable $th) {
-      DB::rollBack();
-      report($th);
-      return back()->with('error', 'Terjadi kesalahan saat submit Payment Entry.');
-    }
+    $paymentEntry = $this->service->submit($paymentEntry);
+    return $paymentEntry;
   }
 
   /**

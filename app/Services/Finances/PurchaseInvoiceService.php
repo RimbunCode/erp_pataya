@@ -3,6 +3,7 @@
 namespace App\Services\Finances;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\Account;
@@ -25,7 +26,7 @@ class PurchaseInvoiceService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
@@ -58,6 +59,7 @@ class PurchaseInvoiceService {
   }
 
   public function create(array $data) {
+    $data['code']    = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
     $purchaseInvoice = PurchaseInvoice::create($this->fillRelations($data));
 
     foreach ($data['items'] as $item) {
@@ -109,6 +111,9 @@ class PurchaseInvoiceService {
   }
 
   public function submit(PurchaseInvoice $purchaseInvoice) {
+    $purchaseInvoice->update([
+      'code' => FormatingSeries::generate(PurchaseInvoice::class, $purchaseInvoice),
+    ]);
     $purchaseInvoice->checkApproval();
     return $purchaseInvoice;
 

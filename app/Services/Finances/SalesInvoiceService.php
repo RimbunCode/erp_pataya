@@ -3,6 +3,7 @@
 namespace App\Services\Finances;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
@@ -29,7 +30,7 @@ class SalesInvoiceService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     $data['return_against_id'] = $data['return_against']['id'] ?? null;
@@ -66,6 +67,7 @@ class SalesInvoiceService {
   }
 
   public function create(array $data) {
+    $data['code'] = FormatingSeries::generate(SalesInvoice::class, $data, true);
     $salesInvoice = SalesInvoice::create($this->fillRelations($data));
     $basicAmount  = 0;
     $taxAmount    = 0;
@@ -142,6 +144,10 @@ class SalesInvoiceService {
 
   public function submit(SalesInvoice $salesInvoice) {
     DB::beginTransaction();
+
+    $salesInvoice->update([
+      'code' => FormatingSeries::generate(SalesInvoice::class, $salesInvoice),
+    ]);
 
     if ($salesInvoice->paymentSchedules()->count() === 0) {
       $salesInvoice->paymentSchedules()->create([
