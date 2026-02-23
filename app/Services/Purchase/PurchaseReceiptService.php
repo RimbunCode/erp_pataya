@@ -131,18 +131,18 @@ class PurchaseReceiptService {
         $item->purchaseOrderItem->decrement('received_quantity', $quantity);
 
         StockLedgerEntry::create([
-          'item_id'               => $item->item_id,
-          'warehouse_id'          => $item->target_warehouse_id,
-          'unit_id'               => $defaultUnit->id,
-          'conversion_factor'     => $defaultConvertionFactor,
-          'quantity_change'       => -$quantity,
-          'quantity_after_change' => $stock->actual_quantity,
-          'valuation_rate'        => $stock->valuation_rate,
-          'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
-          'change_in_stock_value' => -$totalRate,
-          'stock_queue'           => $stock->stock_queue,
-          'referenceable_type'    => PurchaseReceipt::class,
-          'referenceable_id'      => $purchaseReceipt->id,
+          'item_id'                    => $item->item_id,
+          'warehouse_id'               => $item->target_warehouse_id,
+          'unit_id'                    => $defaultUnit->id,
+          'conversion_factor'          => $defaultConvertionFactor,
+          'quantity_change'            => -$quantity,
+          'quantity_after_transaction' => $stock->actual_quantity,
+          'valuation_rate'             => $stock->valuation_rate,
+          'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'change_in_stock_value'      => -$totalRate,
+          'stock_queue'                => $stock->stock_queue,
+          'referenceable_type'         => PurchaseReceipt::class,
+          'referenceable_id'           => $purchaseReceipt->id,
         ]);
         continue;
       }
@@ -160,18 +160,18 @@ class PurchaseReceiptService {
 
       $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
       StockLedgerEntry::create([
-        'item_id'               => $item->item_id,
-        'warehouse_id'          => $item->target_warehouse_id,
-        'unit_id'               => $defaultUnit->id,
-        'conversion_factor'     => $defaultConvertionFactor,
-        'quantity_change'       => $quantity,
-        'quantity_after_change' => $stock->actual_quantity,
-        'valuation_rate'        => $stock->valuation_rate,
-        'balance_stock_value'   => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
-        'change_in_stock_value' => $totalRate,
-        'stock_queue'           => $stock->stock_queue,
-        'referenceable_type'    => PurchaseReceipt::class,
-        'referenceable_id'      => $purchaseReceipt->id,
+        'item_id'                    => $item->item_id,
+        'warehouse_id'               => $item->target_warehouse_id,
+        'unit_id'                    => $defaultUnit->id,
+        'conversion_factor'          => $defaultConvertionFactor,
+        'quantity_change'            => $quantity,
+        'quantity_after_transaction' => $stock->actual_quantity,
+        'valuation_rate'             => $stock->valuation_rate,
+        'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+        'change_in_stock_value'      => $totalRate,
+        'stock_queue'                => $stock->stock_queue,
+        'referenceable_type'         => PurchaseReceipt::class,
+        'referenceable_id'           => $purchaseReceipt->id,
       ]);
 
     }

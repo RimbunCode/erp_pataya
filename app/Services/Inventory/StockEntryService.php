@@ -5,14 +5,13 @@ namespace App\Services\Inventory;
 use App\FormStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Stock;
+use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\StockLedgerEntry;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Symfony\Component\Uid\Ulid;
-use App\Models\Inventory\ItemUnit;
-use App\Models\Inventory\StockEntry;
 
 class StockEntryService {
   private function fillRelations(array $data) {
@@ -206,10 +205,9 @@ class StockEntryService {
       }
       if (\count($errorItems) > 0) {
         DB::rollBack();
-        \Illuminate\Validation\ValidationException::withMessages([
+        throw \Illuminate\Validation\ValidationException::withMessages([
           'items' => $errorItems,
         ]);
-        return $stockEntry;
       }
       DB::commit();
     }
@@ -312,18 +310,18 @@ class StockEntryService {
         ]);
 
         StockLedgerEntry::create([
-          'item_id'               => $item->item_id,
-          'warehouse_id'          => $item->source_warehouse_id,
-          'unit_id'               => $defaultUnit->id,
-          'conversion_factor'     => $defaultConvertionFactor,
-          'quantity_change'       => -$qtyNeeded,
-          'quantity_after_change' => $stockSource->actual_quantity,
-          'valuation_rate'        => $stockSource->valuation_rate,
-          'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stockSource->stock_queue)),
-          'change_in_stock_value' => -\array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked)),
-          'stock_queue'           => $stockSource->stock_queue,
-          'referenceable_type'    => StockEntry::class,
-          'referenceable_id'      => $stockEntry->id,
+          'item_id'                    => $item->item_id,
+          'warehouse_id'               => $item->source_warehouse_id,
+          'unit_id'                    => $defaultUnit->id,
+          'conversion_factor'          => $defaultConvertionFactor,
+          'quantity_change'            => -$qtyNeeded,
+          'quantity_after_transaction' => $stockSource->actual_quantity,
+          'valuation_rate'             => $stockSource->valuation_rate,
+          'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stockSource->stock_queue)),
+          'change_in_stock_value'      => -\array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked)),
+          'stock_queue'                => $stockSource->stock_queue,
+          'referenceable_type'         => StockEntry::class,
+          'referenceable_id'           => $stockEntry->id,
         ]);
       }
 
@@ -372,18 +370,18 @@ class StockEntryService {
           'stock_queue' => $queue,
         ]);
         StockLedgerEntry::create([
-          'item_id'               => $item->item_id,
-          'warehouse_id'          => $item->target_warehouse_id,
-          'unit_id'               => $defaultUnit->id,
-          'conversion_factor'     => $defaultConvertionFactor,
-          'quantity_change'       => $qtyNeeded,
-          'quantity_after_change' => $stockTarget->actual_quantity,
-          'valuation_rate'        => $stockTarget->valuation_rate,
-          'balance_stock_value'   => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stockTarget->stock_queue)),
-          'change_in_stock_value' => $basicAmount + $additionalCost,
-          'stock_queue'           => $stockTarget->stock_queue,
-          'referenceable_type'    => StockEntry::class,
-          'referenceable_id'      => $stockEntry->id,
+          'item_id'                    => $item->item_id,
+          'warehouse_id'               => $item->target_warehouse_id,
+          'unit_id'                    => $defaultUnit->id,
+          'conversion_factor'          => $defaultConvertionFactor,
+          'quantity_change'            => $qtyNeeded,
+          'quantity_after_transaction' => $stockTarget->actual_quantity,
+          'valuation_rate'             => $stockTarget->valuation_rate,
+          'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stockTarget->stock_queue)),
+          'change_in_stock_value'      => $basicAmount + $additionalCost,
+          'stock_queue'                => $stockTarget->stock_queue,
+          'referenceable_type'         => StockEntry::class,
+          'referenceable_id'           => $stockEntry->id,
         ]);
       }
     }

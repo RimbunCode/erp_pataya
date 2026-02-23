@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Finances;
 use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PaymentEntryRequest;
-use App\Models\Core\Preference;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Purchase\PurchaseOrder;
@@ -94,7 +93,7 @@ class PaymentEntryController extends Controller {
   public function store(PaymentEntryRequest $request) {
     $data              = $request->validated();
     $data['branch_id'] = $request->session()->get('currentBranch');
-    $code              = FormatingSeries::generate(PaymentEntry::class, $data);
+    $code              = FormatingSeries::generate(PaymentEntry::class, $data, true);
     $data['code']      = $code;
     $paymentEntry      = $this->service->create($data);
     return redirect()->route('paymentEntries.show', $paymentEntry);
@@ -140,6 +139,7 @@ class PaymentEntryController extends Controller {
       }
 
       $paymentEntry->update([
+        'code'   => FormatingSeries::generate(PaymentEntry::class, $paymentEntry->toArray()),
         'status' => FormStatus::SUBMITTED,
       ]);
 

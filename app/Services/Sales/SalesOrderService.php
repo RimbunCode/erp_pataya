@@ -7,13 +7,10 @@ use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
-use App\Models\ItemReserved;
 use App\Models\Sales\SalesOrder;
 use App\Utils;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
-use Inertia\Inertia;
 use Symfony\Component\Uid\Ulid;
 
 class SalesOrderService {
@@ -203,10 +200,9 @@ class SalesOrderService {
     }
     if (\count($errorItems) > 0) {
       DB::rollBack();
-      \Illuminate\Validation\ValidationException::withMessages([
+      throw \Illuminate\Validation\ValidationException::withMessages([
         'items' => $errorItems,
       ]);
-      return $salesOrder;
     }
 
     DB::commit();

@@ -5,14 +5,11 @@ namespace App\Services\Finances;
 use App\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
-use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Inventory\ItemUnit;
-use App\Models\Inventory\Stock;
 use App\Models\Sales\SalesOrder;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Symfony\Component\Uid\Ulid;
 
 class SalesInvoiceService {

@@ -10,7 +10,6 @@ import {
   BlocksProvider,
   LayersProvider,
   StylesProvider,
-  TraitsProvider,
   useEditor,
 } from "@grapesjs/react";
 import {
@@ -25,7 +24,6 @@ import CustomLayerManager from "./CustomLayerManager";
 import CustomStyleManager from "./CustomStyleManager";
 import React from "react";
 import RelationsInspector from "./Inspector/RelationsInspector";
-import TraitPropertyField from "./TraitPropertyField";
 import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";

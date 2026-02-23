@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\AccountRequest;
 use App\Models\Core\Currency;
 use App\Models\Finances\Account;
-use App\Services\Core\FormatingSeriesService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -45,7 +44,7 @@ class AccountController extends Controller {
 
     $currencies = Currency::select('code', 'name')->get();
 
-    return Inertia::render('Finances/Accounts/Create', [
+    return Inertia::render('Finances/Accounts/Show', [
       'parentAccounts' => $parentAccounts,
       'currencies'     => $currencies,
     ]);
