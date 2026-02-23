@@ -5,20 +5,17 @@ import {
   ChevronUpCircleIcon,
   PlusIcon,
   Trash2Icon,
-  XIcon,
 } from "lucide-react";
 import { Input, InputWrapper } from "@/Components/ui/input";
-import { RadioGroup, RadioGroupItem } from "@/Components/ui/radio-group";
 import { Slider, SliderThumb } from "@/Components/ui/slider";
 
 import { Button } from "@/Components/ui/button";
 import FormInput from "@/Components/FormInput";
-import { Label } from "@/Components/ui/label";
 import Select from "@/Components/Select";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@grapesjs/react";
 
-export default function StylePropertyField({ prop, ...rest }) {
+export default function StylePropertyField({ prop }) {
   const editor = useEditor();
   const handleChange = (value) => {
     prop.upValue(value);
@@ -43,7 +40,7 @@ export default function StylePropertyField({ prop, ...rest }) {
 
   const type = prop.getType();
   const defValue = prop.getDefaultValue();
-  const canClear = prop.canClear();
+  // const canClear = prop.canClear();
   const hasValue = prop.hasValue();
   const value = prop.getValue();
   const valueString = hasValue ? value : "";

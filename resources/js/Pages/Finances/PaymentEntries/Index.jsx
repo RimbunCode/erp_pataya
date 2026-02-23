@@ -1,7 +1,4 @@
-import { Button } from "@/Components/ui/button";
-import { Trash2Icon } from "lucide-react";
 import DataTable2 from "@/Pages/Core/DataTable2";
-import useDeleteModal from "@/Hooks/useDeleteModal";
 import Form from "./Form";
 
 export default function Index() {

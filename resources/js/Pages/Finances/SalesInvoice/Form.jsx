@@ -16,6 +16,7 @@ import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import PaymentSchedule from "../Components/PaymentSchedule";
 import SalesInvoiceLinkModel from "./SalesInvoiceLinkModel";
@@ -25,7 +26,6 @@ import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import ItemForm from "./ItemForm";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();

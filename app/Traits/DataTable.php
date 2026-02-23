@@ -388,11 +388,11 @@ trait DataTable {
         });
       }
     } else {
-      if (Schema::hasColumn($tableName, 'created_by')) {
-        Schema::table($tableName, function (Blueprint $table) {
-          $table->dropColumn('created_by');
-        });
-      }
+      // if (Schema::hasColumn($tableName, 'created_by')) {
+      //   Schema::table($tableName, function (Blueprint $table) {
+      //     $table->dropColumn('created_by');
+      //   });
+      // }
       if (Schema::hasColumn($tableName, 'submitted_at')) {
         Schema::table($tableName, function (Blueprint $table) {
           $table->dropColumn('submitted_at');

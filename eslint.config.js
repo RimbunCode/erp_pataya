@@ -18,6 +18,14 @@ const compat = new FlatCompat({
 
 export default [
   {
+    ignores: [
+      "**/*.d.ts",
+      "resources/js/Components/CurrencyInput/**",
+      "resources/js/schema.ts",
+      "resources/js/lib/google-diff.js",
+    ],
+  },
+  {
     files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2024,
@@ -25,6 +33,7 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.node,
+        route: "readonly",
       },
     },
   },
