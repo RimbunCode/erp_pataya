@@ -3,10 +3,12 @@
 namespace App\Services\Purchase;
 
 use App\FormStatus;
+use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -71,6 +73,14 @@ class PurchaseReceiptService {
   }
 
   public function submit(PurchaseReceipt $purchaseReceipt) {
+    DB::beginTransaction();
+    ModelConnection::create([
+      'model_type'     => PurchaseOrder::class,
+      'model_id'       => $purchaseReceipt->purchase_order_id,
+      'reference_type' => PurchaseReceipt::class,
+      'reference_id'   => $purchaseReceipt->id,
+    ]);
+    DB::commit();
     $purchaseReceipt->checkApproval();
 
     return $purchaseReceipt;
@@ -129,7 +139,7 @@ class PurchaseReceiptService {
 
         $item->returnAgainstItem->increment('returned_quantity', $quantity);
         $item->purchaseOrderItem->decrement('received_quantity', $quantity);
-
+        $stock->refresh();
         StockLedgerEntry::create([
           'item_id'                    => $item->item_id,
           'warehouse_id'               => $item->target_warehouse_id,
@@ -157,8 +167,8 @@ class PurchaseReceiptService {
         'quantity'    => $stock->quantity + $quantity,
       ]);
       $item->purchaseOrderItem->increment('received_quantity', $quantity);
-
       $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
+      $stock->refresh();
       StockLedgerEntry::create([
         'item_id'                    => $item->item_id,
         'warehouse_id'               => $item->target_warehouse_id,
@@ -176,8 +186,8 @@ class PurchaseReceiptService {
 
     }
 
-    $unreceived_items     = $purchaseOrder->items()->select('remaining_quantity', 'quantity');
-    $countUnreceivedItems = $unreceived_items->sum('remaining_quantity');
+    $unreceived_items     = $purchaseOrder->items()->select('unreceived_quantity', 'quantity');
+    $countUnreceivedItems = $unreceived_items->sum('unreceived_quantity');
     $sumQuantity          = $unreceived_items->sum('quantity');
     if ($countUnreceivedItems == $sumQuantity) {
       $status = Utils::replaceStatus(

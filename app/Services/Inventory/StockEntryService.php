@@ -309,6 +309,7 @@ class StockEntryService {
           'stock_queue' => $remainingQueue,
         ]);
 
+        $stockSource->refresh();
         StockLedgerEntry::create([
           'item_id'                    => $item->item_id,
           'warehouse_id'               => $item->source_warehouse_id,
@@ -369,6 +370,7 @@ class StockEntryService {
           'quantity'    => $stockTarget->quantity + $qtyNeeded,
           'stock_queue' => $queue,
         ]);
+        $stockTarget->refresh();
         StockLedgerEntry::create([
           'item_id'                    => $item->item_id,
           'warehouse_id'               => $item->target_warehouse_id,
