@@ -111,7 +111,7 @@ class PurchaseOrderService {
     DB::beginTransaction();
 
     $purchaseOrder->update([
-      'code' => FormatingSeries::generate(PurchaseOrder::class, $purchaseOrder->toArray()),
+      'code' => FormatingSeries::generate(PurchaseOrder::class, $purchaseOrder),
     ]);
 
     $items = $purchaseOrder->items()

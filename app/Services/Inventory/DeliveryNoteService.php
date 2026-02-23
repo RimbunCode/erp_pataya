@@ -191,6 +191,7 @@ class DeliveryNoteService {
             ]),
           ],
         );
+        $stock->refresh();
         StockLedgerEntry::create([
           'item_id'                    => $item->item_id,
           'warehouse_id'               => $item->source_warehouse_id,
@@ -234,6 +235,7 @@ class DeliveryNoteService {
           'stock_queue' => $remainingQueue,
         ]);
         $stock->updateDetails('increment', 'reservations', $toReference->code, $quantity);
+        $stock->refresh();
         StockLedgerEntry::create([
           'item_id'                    => $item->item_id,
           'warehouse_id'               => $item->source_warehouse_id,
@@ -298,6 +300,7 @@ class DeliveryNoteService {
           'stock_queue' => $remainingQueue,
         ]);
         $stock->updateDetails('decrement', 'reservations', $toReference->code, $quantity);
+        $stock->refresh();
         StockLedgerEntry::create([
           'item_id'                    => $item->item_id,
           'warehouse_id'               => $item->source_warehouse_id,
