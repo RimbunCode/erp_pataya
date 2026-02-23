@@ -3,12 +3,9 @@
 namespace App\Services\Sales;
 
 use App\FormStatus;
-use App\Models\Core\Preference;
 use App\Models\Inventory\Stock;
 use App\Models\Sales\InternalOrder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
-use League\Config\Exception\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
 class InternalOrderService {
@@ -90,10 +87,9 @@ class InternalOrderService {
 
     if (count($errorItems) > 0) {
       DB::rollBack();
-      \Illuminate\Validation\ValidationException::withMessages([
+      throw \Illuminate\Validation\ValidationException::withMessages([
         'items' => $errorItems,
       ]);
-      return $internalOrder;
     }
 
     DB::commit();

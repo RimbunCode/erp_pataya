@@ -5,14 +5,13 @@ namespace App\Services\Inventory;
 use App\FormStatus;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Stock;
+use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\StockLedgerEntry;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Symfony\Component\Uid\Ulid;
-use App\Models\Inventory\ItemUnit;
-use App\Models\Inventory\StockEntry;
 
 class StockEntryService {
   private function fillRelations(array $data) {
@@ -206,10 +205,9 @@ class StockEntryService {
       }
       if (\count($errorItems) > 0) {
         DB::rollBack();
-        \Illuminate\Validation\ValidationException::withMessages([
+        throw \Illuminate\Validation\ValidationException::withMessages([
           'items' => $errorItems,
         ]);
-        return $stockEntry;
       }
       DB::commit();
     }

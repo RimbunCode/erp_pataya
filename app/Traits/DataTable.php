@@ -312,20 +312,14 @@ trait DataTable {
           'name'   => Str::singular($alias),
           'format' => static::$defaultFormatCode ?? '@[iiii]',
           'logs'   => [
-            FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [
-              'current'    => 0,
-              'updated_at' => now(),
-            ],
+            FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [],
           ],
         ]);
       } else {
         $logs = (array) $formatingSeries->logs;
         $key  = FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
         if (! \array_key_exists($key, $logs)) {
-          $logs[$key] = [
-            'current'    => 0,
-            'updated_at' => now(),
-          ];
+          $logs[$key] = [];
         }
         $formatingSeries->update([
           'name'   => Str::singular($alias),
