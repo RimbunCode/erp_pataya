@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StockEntryRequest;
-use App\Models\Core\Branch;
 use App\Models\Inventory\StockEntry;
 use App\Models\Service\WorkOrder;
 use App\Models\Core\FormatingSeries;

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Sales;
 
-use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\SalesOrderRequest;
 use App\Models\Core\Branch;
@@ -92,7 +91,7 @@ class SalesOrderController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = FormatingSeries::generate(SalesOrder::class, $data);
+    $code               = FormatingSeries::generate(SalesOrder::class, $data, true);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 

@@ -178,7 +178,7 @@ class PurchaseInvoiceController extends Controller {
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
     // generate code
-    $code               = FormatingSeries::generate(PurchaseInvoice::class, $data);
+    $code               = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
     $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 

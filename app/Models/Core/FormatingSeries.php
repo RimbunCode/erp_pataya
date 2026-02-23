@@ -129,20 +129,39 @@ class FormatingSeries extends Model {
     return implode($key);
   }
 
-  public static function generate(string $model, array $data): string {
+  /**
+   * Summary of generate
+   * @param string $model
+   * @param Model|array $data
+   * @param bool $isDraft
+   * @return string|null
+   */
+  public static function generate(string $model, mixed $data, bool $isDraft = false): string {
     $ref           = FormatingSeries::where('model', $model)->first();
     $codeRelations = [];
     $keyFormat     = $ref->getKeyLogs($codeRelations);
 
-    $refLatest = (array) ((array) $ref->logs)[$keyFormat];
+    $refKey = (array) ((array) $ref->logs)[$keyFormat];
 
     $timezone = (string) Preference::where('key', 'timezone')->first()?->value ?? "UTC";
 
-    $now         = Carbon::now()->timezone($timezone);
-    $lastUpdated = Carbon::parse($refLatest['updated_at']);
-
     preg_match('/^(?=.*@\[(mm|mmm|mmmm)\])(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $monthYear);
     preg_match('/^(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $year);
+    $now = Carbon::now()->timezone($timezone);
+
+    $selectTime = \count($monthYear) > 0 ? "{$now->month}/{$now->year}" : (\count($year) > 0 ? (string) $now->year : null);
+    $selectKey  = $isDraft ? 'draft' : $selectTime ?? 0;
+
+    if (! isset($refKey[$selectKey])) {
+      $refKey[$selectKey] = [
+        'current'    => 0,
+        'updated_at' => now()->addDays(-1),
+      ];
+    }
+
+    $refLatest   = $selectTime ? $refKey[$selectKey] : $refKey;
+    $lastUpdated = Carbon::parse($refLatest['updated_at']);
+
     if (\count($monthYear) > 0) {
       if ($now->year > $lastUpdated->year || $now->year >= $lastUpdated->year && $now->month > $lastUpdated->month) {
         $refLatest['current'] = 1;
@@ -159,11 +178,17 @@ class FormatingSeries extends Model {
       $refLatest['current'] += 1;
     }
 
+    if (! \is_array($data)) {
+      $relations = \array_unique(\array_values(\array_map(fn ($item) => $item['relation'], $codeRelations)));
+      $data->load($relations);
+      $data = $data->toArray();
+    }
     $pattern = '/@\[(.*?)\]/';
-    $result  = preg_replace_callback($pattern, function ($matches) use ($codeRelations, $data, $now, $refLatest) {
+    $result  = preg_replace_callback($pattern, function ($matches) use ($isDraft, $codeRelations, $data, $now, $refLatest) {
       $format = $matches[1];
       if ($format[0] == "i") {
-        return str_pad($refLatest['current'], strlen($format), '0', STR_PAD_LEFT);
+        $rslt = str_pad($refLatest['current'], \strlen($format), '0', STR_PAD_LEFT);
+        return $isDraft ? "(DRAFT/$rslt)" : $rslt;
       }
 
       return match ($format) {
@@ -176,14 +201,17 @@ class FormatingSeries extends Model {
       };
     }, $ref->format);
 
+    $refKey[$selectKey] = [
+      'current'    => $refLatest['current'],
+      'updated_at' => now(),
+    ];
+    $logs               = [
+      ...(array) $ref->logs,
+      $keyFormat => $refKey,
+    ];
+
     $ref->fill([
-      'logs' => [
-        ...(array) $ref->logs,
-        $keyFormat => [
-          'current'    => $refLatest['current'],
-          'updated_at' => now(),
-        ],
-      ],
+      'logs' => $logs,
     ]);
     $ref->save();
 

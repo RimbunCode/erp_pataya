@@ -111,13 +111,18 @@ trait LinkModel {
       ...static::loadRelationsOnShow() ?? [],
       ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
     ];
-    $relations        = array_unique(array_merge($defaultRelations, \is_string($relations) ? [$relations] : ($relations ?? [])));
+    $relations        = (\is_string($relations) ? [$relations] : ($relations ?? []));
+    $relations        = [...$defaultRelations, ...$relations];
 
     $instance = new static();
     $toLoad   = [];
 
+    $alreadyLoaded = [];
+
     foreach ($relations as $key => $relation) {
-      $relationName = is_int($key) ? $relation : $key;
+      $relationName = \is_int($key) ? $relation : $key;
+      if (isset($alreadyLoaded[$relationName])) continue;
+      $alreadyLoaded[$relationName] = true;
 
       if (! method_exists($instance, $relationName)) {
         $toLoad[$key] = $relation;

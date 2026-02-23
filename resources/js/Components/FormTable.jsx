@@ -508,7 +508,9 @@ export default memo(
             idChanges.current?.delete(id);
           }
           setAdditionalData((prev) => ({ ...prev, ...data }));
-        } catch {}
+        } catch {
+          // catch error
+        }
       }, 200);
 
       return () => clearTimeout(debounce);
