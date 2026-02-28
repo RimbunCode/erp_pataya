@@ -1,0 +1,12 @@
+[mcp_servers.laravel-boost]
+command = "php"
+args = ["artisan", "boost:mcp"]
+cwd = "G:\\Project App\\erp"
+
+[mcp_servers.herd]
+command = "php"
+args = ["C:/Users/RHD/.config/herd/bin/herd-mcp.phar"]
+cwd = "G:\\Project App\\erp"
+
+[mcp_servers.herd.env]
+SITE_PATH = "G:\\Project App\\erp"
