@@ -182,7 +182,11 @@ class PaymentEntryController extends Controller {
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(string $id) {
-    //
+  public function destroy(PaymentEntry $paymentEntry) {
+    DB::beginTransaction();
+    $paymentEntry->delete();
+    $paymentEntry->logForDeleted();
+    DB::commit();
+    return redirect()->route('paymentEntrys.index');
   }
 }

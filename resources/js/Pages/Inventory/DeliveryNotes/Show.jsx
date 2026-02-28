@@ -40,7 +40,7 @@ export default function Show({ deliveryNote, defaultData, flash }) {
           deliveryNote?.submitted_at &&
           isValidStatus(deliveryNote?.status) &&
           inArray(deliveryNote?.status, "delivered") &&
-          calculateArray(deliveryNote?.items, "remaining_quantity", "+") > 0
+          calculateArray(deliveryNote?.items, "unreturned_quantity", "+") > 0
         ) {
           return (
             <Button

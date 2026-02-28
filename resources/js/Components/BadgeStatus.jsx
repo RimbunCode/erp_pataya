@@ -45,6 +45,7 @@ export default function BadgeStatus({ status, className, ...props }) {
         "text-center badge w-fit",
         theme[status] ?? "secondary",
         className,
+        status == "in_progress" && "[&>svg]:size-8 [&>svg]:-my-4",
       )}
       {...props}
     >

@@ -138,7 +138,6 @@ export default function Form() {
       },
     ];
   }, [data]);
-  console.log(data);
   return (
     <>
       <FormPageContent
@@ -311,8 +310,8 @@ export default function Form() {
                         ...item,
                         id: generateRandom(8),
                         return_against_item_id: item.id,
-                        quantity: item.remaining_quantity,
-                        required_quantity: item.remaining_quantity,
+                        quantity: item.unreturned_quantity,
+                        required_quantity: item.unreturned_quantity,
                       })),
                     }));
                   }}
@@ -428,15 +427,6 @@ export default function Form() {
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}
-            mapItem={({ item }) => {
-              const amount = item.quantity * item.price;
-              const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
-              return {
-                ...item,
-                tax_amount: rateAmount,
-                basic_amount: amount,
-              };
-            }}
           />
         </div>
       </FormPageContent>

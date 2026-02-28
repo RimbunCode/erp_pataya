@@ -53,6 +53,7 @@ class SalesOrderService {
     $data['currency_code']      = $salesOrder->currency_code;
     $data['base_currency_code'] = $salesOrder->base_currency_code;
     $data['exchange_rate']      = $salesOrder->exchange_rate;
+    $data['for_internal']       = false;
 
     if (isset($data['payment_term'])) {
       $data['payment_term_id'] = $data['payment_term']['id'];
@@ -83,7 +84,6 @@ class SalesOrderService {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesOrder);
       $salesOrder->paymentSchedules()->create(attributes: [
         ...$payment_schedule,
-        'for_internal' => false,
       ]);
     }
     $salesOrder->logForCreated();
@@ -130,7 +130,6 @@ class SalesOrderService {
       }
       $salesOrder->paymentSchedules()->create(attributes: [
         ...$payment_schedule,
-        'for_internal' => false,
       ]);
     }
 

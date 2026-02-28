@@ -2,7 +2,6 @@
 
 namespace App\Models\Purchase;
 
-use App\Models\Core\Currency;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Model;
 use App\Traits\DataTable;
@@ -16,7 +15,7 @@ class PurchaseReceipt extends Model {
   protected               $casts             = [
     "received_date" => "datetime",
   ];
-  protected static string $defaultFormatCode = '@[branch_code]/PurchaseReceipt-@[iiii]/@[yy]';
+  protected static string $defaultFormatCode = '@[branch_code]/Receipt-@[iiii]/@[yy]';
 
   public function codeRelations() {
     return [

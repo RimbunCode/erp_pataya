@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\WarehouseRequest;
 use App\Models\Core\Branch;
 use App\Models\Inventory\Warehouse;
-use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
@@ -16,6 +15,7 @@ class WarehouseController extends Controller {
   public function __construct(Request $request) {
     parent::__construct($request, Warehouse::class);
   }
+
   /**
    * Display a listing of the resource.
    */
@@ -34,11 +34,12 @@ class WarehouseController extends Controller {
 
     if (Session::has('currentBranch')) {
       $branch = Branch::find(Session::get('currentBranch'));
-      if (!$branch->is_main_branch) {
+      if (! $branch->is_main_branch) {
         $warehouse->where('warehouses.branch_id', $branch->id);
       }
     }
     $warehouse->dataTable($request);
+
     return Inertia::render('Inventory/Warehouses/Index');
   }
 
@@ -107,6 +108,6 @@ class WarehouseController extends Controller {
     $warehouse->delete();
     $warehouse->logForDeleted();
     DB::commit();
-    return back();
+    return redirect()->route('warehouses.index');
   }
 }

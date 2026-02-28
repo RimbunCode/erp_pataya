@@ -136,6 +136,6 @@ class StockEntryController extends Controller {
     $stockEntry->delete();
     $stockEntry->logForDeleted();
     DB::commit();
-    return back();
+    return redirect()->route('stockEntries.index');
   }
 }

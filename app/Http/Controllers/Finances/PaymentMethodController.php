@@ -84,6 +84,6 @@ class PaymentMethodController extends Controller {
     $paymentMethod->delete();
     $paymentMethod->logForDeleted();
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('paymentMethods.index');
   }
 }

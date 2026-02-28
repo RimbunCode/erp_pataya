@@ -55,6 +55,7 @@ class SalesInvoiceService {
     $data['currency_code']      = $salesInvoice->currency_code;
     $data['base_currency_code'] = $salesInvoice->base_currency_code;
     $data['exchange_rate']      = $salesInvoice->exchange_rate;
+    $data['for_internal']       = false;
 
     if (isset($data['payment_term'])) {
       $data['payment_term_id'] = $data['payment_term']['id'];
@@ -86,7 +87,6 @@ class SalesInvoiceService {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesInvoice);
       $salesInvoice->paymentSchedules()->create(attributes: [
         ...$payment_schedule,
-        'for_internal' => false,
       ]);
     }
     $salesInvoice->logForCreated();
@@ -133,7 +133,6 @@ class SalesInvoiceService {
       }
       $salesInvoice->paymentSchedules()->create(attributes: [
         ...$payment_schedule,
-        'for_internal' => false,
       ]);
     }
     $salesInvoice->logForUpdated();
@@ -260,8 +259,10 @@ class SalesInvoiceService {
       ]);
 
       $salesInvoice->update([
+        'amount' => $totalAmount,
         'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::UNPAID,
       ]);
+
       if ($returnAgainst) {
         $returnedItems      = $returnAgainst->items()->select(['returned_quantity', 'quantity'])->get();
         $countReturnedItems = $returnedItems->sum('returned_quantity');

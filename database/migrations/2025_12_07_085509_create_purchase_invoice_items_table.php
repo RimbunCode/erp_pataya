@@ -13,14 +13,14 @@ return new class extends Migration
     Schema::create('purchase_invoice_items', function (Blueprint $table) {
       $table->ulid("id")->primary();
       $table->foreignUlid('purchase_invoice_id')->references('id')->on('purchase_invoices')->cascadeOnDelete();
+      $table->foreignUlid('purchase_order_item_id')->nullable()->references('id')->on('purchase_order_items')->nullOnDelete();
+      $table->foreignUlid('return_against_item_id')->nullable()->references('id')->on('purchase_invoice_items')->nullOnDelete();
       $table->nullableUlidMorphs('referenceable');
       $table->foreignUlid('item_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->string('item_name')->nullable();
-      $table->timestamp('required_date')->nullable();
-      $table->foreignUlid('target_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
       $table->double('quantity')->default(1);
-      $table->double('received_quantity')->default(0);
-      $table->double('remaining_quantity')->storedAs('quantity - received_quantity');
+      $table->double('returned_quantity')->default(0);
+      $table->double('unreturned_quantity')->storedAs('quantity - returned_quantity');
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
       $table->string("unit_name")->nullable();
       $table->double('conversion_factor')->default(1);

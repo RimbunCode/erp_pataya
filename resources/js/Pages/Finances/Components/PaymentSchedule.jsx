@@ -21,55 +21,55 @@ function PaymentSchedule({
   const { t } = useLaravelReactI18n();
   const paymentScheduleColumns = useMemo(() => {
     return [
-      {
-        name: "payment_term",
-        titleTrans: "finances.paymentSchedule.columns.payment_term",
-        show: true,
-        cell({ data: paymentTerm, setData, attributes }) {
-          return (
-            <PaymentTermLinkModel
-              placeholder={t(
-                "finances.paymentSchedule.columns.payment_term.placeholder",
-              )}
-              value={paymentTerm}
-              onValueChange={(val) => {
-                const due_date = new Date(date);
-                switch (val?.due_date_based_on) {
-                  case "days_after_invoice_date": {
-                    due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                  case "weeks_after_invoice_week": {
-                    due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0) * 7,
-                    );
-                    break;
-                  }
-                  case "months_after_invoice_month": {
-                    due_date.setMonth(
-                      due_date.getMonth() + (val?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                }
-                setData({
-                  payment_term: val,
-                  due_date,
-                  description: val?.description,
-                  invoice_portion: val?.invoice_portion,
-                  discount_type: val?.discount_type,
-                  discount_date: val?.discount_type ? due_date : undefined,
-                  discount: val?.discount,
-                  payment_method: val?.payment_method,
-                });
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
+      // {
+      //   name: "payment_term",
+      //   titleTrans: "finances.paymentSchedule.columns.payment_term",
+      //   show: true,
+      //   cell({ data: paymentTerm, setData, attributes }) {
+      //     return (
+      //       <PaymentTermLinkModel
+      //         placeholder={t(
+      //           "finances.paymentSchedule.columns.payment_term.placeholder",
+      //         )}
+      //         value={paymentTerm}
+      //         onValueChange={(val) => {
+      //           const due_date = new Date(date);
+      //           switch (val?.due_date_based_on) {
+      //             case "days_after_invoice_date": {
+      //               due_date.setDate(
+      //                 due_date.getDate() + (val?.credit_period ?? 0),
+      //               );
+      //               break;
+      //             }
+      //             case "weeks_after_invoice_week": {
+      //               due_date.setDate(
+      //                 due_date.getDate() + (val?.credit_period ?? 0) * 7,
+      //               );
+      //               break;
+      //             }
+      //             case "months_after_invoice_month": {
+      //               due_date.setMonth(
+      //                 due_date.getMonth() + (val?.credit_period ?? 0),
+      //               );
+      //               break;
+      //             }
+      //           }
+      //           setData({
+      //             payment_term: val,
+      //             due_date,
+      //             description: val?.description,
+      //             invoice_portion: val?.invoice_portion,
+      //             discount_type: val?.discount_type,
+      //             discount_date: val?.discount_type ? due_date : undefined,
+      //             discount: val?.discount,
+      //             payment_method: val?.payment_method,
+      //           });
+      //         }}
+      //         {...attributes}
+      //       />
+      //     );
+      //   },
+      // },
       {
         name: "due_date",
         titleTrans: "finances.paymentSchedule.columns.due_date",

@@ -167,6 +167,6 @@ class PurchaseOrderController extends Controller {
     $purchaseOrder->delete();
     $purchaseOrder->logForDeleted();
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('purchaseOrders.index');
   }
 }

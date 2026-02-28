@@ -147,8 +147,8 @@ class DeliveryNoteController extends Controller {
                   'id'                  => Utils::generateRandom(5),
                   'item'                => $item->item,
                   'source_warehouse'    => $item->sourceWarehouse,
-                  'quantity'            => $item->remaining_quantity,
-                  'required_quantity'   => $item->remaining_quantity,
+                  'quantity'            => $item->unreturned_quantity,
+                  'required_quantity'   => $item->unreturned_quantity,
                   'unit'                => $item->unit,
                   'referenceable_type'  => $item->referenceable_type,
                   'referenceable_id'    => $item->referenceable_id,
@@ -241,7 +241,7 @@ class DeliveryNoteController extends Controller {
     $deliveryNote->logForDeleted();
 
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('deliveryNotes.index');
   }
 
   public function submit(DeliveryNote $deliveryNote) {
