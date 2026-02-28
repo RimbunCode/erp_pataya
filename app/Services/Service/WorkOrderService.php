@@ -39,7 +39,8 @@ class WorkOrderService {
   }
 
   public function create(array $data) {
-    $wo = WorkOrder::create($this->fillRelations($data));
+    $data['code'] = FormatingSeries::generate(WorkOrder::class, $data, true);
+    $wo           = WorkOrder::create($this->fillRelations($data));
 
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item);
@@ -75,6 +76,9 @@ class WorkOrderService {
   }
 
   public function submit(WorkOrder $workOrder) {
+    $workOrder->update([
+      'code' => FormatingSeries::generate(WorkOrder::class, $workOrder),
+    ]);
     $workOrder->checkApproval();
     return $workOrder;
   }

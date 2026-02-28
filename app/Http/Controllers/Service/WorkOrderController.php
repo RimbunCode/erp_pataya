@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Service;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Service\WorkOrderRequest;
 use App\Models\Core\Branch;
-use App\Models\Core\FormatingSeries;
 use App\Models\Service\WorkOrder;
 use App\Services\Service\WorkOrderService;
 use Illuminate\Http\Request;
@@ -44,10 +43,7 @@ class WorkOrderController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code           = FormatingSeries::generate(WorkOrder::class, $data);
-    $data['code']   = $code;
-
-    $wo = $this->service->create($data);
+    $wo             = $this->service->create($data);
     DB::commit();
     return redirect()->route('workOrders.show', $wo);
   }

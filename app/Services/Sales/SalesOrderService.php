@@ -3,6 +3,7 @@
 namespace App\Services\Sales;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Inventory\ItemUnit;
@@ -28,7 +29,7 @@ class SalesOrderService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
@@ -64,9 +65,10 @@ class SalesOrderService {
   }
 
   public function create(array $data) {
-    $salesOrder  = SalesOrder::create($this->fillRelations($data));
-    $basicAmount = 0;
-    $taxAmount   = 0;
+    $data['code'] = FormatingSeries::generate(SalesOrder::class, $data, true);
+    $salesOrder   = SalesOrder::create($this->fillRelations($data));
+    $basicAmount  = 0;
+    $taxAmount    = 0;
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item, $salesOrder);
       $item = $salesOrder->items()->create($item);
@@ -141,6 +143,10 @@ class SalesOrderService {
   public function submit(SalesOrder $salesOrder) {
     DB::beginTransaction();
 
+    $salesOrder->update([
+      'code' => FormatingSeries::generate(SalesOrder::class, $salesOrder),
+    ]);
+
     if ($salesOrder->referenceable_type && $salesOrder->referenceable_id) {
       ModelConnection::create([
         'model_type'     => $salesOrder->referenceable_type,
@@ -170,12 +176,12 @@ class SalesOrderService {
       ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
       ->lockForUpdate()
       ->get()
-      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+      ->keyBy(fn($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
-    $isValid    = ! $salesOrder->is_rent;
+    $isValid    = !$salesOrder->is_rent;
     $errorItems = [];
     foreach ($items as $item) {
-      if (! $item->item->is_stock_item) continue;
+      if (!$item->item->is_stock_item) continue;
       $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
       /** @var Stock $stock */
       $stock = $stocks->get($stockKey);
@@ -184,7 +190,7 @@ class SalesOrderService {
       if ($salesOrder->is_rent && $availableToRent) {
         $isValid = true;
       }
-      if (! $stock) {
+      if (!$stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
       }
@@ -195,7 +201,7 @@ class SalesOrderService {
       }
       $stock->updateDetails('increment', 'reservations', $salesOrder->code, $quantity);
     }
-    if (! $isValid) {
+    if (!$isValid) {
       $errorItems[] = "This order is not valid for renting";
     }
     if (\count($errorItems) > 0) {
