@@ -30,10 +30,11 @@ class PaymentTermTemplate extends Model {
   protected static function loadRelationsOnShow() {
     return [
       'items',
+      'items.paymentMethod',
     ];
   }
 
   public function items() {
-    return $this->hasMany(PaymentTermTemplateItem::class);
+    return $this->hasMany(PaymentTermTemplateItem::class, 'payment_term_template_id', 'id');
   }
 }

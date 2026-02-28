@@ -27,14 +27,12 @@ class PurchaseInvoiceService {
     $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
     $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
+    $data['branch_id'] = $data['branch']['id'];
 
-    $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
-    $data['base_currency_code'] = $defaultCurrency;
-    $data['exchange_rate']      = $data['exchange_rate'] ?? 1;
+    $defaultCurrency              = Preference::find('default_currency_id')->value;
+    $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
+    $data['base_currency_code']   = $defaultCurrency;
+    $data['exchange_rate']      ??= 1;
 
     return $data;
   }
@@ -54,13 +52,8 @@ class PurchaseInvoiceService {
     $data['base_currency_code'] = $purchaseInvoice->base_currency_code;
     $data['exchange_rate']      = $purchaseInvoice->exchange_rate;
     $data['for_internal']       = true;
-
-    if (isset($data['payment_term'])) {
-      $data['payment_term_id'] = $data['payment_term']['id'];
-    }
-    if (isset($data['payment_method'])) {
-      $data['payment_method_id'] = $data['payment_method']['id'];
-    }
+    $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
+    $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
     return $data;
   }
 

@@ -17,15 +17,12 @@ class PurchaseOrderService {
     $data['supplier_id']   = $data['supplier']['id'];
     $data['supplier_name'] = $data['supplier']['name'];
 
-    // optional branch
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
+    $data['branch_id'] = $data['branch']['id'];
 
-    $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
-    $data['base_currency_code'] = $defaultCurrency;
-    $data['exchange_rate']      = $data['exchange_rate'] ?? 1;
+    $defaultCurrency              = Preference::find('default_currency_id')->value;
+    $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
+    $data['base_currency_code']   = $defaultCurrency;
+    $data['exchange_rate']      ??= 1;
 
     return $data;
   }
@@ -47,13 +44,8 @@ class PurchaseOrderService {
     $data['base_currency_code'] = $purchaseOrder->base_currency_code;
     $data['exchange_rate']      = $purchaseOrder->exchange_rate;
     $data['for_internal']       = true;
-
-    if (isset($data['payment_term'])) {
-      $data['payment_term_id'] = $data['payment_term']['id'];
-    }
-    if (isset($data['payment_method'])) {
-      $data['payment_method_id'] = $data['payment_method']['id'];
-    }
+    $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
+    $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
     return $data;
   }
 
@@ -170,15 +162,15 @@ class PurchaseOrderService {
       ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
       ->lockForUpdate()
       ->get()
-      ->keyBy(fn($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
     foreach ($items as $item) {
-      if (!$item->item->is_stock_item) continue;
+      if (! $item->item->is_stock_item) continue;
 
       $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
       /** @var Stock|null $stock */
       $stock = $stocks->get($stockKey);
-      if (!$stock) continue;
+      if (! $stock) continue;
 
       $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
       $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);

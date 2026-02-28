@@ -265,6 +265,7 @@ export default memo(
     }, [as, model]);
 
     const route = window.route;
+    const isControlled = value !== undefined;
     const commandRef = useDetectClickOutside({
       onTriggered: () => {
         setOpen(false);
@@ -273,8 +274,8 @@ export default memo(
 
     const option = useMemo(() => {
       setLoading(false);
-      return _option;
-    }, [_option]);
+      return isControlled ? value : _option;
+    }, [isControlled, value, _option]);
 
     useDidMountEffect(() => {
       _setOption((prev) => {
@@ -292,6 +293,11 @@ export default memo(
           const isValid = validate(val, filters);
           if (!isValid) return;
         }
+        if (isControlled) {
+          if (isEqual(value, val)) return;
+          onValueChange?.(val);
+          return;
+        }
         _setOption((prev) => {
           // kalau sama, jangan trigger apa-apa
           if (isEqual(prev, val)) return prev;
@@ -299,13 +305,28 @@ export default memo(
           return val;
         });
       },
-      [onValueChange, _setOption, disabled, readOnly, filters],
+      [
+        onValueChange,
+        _setOption,
+        disabled,
+        readOnly,
+        filters,
+        isControlled,
+        value,
+      ],
     );
 
     useEffect(() => {
       if (open) return;
 
       setLoading(false);
+      if (isControlled && value === null) {
+        setAllowSearch(true);
+        if (search) {
+          setSearch("");
+        }
+        return;
+      }
       if (!option && search) {
         const findOption = options.find(
           (x) => convertTemplateLink(x).toLowerCase() == search.toLowerCase(),
@@ -318,7 +339,7 @@ export default memo(
         setAllowSearch(false);
         setSearch("");
       }
-    }, [open]);
+    }, [open, isControlled, value, search, option, options, setOption]);
 
     useEffect(() => {
       if (option) {

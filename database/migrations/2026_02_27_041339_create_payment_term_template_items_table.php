@@ -12,6 +12,7 @@ return new class extends Migration
   public function up(): void {
     Schema::create('payment_term_template_items', function (Blueprint $table) {
       $table->ulid('id')->primary();
+      $table->foreignUlid('payment_term_template_id')->references('id')->on('payment_term_templates')->cascadeOnDelete();
       $table->string('due_date_based_on');
       $table->unsignedTinyInteger('credit_period')->default(0);
       $table->double('invoice_portion');

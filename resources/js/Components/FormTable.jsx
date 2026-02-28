@@ -104,6 +104,7 @@ export const Cell = memo(
         defaultValueRow,
         isDialog,
         additionalData,
+        keyItem = "id",
         ...props
       },
       ref,
@@ -128,7 +129,7 @@ export const Cell = memo(
             dataRow: item,
             data: item[col.name],
             setData: (key, value) => updateData(index, key, value),
-            additionalData: additionalData?.[item.id],
+            additionalData: additionalData?.[item[keyItem]],
             attributes,
             openDialog: onOpenDialog ?? (() => {}),
             reset: () => {
@@ -215,9 +216,11 @@ const FormTableItem = memo(function FormTableItem({
   defaultValueRow,
   forceCanDelete,
   additionalData,
+  keyItem = "id",
 }) {
+  const rowKey = item?.[keyItem];
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: item.id });
+    useSortable({ id: rowKey });
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -225,7 +228,7 @@ const FormTableItem = memo(function FormTableItem({
 
   return (
     <div
-      key={item.id}
+      key={rowKey}
       ref={setNodeRef}
       style={style}
       className={cn(
@@ -272,12 +275,13 @@ const FormTableItem = memo(function FormTableItem({
                   setCurrentIndex(index);
                   if (submitable) setCurrentData(item);
                 }}
-                ref={setRef(`${item.id}-${col.name}`)}
+                ref={setRef(`${rowKey}-${col.name}`)}
                 disabled={disabled}
                 readOnly={readOnly}
                 index={index}
                 item={item}
                 additionalData={additionalData}
+                keyItem={keyItem}
                 col={col}
                 isLast={isLast}
                 defaultValueRow={defaultValueRow}
@@ -403,6 +407,7 @@ export default memo(
   forwardRef(function FormTable(
     {
       name,
+      keyItem = "id",
       label,
       disabled = false,
       description,
@@ -467,12 +472,20 @@ export default memo(
       throw new Error("value must be an array");
     }
     value = value ?? [];
+    const getItemKey = useCallback((item) => item?.[keyItem], [keyItem]);
+    const withItemKey = useCallback(
+      (item = {}) => ({
+        ...item,
+        [keyItem]: item?.[keyItem] ?? generateRandom(5),
+      }),
+      [keyItem],
+    );
     const additionalData = useMemo(() => {
       if (typeof _additionalData === "function") {
-        return _additionalData(value);
+        return _additionalData(value, keyItem);
       }
       return _additionalData ?? __additionalData;
-    }, [_additionalData, __additionalData, value]);
+    }, [_additionalData, __additionalData, value, keyItem]);
     if (!Array.isArray(columns)) {
       throw new Error("columns must be an array");
     }
@@ -483,18 +496,19 @@ export default memo(
     );
     const [_data, _setData] = useState(() => {
       return readOnly || (disabled && value.length > 0)
-        ? value
+        ? value.map((x) => withItemKey(x))
         : [
-            ...value.map((x) => ({
-              ...(defaultValueRow ?? {}),
-              ...x,
-              id: x.id ?? generateRandom(5),
-            })),
-            { id: generateRandom(5), ...(defaultValueRow ?? {}) }, // Row kosong selalu ada di akhir
+            ...value.map((x) =>
+              withItemKey({
+                ...(defaultValueRow ?? {}),
+                ...x,
+              }),
+            ),
+            withItemKey({ ...(defaultValueRow ?? {}) }), // Row kosong selalu ada di akhir
           ];
     });
 
-    const idChanges = useRef(new Set(value.map((x) => x.id)));
+    const idChanges = useRef(new Set(value.map((x) => getItemKey(x))));
     useEffect(() => {
       const debounce = setTimeout(async () => {
         if (idChanges.current?.size === 0) return;
@@ -502,6 +516,7 @@ export default memo(
           const result = await asyncAdditionalData(
             value,
             Array.from(idChanges.current?.values() ?? []).filter(Boolean),
+            keyItem,
           );
           const data = result?.data ?? {};
           for (const id in data ?? {}) {
@@ -537,7 +552,7 @@ export default memo(
 
       return (
         <FormInput
-          key={`${_data[currentIndex]?.id}-${col.name}`}
+          key={`${_data[currentIndex]?.[keyItem]}-${col.name}`}
           required={col.required}
           label={col.titleTrans ? t(col.titleTrans) : col.title}
           name={col.name}
@@ -550,6 +565,7 @@ export default memo(
             index={currentIndex}
             item={_data[currentIndex]}
             additionalData={additionalData}
+            keyItem={keyItem}
             col={col}
             updateData={updateData}
             {...attributes}
@@ -580,28 +596,27 @@ export default memo(
         !isEqual(value, prevValueRef.current)
       ) {
         prevValueRef.current = value;
-        idChanges.current = new Set(value.map((x) => x.id));
+        idChanges.current = new Set(value.map((x) => getItemKey(x)));
         if (readOnly || (disabled && value.length > 0)) {
-          _setData([...value]);
+          _setData(value.map((x) => withItemKey(x)));
           return;
         }
         _setData((prev) => {
           return [
             ...value.map((x, index) => {
-              const data = {
+              const data = withItemKey({
                 ...(defaultValueRow ?? {}),
                 ...x,
-                id: x.id ?? generateRandom(5),
-              };
+              });
               if (mapItem)
                 return mapItem({ item: data, dataTable: prev, index });
               return data;
             }),
-            { ...(defaultValueRow ?? {}), id: generateRandom(5) }, // Pastikan ada row kosong
+            withItemKey({ ...(defaultValueRow ?? {}) }), // Pastikan ada row kosong
           ];
         });
       }
-    }, [value, readOnly, disabled, mapItem]);
+    }, [value, readOnly, disabled, mapItem, getItemKey, withItemKey]);
 
     // Kirim perubahan ke parent hanya jika ada perubahan nyata
 
@@ -630,12 +645,12 @@ export default memo(
               : key;
           return {
             ...prevData,
-            id: prevData?.id ?? generateRandom(5),
+            [keyItem]: prevData?.[keyItem] ?? generateRandom(5),
             ...payload,
           };
         });
       },
-      [setCurrentData],
+      [setCurrentData, keyItem],
     );
 
     // Memperbarui data di index tertentu
@@ -656,10 +671,9 @@ export default memo(
               ? { [key]: newValue }
               : (key ?? {});
           const resetRow = (idx) => {
-            newData[idx] = {
+            newData[idx] = withItemKey({
               ...(defaultValueRow ?? {}),
-              id: generateRandom(5),
-            };
+            });
             if (mapItem)
               newData[idx] = mapItem({
                 item: newData[idx],
@@ -689,7 +703,8 @@ export default memo(
             Object.keys(payload).length <= 0
           ) {
             if (
-              newData[index].id.length <= 5 &&
+              typeof newData[index]?.[keyItem] === "string" &&
+              newData[index][keyItem].length <= 5 &&
               Object.keys(payload).length > 0
             )
               return prevData;
@@ -713,7 +728,12 @@ export default memo(
 
           // Cek duplikat ID di row terakhir
           if (isLastRow && !readOnly) {
-            if (isDuplicateValue("id", payload.id ?? newData[index].id)) {
+            if (
+              isDuplicateValue(
+                keyItem,
+                payload[keyItem] ?? newData[index][keyItem],
+              )
+            ) {
               return prevData;
             }
           }
@@ -730,7 +750,7 @@ export default memo(
           newData[index] = {
             ...(defaultValueRow ?? {}),
             ...newData[index],
-            id: newData[index]?.id ?? generateRandom(5),
+            [keyItem]: newData[index]?.[keyItem] ?? generateRandom(5),
             ...payload,
           };
           if (mapItem)
@@ -742,7 +762,7 @@ export default memo(
 
           // Jika mengubah row terakhir, tambahkan row kosong baru
           if (isLastRow && !readOnly) {
-            newData.push({ ...(defaultValueRow ?? {}), id: generateRandom(5) });
+            newData.push(withItemKey({ ...(defaultValueRow ?? {}) }));
           }
 
           return newData;
@@ -750,49 +770,52 @@ export default memo(
 
         _setData((prevData) => {
           const result = update(prevData);
-          updateParent(result, result[index]?.id);
+          updateParent(result, result[index]?.[keyItem]);
           return result;
         });
       },
-      [columns, _setData, mapItem],
+      [columns, _setData, mapItem, withItemKey, keyItem],
     );
     const insertRow = useCallback(
       (index) => {
         const update = (prev) => {
           const newData = [...prev];
-          newData.splice(index, 0, { id: generateRandom(5) });
+          newData.splice(index, 0, withItemKey({}));
           setCurrentIndex(index);
           if (submitable) setCurrentData(newData[index]);
           return newData;
         };
         _setData((prevData) => {
           const result = update(prevData);
-          updateParent(result, result[index]?.id);
+          updateParent(result, result[index]?.[keyItem]);
           return result;
         });
       },
-      [_setData],
+      [_setData, withItemKey, keyItem],
     );
     const duplicateRow = useCallback(
       (index) => {
         const update = (prev) => {
           const newData = [...prev];
-          newData.splice(index + 1, 0, {
-            ...(defaultValueRow ?? {}),
-            ...newData[index],
-            id: generateRandom(5),
-          });
+          newData.splice(
+            index + 1,
+            0,
+            withItemKey({
+              ...(defaultValueRow ?? {}),
+              ...newData[index],
+            }),
+          );
           setCurrentIndex(index + 1);
           if (submitable) setCurrentData(newData[index + 1]);
           return newData;
         };
         _setData((prevData) => {
           const result = update(prevData);
-          updateParent(result, result[index]?.id);
+          updateParent(result, result[index]?.[keyItem]);
           return result;
         });
       },
-      [_setData],
+      [_setData, withItemKey, defaultValueRow, keyItem],
     );
     const deleteRow = useCallback(
       (index) => {
@@ -863,9 +886,9 @@ export default memo(
           }
         }
         const item = _data[currentIndex];
-        getRef(`${item.id}-${currentCol}`)?.current?.focus();
+        getRef(`${item?.[keyItem]}-${currentCol}`)?.current?.focus();
       },
-      [_data, columns],
+      [_data, columns, keyItem],
     );
     const handleDragOver = useCallback(
       (event) => {
@@ -873,7 +896,7 @@ export default memo(
 
         if (active.id !== over.id) {
           _setData((items) => {
-            const newItems = items.map((x) => x.id);
+            const newItems = items.map((x) => x[keyItem]);
 
             let newIndex = newItems.indexOf(over.id);
             const oldIndex = newItems.indexOf(active.id);
@@ -886,7 +909,7 @@ export default memo(
           });
         }
       },
-      [_setData],
+      [_setData, keyItem],
     );
 
     const MyDialog = submitable ? AlertDialog : Dialog;
@@ -966,7 +989,7 @@ export default memo(
               collisionDetection={closestCenter}
             >
               <SortableContext
-                items={_data.map((x) => x.id)}
+                items={_data.map((x) => x[keyItem])}
                 strategy={verticalListSortingStrategy}
               >
                 {Array.isArray(_data) &&
@@ -977,7 +1000,8 @@ export default memo(
                         readOnly={readOnly || item.readOnly}
                         item={item}
                         index={index}
-                        key={item.id}
+                        key={item[keyItem]}
+                        keyItem={keyItem}
                         columns={filteredColumns}
                         isLast={index >= _data.length - 1}
                         setRef={setRef}
@@ -1225,7 +1249,7 @@ export default memo(
                     columns.map((col) => {
                       return (
                         <FormInput
-                          key={`${_data[currentIndex]?.id}-${col.name}`}
+                          key={`${_data[currentIndex]?.[keyItem]}-${col.name}`}
                           required={col.required}
                           label={col.titleTrans ? t(col.titleTrans) : col.title}
                           name={col.name}
@@ -1237,6 +1261,7 @@ export default memo(
                             index={currentIndex}
                             item={_data[currentIndex]}
                             additionalData={additionalData}
+                            keyItem={keyItem}
                             col={col}
                             isLast={currentIndex >= _data.length - 1}
                             defaultValueRow={defaultValueRow}

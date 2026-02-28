@@ -51,13 +51,13 @@ class PaymentTermTemplateController extends Controller {
   public function show(PaymentTermTemplate $paymentTermTemplate) {
     $this->setBreadcrumbs($paymentTermTemplate);
     $paymentTermTemplate->showDetail();
-
-    return Inertia::render('Finances/PaymentTermTemplate/Show', [
-      'paymentTermTemplate' => function () use ($paymentTermTemplate) {
-        $paymentTermTemplate->loadRelations();
-        return $paymentTermTemplate;
-      },
-    ]);
+    $paymentTermTemplate->loadRelations();
+    return $this->renderShow(
+      'Finances/PaymentTermTemplate/Form',
+      "paymentTermTemplate",
+      $paymentTermTemplate->name,
+      $paymentTermTemplate,
+    );
   }
 
   /**
