@@ -8,7 +8,9 @@ use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
-use App\Models\Core\FormatingSeries;
+
+;
+
 use App\Services\Finances\SalesInvoiceService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -72,12 +74,12 @@ class SalesInvoiceController extends Controller {
                 'discount_amount'  => $so?->discount_amount,
                 'exchange_rate'    => $so?->exchange_rate,
                 'external_note'    => $so?->external_note,
-                'items'            => $so?->items->map(fn ($item) => [
+                'items'            => $so?->items->map(fn($item) => [
                   ...$item->toArray(),
                   'id'                  => Utils::generateRandom(5),
                   'sales_order_item_id' => $item->id,
                 ]),
-                'paymentSchedules' => $so?->paymentSchedules->map(fn ($paymentSchedule) => [
+                'paymentSchedules' => $so?->paymentSchedules->map(fn($paymentSchedule) => [
                   ...$paymentSchedule->toArray(),
                   'id' => Utils::generateRandom(5),
                 ]),
@@ -116,13 +118,13 @@ class SalesInvoiceController extends Controller {
                 'discount_amount'  => $salesInvoice?->discount_amount,
                 'exchange_rate'    => $salesInvoice?->exchange_rate,
                 'external_note'    => $salesInvoice?->external_note,
-                'items'            => $salesInvoice?->items->map(fn ($item) => [
+                'items'            => $salesInvoice?->items->map(fn($item) => [
                   ...$item->toArray(),
                   'id'                     => Utils::generateRandom(5),
                   'return_against_item_id' => $item->id,
                 ]),
 
-                'paymentSchedules' => $salesInvoice?->paymentSchedules->map(fn ($paymentSchedule) => [
+                'paymentSchedules' => $salesInvoice?->paymentSchedules->map(fn($paymentSchedule) => [
                   ...$paymentSchedule->toArray(),
                   'id' => Utils::generateRandom(5),
                 ]),
@@ -150,9 +152,6 @@ class SalesInvoiceController extends Controller {
     // branch dari session
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
 
-    // generate code
-    $code               = FormatingSeries::generate(SalesInvoice::class, $data);
-    $data['code']       = $code;
     $data['created_by'] = $request->user()->id;
 
     // create SO

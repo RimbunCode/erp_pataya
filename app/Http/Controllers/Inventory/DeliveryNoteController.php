@@ -11,7 +11,6 @@ use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Models\User\Permission;
-use App\Models\Core\FormatingSeries;
 use App\Services\Inventory\DeliveryNoteService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -68,8 +67,8 @@ class DeliveryNoteController extends Controller {
                 'external_note'      => $so->external_note,
                 'model'              => Permission::where('model', SalesOrder::class)->first(),
                 'items'              => $so->items
-                  ->filter(fn ($item) => $item->item->is_stock_item)
-                  ->map(fn ($item) => [
+                  ->filter(fn($item) => $item->item->is_stock_item)
+                  ->map(fn($item) => [
                     'id'                 => Utils::generateRandom(5),
                     'item'               => $item->item,
                     'source_warehouse'   => $item->sourceWarehouse,
@@ -104,8 +103,8 @@ class DeliveryNoteController extends Controller {
                 'external_note'      => $io->external_note,
                 'model'              => Permission::where('model', InternalOrder::class)->first(),
                 'items'              => $io->items
-                  ->filter(fn ($item) => $item->item->is_stock_item)
-                  ->map(fn ($item) => [
+                  ->filter(fn($item) => $item->item->is_stock_item)
+                  ->map(fn($item) => [
                     'id'                 => Utils::generateRandom(5),
                     'item'               => $item->item,
                     'source_warehouse'   => $item->sourceWarehouse,
@@ -143,7 +142,7 @@ class DeliveryNoteController extends Controller {
                 'referenceable'      => $doTarget->referenceable,
                 'external_note'      => $doTarget->external_note,
                 'model'              => Permission::where('model', $doTarget->referenceable_type)->first(),
-                'items'              => $doTarget->items->map(fn ($item) => [
+                'items'              => $doTarget->items->map(fn($item) => [
                   'id'                  => Utils::generateRandom(5),
                   'item'                => $item->item,
                   'source_warehouse'    => $item->sourceWarehouse,
@@ -177,11 +176,7 @@ class DeliveryNoteController extends Controller {
       DB::beginTransaction();
 
       // branch dari session
-      $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-
-      // generate code
-      $code               = FormatingSeries::generate(DeliveryNote::class, $data);
-      $data['code']       = $code;
+      $data['branch']     = Branch::find($request->session()->get('currentBranch'))->toArray();
       $data['created_by'] = $request->user()->id;
 
       $deliveryNote = $this->service->create($data);

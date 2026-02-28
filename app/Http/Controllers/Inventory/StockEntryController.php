@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StockEntryRequest;
 use App\Models\Inventory\StockEntry;
 use App\Models\Service\WorkOrder;
-use App\Models\Core\FormatingSeries;
 use App\Services\Inventory\StockEntryService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -51,7 +50,7 @@ class StockEntryController extends Controller {
                 'referenceable'      => $workOrder,
                 'type'               => 'item_consumption',
                 'branch_id'          => $workOrder->branch_id,
-                'items'              => $workOrder->items->map(fn ($item) => [
+                'items'              => $workOrder->items->map(fn($item) => [
                   'id'   => Utils::generateRandom(5),
                   'item' => $item->item,
                 ]),
@@ -74,9 +73,7 @@ class StockEntryController extends Controller {
   public function store(StockEntryRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    $code         = FormatingSeries::generate(StockEntry::class, $data);
-    $data['code'] = $code;
-    $stockEntry   = $this->service->create($data);
+    $stockEntry = $this->service->create($data);
     DB::commit();
     return redirect()->route('stockEntries.show', $stockEntry);
   }

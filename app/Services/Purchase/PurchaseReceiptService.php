@@ -3,6 +3,7 @@
 namespace App\Services\Purchase;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Inventory\ItemUnit;
@@ -40,6 +41,7 @@ class PurchaseReceiptService {
   }
 
   public function create(array $data) {
+    $data['code']    = FormatingSeries::generate(PurchaseReceipt::class, $data, true);
     $purchaseReceipt = PurchaseReceipt::create($this->fillRelations($data));
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item);
@@ -74,6 +76,10 @@ class PurchaseReceiptService {
 
   public function submit(PurchaseReceipt $purchaseReceipt) {
     DB::beginTransaction();
+
+    $purchaseReceipt->update([
+      'code' => FormatingSeries::generate(PurchaseReceipt::class, $purchaseReceipt),
+    ]);
     ModelConnection::create([
       'model_type'     => PurchaseOrder::class,
       'model_id'       => $purchaseReceipt->purchase_order_id,
@@ -148,7 +154,7 @@ class PurchaseReceiptService {
           'quantity_change'            => -$quantity,
           'quantity_after_transaction' => $stock->actual_quantity,
           'valuation_rate'             => $stock->valuation_rate,
-          'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'balance_stock_value'        => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
           'change_in_stock_value'      => -$totalRate,
           'stock_queue'                => $stock->stock_queue,
           'referenceable_type'         => PurchaseReceipt::class,
@@ -177,7 +183,7 @@ class PurchaseReceiptService {
         'quantity_change'            => $quantity,
         'quantity_after_transaction' => $stock->actual_quantity,
         'valuation_rate'             => $stock->valuation_rate,
-        'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+        'balance_stock_value'        => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
         'change_in_stock_value'      => $totalRate,
         'stock_queue'                => $stock->stock_queue,
         'referenceable_type'         => PurchaseReceipt::class,

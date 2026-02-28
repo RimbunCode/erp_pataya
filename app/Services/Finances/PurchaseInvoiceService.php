@@ -3,6 +3,7 @@
 namespace App\Services\Finances;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\PurchaseInvoice;
@@ -31,7 +32,7 @@ class PurchaseInvoiceService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
     $data['exchange_rate']      = $data['exchange_rate'] ?? 1;
 
@@ -64,6 +65,7 @@ class PurchaseInvoiceService {
   }
 
   public function create(array $data) {
+    $data['code']    = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
     $purchaseInvoice = PurchaseInvoice::create($this->fillRelations($data));
 
     $basicAmount = 0;
@@ -141,41 +143,9 @@ class PurchaseInvoiceService {
   }
 
   public function submit(PurchaseInvoice $purchaseInvoice) {
-    DB::beginTransaction();
-
-    if ($purchaseInvoice->paymentSchedules()->count() === 0) {
-      $purchaseInvoice->paymentSchedules()->create([
-        'payment_scheduleable_type' => PurchaseInvoice::class,
-        'payment_scheduleable_id'   => $purchaseInvoice->id,
-        'payment_amount'            => $purchaseInvoice->amount,
-        'invoice_portion'           => 100,
-        'paid_amount'               => 0,
-        'for_internal'              => false,
-        'due_date'                  => now()->addDays(30),
-        'exchange_rate'             => $purchaseInvoice->exchange_rate ?? 1,
-        'currency_code'             => $purchaseInvoice->currency_code,
-        'base_currency_code'        => $purchaseInvoice->base_currency_code,
-        'description'               => "Auto generated from Purchase Invoice {$purchaseInvoice->code}",
-      ]);
-    } else {
-      // check sum of invoice portion must be 100%
-      $totalInvoicePortion = $purchaseInvoice->paymentSchedules()->sum('invoice_portion');
-      if ($totalInvoicePortion != 100) {
-        DB::rollBack();
-        throw \Illuminate\Validation\ValidationException::withMessages([
-          'invoice_portion' => "Total invoice portion must be 100%",
-        ]);
-      }
-    }
-    ModelConnection::create([
-      'model_type'     => PurchaseOrder::class,
-      'model_id'       => $purchaseInvoice->purchase_order_id,
-      'reference_type' => PurchaseInvoice::class,
-      'reference_id'   => $purchaseInvoice->id,
+    $purchaseInvoice->update([
+      'code' => FormatingSeries::generate(PurchaseInvoice::class, $purchaseInvoice),
     ]);
-
-    DB::commit();
-
     $purchaseInvoice->checkApproval();
     return $purchaseInvoice;
   }

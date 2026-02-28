@@ -8,7 +8,6 @@ use App\Models\Core\Branch;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Service\WorkOrder;
 use App\Models\Service\WorkOrderItem;
-use App\Models\Core\FormatingSeries;
 use App\Services\Purchase\PurchaseRequestService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -49,8 +48,8 @@ class PurchaseRequestController extends Controller {
               $wo->loadRelations();
               $defaultData = [
                 'date'  => now(),
-                'items' => $wo->items->filter(fn ($item) => $item->item->is_stock_item)
-                  ->map(fn ($item) => [
+                'items' => $wo->items->filter(fn($item) => $item->item->is_stock_item)
+                  ->map(fn($item) => [
                     'id'                 => Utils::generateRandom(5),
                     'item'               => $item->item,
                     'description'        => $item->description,
@@ -81,8 +80,6 @@ class PurchaseRequestController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-    $code           = FormatingSeries::generate(PurchaseRequest::class, $data);
-    $data['code']   = $code;
 
     $wo = $this->service->create($data);
     DB::commit();

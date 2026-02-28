@@ -3,6 +3,7 @@
 namespace App\Services\Sales;
 
 use App\FormStatus;
+use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\Stock;
 use App\Models\Sales\InternalOrder;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ class InternalOrderService {
   }
 
   public function create(array $data) {
+    $data['code']  = FormatingSeries::generate(InternalOrder::class, $data, true);
     $internalOrder = InternalOrder::create($this->fillRelations($data));
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item);
@@ -60,6 +62,10 @@ class InternalOrderService {
   public function submit(InternalOrder $internalOrder) {
     DB::beginTransaction();
 
+    $internalOrder->update([
+      'code' => FormatingSeries::generate(InternalOrder::class, $internalOrder),
+    ]);
+
     $items      = $internalOrder->items()->with(['item'])->get();
     $errorItems = [];
 
@@ -69,7 +75,7 @@ class InternalOrderService {
         ->where('warehouse_id', $item->source_warehouse_id)
         ->first();
 
-      if (! $stock) {
+      if (!$stock) {
         $errorItems[] = "Item {$item->item->name} not found in source warehouse";
         continue;
       }

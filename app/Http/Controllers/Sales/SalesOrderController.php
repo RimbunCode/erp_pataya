@@ -7,7 +7,6 @@ use App\Http\Requests\Sales\SalesOrderRequest;
 use App\Models\Core\Branch;
 use App\Models\Sales\SalesOrder;
 use App\Models\Service\WorkOrder;
-use App\Models\Core\FormatingSeries;
 use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -60,7 +59,7 @@ class SalesOrderController extends Controller {
                 'referenceable_id'   => $wo->id,
                 'referenceable'      => $wo,
                 'external_note'      => $wo->external_note,
-                'items'              => $wo->items->map(fn ($item) => [
+                'items'              => $wo->items->map(fn($item) => [
                   'id'       => Utils::generateRandom(5),
                   'item'     => $item->item,
                   'quantity' => $item->remaining_quantity,
@@ -88,11 +87,7 @@ class SalesOrderController extends Controller {
     DB::beginTransaction();
 
     // branch dari session
-    $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
-
-    // generate code
-    $code               = FormatingSeries::generate(SalesOrder::class, $data, true);
-    $data['code']       = $code;
+    $data['branch']     = Branch::find($request->session()->get('currentBranch'))->toArray();
     $data['created_by'] = $request->user()->id;
 
     // create SO
