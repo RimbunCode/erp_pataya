@@ -21,6 +21,8 @@ return new class extends Migration
       $table->double('quantity')->default(1);
       $table->double('received_quantity')->default(0);
       $table->double('unreceived_quantity')->storedAs('quantity - received_quantity');
+      $table->double('billed_quantity')->default(0);
+      $table->double('unbilled_quantity')->storedAs('quantity - billed_quantity');
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
       $table->string("unit_name")->nullable();
       $table->double('conversion_factor')->default(1);

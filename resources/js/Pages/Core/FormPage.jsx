@@ -1514,8 +1514,13 @@ const FormPageDialog = memo(
       },
       [disabled, _setData],
     );
-    const { setLeave, setSaveAsDraft, setIsDirty, setShowAlert } =
-      useIsDirtyForm();
+    const {
+      setLeave,
+      setSaveAsDraft,
+      setIsDirty,
+      setShowAlert,
+      setKeepDraftOnClean,
+    } = useIsDirtyForm();
     const { cancel } = useAlertDraftForm();
     const formRef = useRef();
     const onKeyDown = useCallback(
@@ -1551,8 +1556,10 @@ const FormPageDialog = memo(
       setSaveAsDraft(() => {
         setOpen(false);
         setShowAlert(false);
+        if (key) setKeepDraftOnClean(key, true);
         setIsDirty(false);
         clearErrors();
+        reset();
       });
       if (isDirty) {
         setShowAlert(true);
@@ -1681,8 +1688,13 @@ const FormPageLinkModelDialog = memo(
   ) {
     const { t } = useLaravelReactI18n();
     const route = window.route;
-    const { setLeave, setSaveAsDraft, setIsDirty, setShowAlert } =
-      useIsDirtyForm();
+    const {
+      setLeave,
+      setSaveAsDraft,
+      setIsDirty,
+      setShowAlert,
+      setKeepDraftOnClean,
+    } = useIsDirtyForm();
     const { cancel } = useAlertDraftForm();
     const {
       data,
@@ -1765,8 +1777,10 @@ const FormPageLinkModelDialog = memo(
       setSaveAsDraft(() => {
         onOpenChange(false);
         setShowAlert(false);
+        if (key) setKeepDraftOnClean(key, true);
         setIsDirty(false);
         clearErrors();
+        reset();
       });
       if (isDirty) {
         setShowAlert(true);

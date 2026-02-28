@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\ItemAlternativeRequest;
 use App\Models\Inventory\ItemAlternative;
-use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -24,14 +23,12 @@ class ItemAlternativeController extends Controller {
       ->leftJoin('item_variants as alternative', 'alternative.id', '=', 'item_alternatives.alternative_item_id')
       ->select(['item.code as item_code', 'alternative.code as alternative_code'])
       ->dataTable($request);
-    return Inertia::render('Inventory/ItemAlternatives/Index');
-  }
 
-  /**
+    return Inertia::render('Inventory/ItemAlternatives/Index');
+  }/**
    * Show the form for creating a new resource.
    */
-  public function create(Request $request) {
-  }
+  public function create(Request $request) {}
 
   /**
    * Store a newly created resource in storage.
@@ -41,10 +38,10 @@ class ItemAlternativeController extends Controller {
     DB::beginTransaction();
     $itemAlternative = ItemAlternative::create(
       [
-        'item_id' => $data['item']['id'],
+        'item_id'             => $data['item']['id'],
         'alternative_item_id' => $data['alternative']['id'],
-        'two_way' => $data['two_way'] ?? false,
-      ]
+        'two_way'             => $data['two_way'] ?? false,
+      ],
     );
     $itemAlternative->logForCreated();
     DB::commit();
@@ -61,7 +58,7 @@ class ItemAlternativeController extends Controller {
       'Inventory/ItemAlternatives/Form',
       'itemAlternative',
       $itemAlternative->item->code,
-      $itemAlternative
+      $itemAlternative,
     );
   }
 
@@ -80,10 +77,10 @@ class ItemAlternativeController extends Controller {
     DB::beginTransaction();
     $itemAlternative->fillForUpdate(
       [
-        'item_id' => $data['item']['id'],
+        'item_id'             => $data['item']['id'],
         'alternative_item_id' => $data['alternative']['id'],
-        'two_way' => $data['two_way'] ?? false,
-      ]
+        'two_way'             => $data['two_way'] ?? false,
+      ],
     );
     $itemAlternative->logForUpdated();
     DB::commit();
@@ -98,6 +95,6 @@ class ItemAlternativeController extends Controller {
     $itemAlternative->delete();
     $itemAlternative->logForDeleted();
     DB::commit();
-    return back();
+    return redirect()->route('itemAlternatives.index');
   }
 }

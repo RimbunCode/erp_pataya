@@ -16,9 +16,8 @@ return [
   'create_purchase_return' => 'Create Purchase Return',
   'columns'                => [
     'required_date'                => 'Required Date',
-    'received_date'                => 'Received Date',
+    'date'                         => 'Date',
     'code'                         => 'Code',
-    'return_against'               => 'Return Against',
     'purchase_order'               => 'Purchase Order',
     'purchase_order.placeholder'   => 'Select a Purchase Order',
     'supplier'                     => 'Supplier',

@@ -28,7 +28,7 @@ return [
     'supplier'                     => 'Supplier',
     'item'                         => 'Item',
     'item.placeholder'             => 'Select an item',
-    'date'                         => 'Purchase Invoice Date',
+    'date'                         => 'Date',
     'description'                  => 'Description',
     'source_warehouse'             => 'Source Warehouse',
     'source_warehouse.placeholder' => 'Select a Source Warehouse',

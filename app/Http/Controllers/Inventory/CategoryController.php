@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\CategoryRequest;
 use App\Models\Inventory\Category;
-use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -21,6 +20,7 @@ class CategoryController extends Controller {
   public function index(Request $request) {
     $this->setBreadcrumbs();
     Category::dataTable($request);
+
     return Inertia::render(
       'Inventory/Categories/Index',
     );
@@ -55,9 +55,10 @@ class CategoryController extends Controller {
       'Inventory/Categories/Form',
       "category",
       $category->name,
-      $category
+      $category,
     );
   }
+
   /**
    * Update the specified resource in storage.
    */
@@ -79,6 +80,6 @@ class CategoryController extends Controller {
     $category->delete();
     $category->logForDeleted();
     DB::commit();
-    return back();
+    return redirect()->route('categories.index');
   }
 }

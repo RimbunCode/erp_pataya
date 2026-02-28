@@ -137,7 +137,8 @@ class PurchaseRequestController extends Controller {
   public function destroy(PurchaseRequest $purchaseRequest) {
     DB::beginTransaction();
     $purchaseRequest->delete();
+    $purchaseRequest->logForDeleted();
     DB::commit();
-    return back();
+    return redirect()->route('purchaseRequests.index');
   }
 }

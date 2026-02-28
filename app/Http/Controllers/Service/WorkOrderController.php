@@ -102,7 +102,11 @@ class WorkOrderController extends Controller {
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(Request $request, WorkOrder $workOrder) {
-    //
+  public function destroy(WorkOrder $workOrder) {
+    DB::beginTransaction();
+    $workOrder->delete();
+    $workOrder->logForDeleted();
+    DB::commit();
+    return redirect()->route('workOrders.index');
   }
 }

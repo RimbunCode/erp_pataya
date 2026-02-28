@@ -4,7 +4,7 @@ import {
   removeFromLocalStorage,
   saveToLocalStorage,
 } from "@/lib/utils";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useForm, usePage } from "@inertiajs/react";
 
 import { create } from "zustand";
@@ -46,7 +46,16 @@ export const useDraftForm = (
   } = {},
 ) => {
   const { setShowAlert, setCancel, setContinue } = useAlertDraftForm();
-  const { setIsDirty, setProcessing, setRecentlySuccessful } = useIsDirtyForm();
+  const {
+    setIsDirty,
+    setProcessing,
+    setRecentlySuccessful,
+    keepDraftOnClean,
+    setKeepDraftOnClean,
+  } = useIsDirtyForm();
+  const skipSaveRef = useRef(false);
+  const skipRemovalRef = useRef(false);
+  const checkedDraftKeyRef = useRef(null);
   const user = usePage().props.auth.user;
   let key = user ? `${name}_${user.id}` : null;
   key = isCreate
@@ -61,12 +70,67 @@ export const useDraftForm = (
     delete: deleteForm,
     ...form
   } = useForm(initialData ?? {});
+  const dataRef = useRef(form.data);
+  const resetRef = useRef(form.reset);
+  const setDataRef = useRef(form.setData);
+  // pastikan alert draft tidak tersisa saat unmount
+  useEffect(() => {
+    return () => {
+      setShowAlert(false);
+    };
+  }, [setShowAlert]);
+  useEffect(() => {
+    dataRef.current = form.data;
+  }, [form.data]);
+  useEffect(() => {
+    resetRef.current = form.reset;
+    setDataRef.current = form.setData;
+  }, [form.reset, form.setData]);
+  useEffect(() => {
+    if (!key) return;
+    window.keyForm = key;
+    return () => {
+      if (window.keyForm === key) {
+        delete window.keyForm;
+      }
+    };
+  }, [key]);
+  const keepDraftFlag = key ? keepDraftOnClean?.[key] : false;
   useDidMountEffect(() => {
     setIsDirty(form.isDirty);
-    if (!form.isDirty) {
-      removeFromLocalStorage(key);
+    if (!form.isDirty && key) {
+      if (keepDraftFlag) {
+        setKeepDraftOnClean(key, false);
+        skipRemovalRef.current = true;
+        return;
+      }
+      if (skipRemovalRef.current) {
+        skipRemovalRef.current = false;
+        return;
+      } else {
+        removeFromLocalStorage(key);
+      }
     }
-  }, [form.isDirty]);
+  }, [
+    form.isDirty,
+    keepDraftFlag,
+    key,
+    setIsDirty,
+    setKeepDraftOnClean,
+    skipRemovalRef,
+  ]);
+  useEffect(() => {
+    if (!key || !form.isDirty) return;
+    const handleBeforeUnload = (event) => {
+      saveToLocalStorage(key, dataRef.current, expiredDays);
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [key, expiredDays, form.isDirty]);
   useDidMountEffect(() => {
     setProcessing(form.processing);
   }, [form.processing]);
@@ -78,95 +142,137 @@ export const useDraftForm = (
     if (form.recentlySuccessful) {
       form.reset();
     }
-  }, [initialData]);
+  }, [form.recentlySuccessful]);
   useDidMountEffect(() => {
-    if (key != null && form.isDirty) {
+    if (key && form.isDirty && !skipSaveRef.current) {
       saveToLocalStorage(key, form.data, expiredDays);
     }
-    if (!form.isDirty) {
-      removeFromLocalStorage(key);
-    }
-  }, [form.data, form.isDirty, key, expiredDays]);
+  }, [
+    expiredDays,
+    form.data,
+    form.isDirty,
+    keepDraftFlag,
+    key,
+    setKeepDraftOnClean,
+    skipSaveRef,
+  ]);
 
   const loadDraft = useCallback(() => {
-    let dataCookie = getFromLocalStorage(key);
+    if (!key) return;
+    const dataCookie = getFromLocalStorage(key);
     if (!dataCookie || isDeepEmpty(dataCookie)) return;
     setCancel(() => {
-      form.reset();
+      setShowAlert(false);
+      resetRef.current?.();
       removeFromLocalStorage(key);
     });
     setContinue(() => {
-      form.setData(dataCookie);
+      setDataRef.current?.(dataCookie);
       removeFromLocalStorage(key);
+      setShowAlert(false);
       onContinueDraft?.();
     });
-    setShowAlert(true);
-  }, [key]);
+    // sedikit delay agar tidak ditimpa effect lain pada tick yang sama
+    setTimeout(() => setShowAlert(true), 0);
+  }, [key, onContinueDraft, setCancel, setContinue, setShowAlert]);
   useEffect(() => {
     if (isDialog) return;
     if (ignoreDraft) return;
+    if (!key) return;
+    if (checkedDraftKeyRef.current === key) return;
+    checkedDraftKeyRef.current = key;
     loadDraft();
-  }, []);
+  }, [ignoreDraft, isDialog, key, loadDraft]);
 
   const getOptions = useCallback(
     (options) => {
       return {
-        ...(isCreate || isDialog
+        ...(isDialog || isCreate
           ? {
-              preserveState: false,
-              preserveScroll: false,
+              // Dialog/create: biar state & error tidak hilang saat submit
+              preserveState: true,
+              preserveScroll: true,
               preserveUrl: false,
             }
           : {
-              reset: name
-                ? [name, "errors", "logs", "flash", "breadcrumbs"]
-                : ["errors", "logs", "flash", "breadcrumbs"],
-              preserveState: true,
+              // Halaman (create/update): muat ulang props terbaru dari backend
+              preserveState: false,
               preserveScroll: true,
             }),
         replace: true,
         ...options,
         onSuccess: (e) => {
+          setShowAlert(false); // pastikan alert unfinished ditutup saat sukses submit
           if (!isDialog) {
             form.setDefaults(e.props[name]);
           }
           setIsDirty(false);
+          skipSaveRef.current = true; // jangan tulis ulang draft sesaat setelah sukses
           if (options?.onSuccess) options.onSuccess(e);
         },
         onBefore: (e) => {
-          removeFromLocalStorage(key);
+          setShowAlert(false);
+          skipSaveRef.current = true; // hentikan autosave selama submit
+          if (key) {
+            removeFromLocalStorage(key);
+          }
           if (options?.onBefore) options.onBefore(e);
         },
-        onError: (e) => {
-          if (!options?.isSubmit)
+        onError: (errors) => {
+          // jangan biarkan alert unfinished menggantung pada error
+          setShowAlert(false);
+          skipSaveRef.current = false; // aktifkan kembali autosave jika gagal
+          if (!options?.isSubmit && key) {
             saveToLocalStorage(key, form.data, expiredDays);
-          if (options?.onError) options.onError(e);
+          }
+          if (options?.onError) options.onError(errors);
         },
       };
     },
-    [form],
+    [expiredDays, form, isCreate, isDialog, key, name, setIsDirty],
   );
 
   return {
     ...form,
     key,
     submit(method, url, options) {
+      skipSaveRef.current = true;
+      setShowAlert(false);
       submitForm(method, url, getOptions(options));
     },
     get(url, options) {
+      skipSaveRef.current = true;
+      setShowAlert(false);
       getForm(url, getOptions(options));
     },
     patch(url, options) {
+      skipSaveRef.current = true;
+      setShowAlert(false);
       patchForm(url, getOptions(options));
     },
     post(url, options) {
+      skipSaveRef.current = true;
+      setShowAlert(false);
       postForm(url, getOptions(options));
     },
     put(url, options) {
+      skipSaveRef.current = true;
+      setShowAlert(false);
       putForm(url, getOptions(options));
     },
     delete(url, options) {
-      deleteForm(url, getOptions(options));
+      skipSaveRef.current = true;
+      setShowAlert(false);
+      deleteForm(
+        url,
+        getOptions({
+          ...options,
+          onSuccess: (e) => {
+            if (key) removeFromLocalStorage(key);
+            options?.onSuccess?.(e);
+          },
+        }),
+      );
     },
     loadDraft,
   };

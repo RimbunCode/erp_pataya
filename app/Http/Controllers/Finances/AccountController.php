@@ -122,6 +122,6 @@ class AccountController extends Controller {
     $account->logForDeleted();
     $account->delete();
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('accounts.index');
   }
 }

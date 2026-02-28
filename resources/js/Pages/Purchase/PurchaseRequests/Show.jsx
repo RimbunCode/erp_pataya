@@ -27,7 +27,7 @@ export default function Show({ purchaseRequest, defaultData }) {
         if (
           purchaseRequest?.submitted_at &&
           isValidStatus(purchaseRequest?.status) &&
-          calculateArray(purchaseRequest.items, "remaining_quantity", "+") > 0
+          calculateArray(purchaseRequest.items, "unordered_quantity", "+") > 0
         ) {
           return (
             <Button

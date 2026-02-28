@@ -5,17 +5,15 @@ namespace App\Http\Controllers\Core;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\BranchRequest;
 use App\Models\Core\Branch;
-use App\Models\Core\Country;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class BranchController extends Controller {
-
   public function __construct(Request $request) {
     parent::__construct($request, Branch::class);
   }
+
   /**
    * Display a listing of the resource.
    */
@@ -24,6 +22,7 @@ class BranchController extends Controller {
     Branch::whereNull('branchable_type')
       ->whereNull('branchable_id')
       ->dataTable($request);
+
     return Inertia::render('Settings/Branches/Index');
   }
 
@@ -75,7 +74,6 @@ class BranchController extends Controller {
     ]);
   }
 
-
   /**
    * Update the specified resource in storage.
    */
@@ -104,8 +102,10 @@ class BranchController extends Controller {
     if ($branch->is_main_branch) {
       abort(403);
     }
+    DB::beginTransaction();
     $branch->delete();
     $branch->logForDeleted();
-    return back();
+    DB::commit();
+    return redirect()->route('branches.index');
   }
 }

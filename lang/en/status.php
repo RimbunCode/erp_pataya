@@ -32,6 +32,7 @@ return [
   'overdue'                         => 'Overdue',
   'unpaid'                          => 'Unpaid',
   'billed'                          => 'Billed',
+  'partially_billed'                => 'Partially Billed',
   'paid'                            => 'Paid',
   'to_order'                        => 'To Order',
   'partially_ordered'               => 'Partially Ordered',

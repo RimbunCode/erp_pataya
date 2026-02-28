@@ -2,6 +2,12 @@
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Route;
 
+/*
+|--------------------------------------------------------------------------
+| Web Routes
+|--------------------------------------------------------------------------
+*/
+
 Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable = false, $nestedShow = null) {
   $uri = \Illuminate\Support\Str::plural($name);
   Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name, $nestedShow, $isSubmmitable) {
@@ -64,10 +70,28 @@ Route::get('/model/{model}', [\App\Http\Controllers\ModelController::class, 'col
   ->name('model.columns');
 
 Route::middleware(['auth', 'lang', 'app'])->group(function () {
+  if (config('app.debug')) {
+    Route::get('/status', function () {
+      return Inertia::render('Status', [
+        'canLogin'       => Route::has('login'),
+        'canRegister'    => Route::has('register'),
+        'laravelVersion' => \Illuminate\Foundation\Application::VERSION,
+        'phpVersion'     => PHP_VERSION,
+        'statuses'       => collect(App\FormStatus::cases())
+          ->map(fn (App\FormStatus $status) => [
+            'name'  => $status->name,
+            'value' => $status->value,
+            'label' => $status->label(),
+          ])
+          ->values(),
+      ]);
+    });
+  }
   Route::get('/logs/{log}', [\App\Http\Controllers\Core\LogController::class, 'show'])->name('logs.show');
   // Branch Switcher
   Route::put('/switch_branch/{id}', [\App\Http\Controllers\Core\BranchController::class, 'switch'])->name('branch.switch');
   // Dashboard
+  Route::get('dashboard', [\App\Http\Controllers\Core\DashboardController::class, 'dashboard'])->name('dashboard');
   Route::resourceDetail('dashboard', \App\Http\Controllers\Core\DashboardController::class);
   // Settings
   Route::prefix('/settings')->group(function () {
@@ -159,7 +183,9 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Payment Methods
   Route::resourceDetail('paymentMethod', \App\Http\Controllers\Finances\PaymentMethodController::class);
   // Payment Terms
-  Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
+  // Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
+  // Payment Term Template
+  Route::resourceDetail('paymentTermTemplate', \App\Http\Controllers\Finances\PaymentTermTemplateController::class);
   // Payment Entries
   Route::resourceDetail('paymentEntry', \App\Http\Controllers\Finances\PaymentEntryController::class);
   // Purchase Invoices

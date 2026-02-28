@@ -6,10 +6,10 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
-use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrder;
+use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
@@ -20,26 +20,32 @@ class PurchaseInvoiceService {
   private function fillRelations(array $data) {
     $data['purchase_order_id'] = $data['purchase_order']['id'];
     $data['supplier_id']       = $data['supplier']['id'];
+    $data['supplier_name']     = $data['supplier']['name'] ?? null;
+
+    // account relations
+    $data['credit_account_id']       = $data['credit_account']['id'] ?? null;
+    $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
+    $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
     if (isset($data['branch'])) {
       $data['branch_id'] = $data['branch']['id'];
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = ! isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
     $data['base_currency_code'] = $defaultCurrency;
+    $data['exchange_rate']      = $data['exchange_rate'] ?? 1;
 
     return $data;
   }
 
   private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice) {
-    $data['item_id']             = $data['item']['id'];
-    $data['unit_id']             = $data['unit']['id'];
-    $data['conversion_factor']   = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
-    $data['exchange_rate']       = $purchaseInvoice->exchange_rate;
-    $data['tax_id']              = $data['tax']['id'];
-    $data['tax_rate']            = $data['tax']['rate'] ?? 0;
-    $data['target_warehouse_id'] = $data['target_warehouse']['id'];
+    $data['item_id']           = $data['item']['id'];
+    $data['unit_id']           = $data['unit']['id'];
+    $data['conversion_factor'] = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
+    $data['exchange_rate']     = $purchaseInvoice->exchange_rate;
+    $data['tax_id']            = $data['tax']['id'];
+    $data['tax_rate']          = $data['tax']['rate'] ?? 0;
     return $data;
   }
 
@@ -62,10 +68,22 @@ class PurchaseInvoiceService {
     $data['code']    = FormatingSeries::generate(PurchaseInvoice::class, $data, true);
     $purchaseInvoice = PurchaseInvoice::create($this->fillRelations($data));
 
+    $basicAmount = 0;
+    $taxAmount   = 0;
+
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item, $purchaseInvoice);
-      $purchaseInvoice->items()->create($item);
+      $item = $purchaseInvoice->items()->create($item);
+      $item->refresh();
+      $basicAmount += $item->basic_amount;
+      $taxAmount   += $item->tax_amount;
     }
+
+    $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
+    $purchaseInvoice->update([
+      'amount'      => $totalAmount,
+      'base_amount' => $totalAmount * ($purchaseInvoice->exchange_rate ?? 1),
+    ]);
 
     foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseInvoice);
@@ -78,6 +96,9 @@ class PurchaseInvoiceService {
   public function update(PurchaseInvoice $purchaseInvoice, array $data) {
     $purchaseInvoice->fillForUpdate($this->fillRelations($data));
 
+    $basicAmount = 0;
+    $taxAmount   = 0;
+
     $purchaseInvoice->items()
       ->whereNotIn('id', array_column($data['items'], 'id'))
       ->delete();
@@ -86,19 +107,30 @@ class PurchaseInvoiceService {
       $item = $this->fillItemRelations($item, $purchaseInvoice);
 
       if (Ulid::isValid($item['id'])) {
-        $purchaseInvoice->items()
-          ->find($item['id'])
-          ->update($item);
-        continue;
+        $itemModel = $purchaseInvoice->items()->find($item['id']);
+        $itemModel->fill($item);
+        $itemModel->save();
+        $itemModel->refresh();
+      } else {
+        $itemModel = $purchaseInvoice->items()->create($item);
+        $itemModel->refresh();
       }
 
-      $purchaseInvoice->items()->create($item);
+      $basicAmount += $itemModel->basic_amount;
+      $taxAmount   += $itemModel->tax_amount;
     }
 
+    $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
+    $purchaseInvoice->update([
+      'amount'      => $totalAmount,
+      'base_amount' => $totalAmount * ($purchaseInvoice->exchange_rate ?? 1),
+    ]);
+
+    $paymentSchedules = $data['payment_schedules'] ?? [];
     $purchaseInvoice->paymentSchedules()
-      ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
+      ->whereNotIn('id', array_column($paymentSchedules, 'id'))
       ->delete();
-    foreach ($data['payment_schedules'] as $payment_schedule) {
+    foreach ($paymentSchedules as $payment_schedule) {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseInvoice);
       if (Ulid::isValid($payment_schedule['id'])) {
         $purchaseInvoice->paymentSchedules()->find($payment_schedule['id'])->update($payment_schedule);
@@ -111,73 +143,151 @@ class PurchaseInvoiceService {
   }
 
   public function submit(PurchaseInvoice $purchaseInvoice) {
-    $purchaseInvoice->update([
-      'code' => FormatingSeries::generate(PurchaseInvoice::class, $purchaseInvoice),
+    DB::beginTransaction();
+
+    if ($purchaseInvoice->paymentSchedules()->count() === 0) {
+      $purchaseInvoice->paymentSchedules()->create([
+        'payment_scheduleable_type' => PurchaseInvoice::class,
+        'payment_scheduleable_id'   => $purchaseInvoice->id,
+        'payment_amount'            => $purchaseInvoice->amount,
+        'invoice_portion'           => 100,
+        'paid_amount'               => 0,
+        'for_internal'              => false,
+        'due_date'                  => now()->addDays(30),
+        'exchange_rate'             => $purchaseInvoice->exchange_rate ?? 1,
+        'currency_code'             => $purchaseInvoice->currency_code,
+        'base_currency_code'        => $purchaseInvoice->base_currency_code,
+        'description'               => "Auto generated from Purchase Invoice {$purchaseInvoice->code}",
+      ]);
+    } else {
+      // check sum of invoice portion must be 100%
+      $totalInvoicePortion = $purchaseInvoice->paymentSchedules()->sum('invoice_portion');
+      if ($totalInvoicePortion != 100) {
+        DB::rollBack();
+        throw \Illuminate\Validation\ValidationException::withMessages([
+          'invoice_portion' => "Total invoice portion must be 100%",
+        ]);
+      }
+    }
+    ModelConnection::create([
+      'model_type'     => PurchaseOrder::class,
+      'model_id'       => $purchaseInvoice->purchase_order_id,
+      'reference_type' => PurchaseInvoice::class,
+      'reference_id'   => $purchaseInvoice->id,
     ]);
+
+    DB::commit();
+
     $purchaseInvoice->checkApproval();
     return $purchaseInvoice;
-
   }
 
   public function onApproved(PurchaseInvoice $purchaseInvoice) {
     DB::beginTransaction();
 
     try {
-      $purchaseInvoice->update([
-        'status' => FormStatus::UNPAID,
+      $purchaseInvoice->load([
+        'expenseHeadAccount',
+        'creditAccount',
+        'purchaseOrder',
+        'returnAgainst',
+        'items.returnAgainstItem',
+        'items.purchaseOrderItem',
       ]);
 
-      // Create payment schedule if needed
-      if ($purchaseInvoice->paymentSchedules()->count() === 0) {
-        $purchaseInvoice->paymentSchedules()->create([
-          'payment_scheduleable_type' => PurchaseInvoice::class,
-          'payment_scheduleable_id'   => $purchaseInvoice->id,
-          'payment_amount'            => $purchaseInvoice->amount,
-          'paid_amount'               => 0,
-          'for_internal'              => true,
-          'due_date'                  => now()->addDays(30),
-          'exchange_rate'             => $purchaseInvoice->exchange_rate ?? 1,
-          'currency_code'             => $purchaseInvoice->currency_code,
-          'base_currency_code'        => $purchaseInvoice->base_currency_code,
-          'description'               => "Auto generated from Purchase Invoice {$purchaseInvoice->code}",
-        ]);
+      $returnAgainst = $purchaseInvoice->returnAgainst;
+      $items         = $purchaseInvoice->items;
+
+      $basicAmount = 0;
+      $taxAmount   = 0;
+
+      foreach ($items as $item) {
+        $basicAmount += $item->basic_amount;
+        $taxAmount   += $item->tax_amount;
+        if ($returnAgainst) {
+          $item->returnAgainstItem->increment('returned_quantity', $item->quantity);
+          $item->purchaseOrderItem->decrement('billed_quantity', $item->quantity);
+        } else {
+          $item->purchaseOrderItem->increment('billed_quantity', $item->quantity);
+        }
       }
+      $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
 
-      $amount = $purchaseInvoice->amount;
+      $debitAccount  = $purchaseInvoice->expenseHeadAccount;
+      $creditAccount = $purchaseInvoice->creditAccount;
 
-      // Account untuk Debit (Stock/Expense)
-      $debitAccount = Account::lockForUpdate()
-        ->where('root_type', 'asset')
-        ->where('account_type', 'stock')
-        ->firstOrFail();
-
-      // Account untuk Credit (Hutang ke supplier)
-      $creditAccount = Account::lockForUpdate()
-        ->where('root_type', 'liability')
-        ->where('account_type', 'payable')
-        ->firstOrFail();
-
-      // Entry 1: DEBIT Stock
       $debitAccount->generalLedgerEntries()->create([
         'against_account_id' => $creditAccount->id,
-        'debit'              => $amount,
-        'credit'             => 0,
+        'debit'              => $returnAgainst ? 0 : $totalAmount,
+        'credit'             => $returnAgainst ? $totalAmount : 0,
         'referenceable_type' => PurchaseInvoice::class,
         'referenceable_id'   => $purchaseInvoice->id,
       ]);
 
-      // Entry 2: CREDIT Accounts Payable
       $creditAccount->generalLedgerEntries()->create([
         'against_account_id' => $debitAccount->id,
-        'debit'              => 0,
-        'credit'             => $amount,
+        'debit'              => $returnAgainst ? $totalAmount : 0,
+        'credit'             => $returnAgainst ? 0 : $totalAmount,
         'referenceable_type' => PurchaseInvoice::class,
         'referenceable_id'   => $purchaseInvoice->id,
       ]);
+      $purchaseOrder      = $purchaseInvoice->purchaseOrder;
+      $unbilledItems      = $purchaseOrder->items()->select(['id', 'unbilled_quantity', 'quantity'])->get();
+      $countUnbilledItems = $unbilledItems->sum('unbilled_quantity');
+      $sumQuantity        = $unbilledItems->sum('quantity');
+      if ($countUnbilledItems == $sumQuantity) {
+        $status = Utils::replaceStatus(
+          $purchaseOrder->status,
+          [FormStatus::BILLED, FormStatus::PARTIALLY_BILLED],
+          FormStatus::TO_BILL,
+        );
+      } else if ($countUnbilledItems > 0) {
+        $status = Utils::replaceStatus(
+          $purchaseOrder->status,
+          FormStatus::TO_BILL,
+          FormStatus::PARTIALLY_BILLED,
+        );
+      } else {
+        $status = Utils::replaceStatus(
+          $purchaseOrder->status,
+          [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED],
+          FormStatus::BILLED,
+        );
+      }
+      $purchaseOrder->update([
+        'status' => $status,
+      ]);
+      $purchaseInvoice->update([
+        'amount' => $totalAmount,
+        'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::UNPAID,
+      ]);
+      if ($returnAgainst) {
+        $returnedItems      = $returnAgainst->items()->select(['returned_quantity', 'quantity'])->get();
+        $countReturnedItems = $returnedItems->sum('returned_quantity');
+        $sumQuantity        = $unbilledItems->sum('quantity');
 
+        if ($countReturnedItems == $sumQuantity) {
+          $status = Utils::replaceStatus(
+            $returnAgainst->status,
+            [FormStatus::UNPAID, FormStatus::PARTIALLY_PAID],
+            FormStatus::PAID,
+          );
+        } else if ($countReturnedItems > 0) {
+          $status = Utils::replaceStatus(
+            $returnAgainst->status,
+            FormStatus::UNPAID,
+            $returnAgainst->outstanding_amount <= 0 ? FormStatus::PAID : FormStatus::PARTIALLY_PAID,
+          );
+        } else {
+          $status = $returnAgainst->status;
+        }
+        $returnAgainst->update([
+          'status' => $status,
+        ]);
+      }
       DB::commit();
-      return $purchaseInvoice;
 
+      return $purchaseInvoice;
     } catch (\Exception $e) {
       DB::rollBack();
       throw $e;
@@ -187,9 +297,7 @@ class PurchaseInvoiceService {
   public function onRejected(PurchaseInvoice $purchaseInvoice) {
     DB::beginTransaction();
     $purchaseInvoice->update([
-      'status' => [
-        FormStatus::REJECTED,
-      ],
+      'status' => FormStatus::REJECTED,
     ]);
 
     DB::commit();
@@ -198,9 +306,7 @@ class PurchaseInvoiceService {
 
   public function cancel(PurchaseInvoice $purchaseInvoice) {
     $purchaseInvoice->update([
-      'status' => [
-        FormStatus::CANCELED,
-      ],
+      'status' => FormStatus::CANCELED,
     ]);
     return $purchaseInvoice;
   }
