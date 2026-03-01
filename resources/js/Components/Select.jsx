@@ -12,10 +12,10 @@ import {
 } from "react";
 
 import { Button } from "./ui/button";
+import ClickAwayListener from "react-click-away-listener";
 import { Input } from "./ui/input";
 import React from "react";
 import { XIcon } from "lucide-react";
-import { useDetectClickOutside } from "react-detect-click-outside";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useRef } from "react";
 
@@ -68,11 +68,7 @@ const Select = memo(
     const [isDirty, setIsDirty] = useState(false);
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(getOption(value));
-    const commandRef = useDetectClickOutside({
-      onTriggered: () => {
-        setOpen(false);
-      },
-    });
+    const commandRef = useRef(null);
     const hasValue = value !== undefined && value !== null;
     const option = hasValue ? getOption(value) : _option;
     const setOption = useCallback(
@@ -105,6 +101,7 @@ const Select = memo(
       }
 
       // apply default hanya sekali per key
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       _setOption((prev) => {
         if (prev?.value === opt.value) return prev;
         onValueChange?.(opt.value);
@@ -133,6 +130,7 @@ const Select = memo(
           (x) => x.label.toLowerCase() == search.toLowerCase(),
         );
         // if (findOption) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setOption(findOption);
         // return;
         // }
@@ -154,6 +152,7 @@ const Select = memo(
     // }, [_options]);
     useEffect(() => {
       if (option) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSearch(option.label);
       } else if (!open) {
         setSearch("");
@@ -200,73 +199,75 @@ const Select = memo(
       return item;
     }, []);
     return (
-      <Popover open={open} onOpenChange={() => {}}>
-        <Command
-          className="relative h-full overflow-visible bg-transparent"
-          ref={commandRef}
-          loop
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <PopoverTrigger
-                asChild
-                className={cn(
-                  "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-                  // valueBefore !== undefined &&
-                  // !diff?.same &&
-                  // "bg-yellow-200 dark:bg-yellow-900",
-                  disabled && "cursor-not-allowed opacity-50",
-                  className,
-                )}
-              >
-                <div>
-                  <Input
-                    id={id}
-                    ref={ref}
-                    disabled={disabled}
-                    readOnly={readOnly}
-                    onKeyDown={onInputKeyDown}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if ((!search && !open) || (!open && option)) {
-                        setOpen(true);
-                      }
-                    }}
-                    required={required}
-                    value={search}
-                    onChange={(e) => {
-                      // setAllowSearch(true);
-                      setSearch(e.target.value);
-                    }}
+      <ClickAwayListener onClickAway={() => setOpen(false)}>
+        <div className="contents">
+          <Popover open={open} onOpenChange={() => {}}>
+            <Command
+              className="relative h-full overflow-visible bg-transparent"
+              ref={commandRef}
+              loop
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger
+                    asChild
                     className={cn(
-                      "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
-                      // diff.same && "text-",
+                      "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+                      // valueBefore !== undefined &&
+                      // !diff?.same &&
+                      // "bg-yellow-200 dark:bg-yellow-900",
+                      disabled && "cursor-not-allowed opacity-50",
+                      className,
                     )}
-                    placeholder={placeholder}
-                  />
-                  <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
-                    {!(readOnly || disabled) && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "size-6 ",
-                          (!search || disabled || readOnly) && "hidden",
-                        )}
-                        onClick={() => {
-                          setOption(null);
-                          setSearch("");
+                  >
+                    <div>
+                      <Input
+                        id={id}
+                        ref={ref}
+                        disabled={disabled}
+                        readOnly={readOnly}
+                        onKeyDown={onInputKeyDown}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if ((!search && !open) || (!open && option)) {
+                            setOpen(true);
+                          }
                         }}
-                      >
-                        <XIcon className="size-3" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </PopoverTrigger>
-            </TooltipTrigger>
-            {/* {valueBefore && !diff?.same && (
+                        required={required}
+                        value={search}
+                        onChange={(e) => {
+                          // setAllowSearch(true);
+                          setSearch(e.target.value);
+                        }}
+                        className={cn(
+                          "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
+                          // diff.same && "text-",
+                        )}
+                        placeholder={placeholder}
+                      />
+                      <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
+                        {!(readOnly || disabled) && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              "size-6 ",
+                              (!search || disabled || readOnly) && "hidden",
+                            )}
+                            onClick={() => {
+                              setOption(null);
+                              setSearch("");
+                            }}
+                          >
+                            <XIcon className="size-3" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                {/* {valueBefore && !diff?.same && (
               <TooltipContent side="top" align="start">
                 {diff?.before && (
                   <>
@@ -277,42 +278,47 @@ const Select = memo(
                 <span>{diff?.after}</span>
               </TooltipContent>
             )} */}
-          </Tooltip>
-          {!(disabled || readOnly) && (
-            <PopoverContent
-              onOpenAutoFocus={(e) => e.preventDefault()}
-              align="start"
-              side="bottom"
-              className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
-              forceMount
-              asChild
-            >
-              <CommandList className="p-1 space-y-2">
-                <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
-                {options &&
-                  options?.map((option) => {
-                    return (
-                      <CommandItem
-                        key={option.value}
-                        value={option.value}
-                        onSelect={() => {
-                          setOption(option);
-                          setOpen(false);
-                        }}
-                      >
-                        <p
-                          dangerouslySetInnerHTML={{
-                            __html: highlightItem(option.label, search ?? ""),
-                          }}
-                        />
-                      </CommandItem>
-                    );
-                  })}
-              </CommandList>
-            </PopoverContent>
-          )}
-        </Command>
-      </Popover>
+              </Tooltip>
+              {!(disabled || readOnly) && (
+                <PopoverContent
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  align="start"
+                  side="bottom"
+                  className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
+                  forceMount
+                  asChild
+                >
+                  <CommandList className="p-1 space-y-2">
+                    <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
+                    {options &&
+                      options?.map((option) => {
+                        return (
+                          <CommandItem
+                            key={option.value}
+                            value={option.value}
+                            onSelect={() => {
+                              setOption(option);
+                              setOpen(false);
+                            }}
+                          >
+                            <p
+                              dangerouslySetInnerHTML={{
+                                __html: highlightItem(
+                                  option.label,
+                                  search ?? "",
+                                ),
+                              }}
+                            />
+                          </CommandItem>
+                        );
+                      })}
+                  </CommandList>
+                </PopoverContent>
+              )}
+            </Command>
+          </Popover>
+        </div>
+      </ClickAwayListener>
     );
   }),
 );

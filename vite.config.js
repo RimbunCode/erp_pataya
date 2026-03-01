@@ -4,6 +4,9 @@ import laravel from "laravel-vite-plugin";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 export default defineConfig({
+  resolve: {
+    dedupe: ["react", "react-dom"],
+  },
   plugins: [
     tailwindcss(),
     laravel({

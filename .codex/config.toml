@@ -10,3 +10,7 @@ cwd = "G:\\Project App\\erp"
 
 [mcp_servers.herd.env]
 SITE_PATH = "G:\\Project App\\erp"
+
+[mcp_servers.shadcn]
+command = "npx"
+args = ["shadcn@latest", "mcp"]
