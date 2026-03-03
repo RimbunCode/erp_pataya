@@ -30,7 +30,7 @@ class SalesInvoiceService {
     }
 
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
     $data['base_currency_code'] = $defaultCurrency;
 
     $data['return_against_id'] = $data['return_against']['id'] ?? null;
@@ -39,16 +39,16 @@ class SalesInvoiceService {
   }
 
   private function fillItemRelations(array $data, SalesInvoice $salesInvoice) {
-    $data['item_id']             = $data['item']['id'];
-    $data['unit_id']             = $data['unit']['id'];
-    $data['conversion_factor']   = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
-    $data['tax_id']              = $data['tax']['id'];
-    $data['tax_rate']            = $data['tax']['rate'];
-    $data['currency_code']       = $salesInvoice->currency_code;
-    $data['base_currency_code']  = $salesInvoice->base_currency_code;
-    $data['exchange_rate']       = $salesInvoice->exchange_rate;
-    $data['price']               = $data['price'] ?? 0;
-    $data['price_base_currency'] = 0;
+    $data['item_id']               = $data['item']['id'];
+    $data['unit_id']               = $data['unit']['id'];
+    $data['conversion_factor']     = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
+    $data['tax_id']                = $data['tax']['id'];
+    $data['tax_rate']              = $data['tax']['rate'];
+    $data['currency_code']         = $salesInvoice->currency_code;
+    $data['base_currency_code']    = $salesInvoice->base_currency_code;
+    $data['exchange_rate']         = $salesInvoice->exchange_rate;
+    $data['price']               ??= 0;
+    $data['price_base_currency']   = 0;
     return $data;
   }
 
@@ -56,13 +56,9 @@ class SalesInvoiceService {
     $data['currency_code']      = $salesInvoice->currency_code;
     $data['base_currency_code'] = $salesInvoice->base_currency_code;
     $data['exchange_rate']      = $salesInvoice->exchange_rate;
-
-    if (isset($data['payment_term'])) {
-      $data['payment_term_id'] = $data['payment_term']['id'];
-    }
-    if (isset($data['payment_method'])) {
-      $data['payment_method_id'] = $data['payment_method']['id'];
-    }
+    $data['for_internal']       = false;
+    $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
+    $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
     return $data;
   }
 
@@ -88,7 +84,6 @@ class SalesInvoiceService {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesInvoice);
       $salesInvoice->paymentSchedules()->create(attributes: [
         ...$payment_schedule,
-        'for_internal' => false,
       ]);
     }
     $salesInvoice->logForCreated();
@@ -135,7 +130,6 @@ class SalesInvoiceService {
       }
       $salesInvoice->paymentSchedules()->create(attributes: [
         ...$payment_schedule,
-        'for_internal' => false,
       ]);
     }
     $salesInvoice->logForUpdated();
@@ -266,8 +260,10 @@ class SalesInvoiceService {
       ]);
 
       $salesInvoice->update([
+        'amount' => $totalAmount,
         'status' => $returnAgainst ? FormStatus::RETURNED : FormStatus::UNPAID,
       ]);
+
       if ($returnAgainst) {
         $returnedItems      = $returnAgainst->items()->select(['returned_quantity', 'quantity'])->get();
         $countReturnedItems = $returnedItems->sum('returned_quantity');

@@ -20,13 +20,8 @@ class PurchaseReceiptService {
     $data['purchase_order_id'] = $data['purchase_order']['id'];
     $data['supplier_id']       = $data['supplier']['id'];
 
-    // optional branch
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
-    if (isset($data['return_against'])) {
-      $data['return_against_id'] = $data['return_against']['id'];
-    }
+    $data['branch_id']         = $data['branch']['id'];
+    $data['return_against_id'] = $data['return_against']['id'] ?? null;
 
     return $data;
   }
@@ -154,7 +149,7 @@ class PurchaseReceiptService {
           'quantity_change'            => -$quantity,
           'quantity_after_transaction' => $stock->actual_quantity,
           'valuation_rate'             => $stock->valuation_rate,
-          'balance_stock_value'        => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+          'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
           'change_in_stock_value'      => -$totalRate,
           'stock_queue'                => $stock->stock_queue,
           'referenceable_type'         => PurchaseReceipt::class,
@@ -183,7 +178,7 @@ class PurchaseReceiptService {
         'quantity_change'            => $quantity,
         'quantity_after_transaction' => $stock->actual_quantity,
         'valuation_rate'             => $stock->valuation_rate,
-        'balance_stock_value'        => \array_sum(array_map(fn($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
+        'balance_stock_value'        => \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $stock->stock_queue)),
         'change_in_stock_value'      => $totalRate,
         'stock_queue'                => $stock->stock_queue,
         'referenceable_type'         => PurchaseReceipt::class,

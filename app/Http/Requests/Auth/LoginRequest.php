@@ -26,7 +26,7 @@ class LoginRequest extends FormRequest {
   public function rules(): array {
     return [
       'usernameOrEmail' => ['required', 'string'],
-      'password' => ['required', 'string'],
+      'password'        => ['required', 'string'],
     ];
   }
 
@@ -42,7 +42,7 @@ class LoginRequest extends FormRequest {
       : 'username';
 
     $this->merge([
-      $login_type => $this->input('usernameOrEmail')
+      $login_type => $this->input('usernameOrEmail'),
     ]);
 
     $user = User::where('email', $this->input('usernameOrEmail'))->orWhere('username', $this->input('usernameOrEmail'))->first();
@@ -57,7 +57,7 @@ class LoginRequest extends FormRequest {
         ]);
       }
     }
-    if (!Auth::attempt($this->only($login_type, 'password'), $this->boolean('remember'))) {
+    if (! Auth::attempt($this->only($login_type, 'password'), $this->boolean('remember'))) {
       RateLimiter::hit($this->throttleKey());
 
       throw ValidationException::withMessages([

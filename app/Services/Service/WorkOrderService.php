@@ -13,18 +13,19 @@ use Symfony\Component\Uid\Ulid;
 
 class WorkOrderService {
   private function fillRelations(array $data) {
-    if (!($data['for_internal'] ?? false)) {
+    if (! ($data['for_internal'] ?? false)) {
       $data['customer_id']   = $data['customer']['id'];
       $data['customer_name'] = $data['customer']['name'];
+    } else {
+      $data['customer_id']   = null;
+      $data['customer_name'] = null;
     }
     $data['customer_branch_id']   = $data['customer_branch']['id'];
     $data['customer_branch_name'] = $data['customer_branch']['name'];
     $data['address']              = [];
     $data['item_service_id']      = $data['item_service']['id'];
     $data['item_service_name']    = $data['item_service']['sku'];
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
+    $data['branch_id']            = $data['branch']['id'] ?? null;
 
     return $data;
   }

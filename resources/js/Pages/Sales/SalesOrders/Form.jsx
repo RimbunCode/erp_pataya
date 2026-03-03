@@ -154,175 +154,171 @@ export default memo(function Form() {
     [setData],
   );
 
-  const itemColumns = useMemo(() => {
-    return [
-      {
-        name: "item",
-        titleTrans: "sales.salesOrder.columns.item",
-        required: true,
-        width: 3,
-        cell({ dataRow, setData, attributes }) {
-          return (
-            <ItemVariantLinkModel
-              placeholder={t("sales.salesOrder.columns.item.placeholder")}
-              value={dataRow.item}
-              onValueChange={(val) => {
-                setData({
-                  item: val,
-                  unit: val?.default_unit,
-                  source_warehouse: data.source_warehouse,
-                });
-              }}
-              {...attributes}
-              with={["defaultUnit", "item"]}
-            />
-          );
-        },
+  const itemColumns = [
+    {
+      name: "item",
+      titleTrans: "sales.salesOrder.columns.item",
+      required: true,
+      width: 3,
+      cell({ dataRow, setData, attributes }) {
+        return (
+          <ItemVariantLinkModel
+            placeholder={t("sales.salesOrder.columns.item.placeholder")}
+            value={dataRow.item}
+            onValueChange={(val) => {
+              setData({
+                item: val,
+                unit: val?.default_unit,
+                source_warehouse: data.source_warehouse,
+              });
+            }}
+            {...attributes}
+            with={["defaultUnit", "item"]}
+          />
+        );
       },
-      {
-        name: "description",
-        titleTrans: "sales.salesOrder.columns.description",
-        show: false,
-        type: "text",
-        width: 2,
-        cell({ dataRow, data: value, setData, attributes }) {
-          return (
-            <Textarea
-              disabled={!dataRow?.item}
-              rows={1}
-              value={value ?? ""}
-              onChange={(e) => setData("description", e.target.value)}
-              {...attributes}
-              readOnly={
-                attributes.readOnly && !(data.submitted_at && isLockDoc)
-              }
-            />
-          );
-        },
+    },
+    {
+      name: "description",
+      titleTrans: "sales.salesOrder.columns.description",
+      show: false,
+      type: "text",
+      width: 2,
+      cell({ dataRow, data: value, setData, attributes }) {
+        return (
+          <Textarea
+            disabled={!dataRow?.item}
+            rows={1}
+            value={value ?? ""}
+            onChange={(e) => setData("description", e.target.value)}
+            {...attributes}
+            readOnly={attributes.readOnly && !(data.submitted_at && isLockDoc)}
+          />
+        );
       },
-      {
-        name: "source_warehouse",
-        titleTrans: "sales.salesOrder.columns.source_warehouse",
-        show: true,
-        type: "text",
-        width: 3,
-        required: true,
-        cell({ dataRow, data: value, setData, attributes }) {
-          return (
-            <WarehouseLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t(
-                "sales.salesOrder.columns.source_warehouse.placeholder",
-              )}
-              value={value}
-              onValueChange={(val) => setData("source_warehouse", val)}
-              {...attributes}
-              readOnly={data.submitted_at && !isLockDoc}
-            />
-          );
-        },
+    },
+    {
+      name: "source_warehouse",
+      titleTrans: "sales.salesOrder.columns.source_warehouse",
+      show: true,
+      type: "text",
+      width: 3,
+      required: true,
+      cell({ dataRow, data: value, setData, attributes }) {
+        return (
+          <WarehouseLinkModel
+            disabled={!dataRow?.item}
+            placeholder={t(
+              "sales.salesOrder.columns.source_warehouse.placeholder",
+            )}
+            value={value}
+            onValueChange={(val) => setData("source_warehouse", val)}
+            {...attributes}
+            readOnly={data.submitted_at && !isLockDoc}
+          />
+        );
       },
-      {
-        name: "available_quantity",
-        titleTrans: "sales.salesOrder.columns.available_quantity",
-        required: true,
-        type: "number",
-        width: 1,
-        cell({ additionalData, dataRow, attributes }) {
-          return (
-            <CurrencyInput
-              {...attributes}
-              disabled={!dataRow?.item}
-              readOnly={true}
-              value={additionalData?.available_stock ?? 0}
-            />
-          );
-        },
+    },
+    {
+      name: "available_quantity",
+      titleTrans: "sales.salesOrder.columns.available_quantity",
+      required: true,
+      type: "number",
+      width: 1,
+      cell({ additionalData, dataRow, attributes }) {
+        return (
+          <CurrencyInput
+            {...attributes}
+            disabled={!dataRow?.item}
+            readOnly={true}
+            value={additionalData?.available_stock ?? 0}
+          />
+        );
       },
-      {
-        name: "quantity",
-        titleTrans: "sales.salesOrder.columns.quantity",
-        required: true,
-        type: "number",
-        width: 1,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <CurrencyInput
-              {...attributes}
-              disabled={!dataRow?.item}
-              readOnly={
-                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
-              }
-              value={data}
-              onValueChange={(value) => {
-                setData("quantity", value);
-              }}
-            />
-          );
-        },
+    },
+    {
+      name: "quantity",
+      titleTrans: "sales.salesOrder.columns.quantity",
+      required: true,
+      type: "number",
+      width: 1,
+      cell({ dataRow, data, setData, attributes }) {
+        return (
+          <CurrencyInput
+            {...attributes}
+            disabled={!dataRow?.item}
+            readOnly={
+              attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+            }
+            value={data}
+            onValueChange={(value) => {
+              setData("quantity", value);
+            }}
+          />
+        );
       },
-      {
-        name: "unit",
-        titleTrans: "sales.salesOrder.columns.unit",
-        width: 2,
-        cell({ data, setData, attributes, dataRow }) {
-          return (
-            <UnitLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t("sales.salesOrder.columns.unit.placeholder")}
-              value={data}
-              onValueChange={(val) => setData("unit", val)}
-              {...attributes}
-              filters={{
-                group: dataRow?.item?.default_unit?.group,
-              }}
-            />
-          );
-        },
+    },
+    {
+      name: "unit",
+      titleTrans: "sales.salesOrder.columns.unit",
+      width: 2,
+      cell({ data, setData, attributes, dataRow }) {
+        return (
+          <UnitLinkModel
+            disabled={!dataRow?.item}
+            placeholder={t("sales.salesOrder.columns.unit.placeholder")}
+            value={data}
+            onValueChange={(val) => setData("unit", val)}
+            {...attributes}
+            filters={{
+              group: dataRow?.item?.default_unit?.group,
+            }}
+          />
+        );
       },
-      {
-        name: "tax",
-        titleTrans: "sales.salesOrder.columns.tax",
-        required: true,
-        width: 2,
-        cell({ data: value, setData, attributes, dataRow }) {
-          return (
-            <TaxLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t("sales.salesOrder.columns.tax.placeholder")}
-              value={value}
-              onValueChange={(val) => {
-                setData("tax", val);
-              }}
-              {...attributes}
-              readOnly={data.submitted_at && !isLockDoc}
-            />
-          );
-        },
+    },
+    {
+      name: "tax",
+      titleTrans: "sales.salesOrder.columns.tax",
+      required: true,
+      width: 2,
+      cell({ data: value, setData, attributes, dataRow }) {
+        return (
+          <TaxLinkModel
+            disabled={!dataRow?.item}
+            placeholder={t("sales.salesOrder.columns.tax.placeholder")}
+            value={value}
+            onValueChange={(val) => {
+              setData("tax", val);
+            }}
+            {...attributes}
+            readOnly={data.submitted_at && !isLockDoc}
+          />
+        );
       },
-      {
-        name: "price",
-        titleTrans: "sales.salesOrder.columns.price",
-        required: true,
-        width: 2,
-        cell({ data: price, setData, attributes, dataRow }) {
-          return (
-            <CurrencyInput
-              decimalScale={2}
-              currencyCode={data?.currency?.code}
-              disabled={!dataRow?.item}
-              value={price}
-              onValueChange={(val) => {
-                setData("price", val);
-              }}
-              {...attributes}
-              readOnly={data.submitted_at && !isLockDoc}
-            />
-          );
-        },
+    },
+    {
+      name: "price",
+      titleTrans: "sales.salesOrder.columns.price",
+      required: true,
+      width: 2,
+      cell({ data: price, setData, attributes, dataRow }) {
+        return (
+          <CurrencyInput
+            decimalScale={2}
+            currencyCode={data?.currency?.code}
+            disabled={!dataRow?.item}
+            value={price}
+            onValueChange={(val) => {
+              setData("price", val);
+            }}
+            {...attributes}
+            readOnly={data.submitted_at && !isLockDoc}
+          />
+        );
       },
-    ];
-  }, [data, isLockDoc]);
+    },
+  ];
 
   return (
     <>
@@ -336,7 +332,9 @@ export default memo(function Form() {
             <DatetimePicker
               type="datetime"
               value={data?.date}
-              onValueChange={(val) => setData("date", val)}
+              onValueChange={(val) => {
+                setData("date", val);
+              }}
             />
           </FormInput>
           {data.referenceable && (

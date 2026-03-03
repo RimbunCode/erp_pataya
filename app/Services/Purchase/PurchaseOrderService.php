@@ -17,14 +17,12 @@ class PurchaseOrderService {
     $data['supplier_id']   = $data['supplier']['id'];
     $data['supplier_name'] = $data['supplier']['name'];
 
-    // optional branch
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
+    $data['branch_id'] = $data['branch']['id'];
 
-    $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
-    $data['base_currency_code'] = $defaultCurrency;
+    $defaultCurrency              = Preference::find('default_currency_id')->value;
+    $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
+    $data['base_currency_code']   = $defaultCurrency;
+    $data['exchange_rate']      ??= 1;
 
     return $data;
   }
@@ -45,26 +43,38 @@ class PurchaseOrderService {
     $data['currency_code']      = $purchaseOrder->currency_code;
     $data['base_currency_code'] = $purchaseOrder->base_currency_code;
     $data['exchange_rate']      = $purchaseOrder->exchange_rate;
-
-    if (isset($data['payment_term'])) {
-      $data['payment_term_id'] = $data['payment_term']['id'];
-    }
-    if (isset($data['payment_method'])) {
-      $data['payment_method_id'] = $data['payment_method']['id'];
-    }
+    $data['for_internal']       = true;
+    $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
+    $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
     return $data;
   }
 
   public function create(array $data) {
     $data['code']  = FormatingSeries::generate(PurchaseOrder::class, $data, true);
     $purchaseOrder = PurchaseOrder::create($this->fillRelations($data));
+
+    $basicAmount = 0;
+    $taxAmount   = 0;
+
     foreach ($data['items'] as $item) {
       $item = $this->fillItemRelations($item, $purchaseOrder);
-      $purchaseOrder->items()->create($item);
+      $item = $purchaseOrder->items()->create($item);
+      $item->refresh();
+      $basicAmount += $item->basic_amount;
+      $taxAmount   += $item->tax_amount;
     }
+
+    $totalAmount = \App\Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
+    $purchaseOrder->update([
+      'total_amount'               => $totalAmount,
+      'total_amount_base_currency' => $totalAmount * ($purchaseOrder->exchange_rate ?? 1),
+    ]);
+
     foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseOrder);
-      $purchaseOrder->paymentSchedules()->create($payment_schedule);
+      $purchaseOrder->paymentSchedules()->create([
+        ...$payment_schedule,
+      ]);
     }
     $purchaseOrder->logForCreated();
     return $purchaseOrder;
@@ -73,6 +83,9 @@ class PurchaseOrderService {
   public function update(PurchaseOrder $purchaseOrder, array $data) {
     $purchaseOrder->fillForUpdate($this->fillRelations($data));
 
+    $basicAmount = 0;
+    $taxAmount   = 0;
+
     $purchaseOrder->items()
       ->whereNotIn('id', array_column($data['items'], 'id'))
       ->delete();
@@ -80,14 +93,25 @@ class PurchaseOrderService {
       $item = $this->fillItemRelations($item, $purchaseOrder);
 
       if (Ulid::isValid($item['id'])) {
-        $purchaseOrder->items()
-          ->find($item['id'])
-          ->update($item);
-        continue;
+        $itemModel = $purchaseOrder->items()->find($item['id']);
+        $itemModel->fill($item);
+        $itemModel->save();
+        $itemModel->refresh();
+      } else {
+        $itemModel = $purchaseOrder->items()->create($item);
+        $itemModel->refresh();
       }
 
-      $purchaseOrder->items()->create($item);
+      $basicAmount += $itemModel->basic_amount;
+      $taxAmount   += $itemModel->tax_amount;
     }
+
+    $totalAmount = \App\Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
+    $purchaseOrder->update([
+      'total_amount'               => $totalAmount,
+      'total_amount_base_currency' => $totalAmount * ($purchaseOrder->exchange_rate ?? 1),
+    ]);
+
     if (\array_key_exists('payment_schedules', $data)) {
 
       $purchaseOrder->paymentSchedules()
@@ -96,10 +120,14 @@ class PurchaseOrderService {
       foreach ($data['payment_schedules'] as $payment_schedule) {
         $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseOrder);
         if (Ulid::isValid($payment_schedule['id'])) {
-          $purchaseOrder->paymentSchedules()->find($payment_schedule['id'])->update($payment_schedule);
+          $purchaseOrder->paymentSchedules()->find($payment_schedule['id'])->update([
+            ...$payment_schedule,
+          ]);
           continue;
         }
-        $purchaseOrder->paymentSchedules()->create($payment_schedule);
+        $purchaseOrder->paymentSchedules()->create([
+          ...$payment_schedule,
+        ]);
       }
     }
 
@@ -109,6 +137,17 @@ class PurchaseOrderService {
 
   public function submit(PurchaseOrder $purchaseOrder) {
     DB::beginTransaction();
+
+    // ensure payment schedule portions valid when provided
+    if ($purchaseOrder->paymentSchedules()->exists()) {
+      $totalInvoicePortion = $purchaseOrder->paymentSchedules()->sum('invoice_portion');
+      if ($totalInvoicePortion != 100) {
+        DB::rollBack();
+        throw \Illuminate\Validation\ValidationException::withMessages([
+          'invoice_portion' => "Total invoice portion must be 100%",
+        ]);
+      }
+    }
 
     $purchaseOrder->update([
       'code' => FormatingSeries::generate(PurchaseOrder::class, $purchaseOrder),
@@ -123,15 +162,15 @@ class PurchaseOrderService {
       ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
       ->lockForUpdate()
       ->get()
-      ->keyBy(fn($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
     foreach ($items as $item) {
-      if (!$item->item->is_stock_item) continue;
+      if (! $item->item->is_stock_item) continue;
 
       $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
       /** @var Stock|null $stock */
       $stock = $stocks->get($stockKey);
-      if (!$stock) continue;
+      if (! $stock) continue;
 
       $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
       $stock->updateDetails('increment', 'incomings', $purchaseOrder->code, $quantity);

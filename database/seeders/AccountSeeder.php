@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Finances\Account;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class AccountSeeder extends Seeder {
@@ -20,6 +19,7 @@ class AccountSeeder extends Seeder {
           'account_name'      => $account['account_name'],
           'have_transactions' => true,
           ...$account,
+          'is_group'          => $account['is_group'] ?? false,
           'account_type'      => ($account['is_group'] ?? false) ? null : $account['account_type'] ?? null,
           ...($accountParent ? [
             'parent_id'    => $accountParent->id,
@@ -163,12 +163,12 @@ class AccountSeeder extends Seeder {
                   [
                     'account_name'   => 'Hutang Dagang Dalam Negeri',
                     'account_number' => '2211',
-                    'is_group'       => true,
+                    'account_type'   => 'payable',
                   ],
                   [
                     'account_name'   => 'Hutang Dagang Luar Negeri',
                     'account_number' => '2212',
-                    'is_group'       => true,
+                    'account_type'   => 'payable',
                   ],
                   [
                     'account_name'   => 'Stock Diterima Tapi Belum Dibayar',

@@ -21,7 +21,7 @@ return new class extends Migration
       $table->json('valuation_rates');
       $table->double('quantity')->default(0);
       $table->double('returned_quantity')->default(0);
-      $table->double('remaining_quantity')->storedAs('quantity - returned_quantity');
+      $table->double('unreturned_quantity')->storedAs('quantity - returned_quantity');
       $table->text('description')->nullable();
       $table->foreignUlid('return_against_item_id')->nullable()->references('id')->on('delivery_note_items')->nullOnDelete();
       $table->softDeletes();

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\UnitRequest;
 use App\Models\Inventory\Unit;
-use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -115,6 +114,6 @@ class UnitController extends Controller {
     $unit->delete();
     $unit->logForDeleted();
     DB::commit();
-    return back();
+    return redirect()->route('units.index');
   }
 }

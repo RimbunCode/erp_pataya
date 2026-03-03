@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockEntry extends Model {
-  use HasUlids, SoftDeletes, DataTable, Submitable;
+  use DataTable, HasUlids, SoftDeletes, Submitable;
   protected               $guarded           = ["id"];
   protected               $casts             = [
     'date'          => 'datetime',

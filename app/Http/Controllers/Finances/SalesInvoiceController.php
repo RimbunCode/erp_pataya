@@ -221,6 +221,6 @@ class SalesInvoiceController extends Controller {
     $salesInvoice->delete();
     $salesInvoice->logForDeleted();
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('salesInvoices.index');
   }
 }

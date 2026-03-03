@@ -13,7 +13,7 @@ use function PHPSTORM_META\type;
 class PaymentSchedule extends Model {
   use HasUlids, SoftDeletes, DataTable;
   protected $withs = [
-    'referenceTo.',
+    'referenceTo',
   ];
 
   protected static function loadRelationsOnShow() {
@@ -22,7 +22,7 @@ class PaymentSchedule extends Model {
       'paymentMethod',
     ];
   }
-  protected $configColumns = [
+  protected     $configColumns = [
     'referenceTo'             => [
       'type'               => 'relation',
       'order'              => 0,
@@ -64,14 +64,15 @@ class PaymentSchedule extends Model {
       'ignore' => true,
     ],
   ];
-  protected $appends       = ['status'];
-  public string $translateKey = 'finances.paymentSchedule';
-  protected $casts = [
+  protected     $appends       = ['status'];
+  public string $translateKey  = 'finances.paymentSchedule';
+  protected     $casts         = [
+    'for_internal' => 'boolean',
     'due_date'     => 'datetime',
     'payment_date' => 'datetime',
     'submitted_at' => 'datetime',
   ];
-  protected $guarded = ['id'];
+  protected     $guarded       = ['id'];
 
   public function status(): Attribute {
     return new Attribute(

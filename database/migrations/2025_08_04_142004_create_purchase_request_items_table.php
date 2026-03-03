@@ -19,7 +19,7 @@ return new class extends Migration
       $table->timestamp('required_date')->nullable();
       $table->double('quantity')->default(1);
       $table->double('ordered_quantity')->default(0);
-      $table->double('remaining_quantity')->storedAs('quantity - ordered_quantity');
+      $table->double('unordered_quantity')->storedAs('quantity - ordered_quantity');
       $table->double('received_quantity')->default(0);
       $table->double('unreceived_quantity')->storedAs('quantity - received_quantity');
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();

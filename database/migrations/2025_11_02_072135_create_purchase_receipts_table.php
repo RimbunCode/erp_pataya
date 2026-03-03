@@ -12,7 +12,7 @@ return new class extends Migration
   public function up(): void {
     Schema::create('purchase_receipts', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->timestamp('received_date');
+      $table->timestamp('date');
       $table->foreignUlid('return_against_id')->nullable()->references('id')->on('purchase_receipts')->cascadeOnDelete();
       $table->foreignUlid('purchase_order_id')->nullable()->references('id')->on('purchase_orders')->nullOnDelete();
       $table->foreignUlid('supplier_id')->nullable()->references('id')->on('suppliers')->nullOnDelete();

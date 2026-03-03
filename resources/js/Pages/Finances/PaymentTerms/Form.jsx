@@ -84,7 +84,7 @@ export default function Form() {
                 setData("credit_period", value);
               }}
             />
-          </FormInput>{" "}
+          </FormInput>
           <FormInput
             required={false}
             label={t("finances.paymentTerm.columns.payment_method")}
@@ -126,8 +126,8 @@ export default function Form() {
                 onValueChange={(value) => setData("discount", value)}
                 decimalsLimit={2}
                 suffix={data.discount_type == "percentage" ? "%" : ""}
-                min={0}
-                max={100}
+                min={data.discount_type == "percentage" && 0}
+                max={data.discount_type == "percentage" && 100}
               />
             </FormInput>
           )}

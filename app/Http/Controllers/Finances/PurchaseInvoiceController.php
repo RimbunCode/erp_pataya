@@ -53,18 +53,16 @@ class PurchaseInvoiceController extends Controller {
                 return redirect()->route('purchaseInvoices.show', $purchaseInvoice);
               }
               $po->loadRelations();
-              $accounts = Account::whereIn('root_type', ['income', 'asset'])
-                ->whereIn('account_type', ['income_account', 'receivable'])
-                ->where('is_contra', false)
+              $accounts = Account::where('root_type', "liability")
+                ->whereIn('account_type', ["stock_received_but_not_billed", "payable"])
                 ->get();
 
               $defaultData = [
                 'date'                 => now(),
                 'purchase_order'       => $po,
-                'customer'             => $po?->customer,
-                'customer_branch'      => $po?->customer_branch,
+                'supplier'             => $po?->supplier,
                 'expense_head_account' => $accounts->where('root_type', 'liability')->where('account_type', 'stock_received_but_not_billed')->first(),
-                'creadit_account'      => $accounts->where('root_type', 'liability')->where('account_type', 'payable')->first(),
+                'credit_account'       => $accounts->where('root_type', 'liability')->where('account_type', 'payable')->first(),
                 'currency'             => $po?->currency,
                 'amount'               => $po?->amount,
                 'discount_on'          => $po?->discount_on,
@@ -137,33 +135,6 @@ class PurchaseInvoiceController extends Controller {
     $this->setBreadcrumbs('finances.purchaseInvoice.new');
     return Inertia::render('Finances/PurchaseInvoice/Show', [
       'defaultData' => $defaultData ?? [],
-    ]);
-    $purchaseOrder = PurchaseOrder::with(
-      "items",
-      "supplier",
-      "currency",
-      "items.item",
-      "items.unit",
-      "items.warehouse",
-      "paymentSchedules",
-      "paymentSchedules.paymentTerm",
-      "paymentSchedules.paymentMethod",
-    )
-      ->find($ref);
-    $this->setBreadcrumbs('finances.purchaseInvoice.new');
-    return Inertia::render('Finances/PurchaseInvoice/Show', [
-      'date'             => now(),
-      'purchase_order'   => $purchaseOrder,
-      'supplier'         => $purchaseOrder?->supplier,
-      'currency'         => $purchaseOrder?->currency,
-      'items'            => $purchaseOrder?->items,
-      'paymentSchedules' => $purchaseOrder?->paymentSchedules,
-      'amount'           => $purchaseOrder?->amount,
-      'discount_on'      => $purchaseOrder?->discount_on,
-      'discount_rate'    => $purchaseOrder?->discount_rate,
-      'discount_amount'  => $purchaseOrder?->discount_amount,
-      'exchange_rate'    => $purchaseOrder?->exchange_rate,
-      'external_note'    => $purchaseOrder?->external_note,
     ]);
   }
 
@@ -242,6 +213,6 @@ class PurchaseInvoiceController extends Controller {
     $purchaseInvoice->delete();
     $purchaseInvoice->logForDeleted();
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('purchaseInvoices.index');
   }
 }

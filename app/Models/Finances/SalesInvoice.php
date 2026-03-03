@@ -87,6 +87,9 @@ class SalesInvoice extends Model {
     'customer_name'           => [
       'ignore' => true,
     ],
+    'incomeAccount',
+    'debitAccount',
+    'returnAgainst',
   ];
 
   protected static function loadRelationsOnShow() {

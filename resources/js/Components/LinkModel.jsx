@@ -20,6 +20,7 @@ import {
 } from "react";
 
 import { Button } from "./ui/button";
+import ClickAwayListener from "react-click-away-listener";
 import { Command as CommandPrimitive } from "cmdk";
 import { FormPageLinkModelDialog } from "@/Pages/Core/FormPage";
 import { Input } from "./ui/input";
@@ -27,7 +28,6 @@ import LoadingIcon from "./LoadingIcon";
 import axios from "axios";
 import { isEqual } from "lodash";
 import pluralize from "pluralize";
-import { useDetectClickOutside } from "react-detect-click-outside";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useRef } from "react";
@@ -265,16 +265,14 @@ export default memo(
     }, [as, model]);
 
     const route = window.route;
-    const commandRef = useDetectClickOutside({
-      onTriggered: () => {
-        setOpen(false);
-      },
-    });
+    const isControlled = value !== undefined;
+    const commandRef = useRef(null);
 
     const option = useMemo(() => {
+      // eslint-disable-next-line react-hooks/set-state-in-render
       setLoading(false);
-      return _option;
-    }, [_option]);
+      return isControlled ? value : _option;
+    }, [isControlled, value, _option]);
 
     useDidMountEffect(() => {
       _setOption((prev) => {
@@ -292,6 +290,11 @@ export default memo(
           const isValid = validate(val, filters);
           if (!isValid) return;
         }
+        if (isControlled) {
+          if (isEqual(value, val)) return;
+          onValueChange?.(val);
+          return;
+        }
         _setOption((prev) => {
           // kalau sama, jangan trigger apa-apa
           if (isEqual(prev, val)) return prev;
@@ -299,13 +302,28 @@ export default memo(
           return val;
         });
       },
-      [onValueChange, _setOption, disabled, readOnly, filters],
+      [
+        onValueChange,
+        _setOption,
+        disabled,
+        readOnly,
+        filters,
+        isControlled,
+        value,
+      ],
     );
 
     useEffect(() => {
       if (open) return;
 
       setLoading(false);
+      if (isControlled && value === null) {
+        setAllowSearch(true);
+        if (search) {
+          setSearch("");
+        }
+        return;
+      }
       if (!option && search) {
         const findOption = options.find(
           (x) => convertTemplateLink(x).toLowerCase() == search.toLowerCase(),
@@ -318,7 +336,7 @@ export default memo(
         setAllowSearch(false);
         setSearch("");
       }
-    }, [open]);
+    }, [open, isControlled, value, search, option, options, setOption]);
 
     useEffect(() => {
       if (option) {
@@ -390,20 +408,6 @@ export default memo(
       removeCache,
     ]);
 
-    useEffect(() => {
-      if (!cacheConfig.enabled || !cacheConfig.refreshMs) return;
-      const refresh = setInterval(() => {
-        setLoading(true);
-        getModels({}, null, { cacheMode: true });
-      }, cacheConfig.refreshMs);
-      return () => clearInterval(refresh);
-    }, [
-      cacheConfig.enabled,
-      cacheConfig.refreshMs,
-      model,
-      JSON.stringify(joins),
-    ]);
-
     const getModels = (
       filterForDefaultValue = {},
       callback,
@@ -454,6 +458,19 @@ export default memo(
           setLoading(false);
         });
     };
+    useEffect(() => {
+      if (!cacheConfig.enabled || !cacheConfig.refreshMs) return;
+      const refresh = setInterval(() => {
+        setLoading(true);
+        getModels({}, null, { cacheMode: true });
+      }, cacheConfig.refreshMs);
+      return () => clearInterval(refresh);
+    }, [
+      cacheConfig.enabled,
+      cacheConfig.refreshMs,
+      model,
+      JSON.stringify(joins),
+    ]);
 
     useEffect(() => {
       if (!cacheConfig.enabled || cacheLoaded) return;
@@ -603,208 +620,215 @@ export default memo(
       [cacheConfig.enabled, limit, total],
     );
     return (
-      <Popover open={open} onOpenChange={() => {}}>
-        <Command
-          className="relative h-full overflow-visible bg-transparent"
-          ref={commandRef}
-          loop
-        >
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <PopoverTrigger
-                asChild
-                className={cn(
-                  "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-                  valueBefore !== undefined &&
-                    !diff?.same &&
-                    "bg-yellow-200 dark:bg-yellow-900",
-                  disabled && "cursor-not-allowed opacity-50",
-                  className,
-                )}
-              >
-                <div>
-                  <Input
-                    id={id}
-                    ref={ref}
-                    disabled={disabled}
-                    readOnly={readOnly}
-                    onKeyDown={onInputKeyDown}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (!(option && search) && !open) {
-                        setOpen(true);
-                      }
-                    }}
-                    required={required}
-                    value={search}
-                    onChange={(e) => {
-                      setAllowSearch(true);
-                      setSearch(e.target.value);
-                    }}
+      <ClickAwayListener onClickAway={() => setOpen(false)}>
+        <div className="contents">
+          <Popover open={open} onOpenChange={() => {}}>
+            <Command
+              className="relative h-full overflow-visible bg-transparent"
+              ref={commandRef}
+              loop
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger
+                    asChild
                     className={cn(
-                      "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
-                      // diff.same && "text-",
+                      "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+                      valueBefore !== undefined &&
+                        !diff?.same &&
+                        "bg-yellow-200 dark:bg-yellow-900",
+                      disabled && "cursor-not-allowed opacity-50",
+                      className,
                     )}
-                    placeholder={placeholder}
-                  />
-                  <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
-                    {loading ? (
-                      <LoadingIcon className="size-4" />
-                    ) : (
-                      <>
-                        {!disabledNavigation && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className={cn(
-                              "size-6 hidden",
-                              valueBefore && "inline-flex!",
-                              option &&
-                                search &&
-                                "group-focus-within/model:inline-flex",
-                            )}
-                            onClick={() => {
-                              if (!name || !option || !search) return;
-                              if (
-                                customNavigation &&
-                                typeof customNavigation === "function"
-                              ) {
-                                customNavigation(value);
-                              }
-                              const pluralized = `${pluralize.plural(name ?? "")}.show`;
-                              window.open(
-                                route(pluralized, option[keyRoute ?? "id"]),
-                                "_blank",
-                              );
-                            }}
-                          >
-                            <ArrowRight className="size-3" />
-                          </Button>
+                  >
+                    <div>
+                      <Input
+                        id={id}
+                        ref={ref}
+                        disabled={disabled}
+                        readOnly={readOnly}
+                        onKeyDown={onInputKeyDown}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (!(option && search) && !open) {
+                            setOpen(true);
+                          }
+                        }}
+                        required={required}
+                        value={search}
+                        onChange={(e) => {
+                          setAllowSearch(true);
+                          setSearch(e.target.value);
+                        }}
+                        className={cn(
+                          "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
+                          // diff.same && "text-",
                         )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            "size-6 ",
-                            (!search || disabled || readOnly) && "hidden",
-                          )}
-                          onClick={() => {
-                            setOption(null);
+                        placeholder={placeholder}
+                      />
+                      <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
+                        {loading ? (
+                          <LoadingIcon className="size-4" />
+                        ) : (
+                          <>
+                            {!disabledNavigation && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className={cn(
+                                  "size-6 hidden",
+                                  valueBefore && "inline-flex!",
+                                  option &&
+                                    search &&
+                                    "group-focus-within/model:inline-flex",
+                                )}
+                                onClick={() => {
+                                  if (!name || !option || !search) return;
+                                  if (
+                                    customNavigation &&
+                                    typeof customNavigation === "function"
+                                  ) {
+                                    customNavigation(value);
+                                  }
+                                  const pluralized = `${pluralize.plural(name ?? "")}.show`;
+                                  window.open(
+                                    route(pluralized, option[keyRoute ?? "id"]),
+                                    "_blank",
+                                  );
+                                }}
+                              >
+                                <ArrowRight className="size-3" />
+                              </Button>
+                            )}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                "size-6 ",
+                                (!search || disabled || readOnly) && "hidden",
+                              )}
+                              onClick={() => {
+                                setOption(null);
 
-                            setSearch("");
-                          }}
-                        >
-                          <XIcon className="size-3" />
-                        </Button>
+                                setSearch("");
+                              }}
+                            >
+                              <XIcon className="size-3" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                {valueBefore && !diff?.same && (
+                  <TooltipContent side="top" align="start">
+                    {diff?.before && (
+                      <>
+                        <s>{diff?.before}</s>
+                        <br />
                       </>
                     )}
-                  </div>
-                </div>
-              </PopoverTrigger>
-            </TooltipTrigger>
-            {valueBefore && !diff?.same && (
-              <TooltipContent side="top" align="start">
-                {diff?.before && (
-                  <>
-                    <s>{diff?.before}</s>
-                    <br />
-                  </>
+                    <span>{diff?.after}</span>
+                  </TooltipContent>
                 )}
-                <span>{diff?.after}</span>
-              </TooltipContent>
-            )}
-          </Tooltip>
-          {!(disabled || readOnly) && (
-            <PopoverContent
-              onOpenAutoFocus={(e) => e.preventDefault()}
-              align="start"
-              side="bottom"
-              className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
-              forceMount
-              asChild
-            >
-              <CommandList className="p-1 space-y-2">
-                {loading ? (
-                  <CommandPrimitive.Loading>
-                    <div className="flex justify-center py-6 text-sm font-normal text-center text-foreground gap-x-4">
-                      <LoadingIcon className="size-4" />
-                      <span>{t("core.form.loading")} ...</span>
-                    </div>
-                  </CommandPrimitive.Loading>
-                ) : (
-                  <>
-                    <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
-                    {filteredOptions &&
-                      filteredOptions?.map((opt, index) => {
-                        return (
-                          <CommandItem
-                            key={opt.id ?? index}
-                            value={opt.id ?? index}
-                            onSelect={() => {
-                              setOption(opt);
+              </Tooltip>
+              {!(disabled || readOnly) && (
+                <PopoverContent
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  align="start"
+                  side="bottom"
+                  className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
+                  forceMount
+                  asChild
+                >
+                  <CommandList className="p-1 space-y-2">
+                    {loading ? (
+                      <CommandPrimitive.Loading>
+                        <div className="flex justify-center py-6 text-sm font-normal text-center text-foreground gap-x-4">
+                          <LoadingIcon className="size-4" />
+                          <span>{t("core.form.loading")} ...</span>
+                        </div>
+                      </CommandPrimitive.Loading>
+                    ) : (
+                      <>
+                        <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
+                        {filteredOptions &&
+                          filteredOptions?.map((opt, index) => {
+                            return (
+                              <CommandItem
+                                key={opt.id ?? index}
+                                value={opt.id ?? index}
+                                onSelect={() => {
+                                  setOption(opt);
 
-                              setOpen(false);
+                                  setOpen(false);
+                                }}
+                              >
+                                <p
+                                  dangerouslySetInnerHTML={{
+                                    __html: convertTemplateLink(
+                                      opt,
+                                      search ?? "",
+                                    ),
+                                  }}
+                                />
+                              </CommandItem>
+                            );
+                          })}
+                        {showMore && !disabledAddButton && <CommandSeparator />}
+                        {showMore && (
+                          <CommandItem
+                            className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
+                            onSelect={() => {
+                              // setOpenDialog(true);
                             }}
                           >
-                            <p
-                              dangerouslySetInnerHTML={{
-                                __html: convertTemplateLink(opt, search ?? ""),
-                              }}
-                            />
+                            {t("core.form.linkmodel.more")}
                           </CommandItem>
-                        );
-                      })}
-                    {showMore && !disabledAddButton && <CommandSeparator />}
-                    {showMore && (
-                      <CommandItem
-                        className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
-                        onSelect={() => {
-                          // setOpenDialog(true);
-                        }}
-                      >
-                        {t("core.form.linkmodel.more")}
-                      </CommandItem>
-                    )}
-                    {!disabledAddButton && (
-                      <CommandItem
-                        onSelect={() => {
-                          if (form) {
-                            setOpenDialog(true);
-                            return;
-                          }
+                        )}
+                        {!disabledAddButton && (
+                          <CommandItem
+                            onSelect={() => {
+                              if (form) {
+                                setOpenDialog(true);
+                                return;
+                              }
 
-                          if (!name) return;
-                          const pluralized = `${pluralize.plural(name ?? "")}.create`;
-                          window.open(route(pluralized), "_blank");
-                        }}
-                      >
-                        <PlusIcon className="size-4" />
-                        {titleDialog}
-                      </CommandItem>
+                              if (!name) return;
+                              const pluralized = `${pluralize.plural(name ?? "")}.create`;
+                              window.open(route(pluralized), "_blank");
+                            }}
+                          >
+                            <PlusIcon className="size-4" />
+                            {titleDialog}
+                          </CommandItem>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
-              </CommandList>
-            </PopoverContent>
-          )}
-        </Command>
-        {form && (
-          <FormPageLinkModelDialog
-            title={titleDialog}
-            name={name}
-            open={openDialog}
-            onOpenChange={setOpenDialog}
-            className={cn("max-w-lg", classNameDialog)}
-            defaultValue={defaultValueForm}
-            onSuccess={onSuccessFormPageLinkModelDialog}
-            postOption={postOption}
-          >
-            {form}
-          </FormPageLinkModelDialog>
-        )}
-      </Popover>
+                  </CommandList>
+                </PopoverContent>
+              )}
+            </Command>
+            {form && (
+              <FormPageLinkModelDialog
+                title={titleDialog}
+                name={name}
+                open={openDialog}
+                onOpenChange={setOpenDialog}
+                className={cn("max-w-lg", classNameDialog)}
+                defaultValue={defaultValueForm}
+                onSuccess={onSuccessFormPageLinkModelDialog}
+                postOption={postOption}
+              >
+                {form}
+              </FormPageLinkModelDialog>
+            )}
+          </Popover>
+        </div>
+      </ClickAwayListener>
     );
   }),
 );

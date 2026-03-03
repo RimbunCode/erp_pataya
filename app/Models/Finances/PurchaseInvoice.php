@@ -18,7 +18,7 @@ class PurchaseInvoice extends Model {
   protected               $casts             = [
     "date" => "datetime",
   ];
-  protected static string $defaultFormatCode = '@[branch_code]/PurchaseInvoice-@[iiii]/@[yy]';
+  protected static string $defaultFormatCode = '@[branch_code]/PurchaseINV-@[iiii]/@[yy]';
 
   public function codeRelations() {
     return [
@@ -76,6 +76,9 @@ class PurchaseInvoice extends Model {
     'supplier_name'           => [
       'ignore' => true,
     ],
+    'expenseHeadAccount',
+    'creditAccount',
+    'returnAgainst',
   ];
 
   protected static function loadRelationsOnShow() {
@@ -92,7 +95,22 @@ class PurchaseInvoice extends Model {
       'paymentSchedules',
       'paymentSchedules.paymentTerm',
       'paymentSchedules.paymentMethod',
+      'expenseHeadAccount',
+      'creditAccount',
+      'returnAgainst',
     ];
+  }
+
+  public function returnAgainst() {
+    return $this->belongsTo(PurchaseInvoice::class, 'return_against_id');
+  }
+
+  public function expenseHeadAccount() {
+    return $this->belongsTo(Account::class, 'expanse_head_account_id');
+  }
+
+  public function creditAccount() {
+    return $this->belongsTo(Account::class, 'credit_account_id');
   }
 
   public function purchaseOrder() {

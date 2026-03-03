@@ -21,11 +21,11 @@ class ModelConnection extends Model {
 
   protected static function booted() {
     static::creating(function ($model) {
-      if (!isset($model->model_display)) {
+      if (! isset($model->model_display)) {
         $modelDisplay = $model->getDisplayFromTemplateLink($model->model_type, $model->model_id);
         $model->setAttribute('model_display', $modelDisplay);
       }
-      if (!isset($model->reference_display)) {
+      if (! isset($model->reference_display)) {
         $referenceDisplay = $model->getDisplayFromTemplateLink($model->reference_type, $model->reference_id);
         $model->setAttribute('reference_display', $referenceDisplay);
       }
@@ -44,7 +44,7 @@ class ModelConnection extends Model {
     }
   }
 
-  public function scopeSearch(Builder $query, string $type, string $id) {
+  public function scopeSearch(Builder $query, ?string $type, ?string $id) { if ($type == null || $id == null) return $query;
     $query
       ->selectRaw(
         "id, IF(`model_type` = ?, `reference_type`, `model_type`) as reference_type, IF(`model_type` = ?, `reference_id`, `model_id`) as reference_id, IF(`model_type` = ?, `reference_display`, `model_display`) as reference_display",
