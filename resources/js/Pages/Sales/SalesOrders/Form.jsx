@@ -333,7 +333,6 @@ export default memo(function Form() {
               type="datetime"
               value={data?.date}
               onValueChange={(val) => {
-                console.log(val);
                 setData("date", val);
               }}
             />
