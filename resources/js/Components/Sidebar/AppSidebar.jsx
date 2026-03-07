@@ -240,6 +240,11 @@ const navList = [
         urlPattern: "/settings/branches/*",
       },
       {
+        title: "Manage Dashboards",
+        url: "/settings/dashboards",
+        urlPattern: "/settings/dashboards/*",
+      },
+      {
         title: "Formating Series",
         url: "/settings/formatingSeries",
         urlPattern: "/settings/formatingSeries/*",

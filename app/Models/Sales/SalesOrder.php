@@ -105,6 +105,9 @@ class SalesOrder extends Model {
     'end_date'                      => [
       'ignore' => true,
     ],
+    'rent_date'                     => [
+      'type' => 'datetime',
+    ],
   ];
 
   protected static function loadRelationsOnShow() {
