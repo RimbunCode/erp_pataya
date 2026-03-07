@@ -24,6 +24,6 @@ return new class extends Migration
    * Reverse the migrations.
    */
   public function down(): void {
-    Schema::dropIfExists('user_dashboard');
+    Schema::dropIfExists('user_dashboards');
   }
 };

@@ -33,6 +33,15 @@ return [
     'permission'                  => 'Permission',
     'aggregate_function_based_on' => 'Aggregate Function Based On',
   ],
+
+  'types'                  => [
+    'card'     => 'Card',
+    'line'     => 'Line',
+    'bar'      => 'Bar',
+    'pie'      => 'Pie',
+    'doughnut' => 'Doughnut',
+
+  ],
   'calculation_types'      => [
     'count'    => 'Count',
     'sum'      => 'Sum',

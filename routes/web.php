@@ -91,10 +91,13 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Branch Switcher
   Route::put('/switch_branch/{id}', [\App\Http\Controllers\Core\BranchController::class, 'switch'])->name('branch.switch');
   // Dashboard
-  Route::get('dashboard', [\App\Http\Controllers\Core\DashboardController::class, 'dashboard'])->name('dashboard');
+  Route::get('dashboard-view', [\App\Http\Controllers\Core\DashboardController::class, 'view'])->name('dashboard');
   Route::resourceDetail('dashboard', \App\Http\Controllers\Core\DashboardController::class);
   // Settings
   Route::prefix('/settings')->group(function () {
+    //Dashboard
+    Route::resourceDetail('dashboard', \App\Http\Controllers\Core\DashboardController::class);
+
     // Company
     Route::controller(\App\Http\Controllers\Core\CompanyController::class)->group(function () {
       Route::get('company', 'index')->name('companies.index');
@@ -108,7 +111,7 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
 
     Route::resourceDetail('printTemplates', \App\Http\Controllers\Core\PrintTemplateController::class);
     Route::get('/printTemplates/{printTemplates}/editor', [\App\Http\Controllers\Core\PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
-    Route::resourceDetail('widgets', \App\Http\Controllers\Core\WidgetController::class);
+    Route::resourceDetail('widget', \App\Http\Controllers\Core\WidgetController::class);
   });
   // Tags
   Route::resourceDetail('tag', \App\Http\Controllers\Core\TagController::class);

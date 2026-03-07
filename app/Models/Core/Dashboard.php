@@ -2,19 +2,39 @@
 
 namespace App\Models\Core;
 
+use App\Models\DashboardWidget;
 use App\Models\Model;
 use App\Models\User\User;
+use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Dashboard extends Model {
-  use HasUlids, SoftDeletes;
+  use HasUlids, SoftDeletes, DataTable;
   //
 
-  protected $guarded = ['id'];
+  protected     $guarded       = ['id'];
+  public        $translateKey  = 'settings.dashboard';
+  public string $keyBreadcrumb = 'title';
+
+  protected static function loadRelationsOnShow() {
+    return ['widgets', 'widgets.widget', 'createdBy'];
+  }
+  protected $configColumns = [
+    'title'     => [
+      'show'   => true,
+      'order'  => 0,
+      'isLink' => true,
+    ],
+    'createdBy' => [
+      'show'  => true,
+      'order' => 1,
+    ],
+  ];
 
   public function widgets() {
-    return $this->belongsToMany(Widget::class, 'dashboard_widgets', 'dashboard_id', 'widget_id');
+    return $this->hasMany(DashboardWidget::class, 'dashboard_id')
+      ->orderBy('order');
   }
 
   public function createdBy() {

@@ -1,5 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import FormInput from "@/Components/FormInput";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -24,16 +24,19 @@ export default function Form() {
   const groupByType = data?.group_by_type;
   const modelClass = data?.model?.model;
 
-  const getNameColumns = (...types) => {
+  const getNameColumns = (types, isExcept = false) => {
     return columns
-      .filter((x) => inArray(types, x.type))
+      .filter((x) => {
+        types = Array.isArray(types) ? types : [types];
+        return isExcept ? !inArray(types, x.type) : inArray(types, x.type);
+      })
       .map((x) => ({ value: x.name, titleTrans: x.titleTrans }));
   };
 
   const isValidColumn = (name, ...types) =>
     !!name && getNameColumns(...types).some((x) => x.value === name);
 
-  useDidMountEffect(() => {
+  useEffect(() => {
     const reloadData = setTimeout(() => {
       if (!modelClass) {
         setColumns([]);
@@ -142,6 +145,28 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="type"
+            label={t("settings.widget.columns.type")}
+            required
+          >
+            <Select
+              value={data?.type}
+              onValueChange={(val) => {
+                setData("type", val);
+              }}
+              optionTrans="settings.widget.types"
+              options={[
+                "bar",
+                "pie",
+                "line",
+                "doughnut",
+                ...(inArray(["sum", "count", "average"], data.calculation_type)
+                  ? ["card"]
+                  : []),
+              ]}
+            />
+          </FormInput>
+          <FormInput
             name="model"
             label={t("settings.widget.columns.model")}
             required
@@ -198,7 +223,7 @@ export default function Form() {
                     setData("group_by_base_on", val);
                   }}
                   optionTrans="settings.widget.group_by_base_on.types"
-                  options={getNameColumns("datetime")}
+                  options={getNameColumns("datetime", true)}
                 />
               </FormInput>
 
@@ -226,7 +251,7 @@ export default function Form() {
         </div>
       </FormPageContent>
 
-      {data.calculation_type != "group_by" && (
+      {data.calculation_type != "group_by" && data.type != "card" && (
         <>
           <FormPageContent
             value="detail"
