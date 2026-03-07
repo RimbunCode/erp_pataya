@@ -1,25 +1,30 @@
+import { Alert, AlertIcon, AlertTitle } from "@/Components/ui/alert";
 import {
   FormPageContent,
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
+import React, { useCallback } from "react";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
+import { Button } from "@/Components/ui/button";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
+import FormTable from "@/Components/FormTable";
 import LinkModel from "@/Components/LinkModel";
 import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
-import React from "react";
+import { RiCheckboxCircleLine } from "@remixicon/react";
 import Select from "@/Components/Select";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
+import { toast } from "sonner";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
-  const { data, setData } = useFormPage(
+  const { data, defaultData, setData } = useFormPage(
     {
       date: new Date(),
     },
@@ -29,7 +34,192 @@ export default function Form() {
     },
   );
   const { t } = useLaravelReactI18n();
+  const paymentEntryScheduleColumns = [
+    {
+      name: "due_date",
+      titleTrans: "finances.paymentSchedule.columns.due_date",
+      required: true,
+      cell({ data, attributes }) {
+        return <DatetimePicker type="datetime" value={data} {...attributes} />;
+      },
+    },
+    {
+      name: "description",
+      titleTrans: "finances.paymentSchedule.columns.description",
+      show: false,
+      type: "text",
+      width: 2,
+      cell({ dataRow, data, attributes }) {
+        return (
+          <Textarea
+            disabled={!dataRow?.item}
+            rows={1}
+            value={data ?? ""}
+            {...attributes}
+          />
+        );
+      },
+    },
+    {
+      name: "outstanding_amount",
+      titleTrans: "finances.paymentSchedule.columns.outstanding_amount",
+      required: true,
+      readOnly: true,
+      width: 1,
+      cell({ dataRow, data, attributes }) {
+        return (
+          <CurrencyInput
+            disabled={!dataRow.invoice_portion}
+            decimalScale={2}
+            currencyCode={data?.currency?.code}
+            value={data}
+            {...attributes}
+          />
+        );
+      },
+    },
+    {
+      name: "payment_method",
+      titleTrans: "finances.paymentSchedule.columns.payment_method",
+      width: 1,
+      cell({ data, attributes }) {
+        return (
+          <PaymentMethodLinkModel
+            value={data}
+            placeholder={t(
+              "finances.paymentTerm.columns.payment_method.placeholder",
+            )}
+            {...attributes}
+          />
+        );
+      },
+    },
+    {
+      name: "discount_type",
+      titleTrans: "finances.paymentSchedule.columns.discount_type",
+      width: 1,
+      cell({ data, attributes }) {
+        return (
+          <Select
+            value={data}
+            {...attributes}
+            placeholder={t(
+              "finances.paymentSchedule.columns.discount_type.placeholder",
+            )}
+            optionTrans="finances.paymentSchedule.columns.discount_type.options"
+            options={["percentage", "amount"]}
+          />
+        );
+      },
+    },
+    {
+      name: "discount_date",
+      titleTrans: "finances.paymentSchedule.columns.discount_date",
+      width: 1,
+      cell({ data, attributes }) {
+        return <DatetimePicker type="datetime" value={data} {...attributes} />;
+      },
+    },
+    {
+      name: "discount",
+      titleTrans: "finances.paymentSchedule.columns.discount",
+      width: 1,
+      cell({ data: discount, dataRow, attributes }) {
+        return (
+          <CurrencyInput
+            className="text-left"
+            value={discount}
+            currencyCode={
+              dataRow.discount_type == "percentage"
+                ? undefined
+                : data?.currency?.code
+            }
+            decimalsLimit={2}
+            suffix={dataRow.discount_type == "percentage" ? "%" : ""}
+            min={dataRow.discount_type == "percentage" && 0}
+            max={dataRow.discount_type == "percentage" && 100}
+            {...attributes}
+          />
+        );
+      },
+    },
+  ];
+  const getAmountPayment = useCallback((paymentSchedules) => {
+    let amount = 0;
+    paymentSchedules.forEach((paymentSchedule, idx) => {
+      if (
+        paymentSchedule.outstanding_amount <= 0 ||
+        (idx > 0 && new Date() < new Date(paymentSchedule.due_date))
+      ) {
+        return;
+      }
 
+      amount += paymentSchedule.outstanding_amount;
+    });
+    return amount;
+  }, []);
+  const selectPayment = useCallback(
+    (index) => {
+      if (index < 0) return;
+      setData((prev) => {
+        let amount = 0;
+        if (index === 0) {
+          amount =
+            prev?.paymentable?.payment_schedules[index]?.outstanding_amount;
+        } else {
+          for (let i = 0; i <= index; i++) {
+            amount +=
+              prev?.paymentable?.payment_schedules[i]?.outstanding_amount;
+          }
+        }
+        const paymentMethod =
+          prev?.paymentable?.payment_schedules[index]?.payment_method;
+        const account = paymentMethod?.default_account;
+        const keyAccount =
+          prev.party_type === "supplier"
+            ? "account_paid_from"
+            : "account_paid_to";
+        return {
+          ...prev,
+          paid_amount: amount,
+          payment_method: paymentMethod,
+          [keyAccount]: account ?? prev?.[keyAccount],
+        };
+      });
+      toast.custom((toastId) => (
+        <Alert
+          variant="success"
+          icon="success"
+          onClose={() => toast.dismiss(toastId)}
+        >
+          <AlertIcon>
+            <RiCheckboxCircleLine />
+          </AlertIcon>
+          <AlertTitle>
+            {t("finances.paymentTermTemplate.alert.success")}
+          </AlertTitle>
+        </Alert>
+      ));
+    },
+    [setData],
+  );
+  const paymentEntryScheduleActions = useCallback(
+    ({ row, index }) => {
+      if (defaultData?.submitted_at) return null;
+      return (
+        <Button
+          disabled={row?.outstanding_amount <= 0}
+          size="sm"
+          className="h-8 mr-4"
+          onClick={() => selectPayment(index)}
+          type="button"
+        >
+          {t("finances.paymentSchedule.select")}
+        </Button>
+      );
+    },
+    [selectPayment, defaultData?.submitted_at],
+  );
   return (
     <>
       <FormPageContent value="detail">
@@ -78,13 +268,17 @@ export default function Form() {
                 with={["defaultAccount"]}
                 value={data.payment_method}
                 onValueChange={(val) => {
-                  setData((prev) => ({
-                    ...prev,
-                    payment_method: val,
-                    [data.payment_type === "receive"
-                      ? "account_paid_to"
-                      : "account_paid_from"]: val?.default_account,
-                  }));
+                  setData((prev) => {
+                    const keyAccount =
+                      data.payment_type === "receive"
+                        ? "account_paid_to"
+                        : "account_paid_from";
+                    return {
+                      ...prev,
+                      payment_method: val,
+                      [keyAccount]: val?.default_account ?? prev?.[keyAccount],
+                    };
+                  });
                 }}
                 placeholder={t(
                   "finances.paymentEntry.columns.payment_method.placeholder",
@@ -188,6 +382,7 @@ export default function Form() {
                     "paymentSchedules",
                     "paymentSchedules.paymentTerm",
                     "paymentSchedules.paymentMethod",
+                    "paymentSchedules.paymentMethod.defaultAccount",
                     ...(data.party_type === "customer"
                       ? ["customer", "debitAccount"]
                       : data.party_type === "supplier"
@@ -196,26 +391,51 @@ export default function Form() {
                   ]}
                   onValueChange={(val) => {
                     setData((prev) => {
+                      const paymentSchedules = val?.payment_schedules ?? [];
+                      const amount = getAmountPayment(paymentSchedules ?? []);
+                      const paymentMethod =
+                        paymentSchedules?.[0]?.payment_method;
+                      const account = paymentMethod?.default_account;
+                      const keyDefaultAccountPayment =
+                        prev.party_type === "supplier"
+                          ? "account_paid_from"
+                          : "account_paid_to";
                       return {
                         ...prev,
                         paymentable: val,
                         currency: val?.currency,
                         exchange_rate: val?.exchange_rate ?? 1,
                         partyable: val?.[prev.party_type] ?? null,
-                        [data.party_type === "supplier"
+                        paid_amount: amount,
+                        payment_method: paymentMethod,
+                        [prev.party_type === "supplier"
                           ? "account_paid_to"
                           : "account_paid_from"]:
                           val?.[
-                            data.party_type === "supplier"
+                            prev.party_type === "supplier"
                               ? "credit_account"
                               : "debit_account"
                           ],
+                        [keyDefaultAccountPayment]:
+                          account ?? prev?.[keyDefaultAccountPayment],
                       };
                     });
                   }}
                 />
               </FormInput>
             </div>
+            {data?.paymentable && (
+              <div className="col-span-full">
+                <FormTable
+                  name="paymentEntrySchedules"
+                  className="col-start-1 col-span-2"
+                  readOnly={true}
+                  columns={paymentEntryScheduleColumns}
+                  value={data?.paymentable.payment_schedules}
+                  actions={paymentEntryScheduleActions}
+                />
+              </div>
+            )}
           </div>
         </FormPageContent>
       )}
@@ -299,6 +519,8 @@ export default function Form() {
           >
             <CurrencyInput
               className="text-left"
+              decimalScale={2}
+              currencyCode={data?.currency?.code}
               value={data.paid_amount}
               onValueChange={(val) => setData("paid_amount", val)}
             />

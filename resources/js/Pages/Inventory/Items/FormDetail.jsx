@@ -9,7 +9,7 @@ import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function FormDetail({
-  dataBefore,
+  dataBefore: _dataBefore,
   data,
   setData,
   isVariant,

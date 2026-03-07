@@ -1,7 +1,6 @@
 import {
   FormPageContent,
   FormPageContentDescription,
-  FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect, useState } from "react";
@@ -113,7 +112,6 @@ export default function Form() {
   return (
     <>
       <FormPageContent title={null} value="detail">
-        <FormPageContentTitle></FormPageContentTitle>
         <div className="grid gap-x-3 gap-y-4">
           <FormInput required={true} label={t("inventory.unit.columns.group")}>
             <Combobox

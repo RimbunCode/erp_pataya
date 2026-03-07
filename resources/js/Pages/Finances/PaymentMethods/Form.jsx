@@ -1,8 +1,4 @@
-import {
-  FormPageContent,
-  FormPageContentTitle,
-  useFormPage,
-} from "@/Pages/Core/FormPage";
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import FormInput from "@/Components/FormInput";
@@ -18,7 +14,6 @@ export default function Form() {
   return (
     <>
       <FormPageContent title={null} value="detail">
-        <FormPageContentTitle></FormPageContentTitle>
         <div className="grid gap-x-3 gap-y-4">
           <FormInput
             required={true}

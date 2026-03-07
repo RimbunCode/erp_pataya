@@ -23,7 +23,6 @@ class DeliveryNoteService {
   public function fillRelations(array $data) {
     $data['customer_id']        = $data['customer']['id'] ?? null;
     $data['customer_branch_id'] = $data['customer_branch']['id'];
-    $data['branch_id']          = $data['branch']['id'];
     $data['return_against_id']  = $data['return_against']['id'] ?? null;
     $data['reference_to_id']    = $data['reference_to']['id'];
 

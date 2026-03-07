@@ -137,13 +137,13 @@ function PaymentSchedule({
         required: true,
         readOnly: true,
         width: 1,
-        cell({ dataRow, additionalData, attributes }) {
+        cell({ dataRow, data, additionalData, attributes }) {
           return (
             <CurrencyInput
               disabled={!dataRow.invoice_portion}
               decimalScale={2}
               currencyCode={currencyCode}
-              value={additionalData?.payment_amount ?? 0}
+              value={data ?? additionalData?.payment_amount ?? 0}
               {...attributes}
             />
           );
@@ -232,13 +232,12 @@ function PaymentSchedule({
         titleTrans: "finances.paymentSchedule.columns.outstanding_amount",
         readOnly: true,
         width: 1,
-        cell({ data, setData, attributes }) {
+        cell({ data, attributes }) {
           return (
             <CurrencyInput
               decimalScale={2}
               currencyCode={currencyCode}
-              value={data}
-              onValueChange={(val) => setData("outstanding_amount", val)}
+              value={data ?? additionalData?.outstanding_amount ?? 0}
               {...attributes}
             />
           );
@@ -252,33 +251,29 @@ function PaymentSchedule({
       title={t("finances.paymentSchedule.columns.terms")}
     >
       <div className="grid md:grid-cols-2  gap-x-3 gap-y-4">
-        <FormInput
-          required={true}
-          name="name"
-          label={t("finances.paymentTermTemplate.label")}
-        >
+        <FormInput name="name" label={t("finances.paymentTermTemplate.label")}>
           <PaymentTermTemplateLinkModel
             value={null}
             onValueChange={(val) => {
               if (!val) return;
               const template = val.items.map((item) => {
                 const due_date = new Date(date);
-                switch (val?.due_date_based_on) {
+                switch (item?.due_date_based_on) {
                   case "days_after_invoice_date": {
                     due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0),
+                      due_date.getDate() + (item?.credit_period ?? 0),
                     );
                     break;
                   }
                   case "weeks_after_invoice_week": {
                     due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0) * 7,
+                      due_date.getDate() + (item?.credit_period ?? 0) * 7,
                     );
                     break;
                   }
                   case "months_after_invoice_month": {
                     due_date.setMonth(
-                      due_date.getMonth() + (val?.credit_period ?? 0),
+                      due_date.getMonth() + (item?.credit_period ?? 0),
                     );
                     break;
                   }

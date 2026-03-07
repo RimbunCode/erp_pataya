@@ -21,13 +21,12 @@ return new class extends Migration
       $table->double('payment_amount');
       $table->double('paid_amount')->default(0);
       $table->double('outstanding_amount')->storedAs('payment_amount - paid_amount');
-      $table->timestamp('payment_date')->nullable();
       $table->timestamp('due_date');
       $table->string('discount_type')->nullable();
       $table->double('discount')->nullable();
-      $table->double('discount_date')->nullable();
+      $table->date('discount_date')->nullable();
       $table->boolean('for_internal');
-      $table->timestamp('submitted_at')->nullable();
+      $table->json('logs')->nullable();
       $table->timestamps();
       $table->softDeletes();
     });

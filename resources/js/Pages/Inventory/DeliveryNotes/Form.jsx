@@ -420,7 +420,7 @@ export default function Form() {
             />
           </FormInput>
           <FormTable
-            name="items"
+            name="DeliveryNoteItems"
             className="col-start-1 col-span-2"
             readOnly={true}
             forceCanDelete

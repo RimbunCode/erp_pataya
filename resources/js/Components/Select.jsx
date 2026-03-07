@@ -101,7 +101,6 @@ const Select = memo(
       }
 
       // apply default hanya sekali per key
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       _setOption((prev) => {
         if (prev?.value === opt.value) return prev;
         onValueChange?.(opt.value);
@@ -130,7 +129,6 @@ const Select = memo(
           (x) => x.label.toLowerCase() == search.toLowerCase(),
         );
         // if (findOption) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setOption(findOption);
         // return;
         // }
@@ -152,7 +150,6 @@ const Select = memo(
     // }, [_options]);
     useEffect(() => {
       if (option) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSearch(option.label);
       } else if (!open) {
         setSearch("");

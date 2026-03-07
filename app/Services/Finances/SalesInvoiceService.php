@@ -25,10 +25,6 @@ class SalesInvoiceService {
     $data['customer_branch_id']   = $data['customer_branch']['id'];
     $data['customer_branch_name'] = $data['customer_branch']['name'];
 
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
-
     $defaultCurrency            = Preference::find('default_currency_id')->value;
     $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
     $data['base_currency_code'] = $defaultCurrency;
@@ -53,10 +49,11 @@ class SalesInvoiceService {
   }
 
   private function fillPaymentScheduleRelations(array $data, SalesInvoice $salesInvoice) {
+    $data['payment_amount']     = $salesInvoice->amount * ($data['invoice_portion'] / 100);
     $data['currency_code']      = $salesInvoice->currency_code;
     $data['base_currency_code'] = $salesInvoice->base_currency_code;
     $data['exchange_rate']      = $salesInvoice->exchange_rate;
-    $data['for_internal']       = false;
+    $data['for_internal']       = $salesInvoice->return_against_id === null ? true : false;
     $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
     $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
     return $data;

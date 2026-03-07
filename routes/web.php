@@ -187,7 +187,7 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
   // Payment Term Template
   Route::resourceDetail('paymentTermTemplate', \App\Http\Controllers\Finances\PaymentTermTemplateController::class);
   // Payment Entries
-  Route::resourceDetail('paymentEntry', \App\Http\Controllers\Finances\PaymentEntryController::class);
+  Route::resourceDetail('paymentEntry', \App\Http\Controllers\Finances\PaymentEntryController::class, isSubmmitable: true);
   // Purchase Invoices
   Route::resourceDetail('purchaseInvoice', \App\Http\Controllers\Finances\PurchaseInvoiceController::class, isSubmmitable: true);
   // Sales Invoices

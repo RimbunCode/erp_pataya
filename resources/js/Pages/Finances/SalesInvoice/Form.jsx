@@ -507,7 +507,7 @@ export default function Form() {
         </FormPageContentTitle>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormTable
-            name="items"
+            name="SalesInvoiceItems"
             className="col-start-1 col-span-2"
             form={<ItemForm />}
             disabled={true}

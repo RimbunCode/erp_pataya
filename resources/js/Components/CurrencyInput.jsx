@@ -102,29 +102,25 @@ export default forwardRef(function CurrencyInput(
   }, [value]);
 
   // update value parent
-
   return (
     <CurrencyInputOri
       ref={ref}
       intlConfig={intlConfig}
       value={data?.value ?? ""}
       onValueChange={(value, name, values) => {
-        setData({ value, name, values });
+        setData({
+          value: value ?? "",
+          values: values ?? { float: null, formatted: "", value: "" },
+        });
 
         if (!onValueChange) return;
-        const float = data?.values?.float;
-        if (prevValueRef.current == float) return;
+        const float = values?.float ?? null;
+        if (Object.is(prevValueRef.current, float)) return;
         prevValueRef.current = float;
         onValueChange(float);
       }}
       onKeyDown={(e) => {
-        if (
-          e.key == "Enter" ||
-          e.altKey ||
-          e.ctrlKey ||
-          e.metaKey ||
-          e.shiftKey
-        ) {
+        if (e.key == "Escape") {
           e.target.blur();
         }
       }}

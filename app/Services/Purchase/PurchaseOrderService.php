@@ -17,8 +17,6 @@ class PurchaseOrderService {
     $data['supplier_id']   = $data['supplier']['id'];
     $data['supplier_name'] = $data['supplier']['name'];
 
-    $data['branch_id'] = $data['branch']['id'];
-
     $defaultCurrency              = Preference::find('default_currency_id')->value;
     $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
     $data['base_currency_code']   = $defaultCurrency;
@@ -40,6 +38,7 @@ class PurchaseOrderService {
   }
 
   private function fillPaymentScheduleRelations(array $data, PurchaseOrder $purchaseOrder) {
+    $data['payment_amount']     = $purchaseOrder->amount * ($data['invoice_portion'] / 100);
     $data['currency_code']      = $purchaseOrder->currency_code;
     $data['base_currency_code'] = $purchaseOrder->base_currency_code;
     $data['exchange_rate']      = $purchaseOrder->exchange_rate;
@@ -66,8 +65,7 @@ class PurchaseOrderService {
 
     $totalAmount = \App\Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
     $purchaseOrder->update([
-      'total_amount'               => $totalAmount,
-      'total_amount_base_currency' => $totalAmount * ($purchaseOrder->exchange_rate ?? 1),
+      'amount' => $totalAmount,
     ]);
 
     foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {

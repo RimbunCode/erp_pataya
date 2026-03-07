@@ -12,7 +12,6 @@ return new class extends Migration
   public function up(): void {
     Schema::create('purchase_orders', function (Blueprint $table) {
       $table->ulid("id")->primary();
-      $table->string("code")->unique();
       $table->timestamp('date');
       $table->timestamp('required_date')->nullable();
       $table->foreignUlid('supplier_id')->nullable()->references('id')->on('suppliers')->nullOnDelete();
@@ -22,11 +21,12 @@ return new class extends Migration
       $table->double('exchange_rate')->nullable();
       $table->string('base_currency_code')->nullable();
       $table->foreign('base_currency_code')->nullable()->references('code')->on('currencies')->nullOnDelete();
-      $table->double('total_amount')->default(0);
-      $table->double('total_amount_base_currency')->default(0);
-      $table->double('discount_amount')->default(0);
-      $table->double('discount_rate')->default(0);
+      $table->double('amount')->default(0);
+      $table->double('amount_base_currency')->default(0);
       $table->string('discount_on')->nullable();
+      $table->double('discount_rate')->default(0);
+      $table->double('discount_amount')->default(0);
+      $table->double('discount_amount_base_currency')->storedAs('IF(exchange_rate IS NULL, discount_amount, discount_amount * exchange_rate)');
       $table->text("external_note")->nullable();
       $table->timestamps();
       $table->softDeletes();

@@ -32,7 +32,7 @@ export const useAlertDraftForm = create((set) => ({
  * @property {number=} expiredDays jumlah hari berlaku cookie
  * @property {onContinueDraft} onContinueDraft callback ketika data berhasil disimpan
  * @param {OptionsProps} options
- * @returns {import("@inertiajs/react").InertiaFormProps<any>}
+ * @returns {import("@inertiajs/react").InertiaFormProps<Record<string, unknown>>}
  */
 export const useDraftForm = (
   name,
@@ -87,14 +87,14 @@ export const useDraftForm = (
     setDataRef.current = form.setData;
   }, [form.reset, form.setData]);
   useEffect(() => {
-    if (!key) return;
+    if (!key || isDialog) return;
     window.keyForm = key;
     return () => {
       if (window.keyForm === key) {
         delete window.keyForm;
       }
     };
-  }, [key]);
+  }, [key, isDialog]);
   const keepDraftFlag = key ? keepDraftOnClean?.[key] : false;
   useDidMountEffect(() => {
     setIsDirty(form.isDirty);

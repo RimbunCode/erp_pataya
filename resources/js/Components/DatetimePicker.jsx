@@ -1,11 +1,3 @@
-/**
- * Shadcn Datetime Picker with support for timezone, date and time selection, minimum and maximum date limits, and 12-hour format...
- * Check out the live demo at https://shadcn-datetime-picker-pro.vercel.app/
- * Find the latest source code at https://github.com/huybuidac/shadcn-datetime-picker
- */
-"use client";
-
-import { Button, buttonVariants } from "@/components/ui/button";
 import {
   CalendarIcon,
   CheckIcon,
@@ -66,6 +58,7 @@ import {
   useState,
 } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Command } from "cmdk";
 import { Input } from "./ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -396,7 +389,6 @@ export default memo(
 
     useEffect(() => {
       if (open && !wasOpenRef.current) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDate(initialSelectedValue);
         setMonth(initDate ?? defaultCalendarDate);
         setMonthYearPicker(false);
@@ -478,7 +470,6 @@ export default memo(
 
       if (value) {
         const val = getDateValue(value);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setSearch(val);
       } else if (!open) {
         setSearch("");
@@ -684,83 +675,82 @@ export default memo(
       onKeyDown?.(e);
     };
     return (
-      <div className="contents">
-        <Popover open={open} onOpenChange={setOpen} modal={modal}>
-          <Command
-            className="relative h-full overflow-visible bg-transparent"
-            ref={commandRef}
-            loop
-          >
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger
-                  asChild
-                  className={cn(
-                    "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-                    // valueBefore !== undefined &&
-                    // !diff?.same &&
-                    // "bg-yellow-200 dark:bg-yellow-900",
-                    disabled && "cursor-not-allowed opacity-50",
-                    className,
-                  )}
-                >
-                  <div>
-                    <div className="flex items-center h-8 pl-2 w-fit gap-x-2">
-                      <CalendarIcon className="size-4" />
-                    </div>
-                    <Input
-                      id={id}
-                      ref={mergeRefs(ref, inputRef)}
-                      type="text"
-                      placeholder={
-                        placeholder ?? t(`core.form.${type}.placeholder`)
-                      }
-                      disabled={disabled}
-                      readOnly={readOnly}
-                      onKeyDown={onInputKeyDown}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        if (!open && !readOnly && !disabled) {
-                          setOpen(true);
-                        }
-                      }}
-                      onBlur={(e) => {
-                        if (open) {
-                          return;
-                        }
-                        commitInputValue(e.target.value);
-                      }}
-                      required={required}
-                      value={search}
-                      onChange={(e) => {
-                        setSearch(e.target.value);
-                      }}
-                      className={cn(
-                        "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! px-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
-                        // diff.same && "text-",
-                      )}
-                    />
-                    <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          "size-6 ",
-                          (!search || disabled || readOnly) && "hidden",
-                        )}
-                        onClick={() => {
-                          onDayChanged(null);
-                          setSearch("");
-                        }}
-                      >
-                        <XIcon className="size-3" />
-                      </Button>
-                    </div>
+      <Popover open={open} onOpenChange={setOpen} modal={modal}>
+        <Command
+          className="relative h-full w-full overflow-visible bg-transparent"
+          ref={commandRef}
+          loop
+        >
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <PopoverTrigger
+                asChild
+                className={cn(
+                  "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+                  // valueBefore !== undefined &&
+                  // !diff?.same &&
+                  // "bg-yellow-200 dark:bg-yellow-900",
+                  disabled && "cursor-not-allowed opacity-50",
+                  className,
+                )}
+              >
+                <div>
+                  <div className="flex items-center h-8 pl-2 w-fit gap-x-2">
+                    <CalendarIcon className="size-4" />
                   </div>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              {/* {valueBefore && !diff?.same && (
+                  <Input
+                    id={id}
+                    ref={mergeRefs(ref, inputRef)}
+                    type="text"
+                    placeholder={
+                      placeholder ?? t(`core.form.${type}.placeholder`)
+                    }
+                    disabled={disabled}
+                    readOnly={readOnly}
+                    onKeyDown={onInputKeyDown}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!open && !readOnly && !disabled) {
+                        setOpen(true);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (open) {
+                        return;
+                      }
+                      commitInputValue(e.target.value);
+                    }}
+                    required={required}
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                    }}
+                    className={cn(
+                      "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! px-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
+                      // diff.same && "text-",
+                    )}
+                  />
+                  <div className="flex items-center pr-2 w-fit gap-x-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "size-6 ",
+                        (!search || disabled || readOnly) && "hidden",
+                      )}
+                      onClick={() => {
+                        onDayChanged(null);
+                        setSearch("");
+                      }}
+                    >
+                      <XIcon className="size-3" />
+                    </Button>
+                  </div>
+                </div>
+              </PopoverTrigger>
+            </TooltipTrigger>
+            {/* {valueBefore && !diff?.same && (
               <TooltipContent side="top" align="start">
                 {diff?.before && (
                   <>
@@ -771,193 +761,190 @@ export default memo(
                 <span>{diff?.after}</span>
               </TooltipContent>
             )} */}
-            </Tooltip>
-            {!(disabled || readOnly) && (
-              <PopoverContent
-                className="relative z-50 w-auto /min-w-(--radix-popover-trigger-width) p-2"
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                align="start"
-                side="bottom"
-                forceMount
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-md font-bold ms-2 flex items-center cursor-pointer">
-                    <div>
-                      <span
-                        onClick={() =>
-                          setMonthYearPicker(
-                            monthYearPicker === "month" ? false : "month",
-                          )
-                        }
-                      >
-                        {format(month, "MMMM")}
-                      </span>
-                      <span
-                        className="ms-1"
-                        onClick={() =>
-                          setMonthYearPicker(
-                            monthYearPicker === "year" ? false : "year",
-                          )
-                        }
-                      >
-                        {format(month, "yyyy")}
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
+          </Tooltip>
+          {!(disabled || readOnly) && (
+            <PopoverContent
+              className="relative z-50 w-auto /min-w-(--radix-popover-trigger-width) p-2"
+              onOpenAutoFocus={(e) => e.preventDefault()}
+              align="start"
+              side="bottom"
+              forceMount
+            >
+              <div className="flex items-center justify-between">
+                <div className="text-md font-bold ms-2 flex items-center cursor-pointer">
+                  <div>
+                    <span
                       onClick={() =>
-                        setMonthYearPicker(monthYearPicker ? false : "year")
+                        setMonthYearPicker(
+                          monthYearPicker === "month" ? false : "month",
+                        )
                       }
                     >
-                      {monthYearPicker ? (
-                        <ChevronUpIcon />
-                      ) : (
-                        <ChevronDownIcon />
-                      )}
-                    </Button>
-                  </div>
-                  <div
-                    className={cn(
-                      "flex space-x-2",
-                      monthYearPicker ? "hidden" : "",
-                    )}
-                  >
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={onPrevMonth}
+                      {format(month, "MMMM")}
+                    </span>
+                    <span
+                      className="ms-1"
+                      onClick={() =>
+                        setMonthYearPicker(
+                          monthYearPicker === "year" ? false : "year",
+                        )
+                      }
                     >
-                      <ChevronLeftIcon />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={onNextMonth}
-                    >
-                      <ChevronRightIcon />
-                    </Button>
+                      {format(month, "yyyy")}
+                    </span>
                   </div>
-                </div>
-                <div className="relative overflow-hidden">
-                  <DayPicker
-                    timeZone={timezone}
-                    mode={
-                      type == "daterange"
-                        ? "range"
-                        : type == "multipleDate"
-                          ? "multiple"
-                          : "single"
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      setMonthYearPicker(monthYearPicker ? false : "year")
                     }
-                    selected={date}
-                    onSelect={(d) => {
-                      return d && onDayChanged(d);
-                    }}
-                    month={month}
-                    endMonth={endMonth}
-                    disabled={[
-                      max ? { after: max } : null,
-                      min ? { before: min } : null,
-                    ].filter(Boolean)}
-                    onMonthChange={setMonth}
-                    classNames={{
-                      dropdowns: "flex w-full gap-2",
-                      months: "flex w-full h-fit",
-                      month: "flex flex-col w-full",
-                      month_caption: "hidden",
-                      button_previous: "hidden",
-                      button_next: "hidden",
-                      month_grid: "w-full border-collapse",
-                      weekdays: "flex justify-between mt-2",
-                      weekday:
-                        "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
-                      week: "flex w-full justify-between mt-2",
-                      day: "h-9 w-9 text-center text-sm p-0 relative flex items-center justify-center [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 rounded-1",
-                      day_button: cn(
-                        buttonVariants({ variant: "ghost" }),
-                        "size-9 rounded-md p-0 font-normal aria-selected:opacity-100",
-                      ),
-                      range_end: "day-range-end",
-                      selected:
-                        "bg-foreground text-background hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background rounded-l-md rounded-r-md",
-                      today: "bg-accent text-accent-foreground",
-                      outside:
-                        "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-                      disabled: "text-muted-foreground opacity-50",
-                      range_middle:
-                        "aria-selected:bg-accent aria-selected:text-accent-foreground",
-                      hidden: "invisible",
-                    }}
-                    showOutsideDays={true}
-                    {...props}
-                  />
-                  <div
-                    className={cn(
-                      "absolute top-0 left-0 bottom-0 right-0",
-                      monthYearPicker ? "bg-popover" : "hidden",
-                    )}
-                  ></div>
-                  <MonthYearPicker
-                    value={month}
-                    mode={monthYearPicker}
-                    onChange={onMonthYearChanged}
-                    minDate={minDate}
-                    maxDate={maxDate}
-                    className={cn(
-                      "absolute top-0 left-0 bottom-0 right-0",
-                      monthYearPicker ? "" : "hidden",
-                    )}
-                  />
+                  >
+                    {monthYearPicker ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                  </Button>
                 </div>
-                <div className="flex flex-col gap-2 mt-2">
-                  {!hideTime && type === "datetime" && (
-                    <TimePicker
-                      timePicker={timePicker}
-                      value={timePickerValue}
-                      onChange={(nextDate) => {
-                        if (!isValid(nextDate)) {
-                          return;
-                        }
-
-                        if (
-                          timePickerValue &&
-                          timePickerValue.getTime() === nextDate.getTime()
-                        ) {
-                          return;
-                        }
-
-                        setTimeDraft(nextDate);
-                        if (!(date instanceof Date)) {
-                          const todayWithSelectedTime = new Date();
-                          todayWithSelectedTime.setHours(
-                            nextDate.getHours(),
-                            nextDate.getMinutes(),
-                            nextDate.getSeconds(),
-                            nextDate.getMilliseconds(),
-                          );
-
-                          const nextTodayDate = clampDateValue(
-                            todayWithSelectedTime,
-                          );
-                          setDate(nextTodayDate);
-                          setMonth(nextTodayDate);
-                          onValueChange?.(new Date(nextTodayDate));
-
-                          return;
-                        }
-
-                        setDate(nextDate);
-                        onValueChange?.(new Date(nextDate));
-                      }}
-                      use12HourFormat={use12HourFormat}
-                      min={minDate}
-                      max={maxDate}
-                    />
+                <div
+                  className={cn(
+                    "flex space-x-2",
+                    monthYearPicker ? "hidden" : "",
                   )}
-                  {/* <div className="flex flex-row-reverse items-center justify-between">
+                >
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onPrevMonth}
+                  >
+                    <ChevronLeftIcon />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={onNextMonth}
+                  >
+                    <ChevronRightIcon />
+                  </Button>
+                </div>
+              </div>
+              <div className="relative overflow-hidden">
+                <DayPicker
+                  timeZone={timezone}
+                  mode={
+                    type == "daterange"
+                      ? "range"
+                      : type == "multipleDate"
+                        ? "multiple"
+                        : "single"
+                  }
+                  selected={date}
+                  onSelect={(d) => {
+                    return d && onDayChanged(d);
+                  }}
+                  month={month}
+                  endMonth={endMonth}
+                  disabled={[
+                    max ? { after: max } : null,
+                    min ? { before: min } : null,
+                  ].filter(Boolean)}
+                  onMonthChange={setMonth}
+                  classNames={{
+                    dropdowns: "flex w-full gap-2",
+                    months: "flex w-full h-fit",
+                    month: "flex flex-col w-full",
+                    month_caption: "hidden",
+                    button_previous: "hidden",
+                    button_next: "hidden",
+                    month_grid: "w-full border-collapse",
+                    weekdays: "flex justify-between mt-2",
+                    weekday:
+                      "text-muted-foreground rounded-md w-9 font-normal text-[0.8rem]",
+                    week: "flex w-full justify-between mt-2",
+                    day: "h-9 w-9 text-center text-sm p-0 relative flex items-center justify-center  [&:has([aria-selected].day-range-end.day-range-start)]:rounded-full!  [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 rounded-1",
+                    day_button: cn(
+                      // buttonVariants({ variant: "ghost" }),
+                      "size-9 rounded-md p-0 font-normal aria-selected:opacity-100",
+                    ),
+                    today:
+                      "border bg-muted border-muted-foreground [&:not([data-selected=true])]:rounded-full ",
+                    outside:
+                      "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+                    disabled: "text-muted-foreground opacity-50",
+                    selected:
+                      "bg-foreground! text-background! border-none! hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background [&:not(.day-range-start.day-range-end.day-range-middle)]:rounded-full",
+                    range_start: "day-range-start rounded-l-full ",
+                    range_middle: "day-range-middle rounded-none!",
+                    range_end: "day-range-end rounded-r-full ",
+                    hidden: "invisible",
+                  }}
+                  showOutsideDays={true}
+                  {...props}
+                />
+                <div
+                  className={cn(
+                    "absolute top-0 left-0 bottom-0 right-0",
+                    monthYearPicker ? "bg-popover" : "hidden",
+                  )}
+                ></div>
+                <MonthYearPicker
+                  value={month}
+                  mode={monthYearPicker}
+                  onChange={onMonthYearChanged}
+                  minDate={minDate}
+                  maxDate={maxDate}
+                  className={cn(
+                    "absolute top-0 left-0 bottom-0 right-0 ",
+                    monthYearPicker ? "" : "hidden",
+                  )}
+                />
+              </div>
+              <div className="flex flex-col gap-2 mt-2">
+                {!hideTime && type === "datetime" && (
+                  <TimePicker
+                    timePicker={timePicker}
+                    value={timePickerValue}
+                    onChange={(nextDate) => {
+                      if (!isValid(nextDate)) {
+                        return;
+                      }
+
+                      if (
+                        timePickerValue &&
+                        timePickerValue.getTime() === nextDate.getTime()
+                      ) {
+                        return;
+                      }
+
+                      setTimeDraft(nextDate);
+                      if (!(date instanceof Date)) {
+                        const todayWithSelectedTime = new Date();
+                        todayWithSelectedTime.setHours(
+                          nextDate.getHours(),
+                          nextDate.getMinutes(),
+                          nextDate.getSeconds(),
+                          nextDate.getMilliseconds(),
+                        );
+
+                        const nextTodayDate = clampDateValue(
+                          todayWithSelectedTime,
+                        );
+                        setDate(nextTodayDate);
+                        setMonth(nextTodayDate);
+                        onValueChange?.(new Date(nextTodayDate));
+
+                        return;
+                      }
+
+                      setDate(nextDate);
+                      onValueChange?.(new Date(nextDate));
+                    }}
+                    use12HourFormat={use12HourFormat}
+                    min={minDate}
+                    max={maxDate}
+                  />
+                )}
+                {/* <div className="flex flex-row-reverse items-center justify-between">
                     <Button className="ms-2 h-7 px-2" onClick={onSubmit}>
                       Done
                     </Button>
@@ -968,12 +955,11 @@ export default memo(
                       </div>
                     )}
                   </div> */}
-                </div>
-              </PopoverContent>
-            )}
-          </Command>
-        </Popover>
-      </div>
+              </div>
+            </PopoverContent>
+          )}
+        </Command>
+      </Popover>
     );
   }),
 );

@@ -533,7 +533,7 @@ export default memo(function Form() {
             />
           </FormInput>
           <FormTable
-            name="items"
+            name="SalesOrderItems"
             form={<ItemForm />}
             className="col-start-1 col-span-full"
             classNameDialog="max-w-(--breakpoint-lg)! w-full!"

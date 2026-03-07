@@ -128,6 +128,11 @@ const FormPageContentDescription = memo(
   }),
 );
 
+const FormPageContentTrigger = ({ children, ...props }) => (
+  <div {...props}>{children}</div>
+);
+FormPageContentTrigger.displayName = "FormPageContentTrigger";
+
 /**
  * @typedef {object} FormPageContentProps
  * @property {string} title
@@ -158,8 +163,12 @@ const FormPageContent = forwardRef(function FormPageContent(
   const { menus, addMenu, menuSelected, removeMenu } = useFormPage();
   const [id] = useState(generateRandom(8));
   const [openCollapsible, setOpenCollapsible] = useState(defaultOpen);
+  const childrenArray = useMemo(() => Children.toArray(children), [children]);
+
   useEffect(() => {
-    if (showAt) return;
+    if (showAt) {
+      return;
+    }
     if (!show) {
       removeMenu(id);
       return;
@@ -169,29 +178,34 @@ const FormPageContent = forwardRef(function FormPageContent(
       title,
       value,
     });
-  }, [show]);
-  const headerChildren = Children.toArray(children).filter((child) => {
-    return (
-      child?.type == FormPageContentTitle ||
-      child?.type == FormPageContentDescription
-    );
-  });
-  const isSingle = menus.length <= 1 || !menus.some((x) => x.id == id);
-  if (headerChildren.length > 0 || isSingle) {
-    var contentChildren = Children.toArray(children).filter((child) => {
+    return () => {
+      removeMenu(id);
+    };
+  }, [addMenu, id, removeMenu, show, showAt, title, value]);
+  const headerChildren = useMemo(() => {
+    return childrenArray.filter((child) => {
+      return (
+        child?.type == FormPageContentTitle ||
+        child?.type == FormPageContentDescription
+      );
+    });
+  }, [childrenArray]);
+  const contentChildren = useMemo(() => {
+    return childrenArray.filter((child) => {
       return !(
         child?.type == FormPageContentTitle ||
         child?.type == FormPageContentDescription
       );
     });
-  }
-  const haveTitle =
-    Children.toArray(children).findIndex(
-      (child) => child?.type == FormPageContentTitle,
-    ) >= 0;
-  const Trigger = collapsible
-    ? CollapsibleTrigger
-    : (props) => <div {...props} />;
+  }, [childrenArray]);
+  const haveTitle = useMemo(() => {
+    return (
+      childrenArray.findIndex((child) => child?.type == FormPageContentTitle) >=
+      0
+    );
+  }, [childrenArray]);
+  const isSingle = menus.length <= 1 || !menus.some((menu) => menu.id === id);
+  const Trigger = collapsible ? CollapsibleTrigger : FormPageContentTrigger;
   const Content = collapsible ? CollapsibleContent : Fragment;
   return (
     <TabsContent
@@ -274,15 +288,29 @@ const FormChildren = memo(function FormChildren({
 
   const [menuSelected, setMenuSelected] = useState(defaultMenu);
   const addMenu = useCallback((newItem) => {
-    setMenus((prev) => {
-      let newItems = [...(prev ?? [])];
-      newItems = [...newItems, newItem];
-      return newItems;
+    setMenus((prev = []) => {
+      const existingIndex = prev.findIndex((menu) => menu.id === newItem.id);
+      if (existingIndex < 0) {
+        return [...prev, newItem];
+      }
+      const existingItem = prev[existingIndex];
+      if (
+        existingItem?.title === newItem?.title &&
+        existingItem?.value === newItem?.value
+      ) {
+        return prev;
+      }
+      const nextMenus = [...prev];
+      nextMenus[existingIndex] = newItem;
+      return nextMenus;
     });
   }, []);
   const removeMenu = useCallback((id) => {
-    setMenus((prev) => {
-      const newItems = prev?.filter((menu) => menu.id !== id);
+    setMenus((prev = []) => {
+      const newItems = prev.filter((menu) => menu.id !== id);
+      if (newItems.length === prev.length) {
+        return prev;
+      }
       return newItems;
     });
   }, []);
@@ -385,6 +413,7 @@ const FormChildren = memo(function FormChildren({
 });
 
 const FormPageContext = createContext();
+const FormPageMetaContext = createContext();
 /**
  * @param {object|(() => object|Promise<object>)} defaultValue
  * @param {{ trackDefaultValue?: boolean, notUseWhenCreate:boolean }} options
@@ -392,11 +421,15 @@ const FormPageContext = createContext();
  * @returns {FormPageContextProps}
  */
 const useFormPage = (
-  defaultValue = {},
+  defaultValue,
   options = { trackDefaultValue: true, notUseWhenCreate: false },
 ) => {
-  const { trackDefaultValue, notUseWhenCreate } = options ?? {};
   const context = useContext(FormPageContext);
+  const shouldResolveDefaults = typeof defaultValue !== "undefined";
+  const { trackDefaultValue, notUseWhenCreate } = options ?? {};
+  const normalizedDefaultValue = shouldResolveDefaults
+    ? (defaultValue ?? {})
+    : {};
   const { isCreate } = context ?? {};
   const hasContextDefaultData = useMemo(() => {
     const data = context?.defaultData;
@@ -409,16 +442,25 @@ const useFormPage = (
   // Jika ada defaultData dari context (hasil fetch server), abaikan defaultValue dari parameter
   const effectiveDefaultValue = useMemo(
     () =>
-      hasContextDefaultData && !(isCreate && !notUseWhenCreate)
+      shouldResolveDefaults &&
+      hasContextDefaultData &&
+      !(isCreate && !notUseWhenCreate)
         ? {}
-        : defaultValue,
-    [defaultValue, isCreate, hasContextDefaultData],
+        : normalizedDefaultValue,
+    [
+      hasContextDefaultData,
+      isCreate,
+      normalizedDefaultValue,
+      notUseWhenCreate,
+      shouldResolveDefaults,
+    ],
   );
   const appliedDefaultsRef = useRef(null);
   const form = context?.form;
   const stableDefaultRef = useRef(null);
   const lastResolvedSerializedRef = useRef(null);
   const shouldTrackDefaultValue =
+    shouldResolveDefaults &&
     !hasContextDefaultData &&
     (trackDefaultValue || typeof effectiveDefaultValue === "function");
   const defaultValueEffectDep = shouldTrackDefaultValue
@@ -427,13 +469,13 @@ const useFormPage = (
   const [resolvedDefaultValue, setResolvedDefaultValue] = useState(() => {
     if (typeof effectiveDefaultValue === "function") return {};
     if (!shouldTrackDefaultValue) {
-      stableDefaultRef.current = effectiveDefaultValue ?? {};
-      return stableDefaultRef.current;
+      return effectiveDefaultValue ?? {};
     }
     return effectiveDefaultValue ?? {};
   });
 
   useEffect(() => {
+    if (!shouldResolveDefaults) return;
     let isActive = true;
     const resolveValue = async () => {
       try {
@@ -458,7 +500,12 @@ const useFormPage = (
     return () => {
       isActive = false;
     };
-  }, [defaultValueEffectDep, shouldTrackDefaultValue, effectiveDefaultValue]);
+  }, [
+    defaultValueEffectDep,
+    effectiveDefaultValue,
+    shouldResolveDefaults,
+    shouldTrackDefaultValue,
+  ]);
 
   const serializedDefaultValue = useMemo(
     () => JSON.stringify(resolvedDefaultValue ?? {}),
@@ -466,10 +513,11 @@ const useFormPage = (
   );
   const memoizedDefaultValue = useMemo(
     () => resolvedDefaultValue ?? {},
-    [serializedDefaultValue],
+    [resolvedDefaultValue],
   );
 
   useEffect(() => {
+    if (!shouldResolveDefaults) return;
     if (!form) return;
     if (Object.keys(memoizedDefaultValue ?? {}).length === 0) return;
     if (appliedDefaultsRef.current === serializedDefaultValue) return;
@@ -480,10 +528,17 @@ const useFormPage = (
       ...(prev ?? {}),
       ...memoizedDefaultValue,
     }));
-  }, [form, memoizedDefaultValue, serializedDefaultValue]);
+  }, [
+    form,
+    memoizedDefaultValue,
+    serializedDefaultValue,
+    shouldResolveDefaults,
+  ]);
 
   return context;
 };
+
+const useFormPageMeta = () => useContext(FormPageMetaContext);
 
 const FormPageProvider = memo(function FormPageProvider({
   children,
@@ -502,6 +557,15 @@ const FormPageProvider = memo(function FormPageProvider({
   form,
   isCreate = false,
 }) {
+  const stableDataBefore = useMemo(() => dataBefore ?? {}, [dataBefore]);
+  const metaContextValue = useMemo(
+    () => ({
+      disabled,
+      errors,
+      fieldNameTrans,
+    }),
+    [disabled, errors, fieldNameTrans],
+  );
   const contextValue = useMemo(
     () => ({
       disabled,
@@ -515,7 +579,7 @@ const FormPageProvider = memo(function FormPageProvider({
       defaultData,
       data,
       setData,
-      dataBefore: dataBefore ?? {},
+      dataBefore: stableDataBefore,
       isCreate,
       form,
     }),
@@ -531,15 +595,17 @@ const FormPageProvider = memo(function FormPageProvider({
       defaultData,
       data,
       setData,
-      dataBefore,
+      stableDataBefore,
       isCreate,
       form,
     ],
   );
   return (
-    <FormPageContext.Provider value={contextValue}>
-      {children}
-    </FormPageContext.Provider>
+    <FormPageMetaContext.Provider value={metaContextValue}>
+      <FormPageContext.Provider value={contextValue}>
+        {children}
+      </FormPageContext.Provider>
+    </FormPageMetaContext.Provider>
   );
 });
 
@@ -581,7 +647,7 @@ const FormPageProvider = memo(function FormPageProvider({
  * @param {React.FormEventHandler} props.onSubmit
  * @param {string} props.className
  * @param {object} props.data
- * @param {Function} props.setData
+ * @param {(key: string | object | ((prev: object) => object), value?: unknown) => void} props.setData
  * @param {boolean} props.isSubmitable
  */
 const FormPage = memo(
@@ -624,9 +690,7 @@ const FormPage = memo(
       processing,
       errors,
       isDirty,
-      key,
     } = form;
-    window.keyForm = key;
     const disabled = useMemo(() => {
       if (!defaultData?.disabledOn) {
         return !!_disabled;
@@ -1202,7 +1266,7 @@ const ApprovalItem = memo(function ApprovalItem({
       <div
         className={cn(
           // type == "log" ? "bg-inherit" : "bg-muted border-[3px]",
-          "p-2 -mt-1.5 size-[34px] -start-[18px] border-muted flex justify-center items-center absolute rounded-full",
+          "p-2 -mt-1.5 size-[34px] -inset-s-[18px] border-muted flex justify-center items-center absolute rounded-full",
         )}
       >
         <span
@@ -1597,7 +1661,7 @@ const FormPageDialog = memo(
               className={cn(
                 "max-h-screen overflow-y-hidden flex flex-col",
                 disabled &&
-                  " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
+                  " **:[[role=title]]:pointer-events-none **:[[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden",
               )}
             >
               <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
@@ -1848,7 +1912,7 @@ const FormPageLinkModelDialog = memo(
               className={cn(
                 "max-h-screen overflow-y-hidden flex flex-col",
                 disabled &&
-                  " [&_[role=title]]:pointer-events-none [&_[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden ",
+                  " **:[[role=title]]:pointer-events-none **:[[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden ",
               )}
             >
               <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
@@ -1989,7 +2053,7 @@ const FormPageDiff = memo(
 
           <div
             className={cn(
-              "[&_[role=title]]:pointer-events-none  [&_button[role=save]]:hidden",
+              "**:[[role=title]]:pointer-events-none  [&_button[role=save]]:hidden",
               "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
             )}
           >
@@ -2073,5 +2137,6 @@ export {
   FormPageLinkModelDialog,
   FormPageDiff,
   useFormPage,
+  useFormPageMeta,
   // useFormPageContent,
 };

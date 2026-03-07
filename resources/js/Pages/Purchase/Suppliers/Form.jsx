@@ -101,6 +101,7 @@ export default function Form() {
           </FormInput>
         </div>
         <FormTable
+          name="SupplierBankAccounts"
           label={t("purchase.supplier.columns.banks")}
           className="mt-4"
           columns={banksColumns}

@@ -25,7 +25,6 @@ class WorkOrderService {
     $data['address']              = [];
     $data['item_service_id']      = $data['item_service']['id'];
     $data['item_service_name']    = $data['item_service']['sku'];
-    $data['branch_id']            = $data['branch']['id'] ?? null;
 
     return $data;
   }

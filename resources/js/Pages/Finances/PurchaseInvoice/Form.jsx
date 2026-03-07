@@ -3,7 +3,7 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
@@ -52,9 +52,6 @@ export default function Form() {
     notUseWhenCreate: true,
   });
 
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
   const { default_currency_id } = usePage().props.preferences;
   const amount = useMemo(() => {
     return calculateArray(data.items, "amount", "+");
@@ -268,11 +265,17 @@ export default function Form() {
                         return {
                           ...item,
                           id: generateRandom(8),
-                          sales_order_item_id: item.id,
+                          purchase_order_item_id: item.id,
                           amount: item.basic_amount + item.tax_amount,
                         };
                       }),
-                      paymentSchedules: val?.paymentSchedules,
+                      payment_schedules:
+                        val?.payment_schedules?.map((paymentSchedule) => {
+                          return {
+                            ...paymentSchedule,
+                            id: generateRandom(8),
+                          };
+                        }) ?? [],
                       amount: val?.amount,
                       discount_on: val?.discount_on,
                       discount_rate: val?.discount_rate,
@@ -364,7 +367,7 @@ export default function Form() {
                   with={[
                     "supplier",
                     "purchaseOrder",
-                    "creaditAccount",
+                    "creditAccount",
                     "expenseHeadAccount",
                     "currency",
                     "items",
@@ -469,7 +472,7 @@ export default function Form() {
         </FormPageContentTitle>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormTable
-            name="items"
+            name="PurchaseInvoiceItems"
             className="col-start-1 col-span-2"
             form={<ItemForm />}
             disabled={true}

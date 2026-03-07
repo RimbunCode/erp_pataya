@@ -626,7 +626,7 @@ const Table2 = forwardRef(function Table2(
 
                     <tr>
                       <td
-                        className="border-b-0! items-center justify-center row-auto h-full z-[2] relative bg-background"
+                        className="border-b-0! items-center justify-center row-auto h-full z-2 relative bg-background"
                         style={{
                           gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
                         }}

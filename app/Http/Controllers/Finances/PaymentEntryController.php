@@ -2,13 +2,12 @@
 
 namespace App\Http\Controllers\Finances;
 
-use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PaymentEntryRequest;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
-use App\Models\Purchase\PurchaseOrder;
-use App\Models\Sales\SalesOrder;
+use App\Models\Finances\PurchaseInvoice;
+use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,8 +39,7 @@ class PaymentEntryController extends Controller {
    */
   public function create(Request $request, ?string $ref = null) {
     if ($ref) {
-      $select   = $request->has('select') ? $request->select : null;
-      $split    = \explode("/", $ref);
+      $split    = \explode('/', $ref);
       $modelOri = $split[0] ?? null;
       $id       = $split[1] ?? null;
       if ($modelOri) {
@@ -49,40 +47,82 @@ class PaymentEntryController extends Controller {
           'paymentSchedule' => PaymentSchedule::class,
           default           => null,
         };
-        if ($modelOri == 'paymentSchedule' && $id) {
-          $paymentSchedule = PaymentSchedule::find($id);
+        switch ($modelOri) {
+          case 'paymentSchedule':
+            $paymentSchedule = PaymentSchedule::find($id);
 
-          $modelReference = $paymentSchedule->payment_scheduleable_type;
+            $modelReference = $paymentSchedule->payment_scheduleable_type;
 
-          if ($modelReference == SalesOrder::class) {
-            $partyable = $paymentSchedule->referenceTo->customer;
-            $currency  = $paymentSchedule->referenceTo->currency;
-          }
-        } else {
-          $modelReference = $model;
+            if ($modelReference == SalesInvoice::class) {
+              $partyable = $paymentSchedule->referenceTo->customer;
+              $currency  = $paymentSchedule->referenceTo->currency;
+            }
+            break;
+
+          case 'salesInvoice':
+            $salesInvoice = SalesInvoice::find($id);
+            $paymentEntry = PaymentEntry::where('paymentable_type', SalesInvoice::class)
+              ->where('paymentable_id', $salesInvoice->id)
+              ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
+              ->where('created_by', $request->user()->id)
+              ->first();
+            if ($paymentEntry) {
+              return redirect()->route('paymentEntries.show', $paymentEntry);
+            }
+            $salesInvoice->loadRelations();
+            ['accountBank' => $accountBank, 'amount' => $amount, 'paymentMethod' => $paymentMethod] = PaymentSchedule::getDetailPayment($salesInvoice->paymentSchedules);
+
+            $defaultData = [
+              'date'              => now(),
+              'paymentable'       => $salesInvoice,
+              'payment_type'      => $salesInvoice->return_against_id === null ? 'receive' : 'pay',
+              'party_type'        => 'customer',
+              'partyable'         => $salesInvoice->customer,
+              'currency'          => $salesInvoice->currency,
+              'exchange_rate'     => $salesInvoice->exchange_rate,
+              'account_paid_from' => $salesInvoice->return_against_id === null ? $salesInvoice->debitAccount : $accountBank,
+              'account_paid_to'   => $salesInvoice->return_against_id === null ? $accountBank : $salesInvoice->customer_id,
+              'paid_amount'       => $amount,
+              'payment_method'    => $paymentMethod,
+            ];
+            break;
+
+          case 'purchaseInvoice':
+            $purchaseInvoice = PurchaseInvoice::find($id);
+            $paymentEntry = PaymentEntry::where('paymentable_type', PurchaseInvoice::class)
+              ->where('paymentable_id', $purchaseInvoice->id)
+              ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
+              ->where('created_by', $request->user()->id)
+              ->first();
+            if ($paymentEntry) {
+              return redirect()->route('paymentEntries.show', $paymentEntry);
+            }
+            $purchaseInvoice->loadRelations();
+            ['accountBank' => $accountBank, 'amount' => $amount, 'paymentMethod' => $paymentMethod] = PaymentSchedule::getDetailPayment($purchaseInvoice->paymentSchedules);
+
+            $defaultData = [
+              'date'              => now(),
+              'paymentable'       => $purchaseInvoice,
+              'payment_type'      => $purchaseInvoice->return_against_id === null ? 'pay' : 'receive',
+              'party_type'        => 'supplier',
+              'partyable'         => $purchaseInvoice->supplier,
+              'currency'          => $purchaseInvoice->currency,
+              'exchange_rate'     => $purchaseInvoice->exchange_rate,
+              'account_paid_from' => $purchaseInvoice->return_against_id === null ? $purchaseInvoice->debitAccount : $accountBank,
+              'account_paid_to'   => $purchaseInvoice->return_against_id === null ? $accountBank : $purchaseInvoice->customer_id,
+              'paid_amount'       => $amount,
+              'payment_method'    => $paymentMethod,
+            ];
+            break;
+
         }
       }
-      $payment_type = match ($modelReference) {
-        SalesOrder::class    => 'receive',
-        PurchaseOrder::class => 'pay',
-      };
     }
 
-    $this->setBreadcrumbs('finance.paymentEntry.new');
+    $this->setBreadcrumbs('finances.paymentEntry.new');
+
     return Inertia::render('Finances/PaymentEntries/Show', [
-      'paymentable_type' => $model,
-      'paymentable_id'   => $id,
-      'payment_type'     => $payment_type,
-      "partyable_type"   =>
-        $payment_type === "receive"
-        ? \App\Models\Sales\Customer::class
-        : ($payment_type === "pay"
-          ? \App\Models\Purchase\Supplier::class
-          : null),
-      'partyable'        => $partyable ?? null,
-      'currency'         => $currency ?? null,
-      'paid_amount'      => $paymentSchedule?->outstanding_amount ?? null,
-      'payment_method'   => $paymentSchedule?->paymentMethod ?? null
+      'defaultData' => $defaultData ?? null,
     ]);
   }
 
@@ -93,6 +133,7 @@ class PaymentEntryController extends Controller {
     $data              = $request->validated();
     $data['branch_id'] = $request->session()->get('currentBranch');
     $paymentEntry      = $this->service->create($data);
+
     return redirect()->route('paymentEntries.show', $paymentEntry);
   }
 
@@ -106,6 +147,7 @@ class PaymentEntryController extends Controller {
     return Inertia::render('Finances/PaymentEntries/Show', [
       'paymentEntry' => function () use ($paymentEntry) {
         $paymentEntry->loadRelations();
+
         return $paymentEntry;
       },
     ]);
@@ -121,15 +163,34 @@ class PaymentEntryController extends Controller {
   public function update(PaymentEntryRequest $request, PaymentEntry $paymentEntry) {
     $data         = $request->validated();
     $paymentEntry = $this->service->update($paymentEntry, $data);
-    return redirect()->route('paymentEntries.show', $paymentEntry);
+
+    return back();
   }
 
-  // Opsional: log internal order submit
+  // Opsional: log internal invoice submit
   public function submit(PaymentEntry $paymentEntry) {
-    $paymentEntry = $this->service->submit($paymentEntry);
-    return $paymentEntry;
+    $this->service->submit($paymentEntry);
+
+    return back();
   }
 
+  public function onApproved(PaymentEntry $paymentEntry) {
+    $this->service->onApproved($paymentEntry);
+
+    return back();
+  }
+
+  public function onRejected(PaymentEntry $paymentEntry) {
+    $this->service->onRejected($paymentEntry);
+
+    return back();
+  }
+
+  public function cancel(PaymentEntry $paymentEntry) {
+    $this->service->cancel($paymentEntry);
+
+    return back();
+  }
   /**
    * Remove the specified resource from storage.
    */
@@ -138,6 +199,7 @@ class PaymentEntryController extends Controller {
     $paymentEntry->delete();
     $paymentEntry->logForDeleted();
     DB::commit();
-    return redirect()->route('paymentEntrys.index');
+
+    return redirect()->route('paymentEntries.index');
   }
 }

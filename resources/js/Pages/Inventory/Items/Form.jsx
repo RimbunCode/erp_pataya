@@ -187,7 +187,7 @@ export default memo(function Form() {
         show={data.category?.type != "service"}
       >
         <FormTable
-          name="variants"
+          name="ItemVariants"
           disabled={disabled}
           // readOnly={disabled}
           columns={variantColumns}
@@ -318,7 +318,7 @@ export default memo(function Form() {
           {t("inventory.item.menu.uom")}
         </FormPageContentTitle>
         <FormTable
-          name="uoms"
+          name="ItemUoms"
           // disabled={disabled}
           // readOnly={!data.default_unit}
           columns={uomColumns}

@@ -23,8 +23,6 @@ class SalesOrderService {
     $data['customer_branch_id']   = $data['customer_branch']['id'];
     $data['customer_branch_name'] = $data['customer_branch']['name'];
 
-    $data['branch_id'] = $data['branch']['id'];
-
     $defaultCurrency            = Preference::find('default_currency_id')->value;
     $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
     $data['base_currency_code'] = $defaultCurrency;
@@ -48,6 +46,7 @@ class SalesOrderService {
   }
 
   private function fillPaymentScheduleRelations(array $data, SalesOrder $salesOrder) {
+    $data['payment_amount']     = $salesOrder->amount * ($data['invoice_portion'] / 100);
     $data['currency_code']      = $salesOrder->currency_code;
     $data['base_currency_code'] = $salesOrder->base_currency_code;
     $data['exchange_rate']      = $salesOrder->exchange_rate;
