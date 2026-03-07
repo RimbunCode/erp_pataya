@@ -5,10 +5,9 @@ namespace App\Http\Controllers\Finances;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\PurchaseInvoiceRequest;
 use App\Models\Core\Branch;
+use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Purchase\PurchaseOrder;
-use App\Models\Core\FormatingSeries;
-use App\Models\Finances\Account;
 use App\Services\Finances\PurchaseInvoiceService;
 use App\Utils;
 use Illuminate\Http\Request;
@@ -38,23 +37,23 @@ class PurchaseInvoiceController extends Controller {
    */
   public function create(Request $request, ?string $ref = null) {
     if ($ref) {
-      $split    = \explode("/", $ref);
+      $split    = \explode('/', $ref);
       $modelOri = $split[0] ?? null;
       if ($modelOri) {
         switch ($modelOri) {
-          case 'purchaseOrder': {
+          case 'purchaseOrder':
             $po = PurchaseOrder::find($split[1]);
             if ($po) {
               $purchaseInvoice = PurchaseInvoice::where('purchase_order_id', $po->id)
-                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
+                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($purchaseInvoice) {
                 return redirect()->route('purchaseInvoices.show', $purchaseInvoice);
               }
               $po->loadRelations();
-              $accounts = Account::where('root_type', "liability")
-                ->whereIn('account_type', ["stock_received_but_not_billed", "payable"])
+              $accounts = Account::where('root_type', 'liability')
+                ->whereIn('account_type', ['stock_received_but_not_billed', 'payable'])
                 ->get();
 
               $defaultData = [
@@ -70,69 +69,65 @@ class PurchaseInvoiceController extends Controller {
                 'discount_amount'      => $po?->discount_amount,
                 'exchange_rate'        => $po?->exchange_rate,
                 'external_note'        => $po?->external_note,
-                'items'                => $po?->items->map(fn($item) => [
+                'items'                => $po?->items->map(fn ($item) => [
                   ...$item->toArray(),
                   'id'                     => Utils::generateRandom(5),
                   'purchase_order_item_id' => $item->id,
                 ]),
-                'paymentSchedules'     => $po?->paymentSchedules->map(fn($paymentSchedule) => [
+                'payment_schedules'    => $po?->paymentSchedules->map(fn ($paymentSchedule) => [
                   ...$paymentSchedule->toArray(),
                   'id' => Utils::generateRandom(5),
                 ]),
               ];
             }
             break;
-          }
-          case 'purchaseInvoice': {
+
+          case 'purchaseInvoice':
             $purchaseInvoice = PurchaseInvoice::find($split[1]);
             if ($purchaseInvoice) {
               $purchaseInvoiceTarget = PurchaseInvoice::where('return_against_id', $purchaseInvoice->id)
-                ->whereRaw("json_overlaps(`status`, ?)", [json_encode(["draft"])])
+                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
                 ->where('created_by', $request->user()->id)
                 ->first();
               if ($purchaseInvoiceTarget) {
                 return redirect()->route('purchaseInvoices.show', $purchaseInvoiceTarget);
               }
-              $account = Account::where('root_type', 'income')
-                ->where('account_type', 'income_account')
-                ->where('is_contra', true)
-                ->first();
               $purchaseInvoice->loadRelations();
               $defaultData = [
-                'return_against'   => $purchaseInvoice,
-                'is_return'        => true,
-                'date'             => now(),
-                'purchase_order'   => $purchaseInvoice->purchaseOrder,
-                'income_account'   => $account,
-                'debit_account'    => $purchaseInvoice->debitAccount,
-                'customer'         => $purchaseInvoice?->customer,
-                'customer_branch'  => $purchaseInvoice?->customer_branch,
-                'currency'         => $purchaseInvoice?->currency,
-                'amount'           => $purchaseInvoice?->amount,
-                'discount_on'      => $purchaseInvoice?->discount_on,
-                'discount_rate'    => $purchaseInvoice?->discount_rate,
-                'discount_amount'  => $purchaseInvoice?->discount_amount,
-                'exchange_rate'    => $purchaseInvoice?->exchange_rate,
-                'external_note'    => $purchaseInvoice?->external_note,
-                'items'            => $purchaseInvoice?->items->map(fn($item) => [
+                'return_against'       => $purchaseInvoice,
+                'is_return'            => true,
+                'date'                 => now(),
+                'purchase_order'       => $purchaseInvoice->purchaseOrder,
+                'expense_head_account' => $purchaseInvoice->expenseHeadAccount,
+                'credit_account'       => $purchaseInvoice->creditAccount,
+                'supplier'             => $purchaseInvoice?->supplier,
+                'currency'             => $purchaseInvoice?->currency,
+                'amount'               => $purchaseInvoice?->amount,
+                'discount_on'          => $purchaseInvoice?->discount_on,
+                'discount_rate'        => $purchaseInvoice?->discount_rate,
+                'discount_amount'      => $purchaseInvoice?->discount_amount,
+                'exchange_rate'        => $purchaseInvoice?->exchange_rate,
+                'external_note'        => $purchaseInvoice?->external_note,
+                'items'                => $purchaseInvoice?->items->map(fn ($item) => [
                   ...$item->toArray(),
                   'id'                     => Utils::generateRandom(5),
                   'return_against_item_id' => $item->id,
                 ]),
 
-                'paymentSchedules' => $purchaseInvoice?->paymentSchedules->map(fn($paymentSchedule) => [
+                'payment_schedules'    => $purchaseInvoice?->paymentSchedules->map(fn ($paymentSchedule) => [
                   ...$paymentSchedule->toArray(),
                   'id' => Utils::generateRandom(5),
                 ]),
               ];
             }
             break;
-          }
+
         }
       }
     }
 
     $this->setBreadcrumbs('finances.purchaseInvoice.new');
+
     return Inertia::render('Finances/PurchaseInvoice/Show', [
       'defaultData' => $defaultData ?? [],
     ]);
@@ -146,7 +141,7 @@ class PurchaseInvoiceController extends Controller {
     DB::beginTransaction();
 
     // branch dari session
-    $data['branch']     = Branch::find($request->session()->get('currentBranch'))->toArray();
+    $data['branch_id']  = $request->session()->get('currentBranch');
     $data['created_by'] = $request->user()->id;
 
     // create SO
@@ -154,6 +149,7 @@ class PurchaseInvoiceController extends Controller {
     $purchaseInvoice->logForCreated();
 
     DB::commit();
+
     return redirect()->route('purchaseInvoices.show', $purchaseInvoice);
   }
 
@@ -167,6 +163,7 @@ class PurchaseInvoiceController extends Controller {
     return Inertia::render('Finances/PurchaseInvoice/Show', [
       'purchaseInvoice' => function () use ($purchaseInvoice) {
         $purchaseInvoice->loadRelations();
+
         return $purchaseInvoice;
       },
     ]);
@@ -182,26 +179,31 @@ class PurchaseInvoiceController extends Controller {
     $so = $this->service->update($purchaseInvoice, $data);
 
     DB::commit();
+
     return redirect()->back();
   }
 
   public function submit(Request $request, PurchaseInvoice $purchaseInvoice) {
     $this->service->submit($purchaseInvoice);
+
     return redirect()->back();
   }
 
   public function onApproved(PurchaseInvoice $purchaseInvoice) {
     $this->service->onApproved($purchaseInvoice);
+
     return back();
   }
 
   public function onRejected(PurchaseInvoice $purchaseInvoice) {
     $this->service->onRejected($purchaseInvoice);
+
     return back();
   }
 
   public function cancel(PurchaseInvoice $purchaseInvoice) {
     $this->service->cancel($purchaseInvoice);
+
     return back();
   }
 
@@ -213,6 +215,7 @@ class PurchaseInvoiceController extends Controller {
     $purchaseInvoice->delete();
     $purchaseInvoice->logForDeleted();
     DB::commit();
+
     return redirect()->route('purchaseInvoices.index');
   }
 }

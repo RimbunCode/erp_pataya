@@ -4,9 +4,11 @@ namespace App\Services\Finances;
 
 use App\FormStatus;
 use App\Models\Core\FormatingSeries;
+use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\PaymentEntry;
 use App\Models\Finances\PaymentSchedule;
+use App\Utils;
 use Illuminate\Support\Facades\DB;
 
 class PaymentEntryService {
@@ -43,61 +45,79 @@ class PaymentEntryService {
     return $paymentEntry;
   }
 
-  public function onApproved(PaymentEntry $paymentEntry) {
-    DB::beginTransaction();
-
-    try {
-      $paymentEntry->load('paymentable');
-
-      if ($paymentEntry->status === FormStatus::SUBMITTED) {
-        return back()->with('error', 'Payment Entry sudah disubmit sebelumnya.');
-      }
-
-      // Kalau payment_entry ini terhubung ke PaymentSchedule
-      if ($paymentEntry->paymentable_type === PaymentSchedule::class) {
-        /** @var PaymentSchedule $paymentSchedule */
-        $paymentSchedule = $paymentEntry->paymentable;
-
-        // Validasi overpayment
-        $totalPaid = $paymentSchedule->paid_amount + $paymentEntry->paid_amount;
-        if ($totalPaid > $paymentSchedule->payment_amount) {
-          DB::rollBack();
-          throw \Illuminate\Validation\ValidationException::withMessages([
-            'invalidAmount' => 'Jumlah pembayaran melebihi total yang harus dibayar.',
-          ]);
-        }
-
-        // Update jumlah paid & tanggal pembayaran
-        $paymentSchedule->update([
-          'paid_amount'      => $totalPaid,
-          'base_paid_amount' => $paymentSchedule->base_paid_amount + $paymentEntry->based_paid_amount,
-          'payment_date'     => now(),
-          'submitted_at'     => now(),
-        ]);
-      }
-
-      // Log aktivitas
-      $paymentEntry->logForSubmitted();
-
-      DB::commit();
-
-      return redirect()
-        ->route('paymentEntries.show', $paymentEntry)
-        ->with('success', 'Payment Entry berhasil disubmit.');
-    } catch (\Throwable $th) {
-      DB::rollBack();
-      report($th);
-      return back()->with('error', 'Terjadi kesalahan saat submit Payment Entry.');
-    }
-  }
-
   public function submit(PaymentEntry $paymentEntry) {
     $paymentEntry->update([
       'code' => FormatingSeries::generate(PaymentEntry::class, $paymentEntry),
     ]);
+    ModelConnection::create([
+      'model_id'       => $paymentEntry->id,
+      'model_type'     => PaymentEntry::class,
+      'reference_id'   => $paymentEntry->paymentable_id,
+      'reference_type' => $paymentEntry->paymentable_type,
+    ]);
     $paymentEntry->checkApproval();
     return $paymentEntry;
+  }
 
+  public function onApproved(PaymentEntry $paymentEntry) {
+    DB::beginTransaction();
+
+    $paymentEntry->load([
+      'paymentable',
+      'paymentable.paymentSchedules',
+    ]);
+
+    $paymentable      = $paymentEntry->paymentable;
+    $paymentSchedules = $paymentEntry->paymentable->paymentSchedules;
+
+    $outstandingAmount = $paymentEntry->paid_amount;
+    foreach ($paymentSchedules as $paymentSchedule) {
+      $paymentAmount = $paymentSchedule->outstanding_amount;
+      if ($outstandingAmount >= $paymentAmount) {
+        $paymentSchedule->update([
+          'paid_amount' => $paymentAmount,
+        ]);
+        $outstandingAmount -= $paymentAmount;
+      } else {
+        $paymentSchedule->update([
+          'paid_amount' => $outstandingAmount,
+        ]);
+        $outstandingAmount = 0;
+      }
+    }
+
+    $paymentable->paid_amount += $outstandingAmount;
+
+    if ($paymentable->paid_amount >= $paymentable->amount) {
+      $status = Utils::replaceStatus(
+        $paymentable->status,
+        [FormStatus::UNPAID, FormStatus::PARTIALLY_PAID],
+        FormStatus::PAID,
+      );
+    } else if ($paymentable->paid_amount > 0) {
+      $status = Utils::replaceStatus(
+        $paymentable->status,
+        [FormStatus::UNPAID, FormStatus::PAID],
+        FormStatus::PARTIALLY_PAID,
+      );
+    } else {
+      $status = Utils::replaceStatus(
+        $paymentable->status,
+        [FormStatus::UNPAID, FormStatus::PARTIALLY_PAID],
+        FormStatus::PARTIALLY_PAID,
+      );
+    }
+    $paymentable->status = $status;
+    $paymentable->save();
+
+    $paymentEntry->update([
+      'status' => [
+        FormStatus::PAID,
+      ],
+    ]);
+
+    DB::commit();
+    return $paymentEntry;
   }
 
   public function onRejected(PaymentEntry $paymentEntry) {

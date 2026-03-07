@@ -29,7 +29,7 @@ class PaymentEntryRequest extends FormRequest {
       'partyable.*'          => ['nullable'],
       'currency.code'        => ['nullable', 'exists:currencies,code'],
       'currency.*'           => ['nullable'],
-      'exchange_rate'        => ['nullable', 'numeric', 'min:0', 'default:1'],
+      'exchange_rate'        => ['nullable', 'numeric', 'min:0'],
       'paymentable'          => ['required_unless:payment_type,internal_transfer', 'array'],
       'paymentable.id'       => ['required_unless:payment_type,internal_transfer', $this->party_type == 'supplier' ? 'exists:purchase_invoices,id' : 'exists:sales_invoices,id'],
       'account_paid_to.id'   => ['required', 'exists:accounts,id'],

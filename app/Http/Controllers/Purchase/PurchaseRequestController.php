@@ -79,7 +79,7 @@ class PurchaseRequestController extends Controller {
   public function store(PurchaseRequestRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
+    $data['branch_id'] = $request->session()->get('currentBranch');
 
     $wo = $this->service->create($data);
     DB::commit();

@@ -19,8 +19,6 @@ class PurchaseReceiptService {
   private function fillRelations(array $data) {
     $data['purchase_order_id'] = $data['purchase_order']['id'];
     $data['supplier_id']       = $data['supplier']['id'];
-
-    $data['branch_id']         = $data['branch']['id'];
     $data['return_against_id'] = $data['return_against']['id'] ?? null;
 
     return $data;

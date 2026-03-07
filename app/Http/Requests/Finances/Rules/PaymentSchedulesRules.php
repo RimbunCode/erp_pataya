@@ -20,7 +20,6 @@ class PaymentSchedulesRules {
       'payment_schedules.*.payment_method.id' => ['nullable', 'exists:payment_methods,id'],
       'payment_schedules.*.payment_method.*'  => ['nullable'],
       'payment_schedules.*.due_date'          => ['required', 'date'],
-      'payment_schedules.*.payment_amount'    => ['required', 'numeric'],
       'payment_schedules.*.discount_type'     => [
         'nullable',
         'in:percentage,amount',

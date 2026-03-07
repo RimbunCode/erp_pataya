@@ -113,7 +113,7 @@ function Form() {
         title={t("core.approvalScheme.columns.steps")}
       >
         <FormTable
-          name="steps"
+          name="ApprovalSchemeSteps"
           columns={stepColumns}
           value={data.steps}
           onValueChange={(val) => setData("steps", val)}

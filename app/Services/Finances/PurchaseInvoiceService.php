@@ -27,8 +27,6 @@ class PurchaseInvoiceService {
     $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
     $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
-    $data['branch_id'] = $data['branch']['id'];
-
     $defaultCurrency              = Preference::find('default_currency_id')->value;
     $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
     $data['base_currency_code']   = $defaultCurrency;
@@ -48,10 +46,11 @@ class PurchaseInvoiceService {
   }
 
   private function fillPaymentScheduleRelations(array $data, PurchaseInvoice $purchaseInvoice) {
+    $data['payment_amount']     = $purchaseInvoice->amount * ($data['invoice_portion'] / 100);
     $data['currency_code']      = $purchaseInvoice->currency_code;
     $data['base_currency_code'] = $purchaseInvoice->base_currency_code;
     $data['exchange_rate']      = $purchaseInvoice->exchange_rate;
-    $data['for_internal']       = true;
+    $data['for_internal']       = $purchaseInvoice->return_against_id === null ? false : true;
     $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
     $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
     return $data;
@@ -74,8 +73,7 @@ class PurchaseInvoiceService {
 
     $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
     $purchaseInvoice->update([
-      'amount'      => $totalAmount,
-      'base_amount' => $totalAmount * ($purchaseInvoice->exchange_rate ?? 1),
+      'amount' => $totalAmount,
     ]);
 
     foreach ($data['payment_schedules'] ?? [] as $payment_schedule) {
@@ -115,8 +113,7 @@ class PurchaseInvoiceService {
 
     $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
     $purchaseInvoice->update([
-      'amount'      => $totalAmount,
-      'base_amount' => $totalAmount * ($purchaseInvoice->exchange_rate ?? 1),
+      'amount' => $totalAmount,
     ]);
 
     $paymentSchedules = $data['payment_schedules'] ?? [];
@@ -138,6 +135,9 @@ class PurchaseInvoiceService {
   public function submit(PurchaseInvoice $purchaseInvoice) {
     DB::beginTransaction();
 
+    $purchaseInvoice->update([
+      'code' => FormatingSeries::generate(PurchaseInvoice::class, $purchaseInvoice),
+    ]);
     if ($purchaseInvoice->paymentSchedules()->count() === 0) {
       $purchaseInvoice->paymentSchedules()->create([
         'payment_scheduleable_type' => PurchaseInvoice::class,

@@ -27,7 +27,9 @@ class PaymentEntry extends Model {
       'currency',
       'partyable',
       'paymentable',
-      'paymentable.paymentSchedule',
+      'paymentable.paymentSchedules',
+      'paymentable.paymentSchedules.paymentTerm',
+      'paymentable.paymentSchedules.paymentMethod',
       'accountPaidTo',
       'accountPaidFrom',
     ];

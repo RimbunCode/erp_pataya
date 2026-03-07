@@ -11,7 +11,6 @@ use Symfony\Component\Uid\Ulid;
 
 class PurchaseRequestService {
   private function fillRelations(array $data) {
-    $data['branch_id'] = $data['branch']['id'];
 
     return $data;
   }

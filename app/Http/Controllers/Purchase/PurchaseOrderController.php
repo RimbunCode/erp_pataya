@@ -98,7 +98,7 @@ class PurchaseOrderController extends Controller {
     DB::beginTransaction();
 
     // branch dari session
-    $data['branch']     = Branch::find($request->session()->get('currentBranch'))->toArray();
+    $data['branch_id']  = $request->session()->get('currentBranch');
     $data['created_by'] = $request->user()->id;
 
     // create PO

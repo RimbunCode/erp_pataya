@@ -3,9 +3,17 @@ import i18n from "laravel-react-i18n/vite";
 import laravel from "laravel-vite-plugin";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+
 export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
+  },
+  dev: {
+    sourcemap: {
+      js: true,
+      css: true,
+    },
+    sourcemapIgnoreList: ["node_modules"],
   },
   plugins: [
     tailwindcss(),

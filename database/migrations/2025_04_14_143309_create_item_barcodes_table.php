@@ -14,9 +14,10 @@ return new class extends Migration
       $table->ulid('id')->primary();
       $table->foreignUlid('item_variant_id')->references('id')->on('item_variants')->cascadeOnDelete();
       $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
-      $table->string('barcode')->unique();
+      $table->string('barcode');
       $table->timestamps();
       $table->softDeletes();
+      $table->unique(['barcode', 'deleted_at']);
     });
   }
 

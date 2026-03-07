@@ -343,7 +343,7 @@ export default function Form() {
             />
           </FormInput>
           <FormTable
-            name="items"
+            name="WorkOrderItems"
             className="col-start-1  col-span-full"
             readOnly={disabled}
             columns={itemColumns}

@@ -3,7 +3,7 @@ import React, { cloneElement, memo, useId } from "react";
 import InputError from "./InputError";
 import { Label } from "./ui/label";
 import { cn } from "@/lib/utils";
-import { useFormPage } from "@/Pages/Core/FormPage";
+import { useFormPageMeta } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 /**
@@ -32,13 +32,21 @@ function FormInput({
   ignoreDisabled = false,
   ...props
 }) {
-  const form = useFormPage();
+  const form = useFormPageMeta();
   const id = useId();
   const { t } = useLaravelReactI18n();
-  const child = typeof children == "function" ? children : children;
+  const firstChild = React.Children.toArray(children)[0];
+  const isRenderProp = typeof children == "function";
   const errors = errorsProps ?? form?.errors ?? {};
-  const _required = required || child.props?.required;
-  const _name = name || child.props?.name;
+  const _required = required || firstChild?.props?.required;
+  const _name = name || firstChild?.props?.name;
+  const errorMessage = error
+    ? error
+    : _name && errors?.[_name]
+      ? form?.fieldNameTrans
+        ? errors[_name].replace(_name, t(`${form.fieldNameTrans}.${_name}`))
+        : errors[_name]
+      : null;
 
   return (
     <div
@@ -48,8 +56,8 @@ function FormInput({
       <Label htmlFor={id} className="truncate h-auto">
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>
-      {typeof child == "function"
-        ? child({
+      {isRenderProp
+        ? children({
             id,
             required: _required,
             readOnly: props.readOnly || form?.disabled,
@@ -72,20 +80,7 @@ function FormInput({
         ) : (
           description
         ))}
-      {(error || _name in (errors ?? {})) && (
-        <InputError
-          message={
-            error ??
-            (form.fieldNameTrans
-              ? errors?.[_name].replace(
-                  _name,
-                  t(`${form.fieldNameTrans}.${_name}`),
-                )
-              : errors?.[_name])
-          }
-          className=""
-        />
-      )}
+      {errorMessage && <InputError message={errorMessage} className="" />}
     </div>
   );
 }

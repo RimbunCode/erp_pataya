@@ -12,7 +12,7 @@ return new class extends Migration
   public function up(): void {
     Schema::create('print_templates', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->string('name')->unique();
+      $table->string('name');
       $table->foreignUlid('permission_id')->nullable()->references('id')->on('permissions')->nullOnDelete();
       $table->boolean('is_letter_head')->default(false);
       $table->foreignUlid('letter_head_id')->nullable()->references('id')->on('print_templates')->nullOnDelete();
@@ -37,6 +37,7 @@ return new class extends Migration
       $table->string('unit')->nullable();
       $table->timestamps();
       $table->softDeletes();
+      $table->unique(['name', 'deleted_at']);
     });
   }
 

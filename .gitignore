@@ -1,5 +1,10 @@
+# for dev only
+#----------------------
 /bootstrap/ssr
 /public/build
+/lang/php_*.json
+#----------------------
+
 /.phpunit.cache
 /node_modules
 /public/hot

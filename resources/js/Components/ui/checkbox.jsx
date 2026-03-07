@@ -5,6 +5,7 @@ import { Check, MinusIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useFormPage } from "@/Pages/Core/FormPage";
+import { RunningText, RunningTextContent } from "@/Components/ui/running-text";
 
 const Checkbox = React.forwardRef(({ className, readOnly, ...props }, ref) => (
   <CheckboxPrimitive.Root
@@ -46,8 +47,12 @@ const FormCheckbox = React.forwardRef(
     const defaultId = React.useId();
     const { disabled } = useFormPage() ?? {};
     const readOnly = _readOnly || (disabled ?? false);
+    const labelContent = children ?? label;
+    const hasPlainLabel =
+      typeof labelContent === "string" || typeof labelContent === "number";
+
     return (
-      <div className={cn("flex items-center space-x-2", className)}>
+      <div className={cn("flex min-w-0 items-center gap-2", className)}>
         <Checkbox
           ref={ref}
           id={id ?? defaultId}
@@ -57,15 +62,21 @@ const FormCheckbox = React.forwardRef(
           readOnly={readOnly}
           {...props}
         />
-        <label
-          htmlFor={id ?? defaultId}
+        <RunningText
+          asChild
           className={cn(
-            "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+            "min-w-0 flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
             classNameLabel,
           )}
         >
-          {children ?? label}
-        </label>
+          <label htmlFor={id ?? defaultId}>
+            {hasPlainLabel ? (
+              <RunningTextContent text={labelContent} />
+            ) : (
+              labelContent
+            )}
+          </label>
+        </RunningText>
       </div>
     );
   },

@@ -306,7 +306,7 @@ function Form() {
             />
           </FormInput>
           <FormTable
-            name="items"
+            name="PurchaseReceiptItems"
             className="col-start-1 col-span-2"
             readOnly={true}
             forceCanDelete

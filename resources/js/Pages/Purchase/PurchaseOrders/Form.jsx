@@ -503,6 +503,7 @@ function Form() {
           </FormInput>
           <div className="col-span-full">
             <FormTable
+              name="PurchaseOrderItems"
               readOnly={disabled}
               columns={itemColumns}
               value={data?.items}

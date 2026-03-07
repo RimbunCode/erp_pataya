@@ -12,7 +12,7 @@ return new class extends Migration
   public function up(): void {
     Schema::create('approval_schemes', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->string('name')->unique();
+      $table->string('name');
       $table->foreignUlid('permission_id')->references('id')->on('permissions')->cascadeOnDelete();
       $table->string('name_model');
       $table->string('model');
@@ -20,6 +20,7 @@ return new class extends Migration
       $table->json('config')->nullable();
       $table->softDeletes();
       $table->timestamps();
+      $table->unique(['name', 'deleted_at']);
     });
   }
 
