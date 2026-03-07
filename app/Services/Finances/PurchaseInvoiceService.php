@@ -135,6 +135,9 @@ class PurchaseInvoiceService {
   public function submit(PurchaseInvoice $purchaseInvoice) {
     DB::beginTransaction();
 
+    $purchaseInvoice->update([
+      'code' => FormatingSeries::generate(PurchaseInvoice::class, $purchaseInvoice),
+    ]);
     if ($purchaseInvoice->paymentSchedules()->count() === 0) {
       $purchaseInvoice->paymentSchedules()->create([
         'payment_scheduleable_type' => PurchaseInvoice::class,
