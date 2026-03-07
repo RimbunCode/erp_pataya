@@ -24,8 +24,8 @@ import { NavMain } from "@/Components/Sidebar/NavMain";
 const navList = [
   {
     title: "Dashboard",
-    url: "/dashboard",
-    urlPattern: "/dashboard*",
+    url: "/dashboard-view",
+    urlPattern: "/dashboard-view*",
     icon: <LayoutDashboard />,
   },
   {
