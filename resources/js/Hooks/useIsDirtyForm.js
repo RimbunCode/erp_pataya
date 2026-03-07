@@ -15,4 +15,12 @@ export const useIsDirtyForm = create((set) => ({
   setLeave: (value) => set({ leave: value }),
   saveAsDraft: () => {},
   setSaveAsDraft: (value) => set({ saveAsDraft: value }),
+  keepDraftOnClean: {},
+  setKeepDraftOnClean: (key, value) =>
+    set((state) => ({
+      keepDraftOnClean: {
+        ...(state.keepDraftOnClean ?? {}),
+        [key]: value,
+      },
+    })),
 }));

@@ -126,35 +126,41 @@ class SalesOrder extends Model {
       'paymentSchedules.paymentTerm',
       'paymentSchedules.paymentMethod',
     ];
-  }
 
-  public function referenceable() {
-    return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
-  }
+    public function referenceable()
+    {
+        return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
+    }
 
-  public function referenceSo() {
-    return $this->belongsTo(SalesOrder::class, 'reference_so_id');
-  }
+    public function referenceSo()
+    {
+        return $this->belongsTo(SalesOrder::class, 'reference_so_id');
+    }
 
-  public function items() {
-    return $this->hasMany(SalesOrderItem::class);
-  }
+    public function items()
+    {
+        return $this->hasMany(SalesOrderItem::class);
+    }
 
-  public function customer() {
-    return $this->belongsTo(Customer::class);
-  }
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
 
-  public function customer_branch() {
-    return $this->belongsTo(Branch::class, 'customer_branch_id');
-  }
+    public function customer_branch()
+    {
+        return $this->belongsTo(Branch::class, 'customer_branch_id');
+    }
 
-  public function branch() {
-    return $this->belongsTo(Branch::class);
-  }
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
-  public function currency() {
-    return $this->belongsTo(Currency::class, 'currency_code');
-  }
+    public function currency()
+    {
+        return $this->belongsTo(Currency::class, 'currency_code');
+    }
 
   public function paymentSchedules() {
     return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')

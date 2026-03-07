@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Inventory;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\AttributeRequest;
 use App\Models\Inventory\Attribute;
-use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -21,6 +20,7 @@ class AttributeController extends Controller {
   public function index(Request $request) {
     $this->setBreadcrumbs();
     Attribute::dataTable($request);
+
     return Inertia::render('Inventory/Attributes/Index');
   }
 
@@ -31,8 +31,8 @@ class AttributeController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     if (($data['is_numeric'] ?? false) == true) {
-      $data['values'] = array_map(fn($value) => [
-        'value' => $value
+      $data['values'] = array_map(fn ($value) => [
+        'value' => $value,
       ], range($data['from_range'], $data['to_range'], $data['increment']));
     }
 
@@ -50,17 +50,16 @@ class AttributeController extends Controller {
     $attribute->showDetail();
     if ($attribute->is_numeric) {
       $attribute->from_range = $attribute->values[0]['value'] ?? 0;
-      $attribute->to_range = $attribute->values[count((array)$attribute->values) - 1]['value'] ?? 0;
-      $attribute->increment = ($attribute->values[1]['value'] ?? 0) - ($attribute->values[0]['value'] ?? 0);
+      $attribute->to_range   = $attribute->values[count((array) $attribute->values) - 1]['value'] ?? 0;
+      $attribute->increment  = ($attribute->values[1]['value'] ?? 0) - ($attribute->values[0]['value'] ?? 0);
     }
     return $this->renderShow(
       'Inventory/Attributes/Form',
       'attribute',
       $attribute->name,
-      $attribute
+      $attribute,
     );
   }
-
 
   /**
    * Update the specified resource in storage.
@@ -69,8 +68,8 @@ class AttributeController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
     if (($data['is_numeric'] ?? false) == true) {
-      $data['values'] = array_map(fn($value) => [
-        'value' => $value
+      $data['values'] = array_map(fn ($value) => [
+        'value' => $value,
       ], range($data['from_range'], $data['to_range'], $data['increment']));
     }
     $attribute->fillForUpdate($data);
@@ -87,6 +86,6 @@ class AttributeController extends Controller {
     $attribute->delete();
     $attribute->logForDeleted();
     DB::commit();
-    return back();
+    return redirect()->route('attributes.index');
   }
 }

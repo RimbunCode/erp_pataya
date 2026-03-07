@@ -2,12 +2,14 @@ import React, { useMemo } from "react";
 
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
+import FormInput from "@/Components/FormInput";
 import { FormPageContent } from "@/Pages/Core/FormPage";
 import FormTable from "@/Components/FormTable";
 import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
-import PaymentTermLinkModel from "../PaymentTerms/PaymentTermLinkModel";
+import PaymentTermTemplateLinkModel from "../PaymentTermTemplate/PaymentTermTemplateLinkModel";
 import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
+import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function PaymentSchedule({
@@ -21,55 +23,55 @@ function PaymentSchedule({
   const { t } = useLaravelReactI18n();
   const paymentScheduleColumns = useMemo(() => {
     return [
-      {
-        name: "payment_term",
-        titleTrans: "finances.paymentSchedule.columns.payment_term",
-        show: true,
-        cell({ data: paymentTerm, setData, attributes }) {
-          return (
-            <PaymentTermLinkModel
-              placeholder={t(
-                "finances.paymentSchedule.columns.payment_term.placeholder",
-              )}
-              value={paymentTerm}
-              onValueChange={(val) => {
-                const due_date = new Date(date);
-                switch (val?.due_date_based_on) {
-                  case "days_after_invoice_date": {
-                    due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                  case "weeks_after_invoice_week": {
-                    due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0) * 7,
-                    );
-                    break;
-                  }
-                  case "months_after_invoice_month": {
-                    due_date.setMonth(
-                      due_date.getMonth() + (val?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                }
-                setData({
-                  payment_term: val,
-                  due_date,
-                  description: val?.description,
-                  invoice_portion: val?.invoice_portion,
-                  discount_type: val?.discount_type,
-                  discount_date: val?.discount_type ? due_date : undefined,
-                  discount: val?.discount,
-                  payment_method: val?.payment_method,
-                });
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
+      // {
+      //   name: "payment_term",
+      //   titleTrans: "finances.paymentSchedule.columns.payment_term",
+      //   show: true,
+      //   cell({ data: paymentTerm, setData, attributes }) {
+      //     return (
+      //       <PaymentTermLinkModel
+      //         placeholder={t(
+      //           "finances.paymentSchedule.columns.payment_term.placeholder",
+      //         )}
+      //         value={paymentTerm}
+      //         onValueChange={(val) => {
+      //           const due_date = new Date(date);
+      //           switch (val?.due_date_based_on) {
+      //             case "days_after_invoice_date": {
+      //               due_date.setDate(
+      //                 due_date.getDate() + (val?.credit_period ?? 0),
+      //               );
+      //               break;
+      //             }
+      //             case "weeks_after_invoice_week": {
+      //               due_date.setDate(
+      //                 due_date.getDate() + (val?.credit_period ?? 0) * 7,
+      //               );
+      //               break;
+      //             }
+      //             case "months_after_invoice_month": {
+      //               due_date.setMonth(
+      //                 due_date.getMonth() + (val?.credit_period ?? 0),
+      //               );
+      //               break;
+      //             }
+      //           }
+      //           setData({
+      //             payment_term: val,
+      //             due_date,
+      //             description: val?.description,
+      //             invoice_portion: val?.invoice_portion,
+      //             discount_type: val?.discount_type,
+      //             discount_date: val?.discount_type ? due_date : undefined,
+      //             discount: val?.discount,
+      //             payment_method: val?.payment_method,
+      //           });
+      //         }}
+      //         {...attributes}
+      //       />
+      //     );
+      //   },
+      // },
       {
         name: "due_date",
         titleTrans: "finances.paymentSchedule.columns.due_date",
@@ -93,7 +95,7 @@ function PaymentSchedule({
       {
         name: "description",
         titleTrans: "finances.paymentSchedule.columns.description",
-        show: false,
+        show: true,
         type: "text",
         width: 2,
         cell({ dataRow, data, setData, attributes }) {
@@ -135,13 +137,13 @@ function PaymentSchedule({
         required: true,
         readOnly: true,
         width: 1,
-        cell({ dataRow, additionalData, attributes }) {
+        cell({ dataRow, data, additionalData, attributes }) {
           return (
             <CurrencyInput
               disabled={!dataRow.invoice_portion}
               decimalScale={2}
               currencyCode={currencyCode}
-              value={additionalData?.payment_amount ?? 0}
+              value={data ?? additionalData?.payment_amount ?? 0}
               {...attributes}
             />
           );
@@ -230,13 +232,12 @@ function PaymentSchedule({
         titleTrans: "finances.paymentSchedule.columns.outstanding_amount",
         readOnly: true,
         width: 1,
-        cell({ data, setData, attributes }) {
+        cell({ data, attributes }) {
           return (
             <CurrencyInput
               decimalScale={2}
               currencyCode={currencyCode}
-              value={data}
-              onValueChange={(val) => setData("outstanding_amount", val)}
+              value={data ?? additionalData?.outstanding_amount ?? 0}
               {...attributes}
             />
           );
@@ -249,7 +250,48 @@ function PaymentSchedule({
       value="terms"
       title={t("finances.paymentSchedule.columns.terms")}
     >
-      <div className="px-1 py-1">
+      <div className="grid md:grid-cols-2  gap-x-3 gap-y-4">
+        <FormInput name="name" label={t("finances.paymentTermTemplate.label")}>
+          <PaymentTermTemplateLinkModel
+            value={null}
+            onValueChange={(val) => {
+              if (!val) return;
+              const template = val.items.map((item) => {
+                const due_date = new Date(date);
+                switch (item?.due_date_based_on) {
+                  case "days_after_invoice_date": {
+                    due_date.setDate(
+                      due_date.getDate() + (item?.credit_period ?? 0),
+                    );
+                    break;
+                  }
+                  case "weeks_after_invoice_week": {
+                    due_date.setDate(
+                      due_date.getDate() + (item?.credit_period ?? 0) * 7,
+                    );
+                    break;
+                  }
+                  case "months_after_invoice_month": {
+                    due_date.setMonth(
+                      due_date.getMonth() + (item?.credit_period ?? 0),
+                    );
+                    break;
+                  }
+                }
+                return {
+                  id: generateRandom(5),
+                  due_date,
+                  invoice_portion: item?.invoice_portion,
+                  discount_type: item?.discount_type,
+                  discount_date: item?.discount_type ? due_date : undefined,
+                  discount: item?.discount,
+                  payment_method: item?.payment_method,
+                };
+              });
+              onValueChange(template);
+            }}
+          />
+        </FormInput>
         <FormTable
           name="paymentSchedules"
           className="col-start-1 col-span-2"

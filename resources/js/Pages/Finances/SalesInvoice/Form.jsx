@@ -278,6 +278,7 @@ export default function Form() {
                           ...item,
                           id: generateRandom(8),
                           sales_order_item_id: item.id,
+                          amount: item.basic_amount + item.tax_amount,
                         };
                       }),
                       payment_schedules:
@@ -338,6 +339,7 @@ export default function Form() {
           <div>
             <FormCheckbox
               className="mt-8 mb-3"
+              label={t("finances.salesInvoice.columns.is_return")}
               checked={data.is_return}
               onCheckedChange={(val) => {
                 getContraIncomeAccount(val);
@@ -359,7 +361,6 @@ export default function Form() {
                   return_against: undefined,
                 }));
               }}
-              label={t("finances.salesInvoice.columns.is_return")}
             />
             {data.is_return && (
               <FormInput
@@ -422,9 +423,8 @@ export default function Form() {
               disabled={!data.sales_order}
             >
               <CustomerLinkModel
-                disabled={data.for_internal}
                 with={["branches"]}
-                value={data.for_internal ? "" : data.customer}
+                value={data.customer}
                 onValueChange={(val) => {
                   if (val?.branches?.length <= 1) {
                     setData("customer_branch", val.branches?.[0]);
@@ -507,7 +507,7 @@ export default function Form() {
         </FormPageContentTitle>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormTable
-            name="items"
+            name="SalesInvoiceItems"
             className="col-start-1 col-span-2"
             form={<ItemForm />}
             disabled={true}

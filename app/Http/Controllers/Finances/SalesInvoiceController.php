@@ -79,7 +79,7 @@ class SalesInvoiceController extends Controller {
                   'id'                  => Utils::generateRandom(5),
                   'sales_order_item_id' => $item->id,
                 ]),
-                'paymentSchedules' => $so?->paymentSchedules->map(fn($paymentSchedule) => [
+                'payment_schedules' => $so?->paymentSchedules->map(fn ($paymentSchedule) => [
                   ...$paymentSchedule->toArray(),
                   'id' => Utils::generateRandom(5),
                 ]),
@@ -124,7 +124,7 @@ class SalesInvoiceController extends Controller {
                   'return_against_item_id' => $item->id,
                 ]),
 
-                'paymentSchedules' => $salesInvoice?->paymentSchedules->map(fn($paymentSchedule) => [
+                'payment_schedules' => $salesInvoice?->paymentSchedules->map(fn ($paymentSchedule) => [
                   ...$paymentSchedule->toArray(),
                   'id' => Utils::generateRandom(5),
                 ]),
@@ -150,7 +150,7 @@ class SalesInvoiceController extends Controller {
     DB::beginTransaction();
 
     // branch dari session
-    $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
+    $data['branch_id'] = $request->session()->get('currentBranch');
 
     $data['created_by'] = $request->user()->id;
 
@@ -221,6 +221,6 @@ class SalesInvoiceController extends Controller {
     $salesInvoice->delete();
     $salesInvoice->logForDeleted();
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('salesInvoices.index');
   }
 }

@@ -327,7 +327,7 @@ html {
 @utility sidebar-item {
   @apply text-base font-bold flex items-center px-4 py-2 text-gray-900 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700;
   & > svg:nth-child(1) {
-    @apply h-5 w-5 flex-shrink-0 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white;
+    @apply h-5 w-5 shrink-0 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white;
   }
   &.active {
     @apply bg-blue-500 text-white dark:bg-gray-700! dark:text-white  dark:hover:bg-gray-700;
@@ -340,7 +340,7 @@ html {
 @utility sidebar-item-dropdown {
   @apply sidebar-item flex w-full  transition duration-75;
   & > svg:nth-child(1) {
-    @apply h-5 w-5 flex-shrink-0 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white;
+    @apply h-5 w-5 shrink-0 text-gray-500 transition duration-75 group-hover:text-gray-900 dark:text-gray-400 dark:group-hover:text-white;
   }
 
   & + ul > li > a.active {
@@ -643,13 +643,13 @@ html {
     @apply dark:invert;
   }
   & .icon {
-    @apply pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2;
+    @apply pointer-events-none absolute inset-y-0 inset-s-0 flex items-center ps-2;
     svg {
       @apply h-4 w-4 text-gray-500 dark:text-gray-400;
     }
   }
   & .icon-eye {
-    @apply absolute inset-y-0 end-0 flex items-center px-2;
+    @apply absolute inset-y-0 inset-e-0 flex items-center px-2;
     svg {
       @apply h-4 w-4 text-gray-500 dark:text-gray-400;
     }
@@ -700,7 +700,7 @@ html {
 
 @utility icon {
   .text-input & {
-    @apply pointer-events-none absolute inset-y-0 start-0 flex items-center ps-2;
+    @apply pointer-events-none absolute inset-y-0 inset-s-0 flex items-center ps-2;
     svg {
       @apply h-4 w-4 text-gray-500 dark:text-gray-400;
     }
@@ -709,7 +709,7 @@ html {
 
 @utility icon-eye {
   .text-input & {
-    @apply absolute inset-y-0 end-0 flex items-center px-2;
+    @apply absolute inset-y-0 inset-e-0 flex items-center px-2;
     svg {
       @apply h-4 w-4 text-gray-500 dark:text-gray-400;
     }
@@ -947,6 +947,36 @@ html {
 }
 .gjs-toolbar [title]:hover::after {
   opacity: 1;
+}
+
+/** Running Text (hover to animate) **/
+@utility running-text {
+  @apply relative block overflow-hidden whitespace-nowrap;
+  --running-text-duration: 3s;
+}
+
+@utility running-text-track {
+  @apply inline-flex min-w-max whitespace-nowrap;
+  will-change: transform;
+}
+
+.running-text:hover .running-text-track {
+  animation: running-text-scroll var(--running-text-duration) linear infinite;
+}
+
+@keyframes running-text-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-75%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .running-text:hover .running-text-track {
+    animation: none;
+  }
 }
 
 @media print {

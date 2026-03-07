@@ -51,7 +51,7 @@ export default memo(function FormBarcodes({ disabled, isVariant = false }) {
   return (
     <FormPageContent
       title={t("inventory.item.menu.barcodes")}
-      value="barcodes"
+      value="itemBarcodes"
       show={item && !(item.attributes && item.attributes.length > 0)}
     >
       <FormTable

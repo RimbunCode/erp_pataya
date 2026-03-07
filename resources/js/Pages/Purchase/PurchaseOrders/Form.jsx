@@ -67,7 +67,7 @@ function Form() {
             target_warehouse: item.target_warehouse,
             description: item.description,
             required_date: prev.required_date,
-            quantity: item.remaining_quantity,
+            quantity: item.unordered_quantity,
             unit: item.unit,
             referenceable_type: model,
             referenceable_id: item.id,
@@ -447,7 +447,7 @@ function Form() {
                         "purchase_request",
                         "item",
                         "quantity",
-                        "remaining_quantity",
+                        "unordered_quantity",
                         "unit",
                       ],
                     },
@@ -503,6 +503,7 @@ function Form() {
           </FormInput>
           <div className="col-span-full">
             <FormTable
+              name="PurchaseOrderItems"
               readOnly={disabled}
               columns={itemColumns}
               value={data?.items}

@@ -8,12 +8,11 @@ use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use function PHPSTORM_META\type;
 
 class PaymentSchedule extends Model {
-  use HasUlids, SoftDeletes, DataTable;
+  use DataTable, HasUlids, SoftDeletes;
   protected $withs = [
-    'referenceTo.',
+    'referenceTo',
   ];
 
   protected static function loadRelationsOnShow() {
@@ -22,7 +21,7 @@ class PaymentSchedule extends Model {
       'paymentMethod',
     ];
   }
-  protected $configColumns = [
+  protected     $configColumns = [
     'referenceTo'             => [
       'type'               => 'relation',
       'order'              => 0,
@@ -64,14 +63,17 @@ class PaymentSchedule extends Model {
       'ignore' => true,
     ],
   ];
-  protected $appends       = ['status'];
-  public string $translateKey = 'finances.paymentSchedule';
-  protected $casts = [
-    'due_date'     => 'datetime',
-    'payment_date' => 'datetime',
-    'submitted_at' => 'datetime',
+  protected     $appends       = ['status'];
+  public string $translateKey  = 'finances.paymentSchedule';
+  protected     $casts         = [
+    'for_internal'  => 'boolean',
+    'due_date'      => 'datetime',
+    'payment_date'  => 'datetime',
+    'submitted_at'  => 'datetime',
+    'discount_date' => 'datetime',
+    'logs'          => \App\Casts\Json::class,
   ];
-  protected $guarded = ['id'];
+  protected     $guarded       = ['id'];
 
   public function status(): Attribute {
     return new Attribute(
@@ -97,5 +99,33 @@ class PaymentSchedule extends Model {
 
   public function referenceTo() {
     return $this->morphTo('payment_scheduleable');
+  }
+
+  /**
+   * Summary of getDetailPayment
+   *
+   * @param  \Illuminate\Database\Eloquent\Collection<PaymentSchedule>  $paymentSchedules
+   * @return array
+   */
+  public static function getDetailPayment($paymentSchedules) {
+    $total = 0;
+    foreach ($paymentSchedules as $idx => $paymentSchedule) {
+      if (
+        $paymentSchedule->outstanding_amount <= 0 ||
+        ($idx > 0 && now()->lessThan($paymentSchedule->due_date))
+      ) {
+        continue;
+      }
+
+      $total += $paymentSchedule->payment_amount;
+    }
+
+    $paymentMethod = $paymentSchedules->first()->paymentMethod;
+
+    return [
+      'amount'        => $total,
+      'paymentMethod' => $paymentMethod,
+      'accountBank'   => $paymentMethod?->defaultAccount ?? null,
+    ];
   }
 }

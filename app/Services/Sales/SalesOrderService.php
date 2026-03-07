@@ -23,13 +23,8 @@ class SalesOrderService {
     $data['customer_branch_id']   = $data['customer_branch']['id'];
     $data['customer_branch_name'] = $data['customer_branch']['name'];
 
-    // optional branch
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
-
     $defaultCurrency            = Preference::find('default_currency_id')->value;
-    $data['currency_code']      = !isset($data['currency']) ? $defaultCurrency : $data['currency']['code'];
+    $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
     $data['base_currency_code'] = $defaultCurrency;
 
     return $data;
@@ -51,16 +46,14 @@ class SalesOrderService {
   }
 
   private function fillPaymentScheduleRelations(array $data, SalesOrder $salesOrder) {
+    $data['payment_amount']     = $salesOrder->amount * ($data['invoice_portion'] / 100);
     $data['currency_code']      = $salesOrder->currency_code;
     $data['base_currency_code'] = $salesOrder->base_currency_code;
     $data['exchange_rate']      = $salesOrder->exchange_rate;
+    $data['for_internal']       = false;
 
-    if (isset($data['payment_term'])) {
-      $data['payment_term_id'] = $data['payment_term']['id'];
-    }
-    if (isset($data['payment_method'])) {
-      $data['payment_method_id'] = $data['payment_method']['id'];
-    }
+    $data['payment_term_id']   = $data['payment_term']['id'] ?? null;
+    $data['payment_method_id'] = $data['payment_method']['id'] ?? null;
     return $data;
   }
 
@@ -85,7 +78,6 @@ class SalesOrderService {
       $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesOrder);
       $salesOrder->paymentSchedules()->create(attributes: [
         ...$payment_schedule,
-        'for_internal' => false,
       ]);
     }
     $salesOrder->logForCreated();
@@ -132,7 +124,6 @@ class SalesOrderService {
       }
       $salesOrder->paymentSchedules()->create(attributes: [
         ...$payment_schedule,
-        'for_internal' => false,
       ]);
     }
 
@@ -176,12 +167,12 @@ class SalesOrderService {
       ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
       ->lockForUpdate()
       ->get()
-      ->keyBy(fn($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+      ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
 
-    $isValid    = !$salesOrder->is_rent;
+    $isValid    = ! $salesOrder->is_rent;
     $errorItems = [];
     foreach ($items as $item) {
-      if (!$item->item->is_stock_item) continue;
+      if (! $item->item->is_stock_item) continue;
       $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
       /** @var Stock $stock */
       $stock = $stocks->get($stockKey);
@@ -190,7 +181,7 @@ class SalesOrderService {
       if ($salesOrder->is_rent && $availableToRent) {
         $isValid = true;
       }
-      if (!$stock) {
+      if (! $stock) {
         $errorItems[] = "Item {$item->item->name} is not in {$item->sourceWarehouse->name} stock";
         continue;
       }
@@ -201,7 +192,7 @@ class SalesOrderService {
       }
       $stock->updateDetails('increment', 'reservations', $salesOrder->code, $quantity);
     }
-    if (!$isValid) {
+    if (! $isValid) {
       $errorItems[] = "This order is not valid for renting";
     }
     if (\count($errorItems) > 0) {

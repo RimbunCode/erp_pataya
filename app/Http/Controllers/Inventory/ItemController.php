@@ -4,17 +4,13 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\ItemRequest;
-use App\Models\Core\Branch;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\ItemVariantAttribute;
 use App\Models\Inventory\Unit;
-use App\Models\Inventory\Warehouse;
 use App\Services\Inventory\ItemServices;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class ItemController extends Controller {
@@ -155,6 +151,6 @@ class ItemController extends Controller {
     $item->delete();
     $item->logForDeleted();
     DB::commit();
-    return back();
+    return redirect()->route('items.index');
   }
 }

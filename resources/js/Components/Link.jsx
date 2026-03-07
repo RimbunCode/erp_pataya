@@ -74,28 +74,45 @@ const Link = forwardRef(
       headers,
       async,
     };
-    const { setLeave, setSaveAsDraft, isDirty, setIsDirty, setShowAlert } =
-      useIsDirtyForm();
+    const {
+      setLeave,
+      setSaveAsDraft,
+      setCancel,
+      isDirty,
+      setShowAlert,
+      setKeepDraftOnClean,
+      setIsDirty,
+    } = useIsDirtyForm();
+    const { setShowAlert: setShowDraftAlert } = useAlertDraftForm();
     const { cancel } = useAlertDraftForm();
 
     const onVisit = (href, visitParams) => {
+      const runVisit = () => router.visit(href, visitParams);
+      const closeAlert = () => setShowAlert(false);
+      setCancel(() => {
+        closeAlert();
+      });
       setLeave(() => {
-        router.visit(href, visitParams);
-        setShowAlert(false);
+        closeAlert();
+        if (window.keyForm) setKeepDraftOnClean(window.keyForm, false);
         setIsDirty(false);
-        removeFromLocalStorage(window.keyForm);
+        if (window.keyForm) removeFromLocalStorage(window.keyForm);
         cancel();
+        setShowDraftAlert(false);
+        runVisit();
       });
       setSaveAsDraft(() => {
-        router.visit(href, visitParams);
-        setShowAlert(false);
+        closeAlert();
+        if (window.keyForm) setKeepDraftOnClean(window.keyForm, true);
         setIsDirty(false);
+        setShowDraftAlert(false);
+        runVisit();
       });
       if (isDirty) {
         setShowAlert(true);
       } else {
-        setShowAlert(false);
-        router.visit(href, visitParams);
+        closeAlert();
+        runVisit();
       }
     };
 

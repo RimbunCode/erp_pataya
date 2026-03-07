@@ -172,9 +172,9 @@ const navList = [
         urlPattern: "/paymentMethods/*",
       },
       {
-        title: "Payment Terms",
-        url: "/paymentTerms",
-        urlPattern: "/paymentTerms/*",
+        title: "Payment Term Templates",
+        url: "/paymentTermTemplates",
+        urlPattern: "/paymentTermTemplates/*",
       },
       {
         title: "Payment Entries",

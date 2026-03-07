@@ -21,18 +21,20 @@ class PaymentEntryRequest extends FormRequest {
     return [
       'date'                 => ['required', 'date'],
       'paid_amount'          => ['required', 'numeric', 'min:0'],
-      'payment_method.id'    => ['required', 'exists:payment_methods,id'],
-      'payment_type'         => ['required', 'string', 'in:receive,pay'],
-      'party_type'           => ['required', 'string', 'in:customer,supplier'],
-      'partyable.id'         => ['required', $this->party_type == 'supplier' ? 'exists:suppliers,id' : 'exists:customers,id'],
+      'payment_type'         => ['required', 'string', 'in:receive,pay,internal_transfer'],
+      'payment_method.id'    => ['nullable', 'exists:payment_methods,id'],
+      'party_type'           => ['required_unless:payment_type,internal_transfer', 'string', 'in:customer,supplier'],
+      'partyable'            => ['required_unless:payment_type,internal_transfer', 'array'],
+      'partyable.id'         => ['required_unless:payment_type,internal_transfer', $this->party_type == 'supplier' ? 'exists:suppliers,id' : 'exists:customers,id'],
       'partyable.*'          => ['nullable'],
-      'currency.code'        => ['required', 'exists:currencies,code'],
+      'currency.code'        => ['nullable', 'exists:currencies,code'],
       'currency.*'           => ['nullable'],
-      'exchange_rate'        => ['nullable', 'numeric', 'min:0', 'default:0'],
-      'description'          => ['nullable', 'string'],
-      'paymentable.id'       => ['required', $this->party_type == 'supplier' ? 'exists:purchase_invoices,id' : 'exists:sales_invoices,id'],
+      'exchange_rate'        => ['nullable', 'numeric', 'min:0'],
+      'paymentable'          => ['required_unless:payment_type,internal_transfer', 'array'],
+      'paymentable.id'       => ['required_unless:payment_type,internal_transfer', $this->party_type == 'supplier' ? 'exists:purchase_invoices,id' : 'exists:sales_invoices,id'],
       'account_paid_to.id'   => ['required', 'exists:accounts,id'],
       'account_paid_from.id' => ['required', 'exists:accounts,id'],
+      'notes'                => ['nullable', 'string'],
     ];
   }
 }

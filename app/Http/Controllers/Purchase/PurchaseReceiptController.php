@@ -34,7 +34,7 @@ class PurchaseReceiptController extends Controller {
   /**
    * Show the form for creating a new resource.
    */
-  public function create(Request $request, string $ref = null) {
+  public function create(Request $request, ?string $ref = null) {
     if ($ref) {
       $split    = \explode("/", $ref);
       $modelOri = $split[0] ?? null;
@@ -123,7 +123,7 @@ class PurchaseReceiptController extends Controller {
     $data = $request->validated();
     DB::beginTransaction();
 
-    $data['branch']     = Branch::find($request->session()->get('currentBranch'))->toArray();
+    $data['branch_id']  = $request->session()->get('currentBranch');
     $data['created_by'] = $request->user()->id;
 
     $purchaseReceipt = $this->service->create($data);

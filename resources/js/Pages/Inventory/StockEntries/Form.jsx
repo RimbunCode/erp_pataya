@@ -552,7 +552,7 @@ export default function Form() {
           <FormTable
             ref={itemsTableRef}
             className="col-span-full"
-            name="items"
+            name="StockEntryItems"
             readOnly={disabled}
             columns={itemColumns}
             value={data?.items ?? []}
@@ -594,7 +594,7 @@ export default function Form() {
         }
       >
         <FormTable
-          name="additional_costs"
+          name="StockEntryAdditionalCosts"
           readOnly={disabled}
           columns={additionalCostColumns}
           value={data?.additional_costs ?? []}

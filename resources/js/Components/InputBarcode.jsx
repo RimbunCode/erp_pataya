@@ -26,10 +26,10 @@ import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import React from "react";
 import axios from "axios";
+import ClickAwayListener from "react-click-away-listener";
 import { cn } from "@/lib/utils";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { toast } from "sonner";
-import { useDetectClickOutside } from "react-detect-click-outside";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 /**
@@ -87,11 +87,7 @@ export default memo(
     const BARCODE_MIN_STREAK = 4; // number of rapid keys to treat as scanner
 
     const route = window.route;
-    const commandRef = useDetectClickOutside({
-      onTriggered: () => {
-        setOpen(false);
-      },
-    });
+    const commandRef = useRef(null);
 
     const getActiveOption = useCallback(() => {
       const el =
@@ -317,113 +313,120 @@ export default memo(
     };
 
     return (
-      <Popover open={open} onOpenChange={() => {}}>
-        <Command
-          className="relative h-full overflow-visible bg-transparent"
-          ref={commandRef}
-          loop
-        >
-          <PopoverTrigger
-            asChild
-            className={cn(
-              "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-              disabled && "cursor-not-allowed opacity-50",
-              className,
-            )}
-          >
-            <div>
-              <Input
-                id={id}
-                ref={ref}
-                disabled={disabled}
-                onKeyDown={onInputKeyDown}
-                onClick={(e) => {
-                  e.preventDefault();
-                  if (search && !open) {
-                    setOpen(true);
-                  }
-                }}
-                required={required}
-                autoComplete="off"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  scheduleManualFetch(e.target.value);
-                  // if (!open && e.target.value) {
-                  //   setOpen(true);
-                  // }
-                }}
-                className={cn(
-                  "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
-                )}
-                placeholder={
-                  placeholder ?? t("core.form.input_barcode.placeholder")
-                }
-              />
-              <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
-                {loading ? (
-                  <LoadingIcon className="size-4" />
-                ) : (
-                  <RiBarcodeBoxLine className="size-4 fill-muted-foreground" />
-                )}
-              </div>
-            </div>
-          </PopoverTrigger>
-          {!disabled && (
-            <PopoverContent
-              onOpenAutoFocus={(e) => e.preventDefault()}
-              align="start"
-              side="bottom"
-              className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
-              forceMount
-              asChild
+      <ClickAwayListener onClickAway={() => setOpen(false)}>
+        <div className="contents">
+          <Popover open={open} onOpenChange={() => {}}>
+            <Command
+              className="relative h-full overflow-visible bg-transparent"
+              ref={commandRef}
+              loop
             >
-              <CommandList className="p-1 space-y-2">
-                {loading ? (
-                  <CommandPrimitive.Loading>
-                    <div className="flex justify-center py-6 text-sm font-normal text-center text-foreground gap-x-4">
-                      <LoadingIcon className="size-4" />
-                      <span>{t("core.form.loading")} ...</span>
-                    </div>
-                  </CommandPrimitive.Loading>
-                ) : (
-                  <>
-                    <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
-                    {options &&
-                      options?.map((opt, index) => {
-                        return (
-                          <CommandItem
-                            key={opt.id ?? index}
-                            value={String(opt.id ?? index)}
-                            data-value={String(opt.id ?? index)}
-                            onSelect={() => onSelect(opt)}
-                          >
-                            <p
-                              dangerouslySetInnerHTML={{
-                                __html: convertTemplateLink(opt, search ?? ""),
-                              }}
-                            />
-                          </CommandItem>
-                        );
-                      })}
-                    {total > limit && <CommandSeparator />}
-                    {total > limit && (
-                      <CommandItem
-                        className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
-                        onSelect={() => {
-                          // setOpenDialog(true);
-                        }}
-                      >
-                        {t("core.form.linkmodel.more")}
-                      </CommandItem>
-                    )}
-                  </>
+              <PopoverTrigger
+                asChild
+                className={cn(
+                  "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
+                  disabled && "cursor-not-allowed opacity-50",
+                  className,
                 )}
-              </CommandList>
-            </PopoverContent>
-          )}
-        </Command>
-      </Popover>
+              >
+                <div>
+                  <Input
+                    id={id}
+                    ref={ref}
+                    disabled={disabled}
+                    onKeyDown={onInputKeyDown}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (search && !open) {
+                        setOpen(true);
+                      }
+                    }}
+                    required={required}
+                    autoComplete="off"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      scheduleManualFetch(e.target.value);
+                      // if (!open && e.target.value) {
+                      //   setOpen(true);
+                      // }
+                    }}
+                    className={cn(
+                      "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
+                    )}
+                    placeholder={
+                      placeholder ?? t("core.form.input_barcode.placeholder")
+                    }
+                  />
+                  <div className="flex items-center h-8 pr-2 w-fit gap-x-2">
+                    {loading ? (
+                      <LoadingIcon className="size-4" />
+                    ) : (
+                      <RiBarcodeBoxLine className="size-4 fill-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              </PopoverTrigger>
+              {!disabled && (
+                <PopoverContent
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                  align="start"
+                  side="bottom"
+                  className="relative z-50 w-auto  min-w-(--radix-popover-trigger-width) p-0 "
+                  forceMount
+                  asChild
+                >
+                  <CommandList className="p-1 space-y-2">
+                    {loading ? (
+                      <CommandPrimitive.Loading>
+                        <div className="flex justify-center py-6 text-sm font-normal text-center text-foreground gap-x-4">
+                          <LoadingIcon className="size-4" />
+                          <span>{t("core.form.loading")} ...</span>
+                        </div>
+                      </CommandPrimitive.Loading>
+                    ) : (
+                      <>
+                        <CommandEmpty>{t("core.form.not_found")}</CommandEmpty>
+                        {options &&
+                          options?.map((opt, index) => {
+                            return (
+                              <CommandItem
+                                key={opt.id ?? index}
+                                value={String(opt.id ?? index)}
+                                data-value={String(opt.id ?? index)}
+                                onSelect={() => onSelect(opt)}
+                              >
+                                <p
+                                  dangerouslySetInnerHTML={{
+                                    __html: convertTemplateLink(
+                                      opt,
+                                      search ?? "",
+                                    ),
+                                  }}
+                                />
+                              </CommandItem>
+                            );
+                          })}
+                        {total > limit && <CommandSeparator />}
+                        {total > limit && (
+                          <CommandItem
+                            className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
+                            onSelect={() => {
+                              // setOpenDialog(true);
+                            }}
+                          >
+                            {t("core.form.linkmodel.more")}
+                          </CommandItem>
+                        )}
+                      </>
+                    )}
+                  </CommandList>
+                </PopoverContent>
+              )}
+            </Command>
+          </Popover>
+        </div>
+      </ClickAwayListener>
     );
   }),
 );

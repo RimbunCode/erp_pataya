@@ -42,7 +42,7 @@ class WorkOrderController extends Controller {
   public function store(WorkOrderRequest $request) {
     $data = $request->validated();
     DB::beginTransaction();
-    $data['branch'] = Branch::find($request->session()->get('currentBranch'))->toArray();
+    $data['branch_id'] = $request->session()->get('currentBranch');
     $wo             = $this->service->create($data);
     DB::commit();
     return redirect()->route('workOrders.show', $wo);
@@ -102,7 +102,11 @@ class WorkOrderController extends Controller {
   /**
    * Remove the specified resource from storage.
    */
-  public function destroy(Request $request, WorkOrder $workOrder) {
-    //
+  public function destroy(WorkOrder $workOrder) {
+    DB::beginTransaction();
+    $workOrder->delete();
+    $workOrder->logForDeleted();
+    DB::commit();
+    return redirect()->route('workOrders.index');
   }
 }

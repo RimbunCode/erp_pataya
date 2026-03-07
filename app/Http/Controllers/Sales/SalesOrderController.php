@@ -87,7 +87,7 @@ class SalesOrderController extends Controller {
     DB::beginTransaction();
 
     // branch dari session
-    $data['branch']     = Branch::find($request->session()->get('currentBranch'))->toArray();
+    $data['branch_id']  = $request->session()->get('currentBranch');
     $data['created_by'] = $request->user()->id;
 
     // create SO
@@ -154,12 +154,9 @@ class SalesOrderController extends Controller {
    */
   public function destroy(SalesOrder $salesOrder) {
     DB::beginTransaction();
-    if ($salesOrder->amended_from_id) {
-      $salesOrder->amendedFrom->decrement('revision_number');
-    }
     $salesOrder->delete();
     $salesOrder->logForDeleted();
     DB::commit();
-    return redirect()->back();
+    return redirect()->route('salesOrders.index');
   }
 }

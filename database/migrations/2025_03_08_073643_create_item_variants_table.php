@@ -12,7 +12,7 @@ return new class extends Migration
   public function up(): void {
     Schema::create('item_variants', function (Blueprint $table) {
       $table->ulid('id')->primary();
-      $table->string("code")->unique();
+      $table->string("code");
       $table->foreignUlid('item_id')->references('id')->on('items')->cascadeOnDelete();
       $table->foreignUlid('category_id')->nullable()->references('id')->on('categories')->nullOnDelete();
       $table->foreignUlid('default_unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
@@ -27,6 +27,7 @@ return new class extends Migration
       $table->string('type');
       $table->timestamps();
       $table->softDeletes();
+      $table->unique(['code', 'deleted_at']);
     });
   }
 

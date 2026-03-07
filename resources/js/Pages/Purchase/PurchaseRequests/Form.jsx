@@ -317,6 +317,7 @@ function Form() {
             />
           </FormInput>
           <FormTable
+            name="PurchaseRequestItems"
             className="col-span-full"
             readOnly={disabled}
             columns={itemColumns}

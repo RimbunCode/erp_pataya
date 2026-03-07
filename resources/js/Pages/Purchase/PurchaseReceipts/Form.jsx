@@ -1,21 +1,23 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React from "react";
+
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import LinkModel from "@/Components/LinkModel";
+import PurchaseOrderLinkModel from "../PurchaseOrders/PurchaseOrderLinkModel";
+import PurchaseReceiptLinkModel from "./PurchaseReceiptLinkModel";
+import React from "react";
+import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useMemo } from "react";
-import PurchaseOrderLinkModel from "../PurchaseOrders/PurchaseOrderLinkModel";
-import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
-import { FormCheckbox } from "@/Components/ui/checkbox";
-import PurchaseReceiptLinkModel from "./PurchaseReceiptLinkModel";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { useMemo } from "react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
@@ -133,12 +135,25 @@ function Form() {
         value="detail"
         title={t("purchase.purchaseReceipt.detail")}
       >
-        <div className="flex flex-col gap-y-4">
-          <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 [&>div]:grid [&>div]:gap-y-4 [&>div]:grid-cols-1 [&>div]:content-start">
+          <div>
+            <FormInput
+              label={t("purchase.purchaseReceipt.columns.date")}
+              required
+              name="date"
+            >
+              <DatetimePicker
+                type="datetime"
+                value={data.date}
+                onValueChange={(val) => setData("date", val)}
+              />
+            </FormInput>
             <FormInput
               label={t("purchase.purchaseReceipt.columns.purchase_order")}
               required
               name="purchase_order"
+              disabled={data.is_return && !data.purchase_order}
+              readOnly={data.is_return}
             >
               <PurchaseOrderLinkModel
                 with={[
@@ -174,17 +189,6 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("purchase.purchaseReceipt.columns.received_date")}
-              required
-              name="received_date"
-            >
-              <DatetimePicker
-                type="datetime"
-                value={data.received_date}
-                onValueChange={(val) => setData("received_date", val)}
-              />
-            </FormInput>
-            <FormInput
               label={t("purchase.purchaseReceipt.columns.supplier")}
               required
             >
@@ -193,23 +197,68 @@ function Form() {
                 onValueChange={(val) => setData("supplier", val)}
               />
             </FormInput>
-            {defaultData?.return_against && (
-              <>
-                <FormCheckbox
-                  name="is_return"
-                  readOnly
-                  label={t("purchase.purchaseReceipt.columns.is_return")}
-                  checked={!!data.return_against}
+          </div>
+          <div>
+            <FormCheckbox
+              className="mt-8 mb-3"
+              label={t("purchase.purchaseReceipt.columns.is_return")}
+              checked={data.is_return}
+              onCheckedChange={(val) => {
+                setData((prev) => ({
+                  ...prev,
+                  is_return: val,
+                  purchase_order: undefined,
+                  supplier: undefined,
+                  items: [],
+                  external_note: undefined,
+                  return_against: undefined,
+                }));
+              }}
+            />
+            {data.is_return && (
+              <FormInput
+                label={t("purchase.purchaseReceipt.columns.return_against")}
+                name="return_against"
+                required
+              >
+                <PurchaseReceiptLinkModel
+                  filters={{
+                    date: {
+                      "<=": data?.date ?? new Date().toISOString(),
+                    },
+                    status: {
+                      jsonContains: ["partially_received", "received"],
+                    },
+                  }}
+                  with={[
+                    "purchaseOrder",
+                    "supplier",
+                    "items",
+                    "items.item",
+                    "items.tax",
+                    "items.unit",
+                    "items.targetWarehouse",
+                  ]}
+                  value={data.return_against}
+                  onValueChange={(val) => {
+                    setData((prev) => ({
+                      ...prev,
+                      return_against: val,
+                      purchase_order: val?.purchase_order,
+                      supplier: val?.supplier,
+                      items: val?.items?.map((item) => {
+                        return {
+                          ...item,
+                          id: generateRandom(8),
+                          return_against_item_id: item.id,
+                          quantity: item.unreturned_quantit,
+                          required_quantity: item.unreturned_quantity,
+                        };
+                      }),
+                    }));
+                  }}
                 />
-                <FormInput
-                  className="col-start-1"
-                  label={t("purchase.purchaseReceipt.columns.return_against")}
-                  name="return_against"
-                  readOnly
-                >
-                  <PurchaseReceiptLinkModel value={data.return_against} />
-                </FormInput>
-              </>
+              </FormInput>
             )}
           </div>
         </div>
@@ -218,13 +267,55 @@ function Form() {
         value="detail"
         title={t("purchase.purchaseReceipt.items")}
       >
-        <FormTable
-          readOnly={true}
-          columns={itemColumns}
-          value={data?.items}
-          onValueChange={(v) => setData("items", v)}
-          form={<ItemForm />}
-        />
+        <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput
+            label={t("inventory.deliveryNote.columns.insert_item")}
+            disabled={!data.reference_to}
+          >
+            <LinkModel
+              model="App\Models\Inventory\PurchaseReceiptItem"
+              disabledAddButton
+              with={["item", "targetWarehouse", "unit"]}
+              filters={{
+                purchase_receipt_id: defaultData?.id,
+                unreceived_quantity: {
+                  ">": 0,
+                },
+                id: {
+                  notIn: data?.items?.map((x) => x.purchase_order_item_id),
+                },
+              }}
+              value={null}
+              onValueChange={(item) => {
+                if (!item) return;
+                setData((prev) => {
+                  return {
+                    ...prev,
+                    items: [
+                      ...prev.items,
+                      {
+                        ...item,
+                        id: generateRandom(8),
+                        purchase_order_item_id: item.id,
+                        quantity: item.unreceived_quantity,
+                      },
+                    ],
+                  };
+                });
+              }}
+            />
+          </FormInput>
+          <FormTable
+            name="PurchaseReceiptItems"
+            className="col-start-1 col-span-2"
+            readOnly={true}
+            forceCanDelete
+            columns={itemColumns}
+            value={data?.items}
+            onValueChange={(v) => setData("items", v)}
+            form={<ItemForm />}
+          />
+        </div>
       </FormPageContent>
       <FormPageContent
         value="detail"

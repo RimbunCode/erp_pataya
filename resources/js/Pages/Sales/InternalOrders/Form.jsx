@@ -1,5 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -16,7 +16,10 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage(
+    { date: new Date() },
+    { trackDefaultValue: false },
+  );
   const handleBarcodeSelect = useCallback(
     (selected) => {
       const selectedItem = selected?.item ?? selected;
@@ -162,11 +165,7 @@ export default function Form() {
       },
     ];
   }, [data]);
-  useEffect(() => {
-    if (!data.date) {
-      setData("date", new Date());
-    }
-  }, []);
+
   return (
     <>
       <FormPageContent value="detail" title={t("sales.internalOrder.detail")}>
@@ -219,7 +218,7 @@ export default function Form() {
             />
           </FormInput>
           <FormTable
-            name="items"
+            name="IternalOrderItems"
             className="col-start-1 col-span-2"
             classNameDialog="max-w-(--breakpoint-lg)! w-full!"
             form={<ItemForm />}

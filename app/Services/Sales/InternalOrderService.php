@@ -11,9 +11,6 @@ use Symfony\Component\Uid\Ulid;
 
 class InternalOrderService {
   private function fillRelations(array $data) {
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
-    }
 
     return $data;
   }
@@ -75,7 +72,7 @@ class InternalOrderService {
         ->where('warehouse_id', $item->source_warehouse_id)
         ->first();
 
-      if (!$stock) {
+      if (! $stock) {
         $errorItems[] = "Item {$item->item->name} not found in source warehouse";
         continue;
       }
