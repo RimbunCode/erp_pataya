@@ -65,6 +65,8 @@ class PaymentEntryService {
     $paymentEntry->load([
       'paymentable',
       'paymentable.paymentSchedules',
+      'accountPaidFrom',
+      'accountPaidTo',
     ]);
 
     $paymentable      = $paymentEntry->paymentable;
@@ -114,6 +116,27 @@ class PaymentEntryService {
       'status' => [
         FormStatus::PAID,
       ],
+    ]);
+
+    $debitAccount  = $paymentEntry->accountPaidFrom;
+    $creditAccount = $paymentEntry->accountPaidTo;
+
+    // Credit stock account
+    $creditAccount->generalLedgerEntries()->create([
+      'against_account_id' => $debitAccount->id,
+      'credit'             => $paymentable->paid_amount,
+      'debit'              => 0,
+      'referenceable_type' => PaymentEntry::class,
+      'referenceable_id'   => $paymentEntry->id,
+    ]);
+
+    // Debit income account
+    $debitAccount->generalLedgerEntries()->create([
+      'against_account_id' => $creditAccount->id,
+      'credit'             => 0,
+      'debit'              => $paymentable->paid_amount,
+      'referenceable_type' => PaymentEntry::class,
+      'referenceable_id'   => $paymentEntry->id,
     ]);
 
     DB::commit();
