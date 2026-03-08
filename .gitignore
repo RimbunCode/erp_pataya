@@ -29,3 +29,4 @@ yarn-error.log
 /.zed
 /.VSCodeCounter
 /playground
+/.npm-cache-4
