@@ -81,6 +81,7 @@
     "composer": "^4.1.0",
     "date-fns": "^4.1.0",
     "diff-match-patch": "^1.0.5",
+    "grapesjs": "^0.22.14",
     "grapesjs-blocks-basic": "^1.0.2",
     "grapesjs-table": "^1.0.8",
     "handlebars": "^4.7.8",
@@ -111,6 +112,7 @@
   "overrides": {
     "@babel/runtime": "^7.26.10",
     "tmp": "^0.2.4",
+    "underscore": "1.13.8",
     "laravel-react-i18n": {
       "react": "19.2.4"
     }
