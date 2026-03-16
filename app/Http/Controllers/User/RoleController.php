@@ -7,127 +7,180 @@ use App\Http\Requests\User\RoleRequest;
 use App\Models\User\Permission;
 use App\Models\User\Role;
 use App\Models\User\RolePermission;
-use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
+use Symfony\Component\Uid\Ulid;
 
-class RoleController extends Controller {
-  public function __construct(Request $request) {
-    parent::__construct($request, Role::class);
-  }
-  /**
-   * Display a listing of the resource.
-   */
-  public function index(Request $request) {
-    $this->setBreadcrumbs();
-    Role::dataTable($request);
-    return Inertia::render('Users/Roles/Index',);
-  }
-  public function permissions(Request $request) {
-    if ($this->isInertiaRequest($request)) {
-      abort(404);
-    }
-    $permissions = Permission::orderBy('name');
-    if ($request->search) {
-      $permissions->whereAny(['name', 'module', 'id'], 'like', "%{$request->search}%");
-    }
-    return response()->json($permissions->limit(10)->get());
-  }
-
-  /**
-   * Show the form for creating a new resource.
-   */
-  public function create() {
-    $this->setBreadcrumbs("__(user.role.new)");
-    return Inertia::render('Users/Roles/Show');
-  }
-
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(RoleRequest $request) {
-    $data = $request->validated();
-    DB::beginTransaction();
-    $role = Role::create([
-      'name' => $data['name'],
-      'description' => $data['description'] ?? '',
-      'is_disabled' => $data['is_disabled'] ?? '',
-    ]);
-
-    $this->updatePermissions($role, $data['rules']);
-    $role->logForCreated();
-
-    DB::commit();
-
-    return redirect()->route('roles.show', $role);
-  }
-
-  /**
-   * Display the specified resource.
-   */
-  public function show(Request $request, Role $role) {
-    if (!$this->isInertiaRequest($request)) {
-      $role->load('rules');
-      return response()->json($role);
+class RoleController extends Controller
+{
+    public function __construct(Request $request)
+    {
+        parent::__construct($request, Role::class);
     }
 
-    $this->setBreadcrumbs($role);
-    $role->showDetail();
-    return Inertia::render('Users/Roles/Show', [
-      'role' => function () use ($role) {
-        $role->load('rules');
-        return $role;
-      },
-    ]);
-  }
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request)
+    {
+        $this->setBreadcrumbs();
+        Role::dataTable($request);
 
-  private function updatePermissions(Role &$role, array $rules) {
-    $permissions = array_map(fn($permission) => $permission['permission_id'], $rules);
-    $permissions = Permission::whereIn('id', $permissions)->get()
-      ->mapWithKeys(fn($permission) => [$permission->id => $permission]);
-
-    foreach ($rules as $rule) {
-      $permission = $permissions[$rule['permission_id']];
-      RolePermission::updateOrCreate([
-        'role_id' => $role->id,
-        'permission_id' => $permission->id,
-        'level' => $rule['level'],
-        'only_creator' => $rule['only_creator'],
-      ],  [
-        'name' => $permission->name,
-        'model' => $permission->model,
-        'is_submitable' => $permission->is_submitable,
-        'permissions' => collect($rule['level'] > 0 ? ["read", "write"] : $permission->permissions)
-          ->mapWithKeys(function ($permission) use ($rule) {
-            return [$permission => $rule['permissions'][$permission] ?? false];
-          }),
-      ]);
+        return Inertia::render('Users/Roles/Index');
     }
-  }
-  /**
-   * Update the specified resource in storage.
-   */
-  public function update(RoleRequest $request, Role $role) {
-    $data = $request->validated();
-    DB::beginTransaction();
-    $role->fillForUpdate([
-      'name' => $data['name'],
-      'description' => $data['description'] ?? '',
-      'is_disabled' => $data['is_disabled'] ?? '',
-    ]);
 
-    $this->updatePermissions($role, $data['rules']);
-    $role->logForUpdated();
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create()
+    {
+        $this->setBreadcrumbs('__(user.role.new)');
 
-    DB::commit();
-    return back();
-  }
+        return Inertia::render('Users/Roles/Show');
+    }
 
-  /**
-   * Remove the specified resource from storage.
-   */
-  public function destroy(string $id) {
-    //
-  }
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(RoleRequest $request)
+    {
+        $data = $request->validated();
+        DB::beginTransaction();
+        $role = Role::create([
+            'name' => $data['name'],
+            'description' => $data['description'] ?? '',
+            'is_disabled' => $data['is_disabled'] ?? '',
+        ]);
+
+        $this->updatePermissions($role, $data['rules']);
+        $role->logForCreated();
+
+        DB::commit();
+
+        return redirect()->route('roles.show', $role);
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Request $request, Role $role)
+    {
+        if (! $this->isInertiaRequest($request)) {
+            $role->load('rules');
+
+            return response()->json($role);
+        }
+
+        $this->setBreadcrumbs($role);
+        $role->showDetail();
+
+        return Inertia::render('Users/Roles/Show', [
+            'role' => function () use ($role) {
+                $role->load('rules');
+
+                return $role;
+            },
+        ]);
+    }
+
+    public function getPermissions(Request $request)
+    {
+        if ($this->isInertiaRequest($request)) {
+            abort(404);
+        }
+        $ids = $request->ids;
+        $roles = RolePermission::select('role_permissions.model', 'role_permissions.name', 'role_permissions.permissions', 'role_permissions.level', 'role_permissions.only_creator')
+            ->whereIn('role_permissions.role_id', $ids)
+            ->get()
+            ->groupBy([
+                'model',
+                'level',
+                fn ($permission) => $permission->only_creator ? 'true' : 'false',
+            ])
+            ->map(fn ($levels) => $levels->map(fn ($onlyCreators) => $onlyCreators->map(function ($permissions) {
+                $dataPermissions = [];
+                foreach ($permissions as $permission) {
+                    foreach ($permission->permissions as $key => $value) {
+                        $dataPermissions[$key] = ($dataPermissions[$key] ?? false) || $value;
+                    }
+                }
+
+                $masterData = $permissions->first();
+
+                return [
+                    'name' => $masterData->name,
+                    'model' => $masterData->model,
+                    'level' => $masterData->level,
+                    'only_creator' => $masterData->only_creator,
+                    'permissions' => $dataPermissions,
+                ];
+            })))
+            ->flatten(2);
+
+        return response()->json(['rules' => $roles]);
+    }
+
+    private function updatePermissions(Role &$role, array $rules)
+    {
+        $permissions = array_map(fn ($permission) => $permission['permission_id'], $rules);
+        $permissions = Permission::whereIn('id', $permissions)->get()
+            ->mapWithKeys(fn ($permission) => [$permission->id => $permission]);
+
+        $role->rules()
+            ->whereNotIn('id', array_column($rules, 'id'))
+            ->delete();
+        foreach ($rules as $rule) {
+            $permission = $permissions[$rule['permission_id']];
+            $payload = [
+                'name' => $permission->name,
+                'model' => $permission->model,
+                'is_submitable' => $permission->is_submitable,
+                'permissions' => collect($rule['level'] > 0 ? ['read', 'write'] : $permission->permissions)
+                    ->mapWithKeys(fn ($permission) => [$permission => $rule['permissions'][$permission] ?? false]),
+            ];
+            if (Ulid::isValid($rule['id'])) {
+                $rule = $role->rules()
+                    ->find($rule['id'])
+                    ->update($payload);
+            } else {
+                $role->rules()->create([
+                    'role_id' => $role->id,
+                    'permission_id' => $permission->id,
+                    'level' => $rule['level'],
+                    'only_creator' => $rule['only_creator'],
+                    ...$payload,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(RoleRequest $request, Role $role)
+    {
+        $data = $request->validated();
+        DB::beginTransaction();
+        $role->fillForUpdate([
+            'name' => $data['name'],
+            'description' => $data['description'] ?? '',
+            'is_disabled' => $data['is_disabled'] ?? '',
+        ]);
+
+        $this->updatePermissions($role, $data['rules']);
+        $role->logForUpdated();
+
+        DB::commit();
+
+        return back();
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(string $id)
+    {
+        //
+    }
 }

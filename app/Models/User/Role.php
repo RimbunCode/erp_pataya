@@ -2,27 +2,51 @@
 
 namespace App\Models\User;
 
+use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use App\Models\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Role extends Model {
-  use HasUlids, SoftDeletes, DataTable;
-  protected $guarded = ['id'];
-  protected $casts   = [
-    'is_disabled' => 'boolean',
-  ];
+class Role extends Model
+{
+    use DataTable, HasUlids, SoftDeletes;
 
-  public static function templateLink() {
-    return ":name";
-  }
+    protected $guarded = ['id'];
 
-  public function users() {
-    return $this->belongsToMany(User::class, 'user_roles', 'role_id', 'user_id');
-  }
+    protected $casts = [
+        'is_disabled' => 'boolean',
+    ];
 
-  public function rules() {
-    return $this->hasMany(RolePermission::class)->orderBy('name')->orderBy('level');
-  }
+    public $configColumns = [
+        'name' => [
+            'show' => true,
+            'order' => 0,
+            'isLink' => true,
+        ],
+        'description' => [
+            'show' => true,
+            'order' => 1,
+        ],
+        'is_disabled' => [
+            'show' => true,
+            'order' => 2,
+        ],
+    ];
+
+    public $translateKey = 'user.role';
+
+    public static function templateLink()
+    {
+        return ':name';
+    }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'user_roles', 'role_id', 'user_id');
+    }
+
+    public function rules()
+    {
+        return $this->hasMany(RolePermission::class)->orderBy('name')->orderBy('level');
+    }
 }

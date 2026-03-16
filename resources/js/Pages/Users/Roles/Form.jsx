@@ -1,146 +1,192 @@
-import { Checkbox, FormCheckbox } from "@/Components/ui/checkbox";
+import { Alert, AlertIcon, AlertTitle } from "@/Components/ui/alert";
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { PlusIcon, Trash2Icon } from "lucide-react";
-import React, { useCallback } from "react";
+import React, { useCallback, useRef } from "react";
 
 import { Button } from "@/Components/ui/button";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
+import FormNewRule from "./FormNewRule";
 import { Input } from "@/Components/ui/input";
-import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
+import { RiErrorWarningFill } from "@remixicon/react";
 import { Textarea } from "@/Components/ui/textarea";
 import { generateRandom } from "@/lib/utils";
 import { toast } from "sonner";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useState } from "react";
 
 function Form() {
   const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
-  const [newRule, setNewRule] = useState({ level: 0, only_creator: false });
-  const onAddPermission = () => {
-    if (!newRule.model) return;
-    if (
-      data.rules?.findIndex(
-        (r) =>
-          r.permission_id == newRule.model.id &&
-          r.only_creator === newRule.only_creator &&
-          r.level === newRule.level,
-      ) >= 0
-    ) {
-      toast("Rule already exists", {
-        duration: 3000,
-      });
-      return;
-    }
-    const permissionKeys =
-      newRule.level > 0 ? ["read", "write"] : newRule.model.permissions;
-
-    setData("rules", [
+  const ruleRef = useRef();
+  const showDuplicateRuleAlert = useCallback(() => {
+    toast.custom(
+      (e) => (
+        <Alert
+          variant="destructive"
+          icon="destructive"
+          onClose={() => toast.dismiss(e)}
+        >
+          <AlertIcon>
+            <RiErrorWarningFill />
+          </AlertIcon>
+          <AlertTitle>{t("user.role.errors.alert_already_exists")}</AlertTitle>
+        </Alert>
+      ),
       {
-        permission_id: newRule.model.id,
-        name: newRule.model.name,
-        level: Number(newRule.model?.is_submitable ? newRule.level : 0),
-        only_creator: newRule.level > 0 ? false : newRule.only_creator,
-        is_submitable: newRule.level == 0 && newRule.model?.is_submitable,
-        id: generateRandom(8),
-        isNew: true,
-        permissions: Object.fromEntries(permissionKeys.map((k) => [k, false])),
-        permissionKeys,
+        duration: 5000,
       },
-      ...(data.rules ?? []),
-    ]);
-    setNewRule({ level: 0, only_creator: false });
-  };
+    );
+  }, [t]);
+
+  const hasDuplicateRule = useCallback(
+    (rules, { permissionId, level, onlyCreator, excludeId }) =>
+      (rules ?? []).some(
+        (item) =>
+          item.id !== excludeId &&
+          item.permission_id === permissionId &&
+          item.only_creator === onlyCreator &&
+          item.level === level,
+      ),
+    [],
+  );
+
+  const onAddPermission = useCallback(
+    (rule) => {
+      if (!rule.model) return;
+      const rules = data?.rules ?? [];
+      const level = Number(rule.model?.is_submitable ? rule.level : 0);
+      const onlyCreator = level > 0 ? false : rule.only_creator;
+      if (
+        hasDuplicateRule(rules, {
+          permissionId: rule.model.id,
+          level,
+          onlyCreator,
+        })
+      ) {
+        showDuplicateRuleAlert();
+        return;
+      }
+      const permissionKeys =
+        level > 0 ? ["read", "write"] : rule.model.permissions;
+
+      setData("rules", [
+        {
+          permission_id: rule.model.id,
+          name: rule.model.name,
+          level,
+          only_creator: onlyCreator,
+          is_submitable: level == 0 && rule.model?.is_submitable,
+          permission: rule.model,
+          id: generateRandom(8),
+          isNew: true,
+          permissions: Object.fromEntries(
+            permissionKeys.map((k) => [k, false]),
+          ),
+          permissionKeys,
+        },
+        ...rules,
+      ]);
+    },
+    [data?.rules, hasDuplicateRule, setData, showDuplicateRuleAlert],
+  );
   const onOnlyCreatorChange = useCallback(
     (val, rule) => {
+      const nextOnlyCreator = val === true;
+      const rules = data?.rules ?? [];
       if (
-        data.rules?.findIndex(
-          (r) =>
-            r.permission_id == rule.permission_id &&
-            r.only_creator === val &&
-            r.level === rule.level,
-        ) >= 0
+        hasDuplicateRule(rules, {
+          permissionId: rule.permission_id,
+          level: rule.level,
+          onlyCreator: nextOnlyCreator,
+          excludeId: rule.id,
+        })
       ) {
-        toast(t("user.role.alert_already_exists"), {
-          duration: 3000,
-        });
+        showDuplicateRuleAlert();
         return;
       }
       setData(
         "rules",
-        data?.rules.map((r) =>
-          r.id === rule.id ? { ...r, only_creator: val } : r,
+        rules.map((r) =>
+          r.id === rule.id ? { ...r, only_creator: nextOnlyCreator } : r,
         ),
       );
     },
-    [data.rules, t],
+    [data?.rules, hasDuplicateRule, setData, showDuplicateRuleAlert],
   );
-  const onPermissionChange = useCallback((rule, key, val) => {
-    setData((prev) => {
-      const rules = prev.rules.map((r) => {
-        if (r.id != rule.id) return r;
+  const onPermissionChange = useCallback(
+    (rule, key, val) => {
+      const nextValue = val === true;
+      setData((prev) => {
+        const rules = (prev.rules ?? []).map((r) => {
+          if (r.id != rule.id) return r;
 
-        let permissions = { ...r.permissions, [key]: val };
+          let permissions = { ...r.permissions, [key]: nextValue };
 
-        // RULE 1: kalau read = false
-        if (key === "read" && !val) {
-          permissions = {
-            ...permissions,
-            write: false,
-            ...(rule.level === 0 && {
-              create: false,
-              delete: false,
-              amend: false,
-              submit: false,
-              cancel: false,
-              import: false,
-              export: false,
-              share: false,
-              print: false,
-            }),
-          };
-        }
-
-        // RULE 2: selain read, kalau true → read harus true
-        if (key !== "read" && key !== "select" && val === true) {
-          permissions.read = true;
-
-          // khusus import → create ikut true
-          if (key === "import") {
-            permissions.create = true;
+          // RULE 1: kalau read = false
+          if (key === "read" && !nextValue) {
+            permissions = {
+              ...permissions,
+              write: false,
+              ...(rule.level === 0 && {
+                create: false,
+                delete: false,
+                amend: false,
+                submit: false,
+                cancel: false,
+                import: false,
+                export: false,
+                share: false,
+                print: false,
+              }),
+            };
           }
-        }
 
-        // filter hanya key yang valid
-        permissions = Object.fromEntries(
-          Object.entries(permissions).filter(([k]) =>
-            rule.permissionKeys?.includes(k),
-          ),
-        );
+          // RULE 2: selain read, kalau true -> read harus true
+          if (key !== "read" && key !== "select" && nextValue === true) {
+            permissions.read = true;
 
-        return { ...r, permissions };
-      });
-      return {
-        ...prev,
-        rules: rules,
-      };
-    });
-  }, []);
-  const toggleAllPermissions = useCallback((rule, val) => {
-    setData(
-      "rules",
-      data?.rules.map((r) =>
-        r.id === rule.id
-          ? {
-              ...r,
-              permissions: Object.fromEntries(
-                Object.entries(r.permissions).map(([k]) => [k, val]),
-              ),
+            // khusus import -> create ikut true
+            if (key === "import") {
+              permissions.create = true;
             }
-          : r,
-      ),
-    );
-  });
+          }
+
+          // filter hanya key yang valid
+          permissions = Object.fromEntries(
+            Object.entries(permissions).filter(([k]) =>
+              rule.permissionKeys?.includes(k),
+            ),
+          );
+
+          return { ...r, permissions };
+        });
+        return {
+          ...prev,
+          rules: rules,
+        };
+      });
+    },
+    [setData],
+  );
+  const toggleAllPermissions = useCallback(
+    (rule, val) => {
+      const nextValue = val === true;
+      setData((prev) => ({
+        ...prev,
+        rules: (prev.rules ?? []).map((r) =>
+          r.id === rule.id
+            ? {
+                ...r,
+                permissions: Object.fromEntries(
+                  Object.entries(r.permissions).map(([k]) => [k, nextValue]),
+                ),
+              }
+            : r,
+        ),
+      }));
+    },
+    [setData],
+  );
   const getCheckState = useCallback((permissions, keys) => {
     let hasTrue = false,
       hasFalse = false;
@@ -152,17 +198,26 @@ function Form() {
 
     return hasTrue ? true : false;
   }, []);
+  const rules = data?.rules ?? [];
   return (
     <>
-      <FormPageContent title="General" value="general">
-        <div className="grid gap-y-4 gap-x-4">
-          <FormInput label="Name" required={true} name="name">
+      <FormPageContent title={t("user.role.general")} value="general">
+        <div className="grid gap-y-4 gap-x-4 grid-cols-2">
+          <FormInput
+            label={t("user.role.columns.name")}
+            required={true}
+            name="name"
+          >
             <Input
               value={data?.name}
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
-          <FormInput label="Description" name="description">
+          <FormInput
+            label={t("user.role.columns.description")}
+            name="description"
+            className="col-span-full"
+          >
             <Textarea
               value={data?.description ?? ""}
               onChange={(e) => setData("description", e.target.value)}
@@ -171,92 +226,34 @@ function Form() {
           <FormCheckbox
             checked={data?.is_disabled}
             onCheckedChange={(val) => setData("is_disabled", val)}
-            label="Disabled"
+            label={t("user.role.columns.is_disabled")}
           />
         </div>
       </FormPageContent>
-      <FormPageContent title="Permission Manager" value="permission_manager">
+      <FormPageContent
+        title={t("user.role.permission_manager")}
+        value="permission_manager"
+      >
         <div className="grid gap-x-4 grid-cols-[minmax(auto,384px)_max-content_minmax(0,1fr)_64px] text-sm  [&>div>*]:px-4 max-w-full overflow-hidden">
-          <div className="border-2 shadow-md rounded-xl p-4 grid col-span-4 grid-cols-subgrid [&_label]:text-base! mb-4 *:px-0! [&_[role=forminput]]:gap-y-0.5! border-b pb-4  border-muted-foreground/25">
-            <div className="col-span-4 pb-1 mb-2 border-b border-muted-foreground/25">
-              <h1 className="text-base font-bold">{t("user.role.new_rule")}</h1>
-            </div>
-            <FormInput
-              label={t("user.role.columns.model")}
-              required
-              className="ml-1"
-            >
-              <PermissionLinkModel
-                required={false}
-                placeholder={t("user.role.columns.model.placeholder")}
-                value={newRule.model}
-                onValueChange={(val) =>
-                  setNewRule((prev) => ({
-                    ...prev,
-                    model: val,
-                    level: val?.is_submitable ? prev.level : 0,
-                  }))
-                }
-              />
-            </FormInput>
-            <FormInput label={t("user.role.columns.level")}>
-              <Input
-                type="number"
-                disabled={!(newRule.model?.is_submitable ?? false)}
-                value={newRule.level}
-                onChange={(e) => {
-                  setNewRule((prev) => ({ ...prev, level: e.target.value }));
-                }}
-                min={0}
-                max={9}
-                className="w-16 text-center"
-              />
-            </FormInput>
-            <div className="flex justify-between col-span-2 gap-x-4">
-              <FormInput
-                label={t("user.role.columns.only_creator")}
-                className="w-fit"
-              >
-                {(id) => (
-                  <div className="flex items-center justify-center flex-1 w-full">
-                    <Checkbox
-                      disabled={
-                        newRule.level > 0 ||
-                        !(newRule.model?.is_submitable ?? false)
-                      }
-                      id={id}
-                      checked={newRule.level > 0 ? false : newRule.only_creator}
-                      onCheckedChange={(val) =>
-                        setNewRule((prev) => ({ ...prev, only_creator: val }))
-                      }
-                    />
-                  </div>
-                )}
-              </FormInput>
-              <FormInput label="" className="justify-end w-fit">
-                <Button
-                  type="button"
-                  variant="default"
-                  className="h-8 w-fit"
-                  onClick={onAddPermission}
-                >
-                  <PlusIcon className="size-5" />
-                  {t("user.role.add_rule")}
-                </Button>
-              </FormInput>
-            </div>
-          </div>
           {/* Rules */}
-          <div className="col-span-4 pb-1 mt-4 mb-2 border-b border-muted-foreground/25">
+          <div className="col-span-4 pb-1 mt-4 mb-2 border-b border-muted-foreground/25 flex justify-between">
             <h1 className="-ml-3 text-xl font-bold">{t("user.role.rules")}</h1>
+            <Button
+              variant="primary"
+              type="button"
+              onClick={() => ruleRef.current?.open()}
+            >
+              <PlusIcon />
+              {t("user.role.add_rule")}
+            </Button>
           </div>
           <div className="grid grid-cols-subgrid col-span-4 rounded-md py-2 bg-muted [&>div]:font-bold [&>div]:text-sm">
             <div>{t("user.role.columns.model")}</div>
             <div>{t("user.role.columns.level")}</div>
             <div>{t("user.role.columns.permissions")}</div>
           </div>
-          {data?.rules && data?.rules.length > 0 ? (
-            data?.rules.map((rule) => {
+          {rules.length > 0 ? (
+            rules.map((rule) => {
               const allChecked = getCheckState(
                 rule?.permissions ?? [],
                 rule?.permissionKeys ?? [],
@@ -268,7 +265,7 @@ function Form() {
                 >
                   <div className="flex flex-col gap-y-4">
                     <span className="font-medium">{rule.name}</span>
-                    {rule.level <= 0 && rule.is_submitable && (
+                    {rule.level <= 0 && rule.permission.allow_only_creator && (
                       <FormCheckbox
                         checked={rule.only_creator}
                         onCheckedChange={(val) =>
@@ -307,10 +304,12 @@ function Form() {
                       size="icon"
                       className="size-8"
                       onClick={() => {
-                        setData(
-                          "rules",
-                          data?.rules.filter((r) => r.id !== rule.id),
-                        );
+                        setData((prev) => ({
+                          ...prev,
+                          rules: (prev.rules ?? []).filter(
+                            (r) => r.id !== rule.id,
+                          ),
+                        }));
                       }}
                     >
                       <Trash2Icon className="size-5" />
@@ -329,6 +328,7 @@ function Form() {
           )}
         </div>
       </FormPageContent>
+      <FormNewRule ref={ruleRef} onApply={onAddPermission} />
     </>
   );
 }

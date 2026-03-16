@@ -346,6 +346,15 @@ export const getFonts = async () => {
   }
 };
 
+/**
+ * Mengambil data model melalui route "model".
+ * @param {string} model
+ * @param {Record<string, unknown>} filters
+ * @typedef {object} DataModelOptions
+ * @property {number=} limit jika 1 maka hanya mengembalikan satu item
+ * @param {DataModelOptions & Record<string, unknown>} [options] opsi tambahan (default `{}`)
+ * @returns {Promise<Record<string, unknown> | Array<Record<string, unknown>>>}
+ */
 export const getDataModel = async (model, filters, options = {}) => {
   const result = await axios.post(window.route("model"), {
     model,
@@ -355,3 +364,34 @@ export const getDataModel = async (model, filters, options = {}) => {
   const data = result?.data?.data;
   return options.limit == 1 ? data[0] : data;
 };
+/**
+ * Mengecek izin aksi pada model di level tertentu.
+ * @param {Record<string, Record<number, Array<{ only_creator: boolean, permissions: Record<string, boolean> }>>>} permissions
+ * @param {string} model
+ * @param {string} action
+ * @param {number} [level] level akses (default 0)
+ * @returns {{ allowed: boolean, onlyCreator: boolean }}
+ */
+export function checkPermission(permissions, model, action, level = 0) {
+  const modelPermissions = permissions[model];
+  const levelPermissions = modelPermissions ? modelPermissions[level] : null;
+
+  if (!levelPermissions) return { allowed: false, onlyCreator: false };
+
+  let allowed = false;
+  let onlyCreator = false;
+  for (let levelPermission of levelPermissions) {
+    if (levelPermission.only_creator && levelPermission.permissions[action]) {
+      allowed = true;
+      onlyCreator = true;
+    } else if (
+      !levelPermission.only_creator &&
+      levelPermission.permissions[action]
+    ) {
+      allowed = true;
+      onlyCreator = false;
+    }
+  }
+
+  return { allowed, onlyCreator };
+}
