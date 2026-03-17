@@ -1,0 +1,46 @@
+name: Build And Cleanup After Production Merge
+
+on:
+  pull_request:
+    branches:
+      - production
+    types:
+      - closed
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout production branch
+        uses: actions/checkout@v5
+        with:
+          ref: production
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Remove resources source files
+        run: |
+          find resources/js -mindepth 1 -delete
+          find resources/css -mindepth 1 -delete
+
+      - name: Commit cleanup changes
+        uses: stefanzweifel/git-auto-commit-action@v6
+        with:
+          branch: production
+          commit_message: "chore: cleanup resources after production merge"
