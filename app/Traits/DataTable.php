@@ -21,17 +21,14 @@ use Symfony\Component\Uid\Ulid;
  * @method static void dataTable(\Illuminate\Http\Request $request)
  * @method void dataTable(\Illuminate\Http\Request $request)
  */
-trait DataTable
-{
-    public function initializeDataTable()
-    {
+trait DataTable {
+    public function initializeDataTable() {
         $this->mergeCasts([
             'have_transactions' => 'boolean',
         ]);
     }
 
-    public static function bootDataTable()
-    {
+    public static function bootDataTable() {
         self::saved(function ($model) {
             if (! $model->deleted_at) {
                 return;
@@ -53,8 +50,7 @@ trait DataTable
         });
     }
 
-    public function fillForUpdate(array $attributes, bool $fillOnly = false)
-    {
+    public function fillForUpdate(array $attributes, bool $fillOnly = false) {
         $this->recordLogs();
 
         $this->fill($attributes);
@@ -70,32 +66,30 @@ trait DataTable
         return $this->save();
     }
 
-    public function logForCreated()
-    {
+    public function logForCreated() {
         if (get_class($this) == Log::class) {
             return;
         }
         $this->loadRelations();
-        $keys = $this->logableFields();
+        $keys            = $this->logableFields();
         $this->dataAfter = \array_replace(
             \array_fill_keys($keys, null),
             \array_intersect_key($this->toArray(), array_flip($keys)),
         );
         Log::create([
-            'user_id' => Auth::user()->id,
-            'loggable_id' => $this->id,
+            'user_id'       => Auth::user()->id,
+            'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
-            'activity' => [
+            'activity'      => [
                 'en' => ':user created this',
                 'id' => ':user telah membuat ini',
             ],
             'data_before' => $this->dataBefore ?? null,
-            'data_after' => $this->dataAfter,
+            'data_after'  => $this->dataAfter,
         ]);
     }
 
-    public function logForUpdated()
-    {
+    public function logForUpdated() {
         if (get_class($this) == Log::class) {
             return;
         }
@@ -103,7 +97,7 @@ trait DataTable
             return;
         }
         $this->loadRelations();
-        $keys = $this->logableFields();
+        $keys            = $this->logableFields();
         $this->dataAfter = \array_replace(
             \array_fill_keys($keys, null),
             \array_intersect_key($this->toArray(), array_flip($keys)),
@@ -114,93 +108,88 @@ trait DataTable
         );
 
         Log::create([
-            'user_id' => Auth::user()->id,
-            'loggable_id' => $this->id,
+            'user_id'       => Auth::user()->id,
+            'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
-            'activity' => [
+            'activity'      => [
                 'en' => ':user updated this',
                 'id' => ':user memperbarui ini',
             ],
             'data_before' => $this->dataBefore,
-            'data_after' => $this->dataAfter,
+            'data_after'  => $this->dataAfter,
         ]);
     }
 
-    public function logForDeleted()
-    {
+    public function logForDeleted() {
         if (get_class($this) == Log::class) {
             return;
         }
         Log::create([
-            'user_id' => Auth::user()->id,
-            'loggable_id' => $this->id,
+            'user_id'       => Auth::user()->id,
+            'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
-            'activity' => [
+            'activity'      => [
                 'en' => ':user deleted this',
                 'id' => ':user menghapus ini',
             ],
         ]);
     }
 
-    public function logForRestore()
-    {
+    public function logForRestore() {
         if (get_class($this) == Log::class) {
             return;
         }
         Log::create([
-            'user_id' => Auth::user()->id,
-            'loggable_id' => $this->id,
+            'user_id'       => Auth::user()->id,
+            'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
-            'activity' => [
+            'activity'      => [
                 'en' => ':user restored this',
                 'id' => ':user mengembalikan ini',
             ],
         ]);
     }
 
-    public function logForSubmitted()
-    {
+    public function logForSubmitted() {
         if (get_class($this) == Log::class) {
             return;
         }
 
         Log::create([
-            'user_id' => Auth::user()->id,
-            'loggable_id' => $this->id,
+            'user_id'       => Auth::user()->id,
+            'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
-            'activity' => [
+            'activity'      => [
                 'en' => ':user submitted this',
                 'id' => ':user telah mengajukan ini',
             ],
         ]);
     }
 
-    public function logForCancelled()
-    {
+    public function logForCancelled() {
         if (get_class($this) == Log::class) {
             return;
         }
         Log::create([
-            'user_id' => Auth::user()->id,
-            'loggable_id' => $this->id,
+            'user_id'       => Auth::user()->id,
+            'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
-            'activity' => [
+            'activity'      => [
                 'en' => ':user canceled this',
                 'id' => ':user telah membatalkan',
             ],
         ]);
     }
 
-    public function logForAmended()
-    {
+    public function logForAmended() {
         if (get_class($this) == Log::class) {
             return;
         }
         Log::create([
-            'user_id' => Auth::user()->id,
-            'loggable_id' => $this->id,
+            'user_id'       => Auth::user()->id,
+            'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
-            'activity' => [
+            'activity'      => [
                 'en' => ':user amended this',
                 'id' => ':user telah mengembalikan ini',
             ],
@@ -209,14 +198,12 @@ trait DataTable
 
     private array $dataBefore = [];
 
-    private function recordLogs(): void
-    {
+    private function recordLogs(): void {
         $this->loadRelations();
         $this->dataBefore = $this->toArray();
     }
 
-    protected function getDefaultLogableField(array $except = [])
-    {
+    protected function getDefaultLogableField(array $except = []) {
         $except = array_merge($except, ['id', 'created_at', 'updated_at']);
         if ($this->exists) {
             $keys = array_keys($this->toArray());
@@ -240,8 +227,7 @@ trait DataTable
         return array_values(array_diff($keys, $except));
     }
 
-    protected function logableFields()
-    {
+    protected function logableFields() {
         return $this->getDefaultLogableField();
     }
 
@@ -251,8 +237,7 @@ trait DataTable
      * @param  array|string  $relations
      * @return $this
      */
-    public function loadRelations($relations = [])
-    {
+    public function loadRelations($relations = []) {
         $toLoad = static::getRelationKeys(false, $relations);
         $this->load($toLoad);
     }
@@ -283,8 +268,7 @@ trait DataTable
         share,
      * @return string[]
      */
-    protected static function permissions(): array
-    {
+    protected static function permissions(): array {
         return [
             'select',
             'read',
@@ -297,13 +281,11 @@ trait DataTable
         ];
     }
 
-    private static function getShortName()
-    {
+    private static function getShortName() {
         return substr(static::class, strrpos(static::class, '\\') + 1);
     }
 
-    private static function getModule()
-    {
+    private static function getModule() {
         $shortName = static::getShortName();
         // Hapus prefix "App\Models\"
         $trimmed = str_replace('App\\Models\\', '', static::class);
@@ -317,15 +299,14 @@ trait DataTable
         return $module ?: null;
     }
 
-    public static function initPermissions()
-    {
+    public static function initPermissions() {
         $tableName = static::getTableName();
         $nameModel = Str::afterLast(static::class, '\\');
-        $alias = static::$alias ??
+        $alias     = static::$alias ??
           \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
-        $module = static::$module ?? Str::afterLast(Str::before(static::class, '\\'.$nameModel), '\\');
+        $module = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), '\\');
         if (! $module) {
-            \print_r("\e[39m".static::class." \e[91m(Module name not found) \e[39m".\PHP_EOL);
+            \print_r("\e[39m" . static::class . " \e[91m(Module name not found) \e[39m" . \PHP_EOL);
 
             return;
         }
@@ -333,23 +314,23 @@ trait DataTable
             $formatingSeries = FormatingSeries::where('model', static::class)->first();
             if (! $formatingSeries) {
                 FormatingSeries::create([
-                    'model' => static::class,
-                    'name' => Str::singular($alias),
+                    'model'  => static::class,
+                    'name'   => Str::singular($alias),
                     'format' => static::$defaultFormatCode ?? '@[iiii]',
-                    'logs' => [
+                    'logs'   => [
                         FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]') => [],
                     ],
                 ]);
             } else {
                 $logs = (array) $formatingSeries->logs;
-                $key = FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
+                $key  = FormatingSeries::generateKeyLogsForInit(static::class, static::$defaultFormatCode ?? '@[iiii]');
                 if (! \array_key_exists($key, $logs)) {
                     $logs[$key] = [];
                 }
                 $formatingSeries->update([
-                    'name' => Str::singular($alias),
+                    'name'   => Str::singular($alias),
                     'format' => static::$defaultFormatCode ?? '@[iiii]',
-                    'logs' => $logs,
+                    'logs'   => $logs,
                 ]);
             }
             if (! Schema::hasColumn($tableName, 'code')) {
@@ -484,28 +465,27 @@ trait DataTable
         Permission::updateOrCreate([
             'model' => static::class,
         ], [
-            'module' => $module,
-            'name' => Str::plural($alias),
-            'route' => Str::plural(Str::camel($nameModel)),
-            'permissions' => (static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions(),
-            'is_submitable' => (static::$is_submitable ?? false),
+            'module'             => $module,
+            'name'               => Str::plural($alias),
+            'route'              => Str::plural(Str::camel($nameModel)),
+            'permissions'        => (static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions(),
+            'is_submitable'      => (static::$is_submitable ?? false),
             'allow_only_creator' => (static::$allow_only_creator ?? static::$is_submitable ?? false),
         ]);
-        print_r("\e[39m".static::class." \e[92m(SUCCESS) \e[39m".\PHP_EOL);
+        print_r("\e[39m" . static::class . " \e[92m(SUCCESS) \e[39m" . \PHP_EOL);
     }
 
-    public function showDetail()
-    {
+    public function showDetail() {
         if (static::$is_submitable ?? false) {
             Inertia::share([
                 'prints' => Inertia::defer(
-                    fn () => PrintTemplate::where('model', static::class)->get()
+                    fn () => PrintTemplate::where('model', static::class)->get(),
                 ),
             ]);
         }
         Inertia::share([
             'translateKey' => $this->translateKey ?? null,
-            'connections' => Inertia::defer(
+            'connections'  => Inertia::defer(
                 function () {
                     $data = \collect(
                         ModelConnection::search(static::class, $this->getKey())
@@ -515,22 +495,22 @@ trait DataTable
                         ->groupBy('reference_type')
                         ->map(function ($connections) {
                             $reference_type = $connections[0]['reference_type'];
-                            $model = new $reference_type;
-                            $nameModel = Str::title(Str::replace('_', ' ', Str::snake(value: $model->getNameClass())));
-                            $connections = $connections->unique('reference_id');
+                            $model          = new $reference_type;
+                            $nameModel      = Str::title(Str::replace('_', ' ', Str::snake(value: $model->getNameClass())));
+                            $connections    = $connections->unique('reference_id');
 
                             return [
                                 'reference_type' => $reference_type,
-                                'model' => $nameModel,
-                                'count' => count($connections),
-                                'route' => Str::plural($model->getNameClass()).'.index',
-                                'query' => [],
-                                'items' => $connections->map(function ($connection) {
+                                'model'          => $nameModel,
+                                'count'          => count($connections),
+                                'route'          => Str::plural($model->getNameClass()) . '.index',
+                                'query'          => [],
+                                'items'          => $connections->map(function ($connection) {
                                     $model = new $connection['reference_type'];
 
                                     return [
                                         ...((array) $connection),
-                                        'route' => Str::plural($model->getNameClass()).'.show',
+                                        'route' => Str::plural($model->getNameClass()) . '.show',
                                     ];
                                 }),
                             ];
@@ -548,7 +528,7 @@ trait DataTable
                     //     'query' => []
                     //   ];
                     //   });
-                }
+                },
             ),
             'logs' => Inertia::defer(
                 fn () => Log::with('user')
@@ -569,25 +549,21 @@ trait DataTable
         ]);
     }
 
-    public function logs()
-    {
+    public function logs() {
         return $this->morphMany(Log::class, 'loggable');
     }
 
-    public function tags()
-    {
+    public function tags() {
         return $this->morphToMany(Tag::class, 'taggable')
             ->whereNull('taggables.deleted_at');
     }
 
-    public function files()
-    {
+    public function files() {
         return $this->morphToMany(File::class, 'fileable')
             ->whereNull('fileables.deleted_at');
     }
 
-    public function syncRelationData(string $relation, array $data): void
-    {
+    public function syncRelationData(string $relation, array $data): void {
         // Pastikan payload relation tersedia, contoh: $data['items'].
         if (! isset($data[$relation]) || ! \is_array($data[$relation])) {
             return;
@@ -610,7 +586,7 @@ trait DataTable
         }
 
         // Hook formatter per relation, contoh `fillItemRelations` untuk `items`.
-        $fillRelationMethod = 'fill'.Str::studly(Str::singular($relation)).'Relations';
+        $fillRelationMethod = 'fill' . Str::studly(Str::singular($relation)) . 'Relations';
         foreach ($rows as $row) {
             if (! \is_array($row)) {
                 continue;
@@ -633,23 +609,22 @@ trait DataTable
         }
     }
 
-    public function checkPermission(string $action, int $level = 0)
-    {
-        $permissions = Session::get('permissions');
+    public function checkPermission(string $action, int $level = 0) {
+        $permissions      = Session::get('permissions');
         $modelPermissions = $permissions[static::class] ?? null;
         $levelPermissions = $modelPermissions[$level] ?? null;
         if ($levelPermissions === null) {
             abort(403);
         }
 
-        $allowed = false;
+        $allowed     = false;
         $onlyCreator = false;
         foreach ($levelPermissions as $levelPermission) {
             if ($levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
-                $allowed = true;
+                $allowed     = true;
                 $onlyCreator = true;
             } elseif (! $levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
-                $allowed = true;
+                $allowed     = true;
                 $onlyCreator = false;
             }
         }

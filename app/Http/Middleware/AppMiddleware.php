@@ -11,15 +11,13 @@ use Inertia\Inertia;
 use Inertia\Middleware;
 use Symfony\Component\HttpFoundation\Response;
 
-class AppMiddleware extends Middleware
-{
+class AppMiddleware extends Middleware {
     /**
      * Handle an incoming request.
      *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
+     * @param  Closure(Request): (Response)  $next
      */
-    public function handle(Request $request, Closure $next): Response
-    {
+    public function handle(Request $request, Closure $next): Response {
         $user = $request->user();
         if ($user) {
             $currentBranch = $request->session()->get('currentBranch');
@@ -27,9 +25,9 @@ class AppMiddleware extends Middleware
                 $currentBranch = $user->default_branch_id;
                 $request->session()->put('currentBranch', $currentBranch);
             }
-            $branches = $user->branches()->get();
-            $permissions = $request->session()->get('permissions');
-            $permissionsVersion = $request->session()->get('permissions_version');
+            $branches                 = $user->branches()->get();
+            $permissions              = $request->session()->get('permissions');
+            $permissionsVersion       = $request->session()->get('permissions_version');
             $latestPermissionsVersion = $this->resolvePermissionsVersion($user->id);
             if ($permissions === null || $permissionsVersion !== $latestPermissionsVersion) {
                 $permissions = $this->resolvePermissions($user->id);
@@ -41,9 +39,9 @@ class AppMiddleware extends Middleware
               ?? $branches->firstWhere('id', $user->default_branch_id);
 
             Inertia::share([
-                'permissions' => $permissions,
+                'permissions'    => $permissions,
                 'branchSettings' => [
-                    'branches' => $branches,
+                    'branches'      => $branches,
                     'currentBranch' => $activeBranch,
                 ],
             ]);
@@ -52,10 +50,9 @@ class AppMiddleware extends Middleware
         return parent::handle($request, $next);
     }
 
-    public function share(Request $request): array
-    {
+    public function share(Request $request): array {
         $preferences = Preference::query()->pluck('value', 'key');
-        $countryId = $preferences->get('country_id');
+        $countryId   = $preferences->get('country_id');
         $countryName = $countryId !== null
           ? Country::query()->whereKey($countryId)->value('name')
           : null;
@@ -69,8 +66,7 @@ class AppMiddleware extends Middleware
         ];
     }
 
-    private function resolvePermissions(string $userId): array
-    {
+    private function resolvePermissions(string $userId): array {
         return RolePermission::select('role_permissions.model', 'role_permissions.permissions', 'role_permissions.level', 'role_permissions.only_creator')
             ->join('user_role', 'user_role.role_id', '=', 'role_permissions.role_id')
             ->where('user_role.user_id', $userId)
@@ -91,17 +87,16 @@ class AppMiddleware extends Middleware
                 $masterData = $permissions->first();
 
                 return [
-                    'model' => $masterData->model,
-                    'level' => $masterData->level,
+                    'model'        => $masterData->model,
+                    'level'        => $masterData->level,
                     'only_creator' => $masterData->only_creator,
-                    'permissions' => $dataPermissions,
+                    'permissions'  => $dataPermissions,
                 ];
             })))
             ->toArray();
     }
 
-    private function resolvePermissionsVersion(string $userId): string
-    {
+    private function resolvePermissionsVersion(string $userId): string {
         $permissions = RolePermission::query()
             ->join('user_role', 'user_role.role_id', '=', 'role_permissions.role_id')
             ->where('user_role.user_id', $userId)

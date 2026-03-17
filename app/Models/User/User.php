@@ -9,20 +9,19 @@ use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
 use App\Traits\DataTable;
 use App\Traits\LinkModel;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-class User extends Authenticatable
-{
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+class User extends Authenticatable {
+    /** @use HasFactory<UserFactory> */
     use DataTable, HasFactory, HasUlids, LinkModel, Notifiable, SoftDeletes;
 
     public $translateKey = 'user.user';
-
-    protected $guarded = ['id'];
+    protected $guarded   = ['id'];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -39,70 +38,63 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
-    protected function casts(): array
-    {
+    protected function casts(): array {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'status' => FormStatusCast::class,
+            'password'          => 'hashed',
+            'status'            => FormStatusCast::class,
         ];
     }
 
-    public static function templateLink()
-    {
+    public static function templateLink() {
         return ':name';
     }
 
     public $configColumns = [
         'image' => [
-            'show' => true,
+            'show'  => true,
             'order' => 0,
-            'type' => 'image',
+            'type'  => 'image',
             'width' => 'fit',
         ],
         'name' => [
-            'show' => true,
-            'order' => 1,
+            'show'   => true,
+            'order'  => 1,
             'isLink' => true,
         ],
         'username' => [
-            'show' => true,
+            'show'  => true,
             'order' => 2,
         ],
         'email' => [
-            'show' => true,
+            'show'  => true,
             'order' => 3,
         ],
         'status' => [
-            'show' => true,
+            'show'  => true,
             'order' => 4,
         ],
         'defaultBranch',
     ];
 
-    public function defaultBranch()
-    {
+    public function defaultBranch() {
         return $this->belongsTo(Branch::class, 'default_branch_id');
     }
 
-    public function roles()
-    {
+    public function roles() {
         return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id');
     }
 
-    public function idRoles()
-    {
+    public function idRoles() {
         return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id')
             ->select('roles.id');
     }
 
-    public function branches()
-    {
+    public function branches() {
         return $this->belongsToMany(Branch::class, 'user_branch', 'user_id', 'branch_id');
     }
 
-    public function dashboards()
-    {
+    public function dashboards() {
         return $this->belongsToMany(Dashboard::class, 'user_dashboards', 'user_id', 'dashboard_id');
     }
 }

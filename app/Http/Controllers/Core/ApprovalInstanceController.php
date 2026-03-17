@@ -16,15 +16,12 @@ use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use ReflectionMethod;
 
-class ApprovalInstanceController extends Controller
-{
-    public function __construct(Request $request)
-    {
+class ApprovalInstanceController extends Controller {
+    public function __construct(Request $request) {
         parent::__construct($request, ApprovalInstanceStep::class);
     }
 
-    public function index(Request $request)
-    {
+    public function index(Request $request) {
         $this->setBreadcrumbs();
         $user = $request->user();
         ApprovalInstanceStep::query()
@@ -53,23 +50,21 @@ class ApprovalInstanceController extends Controller
         return Inertia::render('Core/ApprovalInstanceIndex');
     }
 
-    public function show(ApprovalInstance $approvalInstance)
-    {
+    public function show(ApprovalInstance $approvalInstance) {
         $document = $approvalInstance->document;
 
         return redirect(route("{$document->route}.show", $document->id));
     }
 
-    public function checkApproval(Model $data, array $options = [])
-    {
+    public function checkApproval(Model $data, array $options = []) {
         return DB::transaction(function () use ($data, $options) {
-            $currentRoute = Route::getCurrentRoute();
-            $controller = $currentRoute->getControllerClass();
-            $parameters = $currentRoute->originalParameters();
+            $currentRoute     = Route::getCurrentRoute();
+            $controller       = $currentRoute->getControllerClass();
+            $parameters       = $currentRoute->originalParameters();
             $instanceApproval = ApprovalInstance::makeInstance($data, [
                 'controller' => $controller,
                 'parameters' => $parameters,
-                'options' => $options,
+                'options'    => $options,
             ]);
 
             if (! $instanceApproval || $instanceApproval->status == FormStatus::APPROVED) {
@@ -94,9 +89,8 @@ class ApprovalInstanceController extends Controller
         });
     }
 
-    private function callWithRouteModels(string $controller, string $method, array $rawParams)
-    {
-        $ref = new ReflectionMethod($controller, $method);
+    private function callWithRouteModels(string $controller, string $method, array $rawParams) {
+        $ref         = new ReflectionMethod($controller, $method);
         $finalParams = [];
 
         foreach ($ref->getParameters() as $param) {
@@ -123,16 +117,15 @@ class ApprovalInstanceController extends Controller
         return app()->call("$controller@$method", $finalParams);
     }
 
-    private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null)
-    {
+    private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
         DB::beginTransaction();
         $approval = $approvalInstanceStep->approvalInstance;
 
         $approvalInstanceStep->update([
-            'status' => FormStatus::APPROVED,
-            'acted_at' => now(),
+            'status'      => FormStatus::APPROVED,
+            'acted_at'    => now(),
             'acted_by_id' => Auth::user()->id,
-            'notes' => $notes,
+            'notes'       => $notes,
         ]);
 
         $isApproved = false;
@@ -164,7 +157,7 @@ class ApprovalInstanceController extends Controller
             return $this->callWithRouteModels(
                 (string) ($approval->options['controller'] ?? ''),
                 'onApproved',
-                $approval->options['parameters'] ?? []
+                $approval->options['parameters'] ?? [],
             );
         }
         $approval->save();
@@ -173,16 +166,15 @@ class ApprovalInstanceController extends Controller
         return back();
     }
 
-    private function reject(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null)
-    {
+    private function reject(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
         DB::beginTransaction();
         $approval = $approvalInstanceStep->approvalInstance;
 
         $approvalInstanceStep->update([
-            'status' => FormStatus::REJECTED,
-            'acted_at' => now(),
+            'status'      => FormStatus::REJECTED,
+            'acted_at'    => now(),
             'acted_by_id' => Auth::user()->id,
-            'notes' => $notes,
+            'notes'       => $notes,
         ]);
 
         $isRejected = false;
@@ -209,7 +201,7 @@ class ApprovalInstanceController extends Controller
             return $this->callWithRouteModels(
                 (string) ($approval->options['controller'] ?? ''),
                 'onRejected',
-                $approval->options['parameters'] ?? []
+                $approval->options['parameters'] ?? [],
             );
         }
         $approval->save();
@@ -218,9 +210,8 @@ class ApprovalInstanceController extends Controller
         return back();
     }
 
-    public function decision(ApprovalDecisionRequest $request, ApprovalInstanceStep $approvalInstanceStep)
-    {
-        $data = $request->validated();
+    public function decision(ApprovalDecisionRequest $request, ApprovalInstanceStep $approvalInstanceStep) {
+        $data     = $request->validated();
         $decision = $data['decision'];
 
         return $this->$decision($approvalInstanceStep, $data['notes'] ?? null);

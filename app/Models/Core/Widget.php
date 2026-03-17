@@ -12,74 +12,76 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Widget extends Model {
-  use HasUlids, SoftDeletes, DataTable;
-  protected $guarded      = ['id'];
-  public    $casts        = [
-    'config' => Json::class,
-  ];
-  public    $translateKey = 'settings.widget';
+    use DataTable, HasUlids, SoftDeletes;
 
-  public static function templateLink() {
-    return ':title';
-  }
+    protected $guarded = ['id'];
+    public $casts      = [
+        'config' => Json::class,
+    ];
+    public $translateKey = 'settings.widget';
 
-  protected static function loadRelationsOnShow() {
-    return ['dashboards', 'createdBy', 'model',];
-  }
-  protected $configColumns = [
-    'title'            => [
-      'show'   => true,
-      'order'  => 0,
-      'isLink' => true,
-    ],
-    'type'             => [
-      'show'       => true,
-      'order'      => 1,
-      'valueTrans' => 'settings.widget.types',
-    ],
-    'model'            => [
-      'show'               => true,
-      'order'              => 2,
-      'disabledNavigation' => true,
-    ],
-    'created_by'       => [
-      'show'  => true,
-      'order' => 3,
-    ],
-    'dashboard'        => [
-      'show'  => true,
-      'order' => 4,
-    ],
-    'created_at'       => [
-      'show'  => true,
-      'order' => 5,
-    ],
-    'group_by_types'   => [
-      'valueTrans' => 'settings.widget.columns.group_by_types.options',
-    ],
-    'calculation_type' => [
-      'valueTrans' => 'settings.widget.calculation_types',
-    ],
-    'time_interval'    => [
-      'valueTrans' => 'settings.widget.time_intervals',
-    ],
-    'group_by_base_on' => [
-      'valueTrans' => 'settings.widget.group_by_base_on.types',
-    ],
-    'time_span'        => [
-      'valueTrans' => 'settings.widget.time_spans',
-    ],
-  ];
+    public static function templateLink() {
+        return ':title';
+    }
 
-  public function dashboards() {
-    return $this->hasMany(DashboardWidget::class, 'widget_id');
-  }
+    protected static function loadRelationsOnShow() {
+        return ['dashboards', 'createdBy', 'model'];
+    }
 
-  public function createdBy() {
-    return $this->belongsTo(User::class, 'created_by');
-  }
+    protected $configColumns = [
+        'title' => [
+            'show'   => true,
+            'order'  => 0,
+            'isLink' => true,
+        ],
+        'type' => [
+            'show'       => true,
+            'order'      => 1,
+            'valueTrans' => 'settings.widget.types',
+        ],
+        'model' => [
+            'show'               => true,
+            'order'              => 2,
+            'disabledNavigation' => true,
+        ],
+        'created_by' => [
+            'show'  => true,
+            'order' => 3,
+        ],
+        'dashboard' => [
+            'show'  => true,
+            'order' => 4,
+        ],
+        'created_at' => [
+            'show'  => true,
+            'order' => 5,
+        ],
+        'group_by_types' => [
+            'valueTrans' => 'settings.widget.columns.group_by_types.options',
+        ],
+        'calculation_type' => [
+            'valueTrans' => 'settings.widget.calculation_types',
+        ],
+        'time_interval' => [
+            'valueTrans' => 'settings.widget.time_intervals',
+        ],
+        'group_by_base_on' => [
+            'valueTrans' => 'settings.widget.group_by_base_on.types',
+        ],
+        'time_span' => [
+            'valueTrans' => 'settings.widget.time_spans',
+        ],
+    ];
 
-  public function model() {
-    return $this->belongsTo(Permission::class, 'model_id');
-  }
+    public function dashboards() {
+        return $this->hasMany(DashboardWidget::class, 'widget_id');
+    }
+
+    public function createdBy() {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function model() {
+        return $this->belongsTo(Permission::class, 'model_id');
+    }
 }

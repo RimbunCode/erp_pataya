@@ -1,10 +1,16 @@
 <?php
 
+use OwenIt\Auditing\Models\Audit;
+use OwenIt\Auditing\Resolvers\IpAddressResolver;
+use OwenIt\Auditing\Resolvers\UrlResolver;
+use OwenIt\Auditing\Resolvers\UserAgentResolver;
+use OwenIt\Auditing\Resolvers\UserResolver;
+
 return [
 
-  'enabled' => env('AUDITING_ENABLED', true),
+    'enabled' => env('AUDITING_ENABLED', true),
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Implementation
     |--------------------------------------------------------------------------
@@ -13,9 +19,9 @@ return [
     |
     */
 
-  'implementation' => OwenIt\Auditing\Models\Audit::class,
+    'implementation' => Audit::class,
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | User Morph prefix & Guards
     |--------------------------------------------------------------------------
@@ -24,16 +30,16 @@ return [
     |
     */
 
-  'user' => [
-    'morph_prefix' => 'user',
-    'guards' => [
-      'web',
-      'api',
+    'user' => [
+        'morph_prefix' => 'user',
+        'guards'       => [
+            'web',
+            'api',
+        ],
+        'resolver' => UserResolver::class,
     ],
-    'resolver' => OwenIt\Auditing\Resolvers\UserResolver::class,
-  ],
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Resolvers
     |--------------------------------------------------------------------------
@@ -41,13 +47,13 @@ return [
     | Define the IP Address, User Agent and URL resolver implementations.
     |
     */
-  'resolvers' => [
-    'ip_address' => OwenIt\Auditing\Resolvers\IpAddressResolver::class,
-    'user_agent' => OwenIt\Auditing\Resolvers\UserAgentResolver::class,
-    'url' => OwenIt\Auditing\Resolvers\UrlResolver::class,
-  ],
+    'resolvers' => [
+        'ip_address' => IpAddressResolver::class,
+        'user_agent' => UserAgentResolver::class,
+        'url'        => UrlResolver::class,
+    ],
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Events
     |--------------------------------------------------------------------------
@@ -56,14 +62,14 @@ return [
     |
     */
 
-  'events' => [
-    'created',
-    'updated',
-    'deleted',
-    'restored',
-  ],
+    'events' => [
+        'created',
+        'updated',
+        'deleted',
+        'restored',
+    ],
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Strict Mode
     |--------------------------------------------------------------------------
@@ -72,9 +78,9 @@ return [
     |
     */
 
-  'strict' => false,
+    'strict' => false,
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Global exclude
     |--------------------------------------------------------------------------
@@ -84,9 +90,9 @@ return [
     |
     */
 
-  'exclude' => [],
+    'exclude' => [],
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Empty Values
     |--------------------------------------------------------------------------
@@ -101,12 +107,12 @@ return [
     |
     */
 
-  'empty_values' => true,
-  'allowed_empty_values' => [
-    'retrieved',
-  ],
+    'empty_values'         => true,
+    'allowed_empty_values' => [
+        'retrieved',
+    ],
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Allowed Array Values
     |--------------------------------------------------------------------------
@@ -117,9 +123,9 @@ return [
     | issues when storing large amounts of data. You can override this by
     | setting allow_array_values to true.
     */
-  'allowed_array_values' => false,
+    'allowed_array_values' => false,
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Timestamps
     |--------------------------------------------------------------------------
@@ -128,9 +134,9 @@ return [
     |
     */
 
-  'timestamps' => false,
+    'timestamps' => false,
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Threshold
     |--------------------------------------------------------------------------
@@ -140,9 +146,9 @@ return [
     |
     */
 
-  'threshold' => 0,
+    'threshold' => 0,
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Driver
     |--------------------------------------------------------------------------
@@ -151,9 +157,9 @@ return [
     |
     */
 
-  'driver' => 'database',
+    'driver' => 'database',
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Driver Configurations
     |--------------------------------------------------------------------------
@@ -162,14 +168,14 @@ return [
     |
     */
 
-  'drivers' => [
-    'database' => [
-      'table' => 'logs',
-      'connection' => null,
+    'drivers' => [
+        'database' => [
+            'table'      => 'logs',
+            'connection' => null,
+        ],
     ],
-  ],
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Queue Configurations
     |--------------------------------------------------------------------------
@@ -178,14 +184,14 @@ return [
     |
     */
 
-  'queue' => [
-    'enable' => false,
-    'connection' => 'sync',
-    'queue' => 'default',
-    'delay' => 0,
-  ],
+    'queue' => [
+        'enable'     => false,
+        'connection' => 'sync',
+        'queue'      => 'default',
+        'delay'      => 0,
+    ],
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Audit Console
     |--------------------------------------------------------------------------
@@ -194,5 +200,5 @@ return [
     |
     */
 
-  'console' => true,
+    'console' => true,
 ];

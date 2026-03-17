@@ -6,24 +6,22 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UserRequest;
 use App\Models\Core\Branch;
 use App\Models\Core\File;
+use App\Models\User\Role;
 use App\Models\User\User;
 use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
-class UserController extends Controller
-{
-    public function __construct(Request $request)
-    {
+class UserController extends Controller {
+    public function __construct(Request $request) {
         parent::__construct($request, User::class);
     }
 
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
-    {
+    public function index(Request $request) {
         if (! Utils::isInertiaRequest($request)) {
             $users = User::query();
             if ($request->has('search')) {
@@ -39,8 +37,7 @@ class UserController extends Controller
         return Inertia::render('Users/ManageUsers/Index');
     }
 
-    public function image(Request $request, User $user)
-    {
+    public function image(Request $request, User $user) {
         DB::beginTransaction();
         File::uploadFile($request, 'ImageProfile', function ($file) use ($user) {
             $user->update([
@@ -55,35 +52,32 @@ class UserController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
+    public function create() {
         //
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
+    public function store(Request $request) {
         //
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, User $user)
-    {
+    public function show(Request $request, User $user) {
         $this->setBreadcrumbs($user);
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
             'user' => function () use ($user) {
-                $user->roles = $user->roles()->pluck('id');
+                $user->roles    = $user->roles()->pluck('id');
                 $user->branches = $user->branches()->pluck('id');
 
                 return $user;
             },
-            'roles' => Inertia::defer(fn () => \App\Models\User\Role::with('rules')->get()),
+            'roles'    => Inertia::defer(fn () => Role::with('rules')->get()),
             'branches' => Inertia::defer(fn () => Branch::whereNull('branchable_type')
                 ->whereNull('branchable_id')->get(), ),
         ]);
@@ -92,8 +86,7 @@ class UserController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(UserRequest $request, User $user)
-    {
+    public function update(UserRequest $request, User $user) {
         $data = $request->validated();
         DB::beginTransaction();
         $user->fillForUpdate($data);
@@ -108,8 +101,7 @@ class UserController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
-    {
+    public function destroy(string $id) {
         //
     }
 }

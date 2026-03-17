@@ -8,26 +8,26 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Category extends Model {
-  use HasUlids, SoftDeletes, DataTable;
+    use DataTable, HasUlids, SoftDeletes;
 
-  protected $guarded = ['id'];
+    protected $guarded = ['id'];
 
-  public static function templateLink() {
-    return ":name";
-  }
+    public static function templateLink() {
+        return ':name';
+    }
 
-  public string $formComponent = 'Inventory/Categories/Form';
-  public string $translateKey = "inventory.category";
-  protected $configColumns = [
-    'name' => [
-      'isLink' => true,
-      'show' => true,
-      'order' => 0,
-    ],
-    'type' => [
-      'show' => true,
-      'order' => 1,
-      'valueTrans' => 'inventory.category.types'
-    ]
-  ];
+    public string $formComponent = 'Inventory/Categories/Form';
+    public string $translateKey  = 'inventory.category';
+    protected $configColumns     = [
+        'name' => [
+            'isLink' => true,
+            'show'   => true,
+            'order'  => 0,
+        ],
+        'type' => [
+            'show'       => true,
+            'order'      => 1,
+            'valueTrans' => 'inventory.category.types',
+        ],
+    ];
 }

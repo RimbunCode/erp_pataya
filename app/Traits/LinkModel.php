@@ -16,17 +16,14 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
-trait LinkModel
-{
+trait LinkModel {
     protected $defaultConfigColumns = [];
 
-    protected static function bootLinkModel()
-    {
+    protected static function bootLinkModel() {
         static::addGlobalScope(new DataTableScope);
     }
 
-    public function initializeLinkModel()
-    {
+    public function initializeLinkModel() {
         $this->defaultConfigColumns = array_merge([
             'created_at' => [
                 'titleTrans' => 'core.form.created_at',
@@ -45,7 +42,7 @@ trait LinkModel
             ],
             'logs' => [
                 'titleTrans' => 'core.form.logs',
-                'filter' => [
+                'filter'     => [
                     'type' => 'comment',
                 ],
             ],
@@ -63,7 +60,7 @@ trait LinkModel
             ],
             'status' => [
                 'titleTrans' => 'core.form.status',
-                'width' => 'minimum',
+                'width'      => 'minimum',
                 'valueTrans' => 'status',
             ],
             'branch' => [
@@ -102,18 +99,15 @@ trait LinkModel
      * @var bool
      */
     // protected static bool $is_submitable;
-    public function isSubmitable()
-    {
+    public function isSubmitable() {
         return static::$is_submitable ?? false;
     }
 
-    protected static function loadRelationsOnShow()
-    {
+    protected static function loadRelationsOnShow() {
         return [];
     }
 
-    public static function getRelationKeys(bool $filterCustomRelation = true, array $relations = [])
-    {
+    public static function getRelationKeys(bool $filterCustomRelation = true, array $relations = []) {
         $defaultRelations = [
             ...static::loadRelationsOnShow() ?? [],
             ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
@@ -122,7 +116,7 @@ trait LinkModel
         $relations = [...$defaultRelations, ...$relations];
 
         $instance = new static;
-        $toLoad = [];
+        $toLoad   = [];
 
         $alreadyLoaded = [];
 
@@ -151,16 +145,14 @@ trait LinkModel
         return $toLoad;
     }
 
-    public function updateHaveTransactions(bool $value = true, bool $save = true)
-    {
+    public function updateHaveTransactions(bool $value = true, bool $save = true) {
         $this->have_transactions = $value;
         if ($save) {
             $this->save();
         }
     }
 
-    protected function getArrayableAppends()
-    {
+    protected function getArrayableAppends() {
         $this->appends = array_unique(array_merge(
             $this->appends,
             ['route', 'canDelete', 'keyModel', 'appendStatus'],
@@ -176,13 +168,11 @@ trait LinkModel
      *
      * @return FormStatus | FormStatus[]
      */
-    protected function appendStatus()
-    {
+    protected function appendStatus() {
         return [];
     }
 
-    protected function getAppendStatusAttribute()
-    {
+    protected function getAppendStatusAttribute() {
         $baseStatus = $this->status;
         $baseStatus = $baseStatus instanceof FormStatus ? [$baseStatus] : ($baseStatus ?? []);
 
@@ -197,13 +187,11 @@ trait LinkModel
             ->all();
     }
 
-    protected function getKeyModelAttribute()
-    {
-        return \get_class($this).'-'.$this->id;
+    protected function getKeyModelAttribute() {
+        return \get_class($this) . '-' . $this->id;
     }
 
-    protected function getCanDeleteAttribute(): bool
-    {
+    protected function getCanDeleteAttribute(): bool {
         $condition = (static::$is_submitable ?? false) ? \in_array(FormStatus::DRAFT, (array) $this->status) : ! ($this->have_transactions ?? false);
         if (! \method_exists(static::class, 'canDelete')) {
             return $condition;
@@ -212,8 +200,7 @@ trait LinkModel
         return $condition && $this->canDelete();
     }
 
-    protected function getTemplateLinkAttribute(): string
-    {
+    protected function getTemplateLinkAttribute(): string {
         if (! \method_exists(static::class, 'templateLink')) {
             return '';
         }
@@ -221,8 +208,7 @@ trait LinkModel
         return static::templateLink();
     }
 
-    protected function getDisabledOnAttribute(): string
-    {
+    protected function getDisabledOnAttribute(): string {
         if (! \method_exists(static::class, 'disabledOn')) {
             return '';
         }
@@ -230,23 +216,19 @@ trait LinkModel
         return static::disabledOn();
     }
 
-    protected function getRouteAttribute()
-    {
+    protected function getRouteAttribute() {
         return Str::plural($this->getNameClass());
     }
 
-    public function getNameClass()
-    {
+    public function getNameClass() {
         return Str::camel(Str::afterLast(static::class, '\\'));
     }
 
-    public static function getTableName()
-    {
+    public static function getTableName() {
         return with(new static)->getTable();
     }
 
-    private static function parseColumnType(array $dataColumn, array $casts)
-    {
+    private static function parseColumnType(array $dataColumn, array $casts) {
         $definition = $dataColumn['type'];
         // Regex:
         // - Group 1: nama tipe (varchar, int, enum, dll)
@@ -254,14 +236,14 @@ trait LinkModel
         // - Group 3: unsigned (opsional)
         preg_match('/^([a-zA-Z]+)(?:\((.*?)\))?(?:\s+unsigned)?$/i', $definition, $matches);
 
-        $type = strtolower($matches[1] ?? 'unknown');
-        $inside = $matches[2] ?? '';
+        $type     = strtolower($matches[1] ?? 'unknown');
+        $inside   = $matches[2] ?? '';
         $unsigned = str_contains(strtolower($definition), 'unsigned');
 
-        $length = 0;
+        $length    = 0;
         $precision = 0;
-        $scale = 0;
-        $options = [];
+        $scale     = 0;
+        $options   = [];
 
         if ($inside !== '') {
             if (in_array($type, ['enum', 'set'])) {
@@ -270,9 +252,9 @@ trait LinkModel
                 $options = $optMatches[1] ?? [];
             } elseif (preg_match('/^(\d+)(?:,(\d+))?$/', $inside, $numMatch)) {
                 // Numeric (precision, scale)
-                $length = (int) ($numMatch[1] ?? 0);
+                $length    = (int) ($numMatch[1] ?? 0);
                 $precision = $length;
-                $scale = (int) ($numMatch[2] ?? 0);
+                $scale     = (int) ($numMatch[2] ?? 0);
             }
         }
         // Mapping pakai match
@@ -283,7 +265,7 @@ trait LinkModel
             'datetime', 'timestamp' => 'datetime',
             'time' => 'time',
             'blob', 'binary', 'varbinary' => 'binary',
-            default => 'mixed'
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -317,14 +299,14 @@ trait LinkModel
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class => 'json',
-                    FormStatusCast::class => 'formStatus',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
                     FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
                     'immutable_date', 'date' => 'date',
                     'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
-                    'time' => 'time',
-                    default => $cast
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
@@ -335,13 +317,12 @@ trait LinkModel
             // "length"    => $length,    // alias precision untuk decimal/float
             // "precision" => $precision, // panjang digit total
             // "scale"     => $scale,     // digit setelah koma (0 kalau tidak ada)
-            'type' => $phpType,
+            'type'    => $phpType,
             'options' => $options,
         ];
     }
 
-    private static function getColumnConfig(&$columns, $key): array
-    {
+    private static function getColumnConfig(&$columns, $key): array {
         foreach ($columns as $keyCol => $column) {
             if (\is_numeric($keyCol) && $column == $key) {
                 unset($columns[$keyCol]);
@@ -352,7 +333,7 @@ trait LinkModel
                 if (\is_array($column)) {
                     unset($columns[$key]);
                     if (($column['type'] ?? '') == 'image') {
-                        $column['sortable'] = false;
+                        $column['sortable']   = false;
                         $column['searchable'] = false;
                     }
 
@@ -367,12 +348,11 @@ trait LinkModel
         return [];
     }
 
-    private static function mergeConfigColumns(array ...$configs)
-    {
+    private static function mergeConfigColumns(array ...$configs) {
         $newConfigs = [];
         foreach ($configs as $config) {
             foreach ($config as $key => $value) {
-                $newKey = \is_string($key) ? $key : $value;
+                $newKey   = \is_string($key) ? $key : $value;
                 $newValue = is_array($value) ? $value : [];
 
                 $newConfigs[$newKey] = array_merge(($newConfigs[$newKey] ?? []), $newValue);
@@ -389,13 +369,12 @@ trait LinkModel
      * @param  array[]  $excepts
      * @return array
      */
-    public static function getColumns(int $maxDepth = 0, ...$excepts)
-    {
-        $instance = new static;
-        $columns = Schema::getColumns($instance->getTable());
-        $casts = $instance->getCasts();
-        $hidden = [...$instance->getHidden(), ...$instance->getGuarded()];
-        $appends = $instance->getAppends();
+    public static function getColumns(int $maxDepth = 0, ...$excepts) {
+        $instance      = new static;
+        $columns       = Schema::getColumns($instance->getTable());
+        $casts         = $instance->getCasts();
+        $hidden        = [...$instance->getHidden(), ...$instance->getGuarded()];
+        $appends       = $instance->getAppends();
         $configColumns = static::mergeConfigColumns(
             $instance->defaultConfigColumns ?? [],
             $instance->configColumns ?? [],
@@ -409,7 +388,7 @@ trait LinkModel
                 continue;
             }
 
-            $col = static::parseColumnType($value, $casts);
+            $col    = static::parseColumnType($value, $casts);
             $config = static::getColumnConfig($configColumns, $value['name']);
 
             if (isset($config['ignore']) && $config['ignore']) {
@@ -417,10 +396,10 @@ trait LinkModel
             }
             if ($col) {
                 $newColumns[$col['name']] = [
-                    'sortable' => true,
+                    'sortable'   => true,
                     'searchable' => true,
                     ...$col,
-                    'titleTrans' => $translateKey ? ($translateKey.'.columns.'.$col['name']) : null,
+                    'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
                     ...$config,
                     'primaryKey' => $instance->getKeyName(),
                 ];
@@ -437,12 +416,12 @@ trait LinkModel
                 continue;
             }
             $newColumns[$value] = [
-                'name' => $value,
-                'type' => 'attribute',
-                'sortable' => false,
+                'name'       => $value,
+                'type'       => 'attribute',
+                'sortable'   => false,
                 'searchable' => false,
                 'primaryKey' => $instance->getKeyName(),
-                'titleTrans' => $translateKey ? $translateKey.'.columns.'.$value : null,
+                'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
                 ...$config,
             ];
         }
@@ -452,7 +431,7 @@ trait LinkModel
             $maxDepth--;
         }
         foreach ($configColumns as $key => $relation) {
-            $key = \is_string($key) ? $key : $relation;
+            $key    = \is_string($key) ? $key : $relation;
             $config = \is_array($relation) ? $relation : [];
 
             if (! method_exists($instance, $key)) {
@@ -465,7 +444,7 @@ trait LinkModel
             }
 
             $classRelation = \get_class($rel->getRelated());
-            $type = 'relations';
+            $type          = 'relations';
             if (\in_array($classRelation, $excepts)) {
                 continue;
             }
@@ -476,15 +455,15 @@ trait LinkModel
                 $type = 'relation';
             } elseif ($rel instanceof BelongsTo) {
                 unset($newColumns[$rel->getForeignKeyName()]);
-                $type = 'relation';
-                $route = $rel->getRelated()->route;
+                $type   = 'relation';
+                $route  = $rel->getRelated()->route;
                 $newKey = Str::snake($key);
             } elseif ($rel instanceof HasOne || $rel instanceof MorphOne) {
-                $type = 'relation';
-                $route = $rel->getRelated()->route;
+                $type   = 'relation';
+                $route  = $rel->getRelated()->route;
                 $newKey = Str::snake($key);
             } elseif ($rel instanceof MorphMany) {
-                $type = 'relations';
+                $type   = 'relations';
                 $newKey = Str::snake($key);
             } else {
                 $newKey = Str::snake($key);
@@ -493,16 +472,16 @@ trait LinkModel
                 continue;
             }
             $newColumns[$newKey] = [
-                'name' => $newKey,
-                'type' => $type,
+                'name'           => $newKey,
+                'type'           => $type,
                 'nameOfFunction' => $key,
-                'related' => $classRelation,
-                'route' => isset($route) ? "$route.show" : null,
-                'primaryKey' => $rel->getRelated()->getKeyName(),
-                'sortable' => false,
-                'searchable' => true,
-                'titleTrans' => $translateKey ? "$translateKey.columns.$newKey" : null,
-                'columns' => $isContinueGetRelationColumns ? $classRelation::getColumns($maxDepth, static::class, ...$excepts ?? []) : [],
+                'related'        => $classRelation,
+                'route'          => isset($route) ? "$route.show" : null,
+                'primaryKey'     => $rel->getRelated()->getKeyName(),
+                'sortable'       => false,
+                'searchable'     => true,
+                'titleTrans'     => $translateKey ? "$translateKey.columns.$newKey" : null,
+                'columns'        => $isContinueGetRelationColumns ? $classRelation::getColumns($maxDepth, static::class, ...$excepts ?? []) : [],
                 ...$config,
             ];
         }

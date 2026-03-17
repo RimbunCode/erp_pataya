@@ -8,33 +8,35 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaymentTermTemplate extends Model {
-  use HasUlids, SoftDeletes, DataTable;
-  protected $guarded = ['id'];
+    use DataTable, HasUlids, SoftDeletes;
 
-  public static function templateLink() {
-    return ":name";
-  }
-  protected     $configColumns = [
-    'name'        => [
-      'order'  => 0,
-      'show'   => true,
-      'isLink' => true,
-    ],
-    'description' => [
-      'order' => 1,
-      'show'  => true,
-    ],
-  ];
-  public string $translateKey  = "finances.paymentTermTemplate";
+    protected $guarded = ['id'];
 
-  protected static function loadRelationsOnShow() {
-    return [
-      'items',
-      'items.paymentMethod',
+    public static function templateLink() {
+        return ':name';
+    }
+
+    protected $configColumns = [
+        'name' => [
+            'order'  => 0,
+            'show'   => true,
+            'isLink' => true,
+        ],
+        'description' => [
+            'order' => 1,
+            'show'  => true,
+        ],
     ];
-  }
+    public string $translateKey = 'finances.paymentTermTemplate';
 
-  public function items() {
-    return $this->hasMany(PaymentTermTemplateItem::class, 'payment_term_template_id', 'id');
-  }
+    protected static function loadRelationsOnShow() {
+        return [
+            'items',
+            'items.paymentMethod',
+        ];
+    }
+
+    public function items() {
+        return $this->hasMany(PaymentTermTemplateItem::class, 'payment_term_template_id', 'id');
+    }
 }

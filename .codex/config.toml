@@ -5,11 +5,11 @@ cwd = "G:\\Project App\\erp"
 
 [mcp_servers.herd]
 command = "php"
-args = ["C:/Users/RHD/.config/herd/bin/herd-mcp.phar"]
-cwd = "G:\\Project App\\erp"
+args = ["-r", "$home=getenv('USERPROFILE')?:getenv('HOME'); if(!$home){fwrite(STDERR,'Unable to resolve USERPROFILE or HOME'.PHP_EOL); exit(1);} require rtrim(str_replace('\\\\','/',$home),'/').'/.config/herd/bin/herd-mcp.phar';"]
+cwd = "."
 
 [mcp_servers.herd.env]
-SITE_PATH = "G:\\Project App\\erp"
+SITE_PATH = "."
 
 [mcp_servers.shadcn]
 command = "npx"

@@ -13,50 +13,42 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SalesOrder extends Model
-{
+class SalesOrder extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded = ['id'];
-
+    protected $guarded    = ['id'];
     public $keyBreadcrumb = 'code';
-
-    public $translateKey = 'sales.salesOrder';
-
-    protected $casts = [
-        'date' => 'datetime',
-        'is_rent' => 'boolean',
+    public $translateKey  = 'sales.salesOrder';
+    protected $casts      = [
+        'date'       => 'datetime',
+        'is_rent'    => 'boolean',
         'start_date' => 'datetime',
-        'end_date' => 'datetime',
+        'end_date'   => 'datetime',
     ];
-
     protected $appends = [
         'rent_date',
     ];
 
-    public static function templateLink()
-    {
+    public static function templateLink() {
         return ':code';
     }
 
-    public function rentDate(): Attribute
-    {
+    public function rentDate(): Attribute {
         return Attribute::make(
             get: fn () => [
                 'from' => $this->start_date,
-                'to' => $this->end_date,
+                'to'   => $this->end_date,
             ],
             set: fn ($value) => [
                 'start_date' => Carbon::parse($value['from'])->utc(),
-                'end_date' => Carbon::parse($value['to'])->utc(),
-            ]
+                'end_date'   => Carbon::parse($value['to'])->utc(),
+            ],
         );
     }
 
     protected static string $defaultFormatCode = '@[branch_code]/SO-@[iiii]/@[yy]';
 
-    public function codeRelations()
-    {
+    public function codeRelations() {
         return [
             'branch_code:branch.code',
             'branch_name:branch.name',
@@ -66,23 +58,23 @@ class SalesOrder extends Model
     protected $configColumns = [
         'code' => [
             'isLink' => true,
-            'show' => true,
-            'order' => 0,
+            'show'   => true,
+            'order'  => 0,
         ],
         'customer' => [
-            'show' => true,
+            'show'  => true,
             'order' => 1,
         ],
         'date' => [
-            'show' => true,
+            'show'  => true,
             'order' => 2,
         ],
         'is_rent' => [
-            'show' => true,
+            'show'  => true,
             'order' => 3,
         ],
         'status' => [
-            'show' => true,
+            'show'  => true,
             'order' => 4,
         ],
         'customer_branch',
@@ -122,8 +114,7 @@ class SalesOrder extends Model
         'items',
     ];
 
-    protected static function loadRelationsOnShow()
-    {
+    protected static function loadRelationsOnShow() {
         return [
             'referenceable',
             'referenceSo',
@@ -141,43 +132,35 @@ class SalesOrder extends Model
         ];
     }
 
-    public function referenceable()
-    {
+    public function referenceable() {
         return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
     }
 
-    public function referenceSo()
-    {
+    public function referenceSo() {
         return $this->belongsTo(SalesOrder::class, 'reference_so_id');
     }
 
-    public function items()
-    {
+    public function items() {
         return $this->hasMany(SalesOrderItem::class);
     }
 
-    public function customer()
-    {
+    public function customer() {
         return $this->belongsTo(Customer::class);
     }
 
-    public function customer_branch()
-    {
+    public function customer_branch() {
         return $this->belongsTo(Branch::class, 'customer_branch_id');
     }
 
-    public function branch()
-    {
+    public function branch() {
         return $this->belongsTo(Branch::class);
     }
 
-    public function currency()
-    {
+    public function currency() {
         return $this->belongsTo(Currency::class, 'currency_code');
     }
 
-    public function paymentSchedules()
-    {
+    public function paymentSchedules() {
         return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')
             ->orderBy('due_date', 'asc');
     }

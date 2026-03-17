@@ -10,21 +10,19 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
-class RolesFormTest extends TestCase
-{
+class RolesFormTest extends TestCase {
     use RefreshDatabase;
 
-    public function test_roles_create_page_is_displayed(): void
-    {
-        $user = User::factory()->create();
+    public function test_roles_create_page_is_displayed(): void {
+        $user        = User::factory()->create();
         $permissions = [
             Role::class => [
                 0 => [
                     'false' => [
-                        'model' => Role::class,
-                        'level' => 0,
+                        'model'        => Role::class,
+                        'level'        => 0,
                         'only_creator' => false,
-                        'permissions' => [
+                        'permissions'  => [
                             'create' => true,
                         ],
                     ],

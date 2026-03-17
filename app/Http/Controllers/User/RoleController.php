@@ -12,18 +12,15 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Symfony\Component\Uid\Ulid;
 
-class RoleController extends Controller
-{
-    public function __construct(Request $request)
-    {
+class RoleController extends Controller {
+    public function __construct(Request $request) {
         parent::__construct($request, Role::class);
     }
 
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
-    {
+    public function index(Request $request) {
         $this->setBreadcrumbs();
         Role::dataTable($request);
 
@@ -33,8 +30,7 @@ class RoleController extends Controller
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
+    public function create() {
         $this->setBreadcrumbs('__(user.role.new)');
 
         return Inertia::render('Users/Roles/Show');
@@ -43,12 +39,11 @@ class RoleController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(RoleRequest $request)
-    {
+    public function store(RoleRequest $request) {
         $data = $request->validated();
         DB::beginTransaction();
         $role = Role::create([
-            'name' => $data['name'],
+            'name'        => $data['name'],
             'description' => $data['description'] ?? '',
             'is_disabled' => $data['is_disabled'] ?? '',
         ]);
@@ -64,8 +59,7 @@ class RoleController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, Role $role)
-    {
+    public function show(Request $request, Role $role) {
         if (! $this->isInertiaRequest($request)) {
             $role->load('rules');
 
@@ -84,12 +78,11 @@ class RoleController extends Controller
         ]);
     }
 
-    public function getPermissions(Request $request)
-    {
+    public function getPermissions(Request $request) {
         if ($this->isInertiaRequest($request)) {
             abort(404);
         }
-        $ids = $request->ids;
+        $ids   = $request->ids;
         $roles = RolePermission::select('role_permissions.model', 'role_permissions.name', 'role_permissions.permissions', 'role_permissions.level', 'role_permissions.only_creator')
             ->whereIn('role_permissions.role_id', $ids)
             ->get()
@@ -109,11 +102,11 @@ class RoleController extends Controller
                 $masterData = $permissions->first();
 
                 return [
-                    'name' => $masterData->name,
-                    'model' => $masterData->model,
-                    'level' => $masterData->level,
+                    'name'         => $masterData->name,
+                    'model'        => $masterData->model,
+                    'level'        => $masterData->level,
                     'only_creator' => $masterData->only_creator,
-                    'permissions' => $dataPermissions,
+                    'permissions'  => $dataPermissions,
                 ];
             })))
             ->flatten(2);
@@ -121,8 +114,7 @@ class RoleController extends Controller
         return response()->json(['rules' => $roles]);
     }
 
-    private function updatePermissions(Role &$role, array $rules)
-    {
+    private function updatePermissions(Role &$role, array $rules) {
         $permissions = array_map(fn ($permission) => $permission['permission_id'], $rules);
         $permissions = Permission::whereIn('id', $permissions)->get()
             ->mapWithKeys(fn ($permission) => [$permission->id => $permission]);
@@ -132,11 +124,11 @@ class RoleController extends Controller
             ->delete();
         foreach ($rules as $rule) {
             $permission = $permissions[$rule['permission_id']];
-            $payload = [
-                'name' => $permission->name,
-                'model' => $permission->model,
+            $payload    = [
+                'name'          => $permission->name,
+                'model'         => $permission->model,
                 'is_submitable' => $permission->is_submitable,
-                'permissions' => collect($rule['level'] > 0 ? ['read', 'write'] : $permission->permissions)
+                'permissions'   => collect($rule['level'] > 0 ? ['read', 'write'] : $permission->permissions)
                     ->mapWithKeys(fn ($permission) => [$permission => $rule['permissions'][$permission] ?? false]),
             ];
             if (Ulid::isValid($rule['id'])) {
@@ -145,10 +137,10 @@ class RoleController extends Controller
                     ->update($payload);
             } else {
                 $role->rules()->create([
-                    'role_id' => $role->id,
+                    'role_id'       => $role->id,
                     'permission_id' => $permission->id,
-                    'level' => $rule['level'],
-                    'only_creator' => $rule['only_creator'],
+                    'level'         => $rule['level'],
+                    'only_creator'  => $rule['only_creator'],
                     ...$payload,
                 ]);
             }
@@ -158,12 +150,11 @@ class RoleController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(RoleRequest $request, Role $role)
-    {
+    public function update(RoleRequest $request, Role $role) {
         $data = $request->validated();
         DB::beginTransaction();
         $role->fillForUpdate([
-            'name' => $data['name'],
+            'name'        => $data['name'],
             'description' => $data['description'] ?? '',
             'is_disabled' => $data['is_disabled'] ?? '',
         ]);
@@ -179,8 +170,7 @@ class RoleController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
-    {
+    public function destroy(string $id) {
         //
     }
 }

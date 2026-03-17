@@ -1,7 +1,7 @@
 <?php
 
 return [
-  'light' => 'Terang',
-  'dark' => 'Gelap',
-  'system' => 'Sistem',
+    'light'  => 'Terang',
+    'dark'   => 'Gelap',
+    'system' => 'Sistem',
 ];

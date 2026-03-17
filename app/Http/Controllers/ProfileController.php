@@ -11,24 +11,21 @@ use Illuminate\Support\Facades\Redirect;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ProfileController extends Controller
-{
+class ProfileController extends Controller {
     /**
      * Display the user's profile form.
      */
-    public function edit(Request $request): Response
-    {
+    public function edit(Request $request): Response {
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
-            'status' => session('status'),
+            'status'          => session('status'),
         ]);
     }
 
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
-    {
+    public function update(ProfileUpdateRequest $request): RedirectResponse {
         $request->user()->fill($request->validated());
 
         if ($request->user()->isDirty('email')) {
@@ -43,8 +40,7 @@ class ProfileController extends Controller
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request): RedirectResponse
-    {
+    public function destroy(Request $request): RedirectResponse {
         $request->validate([
             'password' => ['required', 'current_password'],
         ]);
