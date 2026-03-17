@@ -20,7 +20,7 @@ const DropdownMenuSub = DropdownMenuPrimitive.Sub;
 const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
 
 const DropdownMenuSubTrigger = React.forwardRef(
-  ({ className, inset, children, ...props }, ref) => (
+  ({ className, inset, children, useDefaultIcon = true, ...props }, ref) => (
     <DropdownMenuPrimitive.SubTrigger
       ref={ref}
       className={cn(
@@ -31,7 +31,7 @@ const DropdownMenuSubTrigger = React.forwardRef(
       {...props}
     >
       {children}
-      <ChevronRight className="ml-auto" />
+      {useDefaultIcon && <ChevronRight className="ml-auto" />}
     </DropdownMenuPrimitive.SubTrigger>
   ),
 );

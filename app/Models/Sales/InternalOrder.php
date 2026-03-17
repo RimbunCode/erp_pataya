@@ -9,46 +9,53 @@ use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class InternalOrder extends Model
-{
-  use DataTable, Submitable, HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
-  protected $casts = [
-    "date" => "datetime",
-  ];
-  protected static string $defaultFormatCode = '@[branch_code]/IO-@[iiii]/@[yy]';
+class InternalOrder extends Model {
+    use DataTable, HasUlids, SoftDeletes, Submitable;
 
-  public function codeRelations()
-  {
-    return [
-      'branch_code:branch.code',
-      'branch_name:branch.name'
+    protected $guarded = ['id'];
+    protected $casts   = [
+        'date' => 'datetime',
     ];
-  }
-  public $keyBreadcrumb = "code";
+    protected static string $defaultFormatCode = '@[branch_code]/IO-@[iiii]/@[yy]';
 
-  public function branch()
-  {
-    return $this->belongsTo(Branch::class);
-  }
+    public static function templateLink() {
+        return ':code';
+    }
 
-  public function items()
-  {
-    return $this->hasMany(InternalOrderItem::class);
-  }
-  public string $translateKey = "sales.internalOrder";
-  protected $configColumns = [
-    'code' => [
-      'isLink' => true,
-      'show' => true,
-      'order' => 0,
-    ],
-    'date' => [
-      'show' => true,
-      'order' => 1,
-    ],
-    'branch' => [
-      'ignore' => true
-    ],
-  ];
+    public function codeRelations() {
+        return [
+            'branch_code:branch.code',
+            'branch_name:branch.name',
+        ];
+    }
+
+    public $keyBreadcrumb = 'code';
+
+    public function branch() {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function items() {
+        return $this->hasMany(InternalOrderItem::class);
+    }
+
+    public string $translateKey = 'sales.internalOrder';
+    protected $configColumns    = [
+        'code' => [
+            'isLink' => true,
+            'show'   => true,
+            'order'  => 0,
+        ],
+        'date' => [
+            'show'  => true,
+            'order' => 1,
+        ],
+        'status' => [
+            'show'  => true,
+            'order' => 2,
+        ],
+        'branch' => [
+            'ignore' => true,
+        ],
+    ];
 }

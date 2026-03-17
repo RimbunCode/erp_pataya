@@ -12,12 +12,13 @@ import {
   DropdownMenuItem,
 } from "../ui/dropdown-menu";
 import { cn, mergeRefs } from "@/lib/utils";
-import { forwardRef, memo, useCallback, useEffect, useState } from "react";
+import { forwardRef, memo } from "react";
 
 import { Button } from "../ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { DialogTrigger } from "../ui/dialog";
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
+import { RunningText, RunningTextContent } from "../ui/running-text";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useSortable } from "@dnd-kit/sortable";
 
@@ -41,6 +42,9 @@ export default memo(
     ref,
   ) {
     const { t } = useLaravelReactI18n();
+    const headerTitle = title ?? t(titleTrans);
+    const hasPlainTitle =
+      typeof headerTitle === "string" || typeof headerTitle === "number";
 
     const { attributes, listeners, setNodeRef, transform, transition } =
       useSortable({ id: id });
@@ -64,26 +68,38 @@ export default memo(
         <div
           className={cn(
             !freezeColumn && "-ml-5!",
-            "flex justify-between gap-x-2 group",
+            "flex min-w-0 justify-between gap-x-2 group",
           )}
         >
-          <div className="flex items-center">
+          <div className="flex min-w-0 items-center">
             {!freezeColumn && (
               <button className="cursor-move " {...listeners} {...attributes}>
                 <GripVertical className="transition-colors group-hover:text-foreground text-muted size-5" />
               </button>
             )}
-            {sortable ? (
-              <button
-                type="button"
-                className="flex items-center hover:underline gap-x-2 [&>svg]:size-5"
-                onClick={() => setSort(name)}
-              >
-                {title ?? t(titleTrans)}
-              </button>
-            ) : (
-              <span>{title ?? t(titleTrans)}</span>
-            )}
+            <RunningText className="w-full">
+              {sortable ? (
+                <button
+                  type="button"
+                  className="flex items-center hover:underline gap-x-2 [&>svg]:size-5"
+                  onClick={() => setSort(name)}
+                >
+                  {hasPlainTitle ? (
+                    <RunningTextContent text={headerTitle} />
+                  ) : (
+                    headerTitle
+                  )}
+                </button>
+              ) : (
+                <>
+                  {hasPlainTitle ? (
+                    <RunningTextContent text={headerTitle} />
+                  ) : (
+                    headerTitle
+                  )}
+                </>
+              )}
+            </RunningText>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

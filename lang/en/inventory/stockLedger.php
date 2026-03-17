@@ -1,0 +1,38 @@
+<?php
+
+return [
+    'title'                        => 'Stock Ledgers',
+    'add'                          => 'Add Stock',
+    'stocks'                       => 'Stocks',
+    'new'                          => 'New Stock',
+    'delete'                       => 'Delete Stock',
+    'delete.description'           => 'Are you sure you want to delete this data?',
+    'delete.confirm'               => 'Delete',
+    'cancel'                       => 'Cancel',
+    'playground'                   => 'Playground',
+    'playground.description'       => 'Select a stock to see its conversion factor',
+    'playground.stock.placeholder' => 'Select a stock',
+    'stock'                        => 'Stock',
+    'columns'                      => [
+        'code'                       => 'Code',
+        'name'                       => 'Name',
+        'group'                      => 'Group',
+        'stocks.from'                => 'From',
+        'stocks.to'                  => 'To',
+        'customable'                 => 'Customable Conversion Factor',
+        'group.placeholder'          => 'Select or create a group',
+        'conversion_factor'          => 'Conversion Factor',
+        'is_default'                 => 'Default Stock',
+        'quantity_change'            => 'Quantity Change',
+        'quantity_after_transaction' => 'Quantity After Transaction',
+        'valuation_rate'             => 'Valuation Rate',
+        'balance_stock_value'        => 'Balance Stock Value',
+        'change_in_stock_value'      => 'Change In Stock Value',
+        'warehouse'                  => 'Warehouse',
+        'referenceable'              => 'Reference To',
+        'stock_queue'                => 'Stock Queue',
+        'item'                       => 'Item',
+        'unit'                       => 'Unit',
+
+    ],
+];

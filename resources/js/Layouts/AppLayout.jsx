@@ -1,12 +1,3 @@
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/Components/ui/command";
 import React, { forwardRef, memo } from "react";
 import { SidebarInset, SidebarProvider } from "@/Components/ui/sidebar";
 
@@ -14,12 +5,10 @@ import AppSidebar from "@/Components/Sidebar/AppSidebar";
 import MasterLayout from "./MasterLayout";
 import Navbar from "@/Components/Navbar/Navbar";
 import { cn } from "@/lib/utils";
-import useTheme from "@/Hooks/useTheme";
 
 export default memo(
   forwardRef(function AppLayout({ className, children, ...props }, ref) {
-    const { setTheme } = useTheme();
-    const [showSearch, setShowSearch] = React.useState(false);
+    const [, setShowSearch] = React.useState(false);
     React.useEffect(() => {
       const down = (e) => {
         if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
@@ -39,11 +28,6 @@ export default memo(
 
       document.addEventListener("keydown", down);
       return () => document.removeEventListener("keydown", down);
-    }, []);
-
-    const runCommand = React.useCallback((command) => {
-      setShowSearch(false);
-      command();
     }, []);
 
     return (

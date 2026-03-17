@@ -1,5 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
@@ -8,6 +8,7 @@ import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
@@ -16,8 +17,14 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { dataBefore, defaultData, data, setData, disabled, form } =
-    useFormPage();
+  const { dataBefore, defaultData, data, setData, disabled } = useFormPage(
+    {
+      date: new Date(),
+    },
+    {
+      trackDefaultValue: false,
+    },
+  );
   const itemColumns = useMemo(() => {
     return [
       {
@@ -40,7 +47,9 @@ export default function Form() {
               }}
               {...attributes}
               filters={{
-                is_stock_item: true,
+                type: {
+                  not: "vehicle",
+                },
               }}
               with={["defaultUnit", "item"]}
             />
@@ -129,10 +138,8 @@ export default function Form() {
               disabledAddButton
               {...attributes}
               filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
+                type: {
+                  not: "vehicle",
                 },
                 or: {
                   "raw(item_alternatives.item_id)": dataRow?.item?.id,
@@ -171,12 +178,40 @@ export default function Form() {
       },
     ];
   }, []);
-  useEffect(() => {
-    if (!data.date) {
-      const currentDate = new Date();
-      form.setData({ date: currentDate });
-    }
-  }, []);
+
+  const handleBarcodeSelect = useCallback(
+    (selected) => {
+      const selectedItem = selected?.item ?? selected;
+      const selectedUnit = selected?.unit ?? selected?.default_unit;
+      if (!selectedItem || !selectedUnit) return;
+
+      setData((prev) => {
+        const items = [...(prev?.items ?? [])];
+        const idx = items.findIndex(
+          (row) =>
+            row?.item?.id === selectedItem?.id &&
+            row?.unit?.id === selectedUnit?.id,
+        );
+
+        if (idx >= 0) {
+          const currentQty = items[idx]?.quantity ?? 0;
+          items[idx] = { ...items[idx], quantity: currentQty + 1 };
+        } else {
+          items.push({
+            item: selectedItem,
+            unit: selectedUnit,
+            quantity: 1,
+          });
+        }
+
+        return {
+          ...prev,
+          items,
+        };
+      });
+    },
+    [setData],
+  );
   return (
     <>
       <FormPageContent value="detail" title={t("service.workOrder.detail")}>
@@ -271,11 +306,7 @@ export default function Form() {
                 setData("item_service", val);
               }}
               filters={{
-                category: {
-                  type: {
-                    in: ["vehicle"],
-                  },
-                },
+                type: "vehicle",
               }}
               with={["defaultUnit", "category"]}
             />
@@ -288,24 +319,39 @@ export default function Form() {
               <DatetimePicker type="datetime" value={data.started_at} />
             </FormInput>
           )}
-          {defaultData?.complated_at && (
+          {defaultData?.completed_at && (
             <FormInput
               disabled
-              label={t("service.workOrder.columns.complated_at")}
+              label={t("service.workOrder.columns.completed_at")}
             >
-              <DatetimePicker type="datetime" value={data.complated_at} />
+              <DatetimePicker type="datetime" value={data.completed_at} />
             </FormInput>
           )}
         </div>
       </FormPageContent>
       <FormPageContent value="detail" title={t("service.workOrder.items")}>
-        <FormTable
-          readOnly={disabled}
-          columns={itemColumns}
-          value={data?.items ?? []}
-          onValueChange={(v) => setData("items", v)}
-          form={<ItemForm />}
-        />
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+          <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
+            <ItemBarcode
+              filters={{
+                item: {
+                  type: { not: "vehicle" },
+                },
+              }}
+              with={["item", "unit"]}
+              onSelect={handleBarcodeSelect}
+            />
+          </FormInput>
+          <FormTable
+            name="WorkOrderItems"
+            className="col-start-1  col-span-full"
+            readOnly={disabled}
+            columns={itemColumns}
+            value={data?.items ?? []}
+            onValueChange={(v) => setData("items", v)}
+            form={<ItemForm />}
+          />
+        </div>
       </FormPageContent>
       <FormPageContent
         value="detail"

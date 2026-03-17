@@ -5,15 +5,13 @@ namespace App\Casts\Inventory;
 use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 
-class SKU implements CastsAttributes
-{
+class SKU implements CastsAttributes {
     /**
      * Cast the given value.
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function get(Model $model, string $key, mixed $value, array $attributes): mixed
-    {
+    public function get(Model $model, string $key, mixed $value, array $attributes): mixed {
         return $value;
     }
 
@@ -22,8 +20,7 @@ class SKU implements CastsAttributes
      *
      * @param  array<string, mixed>  $attributes
      */
-    public function set(Model $model, string $key, mixed $value, array $attributes): mixed
-    {
+    public function set(Model $model, string $key, mixed $value, array $attributes): mixed {
         return $value;
     }
 }

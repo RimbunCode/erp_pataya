@@ -1,32 +1,39 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useEffect } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
+import { calculateArray, generateRandom } from "@/lib/utils";
+
+import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
+import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
-import { calculateArray, generateRandom } from "@/lib/utils";
+import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
-import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
-import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
-import Select from "@/Components/Select";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage(
+    {
+      date: new Date(),
+    },
+    { trackDefaultValue: false },
+  );
   const loadFrom = usePage().props.loadFrom;
   const { default_currency_id } = usePage().props.preferences;
 
-  const basic_amount = useMemo(() => {
+  const net_amount = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
@@ -35,50 +42,9 @@ function Form() {
   }, [data.items]);
 
   const amount = useMemo(() => {
-    return basic_amount + tax_amount;
-  }, [basic_amount, tax_amount]);
+    return net_amount + tax_amount;
+  }, [net_amount, tax_amount]);
 
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
-  const setDiscount = useCallback(
-    (key, value) => {
-      setData((prev) => {
-        let discount_on = prev.discount_on;
-        let discount_rate = prev.discount_rate ?? 0;
-        let discount_amount = prev.discount_amount ?? 0;
-        const basic_amount = calculateArray(prev.items, "basic_amount", "+");
-        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
-        if (key == "discount_on") {
-          discount_on = value;
-        }
-        const total =
-          discount_on == "grand_total"
-            ? basic_amount + tax_amount
-            : discount_on == "net_total"
-              ? basic_amount
-              : 0;
-        if (key == "discount_rate") {
-          discount_rate = value;
-          discount_amount = (total * discount_rate) / 100;
-        }
-        if (key == "discount_amount") {
-          discount_amount = value;
-          discount_rate = (discount_amount * 100) / total;
-        }
-        if (key == "discount_on") {
-          discount_amount = (total * discount_rate) / 100;
-        }
-        return {
-          ...prev,
-          discount_on,
-          discount_rate,
-          discount_amount,
-        };
-      });
-    },
-    [data],
-  );
   const mergeItems = useCallback(
     (value, model) => {
       setData((prev) => {
@@ -101,7 +67,7 @@ function Form() {
             target_warehouse: item.target_warehouse,
             description: item.description,
             required_date: prev.required_date,
-            quantity: item.remaining_quantity,
+            quantity: item.unordered_quantity,
             unit: item.unit,
             referenceable_type: model,
             referenceable_id: item.id,
@@ -137,11 +103,43 @@ function Form() {
         loadFrom?.id,
         loadFrom?.select,
       );
-      console.log(data);
       mergeItems(data.value, data.model);
     };
     fetchData().catch(console.error);
   }, [loadFrom, mergeItems]);
+
+  const handleBarcodeSelect = useCallback(
+    (selected) => {
+      const selectedItem = selected?.item ?? selected;
+      const selectedUnit = selected?.unit ?? selected?.default_unit;
+      if (!selectedItem || !selectedUnit) return;
+
+      setData((prev) => {
+        const items = [...(prev?.items ?? [])];
+        const idx = items.findIndex(
+          (row) =>
+            row?.item?.id === selectedItem?.id &&
+            row?.unit?.id === selectedUnit?.id,
+        );
+        if (idx >= 0) {
+          const currentQty = items[idx]?.quantity ?? 0;
+          items[idx] = { ...items[idx], quantity: currentQty + 1 };
+        } else {
+          items.push({
+            id: generateRandom(5),
+            item: selectedItem,
+            unit: selectedUnit,
+            quantity: 1,
+            required_date: prev?.required_date,
+
+            target_warehouse: prev?.target_warehouse,
+          });
+        }
+        return { ...prev, items };
+      });
+    },
+    [setData],
+  );
   const itemColumns = useMemo(() => {
     return [
       {
@@ -159,6 +157,7 @@ function Form() {
                   item: val,
                   unit: val?.default_unit,
                   required_date: data.required_date,
+                  target_warehouse: data.target_warehouse,
                 });
               }}
               {...attributes}
@@ -205,7 +204,6 @@ function Form() {
       {
         name: "required_date",
         titleTrans: "purchase.purchaseOrder.columns.required_date",
-        required: true,
         type: "date",
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
@@ -246,7 +244,6 @@ function Form() {
       {
         name: "unit",
         titleTrans: "purchase.purchaseOrder.columns.unit",
-        required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
             <UnitLinkModel
@@ -297,7 +294,6 @@ function Form() {
             <CurrencyInput
               disabled={!dataRow?.item}
               currencyCode={data?.currency?.code}
-              placeholder={t("purchase.purchaseOrder.columns.rate.placeholder")}
               decimalScale={2}
               value={value}
               onValueChange={(val) => setData("rate", val)}
@@ -310,10 +306,13 @@ function Form() {
         },
       },
     ];
-  }, [data.required_date, t]);
+  }, [data, t]);
   return (
     <>
-      <FormPageContent value="detail">
+      <FormPageContent
+        value="detail"
+        title={t("purchase.purchaseOrder.detail")}
+      >
         <div className="flex flex-col gap-y-4">
           <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
             <FormInput
@@ -435,7 +434,7 @@ function Form() {
                   },
                 },
                 "App\\Models\\Purchase\\PurchaseRequest": {
-                  columns: ["code", "date"],
+                  columns: ["code", "date", "status"],
                   filters: {
                     status: "submitted",
                   },
@@ -448,7 +447,7 @@ function Form() {
                         "purchase_request",
                         "item",
                         "quantity",
-                        "remaining_quantity",
+                        "unordered_quantity",
                         "unit",
                       ],
                     },
@@ -465,8 +464,46 @@ function Form() {
         }
       >
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
+            <ItemBarcode
+              with={["item", "unit"]}
+              onSelect={handleBarcodeSelect}
+            />
+          </FormInput>
+          <FormInput
+            label={t("purchase.purchaseOrder.columns.target_warehouse")}
+            name="target_warehouse"
+          >
+            <WarehouseLinkModel
+              placeholder={t(
+                "purchase.purchaseOrder.columns.target_warehouse.placeholder",
+              )}
+              value={data.target_warehouse}
+              onValueChange={(val) => {
+                setData((prev) => {
+                  if (!prev.items || prev.items?.length <= 0)
+                    return {
+                      ...prev,
+                      target_warehouse: val,
+                    };
+                  const newItems = prev.items.map((item) => {
+                    return {
+                      ...item,
+                      target_warehouse: val,
+                    };
+                  });
+                  return {
+                    ...prev,
+                    items: newItems,
+                    target_warehouse: val,
+                  };
+                });
+              }}
+            />
+          </FormInput>
           <div className="col-span-full">
             <FormTable
+              name="PurchaseOrderItems"
               readOnly={disabled}
               columns={itemColumns}
               value={data?.items}
@@ -491,7 +528,7 @@ function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={basic_amount * (data?.exchange_rate ?? 1)}
+                  value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -504,7 +541,7 @@ function Form() {
             <CurrencyInput
               decimalScale={2}
               className="text-right"
-              value={basic_amount}
+              value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -560,51 +597,12 @@ function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("purchase.purchaseOrder.columns.additional_discount")}
-        collapsible
-        defaultOpen
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput label={t("purchase.purchaseOrder.columns.discount_on")}>
-            <Select
-              value={data.discount_on}
-              onValueChange={(val) => setDiscount("discount_on", val)}
-              placeholder={t(
-                "purchase.purchaseOrder.columns.discount_on.placeholder",
-              )}
-              optionTrans="purchase.purchaseOrder.columns.discount_on.options"
-              options={["net_total", "grand_total"]}
-            />
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("purchase.purchaseOrder.columns.additional_discount_rate")}`}
-          >
-            <CurrencyInput
-              className="text-right"
-              value={data.discount_rate}
-              onValueChange={(val) => setDiscount("discount_rate", val)}
-              suffix="%"
-            ></CurrencyInput>
-          </FormInput>
-
-          <FormInput
-            className="col-start-2"
-            disabled={!data?.discount_on}
-            label={`${t("purchase.purchaseOrder.columns.additional_discount_amount")}`}
-          >
-            <CurrencyInput
-              className="text-right "
-              decimalScale={2}
-              value={data.discount_amount}
-              onValueChange={(val) => setDiscount("discount_amount", val)}
-              currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
-          </FormInput>
-        </div>
-      </FormPageContent>
+      <AdditionalDiscount
+        data={data}
+        setData={setData}
+        netAmount={net_amount}
+        taxAmount={tax_amount}
+      />
 
       <FormPageContent
         value="detail"
@@ -626,13 +624,18 @@ function Form() {
         readOnly={disabled}
         value={data?.payment_schedules ?? []}
         onValueChange={(v) => setData("payment_schedules", v)}
-        mapItem={({ item }) => {
-          const payment_amount = amount * (item?.invoice_portion / 100);
-          return {
-            ...item,
-            payment_amount,
-            outstanding_amount: payment_amount,
-          };
+        additionalData={(value) => {
+          const result = {};
+          value?.forEach((item) => {
+            const payment_amount = (amount * item?.invoice_portion) / 100;
+
+            result[item.id] = {
+              payment_amount,
+              outstanding_amount: payment_amount,
+            };
+          });
+
+          return result;
         }}
         date={data?.date}
         currencyCode={data?.currency?.code}

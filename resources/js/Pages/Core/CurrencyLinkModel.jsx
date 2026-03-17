@@ -13,6 +13,8 @@ export default forwardRef(function CurrencyLinkModel(
       model="App\Models\Core\Currency"
       disabledNavigation
       disabledAddButton
+      cache
+      cacheStorage="sessionStorage"
       {...props}
       ref={ref}
     />

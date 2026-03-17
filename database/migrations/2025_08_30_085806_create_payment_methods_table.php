@@ -6,25 +6,24 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-  /**
-   * Run the migrations.
-   */
-  public function up(): void
-  {
-    Schema::create('payment_methods', function (Blueprint $table) {
-      $table->ulid('id')->primary();
-      $table->string('name');
-      $table->text('description')->nullable();
-      $table->softDeletes();
-      $table->timestamps();
-    });
-  }
+    /**
+     * Run the migrations.
+     */
+    public function up(): void {
+        Schema::create('payment_methods', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->foreignUlid('default_account_id')->nullable()->references('id')->on('accounts')->cascadeOnDelete();
+            $table->softDeletes();
+            $table->timestamps();
+        });
+    }
 
-  /**
-   * Reverse the migrations.
-   */
-  public function down(): void
-  {
-    Schema::dropIfExists('payment_methods');
-  }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void {
+        Schema::dropIfExists('payment_methods');
+    }
 };

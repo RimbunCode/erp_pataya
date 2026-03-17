@@ -1,14 +1,11 @@
-import {
-  FormPageContent,
-  FormPageContentTitle,
-  useFormPage,
-} from "@/Pages/Core/FormPage";
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+
+import AccountLinkModel from "../Accounts/AccountLinkModel";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import CurrencyInput from "@/Components/CurrencyInput";
 import { Textarea } from "@/Components/ui/textarea";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { data, setData } = useFormPage();
@@ -17,7 +14,6 @@ export default function Form() {
   return (
     <>
       <FormPageContent title={null} value="detail">
-        <FormPageContentTitle></FormPageContentTitle>
         <div className="grid gap-x-3 gap-y-4">
           <FormInput
             required={true}
@@ -29,9 +25,18 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
-            required={true}
-            label={t("finances.paymentMethod.columns.description")}
+            label={t("finances.paymentMethod.columns.default_account")}
           >
+            <AccountLinkModel
+              filters={{
+                root_type: "asset",
+                is_group: false,
+              }}
+              value={data?.default_account ?? ""}
+              onValueChange={(val) => setData("default_account", val)}
+            />
+          </FormInput>
+          <FormInput label={t("finances.paymentMethod.columns.description")}>
             <Textarea
               value={data?.description ?? ""}
               onChange={(e) => setData("description", e.target.value)}

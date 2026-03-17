@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/refs */
 import {
   AlertDialog,
   AlertDialogContent,
@@ -39,6 +40,7 @@ import {
 import React, {
   forwardRef,
   memo,
+  startTransition,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -75,127 +77,205 @@ import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const FORMTABLE_COLUMNS_KEY = "formtable-columns";
-// const FORMTABLE_COLUMNS_EXPIRED = 7;
+const FORMTABLE_COLUMNS_EXPIRED = 30;
 
 const Wrapper = memo(({ children, isDialog }) => {
   if (isDialog) return <>{children}</>;
   else
     return (
-      <div className="focus-within:border-0 focus-within:ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1 h-full focus-visible:ring-offset-1 m-0.5">
+      <div className="focus-within:border-0 focus-within:ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1 h-full focus-visible:ring-offset-1">
         {children}
       </div>
     );
 });
 
 Wrapper.displayName = "Wrapper";
-export const Cell = memo(
-  forwardRef(
-    (
+
+const getRowFieldCount = (row) => Object.keys(row ?? {}).length;
+const isSameArrayReferences = (first = [], second = []) => {
+  if (first.length !== second.length) {
+    return false;
+  }
+  for (let index = 0; index < first.length; index++) {
+    if (first[index] !== second[index]) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const CellComponent = forwardRef(function Cell(
+  {
+    index,
+    item,
+    col,
+    isLast,
+    updateData,
+    readOnly,
+    disabled,
+    className,
+    onToggleDialog,
+    onCellKeyDown,
+    defaultValueRow,
+    defaultRowFieldCount,
+    rowFieldCount,
+    isDialog,
+    additionalData,
+    ...props
+  },
+  ref,
+) {
+  if (!item) {
+    return null;
+  }
+
+  const currentRowFieldCount = rowFieldCount ?? getRowFieldCount(item);
+  const minimumRowFieldCount =
+    defaultRowFieldCount ?? getRowFieldCount(defaultValueRow) + 1;
+  const isRowEmpty = currentRowFieldCount <= minimumRowFieldCount;
+  const attributes = {
+    ...props,
+    ...col.props,
+    readOnly: readOnly || disabled || col.readOnly || false,
+    required: (!isRowEmpty || !isLast) && col.required,
+    name: col.name,
+    className: cn(!isDialog && "h-full", className, col.props?.className),
+    ref,
+  };
+  const handleKeyDown = (event) => {
+    attributes.onKeyDown?.(event);
+    onCellKeyDown?.(event, index, col.name);
+  };
+
+  if (col.cell) {
+    return col.cell(
       {
-        index,
-        item,
-        col,
-        isLast,
-        updateData,
-        readOnly,
-        disabled,
-        className,
-        onOpenDialog,
-        defaultValueRow,
-        isDialog,
+        dataRow: item,
+        data: item[col.name],
+        setData: (key, value) => updateData(index, key, value),
         additionalData,
-        ...props
+        attributes,
+        toggleDialog: onToggleDialog ?? (() => {}),
+        reset: () => {
+          updateData(index, {});
+        },
+        isEmpty: isRowEmpty,
       },
-      ref,
-    ) => {
-      if (!item) return;
-      const attributes = {
-        ...props,
-        ...col.props,
-        readOnly: readOnly || disabled || col.readOnly || false,
-        required:
-          (Object.keys(item ?? {}).length >
-            Object.keys(defaultValueRow ?? {}).length + 1 ||
-            !isLast) &&
-          col.required,
-        name: col.name,
-        className: cn(!isDialog && "h-full", className, col.props?.className),
-        ref,
-      };
-      if (col.cell) {
-        return col.cell(
-          {
-            dataRow: item,
-            data: item[col.name],
-            setData: (key, value) => updateData(index, key, value),
-            additionalData: additionalData?.[item.id],
-            attributes,
-            openDialog: onOpenDialog ?? (() => {}),
-            reset: () => {
-              updateData(index, {});
-            },
-            isEmpty:
-              Object.keys(item).length <=
-              Object.keys(defaultValueRow ?? {}).length + 1,
-          },
-          index,
-        );
-      }
-      switch (col.type) {
-        default:
-          return isDialog ? (
-            <Input
-              type={col.type ?? "text"}
-              value={col.name ? (item[col.name] ?? "") : ""}
-              onChange={(e) => {
-                updateData(
-                  index,
-                  col.name,
-                  col.type == "number" ? +e.target.value : e.target.value,
-                );
-              }}
-              {...attributes}
-              className={cn(
-                attributes.className,
-                !isDialog &&
-                  "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
-              )}
-              // onBlur={(e) => {
-              //   if (!e.target.value) return;
-              //   e.target.value = null;
-              //   e.target.focus();
-              // }}
-            />
-          ) : (
-            <div className="w-full focus-within:border-0 focus-within:ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-0 h-full focus-visible:ring-offset-1 m-0.5">
-              <Input
-                type={col.type ?? "text"}
-                value={col.name ? (item[col.name] ?? "") : ""}
-                onChange={(e) => {
-                  updateData(
-                    index,
-                    col.name,
-                    col.type == "number" ? +e.target.value : e.target.value,
-                  );
-                }}
-                {...attributes}
-                className={cn(
-                  attributes.className,
-                  !isDialog &&
-                    "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
-                )}
-                // onBlur={(e) => {
-                //   if (!e.target.value) return;
-                //   e.target.value = null;
-                //   e.target.focus();
-                // }}
-              />
-            </div>
-          );
-      }
-    },
-  ),
-);
+      index,
+    );
+  }
+
+  switch (col.type) {
+    default:
+      return isDialog ? (
+        <Input
+          type={col.type ?? "text"}
+          value={col.name ? (item[col.name] ?? "") : ""}
+          onChange={(e) => {
+            updateData(
+              index,
+              col.name,
+              col.type == "number" ? +e.target.value : e.target.value,
+            );
+          }}
+          {...attributes}
+          onKeyDown={handleKeyDown}
+          className={cn(
+            attributes.className,
+            !isDialog &&
+              "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
+          )}
+          // onBlur={(e) => {
+          //   if (!e.target.value) return;
+          //   e.target.value = null;
+          //   e.target.focus();
+          // }}
+        />
+      ) : (
+        <div className="w-full focus-within:border-0 focus-within:ring-offset-background focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-0 h-full focus-visible:ring-offset-1">
+          <Input
+            type={col.type ?? "text"}
+            value={col.name ? (item[col.name] ?? "") : ""}
+            onChange={(e) => {
+              updateData(
+                index,
+                col.name,
+                col.type == "number" ? +e.target.value : e.target.value,
+              );
+            }}
+            {...attributes}
+            onKeyDown={handleKeyDown}
+            className={cn(
+              attributes.className,
+              !isDialog &&
+                "m-0 bg-transparent! border-0! h-full focus-visible:ring-0! focus-visible:ring-offset-0!",
+            )}
+            // onBlur={(e) => {
+            //   if (!e.target.value) return;
+            //   e.target.value = null;
+            //   e.target.focus();
+            // }}
+          />
+        </div>
+      );
+  }
+});
+
+const areCellPropsEqual = (prevProps, nextProps) => {
+  if (prevProps.col !== nextProps.col) {
+    return false;
+  }
+  if (prevProps.index !== nextProps.index) {
+    return false;
+  }
+  if (prevProps.isLast !== nextProps.isLast) {
+    return false;
+  }
+  if (prevProps.readOnly !== nextProps.readOnly) {
+    return false;
+  }
+  if (prevProps.disabled !== nextProps.disabled) {
+    return false;
+  }
+  if (prevProps.className !== nextProps.className) {
+    return false;
+  }
+  if (prevProps.isDialog !== nextProps.isDialog) {
+    return false;
+  }
+  if (prevProps.keyItem !== nextProps.keyItem) {
+    return false;
+  }
+  if (prevProps.updateData !== nextProps.updateData) {
+    return false;
+  }
+  if (prevProps.onToggleDialog !== nextProps.onToggleDialog) {
+    return false;
+  }
+  if (prevProps.onCellKeyDown !== nextProps.onCellKeyDown) {
+    return false;
+  }
+  if (prevProps.additionalData !== nextProps.additionalData) {
+    return false;
+  }
+  if (prevProps.rowFieldCount !== nextProps.rowFieldCount) {
+    return false;
+  }
+  if (prevProps.defaultRowFieldCount !== nextProps.defaultRowFieldCount) {
+    return false;
+  }
+  if (prevProps.col?.cell || nextProps.col?.cell) {
+    return prevProps.item === nextProps.item;
+  }
+
+  const columnName = prevProps.col?.name;
+  if (columnName !== nextProps.col?.name) {
+    return false;
+  }
+  return Object.is(prevProps.item?.[columnName], nextProps.item?.[columnName]);
+};
+
+export const Cell = memo(CellComponent, areCellPropsEqual);
 
 const FormTableItem = memo(function FormTableItem({
   index,
@@ -212,34 +292,42 @@ const FormTableItem = memo(function FormTableItem({
   readOnly,
   disabled,
   className,
-  defaultValueRow,
+  defaultRowFieldCount,
   forceCanDelete,
-  additionalData,
+  rowAdditionalData,
+  keyItem = "id",
+  actions,
 }) {
+  const rowKey = item?.[keyItem];
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: item.id });
+    useSortable({ id: rowKey });
+  const rowFieldCount = getRowFieldCount(item);
+  const isEmptyRow = rowFieldCount <= defaultRowFieldCount;
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
+  const toggleDialog = useCallback(() => {
+    setCurrentIndex(index);
+    if (submitable) {
+      setCurrentData(item);
+    }
+  }, [index, item, setCurrentData, setCurrentIndex, submitable]);
 
   return (
     <div
-      key={item.id}
+      key={rowKey}
       ref={setNodeRef}
       style={style}
       className={cn(
-        "grid group min-h-10 col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>*:last-child]:border-r [&>*]:border-l [&>*]:border-muted-foreground/25 [&>*]:h-full [&>*]:items-center [&>*]:flex [&>*]:justify-center",
+        "grid group min-h-10 col-span-full items-center grid-cols-subgrid border-muted-foreground/25 [&>*:last-child]:border-r *:border-l *:border-muted-foreground/25 *:h-full *:items-center *:flex *:justify-center",
         className,
       )}
     >
       <div className="px-1 justify-center! text-left ">
         <span
           className={cn(
-            !(
-              Object.keys(item).length <=
-                Object.keys(defaultValueRow ?? {}).length + 1 && isLast
-            ) &&
+            !(isEmptyRow && isLast) &&
               !(readOnly || disabled) &&
               "group-hover:hidden",
           )}
@@ -249,12 +337,7 @@ const FormTableItem = memo(function FormTableItem({
         <button
           className={cn(
             "hidden cursor-move group-hover:inline ",
-            ((Object.keys(item).length <=
-              Object.keys(defaultValueRow ?? {}).length + 1 &&
-              isLast) ||
-              readOnly ||
-              disabled) &&
-              "hidden!",
+            ((isEmptyRow && isLast) || readOnly || disabled) && "hidden!",
           )}
           type="button"
           {...listeners}
@@ -268,36 +351,33 @@ const FormTableItem = memo(function FormTableItem({
           return (
             <div key={col.name} className="has-[.custom-cell]:block!">
               <Cell
-                onOpenDialog={() => {
-                  setCurrentIndex(index);
-                  if (submitable) setCurrentData(item);
-                }}
-                ref={setRef(`${item.id}-${col.name}`)}
+                onToggleDialog={toggleDialog}
+                onCellKeyDown={cellOnKeyDown}
+                ref={setRef(`${rowKey}-${col.name}`)}
                 disabled={disabled}
                 readOnly={readOnly}
                 index={index}
                 item={item}
-                additionalData={additionalData}
+                additionalData={rowAdditionalData}
+                keyItem={keyItem}
                 col={col}
                 isLast={isLast}
-                defaultValueRow={defaultValueRow}
-                onKeyDown={(e) => cellOnKeyDown(e, index, col.name)}
+                defaultRowFieldCount={defaultRowFieldCount}
+                rowFieldCount={rowFieldCount}
                 updateData={updateData}
-                className="rounded-none border-0 focus-visible:ring-offset-1 bg-background m-0.5"
+                className="rounded-none border-0 focus-visible:ring-offset-1 bg-background"
               />
             </div>
           );
         })}
       <div className="flex items-center px-1 gap-x-1">
+        {actions && actions({ row: item, index, toggleDialog })}
         <Button
           type="button"
           variant="ghost"
           size="icon"
           className="size-6 pointer-events-auto!"
-          onClick={() => {
-            setCurrentIndex(index);
-            if (submitable) setCurrentData(item);
-          }}
+          onClick={toggleDialog}
         >
           <PencilIcon className="size-3" />
         </Button>
@@ -306,13 +386,7 @@ const FormTableItem = memo(function FormTableItem({
             type="button"
             variant="ghost"
             size="icon"
-            className={cn(
-              "size-6",
-              Object.keys(item).length <=
-                Object.keys(defaultValueRow ?? {}).length + 1 &&
-                isLast &&
-                "hidden",
-            )}
+            className={cn("size-6", isEmptyRow && isLast && "hidden")}
             onClick={() => deleteRow(index)}
           >
             <Trash2Icon className="size-3 text-destructive" />
@@ -323,7 +397,7 @@ const FormTableItem = memo(function FormTableItem({
   );
 });
 
-const createHeaders = (headers, reset) => {
+const createHeaders = (key, headers, reset) => {
   const columnsMap = new Map(
     headers
       .filter((col) => col)
@@ -331,14 +405,14 @@ const createHeaders = (headers, reset) => {
         col.name,
         {
           ...col,
-          show: col.required || (col.show ?? false),
+          show: col.required || col.locked || (col.show ?? false),
         },
       ]),
   );
   if (reset) return Array.from(columnsMap.values());
 
   let finalColumns = [];
-  const columnsFromCookie = getFromLocalStorage(FORMTABLE_COLUMNS_KEY);
+  const columnsFromCookie = getFromLocalStorage(key);
   if (!columnsFromCookie) {
     return Array.from(columnsMap.values());
   }
@@ -346,7 +420,8 @@ const createHeaders = (headers, reset) => {
   columnsFromCookie.forEach((col) => {
     const oriCol = columnsMap.get(col.name);
     if (!oriCol) return;
-    oriCol.show = col.show || oriCol.required || (oriCol.show ?? false);
+    oriCol.show =
+      col.show || oriCol.required || col.locked || (oriCol.show ?? false);
     oriCol.width = col.width ?? oriCol.width ?? 1;
 
     finalColumns.push(oriCol);
@@ -364,7 +439,7 @@ const createHeaders = (headers, reset) => {
 /**
  * @typedef {object} CellProps
  * @property {object} dataRow
- * @property {Function} setData
+ * @property {(key: string | object, value?: unknown) => void} setData
  * @callback CellCallback
  * @param {CellProps} props
  * @param {number} index
@@ -379,6 +454,7 @@ const createHeaders = (headers, reset) => {
  * @property {"left" | "center" | "right"} align
  * @property {number} width value width in fr, default is 1
  * @property {boolean} required default is false, require
+ * @property {boolean} locked default is false
  * @property {boolean} unique default is false
  * @property {boolean} show default is false, but will be true when required is true
  * @property {object} props
@@ -394,20 +470,23 @@ const createHeaders = (headers, reset) => {
  * @param {string} props.className
  * @param {ColumnProps[]} props.columns
  * @param {object} props.value
- * @param {Function} props.onValueChange
- * @param {Function} props.asyncUpdateAdditionalData
+ * @param {(value: object[]) => void} props.onValueChange
+ * @param {object | ((value: object) => object)} props.additionalData Accepts object map keyed by row id or a callback `(value) => object`
+ * @param {(value: object) => Promise<object>} props.asyncAdditionalData
  * @returns {React.JSX.Element}
  */
 export default memo(
   forwardRef(function FormTable(
     {
       name,
+      keyItem = "id",
       label,
       disabled = false,
       description,
       ignoreDisabled = false,
       readOnly = false,
       className,
+      classNameDialog,
       columns: columnsProps,
       value,
       onValueChange,
@@ -417,17 +496,21 @@ export default memo(
       mapItem,
       forceCanDelete = false,
       additionalData: _additionalData,
-      asyncUpdateAdditionalData,
+      asyncAdditionalData,
+      actions,
     },
     ref,
   ) {
     if (!columnsProps) {
       throw new Error("columns is required");
     }
+    const key = useMemo(
+      () => FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
+      [name],
+    );
     const [__additionalData, setAdditionalData] = useState({});
-    const additionalData = _additionalData ?? __additionalData;
     const [openConfigureColumns, setOpenConfigureColumns] = useState(false);
-    const [columns, setColumns] = useState(createHeaders(columnsProps));
+    const [columns, setColumns] = useState(createHeaders(key, columnsProps));
     const { t } = useLaravelReactI18n();
     const [currentIndex, setCurrentIndex] = useState(-1);
     const [currentData, setCurrentData] = useState(null);
@@ -454,64 +537,149 @@ export default memo(
     );
 
     useDidMountEffect(() => {
-      setColumns(createHeaders(columnsProps));
+      setColumns(createHeaders(key, columnsProps));
     }, [columnsProps]);
     useDidMountEffect(() => {
       saveToLocalStorage(
-        FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
+        key,
         columns.map((x) => ({ name: x.name, show: x.show, width: x.width })),
+        FORMTABLE_COLUMNS_EXPIRED,
       );
     }, [columns]);
     if (value && !Array.isArray(value)) {
       throw new Error("value must be an array");
     }
     value = value ?? [];
+    const getItemKey = useCallback((item) => item?.[keyItem], [keyItem]);
+    const withItemKey = useCallback(
+      (item = {}) => ({
+        ...item,
+        [keyItem]: item?.[keyItem] ?? generateRandom(5),
+      }),
+      [keyItem],
+    );
+    const applyMapItem = useCallback(
+      (item, dataTable, index) => {
+        if (!mapItem) {
+          return item;
+        }
+        const mappedItem = mapItem({ item, dataTable, index });
+        return mappedItem ?? item;
+      },
+      [mapItem],
+    );
+    const additionalData = useMemo(() => {
+      if (typeof _additionalData === "function") {
+        return _additionalData(value, keyItem);
+      }
+      return _additionalData ?? __additionalData;
+    }, [_additionalData, __additionalData, value, keyItem]);
     if (!Array.isArray(columns)) {
       throw new Error("columns must be an array");
     }
 
     const filteredColumns = useMemo(
-      () => columns.filter((x) => x.required || (x.show ?? true)),
+      () => columns.filter((x) => x.required || x.locked || (x.show ?? true)),
       [columns],
+    );
+    const defaultRowFieldCount = useMemo(
+      () => getRowFieldCount(defaultValueRow) + 1,
+      [defaultValueRow],
     );
     const [_data, _setData] = useState(() => {
       return readOnly || (disabled && value.length > 0)
-        ? value
+        ? value.map((x) => withItemKey(x))
         : [
-            ...value.map((x) => ({
-              ...(defaultValueRow ?? {}),
-              ...x,
-              id: x.id ?? generateRandom(5),
-            })),
-            { id: generateRandom(5), ...(defaultValueRow ?? {}) }, // Row kosong selalu ada di akhir
+            ...value.map((x) =>
+              withItemKey({
+                ...(defaultValueRow ?? {}),
+                ...x,
+              }),
+            ),
+            withItemKey({ ...(defaultValueRow ?? {}) }), // Row kosong selalu ada di akhir
           ];
     });
-
-    const idChanges = useRef(new Set(value.map((x) => x.id)));
+    const dataRef = useRef(_data);
+    const pendingParentUpdateRef = useRef(null);
+    const pendingAnimationFrameRef = useRef(null);
     useEffect(() => {
+      dataRef.current = _data;
+    }, [_data]);
+    const flushParentUpdate = useCallback(() => {
+      pendingAnimationFrameRef.current = null;
+      if (!onValueChange) {
+        pendingParentUpdateRef.current = null;
+        return;
+      }
+      const pendingUpdate = pendingParentUpdateRef.current;
+      if (!pendingUpdate) {
+        return;
+      }
+      pendingParentUpdateRef.current = null;
+      startTransition(() => {
+        onValueChange(pendingUpdate.data, pendingUpdate.key);
+      });
+    }, [onValueChange]);
+    const scheduleParentUpdate = useCallback(
+      (data, key, immediate = false) => {
+        pendingParentUpdateRef.current = { data, key };
+        if (immediate) {
+          if (pendingAnimationFrameRef.current != null) {
+            cancelAnimationFrame(pendingAnimationFrameRef.current);
+            pendingAnimationFrameRef.current = null;
+          }
+          flushParentUpdate();
+          return;
+        }
+        if (pendingAnimationFrameRef.current != null) {
+          return;
+        }
+        pendingAnimationFrameRef.current =
+          requestAnimationFrame(flushParentUpdate);
+      },
+      [flushParentUpdate],
+    );
+    useEffect(() => {
+      return () => {
+        if (pendingAnimationFrameRef.current != null) {
+          cancelAnimationFrame(pendingAnimationFrameRef.current);
+          pendingAnimationFrameRef.current = null;
+        }
+        flushParentUpdate();
+      };
+    }, [flushParentUpdate]);
+
+    const idChanges = useRef(new Set(value.map((x) => getItemKey(x))));
+    useEffect(() => {
+      if (typeof asyncAdditionalData !== "function") {
+        return;
+      }
       const debounce = setTimeout(async () => {
         if (idChanges.current?.size === 0) return;
         try {
-          const result = await asyncUpdateAdditionalData(
+          const result = await asyncAdditionalData(
             value,
             Array.from(idChanges.current?.values() ?? []).filter(Boolean),
+            keyItem,
           );
           const data = result?.data ?? {};
           for (const id in data ?? {}) {
             idChanges.current?.delete(id);
           }
           setAdditionalData((prev) => ({ ...prev, ...data }));
-        } catch {}
+        } catch {
+          // catch error
+        }
       }, 200);
 
       return () => clearTimeout(debounce);
-    }, [_data]);
+    }, [asyncAdditionalData, keyItem, value]);
 
     useImperativeHandle(
       ref,
       () => ({
         resetColumns: () => {
-          setColumns(createHeaders(columnsProps));
+          setColumns(createHeaders(key, columnsProps));
         },
         openConfigureColumns: () => {
           setOpenConfigureColumns(true);
@@ -520,34 +688,8 @@ export default memo(
           setOpenConfigureColumns(false);
         },
       }),
-      [columnsProps, mapItem, _data],
+      [columnsProps],
     );
-    const getColumn = (name, attributes) => {
-      const col = columns.find((x) => x.name === name);
-      if (!col) return null;
-
-      return (
-        <FormInput
-          key={`${_data[currentIndex]?.id}-${col.name}`}
-          required={col.required}
-          label={col.titleTrans ? t(col.titleTrans) : col.title}
-          name={col.name}
-        >
-          <Cell
-            isDialog
-            defaultValueRow={defaultValueRow}
-            readOnly={readOnly}
-            disabled={disabled}
-            index={currentIndex}
-            item={_data[currentIndex]}
-            additionalData={additionalData}
-            col={col}
-            updateData={updateData}
-            {...attributes}
-          />
-        </FormInput>
-      );
-    };
     const formRef = useRef();
     const onKeyDown = useCallback(
       (e) => {
@@ -571,44 +713,54 @@ export default memo(
         !isEqual(value, prevValueRef.current)
       ) {
         prevValueRef.current = value;
-        idChanges.current = new Set(value.map((x) => x.id));
+        idChanges.current = new Set(value.map((x) => getItemKey(x)));
         if (readOnly || (disabled && value.length > 0)) {
-          _setData([...value]);
+          _setData(value.map((x) => withItemKey(x)));
           return;
         }
         _setData((prev) => {
           return [
             ...value.map((x, index) => {
-              const data = {
+              const data = withItemKey({
                 ...(defaultValueRow ?? {}),
                 ...x,
-                id: x.id ?? generateRandom(5),
-              };
-              if (mapItem)
-                return mapItem({ item: data, dataTable: prev, index });
-              return data;
+              });
+              return applyMapItem(data, prev, index);
             }),
-            { ...(defaultValueRow ?? {}), id: generateRandom(5) }, // Pastikan ada row kosong
+            withItemKey({ ...(defaultValueRow ?? {}) }), // Pastikan ada row kosong
           ];
         });
       }
-    }, [value, readOnly, disabled, mapItem]);
+    }, [
+      value,
+      readOnly,
+      disabled,
+      applyMapItem,
+      defaultValueRow,
+      getItemKey,
+      withItemKey,
+    ]);
 
     // Kirim perubahan ke parent hanya jika ada perubahan nyata
 
     const updateParent = useCallback(
-      (data, key) => {
-        if (onValueChange) {
-          let filteredData = readOnly || disabled ? data : data.slice(0, -1); // Buang row kosong terakhir sebelum dikirim
-
-          if (!isEqual(filteredData, prevValueRef.current)) {
-            prevValueRef.current = filteredData;
-            if (key) idChanges.current?.add(key);
-            onValueChange(filteredData, key);
-          }
+      (data, key, options = {}) => {
+        const { immediate = false } = options;
+        if (!onValueChange) {
+          return;
         }
+        const filteredData = readOnly || disabled ? data : data.slice(0, -1);
+        const previousData = prevValueRef.current ?? [];
+        if (isSameArrayReferences(filteredData, previousData)) {
+          return;
+        }
+        prevValueRef.current = filteredData;
+        if (key) {
+          idChanges.current?.add(key);
+        }
+        scheduleParentUpdate(filteredData, key, immediate);
       },
-      [onValueChange],
+      [disabled, onValueChange, readOnly, scheduleParentUpdate],
     );
 
     // Memperbarui data current
@@ -621,14 +773,13 @@ export default memo(
               : key;
           return {
             ...prevData,
-            id: prevData?.id ?? generateRandom(5),
+            [keyItem]: prevData?.[keyItem] ?? generateRandom(5),
             ...payload,
           };
         });
       },
-      [setCurrentData],
+      [setCurrentData, keyItem],
     );
-
     // Memperbarui data di index tertentu
     const updateData = useCallback(
       (index, key, newValue) => {
@@ -647,16 +798,10 @@ export default memo(
               ? { [key]: newValue }
               : (key ?? {});
           const resetRow = (idx) => {
-            newData[idx] = {
+            newData[idx] = withItemKey({
               ...(defaultValueRow ?? {}),
-              id: generateRandom(5),
-            };
-            if (mapItem)
-              newData[idx] = mapItem({
-                item: newData[idx],
-                dataTable: newData,
-                index: idx,
-              });
+            });
+            newData[idx] = applyMapItem(newData[idx], newData, idx);
           };
           const isDuplicateValue = (colName, value) => {
             const isDuplicate = newData.some((row, idx) => {
@@ -680,7 +825,8 @@ export default memo(
             Object.keys(payload).length <= 0
           ) {
             if (
-              newData[index].id.length <= 5 &&
+              typeof newData[index]?.[keyItem] === "string" &&
+              newData[index][keyItem].length <= 5 &&
               Object.keys(payload).length > 0
             )
               return prevData;
@@ -704,7 +850,12 @@ export default memo(
 
           // Cek duplikat ID di row terakhir
           if (isLastRow && !readOnly) {
-            if (isDuplicateValue("id", payload.id ?? newData[index].id)) {
+            if (
+              isDuplicateValue(
+                keyItem,
+                payload[keyItem] ?? newData[index][keyItem],
+              )
+            ) {
               return prevData;
             }
           }
@@ -721,19 +872,14 @@ export default memo(
           newData[index] = {
             ...(defaultValueRow ?? {}),
             ...newData[index],
-            id: newData[index]?.id ?? generateRandom(5),
+            [keyItem]: newData[index]?.[keyItem] ?? generateRandom(5),
             ...payload,
           };
-          if (mapItem)
-            newData[index] = mapItem({
-              item: newData[index],
-              dataTable: newData,
-              index: index,
-            });
+          newData[index] = applyMapItem(newData[index], newData, index);
 
           // Jika mengubah row terakhir, tambahkan row kosong baru
           if (isLastRow && !readOnly) {
-            newData.push({ ...(defaultValueRow ?? {}), id: generateRandom(5) });
+            newData.push(withItemKey({ ...(defaultValueRow ?? {}) }));
           }
 
           return newData;
@@ -741,73 +887,113 @@ export default memo(
 
         _setData((prevData) => {
           const result = update(prevData);
-          updateParent(result, result[index]?.id);
+          if (result === prevData) {
+            return prevData;
+          }
+          updateParent(result, result[index]?.[keyItem], { immediate: false });
           return result;
         });
       },
-      [columns, _setData, mapItem],
+      [
+        columns,
+        _setData,
+        applyMapItem,
+        defaultValueRow,
+        disabled,
+        keyItem,
+        readOnly,
+        updateParent,
+        withItemKey,
+      ],
     );
     const insertRow = useCallback(
       (index) => {
         const update = (prev) => {
           const newData = [...prev];
-          newData.splice(index, 0, { id: generateRandom(5) });
+          newData.splice(index, 0, withItemKey({}));
           setCurrentIndex(index);
           if (submitable) setCurrentData(newData[index]);
           return newData;
         };
         _setData((prevData) => {
           const result = update(prevData);
-          updateParent(result, result[index]?.id);
+          if (result === prevData) {
+            return prevData;
+          }
+          updateParent(result, result[index]?.[keyItem], { immediate: true });
           return result;
         });
       },
-      [_setData],
+      [
+        _setData,
+        keyItem,
+        setCurrentData,
+        setCurrentIndex,
+        submitable,
+        updateParent,
+        withItemKey,
+      ],
     );
     const duplicateRow = useCallback(
       (index) => {
         const update = (prev) => {
           const newData = [...prev];
-          newData.splice(index + 1, 0, {
-            ...(defaultValueRow ?? {}),
-            ...newData[index],
-            id: generateRandom(5),
-          });
+          newData.splice(
+            index + 1,
+            0,
+            withItemKey({
+              ...(defaultValueRow ?? {}),
+              ...newData[index],
+            }),
+          );
           setCurrentIndex(index + 1);
           if (submitable) setCurrentData(newData[index + 1]);
           return newData;
         };
         _setData((prevData) => {
           const result = update(prevData);
-          updateParent(result, result[index]?.id);
+          if (result === prevData) {
+            return prevData;
+          }
+          updateParent(result, result[index]?.[keyItem], { immediate: true });
           return result;
         });
       },
-      [_setData],
+      [
+        _setData,
+        defaultValueRow,
+        keyItem,
+        setCurrentData,
+        setCurrentIndex,
+        submitable,
+        updateParent,
+        withItemKey,
+      ],
     );
     const deleteRow = useCallback(
       (index) => {
         _setData((prev) => {
           const newData = [...prev];
           if (index === newData.length - 1 && !(readOnly || disabled)) {
-            return newData;
+            return prev;
           }
           newData.splice(index, 1);
           if (submitable) setCurrentData(newData[currentIndex]);
 
-          updateParent(newData);
+          updateParent(newData, undefined, { immediate: true });
           return newData;
         });
       },
-      [readOnly, disabled],
+      [currentIndex, disabled, readOnly, submitable, updateParent],
     );
     const cellOnKeyDown = useCallback(
       (e, currentIndex, currentCol) => {
+        const currentData = dataRef.current ?? [];
         if (e.key == "Enter") {
           e.preventDefault();
           const indexCol = columns.findIndex((x) => x.name === currentCol);
           if (indexCol >= columns.length - 1) {
-            if (currentIndex >= _data.length - 1) return;
+            if (currentIndex >= currentData.length - 1) return;
             currentIndex++;
             currentCol = columns[0].name;
           } else currentCol = columns[indexCol + 1].name;
@@ -818,7 +1004,7 @@ export default memo(
 
               const indexCol = columns.findIndex((x) => x.name === currentCol);
               if (indexCol >= columns.length - 1) {
-                if (currentIndex >= _data.length - 1) return;
+                if (currentIndex >= currentData.length - 1) return;
                 currentIndex++;
                 currentCol = columns[0].name;
               } else currentCol = columns[indexCol + 1].name;
@@ -845,7 +1031,7 @@ export default memo(
             case "ArrowDown": {
               e.preventDefault();
 
-              if (currentIndex >= _data.length - 1) return;
+              if (currentIndex >= currentData.length - 1) return;
               currentIndex++;
               break;
             }
@@ -853,31 +1039,87 @@ export default memo(
               return;
           }
         }
-        const item = _data[currentIndex];
-        getRef(`${item.id}-${currentCol}`)?.current?.focus();
+        const item = currentData[currentIndex];
+        getRef(`${item?.[keyItem]}-${currentCol}`)?.current?.focus();
       },
-      [_data, columns],
+      [columns, getRef, keyItem],
     );
     const handleDragOver = useCallback(
       (event) => {
         const { active, over } = event;
-
-        if (active.id !== over.id) {
-          _setData((items) => {
-            const newItems = items.map((x) => x.id);
-
-            let newIndex = newItems.indexOf(over.id);
-            const oldIndex = newItems.indexOf(active.id);
-            if (oldIndex >= newItems.length - 1) return items;
-            if (newIndex >= newItems.length - 1) newIndex--;
-            const result = arrayMove(items, oldIndex, newIndex);
-
-            updateParent(result);
-            return result;
-          });
+        if (!over || active.id === over.id) {
+          return;
         }
+
+        _setData((items) => {
+          const newItems = items.map((x) => x[keyItem]);
+
+          let newIndex = newItems.indexOf(over.id);
+          const oldIndex = newItems.indexOf(active.id);
+          if (oldIndex >= newItems.length - 1) return items;
+          if (newIndex >= newItems.length - 1) newIndex--;
+          const result = arrayMove(items, oldIndex, newIndex);
+
+          updateParent(result, undefined, { immediate: true });
+          return result;
+        });
       },
-      [_setData],
+      [_setData, keyItem, updateParent],
+    );
+    const sortableItems = useMemo(
+      () => _data.map((row) => row?.[keyItem]),
+      [_data, keyItem],
+    );
+    const currentRow = _data[currentIndex];
+    const currentRowFieldCount = getRowFieldCount(currentRow);
+    const isCurrentRowEmpty = currentRowFieldCount <= defaultRowFieldCount;
+    const currentAdditionalData = currentRow?.[keyItem]
+      ? additionalData?.[currentRow[keyItem]]
+      : undefined;
+    const getColumn = useCallback(
+      (name, attributes) => {
+        const col = columns.find((column) => column.name === name);
+        if (!col) {
+          return null;
+        }
+
+        return (
+          <FormInput
+            key={`${currentRow?.[keyItem]}-${col.name}`}
+            required={col.required}
+            label={col.titleTrans ? t(col.titleTrans) : col.title}
+            name={col.name}
+          >
+            <Cell
+              isDialog
+              readOnly={readOnly}
+              disabled={disabled}
+              index={currentIndex}
+              item={currentRow}
+              additionalData={currentAdditionalData}
+              keyItem={keyItem}
+              col={col}
+              rowFieldCount={currentRowFieldCount}
+              defaultRowFieldCount={defaultRowFieldCount}
+              updateData={updateData}
+              {...attributes}
+            />
+          </FormInput>
+        );
+      },
+      [
+        columns,
+        currentAdditionalData,
+        currentIndex,
+        currentRow,
+        currentRowFieldCount,
+        defaultRowFieldCount,
+        disabled,
+        keyItem,
+        readOnly,
+        t,
+        updateData,
+      ],
     );
 
     const MyDialog = submitable ? AlertDialog : Dialog;
@@ -921,7 +1163,7 @@ export default memo(
                   return (
                     <Tooltip key={item.name}>
                       <TooltipTrigger asChild>
-                        <p className="relative text-center justify-start! w-full line-clamp-2 break-words leading-snug">
+                        <p className="relative text-center justify-start! w-full line-clamp-2 wrap-break-word leading-snug">
                           {item.titleTrans ? t(item.titleTrans) : item.title}
                           {item.required && (
                             <span className="ml-1 text-red-500">*</span>
@@ -939,7 +1181,7 @@ export default memo(
                     </Tooltip>
                   );
                 })}
-              <p className="text-center">
+              <p className="text-center justify-center">
                 <Button
                   type="button"
                   variant="ghost"
@@ -957,7 +1199,7 @@ export default memo(
               collisionDetection={closestCenter}
             >
               <SortableContext
-                items={_data.map((x) => x.id)}
+                items={sortableItems}
                 strategy={verticalListSortingStrategy}
               >
                 {Array.isArray(_data) &&
@@ -965,10 +1207,11 @@ export default memo(
                     return (
                       <FormTableItem
                         disabled={disabled}
-                        readOnly={readOnly || item.readOnly}
+                        readOnly={readOnly || item?.readOnly}
                         item={item}
                         index={index}
-                        key={item.id}
+                        key={item?.[keyItem]}
+                        keyItem={keyItem}
                         columns={filteredColumns}
                         isLast={index >= _data.length - 1}
                         setRef={setRef}
@@ -978,12 +1221,13 @@ export default memo(
                         setCurrentIndex={setCurrentIndex}
                         setCurrentData={setCurrentData}
                         deleteRow={deleteRow}
-                        defaultValueRow={defaultValueRow}
-                        additionalData={additionalData}
+                        defaultRowFieldCount={defaultRowFieldCount}
+                        rowAdditionalData={additionalData?.[item?.[keyItem]]}
                         className={
                           index == _data.length - 1 ? "rounded-b-md" : ""
                         }
                         forceCanDelete={!disabled && forceCanDelete}
+                        actions={actions}
                       />
                     );
                   })}
@@ -999,7 +1243,10 @@ export default memo(
         >
           <MyDialogContent
             hideX
-            className="max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)"
+            className={cn(
+              "max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)",
+              classNameDialog,
+            )}
             asChild
           >
             <form
@@ -1020,10 +1267,18 @@ export default memo(
                     <h2>{`${t("core.formtable.editing_row")} #${(currentIndex ?? 0) + 1}`}</h2>
 
                     <div className="flex flex-row items-center justify-end gap-2">
+                      {actions &&
+                        actions({
+                          row: currentData,
+                          index: currentIndex,
+                          toggleDialog: () => {
+                            setCurrentIndex(-1);
+                            setCurrentData(null);
+                          },
+                        })}
                       {!submitable && (
                         <>
-                          {Object.keys(_data[currentIndex] ?? {}).length >
-                            Object.keys(defaultValueRow ?? {}).length + 1 &&
+                          {!isCurrentRowEmpty &&
                             !(readOnly || disabled) &&
                             (isMobile ? (
                               <Tooltip>
@@ -1061,8 +1316,7 @@ export default memo(
                                 {t("core.formtable.insert_above")}
                               </Button>
                             ))}
-                          {Object.keys(_data[currentIndex] ?? {}).length >
-                            Object.keys(defaultValueRow ?? {}).length + 1 &&
+                          {!isCurrentRowEmpty &&
                             !(readOnly || disabled) &&
                             currentIndex < _data.length - 2 &&
                             (isMobile ? (
@@ -1103,8 +1357,7 @@ export default memo(
                             ))}
                         </>
                       )}
-                      {Object.keys(_data[currentIndex] ?? {}).length >
-                        Object.keys(defaultValueRow ?? {}).length + 1 &&
+                      {!isCurrentRowEmpty &&
                         !(
                           readOnly ||
                           disabled ||
@@ -1157,8 +1410,7 @@ export default memo(
                           )}
                         </>
                       )}
-                      {(Object.keys(_data[currentIndex] ?? {}).length >
-                        Object.keys(defaultValueRow ?? {}).length + 1 ||
+                      {(!isCurrentRowEmpty ||
                         currentIndex < _data.length - 1) &&
                         (!(
                           readOnly ||
@@ -1187,7 +1439,7 @@ export default memo(
                   showHeader={false}
                   errors={{}}
                   fieldNameTrans={""}
-                  data={(submitable ? currentData : _data[currentIndex]) ?? {}}
+                  data={(submitable ? currentData : currentRow) ?? {}}
                   setData={(...args) =>
                     submitable
                       ? updateDataCurrent(...args)
@@ -1213,7 +1465,7 @@ export default memo(
                     columns.map((col) => {
                       return (
                         <FormInput
-                          key={`${_data[currentIndex]?.id}-${col.name}`}
+                          key={`${currentRow?.[keyItem]}-${col.name}`}
                           required={col.required}
                           label={col.titleTrans ? t(col.titleTrans) : col.title}
                           name={col.name}
@@ -1223,11 +1475,13 @@ export default memo(
                             disabled={disabled}
                             readOnly={readOnly}
                             index={currentIndex}
-                            item={_data[currentIndex]}
-                            additionalData={additionalData}
+                            item={currentRow}
+                            additionalData={currentAdditionalData}
+                            keyItem={keyItem}
                             col={col}
                             isLast={currentIndex >= _data.length - 1}
-                            defaultValueRow={defaultValueRow}
+                            rowFieldCount={currentRowFieldCount}
+                            defaultRowFieldCount={defaultRowFieldCount}
                             updateData={updateData}
                           />
                         </FormInput>
@@ -1235,7 +1489,7 @@ export default memo(
                     })}
                 </div>
               )}
-              {submitable && (
+              {submitable ? (
                 <AlertDialogFooter className="order-2 mt-4">
                   <AlertDialogCancel
                     className="h-8"
@@ -1255,6 +1509,18 @@ export default memo(
                     {t("core.form.save")}
                   </AlertDialogAction>
                 </AlertDialogFooter>
+              ) : (
+                <DialogFooter className="order-2 mt-4">
+                  <Button
+                    className="h-8"
+                    type="button"
+                    onClick={() => {
+                      setCurrentIndex(-1);
+                    }}
+                  >
+                    {t("core.form.close_and_apply")}
+                  </Button>
+                </DialogFooter>
               )}
             </form>
           </MyDialogContent>
@@ -1265,7 +1531,7 @@ export default memo(
           open={openConfigureColumns}
           setOpen={setOpenConfigureColumns}
           onReset={() => {
-            setColumns(createHeaders(columnsProps, true));
+            setColumns(createHeaders(key, columnsProps, true));
           }}
         />
       </>
@@ -1460,12 +1726,12 @@ const SelectColumn = memo(function SelectColumn({
                     </>
                   }
                   classNameCheckbox="pointer-events-auto!"
-                  disabled={col.required}
-                  checked={col.required || col.show}
+                  disabled={col.required || col.locked}
+                  checked={col.required || col.locked || col.show}
                   onCheckedChange={(val) => {
                     setColumns((x) => {
                       return x.map((y) => {
-                        if (y.required) return y;
+                        if (y.required || col.locked) return y;
                         if (y.name === col.name) {
                           return { ...y, show: val };
                         }
@@ -1549,7 +1815,7 @@ const ColumnItem = memo(function ColumnItem({
         />
       </div>
       <div className="w-10">
-        {!column.required && (
+        {!(column.required || column.locked) && (
           <Button
             type="button"
             variant="ghost"

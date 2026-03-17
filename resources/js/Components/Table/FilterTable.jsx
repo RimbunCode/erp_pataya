@@ -7,7 +7,6 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { Filter, Plus } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { cn, generateRandom } from "@/lib/utils";
 import { memo, useEffect, useState } from "react";
 
@@ -85,9 +84,9 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
   }, [open]);
 
   const countFilters = initialFilters.length;
-  const FilterProvider = isMobile ? Dialog : Popover;
-  const FilterTrigger = isMobile ? DialogTrigger : PopoverTrigger;
-  const FilterContent = isMobile ? DialogContent : PopoverContent;
+  const FilterProvider = Dialog;
+  const FilterTrigger = DialogTrigger;
+  const FilterContent = DialogContent;
 
   return (
     <FilterProvider open={open} onOpenChange={setOpen}>
@@ -120,7 +119,10 @@ function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
           </Button>
         )}
       </FilterTrigger>
-      <FilterContent className="flex flex-col w-auto max-w-full overflow-hidden">
+      <FilterContent
+        hideX
+        className="flex flex-col w-auto max-w-full overflow-hidden"
+      >
         {isMobile && (
           <DialogHeader className="border-b border-muted-foreground/30">
             <DialogTitle className="pb-2 ">

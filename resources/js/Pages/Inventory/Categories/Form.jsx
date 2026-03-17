@@ -1,5 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useEffect } from "react";
+import React from "react";
 
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -9,10 +9,6 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 export default function Form() {
   const { data, setData } = useFormPage();
   const { t } = useLaravelReactI18n();
-
-  useEffect(() => {
-    console.log(data);
-  }, [data]);
 
   return (
     <>

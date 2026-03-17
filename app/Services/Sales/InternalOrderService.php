@@ -3,110 +3,163 @@
 namespace App\Services\Sales;
 
 use App\FormStatus;
-use App\Models\Core\Preference;
+use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\Stock;
 use App\Models\Sales\InternalOrder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\Uid\Ulid;
 
 class InternalOrderService {
-  private function fillRelations(array $data) {
-    // optional branch
-    if (isset($data['branch'])) {
-      $data['branch_id'] = $data['branch']['id'];
+    private function fillRelations(array $data) {
+
+        return $data;
     }
 
-    return $data;
-  }
+    private function fillItemRelations(array $data) {
+        $data['item_id']             = $data['item']['id'];
+        $data['unit_id']             = $data['unit']['id'];
+        $data['conversion_factor']   = $data['unit']['conversion_factor'];
+        $data['source_warehouse_id'] = $data['source_warehouse']['id'];
 
-  private function fillItemRelations(array $data) {
-    // dd($data);
-    $data['item_id']             = $data['item']['id'];
-    $data['unit_id']             = $data['unit']['id'];
-    $data['conversion_factor']   = $data['unit']['conversion_factor'];
-    $data['source_warehouse_id'] = $data['source_warehouse']['id'];
-    return $data;
-  }
-
-  public function create(array $data) {
-    $internalOrder = InternalOrder::create($this->fillRelations($data));
-    foreach ($data['items'] as $item) {
-      $item = $this->fillItemRelations($item);
-      $internalOrder->items()->create($item);
+        return $data;
     }
-    $internalOrder->logForCreated();
-    return $internalOrder;
-  }
 
-  public function update(InternalOrder $internalOrder, array $data) {
-    $internalOrder->fillForUpdate($this->fillRelations($data));
+    public function create(array $data) {
+        $data['code']  = FormatingSeries::generate(InternalOrder::class, $data, true);
+        $internalOrder = InternalOrder::create($this->fillRelations($data));
+        foreach ($data['items'] as $item) {
+            $item = $this->fillItemRelations($item);
+            $internalOrder->items()->create($item);
+        }
+        $internalOrder->logForCreated();
 
-    $internalOrder->items()
-      ->whereNotIn('id', array_column($data['items'], 'id'))
-      ->delete();
+        return $internalOrder;
+    }
 
-    foreach ($data['items'] as $item) {
-      $item = $this->fillItemRelations($item);
-      // dd($internal\rderd);
+    public function update(InternalOrder $internalOrder, array $data) {
+        $internalOrder->fillForUpdate($this->fillRelations($data));
 
-      if (Ulid::isValid($item['id'])) {
-        unset($item['item']);
-        unset($item['unit']);
-        unset($item['source_warehouse']);
         $internalOrder->items()
-          ->where('id', $item['id'])
-          ->update($item);
-        continue;
-      }
+            ->whereNotIn('id', array_column($data['items'], 'id'))
+            ->delete();
 
-      $internalOrder->items()->create($item);
-    }
-    $internalOrder->logForUpdated();
-    return $internalOrder;
-  }
+        foreach ($data['items'] as $item) {
+            $item = $this->fillItemRelations($item);
 
-  public function submit(InternalOrder $internalOrder) {
-    DB::beginTransaction();
+            if (Ulid::isValid($item['id'])) {
+                $internalOrder->items()->find($item['id'])->update($item);
 
-    $internalOrder->update([
-      'status' => FormStatus::SUBMITTED,
-    ]);
+                continue;
+            }
 
-    $items      = $internalOrder->items()->get();
-    $errorItems = [];
+            $internalOrder->items()->create($item);
+        }
 
-    foreach ($items as $item) {
-      $stock = Stock::where('item_variant_id', $item->item_id)
-        ->where('warehouse_id', $item->source_warehouse_id)
-        ->lockForUpdate()
-        ->first();
+        $internalOrder->logForUpdated();
 
-      if (! $stock) {
-        $errorItems[] = "Item {$item->item->name} in warehouse ID {$item->source_warehouse_id} has no stock record.";
-        continue;
-      }
-
-      $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-
-      if ($stock->ready_quantity < $quantity) {
-        $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
-        continue;
-      }
-
-      $stock->update([
-        'reserved_quantity' => $stock->reserved_quantity + $quantity,
-      ]);
+        return $internalOrder;
     }
 
-    if (count($errorItems) > 0) {
-      DB::rollBack();
-      Session::flash('errorItems', $errorItems);
-      return $internalOrder;
+    public function submit(InternalOrder $internalOrder) {
+        DB::beginTransaction();
+
+        $internalOrder->update([
+            'code' => FormatingSeries::generate(InternalOrder::class, $internalOrder),
+        ]);
+
+        $items      = $internalOrder->items()->with(['item'])->get();
+        $errorItems = [];
+
+        foreach ($items as $item) {
+            $stock = Stock::lockForUpdate()
+                ->where('item_variant_id', $item->item_id)
+                ->where('warehouse_id', $item->source_warehouse_id)
+                ->first();
+
+            if (! $stock) {
+                $errorItems[] = "Item {$item->item->name} not found in source warehouse";
+
+                continue;
+            }
+
+            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+
+            if ($stock->ready_quantity < $quantity) {
+                $errorItems[] = "Item {$item->item->name} stock {$stock->ready_quantity}, need {$quantity}";
+
+                continue;
+            }
+
+            // sama pola dengan SalesOrder
+            $stock->updateDetails('increment', 'reservations', $internalOrder->code, $quantity);
+        }
+
+        if (count($errorItems) > 0) {
+            DB::rollBack();
+            throw ValidationException::withMessages([
+                'items' => $errorItems,
+            ]);
+        }
+
+        DB::commit();
+        $internalOrder->checkApproval();
+
+        return $internalOrder;
     }
 
-    DB::commit();
+    public function onApproved(InternalOrder $internalOrder) {
+        $internalOrder->update([
+            'status' => [
+                FormStatus::TO_DELIVER,
+            ],
+        ]);
 
-    return $internalOrder;
-  }
+        return $internalOrder;
+    }
+
+    private function rollbackItems(InternalOrder $internalOrder) {
+        $items = $internalOrder->items()->get();
+
+        foreach ($items as $item) {
+            $stock = Stock::lockForUpdate()
+                ->where('item_variant_id', $item->item_id)
+                ->where('warehouse_id', $item->source_warehouse_id)
+                ->first();
+
+            $stock->updateDetails('decrement', 'reservations', $internalOrder->code);
+        }
+    }
+
+    public function onRejected(InternalOrder $internalOrder) {
+        DB::beginTransaction();
+
+        $internalOrder->update([
+            'status' => [
+                FormStatus::REJECTED,
+            ],
+        ]);
+
+        $this->rollbackItems($internalOrder);
+
+        DB::commit();
+
+        return $internalOrder;
+    }
+
+    public function cancel(InternalOrder $internalOrder) {
+        DB::beginTransaction();
+
+        $internalOrder->update([
+            'status' => [
+                FormStatus::CANCELED,
+            ],
+        ]);
+
+        $this->rollbackItems($internalOrder);
+
+        DB::commit();
+
+        return $internalOrder;
+    }
 }

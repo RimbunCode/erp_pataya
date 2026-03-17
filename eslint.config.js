@@ -18,6 +18,14 @@ const compat = new FlatCompat({
 
 export default [
   {
+    ignores: [
+      "**/*.d.ts",
+      "resources/js/Components/CurrencyInput/**",
+      "resources/js/schema.ts",
+      "resources/js/lib/google-diff.js",
+    ],
+  },
+  {
     files: ["**/*.{js,mjs,cjs,jsx,ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2024,
@@ -25,6 +33,7 @@ export default [
       globals: {
         ...globals.browser,
         ...globals.node,
+        route: "readonly",
       },
     },
   },
@@ -71,6 +80,11 @@ export default [
       // Hooks
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "off",
+      "react-hooks/immutability": "off",
+      "react-hooks/preserve-manual-memoization": "off",
+      "react-hooks/purity": "off",
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/static-components": "off",
 
       // General
       "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],

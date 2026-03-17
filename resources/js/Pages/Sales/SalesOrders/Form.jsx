@@ -3,6 +3,7 @@ import React, { memo, useCallback, useEffect, useMemo } from "react";
 import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
 
+import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
@@ -11,24 +12,28 @@ import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
+import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import LinkModel from "@/Components/LinkModel";
 import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
 import SalesOrderLinkModel from "./SalesOrderLinkModel";
-import Select from "@/Components/Select";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import axios from "axios";
-import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import { useState } from "react";
 
 export default memo(function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage(
+    {
+      date: new Date(),
+    },
+    { trackDefaultValue: false },
+  );
   const { default_currency_id } = usePage().props.preferences;
   const loadFrom = usePage().props.loadFrom;
   const isLockDoc = useMemo(() => {
@@ -38,77 +43,15 @@ export default memo(function Form() {
 
     return false;
   }, [defaultData, data]);
-  const setDiscount = useCallback(
-    (key, value) => {
-      setData((prev) => {
-        let latestDiscountKey = prev.latestDiscountKey ?? "discount_rate";
-        let discount_on = prev.discount_on;
-        let discount_rate = prev.discount_rate ?? 0;
-        let discount_amount = prev.discount_amount ?? 0;
-        const net_total = calculateArray(prev.items, "basic_amount", "+");
-        const tax_amount = calculateArray(prev.items, "tax_amount", "+");
-        if (key == "discount_on") {
-          if (discount_on == value) return prev;
-          discount_on = value;
-          if (!value)
-            return {
-              ...prev,
-              discount_on,
-              discount_rate: undefined,
-              discount_amount: undefined,
-              latestDiscountKey,
-            };
-        }
-        const total =
-          discount_on == "grand_total"
-            ? net_total + tax_amount
-            : discount_on == "net_total"
-              ? net_total
-              : 0;
 
-        if (key == "discount_on") {
-          key = latestDiscountKey;
-          value = prev[key] ?? 0;
-        }
-        if (key == "discount_rate") {
-          latestDiscountKey = "discount_rate";
-          discount_rate = value;
-          discount_amount = (total * discount_rate) / 100;
-        }
-        if (key == "discount_amount") {
-          latestDiscountKey = "discount_amount";
-          discount_amount = value;
-          discount_rate = (discount_amount * 100) / total;
-        }
-        if (
-          !(
-            prev.discount_on != discount_on ||
-            prev.discount_rate != discount_rate ||
-            prev.discount_amount != discount_amount
-          )
-        ) {
-          return prev;
-        }
-        return {
-          ...prev,
-          discount_on,
-          discount_rate,
-          discount_amount,
-          latestDiscountKey,
-        };
-      });
-    },
-    [data],
-  );
-
-  const asyncUpdateAdditionalData = useCallback(async (value, idChanges) => {
+  const asyncAdditionalData = useCallback(async (value, idChanges) => {
     return await axios.post(window.route("itemVariants.info"), {
       data: value,
       idChanges,
     });
   }, []);
 
-  const net_total = useMemo(() => {
+  const net_amount = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
@@ -116,15 +59,9 @@ export default memo(function Form() {
     return calculateArray(data.items, "tax_amount", "+");
   }, [data.items]);
 
-  useDidMountEffect(() => {
-    const latestKey = data.latestDiscountKey ?? "discount_rate";
-    setDiscount(latestKey, data[latestKey] ?? 0);
-  }, [net_total, tax_amount]);
-
   const amount = useMemo(() => {
-    return net_total + tax_amount - data.discount_amount;
-  }, [net_total, tax_amount, data.discount_amount]);
-
+    return net_amount + tax_amount - (data?.discount_amount ?? 0);
+  }, [net_amount, tax_amount, data.discount_amount]);
   const mergeItems = useCallback(
     (value, model) => {
       setData((prev) => {
@@ -186,175 +123,202 @@ export default memo(function Form() {
     fetchData().catch(console.error);
   }, []);
 
-  const itemColumns = useMemo(() => {
-    return [
-      {
-        name: "item",
-        titleTrans: "sales.salesOrder.columns.item",
-        required: true,
-        width: 3,
-        cell({ dataRow, setData, attributes }) {
-          return (
-            <ItemVariantLinkModel
-              placeholder={t("sales.salesOrder.columns.item.placeholder")}
-              value={dataRow.item}
-              onValueChange={(val) => {
-                setData({
-                  item: val,
-                  unit: val?.default_unit,
-                  source_warehouse: data.source_warehouse,
-                });
-              }}
-              {...attributes}
-              with={["defaultUnit", "item"]}
-            />
-          );
-        },
+  const handleBarcodeSelect = useCallback(
+    (selected) => {
+      const selectedItem = selected?.item ?? selected;
+      const selectedUnit = selected?.unit ?? selected?.default_unit;
+      if (!selectedItem || !selectedUnit) return;
+
+      setData((prev) => {
+        const items = [...(prev?.items ?? [])];
+        const idx = items.findIndex(
+          (row) =>
+            row?.item?.id === selectedItem?.id &&
+            row?.unit?.id === selectedUnit?.id,
+        );
+        if (idx >= 0) {
+          const currentQty = items[idx]?.quantity ?? 0;
+          items[idx] = { ...items[idx], quantity: currentQty + 1 };
+        } else {
+          items.push({
+            id: generateRandom(5),
+            item: selectedItem,
+            unit: selectedUnit,
+            quantity: 1,
+            source_warehouse: prev?.source_warehouse,
+          });
+        }
+        return { ...prev, items };
+      });
+    },
+    [setData],
+  );
+
+  const itemColumns = [
+    {
+      name: "item",
+      titleTrans: "sales.salesOrder.columns.item",
+      required: true,
+      width: 3,
+      cell({ dataRow, setData, attributes }) {
+        return (
+          <ItemVariantLinkModel
+            placeholder={t("sales.salesOrder.columns.item.placeholder")}
+            value={dataRow.item}
+            onValueChange={(val) => {
+              setData({
+                item: val,
+                unit: val?.default_unit,
+                source_warehouse: data.source_warehouse,
+              });
+            }}
+            {...attributes}
+            with={["defaultUnit", "item"]}
+          />
+        );
       },
-      {
-        name: "description",
-        titleTrans: "sales.salesOrder.columns.description",
-        show: false,
-        type: "text",
-        width: 2,
-        cell({ dataRow, data: value, setData, attributes }) {
-          return (
-            <Textarea
-              disabled={!dataRow?.item}
-              rows={1}
-              value={value ?? ""}
-              onChange={(e) => setData("description", e.target.value)}
-              {...attributes}
-              readOnly={
-                attributes.readOnly && !(data.submitted_at && isLockDoc)
-              }
-            />
-          );
-        },
+    },
+    {
+      name: "description",
+      titleTrans: "sales.salesOrder.columns.description",
+      show: false,
+      type: "text",
+      width: 2,
+      cell({ dataRow, data: value, setData, attributes }) {
+        return (
+          <Textarea
+            disabled={!dataRow?.item}
+            rows={1}
+            value={value ?? ""}
+            onChange={(e) => setData("description", e.target.value)}
+            {...attributes}
+            readOnly={attributes.readOnly && !(data.submitted_at && isLockDoc)}
+          />
+        );
       },
-      {
-        name: "source_warehouse",
-        titleTrans: "sales.salesOrder.columns.source_warehouse",
-        show: true,
-        type: "text",
-        width: 3,
-        required: true,
-        cell({ dataRow, data: value, setData, attributes }) {
-          return (
-            <WarehouseLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t(
-                "sales.salesOrder.columns.source_warehouse.placeholder",
-              )}
-              value={value}
-              onValueChange={(val) => setData("source_warehouse", val)}
-              {...attributes}
-              readOnly={data.submitted_at && !isLockDoc}
-            />
-          );
-        },
+    },
+    {
+      name: "source_warehouse",
+      titleTrans: "sales.salesOrder.columns.source_warehouse",
+      show: true,
+      type: "text",
+      width: 3,
+      required: true,
+      cell({ dataRow, data: value, setData, attributes }) {
+        return (
+          <WarehouseLinkModel
+            disabled={!dataRow?.item}
+            placeholder={t(
+              "sales.salesOrder.columns.source_warehouse.placeholder",
+            )}
+            value={value}
+            onValueChange={(val) => setData("source_warehouse", val)}
+            {...attributes}
+            readOnly={data.submitted_at && !isLockDoc}
+          />
+        );
       },
-      {
-        name: "available_quantity",
-        titleTrans: "sales.salesOrder.columns.available_quantity",
-        required: true,
-        type: "number",
-        width: 1,
-        cell({ additionalData, dataRow, attributes }) {
-          return (
-            <CurrencyInput
-              {...attributes}
-              disabled={!dataRow?.item}
-              readOnly={true}
-              value={additionalData?.available_stock ?? 0}
-            />
-          );
-        },
+    },
+    {
+      name: "available_quantity",
+      titleTrans: "sales.salesOrder.columns.available_quantity",
+      required: true,
+      type: "number",
+      width: 1,
+      cell({ additionalData, dataRow, attributes }) {
+        return (
+          <CurrencyInput
+            {...attributes}
+            disabled={!dataRow?.item}
+            readOnly={true}
+            value={additionalData?.available_stock ?? 0}
+          />
+        );
       },
-      {
-        name: "quantity",
-        titleTrans: "sales.salesOrder.columns.quantity",
-        required: true,
-        type: "number",
-        width: 1,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <CurrencyInput
-              {...attributes}
-              disabled={!dataRow?.item}
-              readOnly={
-                attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
-              }
-              value={data}
-              onValueChange={(value) => {
-                setData("quantity", value);
-              }}
-            />
-          );
-        },
+    },
+    {
+      name: "quantity",
+      titleTrans: "sales.salesOrder.columns.quantity",
+      required: true,
+      type: "number",
+      width: 1,
+      cell({ dataRow, data, setData, attributes }) {
+        return (
+          <CurrencyInput
+            {...attributes}
+            disabled={!dataRow?.item}
+            readOnly={
+              attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+            }
+            value={data}
+            onValueChange={(value) => {
+              setData("quantity", value);
+            }}
+          />
+        );
       },
-      {
-        name: "unit",
-        titleTrans: "sales.salesOrder.columns.unit",
-        width: 2,
-        cell({ data, setData, attributes, dataRow }) {
-          return (
-            <UnitLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t("sales.salesOrder.columns.unit.placeholder")}
-              value={data}
-              onValueChange={(val) => setData("unit", val)}
-              {...attributes}
-              filters={{
-                group: dataRow?.item?.default_unit?.group,
-              }}
-            />
-          );
-        },
+    },
+    {
+      name: "unit",
+      titleTrans: "sales.salesOrder.columns.unit",
+      width: 2,
+      cell({ data, setData, attributes, dataRow }) {
+        return (
+          <UnitLinkModel
+            disabled={!dataRow?.item}
+            placeholder={t("sales.salesOrder.columns.unit.placeholder")}
+            value={data}
+            onValueChange={(val) => setData("unit", val)}
+            {...attributes}
+            filters={{
+              group: dataRow?.item?.default_unit?.group,
+            }}
+          />
+        );
       },
-      {
-        name: "tax",
-        titleTrans: "sales.salesOrder.columns.tax",
-        required: true,
-        width: 2,
-        cell({ data: value, setData, attributes, dataRow }) {
-          return (
-            <TaxLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t("sales.salesOrder.columns.tax.placeholder")}
-              value={value}
-              onValueChange={(val) => {
-                setData("tax", val);
-              }}
-              {...attributes}
-              readOnly={data.submitted_at && !isLockDoc}
-            />
-          );
-        },
+    },
+    {
+      name: "tax",
+      titleTrans: "sales.salesOrder.columns.tax",
+      required: true,
+      width: 2,
+      cell({ data: value, setData, attributes, dataRow }) {
+        return (
+          <TaxLinkModel
+            disabled={!dataRow?.item}
+            placeholder={t("sales.salesOrder.columns.tax.placeholder")}
+            value={value}
+            onValueChange={(val) => {
+              setData("tax", val);
+            }}
+            {...attributes}
+            readOnly={data.submitted_at && !isLockDoc}
+          />
+        );
       },
-      {
-        name: "price",
-        titleTrans: "sales.salesOrder.columns.price",
-        required: true,
-        width: 2,
-        cell({ data: price, setData, attributes, dataRow }) {
-          return (
-            <CurrencyInput
-              decimalScale={2}
-              currencyCode={data?.currency?.code}
-              disabled={!dataRow?.item}
-              value={price}
-              onValueChange={(val) => {
-                setData("price", val);
-              }}
-              {...attributes}
-              readOnly={data.submitted_at && !isLockDoc}
-            />
-          );
-        },
+    },
+    {
+      name: "price",
+      titleTrans: "sales.salesOrder.columns.price",
+      required: true,
+      width: 2,
+      cell({ data: price, setData, attributes, dataRow }) {
+        return (
+          <CurrencyInput
+            decimalScale={2}
+            currencyCode={data?.currency?.code}
+            disabled={!dataRow?.item}
+            value={price}
+            onValueChange={(val) => {
+              setData("price", val);
+            }}
+            {...attributes}
+            readOnly={data.submitted_at && !isLockDoc}
+          />
+        );
       },
-    ];
-  }, [data, isLockDoc]);
+    },
+  ];
 
   return (
     <>
@@ -368,7 +332,9 @@ export default memo(function Form() {
             <DatetimePicker
               type="datetime"
               value={data?.date}
-              onValueChange={(val) => setData("date", val)}
+              onValueChange={(val) => {
+                setData("date", val);
+              }}
             />
           </FormInput>
           {data.referenceable && (
@@ -529,6 +495,12 @@ export default memo(function Form() {
         }
       >
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
+            <ItemBarcode
+              with={["item", "unit"]}
+              onSelect={handleBarcodeSelect}
+            />
+          </FormInput>
           <FormInput
             label={t("sales.salesOrder.columns.source_warehouse")}
             name="source_warehouse"
@@ -561,15 +533,17 @@ export default memo(function Form() {
             />
           </FormInput>
           <FormTable
-            name="items"
-            className="col-start-1 col-span-2"
+            name="SalesOrderItems"
+            form={<ItemForm />}
+            className="col-start-1 col-span-full"
+            classNameDialog="max-w-(--breakpoint-lg)! w-full!"
             readOnly={disabled || isLockDoc}
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => {
               setData("items", v);
             }}
-            asyncUpdateAdditionalData={asyncUpdateAdditionalData}
+            asyncAdditionalData={asyncAdditionalData}
             mapItem={({ item }) => {
               const amount = item.quantity * item.price;
               const rateAmount = (amount * (item.tax?.rate ?? 0)) / 100;
@@ -588,7 +562,7 @@ export default memo(function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={net_total * (data?.exchange_rate ?? 1)}
+                  value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -601,7 +575,7 @@ export default memo(function Form() {
             <CurrencyInput
               decimalScale={2}
               className="text-right"
-              value={net_total}
+              value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -638,7 +612,7 @@ export default memo(function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={(net_total + tax_amount) * (data?.exchange_rate ?? 1)}
+                  value={(net_amount + tax_amount) * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -651,96 +625,19 @@ export default memo(function Form() {
             <CurrencyInput
               className="text-right"
               decimalScale={2}
-              value={net_total + tax_amount}
+              value={net_amount + tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("sales.salesOrder.columns.additional_discount")}
-        collapsible
-        defaultOpen
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput label={t("sales.salesOrder.columns.discount_on")}>
-            <Select
-              value={data.discount_on}
-              onValueChange={(val) => setDiscount("discount_on", val)}
-              placeholder={t(
-                "sales.salesOrder.columns.discount_on.placeholder",
-              )}
-              optionTrans="sales.salesOrder.columns.discount_on.options"
-              options={["net_total", "grand_total"]}
-            />
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("sales.salesOrder.columns.additional_discount_rate")}`}
-          >
-            <CurrencyInput
-              className="text-right"
-              value={data.discount_rate}
-              decimalScale={2}
-              onValueChange={(val) => setDiscount("discount_rate", val)}
-              suffix="%"
-              min={0}
-              max={100}
-            ></CurrencyInput>
-          </FormInput>
+      <AdditionalDiscount
+        data={data}
+        setData={setData}
+        netAmount={net_amount}
+        taxAmount={tax_amount}
+      />
 
-          <FormInput
-            className="col-start-2"
-            disabled={!data?.discount_on}
-            label={`${t("sales.salesOrder.columns.additional_discount_amount")}`}
-          >
-            <CurrencyInput
-              className="text-right "
-              value={data.discount_amount}
-              onValueChange={(val) => setDiscount("discount_amount", val)}
-              currencyCode={data?.currency?.code ?? "default"}
-              min={0}
-              max={
-                data.discount_on == "net_total"
-                  ? net_total
-                  : net_total + tax_amount
-              }
-            ></CurrencyInput>
-          </FormInput>
-        </div>
-      </FormPageContent>
-      {data.discount_on && (
-        <FormPageContent value="detail">
-          <div className="grid grid-cols-2 gap-x-4 gap-y-4 border-t -mt-4 pt-4">
-            {data?.currency?.code &&
-              data?.currency?.code !== default_currency_id && (
-                <FormInput
-                  readOnly
-                  label={`${t("sales.salesOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
-                >
-                  <CurrencyInput
-                    className="text-right"
-                    value={amount * (data?.exchange_rate ?? 1)}
-                    currencyCode="default"
-                  ></CurrencyInput>
-                </FormInput>
-              )}
-            <FormInput
-              readOnly
-              label={`${t("sales.salesOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
-              className="col-start-2"
-            >
-              <CurrencyInput
-                className="text-right"
-                decimalScale={2}
-                value={amount}
-                currencyCode={data?.currency?.code ?? "default"}
-              ></CurrencyInput>
-            </FormInput>
-          </div>
-        </FormPageContent>
-      )}
       <FormPageContent
         value="detail"
         title={t("sales.salesOrder.columns.external_note")}
@@ -761,13 +658,18 @@ export default memo(function Form() {
         readOnly={disabled}
         value={data?.payment_schedules ?? []}
         onValueChange={(v) => setData("payment_schedules", v)}
-        mapItem={({ item }) => {
-          const payment_amount = amount * (item?.invoice_portion / 100);
-          return {
-            ...item,
-            payment_amount,
-            outstanding_amount: payment_amount,
-          };
+        additionalData={(value) => {
+          const result = {};
+          value?.forEach((item) => {
+            const payment_amount = (amount * item?.invoice_portion) / 100;
+
+            result[item.id] = {
+              payment_amount,
+              outstanding_amount: payment_amount,
+            };
+          });
+
+          return result;
         }}
         date={data?.date}
         currencyCode={data?.currency?.code}

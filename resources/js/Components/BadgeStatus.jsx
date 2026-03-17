@@ -20,10 +20,21 @@ const theme = {
   overdue: "error",
   to_bill: "warning",
   to_deliver: "warning",
-  partially_received: "warning",
-  received: "success",
   returned: "gray",
   in_rent: "primary",
+  to_receive: "warning",
+  received: "success",
+  partially_received: "warning",
+  unpaid: "warning",
+  partially_paid: "warning",
+  paid: "success",
+  skipped: "secondary",
+  reserved: "warning",
+  partially_billed: "warning",
+  partially_delivered: "warning",
+  to_order: "warning",
+  partially_ordered: "warning",
+  ordered: "success",
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();
@@ -34,6 +45,7 @@ export default function BadgeStatus({ status, className, ...props }) {
         "text-center badge w-fit",
         theme[status] ?? "secondary",
         className,
+        status == "in_progress" && "[&>svg]:size-8 [&>svg]:-my-4",
       )}
       {...props}
     >

@@ -1,19 +1,20 @@
 import {
-  Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Select as UISelect,
 } from "../ui/select";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { Button } from "../ui/button";
-import Combobox from "../Combobox";
-import { CommandItem } from "../ui/command";
 import DatetimePicker from "../DatetimePicker";
 import { Input } from "../ui/input";
+import NestedSelect from "../NestedSelect";
 import { ScrollArea } from "../ui/scroll-area";
+import Select from "../Select";
 import { X } from "lucide-react";
+import axios from "axios";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -132,10 +133,55 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
     [lang],
   );
 
+  const toArrayColumns = useCallback((cols) => {
+    if (!cols) return [];
+    return Array.isArray(cols) ? cols : Object.values(cols);
+  }, []);
+
+  const buildColumnNode = useCallback(
+    function build(col, parentPath = "") {
+      if (col.searchable === false) return null;
+      const value = parentPath ? `${parentPath}.${col.name}` : col.name;
+      const isRelation = col.type === "relation" || col.type === "relations";
+      const children =
+        col.columns && toArrayColumns(col.columns).length > 0
+          ? toArrayColumns(col.columns)
+              .map((child) => build(child, value))
+              .filter((x) => x)
+          : [];
+      return {
+        label: col.title ?? t(col.titleTrans),
+        value,
+        type: col.type,
+        relation: col.related,
+        children,
+        // relation nodes still lazy-load if backend hasn't supplied columns
+        loadable: isRelation && children.length === 0,
+      };
+    },
+    [t, toArrayColumns],
+  );
+
+  const findColumnByName = useCallback(
+    (cols, name) => {
+      const list = toArrayColumns(cols);
+      for (const col of list) {
+        if (col.name === name) return col;
+        if (col.columns) {
+          const nested = findColumnByName(col.columns, name);
+          if (nested) return nested;
+        }
+      }
+      return null;
+    },
+    [toArrayColumns],
+  );
+
   const changeOperators = useCallback(
-    (columns, columnName) => {
-      if (!columnName || !columns) return [];
-      const column = columns.find((c) => c.name === columnName);
+    (cols, columnName) => {
+      if (!columnName || !cols) return [];
+      const column = findColumnByName(cols, columnName);
+      if (!column) return [];
       if (Array.isArray(column.searchType)) {
         const options = column.parse
           ? column.searchType.map((x) => {
@@ -193,8 +239,9 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
           return [...operatorsGeneral];
       }
     },
-    [operatorsGeneral, operatorsNumber, operatorsDate],
+    [operatorsGeneral, operatorsNumber, operatorsDate, findColumnByName, t],
   );
+
   const [operators, setOperators] = useState(
     changeOperators(columns, props.column) ?? [],
   );
@@ -208,11 +255,13 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
 
   const onColumnChanged = (val) => {
     setOperators(changeOperators(columns, val));
-    onFilterChanged({ column: val });
+    onFilterChanged({ column: val, operator: "", value: "" });
   };
+
   useDidMountEffect(() => {
     onOperatorsChanged(props.operator);
   }, [operators]);
+
   const onOperatorsChanged = (val) => {
     const newOperator = operators.filter((x) => x.name === val).at(0);
     setOperator(newOperator);
@@ -228,102 +277,60 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
     }
     onFilterChanged({ operator: val });
   };
+
   const onValueChanged = (val) => {
     onFilterChanged({ value: val });
   };
 
-  const [currentColumn, setCurrentColumn] = useState(null);
-
-  const getColumn = useCallback(
-    (name) => {
-      return columns.find((x) => x.name === name);
+  const fetchRelationColumns = useCallback(
+    async (node) => {
+      if (!node?.relation) return [];
+      try {
+        const res = await axios.get(
+          window.route("model.columns", { model: node.relation }),
+        );
+        const cols = res.data?.columns ?? [];
+        return toArrayColumns(cols).map((col) =>
+          buildColumnNode(col, node.value),
+        );
+      } catch (error) {
+        console.error(error);
+        return [];
+      }
     },
-    [columns],
+    [buildColumnNode, toArrayColumns],
   );
-  const getColumnFromColumns = useCallback((columns, name) => {
-    return columns.find((x) => x.name === name);
-  }, []);
 
-  const currentColumns = useMemo(() => {
-    if (!currentColumn) return columns;
-    const splitString = currentColumn.split(".");
-
-    let currenCols = columns;
-    splitString.forEach((column) => {
-      const col = getColumnFromColumns(currenCols, column);
-      if (!col) return currenCols;
-      if (!col.columns) return currenCols;
-      currenCols = col.columns;
-    });
-    return currenCols;
-  }, [currentColumn, columns]);
-
-  useEffect(() => {
-    console.log(currentColumn, currentColumns);
-  }, [currentColumn, currentColumns]);
+  const columnOptions = useMemo(() => {
+    return toArrayColumns(columns)
+      .filter((col) => !col.parentCol && col.searchable !== false)
+      .map((col) => buildColumnNode(col));
+  }, [columns, buildColumnNode, toArrayColumns]);
   return (
     <div className="relative flex flex-col col-span-4 p-3 pr-10 border rounded-lg border-muted-foreground/30 gap-y-3 md:p-0 md:border-0 md:grid grid-cols-subgrid md:gap-x-2">
-      <Combobox
-        options={currentColumns}
-        value={currentColumn}
+      <NestedSelect
+        options={columnOptions}
+        value={props.column}
+        onValueChange={onColumnChanged}
         placeholder={t("core.datatable.filter.select_column")}
-        templateTrigger={(col) => {
-          console.log(col);
-          return <span>{col ?? ""}</span>;
-        }}
-        templateItem={(col) => {
-          return (
-            <CommandItem
-              key={col.name}
-              value={(currentColumn ? `${currentColumn}.` : "") + col.name}
-              className="block px-4 "
-              onSelect={(v) => setCurrentColumn(v)}
-            >
-              {col.title ?? t(col.titleTrans)}
-            </CommandItem>
-          );
-        }}
+        className="m-1 min-w-[12rem]"
+        fetchChildren={fetchRelationColumns}
       />
-      {/* <Select value={props.column} onValueChange={onColumnChanged}>
-        <SelectTrigger className="m-1">
-          <SelectValue placeholder={t("core.datatable.filter.select_column")} />
-        </SelectTrigger>
-        <SelectContent>
-          <ScrollArea className="max-h-56">
-            {columns
-              ?.filter((x) => x.searchType || x.searchable)
-              .map((col) => (
-                <SelectItem key={col.name} value={col.name}>
-                  {col.title ?? t(col.titleTrans)}
-                </SelectItem>
-              ))}
-          </ScrollArea>
-        </SelectContent>
-      </Select> */}
       <Select
         disabled={operators.length <= 0}
         value={props.operator}
         onValueChange={onOperatorsChanged}
-      >
-        <SelectTrigger className="m-1">
-          <SelectValue
-            placeholder={t("core.datatable.filter.select_operator")}
-          />
-        </SelectTrigger>
-        <SelectContent>
-          <ScrollArea className="max-h-56">
-            {operators.map(({ title, name }) => (
-              <SelectItem key={name} value={name}>
-                {title}
-              </SelectItem>
-            ))}
-          </ScrollArea>
-        </SelectContent>
-      </Select>
+        options={operators.map(({ title, name }) => ({
+          label: title,
+          value: name,
+        }))}
+        placeholder={t("core.datatable.filter.select_operator")}
+        className="m-1"
+      />
       {(() => {
         if (operator?.options) {
           return (
-            <Select
+            <UISelect
               disabled={!operator.name}
               value={props.value}
               onValueChange={onValueChanged}
@@ -340,7 +347,7 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
                   {operator.options.map((val) =>
                     typeof val == "string" ? (
                       <SelectItem key={val} value={val} className="capitalize">
-                        {val.replace(/(\-|\_)/g, " ")}
+                        {val.replace(/(-|_)/g, " ")}
                       </SelectItem>
                     ) : (
                       <SelectItem key={val.value} value={val.value}>
@@ -350,7 +357,7 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
                   )}
                 </ScrollArea>
               </SelectContent>
-            </Select>
+            </UISelect>
           );
         }
         if (

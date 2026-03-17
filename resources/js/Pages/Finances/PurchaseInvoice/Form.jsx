@@ -3,35 +3,61 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
+import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
+
+import AccountLinkModel from "../Accounts/AccountLinkModel";
+import AdditionalDiscount from "../Components/AdditionalDiscount";
 import CurrencyInput from "@/Components/CurrencyInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
-import PaymentMethodLinkModel from "@/Pages/Finances/PaymentMethods/PaymentMethodLinkModel";
-import PaymentTermLinkModel from "@/Pages/Finances/PaymentTerms/PaymentTermLinkModel";
-import Select from "@/Components/Select";
+import PaymentSchedule from "../Components/PaymentSchedule";
+import PurchaseInvoiceLinkModel from "../PurchaseInvoice/PurchaseInvoiceLinkModel";
+import PurchaseOrderLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrderLinkModel";
+import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
-import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
-import { calculateArray, generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
-import PurchaseOrderLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrderLinkModel";
 
 export default function Form() {
+  const defaultValue = useCallback(async () => {
+    const accounts = await getDataModel("App\\Models\\Finances\\Account", {
+      root_type: "liability",
+      account_type: {
+        in: ["stock_received_but_not_billed", "payable"],
+      },
+      is_contra: false,
+    });
+    const expenseHeadAccount = accounts.filter(
+      (x) => x.account_type == "stock_received_but_not_billed",
+    )[0];
+    const creditAccount = accounts.filter(
+      (x) => x.account_type == "payable",
+    )[0];
+    return {
+      date: new Date(),
+      expense_head_account: expenseHeadAccount,
+      credit_account: creditAccount,
+    };
+  }, []);
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage();
+  const { data, setData, disabled } = useFormPage(defaultValue, {
+    notUseWhenCreate: true,
+  });
+
   const { default_currency_id } = usePage().props.preferences;
   const amount = useMemo(() => {
     return calculateArray(data.items, "amount", "+");
   }, [data.items]);
 
-  const basic_amount = useMemo(() => {
+  const net_amount = useMemo(() => {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
@@ -86,27 +112,6 @@ export default function Form() {
               rows={1}
               value={data ?? ""}
               onChange={(e) => setData("description", e.target.value)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "target_warehouse",
-        titleTrans: "finances.purchaseInvoice.columns.target_warehouse",
-        show: true,
-        type: "text",
-        width: 2,
-        required: true,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <WarehouseLinkModel
-              disabled={!dataRow?.item}
-              placeholder={t(
-                "finances.purchaseInvoice.columns.target_warehouse.placeholder",
-              )}
-              value={data}
-              onValueChange={(val) => setData("target_warehouse", val)}
               {...attributes}
             />
           );
@@ -199,331 +204,260 @@ export default function Form() {
     ];
   }, [data]);
 
-  const paymentScheduleColumns = useMemo(() => {
-    return [
-      {
-        name: "payment_term",
-        titleTrans: "finances.purchaseInvoice.columns.payment_term",
-        show: true,
-        cell({ data: paymentTerm, setData, attributes }) {
-          return (
-            <PaymentTermLinkModel
-              placeholder={t(
-                "finances.purchaseInvoice.columns.payment_term.placeholder",
-              )}
-              value={paymentTerm}
-              onValueChange={(val) => {
-                const due_date = new Date(data?.date);
-                switch (val?.due_date_based_on) {
-                  case "days_after_invoice_date": {
-                    due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                  case "weeks_after_invoice_week": {
-                    due_date.setDate(
-                      due_date.getDate() + (val?.credit_period ?? 0) * 7,
-                    );
-                    break;
-                  }
-                  case "months_after_invoice_month": {
-                    due_date.setMonth(
-                      due_date.getMonth() + (val?.credit_period ?? 0),
-                    );
-                    break;
-                  }
-                }
-                setData({
-                  payment_term: val,
-                  due_date,
-                  description: val?.description,
-                  invoice_portion: val?.invoice_portion,
-                  discount_type: val?.discount_type,
-                  discount: val?.discount,
-                  payment_method: val?.payment_method,
-                });
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "due_date",
-        titleTrans: "finances.purchaseInvoice.columns.due_date",
-        required: true,
-        cell({ data, setData, attributes }) {
-          return (
-            <DatetimePicker
-              type="datetime"
-              value={data}
-              onValueChange={(val) => setData("due_date", val)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "description",
-        titleTrans: "finances.purchaseInvoice.columns.description",
-        show: false,
-        type: "text",
-        width: 2,
-        cell({ dataRow, data, setData, attributes }) {
-          return (
-            <Textarea
-              disabled={!dataRow?.item}
-              rows={1}
-              value={data ?? ""}
-              onChange={(e) => setData("description", e.target.value)}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "invoice_portion",
-        titleTrans: "finances.purchaseInvoice.columns.invoice_portion",
-        required: true,
-        width: 1,
-        cell({ data, setData, attributes }) {
-          return (
-            <CurrencyInput
-              decimalScale={2}
-              suffix="%"
-              value={data}
-              onValueChange={(val) => {
-                setData("invoice_portion", val);
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "payment_amount",
-        titleTrans: "finances.purchaseInvoice.columns.payment_amount",
-        required: true,
-        readOnly: true,
-        width: 1,
-        cell({ data: payment_amount, setData, attributes }) {
-          return (
-            <CurrencyInput
-              decimalScale={2}
-              currencyCode={data?.currency?.code}
-              value={payment_amount}
-              onValueChange={(val) => {
-                setData("payment_amount", val);
-              }}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "payment_method",
-        titleTrans: "finances.purchaseInvoice.columns.payment_method",
-        width: 1,
-        cell({ data, setData, attributes }) {
-          return (
-            <PaymentMethodLinkModel
-              value={data}
-              onValueChange={(val) => setData("payment_method", val)}
-              placeholder={t(
-                "finances.paymentTerm.columns.payment_method.placeholder",
-              )}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "discount_type",
-        titleTrans: "finances.purchaseInvoice.columns.discount_type",
-        width: 1,
-        cell({ data, setData, attributes }) {
-          return (
-            <Select
-              value={data}
-              onValueChange={(val) => setData("discount_type", val)}
-              {...attributes}
-              placeholder={t(
-                "finances.purchaseInvoice.columns.discount_type.placeholder",
-              )}
-              optionTrans="finances.purchaseInvoice.columns.discount_type.options"
-              options={["percentage", "amount"]}
-            />
-          );
-        },
-      },
-      {
-        name: "discount",
-        titleTrans: "finances.purchaseInvoice.columns.discount",
-        width: 1,
-        cell({ data: discount, dataRow, setData, attributes }) {
-          return (
-            <CurrencyInput
-              className="text-left"
-              value={discount}
-              currencyCode={
-                dataRow.discount_type == "percentage"
-                  ? undefined
-                  : data?.currency?.code
-              }
-              onValueChange={(value) => setData("discount", value)}
-              decimalsLimit={2}
-              suffix={dataRow.discount_type == "percentage" ? "%" : ""}
-              min={dataRow.discount_type == "percentage" && 0}
-              max={dataRow.discount_type == "percentage" && 100}
-              {...attributes}
-            />
-          );
-        },
-      },
-      {
-        name: "outstanding_amount",
-        titleTrans: "finances.purchaseInvoice.columns.outstanding_amount",
-        readOnly: true,
-        width: 1,
-        cell({ data, setData, attributes }) {
-          return (
-            <CurrencyInput
-              decimalScale={2}
-              currencyCode={data?.currency?.code}
-              value={data}
-              onValueChange={(val) => setData("outstanding_amount", val)}
-              {...attributes}
-            />
-          );
-        },
-      },
-    ];
-  }, [data]);
-  useEffect(() => {
-    if (!data.date) {
-      setData("date", new Date().toISOString());
-    }
-  }, []);
   return (
     <>
       <FormPageContent
         value="detail"
         title={t("finances.purchaseInvoice.detail")}
       >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
+        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2 [&>div]:grid [&>div]:gap-y-4 [&>div]:grid-cols-1 [&>div]:content-start">
+          <div>
+            <FormInput
+              name="date"
+              label={t("finances.purchaseInvoice.columns.date")}
+              required
+            >
+              <DatetimePicker
+                type="datetime"
+                value={data?.date}
+                onValueChange={(val) => {
+                  setData("date", val);
+                }}
+              />
+            </FormInput>
+            <FormInput
+              label={t("finances.purchaseInvoice.columns.purchase_order")}
+              required
+              disabled={data.is_return && !data.purchase_order}
+              readOnly={data.is_return}
+              name="purchase_order"
+            >
+              <PurchaseOrderLinkModel
+                disabledAddButton
+                // filters={{
+                //   status: {
+                //     in: ["to_receive"],
+                //   },
+                // }}
+                placeholder={t(
+                  "finances.purchaseInvoice.columns.purchase_order.placeholder",
+                )}
+                with={[
+                  "items",
+                  "supplier",
+                  "currency",
+                  "items.item",
+                  "items.tax",
+                  "items.unit",
+                  "paymentSchedules",
+                  "paymentSchedules.paymentTerm",
+                  "paymentSchedules.paymentMethod",
+                ]}
+                value={data.purchase_order}
+                onValueChange={(val) => {
+                  setData((prev) => {
+                    return {
+                      ...prev,
+                      purchase_order: val,
+                      supplier: val?.supplier,
+                      currency: val?.currency,
+                      items: val?.items?.map((item) => {
+                        return {
+                          ...item,
+                          id: generateRandom(8),
+                          purchase_order_item_id: item.id,
+                          amount: item.basic_amount + item.tax_amount,
+                        };
+                      }),
+                      payment_schedules:
+                        val?.payment_schedules?.map((paymentSchedule) => {
+                          return {
+                            ...paymentSchedule,
+                            id: generateRandom(8),
+                          };
+                        }) ?? [],
+                      amount: val?.amount,
+                      discount_on: val?.discount_on,
+                      discount_rate: val?.discount_rate,
+                      discount_amount: val?.discount_amount,
+                      exchange_rate: val?.exchange_rate,
+                      external_note: val?.external_note,
+                    };
+                  });
+                }}
+              />
+            </FormInput>
+
+            <FormInput
+              className="col-start-1"
+              label={t("finances.purchaseInvoice.currency")}
+              name="currency"
+              readOnly
+              disabled={!data.purchase_order}
+            >
+              <CurrencyLinkModel
+                placeholder={t("finances.purchaseInvoice.currency.placeholder")}
+                value={data.currency}
+                onValueChange={(val) => {
+                  setData("currency", val);
+                }}
+              />
+            </FormInput>
+
+            <FormInput
+              label={t("finances.purchaseInvoice.exchange_rate")}
+              name="exchange_rate"
+              readOnly
+            >
+              <CurrencyInput
+                disabled={
+                  !(
+                    data?.currency?.code &&
+                    data?.currency?.code !== default_currency_id
+                  )
+                }
+                className="text-left"
+                decimalScale={2}
+                value={data.exchange_rate}
+                onValueChange={(value) => {
+                  setData("exchange_rate", value);
+                }}
+              />
+            </FormInput>
+          </div>
+          <div>
+            <FormCheckbox
+              className="mt-8 mb-3"
+              label={t("finances.purchaseInvoice.columns.is_return")}
+              checked={data.is_return}
+              onCheckedChange={(val) => {
+                setData((prev) => ({
+                  ...prev,
+                  is_return: val,
+                  purchase_order: undefined,
+                  supplier: undefined,
+                  currency: undefined,
+                  items: [],
+                  payment_schedules: [],
+                  amount: 0,
+                  discount_on: undefined,
+                  discount_rate: undefined,
+                  discount_amount: undefined,
+                  exchange_rate: undefined,
+                  external_note: undefined,
+                  return_against: undefined,
+                }));
+              }}
+            />
+            {data.is_return && (
+              <FormInput
+                label={t("finances.purchaseInvoice.columns.return_against")}
+                name="return_against"
+                required
+              >
+                <PurchaseInvoiceLinkModel
+                  filters={{
+                    date: {
+                      "<=": data?.date ?? new Date().toISOString(),
+                    },
+                    status: {
+                      jsonContains: ["unpaid", "partially_paid", "paid"],
+                    },
+                  }}
+                  with={[
+                    "supplier",
+                    "purchaseOrder",
+                    "creditAccount",
+                    "expenseHeadAccount",
+                    "currency",
+                    "items",
+                    "items.item",
+                    "items.tax",
+                    "items.unit",
+                  ]}
+                  value={data.return_against}
+                  onValueChange={(val) => {
+                    setData((prev) => ({
+                      ...prev,
+                      return_against: val,
+                      purchase_order: val?.purchase_order,
+                      supplier: val?.supplier,
+                      currency: val?.currency,
+                      exchange_rate: val?.exchange_rate,
+                      credit_account:
+                        val?.credit_account ?? prev.credit_account,
+                      expense_head_account:
+                        val?.expense_head_account ?? prev.expense_head_account,
+                      discount_on: val?.discount_on,
+                      discount_rate: val?.discount_rate,
+                      discount_amount: val?.discount_amount,
+                      items: val?.items?.map((item) => {
+                        return {
+                          ...item,
+                          id: generateRandom(8),
+                          return_against_item_id: item.id,
+                        };
+                      }),
+                    }));
+                  }}
+                />
+              </FormInput>
+            )}
+            <FormInput
+              className="col-start-1"
+              label={t("finances.purchaseInvoice.supplier")}
+              required={true}
+              name="supplier"
+              readOnly
+              disabled={!data.purchase_order}
+            >
+              <SupplierLinkModel with={["branches"]} value={data.supplier} />
+            </FormInput>
+          </div>
+        </div>
+      </FormPageContent>
+      <FormPageContent
+        value="detail"
+        title={t("finances.purchaseInvoice.columns.accounts")}
+      >
+        <div className="grid gap-4  grid-cols-2">
           <FormInput
-            name="date"
-            label={t("finances.purchaseInvoice.columns.date")}
+            label={t("finances.purchaseInvoice.columns.expense_head_account")}
+            name="expense_head_account"
             required
           >
-            <DatetimePicker
-              type="datetime"
-              value={data?.date}
-              onValueChange={(val) => {
-                setData("date", val);
+            <AccountLinkModel
+              filters={{
+                root_type: "liability",
+                account_type: "stock_received_but_not_billed",
+                is_group: false,
               }}
-            />
-          </FormInput>
-          <FormInput
-            label={t("finances.purchaseInvoice.columns.purchase_order")}
-            name="purchase_order"
-          >
-            <PurchaseOrderLinkModel
-              disabledAddButton
-              // filters={{
-              //   status: {
-              //     in: ["to_receive"],
-              //   },
-              // }}
               placeholder={t(
-                "finances.purchaseInvoice.columns.purchase_order.placeholder",
+                "finances.purchaseInvoice.columns.accounts.placeholder",
               )}
-              with={[
-                "items",
-                "supplier",
-                "currency",
-                "items.item",
-                "items.tax",
-                "items.unit",
-                "items.targetWarehouse",
-                "paymentSchedules",
-                "paymentSchedules.paymentTerm",
-                "paymentSchedules.paymentMethod",
-              ]}
-              value={data.purchase_order}
+              value={data.expense_head_account}
               onValueChange={(val) => {
-                setData((prev) => {
-                  return {
-                    ...prev,
-                    purchase_order: val,
-                    supplier: val?.supplier,
-                    currency: val?.currency,
-                    items: val?.items?.map((item) => {
-                      return {
-                        ...item,
-                        id: generateRandom(5),
-                        referenceable_type:
-                          "App\\Models\\Purchase\\PurchaseOrderItem",
-                        referenceable_id: item.id,
-                        amount: item.basic_amount + item.tax_amount,
-                      };
-                    }),
-                    paymentSchedules: val?.paymentSchedules,
-                    amount: val?.amount,
-                    discount_on: val?.discount_on,
-                    discount_rate: val?.discount_rate,
-                    discount_amount: val?.discount_amount,
-                    exchange_rate: val?.exchange_rate,
-                    external_note: val?.external_note,
-                  };
-                });
+                setData("expense_head_account", val);
               }}
             />
           </FormInput>
-
           <FormInput
-            className="col-start-1"
-            label={t("finances.purchaseInvoice.supplier")}
-            required={true}
-            name="supplier"
-            readOnly
+            label={t("finances.purchaseInvoice.columns.credit_account")}
+            name="credit_account"
+            required
           >
-            <SupplierLinkModel with={["branches"]} value={data.supplier} />
-          </FormInput>
-
-          <FormInput
-            className="col-start-1"
-            label={t("finances.purchaseInvoice.currency")}
-            name="currency"
-            readOnly
-          >
-            <CurrencyLinkModel
-              placeholder={t("finances.purchaseInvoice.currency.placeholder")}
-              value={data.currency}
-              onValueChange={(val) => {
-                setData("currency", val);
+            <AccountLinkModel
+              filters={{
+                root_type: "liability",
+                account_type: "payable",
+                is_group: false,
               }}
-            />
-          </FormInput>
-
-          <FormInput
-            label={t("finances.purchaseInvoice.exchange_rate")}
-            name="exchange_rate"
-            readOnly
-          >
-            <CurrencyInput
-              disabled={
-                !(
-                  data?.currency?.code &&
-                  data?.currency?.code !== default_currency_id
-                )
-              }
-              className="text-left"
-              decimalScale={2}
-              value={data.exchange_rate}
-              onValueChange={(value) => {
-                setData("exchange_rate", value);
+              placeholder={t(
+                "finances.purchaseInvoice.columns.accounts.placeholder",
+              )}
+              value={data.credit_account}
+              onValueChange={(val) => {
+                setData("credit_account", val);
               }}
             />
           </FormInput>
@@ -538,8 +472,9 @@ export default function Form() {
         </FormPageContentTitle>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormTable
-            name="items"
+            name="PurchaseInvoiceItems"
             className="col-start-1 col-span-2"
+            form={<ItemForm />}
             disabled={true}
             columns={itemColumns}
             value={data?.items ?? []}
@@ -563,7 +498,7 @@ export default function Form() {
               >
                 <CurrencyInput
                   className="text-right"
-                  value={basic_amount * (data?.exchange_rate ?? 1)}
+                  value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
                 ></CurrencyInput>
               </FormInput>
@@ -576,7 +511,7 @@ export default function Form() {
             <CurrencyInput
               decimalScale={2}
               className="text-right"
-              value={basic_amount}
+              value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></CurrencyInput>
           </FormInput>
@@ -632,49 +567,12 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="detail"
-        title={t("finances.purchaseInvoice.columns.additional_discount")}
-        collapsible
-        defaultOpen
-      >
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput label={t("finances.purchaseInvoice.columns.discount_on")}>
-            <Select
-              value={data.discount_on}
-              onValueChange={(val) => setData("discount_on", val)}
-              placeholder={t(
-                "finances.purchaseInvoice.columns.discount_on.placeholder",
-              )}
-              optionTrans="finances.purchaseInvoice.columns.discount_on.options"
-              options={["grand_total", "net_total"]}
-            />
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("finances.purchaseInvoice.columns.additional_discount_rate")}`}
-          >
-            <CurrencyInput
-              className="text-right"
-              decimalScale={2}
-              value={data.discount_rate}
-              suffix="%"
-            ></CurrencyInput>
-          </FormInput>
-          <FormInput
-            disabled={!data?.discount_on}
-            label={`${t("finances.purchaseInvoice.columns.additional_discount_amount")}`}
-            className="col-start-2"
-          >
-            <CurrencyInput
-              className="text-right"
-              decimalScale={2}
-              value={data.discount_amount}
-              currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
-          </FormInput>
-        </div>
-      </FormPageContent>
+      <AdditionalDiscount
+        data={data}
+        setData={setData}
+        netAmount={net_amount}
+        taxAmount={tax_amount}
+      />
       <FormPageContent
         value="detail"
         title={t("finances.purchaseInvoice.columns.external_note")}
@@ -690,36 +588,26 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
+      <PaymentSchedule
+        readOnly={disabled}
+        value={data?.payment_schedules ?? []}
+        onValueChange={(v) => setData("payment_schedules", v)}
+        additionalData={(value) => {
+          const result = {};
+          value.forEach((item) => {
+            const payment_amount = (amount * item?.invoice_portion) / 100;
 
-      <FormPageContent
-        value="terms"
-        title={t("finances.purchaseInvoice.columns.terms")}
-      >
-        <div className="px-1 py-1">
-          <FormTable
-            name="paymentSchedules"
-            className="col-start-1 col-span-2"
-            readOnly={disabled}
-            columns={paymentScheduleColumns}
-            value={data?.payment_schedules ?? []}
-            onValueChange={(v) => setData("payment_schedules", v)}
-            mapItem={({ item }) => {
-              const payment_amount = amount * (item?.invoice_portion / 100);
-              return {
-                ...item,
-                payment_amount,
-                outstanding_amount: payment_amount,
-              };
-            }}
-          />
-        </div>
-      </FormPageContent>
-      {/* {(data.status ?? "draft") != "draft" && (
-        <FormPageContent
-          value="connections"
-          title={t("core.form.connections")}
-        ></FormPageContent>
-      )} */}
+            result[item.id] = {
+              payment_amount,
+              outstanding_amount: payment_amount,
+            };
+          });
+
+          return result;
+        }}
+        date={data?.date}
+        currencyCode={data?.currency?.code}
+      />
     </>
   );
 }

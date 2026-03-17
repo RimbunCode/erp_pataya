@@ -1,8 +1,20 @@
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/Components/ui/dropdown-menu";
+import { calculateArray, inArray, isValidStatus } from "@/lib/utils";
+
+import { Button } from "@/Components/ui/button";
+import { ChevronsUpDown } from "lucide-react";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
+import Link from "@/Components/Link";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Show({ salesInvoice, flash, defaultData }) {
+export default function Show({ salesInvoice, defaultData }) {
+  const route = window.route;
   const { t } = useLaravelReactI18n();
 
   return (
@@ -14,22 +26,74 @@ export default function Show({ salesInvoice, flash, defaultData }) {
       title={salesInvoice ? salesInvoice.code : t("finances.salesInvoice.new")}
       disabled={salesInvoice?.submitted_at}
       submitable
-      banner={
-        flash.errorItems && (
-          <div className="flex flex-col gap-x-2 text-sm alert error p-4">
-            <h3 className="text-base font-semibold">
-              {t("core.form.errors.title")}
-            </h3>
-            <ul className="block pl-5">
-              {flash.errorItems.map((value, index) => (
-                <li key={index} className="list-disc">
-                  {t(value)}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )
-      }
+      controls={() => {
+        if (
+          salesInvoice?.submitted_at &&
+          isValidStatus(salesInvoice?.status) &&
+          ((!salesInvoice?.is_return &&
+            calculateArray(salesInvoice?.items, "unreturned_quantity", "+") >
+              0) ||
+            inArray(salesInvoice?.status, [
+              "unpaid",
+              "partially_paid",
+              "returned",
+            ]))
+        ) {
+          return (
+            <>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    className="p-2! size-fit h-8"
+                    variant="secondary"
+                  >
+                    {t("core.form.actions")}
+                    <ChevronsUpDown />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  {inArray(salesInvoice?.status, [
+                    "unpaid",
+                    "partially_paid",
+                    "returned",
+                  ]) && (
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href={route("paymentEntries.create", {
+                          ref: `salesInvoice/${salesInvoice?.id}`,
+                        })}
+                      >
+                        {t(
+                          "finances.salesInvoice.actions.create_payment_entry",
+                        )}
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
+                  {!salesInvoice?.is_return &&
+                    calculateArray(
+                      salesInvoice?.items,
+                      "unreturned_quantity",
+                      "+",
+                    ) > 0 && (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href={route("salesInvoices.create", {
+                            ref: `salesInvoice/${salesInvoice?.id}`,
+                          })}
+                        >
+                          {t(
+                            "finances.salesInvoice.actions.create_credit_note",
+                          )}
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          );
+        }
+      }}
     >
       <Form />
     </FormPage>

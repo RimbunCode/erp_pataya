@@ -1,19 +1,56 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useEffect, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import CurrencyInput from "@/Components/CurrencyInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
+import ItemForm from "./ItemForm";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
+import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage();
+  const { data, setData, defaultData, disabled } = useFormPage(
+    { date: new Date() },
+    { trackDefaultValue: false },
+  );
+  const handleBarcodeSelect = useCallback(
+    (selected) => {
+      const selectedItem = selected?.item ?? selected;
+      const selectedUnit = selected?.unit ?? selected?.default_unit;
+      if (!selectedItem || !selectedUnit) return;
+
+      setData((prev) => {
+        const items = [...(prev?.items ?? [])];
+        const idx = items.findIndex(
+          (row) =>
+            row?.item?.id === selectedItem?.id &&
+            row?.unit?.id === selectedUnit?.id,
+        );
+        if (idx >= 0) {
+          const currentQty = items[idx]?.quantity ?? 0;
+          items[idx] = { ...items[idx], quantity: currentQty + 1 };
+        } else {
+          items.push({
+            id: generateRandom(5),
+            item: selectedItem,
+            unit: selectedUnit,
+            quantity: 1,
+
+            source_warehouse: prev?.source_warehouse,
+          });
+        }
+        return { ...prev, items };
+      });
+    },
+    [setData],
+  );
   const itemColumns = useMemo(() => {
     return [
       {
@@ -127,12 +164,8 @@ export default function Form() {
         },
       },
     ];
-  }, []);
-  useEffect(() => {
-    if (!data.date) {
-      setData("date", new Date());
-    }
-  }, []);
+  }, [data]);
+
   return (
     <>
       <FormPageContent value="detail" title={t("sales.internalOrder.detail")}>
@@ -152,6 +185,12 @@ export default function Form() {
       </FormPageContent>
       <FormPageContent value="detail" title={t("sales.internalOrder.items")}>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+          <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
+            <ItemBarcode
+              with={["item", "unit"]}
+              onSelect={handleBarcodeSelect}
+            />
+          </FormInput>
           <FormInput
             label={t("sales.internalOrder.columns.source_warehouse")}
             name="source_warehouse"
@@ -179,7 +218,10 @@ export default function Form() {
             />
           </FormInput>
           <FormTable
+            name="IternalOrderItems"
             className="col-start-1 col-span-2"
+            classNameDialog="max-w-(--breakpoint-lg)! w-full!"
+            form={<ItemForm />}
             readOnly={disabled}
             columns={itemColumns}
             value={data?.items ?? []}

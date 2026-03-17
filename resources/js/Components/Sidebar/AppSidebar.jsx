@@ -24,8 +24,8 @@ import { NavMain } from "@/Components/Sidebar/NavMain";
 const navList = [
   {
     title: "Dashboard",
-    url: "/dashboard",
-    urlPattern: "/dashboard*",
+    url: "/dashboard-view",
+    urlPattern: "/dashboard-view*",
     icon: <LayoutDashboard />,
   },
   {
@@ -69,9 +69,19 @@ const navList = [
         urlPattern: "/stockEntries/*",
       },
       {
+        title: "Purchase Receipts",
+        url: "/purchaseReceipts",
+        urlPattern: "/purchaseReceipts/*",
+      },
+      {
         title: "Delivery Notes",
         url: "/deliveryNotes",
         urlPattern: "/deliveryNotes/*",
+      },
+      {
+        title: "Stock Ledgers",
+        url: "/stockLedgers",
+        urlPattern: "/stockLedgers/*",
       },
     ],
   },
@@ -103,11 +113,6 @@ const navList = [
         urlPattern: "/suppliers/*",
       },
       {
-        title: "Purchase Receipts",
-        url: "/purchaseReceipts",
-        urlPattern: "/purchaseReceipts/*",
-      },
-      {
         title: "Purchase Requests",
         url: "/purchaseRequests",
         urlPattern: "/purchaseRequests/*",
@@ -116,11 +121,6 @@ const navList = [
         title: "Purchase Orders",
         url: "/purchaseOrders",
         urlPattern: "/purchaseOrders/*",
-      },
-      {
-        title: "Purchase Returns",
-        url: "/purchaseReturns",
-        urlPattern: "/purchaseReturns/*",
       },
     ],
   },
@@ -155,11 +155,6 @@ const navList = [
         url: "/internalOrders",
         urlPattern: "/internalOrders/*",
       },
-      {
-        title: "Sales Returns",
-        url: "/salesReturns",
-        urlPattern: "/salesReturns/*",
-      },
     ],
   },
   {
@@ -177,9 +172,9 @@ const navList = [
         urlPattern: "/paymentMethods/*",
       },
       {
-        title: "Payment Terms",
-        url: "/paymentTerms",
-        urlPattern: "/paymentTerms/*",
+        title: "Payment Term Templates",
+        url: "/paymentTermTemplates",
+        urlPattern: "/paymentTermTemplates/*",
       },
       {
         title: "Payment Entries",
@@ -245,6 +240,11 @@ const navList = [
         urlPattern: "/settings/branches/*",
       },
       {
+        title: "Manage Dashboards",
+        url: "/settings/dashboards",
+        urlPattern: "/settings/dashboards/*",
+      },
+      {
         title: "Formating Series",
         url: "/settings/formatingSeries",
         urlPattern: "/settings/formatingSeries/*",
@@ -258,6 +258,16 @@ const navList = [
         title: "Print Templates",
         url: "/settings/printTemplates",
         urlPattern: "/settings/printTemplates/*",
+      },
+      {
+        title: "Widgets",
+        url: "/settings/widgets",
+        urlPattern: "/settings/widgets/*",
+      },
+      {
+        title: "Files",
+        url: "/settings/files",
+        urlPattern: "/settings/files/*",
       },
       {
         title: "Database Backup",

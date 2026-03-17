@@ -10,7 +10,7 @@ import { FormPageContent } from "@/Pages/Core/FormPage";
 import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { cn } from "@/lib/utils";
-import { convertTemplateLink } from "@/Components/LinkModel";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function FormStockLevels() {

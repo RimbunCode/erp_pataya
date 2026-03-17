@@ -60,6 +60,7 @@ export default function Form() {
           />
           {!data.is_numeric ? (
             <FormTable
+              name="AttributeValues"
               label={t("inventory.attribute.columns.values")}
               className="col-span-full"
               columns={valuesColumns}

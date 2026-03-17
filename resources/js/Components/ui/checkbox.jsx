@@ -2,6 +2,7 @@ import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import * as React from "react";
 
 import { Check, MinusIcon } from "lucide-react";
+import { RunningText, RunningTextContent } from "@/Components/ui/running-text";
 
 import { cn } from "@/lib/utils";
 import { useFormPage } from "@/Pages/Core/FormPage";
@@ -46,8 +47,12 @@ const FormCheckbox = React.forwardRef(
     const defaultId = React.useId();
     const { disabled } = useFormPage() ?? {};
     const readOnly = _readOnly || (disabled ?? false);
+    const labelContent = children ?? label;
+    const hasPlainLabel =
+      typeof labelContent === "string" || typeof labelContent === "number";
+
     return (
-      <div className={cn("flex items-center space-x-2", className)}>
+      <div className={cn("flex min-w-0 items-center gap-2", className)}>
         <Checkbox
           ref={ref}
           id={id ?? defaultId}
@@ -57,15 +62,21 @@ const FormCheckbox = React.forwardRef(
           readOnly={readOnly}
           {...props}
         />
-        <label
-          htmlFor={id ?? defaultId}
+        <RunningText
+          asChild
           className={cn(
-            "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
+            "min-w-0 flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
             classNameLabel,
           )}
         >
-          {children ?? label}
-        </label>
+          {hasPlainLabel ? (
+            <label htmlFor={id ?? defaultId}>
+              <RunningTextContent text={labelContent} />
+            </label>
+          ) : (
+            labelContent
+          )}
+        </RunningText>
       </div>
     );
   },

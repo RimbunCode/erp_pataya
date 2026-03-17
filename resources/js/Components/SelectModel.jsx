@@ -12,6 +12,7 @@ import {
   forwardRef,
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -58,7 +59,8 @@ export default memo(
     const [open, setOpen] = useState(false);
     const [model, setModel] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [select, setSelect] = useState(null);
+    const SELF_OPTION = "__self__";
+    const [select, setSelect] = useState(SELF_OPTION);
     const [dataModel, setDataModel] = useState({});
     const [dataTable, setDataTable] = useState({ data: [], total: 0 });
     const { data, setData, isDirty, setDefaults } = useForm({
@@ -70,6 +72,102 @@ export default memo(
       f: [],
       page: 1,
     });
+    const normalizeFilters = useCallback((filters) => {
+      if (!filters) return [];
+      if (Array.isArray(filters)) return filters;
+      const result = [];
+      Object.entries(filters).forEach(([key, value]) => {
+        if (
+          Array.isArray(value) &&
+          value.length === 3 &&
+          typeof value[0] === "string"
+        ) {
+          result.push(value);
+          return;
+        }
+        if (value && typeof value === "object") {
+          Object.entries(value).forEach(([operator, val]) => {
+            if (val === undefined || val === null) return;
+            result.push([key, operator, val]);
+          });
+          return;
+        }
+        result.push([key, "eq", value]);
+      });
+      return result;
+    }, []);
+    const [filterModel, configModels] = useMemo(() => {
+      if (typeof from === "string") {
+        return [
+          {
+            model: from,
+          },
+          {},
+        ];
+      }
+      if (typeof from === "object") {
+        const froms = [];
+        const config = {};
+
+        Object.entries(from).forEach(([key, value]) => {
+          froms.push(key);
+          config[key] = value;
+        });
+        return [
+          {
+            model: {
+              or: froms,
+            },
+          },
+          config,
+        ];
+      }
+      return [{}, {}];
+    }, [from]);
+    const configModel = useMemo(() => {
+      const nameModel = model?.model?.replace("\\\\", "\\");
+      const config = configModels[nameModel] ?? {};
+      return {
+        model: nameModel,
+        ...config,
+      };
+    }, [model, configModels]);
+    const selects = useMemo(() => {
+      const config = configModel;
+      const selects = config.selects;
+      if (!selects) return null;
+      return Object.keys(selects);
+    }, [configModel]);
+    const selectOptions = useMemo(() => {
+      if (!model) return [];
+      const opts = [
+        {
+          value: SELF_OPTION,
+          label: model?.translateKey
+            ? t(`${model.translateKey}.title`)
+            : model?.model,
+        },
+      ];
+      selects?.forEach((sel) => {
+        opts.push({
+          value: sel,
+          label: t(`${model?.translateKey}.columns.${sel}`),
+        });
+      });
+      return opts;
+    }, [model, selects, t]);
+    const normalizedSelect = select === SELF_OPTION ? null : select;
+    const baseFilters = useMemo(() => {
+      const filterSource = normalizedSelect
+        ? configModel?.selects?.[normalizedSelect]?.filters
+        : configModel?.filters;
+      return normalizeFilters(filterSource);
+    }, [configModel, normalizedSelect, normalizeFilters]);
+    // Default pilih model utama
+    useEffect(() => {
+      if (!model) return;
+      setSelect(SELF_OPTION);
+    }, [model]);
     useDidMountEffect(() => {
       const reloadData = setTimeout(() => {
         if (!model) return;
@@ -78,10 +176,10 @@ export default memo(
             route("model.columns", { model: model?.model }) +
               "?" +
               QueryString.stringify({
-                select,
+                select: normalizedSelect,
                 columns:
-                  (select
-                    ? configModel?.select[select]?.columns
+                  (normalizedSelect
+                    ? configModel?.selects[normalizedSelect]?.columns
                     : configModel?.columns) ?? [],
               }),
           )
@@ -90,8 +188,8 @@ export default memo(
             setDataModel({
               ...data,
               filters:
-                (select
-                  ? configModel?.select[select]?.filters
+                (normalizedSelect
+                  ? configModel?.selects[normalizedSelect]?.filters
                   : configModel?.filters) ?? {},
             });
           })
@@ -111,13 +209,14 @@ export default memo(
         axios
           .post(route("model.datatable"), {
             model: dataModel.model,
+            configModel: configModel,
+            select: select,
             showedColumns: columns
               ?.filter((x) => x.show)
               .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
               .map((x) => x.name),
-            filters: configModel?.filters,
             with:
-              selects && selects.length > 0 && select == null
+              selects && selects.length > 0 && normalizedSelect == null
                 ? selects
                 : undefined,
             ...options,
@@ -134,7 +233,7 @@ export default memo(
             setLoading(false);
           });
       },
-      [options, dataModel],
+      [options, configModel, dataModel, select, normalizedSelect, selects],
     );
     // useDidMountEffect(() => {
     //   loadData(dataModel?.columns);
@@ -153,7 +252,8 @@ export default memo(
             ...col,
             name: colName,
             title: title,
-            show: !parentColumn ? (col.show ?? false) : false,
+            // Default tampilkan kolom utama jika backend tidak mengirim flag show
+            show: !parentColumn ? (col.show ?? true) : false,
             searchable: col.searchable ?? true,
             parentCol: parentColumn,
             sortable: !parentColumn ? (col.sortable ?? true) : false,
@@ -213,7 +313,7 @@ export default memo(
       }, 500);
 
       return () => clearTimeout(reloadData);
-    }, [options, dataModel]);
+    }, [options, dataModel, loadData]);
 
     const setFilters = useCallback(
       (val) => {
@@ -260,55 +360,36 @@ export default memo(
       },
       [setFilters],
     );
+
+    useEffect(() => {
+      setOptions((prev) => ({
+        ...prev,
+        sort: defaultSort,
+        page: 1,
+        f: baseFilters,
+      }));
+      setFilters([]);
+    }, [baseFilters, setFilters]);
     const applyFilters = useCallback(() => {
       const newFilters = [];
       data.filters.forEach(({ column, operator, value }) => {
-        if (!column || !operator || !value) return;
+        if (
+          !column ||
+          !operator ||
+          value === undefined ||
+          value === null ||
+          value === ""
+        )
+          return;
         newFilters.push([column, operator, value]);
       });
       setDefaults(data);
-      // onApply(newFilters);
-      // setOpen(false);
-    }, [data, setDefaults]);
-
-    const [filterModel, configModels] = useMemo(() => {
-      if (typeof from === "string") {
-        return [
-          {
-            model: from,
-          },
-          {},
-        ];
-      }
-      if (typeof from === "object") {
-        const froms = [];
-        const config = {};
-
-        Object.entries(from).forEach(([key, value]) => {
-          froms.push(key);
-          config[key] = value;
-        });
-        return [
-          {
-            model: {
-              or: froms,
-            },
-          },
-          config,
-        ];
-      }
-    }, [from]);
-    const configModel = useMemo(() => {
-      const nameModel = model?.model?.replace("\\\\", "\\");
-      const config = configModels[nameModel] ?? {};
-      return config;
-    }, [model, configModels]);
-    const selects = useMemo(() => {
-      const config = configModel;
-      const selects = config.select;
-      if (!selects) return null;
-      return Object.keys(selects);
-    }, [configModel]);
+      setOptions((prev) => ({
+        ...prev,
+        page: 1,
+        f: [...baseFilters, ...newFilters],
+      }));
+    }, [data, setDefaults, baseFilters]);
 
     const _onSelected = useCallback(() => {
       const dataSelected = tableRef?.current?.getSelectedItem();
@@ -317,10 +398,10 @@ export default memo(
         setOpen(false);
         return;
       }
-      const selects = Object.keys(configModel?.select ?? {});
+      const selects = Object.keys(configModel?.selects ?? {});
       let data, model;
 
-      if (select == null && selects.length <= 1) {
+      if (normalizedSelect == null && selects.length <= 1) {
         if (selects.length == 0) {
           data = dataSelected;
           model = dataModel.model;
@@ -357,7 +438,7 @@ export default memo(
               {label}
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-(--breakpoint-xl) p-0">
+          <DialogContent className="max-w-(--breakpoint-2xl)! w-auto! p-0">
             <TooltipProvider>
               <DialogHeader className="px-6 pt-6 mb-2 border-b border-muted-foreground/30">
                 <DialogTitle className="flex items-center mb-1 gap-x-2">
@@ -376,19 +457,21 @@ export default memo(
                       required={false}
                       placeholder={t("core.form.model.placeholder")}
                       value={model}
-                      onValueChange={setModel}
+                      onValueChange={(val) => {
+                        setModel(val);
+                        setSelect(null);
+                      }}
                       filters={filterModel}
                     />
                   </FormInput>
-                  {selects && (
+                  {selectOptions.length > 0 && (
                     <FormInput label={t("core.form.select")} required={true}>
                       <Select
                         required={false}
                         value={select}
                         onValueChange={setSelect}
                         placeholder={t("core.form.select.placeholder")}
-                        optionTrans={`${model?.translateKey}.columns`}
-                        options={selects}
+                        options={selectOptions}
                       />
                     </FormInput>
                   )}

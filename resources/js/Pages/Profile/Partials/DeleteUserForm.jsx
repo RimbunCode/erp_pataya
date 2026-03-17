@@ -1,47 +1,6 @@
-import { useRef, useState } from "react";
-
 import { Button } from "@/Components/ui/button";
-import { useForm } from "@inertiajs/react";
 
 export default function DeleteUserForm({ className = "" }) {
-  const route = window.route;
-  const [confirmingUserDeletion, setConfirmingUserDeletion] = useState(false);
-  const passwordInput = useRef();
-
-  const {
-    data,
-    setData,
-    delete: destroy,
-    processing,
-    reset,
-    errors,
-    clearErrors,
-  } = useForm({
-    password: "",
-  });
-
-  const confirmUserDeletion = () => {
-    setConfirmingUserDeletion(true);
-  };
-
-  const deleteUser = (e) => {
-    e.preventDefault();
-
-    destroy(route("profile.destroy"), {
-      preserveScroll: true,
-      onSuccess: () => closeModal(),
-      onError: () => passwordInput.current.focus(),
-      onFinish: () => reset(),
-    });
-  };
-
-  const closeModal = () => {
-    setConfirmingUserDeletion(false);
-
-    clearErrors();
-    reset();
-  };
-
   return (
     <section className={`space-y-6 ${className}`}>
       <header>
@@ -56,7 +15,7 @@ export default function DeleteUserForm({ className = "" }) {
         </p>
       </header>
 
-      <Button onClick={confirmUserDeletion}>Delete Account</Button>
+      <Button type="button">Delete Account</Button>
 
       {/* <Modal show={confirmingUserDeletion} onClose={closeModal}>
         <form onSubmit={deleteUser} className="p-6">

@@ -11,67 +11,74 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseOrder extends Model {
-  use HasUlids, SoftDeletes, DataTable, Submitable;
-  protected               $guarded           = ["id"];
-  protected               $casts             = [
-    "required_date" => "datetime",
-    "date"          => "datetime",
-  ];
-  protected static string $defaultFormatCode = '@[branch_code]/PO-@[iiii]/@[yy]';
+    use DataTable, HasUlids, SoftDeletes, Submitable;
 
-  public function codeRelations() {
-    return [
-      'branch_code:branch.code',
-      'branch_name:branch.name',
+    protected $guarded = ['id'];
+    protected $casts   = [
+        'required_date' => 'datetime',
+        'date'          => 'datetime',
     ];
-  }
-  public        $keyBreadcrumb = "code";
-  public string $formComponent = 'Purchase/PurchaseOrders/Form';
-  public string $translateKey  = "purchase.purchaseOrder";
-  protected     $configColumns = [
-    'code'     => [
-      'isLink' => true,
-      'show'   => true,
-      'order'  => 0,
-    ],
-    'date'     => [
-      'type'  => 'date',
-      'show'  => true,
-      'order' => 1,
-    ],
-    'supplier' => [
-      'type'  => 'relation',
-      'show'  => true,
-      'order' => 2,
-    ],
-    'status'   => [
-      'show'  => true,
-      'order' => 3,
-    ],
+    protected static string $defaultFormatCode = '@[branch_code]/PO-@[iiii]/@[yy]';
 
-  ];
+    public function codeRelations() {
+        return [
+            'branch_code:branch.code',
+            'branch_name:branch.name',
+        ];
+    }
 
-  public static function templateLink() {
-    return ":code";
-  }
+    public $keyBreadcrumb        = 'code';
+    public string $formComponent = 'Purchase/PurchaseOrders/Form';
+    public string $translateKey  = 'purchase.purchaseOrder';
+    protected $configColumns     = [
+        'code' => [
+            'isLink' => true,
+            'show'   => true,
+            'order'  => 0,
+        ],
+        'date' => [
+            'type'  => 'date',
+            'show'  => true,
+            'order' => 1,
+        ],
+        'supplier' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 2,
+        ],
+        'status' => [
+            'show'  => true,
+            'order' => 3,
+        ],
+        'currency_code',
+        'base_currency_code' => [
+            'ignore' => true,
+        ],
 
-  protected static function loadRelationsOnShow() {
-    return ['items', 'items.item', 'supplier', 'items.unit', 'items.tax', 'items.targetWarehouse'];
-  }
+    ];
 
-  public function currency() {
-    return $this->belongsTo(Currency::class);
-  }
+    public static function templateLink() {
+        return ':code';
+    }
 
-  public function supplier() {
-    return $this->belongsTo(Supplier::class);
-  }
+    protected static function loadRelationsOnShow() {
+        return ['items', 'items.item', 'supplier', 'items.unit', 'items.tax', 'items.targetWarehouse', 'currency'];
+    }
 
-  public function items() {
-    return $this->hasMany(PurchaseOrderItem::class);
-  }
+    public function currency() {
+        return $this->belongsTo(Currency::class);
+    }
 
-  public function paymentSchedules() {
-    return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')->orderBy('payment_date', 'asc');
-  }
+    public function supplier() {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function items() {
+        return $this->hasMany(PurchaseOrderItem::class);
+    }
+
+    public function paymentSchedules() {
+        return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')
+            ->orderBy('due_date', 'asc');
+    }
 }

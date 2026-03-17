@@ -13,100 +13,147 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoice extends Model {
-  use DataTable, Submitable, HasUlids, SoftDeletes;
-  protected               $guarded           = ['id'];
-  protected               $casts             = [
-    "date" => "datetime",
-  ];
-  protected static string $defaultFormatCode = '@[branch_code]/SalesInvoice-@[iiii]/@[yy]';
+    use DataTable, HasUlids, SoftDeletes, Submitable;
 
-  public function codeRelations() {
-    return [
-      'branch_code:branch.code',
-      'branch_name:branch.name',
+    protected $guarded = ['id'];
+    protected $casts   = [
+        'date' => 'datetime',
     ];
-  }
-  public $keyBreadcrumb = "code";
+    protected static string $defaultFormatCode = '@[branch_code]/SalesInvoice-@[iiii]/@[yy]';
 
-  public static function templateLink() {
-    return ":code";
-  }
-  public    $translateKey  = 'finances.salesInvoice';
-  protected $configColumns = [
-    'code'                    => [
-      'isLink' => true,
-      'show'   => true,
-      'order'  => 0,
-    ],
-    'date'                    => [
-      'type'  => 'date',
-      'show'  => true,
-      'order' => 1,
-    ],
-    'salesOrder'              => [
-      'type'  => 'relation',
-      'show'  => true,
-      'order' => 2,
-    ],
-    'customer'                => [
-      'type'  => 'relation',
-      'show'  => true,
-      'order' => 3,
-    ],
-    'status'                  => [
-      'show'  => true,
-      'order' => 4,
-    ],
-    'customer_branch',
-    "currency",
-    'branch'                  => [
-      'ignore' => true,
-    ],
-    'base_currency_code'      => [
-      'ignore' => true,
-    ],
-    'base_amount'             => [
-      'ignore' => true,
-    ],
-    'base_outstanding_amount' => [
-      'ignore' => true,
-    ],
-    'base_paid_amount'        => [
-      'ignore' => true,
-    ],
-    'customer_branch_name'    => [
-      'ignore' => true,
-    ],
-    'customer_name'           => [
-      'ignore' => true,
-    ],
-  ];
+    public function codeRelations() {
+        return [
+            'branch_code:branch.code',
+            'branch_name:branch.name',
+        ];
+    }
 
-  public function salesOrder() {
-    return $this->belongsTo(SalesOrder::class, 'sales_order_id');
-  }
+    public $keyBreadcrumb = 'code';
 
-  public function items() {
-    return $this->hasMany(SalesInvoiceItem::class);
-  }
+    public static function templateLink() {
+        return ':code';
+    }
 
-  public function customer() {
-    return $this->belongsTo(Customer::class);
-  }
+    protected $appends = [
+        'is_return',
+    ];
 
-  public function customer_branch() {
-    return $this->belongsTo(Branch::class, 'customer_branch_id');
-  }
+    protected function getIsReturnAttribute() {
+        return $this->return_against_id != null;
+    }
 
-  public function branch() {
-    return $this->belongsTo(Branch::class);
-  }
+    public $translateKey     = 'finances.salesInvoice';
+    protected $configColumns = [
+        'code' => [
+            'isLink' => true,
+            'show'   => true,
+            'order'  => 0,
+        ],
+        'date' => [
+            'type'  => 'date',
+            'show'  => true,
+            'order' => 1,
+        ],
+        'salesOrder' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 2,
+        ],
+        'customer' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 3,
+        ],
+        'status' => [
+            'show'  => true,
+            'order' => 4,
+        ],
+        'customer_branch',
+        'currency',
+        'branch' => [
+            'ignore' => true,
+        ],
+        'base_currency_code' => [
+            'ignore' => true,
+        ],
+        'base_amount' => [
+            'ignore' => true,
+        ],
+        'base_outstanding_amount' => [
+            'ignore' => true,
+        ],
+        'base_paid_amount' => [
+            'ignore' => true,
+        ],
+        'customer_branch_name' => [
+            'ignore' => true,
+        ],
+        'customer_name' => [
+            'ignore' => true,
+        ],
+        'incomeAccount',
+        'debitAccount',
+        'returnAgainst',
+    ];
 
-  public function currency() {
-    return $this->belongsTo(Currency::class, 'currency_code');
-  }
+    protected static function loadRelationsOnShow() {
+        return [
+            'salesOrder',
+            'customer',
+            'customer_branch',
+            'branch',
+            'currency',
+            'items',
+            'items.item',
+            'items.tax',
+            'items.unit',
+            'paymentSchedules',
+            'paymentSchedules.paymentTerm',
+            'paymentSchedules.paymentMethod',
+            'incomeAccount',
+            'debitAccount',
+            'returnAgainst',
+        ];
+    }
 
-  public function paymentSchedules() {
-    return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')->orderBy('payment_date', 'asc');
-  }
+    public function returnAgainst() {
+        return $this->belongsTo(SalesInvoice::class, 'return_against_id');
+    }
+
+    public function salesOrder() {
+        return $this->belongsTo(SalesOrder::class, 'sales_order_id');
+    }
+
+    public function items() {
+        return $this->hasMany(SalesInvoiceItem::class);
+    }
+
+    public function customer() {
+        return $this->belongsTo(Customer::class);
+    }
+
+    public function customer_branch() {
+        return $this->belongsTo(Branch::class, 'customer_branch_id');
+    }
+
+    public function branch() {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function currency() {
+        return $this->belongsTo(Currency::class, 'currency_code');
+    }
+
+    public function paymentSchedules() {
+        return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')
+            ->orderBy('due_date', 'asc');
+    }
+
+    public function debitAccount() {
+        return $this->belongsTo(Account::class, 'debit_account_id');
+    }
+
+    public function incomeAccount() {
+        return $this->belongsTo(Account::class, 'income_account_id');
+    }
 }

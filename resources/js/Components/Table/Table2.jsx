@@ -1,5 +1,6 @@
 import "@/../css/table.css";
 
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   DndContext,
   MouseSensor,
@@ -42,7 +43,7 @@ import Link from "../Link";
 import LoadingIcon from "../LoadingIcon";
 import NoDataImg from "./NoDataImg";
 import { TZDate } from "@date-fns/tz";
-import { convertTemplateLink } from "../LinkModel";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { debounce } from "lodash";
 import { format } from "date-fns";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -68,9 +69,11 @@ export const convertColWidth = (colWidth) => {
   }
 };
 export const createHeaders = (headers, ignoreCookie = false) => {
-  const columnsFromCookie = JSON.parse(
-    getCookieByName(`${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`),
-  );
+  const columnsFromCookie = ignoreCookie
+    ? null
+    : JSON.parse(
+        getCookieByName(`${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`),
+      );
   // const newHeaders = { ...headers };
   Object.values(headers).forEach((col) => {
     const colFromCookie = ignoreCookie ? null : columnsFromCookie?.[col.name];
@@ -105,32 +108,53 @@ const Cell = memo(
     const { lang } = usePage().props;
     const { t } = useLaravelReactI18n();
     const value = row[name];
-    if (value == null) return;
     let valueCell = "";
     switch (type) {
+      case "image": {
+        const name = convertTemplateLink(row);
+        const alias = name
+          .split(" ")
+          .slice(0, 2)
+          .map((n) => n.charAt(0))
+          .join("");
+        return (
+          <Avatar className="w-full h-auto border rounded-xl aspect-square max-w-16 group">
+            {value && (
+              <AvatarImage
+                src={
+                  window.route("files.preview", value) +
+                  `?v=${new Date(row.updated_at).getTime()}`
+                }
+                alt={name}
+                className=" transition-[filter] group-hover:blur-sm"
+              />
+            )}
+            <AvatarFallback className="rounded-lg flex!">
+              <p className="w-full font-semibold text-center text-muted-foreground text-3xl transition-[filter]">
+                {alias}
+              </p>
+            </AvatarFallback>
+          </Avatar>
+        );
+      }
       case "boolean":
         return (
           <span className="text-center">
             <Checkbox readOnly checked={value} className="cursor-default" />
           </span>
         );
-      case "formStatus": {
-        return (
-          <div className="text-center">
-            <BadgeStatus className="text-sm" status={value} />
-          </div>
-        );
-      }
+      case "formStatus":
       case "formStatuses": {
+        const newValue = row.appendStatus;
         return (
           <div
             className={cn(
-              value.length > 1
+              newValue.length > 1
                 ? "flex gap-x-1 gap-y-1 flex-wrap w-full"
                 : "text-center",
             )}
           >
-            {value.map((status, idx) => (
+            {newValue.map((status, idx) => (
               <BadgeStatus
                 className="text-xs py-0.5 px-2"
                 key={idx}
@@ -163,6 +187,9 @@ const Cell = memo(
       case "relations":
         return;
       case "string":
+        if (!value) {
+          valueCell = null;
+        }
         valueCell = valueTrans
           ? t(`${valueTrans}.${value?.toString()}`)
           : parse
@@ -629,7 +656,7 @@ const Table2 = forwardRef(function Table2(
 
                     <tr>
                       <td
-                        className="border-b-0! items-center justify-center row-auto h-full z-[2] relative bg-background"
+                        className="border-b-0! items-center justify-center row-auto h-full z-2 relative bg-background"
                         style={{
                           gridColumn: `span ${showedColumns.length + (selectable ? 1 : 0) + (actions ? 1 : 0)}`,
                         }}

@@ -44,7 +44,6 @@ export default memo(function Form() {
           (y) => y.display.replace(/^\{(.*?)\}$/g, "$1") == x.display,
         ),
     );
-    console.log(list);
     setListFormatVariant(list);
   }, [data.attributes, formatVariantSelected]);
 
@@ -185,9 +184,10 @@ export default memo(function Form() {
       <FormPageContent
         title={t("inventory.item.menu.variants")}
         value="variants"
+        show={data.category?.type != "service"}
       >
         <FormTable
-          name="variants"
+          name="ItemVariants"
           disabled={disabled}
           // readOnly={disabled}
           columns={variantColumns}
@@ -233,6 +233,7 @@ export default memo(function Form() {
           title={t("inventory.item.menu.variants")}
           value="variants"
           collapsible
+          show={data.category?.type != "service"}
         >
           <WhenVisible
             data={["variants"]}
@@ -317,7 +318,7 @@ export default memo(function Form() {
           {t("inventory.item.menu.uom")}
         </FormPageContentTitle>
         <FormTable
-          name="uoms"
+          name="ItemUoms"
           // disabled={disabled}
           // readOnly={!data.default_unit}
           columns={uomColumns}

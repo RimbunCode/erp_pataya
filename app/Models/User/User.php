@@ -4,12 +4,12 @@ namespace App\Models\User;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
+use App\Casts\FormStatusCast;
 use App\Models\Core\Branch;
-use App\Models\Core\File;
-use App\Models\Core\Log;
-use App\Models\Core\Tag;
+use App\Models\Core\Dashboard;
 use App\Traits\DataTable;
 use App\Traits\LinkModel;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -17,45 +17,84 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable {
-  /** @use HasFactory<\Database\Factories\UserFactory> */
-  use HasFactory, Notifiable, HasUlids, SoftDeletes, DataTable, LinkModel;
-  protected $guarded = ['id'];
-  /**
-   * The attributes that should be hidden for serialization.
-   *
-   * @var list<string>
-   */
-  protected $hidden = [
-    'password',
-    'remember_token',
-  ];
+    /** @use HasFactory<UserFactory> */
+    use DataTable, HasFactory, HasUlids, LinkModel, Notifiable, SoftDeletes;
 
-  /**
-   * Get the attributes that should be cast.
-   *
-   * @return array<string, string>
-   */
-  protected function casts(): array {
-    return [
-      'email_verified_at' => 'datetime',
-      'password'          => 'hashed',
+    public $translateKey = 'user.user';
+    protected $guarded   = ['id'];
+
+    /**
+     * The attributes that should be hidden for serialization.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'password',
+        'remember_token',
     ];
-  }
 
-  public static function templateLink() {
-    return ":name";
-  }
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array {
+        return [
+            'email_verified_at' => 'datetime',
+            'password'          => 'hashed',
+            'status'            => FormStatusCast::class,
+        ];
+    }
 
-  public function roles() {
-    return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id');
-  }
+    public static function templateLink() {
+        return ':name';
+    }
 
-  public function idRoles() {
-    return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id')
-      ->select('roles.id');
-  }
+    public $configColumns = [
+        'image' => [
+            'show'  => true,
+            'order' => 0,
+            'type'  => 'image',
+            'width' => 'fit',
+        ],
+        'name' => [
+            'show'   => true,
+            'order'  => 1,
+            'isLink' => true,
+        ],
+        'username' => [
+            'show'  => true,
+            'order' => 2,
+        ],
+        'email' => [
+            'show'  => true,
+            'order' => 3,
+        ],
+        'status' => [
+            'show'  => true,
+            'order' => 4,
+        ],
+        'defaultBranch',
+    ];
 
-  public function branches() {
-    return $this->belongsToMany(Branch::class, 'user_branch', 'user_id', 'branch_id');
-  }
+    public function defaultBranch() {
+        return $this->belongsTo(Branch::class, 'default_branch_id');
+    }
+
+    public function roles() {
+        return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id');
+    }
+
+    public function idRoles() {
+        return $this->belongsToMany(Role::class, 'user_role', 'user_id', 'role_id')
+            ->select('roles.id');
+    }
+
+    public function branches() {
+        return $this->belongsToMany(Branch::class, 'user_branch', 'user_id', 'branch_id');
+    }
+
+    public function dashboards() {
+        return $this->belongsToMany(Dashboard::class, 'user_dashboards', 'user_id', 'dashboard_id');
+    }
 }

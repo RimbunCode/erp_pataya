@@ -1,0 +1,25 @@
+{
+  "php.version": "8.4",
+  "[php]": {
+    "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
+  },
+  "php.format.codeStyle": "Laravel",
+  "php.format.rules.importSorting": "alphabetic",
+  "php.format.rules.booleanConstantCasing": "lowercase",
+  "php.format.rules.nullConstantCasing": "lowercase",
+  "php.format.rules.spaceAroundConcatenation": true,
+  "php.format.rules.addCommaAfterLastArrayElement": true,
+  "php.format.rules.addCommaAfterLastDeclParameter": true,
+  "php.format.rules.addCommaAfterLastCallParameter": true,
+  "php.format.rules.openBraceOnNewLineForFunctions": false,
+  "php.format.rules.openBraceOnNewLineForTypes": false,
+  "php.format.rules.openBraceOnNewLineForBlocks": false,
+  "php.format.rules.finallyOnNewLine": false,
+  "php.format.rules.endWithNewLine": false,
+  "php.format.rules.blankLinesAfterOpenTag": 0,
+  "php.format.rules.blankLinesAfterNamespace": 0,
+  "php.format.rules.blankLinesAfterUseStatements": 1,
+  "php.format.rules.blankLinesBeforeMethod": 1,
+  "php.format.rules.blankLinesAroundClassConstant": 0,
+  "php.format.rules.blankLinesAroundProperty": 0
+}
