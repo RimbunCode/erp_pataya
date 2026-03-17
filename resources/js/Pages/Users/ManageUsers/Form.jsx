@@ -11,7 +11,7 @@ import { WhenVisible, usePage } from "@inertiajs/react";
 import { Button } from "@/Components/ui/button";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { ExternalLinkIcon } from "lucide-react";
-import { FormCheckbox } from "@/Components/ui/Checkbox";
+import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import LoadingIcon from "@/Components/LoadingIcon";

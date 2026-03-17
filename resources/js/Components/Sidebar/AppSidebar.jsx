@@ -15,7 +15,7 @@ import {
   SidebarContent,
   SidebarHeader,
   SidebarRail,
-} from "@/components/ui/sidebar";
+} from "@/Components/ui/sidebar";
 
 import BranchSwitcher from "@/Components/Sidebar/BranchSwitcher";
 import { NavMain } from "@/Components/Sidebar/NavMain";

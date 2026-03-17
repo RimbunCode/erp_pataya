@@ -1,4 +1,4 @@
-import { Separator } from "@/components/ui/separator";
+import { Separator } from "@/Components/ui/separator";
 import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@/lib/utils";
 import { cva } from "class-variance-authority";

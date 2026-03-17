@@ -32,7 +32,7 @@ import {
 import { cn, generateRandom } from "@/lib/utils";
 import { useForm, usePage } from "@inertiajs/react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/Components/ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import { useEditor } from "@grapesjs/react";
