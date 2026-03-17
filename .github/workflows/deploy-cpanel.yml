@@ -90,5 +90,13 @@ jobs:
             exit 1
           fi
 
+          if [ -d resources/js ]; then
+            find resources/js -mindepth 1 -delete
+          fi
+
+          if [ -d resources/css ]; then
+            find resources/css -mindepth 1 -delete
+          fi
+
           php artisan optimize
           EOF
