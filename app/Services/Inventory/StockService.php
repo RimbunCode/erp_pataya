@@ -2,13 +2,11 @@
 
 namespace App\Services\Inventory;
 
-class StockService
-{
+class StockService {
     /**
      * Create a new class instance.
      */
-    public function __construct()
-    {
+    public function __construct() {
         //
     }
 }

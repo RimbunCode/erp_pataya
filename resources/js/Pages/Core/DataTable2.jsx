@@ -49,7 +49,7 @@ import {
 import { cn, getCookieByName, setCookie } from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
-import FilterTable from "@/Components/Table/FilterTable";
+import FilterTable2 from "@/Components/Table/Filter/FilterTable2";
 import { FormPageDialog } from "./FormPage";
 import { Label } from "@/Components/ui/label";
 import NoDataImg from "@/Components/Table/NoDataImg";
@@ -347,8 +347,8 @@ export default memo(
                         <RefreshCw />
                         <span>{t("core.datatable.reload")}</span>
                       </DropdownMenuItem>
-                      <FilterTable
-                        columns={columns}
+                      <FilterTable2
+                        columns={mapColumns}
                         onApply={onApplyFilters}
                         initialFilters={options.f}
                         isMobile={true}
@@ -454,8 +454,8 @@ export default memo(
                   </TooltipContent>
                 </Tooltip>
                 <div className="inline-flex overflow-hidden rounded-lg">
-                  <FilterTable
-                    columns={columns}
+                  <FilterTable2
+                    columns={mapColumns}
                     onApply={onApplyFilters}
                     initialFilters={options.f}
                   />

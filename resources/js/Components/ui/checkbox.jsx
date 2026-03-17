@@ -2,10 +2,10 @@ import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
 import * as React from "react";
 
 import { Check, MinusIcon } from "lucide-react";
+import { RunningText, RunningTextContent } from "@/Components/ui/running-text";
 
 import { cn } from "@/lib/utils";
 import { useFormPage } from "@/Pages/Core/FormPage";
-import { RunningText, RunningTextContent } from "@/Components/ui/running-text";
 
 const Checkbox = React.forwardRef(({ className, readOnly, ...props }, ref) => (
   <CheckboxPrimitive.Root
@@ -69,13 +69,13 @@ const FormCheckbox = React.forwardRef(
             classNameLabel,
           )}
         >
-          <label htmlFor={id ?? defaultId}>
-            {hasPlainLabel ? (
+          {hasPlainLabel ? (
+            <label htmlFor={id ?? defaultId}>
               <RunningTextContent text={labelContent} />
-            ) : (
-              labelContent
-            )}
-          </label>
+            </label>
+          ) : (
+            labelContent
+          )}
         </RunningText>
       </div>
     );

@@ -11,45 +11,46 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseInvoiceItem extends Model {
-  use HasUlids, SoftDeletes;
-  protected $guarded = ['id'];
-  protected $casts   = [
-    "required_date" => "datetime",
-  ];
+    use HasUlids, SoftDeletes;
 
-  // protected $configColumns =[
+    protected $guarded = ['id'];
+    protected $casts   = [
+        'required_date' => 'datetime',
+    ];
 
-  // ]
+    // protected $configColumns =[
 
-  public function purchaseInvoice() {
-    return $this->belongsTo(PurchaseInvoice::class);
-  }
+    // ]
 
-  public function purchaseOrderItem() {
-    return $this->belongsTo(PurchaseOrderItem::class);
-  }
+    public function purchaseInvoice() {
+        return $this->belongsTo(PurchaseInvoice::class);
+    }
 
-  public function returnAgainstItem() {
-    return $this->belongsTo(PurchaseInvoiceItem::class, 'return_against_item_id');
-  }
+    public function purchaseOrderItem() {
+        return $this->belongsTo(PurchaseOrderItem::class);
+    }
 
-  public function unit() {
-    return $this->belongsTo(Unit::class);
-  }
+    public function returnAgainstItem() {
+        return $this->belongsTo(PurchaseInvoiceItem::class, 'return_against_item_id');
+    }
 
-  public function tax() {
-    return $this->belongsTo(Tax::class);
-  }
+    public function unit() {
+        return $this->belongsTo(Unit::class);
+    }
 
-  public function targetWarehouse() {
-    return $this->belongsTo(Warehouse::class, 'target_warehouse_id');
-  }
+    public function tax() {
+        return $this->belongsTo(Tax::class);
+    }
 
-  public function item() {
-    return $this->belongsTo(ItemVariant::class, 'item_id');
-  }
+    public function targetWarehouse() {
+        return $this->belongsTo(Warehouse::class, 'target_warehouse_id');
+    }
 
-  public function referenceable() {
-    return $this->morphTo();
-  }
+    public function item() {
+        return $this->belongsTo(ItemVariant::class, 'item_id');
+    }
+
+    public function referenceable() {
+        return $this->morphTo();
+    }
 }

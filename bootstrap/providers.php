@@ -1,6 +1,9 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use Clockwork\Support\Laravel\ClockworkServiceProvider;
+
 return [
-  App\Providers\AppServiceProvider::class,
-  Clockwork\Support\Laravel\ClockworkServiceProvider::class
+    AppServiceProvider::class,
+    ClockworkServiceProvider::class,
 ];

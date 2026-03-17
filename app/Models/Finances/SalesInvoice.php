@@ -12,20 +12,16 @@ use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SalesInvoice extends Model
-{
+class SalesInvoice extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
     protected $guarded = ['id'];
-
-    protected $casts = [
+    protected $casts   = [
         'date' => 'datetime',
     ];
-
     protected static string $defaultFormatCode = '@[branch_code]/SalesInvoice-@[iiii]/@[yy]';
 
-    public function codeRelations()
-    {
+    public function codeRelations() {
         return [
             'branch_code:branch.code',
             'branch_name:branch.name',
@@ -34,8 +30,7 @@ class SalesInvoice extends Model
 
     public $keyBreadcrumb = 'code';
 
-    public static function templateLink()
-    {
+    public static function templateLink() {
         return ':code';
     }
 
@@ -43,36 +38,34 @@ class SalesInvoice extends Model
         'is_return',
     ];
 
-    protected function getIsReturnAttribute()
-    {
+    protected function getIsReturnAttribute() {
         return $this->return_against_id != null;
     }
 
-    public $translateKey = 'finances.salesInvoice';
-
+    public $translateKey     = 'finances.salesInvoice';
     protected $configColumns = [
         'code' => [
             'isLink' => true,
-            'show' => true,
-            'order' => 0,
+            'show'   => true,
+            'order'  => 0,
         ],
         'date' => [
-            'type' => 'date',
-            'show' => true,
+            'type'  => 'date',
+            'show'  => true,
             'order' => 1,
         ],
         'salesOrder' => [
-            'type' => 'relation',
-            'show' => true,
+            'type'  => 'relation',
+            'show'  => true,
             'order' => 2,
         ],
         'customer' => [
-            'type' => 'relation',
-            'show' => true,
+            'type'  => 'relation',
+            'show'  => true,
             'order' => 3,
         ],
         'status' => [
-            'show' => true,
+            'show'  => true,
             'order' => 4,
         ],
         'customer_branch',
@@ -103,8 +96,7 @@ class SalesInvoice extends Model
         'returnAgainst',
     ];
 
-    protected static function loadRelationsOnShow()
-    {
+    protected static function loadRelationsOnShow() {
         return [
             'salesOrder',
             'customer',
@@ -124,54 +116,44 @@ class SalesInvoice extends Model
         ];
     }
 
-    public function returnAgainst()
-    {
+    public function returnAgainst() {
         return $this->belongsTo(SalesInvoice::class, 'return_against_id');
     }
 
-    public function salesOrder()
-    {
+    public function salesOrder() {
         return $this->belongsTo(SalesOrder::class, 'sales_order_id');
     }
 
-    public function items()
-    {
+    public function items() {
         return $this->hasMany(SalesInvoiceItem::class);
     }
 
-    public function customer()
-    {
+    public function customer() {
         return $this->belongsTo(Customer::class);
     }
 
-    public function customer_branch()
-    {
+    public function customer_branch() {
         return $this->belongsTo(Branch::class, 'customer_branch_id');
     }
 
-    public function branch()
-    {
+    public function branch() {
         return $this->belongsTo(Branch::class);
     }
 
-    public function currency()
-    {
+    public function currency() {
         return $this->belongsTo(Currency::class, 'currency_code');
     }
 
-    public function paymentSchedules()
-    {
+    public function paymentSchedules() {
         return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')
             ->orderBy('due_date', 'asc');
     }
 
-    public function debitAccount()
-    {
+    public function debitAccount() {
         return $this->belongsTo(Account::class, 'debit_account_id');
     }
 
-    public function incomeAccount()
-    {
+    public function incomeAccount() {
         return $this->belongsTo(Account::class, 'income_account_id');
     }
 }

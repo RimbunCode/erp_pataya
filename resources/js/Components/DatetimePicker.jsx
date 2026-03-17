@@ -872,7 +872,7 @@ export default memo(
                       "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
                     disabled: "text-muted-foreground opacity-50",
                     selected:
-                      "bg-foreground! text-background! border-none! hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background [&:not(.day-range-start.day-range-end.day-range-middle)]:rounded-full",
+                      "bg-foreground! text-background! border-none! hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background [&:not(.day-range-start):not(.day-range-middle):not(.day-range-end)]:rounded-full",
                     range_start: "day-range-start rounded-l-full ",
                     range_middle: "day-range-middle rounded-none!",
                     range_end: "day-range-end rounded-r-full ",

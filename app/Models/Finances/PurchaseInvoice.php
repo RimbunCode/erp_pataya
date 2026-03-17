@@ -12,20 +12,16 @@ use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class PurchaseInvoice extends Model
-{
+class PurchaseInvoice extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
     protected $guarded = ['id'];
-
-    protected $casts = [
+    protected $casts   = [
         'date' => 'datetime',
     ];
-
     protected static string $defaultFormatCode = '@[branch_code]/PurchaseINV-@[iiii]/@[yy]';
 
-    public function codeRelations()
-    {
+    public function codeRelations() {
         return [
             'branch_code:branch.code',
             'branch_name:branch.name',
@@ -34,36 +30,34 @@ class PurchaseInvoice extends Model
 
     public $keyBreadcrumb = 'code';
 
-    public static function templateLink()
-    {
+    public static function templateLink() {
         return ':code';
     }
 
-    public $translateKey = 'finances.purchaseInvoice';
-
+    public $translateKey     = 'finances.purchaseInvoice';
     protected $configColumns = [
         'code' => [
             'isLink' => true,
-            'show' => true,
-            'order' => 0,
+            'show'   => true,
+            'order'  => 0,
         ],
         'date' => [
-            'type' => 'date',
-            'show' => true,
+            'type'  => 'date',
+            'show'  => true,
             'order' => 1,
         ],
         'purchaseOrder' => [
-            'type' => 'relation',
-            'show' => true,
+            'type'  => 'relation',
+            'show'  => true,
             'order' => 2,
         ],
         'supplier' => [
-            'show' => true,
+            'show'  => true,
             'order' => 3,
         ],
         'status' => [
-            'type' => 'string',
-            'show' => true,
+            'type'  => 'string',
+            'show'  => true,
             'order' => 4,
         ],
         'currency',
@@ -90,8 +84,7 @@ class PurchaseInvoice extends Model
         'returnAgainst',
     ];
 
-    protected static function loadRelationsOnShow()
-    {
+    protected static function loadRelationsOnShow() {
         return [
             'items',
             'items.item',
@@ -111,48 +104,39 @@ class PurchaseInvoice extends Model
         ];
     }
 
-    public function returnAgainst()
-    {
+    public function returnAgainst() {
         return $this->belongsTo(PurchaseInvoice::class, 'return_against_id');
     }
 
-    public function expenseHeadAccount()
-    {
+    public function expenseHeadAccount() {
         return $this->belongsTo(Account::class, 'expanse_head_account_id');
     }
 
-    public function creditAccount()
-    {
+    public function creditAccount() {
         return $this->belongsTo(Account::class, 'credit_account_id');
     }
 
-    public function purchaseOrder()
-    {
+    public function purchaseOrder() {
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
-    public function items()
-    {
+    public function items() {
         return $this->hasMany(PurchaseInvoiceItem::class);
     }
 
-    public function supplier()
-    {
+    public function supplier() {
         return $this->belongsTo(Supplier::class);
     }
 
-    public function branch()
-    {
+    public function branch() {
         return $this->belongsTo(Branch::class);
     }
 
-    public function currency()
-    {
+    public function currency() {
         return $this->belongsTo(Currency::class, 'currency_code');
     }
 
-    public function paymentSchedules()
-    {
+    public function paymentSchedules() {
         return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')
             ->orderBy('due_date', 'asc');
     }

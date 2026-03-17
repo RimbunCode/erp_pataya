@@ -10,34 +10,35 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Dashboard extends Model {
-  use HasUlids, SoftDeletes, DataTable;
-  //
+    use DataTable, HasUlids, SoftDeletes;
+    //
 
-  protected     $guarded       = ['id'];
-  public        $translateKey  = 'settings.dashboard';
-  public string $keyBreadcrumb = 'title';
+    protected $guarded           = ['id'];
+    public $translateKey         = 'settings.dashboard';
+    public string $keyBreadcrumb = 'title';
 
-  protected static function loadRelationsOnShow() {
-    return ['widgets', 'widgets.widget', 'createdBy'];
-  }
-  protected $configColumns = [
-    'title'     => [
-      'show'   => true,
-      'order'  => 0,
-      'isLink' => true,
-    ],
-    'createdBy' => [
-      'show'  => true,
-      'order' => 1,
-    ],
-  ];
+    protected static function loadRelationsOnShow() {
+        return ['widgets', 'widgets.widget', 'createdBy'];
+    }
 
-  public function widgets() {
-    return $this->hasMany(DashboardWidget::class, 'dashboard_id')
-      ->orderBy('order');
-  }
+    protected $configColumns = [
+        'title' => [
+            'show'   => true,
+            'order'  => 0,
+            'isLink' => true,
+        ],
+        'createdBy' => [
+            'show'  => true,
+            'order' => 1,
+        ],
+    ];
 
-  public function createdBy() {
-    return $this->belongsTo(User::class, 'created_by');
-  }
+    public function widgets() {
+        return $this->hasMany(DashboardWidget::class, 'dashboard_id')
+            ->orderBy('order');
+    }
+
+    public function createdBy() {
+        return $this->belongsTo(User::class, 'created_by');
+    }
 }

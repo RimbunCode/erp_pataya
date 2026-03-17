@@ -4,26 +4,27 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-  /**
-   * Run the migrations.
-   */
-  public function up(): void {
-    Schema::create('model_connections', function (Blueprint $table) {
-      $table->ulid('id')->primary();
-      $table->ulidMorphs('model');
-      $table->string('model_display')->nullable();
-      $table->ulidMorphs('reference');
-      $table->string('reference_display')->nullable();
-      $table->timestamps();
-      $table->softDeletes();
-    });
-  }
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void {
+        Schema::create('model_connections', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->ulidMorphs('model');
+            $table->string('model_display')->nullable();
+            $table->ulidMorphs('reference');
+            $table->string('reference_display')->nullable();
+            $table->timestamps();
+            $table->softDeletes();
+        });
+    }
 
-  /**
-   * Reverse the migrations.
-   */
-  public function down(): void {
-    Schema::dropIfExists('model_connections');
-  }
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void {
+        Schema::dropIfExists('model_connections');
+    }
 };

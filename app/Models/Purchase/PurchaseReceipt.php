@@ -8,20 +8,16 @@ use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class PurchaseReceipt extends Model
-{
+class PurchaseReceipt extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
     protected $guarded = ['id'];
-
-    protected $casts = [
+    protected $casts   = [
         'received_date' => 'datetime',
     ];
-
     protected static string $defaultFormatCode = '@[branch_code]/Receipt-@[iiii]/@[yy]';
 
-    public function codeRelations()
-    {
+    public function codeRelations() {
         return [
             'branch_code:branch.code',
             'branch_name:branch.name',
@@ -30,60 +26,54 @@ class PurchaseReceipt extends Model
 
     public $keyBreadcrumb = 'code';
 
-    public static function templateLink()
-    {
+    public static function templateLink() {
         return ':code';
     }
 
     public $translateKey = 'purchase.purchaseReceipt';
 
-    protected static function loadRelationsOnShow()
-    {
+    protected static function loadRelationsOnShow() {
         return ['items', 'items.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
     }
 
     protected $configColumns = [
         'code' => [
             'isLink' => true,
-            'show' => true,
-            'order' => 0,
+            'show'   => true,
+            'order'  => 0,
         ],
         'received_date' => [
-            'show' => true,
+            'show'  => true,
             'order' => 1,
         ],
         'purchaseOrder' => [
-            'show' => true,
+            'show'  => true,
             'order' => 2,
         ],
         'supplier' => [
-            'show' => true,
+            'show'  => true,
             'order' => 3,
         ],
         'status' => [
-            'show' => true,
+            'show'  => true,
             'order' => 4,
         ],
         'returnAgainst',
     ];
 
-    public function purchaseOrder()
-    {
+    public function purchaseOrder() {
         return $this->belongsTo(PurchaseOrder::class, 'purchase_order_id');
     }
 
-    public function items()
-    {
+    public function items() {
         return $this->hasMany(PurchaseReceiptItem::class);
     }
 
-    public function supplier()
-    {
+    public function supplier() {
         return $this->belongsTo(Supplier::class);
     }
 
-    public function returnAgainst()
-    {
+    public function returnAgainst() {
         return $this->belongsTo(PurchaseReceipt::class, 'return_against_id');
     }
 }

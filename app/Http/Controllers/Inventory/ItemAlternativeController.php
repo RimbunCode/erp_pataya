@@ -10,91 +10,97 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ItemAlternativeController extends Controller {
-  public function __construct(Request $request) {
-    parent::__construct($request, ItemAlternative::class);
-  }
+    public function __construct(Request $request) {
+        parent::__construct($request, ItemAlternative::class);
+    }
 
-  /**
-   * Display a listing of the resource.
-   */
-  public function index(Request $request) {
-    $this->setBreadcrumbs();
-    ItemAlternative::leftJoin('item_variants as item', 'item.id', '=', 'item_alternatives.item_id')
-      ->leftJoin('item_variants as alternative', 'alternative.id', '=', 'item_alternatives.alternative_item_id')
-      ->select(['item.code as item_code', 'alternative.code as alternative_code'])
-      ->dataTable($request);
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request) {
+        $this->setBreadcrumbs();
+        ItemAlternative::leftJoin('item_variants as item', 'item.id', '=', 'item_alternatives.item_id')
+            ->leftJoin('item_variants as alternative', 'alternative.id', '=', 'item_alternatives.alternative_item_id')
+            ->select(['item.code as item_code', 'alternative.code as alternative_code'])
+            ->dataTable($request);
 
-    return Inertia::render('Inventory/ItemAlternatives/Index');
-  }/**
-   * Show the form for creating a new resource.
-   */
-  public function create(Request $request) {}
+        return Inertia::render('Inventory/ItemAlternatives/Index');
+    }
 
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(ItemAlternativeRequest $request) {
-    $data = $request->validated();
-    DB::beginTransaction();
-    $itemAlternative = ItemAlternative::create(
-      [
-        'item_id'             => $data['item']['id'],
-        'alternative_item_id' => $data['alternative']['id'],
-        'two_way'             => $data['two_way'] ?? false,
-      ],
-    );
-    $itemAlternative->logForCreated();
-    DB::commit();
-    return back()->with('id', $itemAlternative->id);
-  }
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(Request $request) {}
 
-  /**
-   * Display the specified resource.
-   */
-  public function show(ItemAlternative $itemAlternative) {
-    $this->setBreadcrumbs($itemAlternative);
-    $itemAlternative->showDetail();
-    return $this->renderShow(
-      'Inventory/ItemAlternatives/Form',
-      'itemAlternative',
-      $itemAlternative->item->code,
-      $itemAlternative,
-    );
-  }
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(ItemAlternativeRequest $request) {
+        $data = $request->validated();
+        DB::beginTransaction();
+        $itemAlternative = ItemAlternative::create(
+            [
+                'item_id'             => $data['item']['id'],
+                'alternative_item_id' => $data['alternative']['id'],
+                'two_way'             => $data['two_way'] ?? false,
+            ],
+        );
+        $itemAlternative->logForCreated();
+        DB::commit();
 
-  /**
-   * Show the form for editing the specified resource.
-   */
-  public function edit(ItemAlternative $itemAlternative) {
-    //
-  }
+        return back()->with('id', $itemAlternative->id);
+    }
 
-  /**
-   * Update the specified resource in storage.
-   */
-  public function update(ItemAlternativeRequest $request, ItemAlternative $itemAlternative) {
-    $data = $request->validated();
-    DB::beginTransaction();
-    $itemAlternative->fillForUpdate(
-      [
-        'item_id'             => $data['item']['id'],
-        'alternative_item_id' => $data['alternative']['id'],
-        'two_way'             => $data['two_way'] ?? false,
-      ],
-    );
-    $itemAlternative->logForUpdated();
-    DB::commit();
-    return back();
-  }
+    /**
+     * Display the specified resource.
+     */
+    public function show(ItemAlternative $itemAlternative) {
+        $this->setBreadcrumbs($itemAlternative);
+        $itemAlternative->showDetail();
 
-  /**
-   * Remove the specified resource from storage.
-   */
-  public function destroy(ItemAlternative $itemAlternative) {
-    DB::beginTransaction();
-    $itemAlternative->delete();
-    $itemAlternative->logForDeleted();
-    DB::commit();
-    return redirect()->route('itemAlternatives.index');
-  }
+        return $this->renderShow(
+            'Inventory/ItemAlternatives/Form',
+            'itemAlternative',
+            $itemAlternative->item->code,
+            $itemAlternative,
+        );
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(ItemAlternative $itemAlternative) {
+        //
+    }
+
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(ItemAlternativeRequest $request, ItemAlternative $itemAlternative) {
+        $data = $request->validated();
+        DB::beginTransaction();
+        $itemAlternative->fillForUpdate(
+            [
+                'item_id'             => $data['item']['id'],
+                'alternative_item_id' => $data['alternative']['id'],
+                'two_way'             => $data['two_way'] ?? false,
+            ],
+        );
+        $itemAlternative->logForUpdated();
+        DB::commit();
+
+        return back();
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(ItemAlternative $itemAlternative) {
+        DB::beginTransaction();
+        $itemAlternative->delete();
+        $itemAlternative->logForDeleted();
+        DB::commit();
+
+        return redirect()->route('itemAlternatives.index');
+    }
 }
