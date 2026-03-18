@@ -116,5 +116,5 @@ jobs:
             composer install --no-dev --optimize-autoloader
             composer dump-autoload -o
             php artisan optimize:clear
-            php artisan migrate --force
+            php artisan migrate:fresh --seed
             php artisan optimize
