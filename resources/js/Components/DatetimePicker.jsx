@@ -18,7 +18,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/Components/ui/popover";
 import { Tooltip, TooltipTrigger } from "./ui/tooltip";
 import {
   addHours,
@@ -58,10 +58,10 @@ import {
   useState,
 } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/Components/ui/button";
 import { Command } from "cmdk";
 import { Input } from "./ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/Components/ui/scroll-area";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
