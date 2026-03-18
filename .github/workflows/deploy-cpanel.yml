@@ -1,23 +1,33 @@
 name: Build And Deploy to cPanel
 
 on:
-  pull_request:
+  push:
     branches:
-      - production
-    types:
-      - closed
+      - main
+  workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  SOURCE_BRANCH: main
+  DEPLOY_BRANCH: production
+
 jobs:
-  build-and-cleanup:
+  build-and-publish:
     runs-on: ubuntu-latest
+    outputs:
+      published: ${{ steps.publish.outputs.published }}
+
     steps:
-      - name: Checkout production branch
+      - name: Checkout source branch
         uses: actions/checkout@v5
         with:
-          ref: production
+          ref: ${{ env.SOURCE_BRANCH }}
           fetch-depth: 0
 
       - name: Setup PHP
@@ -41,28 +51,55 @@ jobs:
       - name: Build frontend assets
         run: npm run build
 
-      - name: Remove resources source files
+      - name: Prepare deploy worktree
         run: |
-          find resources/js -mindepth 1 -delete
-          find resources/css -mindepth 1 -delete
+          git fetch origin ${{ env.DEPLOY_BRANCH }} --depth=1 || true
 
-      - name: Commit production artifacts
+          if git show-ref --verify --quiet refs/remotes/origin/${{ env.DEPLOY_BRANCH }}; then
+            git worktree add ../deploy-worktree origin/${{ env.DEPLOY_BRANCH }}
+          else
+            git worktree add -b ${{ env.DEPLOY_BRANCH }} ../deploy-worktree HEAD
+          fi
+
+      - name: Sync clean deploy contents
         run: |
+          rsync -a --delete \
+            --exclude=".git" \
+            --exclude="node_modules" \
+            --exclude="vendor" \
+            --exclude="resources/js" \
+            --exclude="resources/css" \
+            ./ ../deploy-worktree/
+
+          mkdir -p ../deploy-worktree/resources/js
+          mkdir -p ../deploy-worktree/resources/css
+
+      - name: Publish deploy branch
+        id: publish
+        run: |
+          cd ../deploy-worktree
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add -A resources/js resources/css
-          git add -f public/build
-          git add -f bootstrap/ssr
+          git add -A
 
           if git diff --cached --quiet; then
-            echo "No changes to commit."
+            echo "No changes to publish."
+            echo "published=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          git commit -m "chore: build assets and cleanup sources after production merge"
-          git push origin production
+          git commit -m "chore: publish production artifacts"
+          git push origin HEAD:${{ env.DEPLOY_BRANCH }}
+          echo "published=true" >> "$GITHUB_OUTPUT"
 
+  deploy-cpanel:
+    needs: build-and-publish
+    if: needs.build-and-publish.outputs.published == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Configure SSH for cPanel deploy
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -72,9 +109,9 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             cd ${{ secrets.SSH_PATH }}
-            git pull origin production
+            git pull origin ${{ env.DEPLOY_BRANCH }}
             composer install --no-dev --optimize-autoloader
             composer dump-autoload -o
             php artisan optimize:clear
-            php artisan migrate
+            php artisan migrate --force
             php artisan optimize
