@@ -1,5 +1,4 @@
 <?php
-
 use App\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
@@ -138,7 +137,6 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
     // Dashboard
     Route::get('dashboard-view', [DashboardController::class, 'view'])->name('dashboard');
-    Route::resourceDetail('dashboard', DashboardController::class);
     // Settings
     Route::prefix('/settings')->group(function () {
         // Dashboard
