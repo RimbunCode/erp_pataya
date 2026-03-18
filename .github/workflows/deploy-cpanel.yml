@@ -1,9 +1,6 @@
 name: Build And Deploy to cPanel
 
 on:
-  push:
-    branches:
-      - production
   pull_request:
     branches:
       - production
@@ -15,7 +12,6 @@ permissions:
 
 jobs:
   build-and-cleanup:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout production branch
@@ -77,7 +73,7 @@ jobs:
           script: |
             cd ${{ secrets.SSH_PATH }}
             git pull origin production
-            composer install --no-interaction --prefer-dist --no-progress --no-scripts
+            composer install --no-dev --optimize-autoloader
             composer dump-autoload -o
             php artisan optimize:clear
             php artisan migrate
