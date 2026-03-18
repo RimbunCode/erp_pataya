@@ -1,7 +1,10 @@
+model = "gpt-5.2-codex"
+model_reasoning_effort = "xhigh"
+
 [mcp_servers.laravel-boost]
 command = "php"
 args = ["artisan", "boost:mcp"]
-cwd = "G:\\Project App\\erp"
+cwd = "."
 
 [mcp_servers.herd]
 command = "php"

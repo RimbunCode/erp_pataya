@@ -1,0 +1,84 @@
+name: Build And Deploy to cPanel
+
+on:
+  push:
+    branches:
+      - production
+  pull_request:
+    branches:
+      - production
+    types:
+      - closed
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-cleanup:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production branch
+        uses: actions/checkout@v5
+        with:
+          ref: production
+          fetch-depth: 0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.4"
+          tools: composer:v2
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Remove resources source files
+        run: |
+          find resources/js -mindepth 1 -delete
+          find resources/css -mindepth 1 -delete
+
+      - name: Commit production artifacts
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A resources/js resources/css
+          git add -f public/build
+          git add -f bootstrap/ssr
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: build assets and cleanup sources after production merge"
+          git push origin production
+
+      - name: Configure SSH for cPanel deploy
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd ${{ secrets.SSH_PATH }}
+            git pull origin production
+            composer install --no-interaction --prefer-dist --no-progress --no-scripts
+            composer dump-autoload -o
+            php artisan optimize:clear
+            php artisan migrate
+            php artisan optimize
