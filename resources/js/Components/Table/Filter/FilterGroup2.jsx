@@ -31,7 +31,7 @@ function FilterGroup2({ id }) {
     >
       <Select
         className="w-32"
-        value={filter.key ?? "and"}
+        value={filter.k ?? "and"}
         optionTrans="core.datatable.filter.group.options"
         options={["and", "or"]}
         onValueChange={(value) => updateGroupKey(id, value)}
@@ -65,7 +65,7 @@ function FilterGroup2({ id }) {
         </div>
       )}
       <div className="pl-8 grid grid-cols-subgrid col-span-full gap-y-2">
-        {Object.entries(filter.children ?? {}).map(([key, value]) =>
+        {Object.entries(filter.c ?? {}).map(([key, value]) =>
           isGroupNode(value) ? (
             <FilterGroup2 key={key} id={key} />
           ) : (

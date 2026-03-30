@@ -11,36 +11,47 @@ import { generateRandom, isNullOrWhitespace } from "@/lib/utils";
 
 const createId = () => generateRandom(8);
 
+const GROUP_KEY = "k";
+const GROUP_CHILDREN = "c";
+const ITEM_KEY = "k";
+const ITEM_OPERATOR = "o";
+const ITEM_VALUE = "v";
+
 const createFilterItem = (overrides = {}) => ({
-  key: "",
-  operator: "",
-  value: "",
+  [ITEM_KEY]: "",
+  [ITEM_OPERATOR]: "",
+  [ITEM_VALUE]: "",
   ...overrides,
 });
 
 const normalizeItem = (node) => ({
-  key: node?.key ?? "",
-  operator: node?.operator ?? "",
-  value: node?.value ?? "",
+  [ITEM_KEY]: node?.[ITEM_KEY] ?? node?.key ?? "",
+  [ITEM_OPERATOR]: node?.[ITEM_OPERATOR] ?? node?.operator ?? "",
+  [ITEM_VALUE]: node?.[ITEM_VALUE] ?? node?.value ?? "",
 });
 
 const createFilterGroup = (children) => ({
-  key: "and",
-  children: children ?? { [createId()]: createFilterItem() },
+  [GROUP_KEY]: "and",
+  [GROUP_CHILDREN]: children ?? { [createId()]: createFilterItem() },
 });
 
 const isGroupNode = (node) => {
-  return Boolean(node && typeof node === "object" && "children" in node);
+  return Boolean(
+    node &&
+    typeof node === "object" &&
+    (GROUP_CHILDREN in node || "children" in node),
+  );
 };
 
 const normalizeGroup = (group, isRoot = false) => {
   const children = {};
+  const groupChildren = group?.[GROUP_CHILDREN] ?? group?.children;
 
-  if (group?.children && typeof group.children === "object") {
-    for (const [id, node] of Object.entries(group.children)) {
+  if (groupChildren && typeof groupChildren === "object") {
+    for (const [id, node] of Object.entries(groupChildren)) {
       if (isGroupNode(node)) {
         const normalizedChild = normalizeGroup(node, false);
-        if (Object.keys(normalizedChild.children).length > 0) {
+        if (Object.keys(normalizedChild[GROUP_CHILDREN]).length > 0) {
           children[id] = normalizedChild;
         }
       } else if (node) {
@@ -54,8 +65,8 @@ const normalizeGroup = (group, isRoot = false) => {
   }
 
   return {
-    key: group?.key ?? "and",
-    children,
+    [GROUP_KEY]: group?.[GROUP_KEY] ?? group?.key ?? "and",
+    [GROUP_CHILDREN]: children,
   };
 };
 
@@ -86,8 +97,8 @@ const buildFromFlatFilters = (flatFilters) => {
 
   return normalizeFiltersState({
     root: {
-      key: "and",
-      children,
+      [GROUP_KEY]: "and",
+      [GROUP_CHILDREN]: children,
     },
   });
 };
@@ -119,7 +130,7 @@ const getNodeById = (nodes, targetId) => {
     }
 
     if (isGroupNode(node)) {
-      const found = getNodeById(node.children, targetId);
+      const found = getNodeById(node[GROUP_CHILDREN], targetId);
       if (found) return found;
     }
   }
@@ -136,7 +147,7 @@ const findParentId = (nodes, targetId, parentId = null) => {
     }
 
     if (isGroupNode(node)) {
-      const found = findParentId(node.children, targetId, id);
+      const found = findParentId(node[GROUP_CHILDREN], targetId, id);
       if (found !== undefined) {
         return found;
       }
@@ -158,9 +169,13 @@ const updateNodeById = (nodes, targetId, updater) => {
     }
 
     if (isGroupNode(node)) {
-      const updatedChildren = updateNodeById(node.children, targetId, updater);
-      if (updatedChildren !== node.children) {
-        result[id] = { ...node, children: updatedChildren };
+      const updatedChildren = updateNodeById(
+        node[GROUP_CHILDREN],
+        targetId,
+        updater,
+      );
+      if (updatedChildren !== node[GROUP_CHILDREN]) {
+        result[id] = { ...node, [GROUP_CHILDREN]: updatedChildren };
         updated = true;
         continue;
       }
@@ -184,8 +199,8 @@ const addNodeToGroup = (nodes, groupId, nodeToAdd) => {
     if (id === groupId && isGroupNode(node)) {
       result[id] = {
         ...node,
-        children: {
-          ...node.children,
+        [GROUP_CHILDREN]: {
+          ...node[GROUP_CHILDREN],
           [createId()]: nodeToAdd,
         },
       };
@@ -194,9 +209,13 @@ const addNodeToGroup = (nodes, groupId, nodeToAdd) => {
     }
 
     if (isGroupNode(node)) {
-      const updatedChildren = addNodeToGroup(node.children, groupId, nodeToAdd);
-      if (updatedChildren !== node.children) {
-        result[id] = { ...node, children: updatedChildren };
+      const updatedChildren = addNodeToGroup(
+        node[GROUP_CHILDREN],
+        groupId,
+        nodeToAdd,
+      );
+      if (updatedChildren !== node[GROUP_CHILDREN]) {
+        result[id] = { ...node, [GROUP_CHILDREN]: updatedChildren };
         updated = true;
         continue;
       }
@@ -219,9 +238,9 @@ const removeNodeById = (nodes, targetId) => {
     }
 
     if (isGroupNode(node)) {
-      const updatedChildren = removeNodeById(node.children, targetId);
-      if (updatedChildren !== node.children) {
-        result[id] = { ...node, children: updatedChildren };
+      const updatedChildren = removeNodeById(node[GROUP_CHILDREN], targetId);
+      if (updatedChildren !== node[GROUP_CHILDREN]) {
+        result[id] = { ...node, [GROUP_CHILDREN]: updatedChildren };
         updated = true;
         continue;
       }
@@ -238,7 +257,7 @@ function collapseEntry(id, node) {
     return [[id, node]];
   }
 
-  const collapsedChildren = collapseChildren(node.children);
+  const collapsedChildren = collapseChildren(node[GROUP_CHILDREN]);
   const entries = Object.entries(collapsedChildren);
 
   if (entries.length === 0) {
@@ -250,7 +269,7 @@ function collapseEntry(id, node) {
     return collapseEntry(childId, childNode);
   }
 
-  return [[id, { ...node, children: collapsedChildren }]];
+  return [[id, { ...node, [GROUP_CHILDREN]: collapsedChildren }]];
 }
 
 function collapseChildren(children) {
@@ -274,16 +293,16 @@ function collapseSingleChildGroups(filters) {
   return {
     root: {
       ...filters.root,
-      children: collapseChildren(filters.root.children),
+      [GROUP_CHILDREN]: collapseChildren(filters.root[GROUP_CHILDREN]),
     },
   };
 }
 
 const isCompleteItem = (item) => {
-  if (isNullOrWhitespace(item?.key)) return false;
-  if (isNullOrWhitespace(item?.operator)) return false;
+  if (isNullOrWhitespace(item?.[ITEM_KEY])) return false;
+  if (isNullOrWhitespace(item?.[ITEM_OPERATOR])) return false;
 
-  const value = item?.value;
+  const value = item?.[ITEM_VALUE];
   if (Array.isArray(value)) {
     return value.length > 0;
   }
@@ -302,9 +321,9 @@ const flattenFilters = (nodes) => {
 
     for (const node of Object.values(currentNodes)) {
       if (isGroupNode(node)) {
-        walk(node.children);
+        walk(node[GROUP_CHILDREN]);
       } else if (isCompleteItem(node)) {
-        results.push([node.key, node.operator, node.value]);
+        results.push([node[ITEM_KEY], node[ITEM_OPERATOR], node[ITEM_VALUE]]);
       }
     }
   };
@@ -337,7 +356,7 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
     setFilters((state) =>
       updateNodeById(state, id, (node) => {
         if (!isGroupNode(node)) return node;
-        return { ...node, key };
+        return { ...node, [GROUP_KEY]: key };
       }),
     );
   }, []);
