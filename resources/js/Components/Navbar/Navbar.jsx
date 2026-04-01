@@ -135,7 +135,7 @@ export default memo(function Navbar({ setShowSearch }) {
             />
           </svg>
           <kbd className="pointer-events-none absolute right-[0.3rem] top-[0.3rem] hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 lg:flex">
-            <span className="text-xs">Ctrl + J</span>
+            <span className="text-xs">Ctrl + K</span>
           </kbd>
         </Button>
         <ToggleTheme className="size-4" />

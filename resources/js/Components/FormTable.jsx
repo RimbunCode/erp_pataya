@@ -806,12 +806,12 @@ export default memo(
           const isDuplicateValue = (colName, value) => {
             const isDuplicate = newData.some((row, idx) => {
               if (idx == index) return false;
-              if (row[value] == value || isEqual(row[value], value))
+              if (row[colName] == value || isEqual(row[colName], value))
                 return true;
               if (
-                typeof row[value] === "object" &&
+                typeof row[colName] === "object" &&
                 typeof value === "object" &&
-                row[value]?.id == value?.id
+                row[colName]?.id == value?.id
               )
                 return true;
               return false;

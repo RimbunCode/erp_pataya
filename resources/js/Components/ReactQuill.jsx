@@ -405,7 +405,7 @@ export class ReactQuill extends React.Component {
     );
   }
 
-  onEditorChange = (eventName, rangeOrDelta, oldRangeOrDelta, source) => {
+  onEditorChange = (eventName, rangeOrDelta, _oldRangeOrDelta, source) => {
     if (eventName === "text-change") {
       this.onEditorChangeText?.(
         this.editor.root.innerHTML,

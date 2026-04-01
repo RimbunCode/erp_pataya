@@ -8,6 +8,8 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     strategy:
       fail-fast: true
       matrix:
@@ -16,6 +18,19 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install NPM dependencies
+        run: npm ci
+
+      - name: Run ESLint fixer
+        run: npm run lint:fix
+        continue-on-error: true
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -27,6 +42,6 @@ jobs:
         run: pint
 
       - name: Commit linted files
-        uses: stefanzweifel/git-auto-commit-action@v6
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
-          commit_message: "fix: Fix code style by Laravel Pint"
+          commit_message: "fix: apply lint fixer (eslint + pint)"

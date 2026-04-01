@@ -259,7 +259,7 @@ function variableDropListener(editor) {
       };
     }
   });
-  editor.on("canvas:drop", (sorter, model) => {
+  editor.on("canvas:drop", (_sorter, model) => {
     // model = komponen utama yang baru dibuat dari result.content
     // opts berisi info konteks
 
@@ -419,11 +419,11 @@ function PrintTemplate({
         onEditor={onEditor}
       >
         <div className="grid grid-cols-[1fr_minmax(0,256px)] h-full w-full">
-          <div className="flex flex-col h-full w-full flex-grow gap-y-2">
+          <div className="flex flex-col h-full w-full grow gap-y-2">
             <WithEditor>
               <TopBar />
             </WithEditor>
-            <div className="border border-dotted flex flex-col h-full flex-grow overflow-auto w-full text-center">
+            <div className="border border-dotted flex flex-col h-full grow overflow-auto w-full text-center">
               <Canvas
                 className=" h-full w-full max-w-4xl "
                 style={{

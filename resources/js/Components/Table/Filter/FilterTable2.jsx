@@ -15,12 +15,10 @@ import useNestedFilters, {
 
 import { Button } from "../../ui/button";
 import FilterGroup2 from "./FilterGroup2";
-import React from "react";
 import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function FilterTable({ columns, initialFilters, onApply, isMobile = false }) {
-  console.log(columns);
   const { t } = useLaravelReactI18n();
   const [open, setOpen] = useState(false);
 
@@ -90,7 +88,6 @@ function FilterTableContent({
   const { t } = useLaravelReactI18n();
   const { filters, setFromInitial, resetFilters, addItemToGroup } =
     useNestedFilters();
-  console.log(filters);
   const applyFilters = () => {
     const flatFilters = flattenFilters(filters);
     onApply?.(flatFilters, filters);

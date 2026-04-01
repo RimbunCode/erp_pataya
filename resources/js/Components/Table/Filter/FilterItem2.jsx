@@ -26,7 +26,18 @@ function FilterItem2({ id }) {
     getCachedChildren,
     setCachedChildren,
   } = useNestedFilters();
-  const filter = getNodeById(filters, id);
+  const f = getNodeById(filters, id);
+  const filter = f
+    ? {
+        key: f.k,
+        operator: f.o,
+        value: f.v,
+      }
+    : {
+        key: "",
+        operator: "",
+        value: "",
+      };
   const { t } = useLaravelReactI18n();
   const [cacheVersion, setCacheVersion] = useState(0);
 
@@ -87,7 +98,11 @@ function FilterItem2({ id }) {
   }, [selectedColumn?.type]);
 
   const onFilterChanged = (payload) => {
-    updateItem(id, payload);
+    updateItem(id, {
+      k: payload?.key ?? filter.key,
+      o: payload?.operator ?? filter.operator ?? "",
+      v: payload?.value ?? filter.value ?? "",
+    });
   };
 
   const onColumnChanged = (val) => {
@@ -148,8 +163,6 @@ function FilterItem2({ id }) {
   const operatorOptions = useMemo(() => {
     return Object.keys(operators);
   }, [operators]);
-
-  const valueInput = useMemo(() => {}, []);
   if (!isValidFilter) return null;
   return (
     <div className="grid grid-cols-subgrid col-span-full">

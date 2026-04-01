@@ -221,7 +221,7 @@ export default memo(function Form() {
               <Mention
                 trigger={/(\{([^{]*))$/}
                 data={listFormatVariant}
-                displayTransform={(x, display) => "{" + display + "}"}
+                displayTransform={(_x, display) => "{" + display + "}"}
               />
             </MentionsInput>
           </FormInput>
