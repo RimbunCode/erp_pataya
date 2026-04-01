@@ -205,6 +205,374 @@ const caseSensitiveImportPathsRule = {
   },
 };
 
+function collectScopes(scope, collectedScopes = []) {
+  collectedScopes.push(scope);
+
+  for (const childScope of scope.childScopes ?? []) {
+    collectScopes(childScope, collectedScopes);
+  }
+
+  return collectedScopes;
+}
+
+function compileIgnorePattern(pattern) {
+  if (!pattern) {
+    return null;
+  }
+
+  try {
+    return new RegExp(pattern, "u");
+  } catch {
+    return null;
+  }
+}
+
+function collectBindingNamesFromPattern(pattern, bindingNames) {
+  if (!pattern) {
+    return;
+  }
+
+  if (pattern.type === "Identifier") {
+    bindingNames.add(pattern.name);
+    return;
+  }
+
+  if (pattern.type === "RestElement") {
+    collectBindingNamesFromPattern(pattern.argument, bindingNames);
+    return;
+  }
+
+  if (pattern.type === "AssignmentPattern") {
+    collectBindingNamesFromPattern(pattern.left, bindingNames);
+    return;
+  }
+
+  if (pattern.type === "ArrayPattern") {
+    for (const element of pattern.elements) {
+      collectBindingNamesFromPattern(element, bindingNames);
+    }
+    return;
+  }
+
+  if (pattern.type === "ObjectPattern") {
+    for (const property of pattern.properties) {
+      if (property.type === "RestElement") {
+        collectBindingNamesFromPattern(property.argument, bindingNames);
+        continue;
+      }
+
+      collectBindingNamesFromPattern(property.value, bindingNames);
+    }
+  }
+}
+
+function collectBindingNamesFromDeclaration(declaration, bindingNames) {
+  if (!declaration) {
+    return;
+  }
+
+  if (declaration.type === "VariableDeclaration") {
+    for (const declarator of declaration.declarations) {
+      collectBindingNamesFromPattern(declarator.id, bindingNames);
+    }
+    return;
+  }
+
+  if (
+    declaration.type === "FunctionDeclaration" ||
+    declaration.type === "ClassDeclaration"
+  ) {
+    if (declaration.id?.type === "Identifier") {
+      bindingNames.add(declaration.id.name);
+    }
+  }
+}
+
+function collectExportedBindingNames(programNode) {
+  const exportedBindingNames = new Set();
+
+  for (const statement of programNode.body ?? []) {
+    if (statement.type === "ExportNamedDeclaration") {
+      collectBindingNamesFromDeclaration(
+        statement.declaration,
+        exportedBindingNames,
+      );
+
+      for (const specifier of statement.specifiers ?? []) {
+        if (
+          specifier.type === "ExportSpecifier" &&
+          specifier.local?.type === "Identifier"
+        ) {
+          exportedBindingNames.add(specifier.local.name);
+        }
+      }
+
+      continue;
+    }
+
+    if (statement.type === "ExportDefaultDeclaration") {
+      if (statement.declaration?.type === "Identifier") {
+        exportedBindingNames.add(statement.declaration.name);
+      }
+
+      if (
+        statement.declaration?.type === "FunctionDeclaration" ||
+        statement.declaration?.type === "ClassDeclaration"
+      ) {
+        if (statement.declaration.id?.type === "Identifier") {
+          exportedBindingNames.add(statement.declaration.id.name);
+        }
+      }
+    }
+  }
+
+  return exportedBindingNames;
+}
+
+function isInternalNamedExpressionBinding(variable) {
+  return (
+    variable.scope?.type === "function-expression-name" ||
+    variable.scope?.type === "class-expression-name"
+  );
+}
+
+function isVariableExported(variable, exportedBindingNames) {
+  return exportedBindingNames.has(variable.name);
+}
+
+function buildImportStatement(
+  importDeclaration,
+  remainingSpecifiers,
+  sourceCode,
+) {
+  const defaultSpecifier = remainingSpecifiers.find(
+    (specifier) => specifier.type === "ImportDefaultSpecifier",
+  );
+  const namespaceSpecifier = remainingSpecifiers.find(
+    (specifier) => specifier.type === "ImportNamespaceSpecifier",
+  );
+  const namedSpecifiers = remainingSpecifiers.filter(
+    (specifier) => specifier.type === "ImportSpecifier",
+  );
+  const importClauseParts = [];
+
+  if (defaultSpecifier) {
+    importClauseParts.push(sourceCode.getText(defaultSpecifier));
+  }
+
+  if (namespaceSpecifier) {
+    importClauseParts.push(sourceCode.getText(namespaceSpecifier));
+  }
+
+  if (namedSpecifiers.length) {
+    const namedText = namedSpecifiers
+      .map((specifier) => sourceCode.getText(specifier))
+      .join(", ");
+    importClauseParts.push(`{ ${namedText} }`);
+  }
+
+  if (!importClauseParts.length) {
+    return null;
+  }
+
+  const importKeyword =
+    importDeclaration.importKind === "type" ? "import type" : "import";
+  const sourceText = sourceCode.getText(importDeclaration.source);
+  const importDeclarationText = sourceCode.getText(importDeclaration);
+  const sourceIndex = importDeclarationText.lastIndexOf(sourceText);
+  const tailText =
+    sourceIndex === -1
+      ? ";"
+      : importDeclarationText.slice(sourceIndex + sourceText.length);
+
+  return `${importKeyword} ${importClauseParts.join(", ")} from ${sourceText}${tailText}`;
+}
+
+function buildUnusedImportFix(variable, sourceCode, fixer) {
+  const importDefinition = variable.defs.find(
+    (definition) => definition.type === "ImportBinding",
+  );
+
+  if (!importDefinition || !importDefinition.node?.parent) {
+    return null;
+  }
+
+  const importSpecifier = importDefinition.node;
+  const importDeclaration = importSpecifier.parent;
+
+  if (importDeclaration.type !== "ImportDeclaration") {
+    return null;
+  }
+
+  const remainingSpecifiers = importDeclaration.specifiers.filter(
+    (specifier) => specifier !== importSpecifier,
+  );
+
+  if (!remainingSpecifiers.length) {
+    return fixer.remove(importDeclaration);
+  }
+
+  const nextImportStatement = buildImportStatement(
+    importDeclaration,
+    remainingSpecifiers,
+    sourceCode,
+  );
+
+  if (!nextImportStatement) {
+    return fixer.remove(importDeclaration);
+  }
+
+  return fixer.replaceText(importDeclaration, nextImportStatement);
+}
+
+function buildUnusedVariablePrefixFix(variable, fixer) {
+  const targetName = `_${variable.name}`;
+
+  if (targetName === variable.name) {
+    return null;
+  }
+
+  if (variable.scope?.set?.has(targetName)) {
+    return null;
+  }
+
+  const nodesToRename = new Map();
+  const addNode = (node) => {
+    if (!node || node.type !== "Identifier") {
+      return;
+    }
+
+    const rangeStart =
+      node.range?.[0] ?? `${node.loc?.start?.line}:${node.loc?.start?.column}`;
+    const rangeEnd =
+      node.range?.[1] ?? `${node.loc?.end?.line}:${node.loc?.end?.column}`;
+    const key = `${rangeStart}-${rangeEnd}`;
+
+    nodesToRename.set(key, node);
+  };
+
+  for (const identifier of variable.identifiers) {
+    addNode(identifier);
+  }
+
+  for (const reference of variable.references) {
+    addNode(reference.identifier);
+  }
+
+  if (!nodesToRename.size) {
+    return null;
+  }
+
+  return Array.from(nodesToRename.values()).map((node) =>
+    fixer.replaceText(node, targetName),
+  );
+}
+
+const noUnusedVarsFixerRule = {
+  meta: {
+    type: "problem",
+    fixable: "code",
+    docs: {
+      description:
+        "report unused vars, remove unused imports, and prefix unused vars with underscore",
+    },
+    schema: [
+      {
+        type: "object",
+        properties: {
+          argsIgnorePattern: { type: "string" },
+          varsIgnorePattern: { type: "string" },
+          caughtErrorsIgnorePattern: { type: "string" },
+        },
+        additionalProperties: false,
+      },
+    ],
+  },
+  create(context) {
+    const [options = {}] = context.options;
+    const argsIgnoreRegex = compileIgnorePattern(options.argsIgnorePattern);
+    const varsIgnoreRegex = compileIgnorePattern(options.varsIgnorePattern);
+    const caughtErrorsIgnoreRegex = compileIgnorePattern(
+      options.caughtErrorsIgnorePattern,
+    );
+    const sourceCode = context.sourceCode ?? context.getSourceCode();
+    const exportedBindingNames = collectExportedBindingNames(sourceCode.ast);
+
+    function shouldIgnoreVariable(variable) {
+      if (variable.name === "arguments" || variable.eslintUsed) {
+        return true;
+      }
+
+      if (isInternalNamedExpressionBinding(variable)) {
+        return true;
+      }
+
+      if (isVariableExported(variable, exportedBindingNames)) {
+        return true;
+      }
+
+      const definitionTypes = new Set(
+        variable.defs.map((definition) => definition.type),
+      );
+      const ignoreRegex = definitionTypes.has("Parameter")
+        ? argsIgnoreRegex
+        : definitionTypes.has("CatchClause")
+          ? caughtErrorsIgnoreRegex
+          : varsIgnoreRegex;
+
+      return ignoreRegex ? ignoreRegex.test(variable.name) : false;
+    }
+
+    function hasReadReference(variable) {
+      return variable.references.some((reference) => reference.isRead());
+    }
+
+    return {
+      "Program:exit"() {
+        const globalScope = sourceCode.scopeManager?.globalScope;
+
+        if (!globalScope) {
+          return;
+        }
+
+        for (const scope of collectScopes(globalScope)) {
+          for (const variable of scope.variables) {
+            if (!variable.defs.length) {
+              continue;
+            }
+
+            if (shouldIgnoreVariable(variable) || hasReadReference(variable)) {
+              continue;
+            }
+
+            const reportNode =
+              variable.identifiers[0] ?? variable.defs[0]?.name;
+
+            if (!reportNode) {
+              continue;
+            }
+
+            const isUnusedImport = variable.defs.every(
+              (definition) => definition.type === "ImportBinding",
+            );
+
+            context.report({
+              node: reportNode,
+              message: isUnusedImport
+                ? `Unused import "${variable.name}".`
+                : `Unused variable "${variable.name}".`,
+              fix: (fixer) =>
+                isUnusedImport
+                  ? buildUnusedImportFix(variable, sourceCode, fixer)
+                  : buildUnusedVariablePrefixFix(variable, fixer),
+            });
+          }
+        }
+      },
+    };
+  },
+};
+
 export default [
   {
     ignores: [
@@ -239,6 +607,7 @@ export default [
       local: {
         rules: {
           "case-sensitive-import-paths": caseSensitiveImportPathsRule,
+          "no-unused-vars-fixer": noUnusedVarsFixerRule,
         },
       },
     },
@@ -281,7 +650,15 @@ export default [
       "react-hooks/static-components": "off",
 
       // General
-      "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+      "no-unused-vars": "off",
+      "local/no-unused-vars-fixer": [
+        "warn",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
       "no-empty": "warn",
       "no-useless-escape": "off",
       "linebreak-style": ["warn", "unix"],

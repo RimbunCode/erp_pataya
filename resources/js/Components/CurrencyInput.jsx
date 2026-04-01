@@ -107,7 +107,7 @@ export default forwardRef(function CurrencyInput(
       ref={ref}
       intlConfig={intlConfig}
       value={data?.value ?? ""}
-      onValueChange={(value, name, values) => {
+      onValueChange={(value, _name, values) => {
         setData({
           value: value ?? "",
           values: values ?? { float: null, formatted: "", value: "" },
