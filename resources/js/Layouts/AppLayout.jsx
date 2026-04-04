@@ -59,7 +59,7 @@ export default memo(
                   <CommandGroup heading="Theme">
                     <CommandItem
                       value="theme-light"
-                      onSelect={() => runCommand(() => setTheme("light"))}
+                      // onSelect={() => runCommand(() => setTheme("light"))}
                     >
                       <svg
                         aria-hidden="true"
@@ -78,7 +78,7 @@ export default memo(
                     </CommandItem>
                     <CommandItem
                       value="theme-dark"
-                      onSelect={() => runCommand(() => setTheme("dark"))}
+                      // onSelect={() => runCommand(() => setTheme("dark"))}
                     >
                       <svg
                         aria-hidden="true"
@@ -97,7 +97,7 @@ export default memo(
                     </CommandItem>
                     <CommandItem
                       value="theme-system"
-                      onSelect={() => runCommand(() => setTheme("system"))}
+                      // onSelect={() => runCommand(() => setTheme("system"))}
                     >
                       <svg
                         aria-hidden="true"
