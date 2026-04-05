@@ -11,49 +11,63 @@ use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Widget extends Model {
+class Widget extends Model
+{
     use DataTable, HasUlids, SoftDeletes;
 
     protected $guarded = ['id'];
-    public $casts      = [
+
+    public $casts = [
         'config' => Json::class,
     ];
+
     public $translateKey = 'settings.widget';
 
-    public static function templateLink() {
+    public static function templateLink()
+    {
         return ':title';
     }
 
-    protected static function loadRelationsOnShow() {
+    public $appends = ['translateModelKey'];
+
+    protected function getTranslateModelKeyAttribute()
+    {
+        $model = new $this->model_class;
+
+        return $model->translateKey;
+    }
+
+    protected static function loadRelationsOnShow()
+    {
         return ['dashboards', 'createdBy', 'model'];
     }
 
     protected $configColumns = [
         'title' => [
-            'show'   => true,
-            'order'  => 0,
+            'show' => true,
+            'order' => 0,
             'isLink' => true,
         ],
         'type' => [
-            'show'       => true,
-            'order'      => 1,
+            'show' => true,
+            'order' => 1,
             'valueTrans' => 'settings.widget.types',
         ],
         'model' => [
-            'show'               => true,
-            'order'              => 2,
+            'show' => true,
+            'order' => 2,
             'disabledNavigation' => true,
         ],
         'created_by' => [
-            'show'  => true,
+            'show' => true,
             'order' => 3,
         ],
         'dashboard' => [
-            'show'  => true,
+            'show' => true,
             'order' => 4,
         ],
         'created_at' => [
-            'show'  => true,
+            'show' => true,
             'order' => 5,
         ],
         'group_by_types' => [
@@ -68,20 +82,23 @@ class Widget extends Model {
         'group_by_base_on' => [
             'valueTrans' => 'settings.widget.group_by_base_on.types',
         ],
-        'time_span' => [
-            'valueTrans' => 'settings.widget.time_spans',
+        'timespan' => [
+            'valueTrans' => 'settings.widget.timespans',
         ],
     ];
 
-    public function dashboards() {
+    public function dashboards()
+    {
         return $this->hasMany(DashboardWidget::class, 'widget_id');
     }
 
-    public function createdBy() {
+    public function createdBy()
+    {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function model() {
+    public function model()
+    {
         return $this->belongsTo(Permission::class, 'model_id');
     }
 }

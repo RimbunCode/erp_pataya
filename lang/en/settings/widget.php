@@ -43,28 +43,29 @@ return [
 
     ],
     'calculation_types' => [
-        'count'    => 'Count',
-        'sum'      => 'Sum',
-        'average'  => 'Average',
+        'count' => 'Count',
+        'sum' => 'Sum',
+        'average' => 'Average',
         'group_by' => 'Group By',
     ],
     'time_intervals' => [
-        'daily'     => 'Daily',
-        'weekly'    => 'Weekly',
-        'monthly'   => 'Monthly',
+        'daily' => 'Daily',
+        'weekly' => 'Weekly',
+        'monthly' => 'Monthly',
         'quarterly' => 'Quarterly',
-        'yearly'    => 'Yearly',
+        'yearly' => 'Yearly',
     ],
     'group_by_base_on.types' => [
-        'daily'   => 'Daily',
-        'weekly'  => 'Weekly',
+        'daily' => 'Daily',
+        'weekly' => 'Weekly',
         'monthly' => 'Monthly',
-        'yearly'  => 'Yearly',
+        'yearly' => 'Yearly',
     ],
-    'time_spans' => [
-        'last_week'    => 'Last Week',
-        'last_month'   => 'Last Month',
+    'timespans' => [
+        'last_week' => 'Last Week',
+        'last_month' => 'Last Month',
         'last_quarter' => 'Last Quarter',
-        'last_year'    => 'Last Year',
+        'last_year' => 'Last Year',
+        'custom' => 'Specific Date Range',
     ],
 ];

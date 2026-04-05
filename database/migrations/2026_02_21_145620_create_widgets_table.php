@@ -9,7 +9,8 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void {
+    public function up(): void
+    {
         Schema::create('widgets', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('title');
@@ -17,7 +18,7 @@ return new class extends Migration
             $table->string('calculation_type')->nullable();
             $table->string('time_based_on')->nullable();
             $table->string('time_interval')->nullable();
-            $table->string('time_span')->nullable();
+            $table->string('timespan')->nullable();
             $table->string('value_based_on')->nullable();
             $table->string('group_by_type')->nullable();
             $table->string('group_by_base_on')->nullable();
@@ -36,7 +37,8 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-    public function down(): void {
+    public function down(): void
+    {
         Schema::dropIfExists('widgets');
     }
 };
