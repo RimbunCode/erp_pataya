@@ -57,8 +57,8 @@ abstract class Controller {
                     $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? '') . '.title', 'link' => route("{$model->route}.index")];
                     $name          = Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
                     $breadcrumbs[] = ($key == (count($models) - 1)) ?
-                      ['name' => $name] :
-                      ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
+                        ['name' => $name] :
+                        ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
 
                     continue;
                 }
@@ -66,8 +66,8 @@ abstract class Controller {
                 $alias         = $model->aliasBreadcrumb ?? $className[1];
                 $value         = Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
                 $breadcrumbs[] = ($key == (count($models) - 1)) ?
-                  ['name' => "{$alias}: {$value}"] :
-                  ['name' => "{$alias}: {$value}", 'link' => route("{$model->route}.show", $model->id)];
+                    ['name' => "{$alias}: {$value}"] :
+                    ['name' => "{$alias}: {$value}", 'link' => route("{$model->route}.show", $model->id)];
             }
         }
         Inertia::share([
