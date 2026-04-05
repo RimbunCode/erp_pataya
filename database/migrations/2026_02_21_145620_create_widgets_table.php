@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('calculation_type')->nullable();
             $table->string('time_based_on')->nullable();
             $table->string('time_interval')->nullable();
-            $table->string('time_span')->nullable();
+            $table->string('timespan')->nullable();
             $table->string('value_based_on')->nullable();
             $table->string('group_by_type')->nullable();
             $table->string('group_by_base_on')->nullable();

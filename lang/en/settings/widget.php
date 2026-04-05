@@ -27,7 +27,7 @@ return [
         ],
         'time_interval' => 'Time Interval',
         'time_based_on' => 'Time Based On',
-        'time_span'     => 'Time Span',
+        'timespan'      => 'Timespan',
 
         'value_based_on'              => 'Value Based On',
         'permission'                  => 'Permission',
@@ -61,10 +61,11 @@ return [
         'monthly' => 'Monthly',
         'yearly'  => 'Yearly',
     ],
-    'time_spans' => [
+    'timespans' => [
         'last_week'    => 'Last Week',
         'last_month'   => 'Last Month',
         'last_quarter' => 'Last Quarter',
         'last_year'    => 'Last Year',
+        'custom'       => 'Spesific Date Range',
     ],
 ];

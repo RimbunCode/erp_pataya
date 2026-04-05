@@ -17,7 +17,10 @@ import { cn } from "@/lib/utils";
 import useTheme from "@/Hooks/useTheme";
 
 export default memo(
-  forwardRef(function AppLayout({ className, children, ...props }, ref) {
+  forwardRef(function AppLayout(
+    { className, actions, children, ...props },
+    ref,
+  ) {
     const [showSearch, setShowSearch] = React.useState(false);
     const { setTheme } = useTheme();
     React.useEffect(() => {
@@ -47,7 +50,7 @@ export default memo(
           <SidebarProvider>
             <AppSidebar className="print:hidden " />
             <SidebarInset>
-              <Navbar setShowSearch={setShowSearch} />
+              <Navbar setShowSearch={setShowSearch} actions={actions} />
               <CommandDialog open={showSearch} onOpenChange={setShowSearch}>
                 <CommandInput
                   placeholder="Type a command or search..."

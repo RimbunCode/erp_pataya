@@ -137,6 +137,9 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
     // Dashboard
     Route::get('dashboard-view', [DashboardController::class, 'view'])->name('dashboard');
+    Route::post('dashboard-update', [DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');
+    Route::post('dashboard-widget-order/{dashboard}', [DashboardController::class, 'reorderWidgets'])->name('dashboard.widgets.reorder');
+    Route::post('get-chart/{widget}', [WidgetController::class, 'getChartData'])->name('get-chart');
     // Settings
     Route::prefix('/settings')->group(function () {
         // Dashboard

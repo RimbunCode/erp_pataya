@@ -12,6 +12,10 @@ class DashboardWidget extends Model {
 
     protected $guarded   = ['id'];
     public $translateKey = 'settings.dashboard';
+    public $casts        = [
+        'config'     => Json::class,
+        'is_visible' => 'boolean',
+    ];
 
     protected static function loadRelationsOnShow() {
         return ['widget', 'dashboard', 'parent'];
