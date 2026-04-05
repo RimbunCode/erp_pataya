@@ -1,10 +1,12 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React from "react";
+
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+
 import WidgetLinkModel from "../Widget/WidgetLinkModel";
 import Select from "@/Components/Select";
 import { FormCheckbox } from "@/Components/ui/checkbox";

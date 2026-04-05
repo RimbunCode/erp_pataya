@@ -1,6 +1,50 @@
 <?php
-
+use App\FormStatus;
+use App\Http\Controllers\Core\ApprovalInstanceController;
+use App\Http\Controllers\Core\ApprovalSchemeController;
+use App\Http\Controllers\Core\BranchController;
+use App\Http\Controllers\Core\CompanyController;
+use App\Http\Controllers\Core\CompanyLogoController;
+use App\Http\Controllers\Core\DashboardController;
+use App\Http\Controllers\Core\FileController;
+use App\Http\Controllers\Core\FormatingSeriesController;
+use App\Http\Controllers\Core\LanguageController;
+use App\Http\Controllers\Core\LogController;
+use App\Http\Controllers\Core\PrintTemplateController;
+use App\Http\Controllers\Core\TagController;
+use App\Http\Controllers\Core\WidgetController;
+use App\Http\Controllers\Finances\AccountController;
+use App\Http\Controllers\Finances\GeneralLedgerController;
+use App\Http\Controllers\Finances\PaymentEntryController;
+use App\Http\Controllers\Finances\PaymentMethodController;
+use App\Http\Controllers\Finances\PaymentTermTemplateController;
+use App\Http\Controllers\Finances\PurchaseInvoiceController;
+use App\Http\Controllers\Finances\SalesInvoiceController;
+use App\Http\Controllers\Finances\TaxesController;
+use App\Http\Controllers\Inventory\AttributeController;
+use App\Http\Controllers\Inventory\CategoryController;
+use App\Http\Controllers\Inventory\DeliveryNoteController;
+use App\Http\Controllers\Inventory\ItemAlternativeController;
+use App\Http\Controllers\Inventory\ItemController;
+use App\Http\Controllers\Inventory\ItemVariantController;
+use App\Http\Controllers\Inventory\StockEntryController;
+use App\Http\Controllers\Inventory\StockLedgerController;
+use App\Http\Controllers\Inventory\UnitController;
+use App\Http\Controllers\Inventory\WarehouseController;
+use App\Http\Controllers\ModelController;
+use App\Http\Controllers\Purchase\PurchaseOrderController;
+use App\Http\Controllers\Purchase\PurchaseReceiptController;
+use App\Http\Controllers\Purchase\PurchaseRequestController;
+use App\Http\Controllers\Purchase\SupplierController;
+use App\Http\Controllers\Sales\CustomerController;
+use App\Http\Controllers\Sales\InternalOrderController;
+use App\Http\Controllers\Sales\SalesOrderController;
+use App\Http\Controllers\Service\WorkOrderController;
+use App\Http\Controllers\User\RoleController;
+use App\Http\Controllers\User\UserController;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 /*
@@ -10,7 +54,7 @@ use Inertia\Inertia;
 */
 
 Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable = false, $nestedShow = null) {
-    $uri = \Illuminate\Support\Str::plural($name);
+    $uri = Str::plural($name);
     Route::prefix("/{$uri}")->controller($controller)->group(function () use ($uri, $name, $nestedShow, $isSubmmitable) {
         Route::get('/', 'index')->name("$uri.index");
         Route::post('/', 'store')->name("$uri.store");
@@ -49,23 +93,23 @@ Route::get('/', function () {
 });
 
 // Languages
-Route::controller(\App\Http\Controllers\Core\LanguageController::class)->group(function () {
+Route::controller(LanguageController::class)->group(function () {
     Route::get('/lang', 'index')->name('lang.index');
     Route::post('/lang', action: 'set')->name('lang.set');
 });
 
 // Route for Preview Image
-Route::get('/company-logo', \App\Http\Controllers\Core\CompanyLogoController::class)->name('company-logo');
+Route::get('/company-logo', CompanyLogoController::class)->name('company-logo');
 
-Route::get('/files/{file}/preview', [\App\Http\Controllers\Core\FileController::class, 'preview'])->name('files.preview');
+Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
 // Get Data from Model Direct
-Route::post('/model', \App\Http\Controllers\ModelController::class)
+Route::post('/model', ModelController::class)
     ->middleware(middleware: ['auth'])
     ->name('model');
-Route::post('/model/datatable', [\App\Http\Controllers\ModelController::class, 'datatable'])
+Route::post('/model/datatable', [ModelController::class, 'datatable'])
     ->middleware(middleware: ['auth'])
     ->name('model.datatable');
-Route::get('/model/{model}', [\App\Http\Controllers\ModelController::class, 'columns'])
+Route::get('/model/{model}', [ModelController::class, 'columns'])
     ->where('model', '.*')
     ->middleware(middleware: ['auth'])
     ->name('model.columns');
@@ -74,13 +118,13 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     if (config('app.debug')) {
         Route::get('/status', function () {
             return Inertia::render('Status', [
-                'canLogin' => Route::has('login'),
-                'canRegister' => Route::has('register'),
-                'laravelVersion' => \Illuminate\Foundation\Application::VERSION,
-                'phpVersion' => PHP_VERSION,
-                'statuses' => collect(App\FormStatus::cases())
-                    ->map(fn (App\FormStatus $status) => [
-                        'name' => $status->name,
+                'canLogin'       => Route::has('login'),
+                'canRegister'    => Route::has('register'),
+                'laravelVersion' => Application::VERSION,
+                'phpVersion'     => PHP_VERSION,
+                'statuses'       => collect(FormStatus::cases())
+                    ->map(fn (FormStatus $status) => [
+                        'name'  => $status->name,
                         'value' => $status->value,
                         'label' => $status->label(),
                     ])

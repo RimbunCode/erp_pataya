@@ -12,15 +12,12 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\Uid\Ulid;
 
-class DashboardController extends Controller
-{
-    public function __construct(Request $request)
-    {
+class DashboardController extends Controller {
+    public function __construct(Request $request) {
         parent::__construct($request, Dashboard::class);
     }
 
-    private function fillWidgetRelation(array $data, Dashboard $dashboard)
-    {
+    private function fillWidgetRelation(array $data, Dashboard $dashboard) {
         $data['widget_id'] = $data['widget']['id'];
 
         return $data;
@@ -29,8 +26,7 @@ class DashboardController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
-    {
+    public function index(Request $request) {
         $this->setBreadcrumbs();
         Dashboard::dataTable($request);
 

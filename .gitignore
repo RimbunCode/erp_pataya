@@ -25,8 +25,7 @@ yarn-error.log
 /.fleet
 /.idea
 /.nova
-/.vscode
 /.zed
 /.VSCodeCounter
 /playground
-/.npm-cache-4
+/.npm-cache-*

@@ -6,7 +6,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/Components/ui/dialog";
 
 import { Command as CommandPrimitive } from "cmdk";
 import { Search } from "lucide-react";

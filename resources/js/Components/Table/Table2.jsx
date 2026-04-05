@@ -1,5 +1,6 @@
 import "@/../css/table.css";
 
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
   DndContext,
   MouseSensor,
@@ -107,9 +108,35 @@ const Cell = memo(
     const { lang } = usePage().props;
     const { t } = useLaravelReactI18n();
     const value = row[name];
-    if (value == null) return;
     let valueCell = "";
     switch (type) {
+      case "image": {
+        const name = convertTemplateLink(row);
+        const alias = name
+          .split(" ")
+          .slice(0, 2)
+          .map((n) => n.charAt(0))
+          .join("");
+        return (
+          <Avatar className="w-full h-auto border rounded-xl aspect-square max-w-16 group">
+            {value && (
+              <AvatarImage
+                src={
+                  window.route("files.preview", value) +
+                  `?v=${new Date(row.updated_at).getTime()}`
+                }
+                alt={name}
+                className=" transition-[filter] group-hover:blur-sm"
+              />
+            )}
+            <AvatarFallback className="rounded-lg flex!">
+              <p className="w-full font-semibold text-center text-muted-foreground text-3xl transition-[filter]">
+                {alias}
+              </p>
+            </AvatarFallback>
+          </Avatar>
+        );
+      }
       case "boolean":
         return (
           <span className="text-center">
@@ -160,6 +187,9 @@ const Cell = memo(
       case "relations":
         return;
       case "string":
+        if (!value) {
+          valueCell = null;
+        }
         valueCell = valueTrans
           ? t(`${valueTrans}.${value?.toString()}`)
           : parse

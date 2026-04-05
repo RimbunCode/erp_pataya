@@ -11,81 +11,84 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PaymentTermTemplateController extends Controller {
-  private PaymentTermTemplateService $service;
+    private PaymentTermTemplateService $service;
 
-  public function __construct(Request $request, PaymentTermTemplateService $service) {
-    $this->service = $service;
-    parent::__construct($request, PaymentTermTemplate::class);
-  }
+    public function __construct(Request $request, PaymentTermTemplateService $service) {
+        $this->service = $service;
+        parent::__construct($request, PaymentTermTemplate::class);
+    }
 
-  /**
-   * Display a listing of the resource.
-   */
-  public function index(Request $request) {
-    $this->setBreadcrumbs();
-    PaymentTermTemplate::dataTable($request);
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request) {
+        $this->setBreadcrumbs();
+        PaymentTermTemplate::dataTable($request);
 
-    return Inertia::render('Finances/PaymentTermTemplate/Index');
-  }
+        return Inertia::render('Finances/PaymentTermTemplate/Index');
+    }
 
-  /**
-   * Show the form for creating a new resource.
-   */
-  public function create(Request $request, ?string $ref = null) {
-    //
-  }
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(Request $request, ?string $ref = null) {
+        //
+    }
 
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(PaymentTermTemplateRequest $request) {
-    $data = $request->validated();
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(PaymentTermTemplateRequest $request) {
+        $data = $request->validated();
 
-    $this->service->create($data);
-    return redirect()->back();
-  }
+        $this->service->create($data);
 
-  /**
-   * Display the specified resource.
-   */
-  public function show(PaymentTermTemplate $paymentTermTemplate) {
-    $this->setBreadcrumbs($paymentTermTemplate);
-    $paymentTermTemplate->showDetail();
-    $paymentTermTemplate->loadRelations();
-    return $this->renderShow(
-      'Finances/PaymentTermTemplate/Form',
-      "paymentTermTemplate",
-      $paymentTermTemplate->name,
-      $paymentTermTemplate,
-    );
-  }
+        return redirect()->back();
+    }
 
-  /**
-   * Show the form for editing the specified resource.
-   */
-  public function edit(PaymentTermTemplate $paymentTermTemplate) {
-    //
-  }
+    /**
+     * Display the specified resource.
+     */
+    public function show(PaymentTermTemplate $paymentTermTemplate) {
+        $this->setBreadcrumbs($paymentTermTemplate);
+        $paymentTermTemplate->showDetail();
+        $paymentTermTemplate->loadRelations();
 
-  /**
-   * Update the specified resource in storage.
-   */
-  public function update(PaymentTermTemplateRequest $request, PaymentTermTemplate $paymentTermTemplate) {
-    $data = $request->validated();
+        return $this->renderShow(
+            'Finances/PaymentTermTemplate/Form',
+            'paymentTermTemplate',
+            $paymentTermTemplate->name,
+            $paymentTermTemplate,
+        );
+    }
 
-    $this->service->update($paymentTermTemplate, $data);
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(PaymentTermTemplate $paymentTermTemplate) {
+        //
+    }
 
-    return redirect()->back();
-  }
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(PaymentTermTemplateRequest $request, PaymentTermTemplate $paymentTermTemplate) {
+        $data = $request->validated();
 
-  /**
-   * Remove the specified resource from storage.
-   */
-  public function destroy(PaymentTermTemplate $paymentTermTemplate) {
-    DB::beginTransaction();
-    $paymentTermTemplate->delete();
-    $paymentTermTemplate->logForDeleted();
-    DB::commit();
-    return redirect()->route('paymentTermTemplates.index');
-  }
+        $this->service->update($paymentTermTemplate, $data);
+
+        return redirect()->back();
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(PaymentTermTemplate $paymentTermTemplate) {
+        DB::beginTransaction();
+        $paymentTermTemplate->delete();
+        $paymentTermTemplate->logForDeleted();
+        DB::commit();
+
+        return redirect()->route('paymentTermTemplates.index');
+    }
 }

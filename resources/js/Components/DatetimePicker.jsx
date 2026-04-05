@@ -18,7 +18,7 @@ import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/Components/ui/popover";
 import { Tooltip, TooltipTrigger } from "./ui/tooltip";
 import {
   addHours,
@@ -58,10 +58,10 @@ import {
   useState,
 } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/Components/ui/button";
 import { Command } from "cmdk";
 import { Input } from "./ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/Components/ui/scroll-area";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -872,7 +872,7 @@ export default memo(
                       "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
                     disabled: "text-muted-foreground opacity-50",
                     selected:
-                      "bg-foreground! text-background! border-none! hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background [&:not(.day-range-start.day-range-end.day-range-middle)]:rounded-full",
+                      "bg-foreground! text-background! border-none! hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background [&:not(.day-range-start):not(.day-range-middle):not(.day-range-end)]:rounded-full",
                     range_start: "day-range-start rounded-l-full ",
                     range_middle: "day-range-middle rounded-none!",
                     range_end: "day-range-end rounded-r-full ",

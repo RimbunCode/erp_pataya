@@ -69,7 +69,7 @@ const Select = memo(
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(getOption(value));
     const commandRef = useRef(null);
-    const hasValue = value !== undefined && value !== null;
+    const hasValue = value !== undefined;
     const option = hasValue ? getOption(value) : _option;
     const setOption = useCallback(
       (val) => {

@@ -1,98 +1,14 @@
-import { cn, getLocaleDate } from "@/lib/utils";
-import { useMemo, useRef } from "react";
-
-import DataTable from "@/Pages/Core/DataTable";
+import DataTable2 from "@/Pages/Core/DataTable2";
+import Form from "./Form";
 import Link from "@/Components/Link";
-import { TZDate } from "@date-fns/tz";
-import { format } from "date-fns";
-import { router } from "@inertiajs/react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
+import { cn } from "@/lib/utils";
 
-export default function Index({ data, sort, show, lang }) {
+export default function Index() {
   const route = window.route;
-  const { t } = useLaravelReactI18n();
-  const tableRef = useRef();
-  /**
-   * @typedef {import('@/Pages/Core/DataTable').ColumnProps} ColumnProps
-   * @type {ColumnProps[]}
-   */
-  const columns = useMemo(
-    () => [
-      {
-        name: "name",
-        titleTrans: "user.role.columns.name",
-        searchType: "text",
-        sortable: true,
-        resizeable: true,
-        cell: ({ dataRow }) => (
-          <Link
-            className="hover:underline"
-            href={route("roles.show", dataRow.id)}
-          >
-            {dataRow.name}
-          </Link>
-        ),
-      },
-      {
-        name: "is_disabled",
-        titleTrans: "user.role.columns.is_disabled",
-        width: "fit",
-        sortable: true,
-        searchType: "boolean",
-        parse: {
-          true: "Disabled",
-          false: "Enabled",
-        },
-        cell: ({ dataRow, valueCell }) => {
-          return (
-            <button
-              className={cn(
-                dataRow.is_disabled ? "error" : "primary",
-                "capitalize badge w-fit",
-              )}
-              type="button"
-              onClick={() => {
-                tableRef.current.addFilter(
-                  "is_disabled",
-                  "eq",
-                  dataRow.is_disabled,
-                );
-              }}
-            >
-              {valueCell}
-            </button>
-          );
-        },
-      },
-      {
-        name: "created_at",
-        titleTrans: "user.role.columns.created_at",
-        searchType: "date",
-        width: "fit",
-        sortable: true,
-        cell: ({ dataRow }) => {
-          return (
-            <span>
-              {format(new TZDate(dataRow.created_at, "UTC"), "PPPp", {
-                locale: getLocaleDate(lang),
-              })}
-            </span>
-          );
-        },
-      },
-    ],
-    [lang],
-  );
   return (
-    <DataTable
-      ref={tableRef}
-      title={t("user.role.title")}
-      addButton={{
-        title: t("user.role.add_role"),
-        onClick: () => {
-          router.visit(route("roles.create"));
-        },
-      }}
+    <DataTable2
+      classNameDialog="max-w-(--breakpoint-2xl)!"
+      form={<Form />}
       templateItem={({ dataRow }) => (
         <Link
           as="button"
@@ -110,10 +26,6 @@ export default function Index({ data, sort, show, lang }) {
           </p>
         </Link>
       )}
-      data={data}
-      defaultSort={sort}
-      defaultShow={show}
-      columns={columns}
     />
   );
 }

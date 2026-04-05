@@ -9,14 +9,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/Components/ui/dropdown-menu";
 import { Link, router, usePage } from "@inertiajs/react";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
-} from "@/components/ui/sidebar";
+} from "@/Components/ui/sidebar";
 
 import { useLaravelReactI18n } from "laravel-react-i18n";
 

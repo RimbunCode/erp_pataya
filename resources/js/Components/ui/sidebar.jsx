@@ -5,19 +5,19 @@ import {
   SheetContent,
   SheetDescription,
   SheetTitle,
-} from "@/components/ui/sheet";
+} from "@/Components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/Components/ui/tooltip";
 import { cn, getCookieByName } from "@/lib/utils";
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/Components/ui/button";
+import { Input } from "@/Components/ui/input";
+import { Separator } from "@/Components/ui/separator";
+import { Skeleton } from "@/Components/ui/skeleton";
 import { Slot } from "@radix-ui/react-slot";
 import { cva } from "class-variance-authority";
 import { useIsMobile } from "@/Hooks/use-mobile";

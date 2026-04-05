@@ -11,78 +11,83 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class CustomerController extends Controller {
-  private CustomerService $customerService;
+    private CustomerService $customerService;
 
-  /**
-   * Display a listing of the resource.
-   */
-  public function __construct(Request $request, CustomerService $customerService) {
-    $this->customerService = $customerService;
-    parent::__construct($request, Customer::class);
-  }
+    /**
+     * Display a listing of the resource.
+     */
+    public function __construct(Request $request, CustomerService $customerService) {
+        $this->customerService = $customerService;
+        parent::__construct($request, Customer::class);
+    }
 
-  public function index(Request $request) {
-    $this->setBreadcrumbs();
-    Customer::dataTable($request);
+    public function index(Request $request) {
+        $this->setBreadcrumbs();
+        Customer::dataTable($request);
 
-    return Inertia::render('Sales/Customers/Index', []);
-  }
+        return Inertia::render('Sales/Customers/Index', []);
+    }
 
-  public function create() {
-    $this->setBreadcrumbs();
-    // return Inertia::render('Sales/Customers/Show');
-  }
+    public function create() {
+        $this->setBreadcrumbs();
+        // return Inertia::render('Sales/Customers/Show');
+    }
 
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(CustomerRequest $request) {
-    $data = $request->validated();
-    DB::beginTransaction();
-    $data['country_id'] = $data['country']['code'];
-    $customer           = Customer::create($data);
-    $this->customerService->storeBranches($customer, $data["branches"] ?? []);
-    $customer->logForCreated();
-    DB::commit();
-    return back()->with('id', $customer->id);
-  }
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(CustomerRequest $request) {
+        $data = $request->validated();
+        DB::beginTransaction();
+        $data['country_id'] = $data['country']['code'];
+        $customer           = Customer::create($data);
+        $this->customerService->storeBranches($customer, $data['branches'] ?? []);
+        $customer->logForCreated();
+        DB::commit();
 
-  public function show(Customer $customer) {
-    $this->setBreadcrumbs($customer);
-    $customer->showDetail();
-    return $this->renderShow(
-      'Sales/Customers/Form',
-      "customer",
-      $customer->name,
-      function () use ($customer) {
-        $customer->loadRelations();
-        return $customer;
-      },
-    );
-  }
+        return back()->with('id', $customer->id);
+    }
 
-  /**
-   * Show the form for editing the specified resource.
-   */
-  public function update(CustomerRequest $request, Customer $customer) {
-    $data = $request->validated();
-    DB::beginTransaction();
-    $data['country_id'] = $data['country']['code'];
-    $customer->fillForUpdate($data);
-    $this->customerService->storeBranches($customer, $data["branches"] ?? []);
-    $customer->logForUpdated();
-    DB::commit();
-    return back();
-  }
+    public function show(Customer $customer) {
+        $this->setBreadcrumbs($customer);
+        $customer->showDetail();
 
-  /**
-   * Remove the specified resource from storage.
-   */
-  public function destroy(Customer $customer) {
-    DB::beginTransaction();
-    $customer->delete();
-    $customer->logForDeleted();
-    DB::commit();
-    return redirect()->route('customers.index');
-  }
+        return $this->renderShow(
+            'Sales/Customers/Form',
+            'customer',
+            $customer->name,
+            function () use ($customer) {
+                $customer->loadRelations();
+
+                return $customer;
+            },
+        );
+    }
+
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function update(CustomerRequest $request, Customer $customer) {
+        $data = $request->validated();
+        DB::beginTransaction();
+        $data['country_id'] = $data['country']['code'];
+        $customer->fillForUpdate($data);
+        $this->customerService->storeBranches($customer, $data['branches'] ?? []);
+        $customer->logForUpdated();
+        DB::commit();
+
+        return back();
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(Customer $customer) {
+        DB::beginTransaction();
+        $customer->delete();
+        $customer->logForDeleted();
+        DB::commit();
+
+        return redirect()->route('customers.index');
+    }
 }

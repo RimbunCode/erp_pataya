@@ -1,0 +1,123 @@
+{
+  "php.version": "8.4",
+  "[php]": {
+    "editor.defaultFormatter": "open-southeners.laravel-pint"
+  },
+  "php.inlayHints.types.variable": true,
+  "php.linkedEditing.variables": false,
+  "php.problems.excludeGitIgnore": true,
+  "php.problems.exclude": {
+    "**/*": ["PHP6615", "PHP0413", "PHP6602"]
+  },
+  "php.suggest.basic": true,
+  "php.validate.enable": true,
+  "php.completion.showParameters": true,
+  "php.inlayHints.parameters.suppressNameMatchingValue": true,
+  "php.format.codeStyle": "Laravel",
+  "php.format.rules.indentBraces": false,
+  "php.format.rules.finallyOnNewLine": false,
+  "php.format.rules.addCommaAfterLastArrayElement": true,
+  "php.format.rules.addCommaAfterLastDeclParameter": true,
+  "php.format.rules.addCommaAfterLastCallParameter": true,
+  "php.format.rules.booleanConstantCasing": "lowercase",
+  "php.format.rules.importSorting": "alphabetic",
+  "php.format.rules.nullConstantCasing": "lowercase",
+  "php.format.rules.openBraceOnNewLineForAnonymousClasses": true,
+  "php.format.rules.spaceAroundConcatenation": true,
+  "php.format.rules.alignConsecutiveAssignments": true,
+  "php.format.rules.alignConstants": true,
+  "php.format.rules.alignEnumCases": true,
+  "php.format.rules.alignMatchArmBodies": true,
+  "php.format.rules.alignProperties": true,
+  "php.format.rules.arrayInitializersAlignKeyValuePairs": true,
+  "php.format.rules.arrayInitializersNewLineAfterLastElement": true,
+  "php.format.rules.arrayInitializersNewLineBeforeFirstElement": true,
+  "php.format.rules.callParametersNewLineAfterLeftParen": true,
+  "php.format.rules.callParametersNewLineBeforeRightParen": true,
+  "php.format.rules.declCompactEmptyBody": true,
+  "php.format.rules.declKeepRightParenAndOpenBraceOnOneLine": true,
+  "php.format.rules.declParametersNewLineAfterLeftParen": true,
+  "php.format.rules.declParametersNewLineBeforeRightParen": true,
+  "php.format.rules.forStatementNewLineBeforeRightParen": true,
+  "php.format.rules.groupUseNewLineBeforeFirstDeclaration": true,
+  "php.format.rules.ifStatementNewLineAfterLeftParen": true,
+  "php.format.rules.ifStatementNewLineBeforeRightParen": true,
+  "php.format.rules.indentHeredoc": true,
+  "php.format.rules.inlineHeredoc": true,
+  "php.format.rules.keepClassesOnOneLine": true,
+  "php.format.rules.keepControlStatementsOnOneLine": true,
+  "php.format.rules.keepFunctionsOnOneLine": true,
+  "php.format.rules.newLineAfterImplements": true,
+  "php.format.rules.switchStatementNewLineAfterLeftParen": true,
+  "php.format.rules.switchStatementNewLineBeforeRightParen": true,
+  "php.format.rules.whileStatementNewLineAfterLeftParen": true,
+  "php.format.rules.blankLinesAfterClass": 0,
+  "php.format.rules.blankLinesAfterClassBody": 0,
+  "php.format.rules.blankLinesAfterFunction": 0,
+  "php.format.rules.blankLinesAfterMethod": 0,
+  "php.format.rules.blankLinesAfterNamespace": 0,
+  "php.format.rules.blankLinesAfterOpenTag": 0,
+  "php.format.rules.blankLinesAfterUseStatements": 1,
+  "php.format.rules.blankLinesAroundClassConstant": 0,
+  "php.format.rules.blankLinesAroundEnumCase": 0,
+  "php.format.rules.blankLinesAroundProperty": 0,
+  "php.format.rules.blankLinesBeforeClass": 1,
+  "php.format.rules.blankLinesBeforeClassBody": 0,
+  "php.format.rules.blankLinesBeforeFunction": 1,
+  "php.format.rules.blankLinesBeforeFunctionBody": 1,
+  "php.format.rules.blankLinesBeforeMethod": 1,
+  "php.format.rules.blankLinesBeforeMethodBody": 0,
+  "php.format.rules.blankLinesBeforeNamespace": 1,
+  "php.format.rules.blankLinesBeforeReturnStatement": 1,
+  "php.format.rules.blankLinesBeforeUseStatements": 1,
+  "php.format.rules.blankLinesBetweenUseTypes": 0,
+  "php.format.rules.maxBlankLines": 1,
+  "php.format.rules.endWithNewLine": false,
+  "php.format.rules.openBraceOnNewLineForBlocks": false,
+  "php.format.rules.openBraceOnNewLineForFunctions": false,
+  "php.format.rules.openBraceOnNewLineForLambdas": false,
+  "php.format.rules.openBraceOnNewLineForNamespaces": false,
+  "php.format.rules.openBraceOnNewLineForTypes": false,
+  "files.associations": {
+    ".env*": "dotenv",
+    "*.css": "tailwindcss"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[tailwindcss]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "editor.tabSize": 2,
+  "formattingToggle.affects": [
+    "editor.formatOnPaste",
+    "editor.formatOnSave",
+    "editor.formatOnType"
+  ],
+  "files.eol": "\n",
+  "js/ts.updateImportsOnFileMove.enabled": "always",
+  "prettier.singleQuote": true,
+  "eslint.format.enable": true,
+  "eslint.run": "onSave",
+  "eslint.lintTask.enable": true,
+  "eslint.workingDirectories": [
+    {
+      "mode": "auto"
+    }
+  ],
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ]
+}

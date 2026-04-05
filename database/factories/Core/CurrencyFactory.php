@@ -2,20 +2,19 @@
 
 namespace Database\Factories\Core;
 
+use App\Models\Core\Currency;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Core\Currency>
+ * @extends Factory<Currency>
  */
-class CurrencyFactory extends Factory
-{
+class CurrencyFactory extends Factory {
     /**
      * Define the model's default state.
      *
      * @return array<string, mixed>
      */
-    public function definition(): array
-    {
+    public function definition(): array {
         return [
             //
         ];

@@ -20,6 +20,5 @@ return [
       'half' => 'Half',
       'full' => 'Full',
     ],
-    'is_visible'    => 'Is Visible',
-  ],
+    'is_visible' => 'Is Visible',
 ];

@@ -2,13 +2,11 @@
 
 namespace App\Services\Core;
 
-class WidgetService
-{
+class WidgetService {
     /**
      * Create a new class instance.
      */
-    public function __construct()
-    {
+    public function __construct() {
         //
     }
 }

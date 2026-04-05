@@ -2,7 +2,7 @@
 
 return [
 
-  /*
+    /*
     |--------------------------------------------------------------------------
     | Authentication Language Lines
     |--------------------------------------------------------------------------
@@ -13,38 +13,38 @@ return [
     |
     */
 
-  'failed' => 'These credentials do not match our records.',
-  'password' => 'The provided password is incorrect.',
-  'throttle' => 'Too many login attempts. Please try again in :seconds seconds.',
-  'login' => [
-    'title' => 'Welcome Back',
-    'description' => 'Login with your credential or Google account',
-    'usernameOrEmail' => 'Username or Email',
-    'password' => 'Password',
-    'remember' => 'Remember Me',
-    'forgotPassword' => 'Forgot Your Password?',
-    'button' => 'Login',
-    'or' => 'Or continue with',
-    'google' => 'Login with Google',
-    'register' => 'Don\'t have an account?',
-    'registerLink' => 'Register Now',
-  ],
-  'register' => [
-    'title' => 'Register',
-    'description' => 'Register with your credential or Google account',
-    'name' => 'Name',
-    'username' => 'Username',
-    'email' => 'Email',
-    'password' => 'Password',
-    'confirm_password' => 'Confirm Password',
-    'button' => 'Register',
-    'or' => 'Or continue with',
-    'google' => 'Register with Google',
-    'login' => 'Already have an account?',
-    'loginLink' => 'Login Now',
-  ],
-  'forgotPassword' => [
-    'description' => 'Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.',
-    'button' => 'Send Password Reset Link',
-  ]
+    'failed'   => 'These credentials do not match our records.',
+    'password' => 'The provided password is incorrect.',
+    'throttle' => 'Too many login attempts. Please try again in :seconds seconds.',
+    'login'    => [
+        'title'           => 'Welcome Back',
+        'description'     => 'Login with your credential or Google account',
+        'usernameOrEmail' => 'Username or Email',
+        'password'        => 'Password',
+        'remember'        => 'Remember Me',
+        'forgotPassword'  => 'Forgot Your Password?',
+        'button'          => 'Login',
+        'or'              => 'Or continue with',
+        'google'          => 'Login with Google',
+        'register'        => 'Don\'t have an account?',
+        'registerLink'    => 'Register Now',
+    ],
+    'register' => [
+        'title'            => 'Register',
+        'description'      => 'Register with your credential or Google account',
+        'name'             => 'Name',
+        'username'         => 'Username',
+        'email'            => 'Email',
+        'password'         => 'Password',
+        'confirm_password' => 'Confirm Password',
+        'button'           => 'Register',
+        'or'               => 'Or continue with',
+        'google'           => 'Register with Google',
+        'login'            => 'Already have an account?',
+        'loginLink'        => 'Login Now',
+    ],
+    'forgotPassword' => [
+        'description' => 'Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.',
+        'button'      => 'Send Password Reset Link',
+    ],
 ];
