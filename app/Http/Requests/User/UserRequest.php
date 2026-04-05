@@ -5,6 +5,7 @@ namespace App\Http\Requests\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Validation\Rule;
 
 class UserRequest extends FormRequest {
     /**
@@ -23,15 +24,15 @@ class UserRequest extends FormRequest {
         return [
             'name'              => ['required', 'string', 'min:3', 'max:255'],
             'email'             => ['required', 'string', 'email:rfc'],
-            'username'          => ['required', 'string', 'regex:/^[\w\-\.]*$/'],
+            'username'          => ['nullable', Rule::requiredIf(fn () => $this->id == $this->user()->id), 'string', 'regex:/^[\w\-\.]*$/'],
             'gender'            => ['nullable', 'string', 'in:male,female'],
             'birthdate'         => ['nullable', 'date'],
             'phone'             => ['nullable', 'string'],
             'roles'             => ['nullable', 'array', 'min:1'],
             'roles.*'           => ['required', 'string', 'exists:roles,id'],
             'branches'          => ['nullable', 'array', 'min:1'],
-            'branches.*'        => ['required', 'string', 'exists:branches,id'],
-            'default_branch_id' => ['required', 'string', 'exists:branches,id'],
+            'branches.*'        => ['nullable', Rule::requiredIf(fn () => $this->id != $this->user()->id), 'string', 'exists:branches,id'],
+            'default_branch_id' => ['nullable', Rule::requiredIf(fn () => $this->id != $this->user()->id), 'string', 'exists:branches,id'],
         ];
     }
 

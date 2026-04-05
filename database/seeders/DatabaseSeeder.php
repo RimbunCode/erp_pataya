@@ -19,6 +19,8 @@ class DatabaseSeeder extends Seeder {
         $this->call(AdministratorSeeder::class);
         $this->call(AccountSeeder::class);
         // Create Random Tags
-        Tag::factory(50)->create();
+        if (config("app.debug")) {
+            Tag::factory(50)->create();
+        }
     }
 }
