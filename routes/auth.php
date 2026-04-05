@@ -1,5 +1,4 @@
 <?php
-
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
@@ -22,6 +21,8 @@ Route::middleware(['guest', 'lang'])->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
+    Route::get('/auth/{driver}/redirect', [AuthenticatedSessionController::class, 'redirectToProvider'])->name('auth.login-provider');
+
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
@@ -34,6 +35,8 @@ Route::middleware(['guest', 'lang'])->group(function () {
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
 });
+
+Route::get('/auth/{driver}/callback', [AuthenticatedSessionController::class, 'handleProviderCallback']);
 
 Route::middleware(['auth', 'lang'])->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)

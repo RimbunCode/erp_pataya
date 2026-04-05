@@ -20,19 +20,8 @@ class DashboardWidgetOrderRequest extends FormRequest {
      */
     public function rules(): array {
         return [
-            'title'                       => ['required', 'string', 'max:100'],
-            'type'                        => ['required', 'string', 'max:48'],
-            'calculation_type'            => ['nullable', 'string', 'max:48'],
-            'time_based_on'               => ['nullable', 'string', 'max:48'],
-            'time_interval'               => ['nullable', 'string', 'max:48'],
-            'timespan'                    => ['nullable', 'string', 'max:48'],
-            'value_based_on'              => ['nullable', 'string', 'max:48'],
-            'group_by_type'               => ['nullable', 'string', 'max:48'],
-            'group_by_base_on'            => ['nullable', 'string', 'max:48'],
-            'aggregate_function_based_on' => ['nullable', 'string', 'max:48'],
-            'description'                 => ['nullable', 'string', 'max:255'],
-            'model.id'                    => ['required', 'exists:permissions,id'],
-            'model.model'                 => ['required', 'string'],
+            'widgets'      => ['required', 'array', 'min:1'],
+            'widgets.*.id' => ['required', 'string', 'distinct', 'exists:dashboard_widgets,id'],
         ];
     }
 }

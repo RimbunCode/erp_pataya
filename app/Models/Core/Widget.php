@@ -13,16 +13,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Widget extends Model {
     use DataTable, HasUlids, SoftDeletes;
-
-    protected $guarded = ['id'];
-    public $casts      = [
+    protected $guarded      = ['id'];
+    public    $casts        = [
         'config' => Json::class,
     ];
-    public $translateKey = 'settings.widget';
+    public    $translateKey = 'settings.widget';
 
     public static function templateLink() {
         return ':title';
     }
+    public $appends = ['translateModelKey'];
 
     protected function getTranslateModelKeyAttribute() {
         $model = new $this->model_class;
@@ -33,48 +33,47 @@ class Widget extends Model {
     protected static function loadRelationsOnShow() {
         return ['dashboards', 'createdBy', 'model'];
     }
-
     protected $configColumns = [
-        'title' => [
+        'title'            => [
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
         ],
-        'type' => [
+        'type'             => [
             'show'       => true,
             'order'      => 1,
             'valueTrans' => 'settings.widget.types',
         ],
-        'model' => [
+        'model'            => [
             'show'               => true,
             'order'              => 2,
             'disabledNavigation' => true,
         ],
-        'created_by' => [
+        'created_by'       => [
             'show'  => true,
             'order' => 3,
         ],
-        'dashboard' => [
+        'dashboard'        => [
             'show'  => true,
             'order' => 4,
         ],
-        'created_at' => [
+        'created_at'       => [
             'show'  => true,
             'order' => 5,
         ],
-        'group_by_types' => [
+        'group_by_types'   => [
             'valueTrans' => 'settings.widget.columns.group_by_types.options',
         ],
         'calculation_type' => [
             'valueTrans' => 'settings.widget.calculation_types',
         ],
-        'time_interval' => [
+        'time_interval'    => [
             'valueTrans' => 'settings.widget.time_intervals',
         ],
         'group_by_base_on' => [
             'valueTrans' => 'settings.widget.group_by_base_on.types',
         ],
-        'timespan' => [
+        'timespan'         => [
             'valueTrans' => 'settings.widget.timespans',
         ],
     ];

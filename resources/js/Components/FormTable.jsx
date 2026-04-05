@@ -1242,12 +1242,11 @@ export default memo(
           }}
         >
           <MyDialogContent
-            hideX
+            {...(submitable ? { hideX: true } : {})}
             className={cn(
               "max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)",
               classNameDialog,
             )}
-            asChild
           >
             <form
               ref={formRef}
@@ -1255,7 +1254,9 @@ export default memo(
               onSubmit={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                // updateData(currentIndex, currentData);
+                if (submitable && currentIndex >= 0 && currentData) {
+                  updateData(currentIndex, currentData);
+                }
 
                 setCurrentIndex(-1);
                 setCurrentData(null);

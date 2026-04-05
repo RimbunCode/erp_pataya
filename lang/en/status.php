@@ -37,4 +37,6 @@ return [
     'to_order'                        => 'To Order',
     'partially_ordered'               => 'Partially Ordered',
     'ordered'                         => 'Ordered',
+    'pre_registered'                  => 'Pre-Registered',
+    'invited'                         => 'Invited',
 ];

@@ -35,6 +35,18 @@ class DashboardController extends Controller {
         );
     }
 
+    public function view(Request $request) {
+        $this->setBreadcrumbs();
+        $dashboards = $request->user()->dashboards()->with(['widgets', 'widgets.widget'])->get();
+
+        return Inertia::render(
+            'Dashboard/Dashboard',
+            [
+                'dashboards' => $dashboards,
+            ],
+        );
+    }
+
     /**
      * Show the form for creating a new resource.
      */
@@ -59,7 +71,6 @@ class DashboardController extends Controller {
             $widget->refresh();
 
         }
-        $dashboard = Dashboard::create($data);
         $dashboard->logForCreated();
         DB::commit();
 

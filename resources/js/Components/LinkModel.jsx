@@ -621,7 +621,7 @@ export default memo(
     );
     return (
       <ClickAwayListener onClickAway={() => setOpen(false)}>
-        <div className="contents">
+        <div className={cn(className)}>
           <Popover open={open} onOpenChange={() => {}}>
             <Command
               className="relative h-full overflow-visible bg-transparent"

@@ -50,10 +50,10 @@ function FormInput({
 
   return (
     <div
-      className={cn("grid grid-cols-1 gap-y-2", className)}
+      className={cn("grid grid-cols-1 content-start", className)}
       role={!ignoreDisabled ? "forminput" : ""}
     >
-      <Label htmlFor={id} className="truncate h-auto">
+      <Label htmlFor={id} className="truncate mb-2 h-auto">
         {label} {_required && <span className="text-red-500">*</span>}
       </Label>
       {isRenderProp
@@ -74,13 +74,18 @@ function FormInput({
           })}
       {description &&
         (typeof description == "string" ? (
-          <p className="text-sm font-normal text-muted-foreground">
+          <p className="text-sm mt-0.5 font-normal text-muted-foreground">
             {description}
           </p>
         ) : (
           description
         ))}
-      {errorMessage && <InputError message={errorMessage} className="" />}
+      {errorMessage && (
+        <InputError
+          message={errorMessage}
+          className="mt-0.5 text-sm font-normal"
+        />
+      )}
     </div>
   );
 }

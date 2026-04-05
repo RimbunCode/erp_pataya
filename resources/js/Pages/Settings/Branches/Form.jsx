@@ -110,6 +110,7 @@ export default memo(function Form() {
               {t("core.branch.columns.billing_address")}
             </h1>
             <Select
+              className="w-fit"
               required={true}
               value={data.billing_address}
               onValueChange={(val) => {
@@ -117,6 +118,7 @@ export default memo(function Form() {
               }}
               placeholder={t("core.branch.columns.billing_address.placeholder")}
               optionTrans="core.branch.columns.billing_address.options"
+              defaultValue="same_main"
               options={["same_main", "same_shipping", "separate"]}
             />
           </FormPageContentTitle>

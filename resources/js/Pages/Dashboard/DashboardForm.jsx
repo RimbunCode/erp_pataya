@@ -2,13 +2,12 @@ import { FormPageContent, useFormPage } from "../Core/FormPage";
 import React, { useMemo } from "react";
 
 import DashboardLinkModel from "../Settings/Dashboard/DashboardLinkModel";
-import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function DashboardForm() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData, disabled } = useFormPage(
+  const { data, setData, disabled } = useFormPage(
     {
       date: new Date(),
     },

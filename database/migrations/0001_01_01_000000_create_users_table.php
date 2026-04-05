@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -18,7 +17,8 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
             $table->string('image')->nullable();
-            $table->enum('status', ['invited', 'active', 'inactive'])->default('active');
+            $table->string('avatar_url')->nullable();
+            $table->string('status')->default('pending');
             $table->enum('gender', ['male', 'female'])->nullable();
             $table->date('birthdate')->nullable();
             $table->string('phone')->nullable();

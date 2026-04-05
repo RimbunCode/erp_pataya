@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\Json;
 use App\Models\Core\Dashboard;
 use App\Models\Core\Widget;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;

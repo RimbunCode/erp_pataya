@@ -22,7 +22,7 @@ export default memo(
     ref,
   ) {
     const [showSearch, setShowSearch] = React.useState(false);
-    const { setTheme } = useTheme();
+    const { _setTheme } = useTheme();
     React.useEffect(() => {
       const down = (e) => {
         if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
@@ -50,7 +50,7 @@ export default memo(
           <SidebarProvider>
             <AppSidebar className="print:hidden " />
             <SidebarInset>
-              <Navbar setShowSearch={setShowSearch} actions={actions} />
+              <Navbar actions={actions} setShowSearch={setShowSearch} />
               <CommandDialog open={showSearch} onOpenChange={setShowSearch}>
                 <CommandInput
                   placeholder="Type a command or search..."

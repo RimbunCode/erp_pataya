@@ -166,10 +166,11 @@ class UnitSeeder extends Seeder {
 
         foreach ($units as $group => $unit) {
             foreach ($unit as $name => $dataUnit) {
-                Unit::create([
+                Unit::updateOrCreate([
+                    'code'  => $dataUnit['code'],
+                    'group' => $group,
+                ], [
                     'name'              => \ucwords(\strtolower(\str_replace('_', ' ', $name))),
-                    'code'              => $dataUnit['code'],
-                    'group'             => $group,
                     'conversion_factor' => $dataUnit['conversion_factor'],
                     'is_default'        => true,
                 ]);

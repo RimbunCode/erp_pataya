@@ -33,11 +33,15 @@ class PreferenceSeeder extends Seeder {
         ];
         $preferences = collect($preferencesArr)->map(fn ($value, $key) => [
             'key'   => $key,
-            'value' => \json_encode($value),
+            'value' => $value,
         ])->values();
-        Preference::insert($preferences->toArray());
-        Branch::create([
-            'code'                => $preferencesArr['short_name'],
+
+        foreach ($preferences as $key => $value) {
+            Preference::updateOrCreate(['key' => $value['key']], ['value' => $value['value']]);
+        }
+        Branch::updateOrCreate([
+            'code' => $preferencesArr['short_name'],
+        ], [
             'name'                => $preferencesArr['company_name'],
             'is_main_branch'      => true,
             'shipping_street'     => $preferencesArr['street'],

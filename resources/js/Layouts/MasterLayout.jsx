@@ -9,21 +9,21 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
-import { memo, useCallback, useEffect } from "react";
-import { router, usePage } from "@inertiajs/react";
+import { memo, useEffect } from "react";
 
+import DeleteDialog from "./AlertDialogs/DeleteDialog";
 import { RiErrorWarningFill } from "@remixicon/react";
 import { Toaster } from "@/Components/ui/sonner";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import { toast } from "sonner";
 import { useAlertDraftForm } from "@/Hooks/useDraftForm";
-import useDeleteModal from "@/Hooks/useDeleteModal";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 import useTheme from "@/Hooks/useTheme";
 
 const AlertDialogs = memo(() => {
-  const { lang, translateKey } = usePage().props;
+  const { lang } = usePage().props;
   const { t, setLocale } = useLaravelReactI18n();
 
   useEffect(() => {
@@ -44,30 +44,10 @@ const AlertDialogs = memo(() => {
     saveAsDraft,
     setIsDirty,
   } = useIsDirtyForm();
-  const {
-    isOpen: isOpenDeleteDialog,
-    close: closeDeleteDialog,
-    route: deleteRoute,
-    id: deleteId,
-  } = useDeleteModal();
   const { url } = usePage();
   useEffect(() => {
     setIsDirty(false);
   }, [setIsDirty, url]);
-  function handleKeyDown(e) {
-    if (e.key == "Escape") {
-      closeDeleteDialog();
-    }
-  }
-  const route = window.route;
-  const onDelete = useCallback(() => {
-    router.delete(route(deleteRoute, deleteId), {
-      onSuccess: () => {
-        closeDeleteDialog();
-      },
-    });
-  }, [route, deleteRoute, deleteId, closeDeleteDialog]);
-
   return (
     <>
       {/* Alert for leave form */}
@@ -127,35 +107,7 @@ const AlertDialogs = memo(() => {
       </AlertDialog>
 
       {/* Alert for delete item */}
-      <AlertDialog
-        open={isOpenDeleteDialog}
-        onOpenChange={(v) => {
-          if (!v) {
-            closeDeleteDialog();
-          }
-        }}
-      >
-        <AlertDialogContent
-          forceAsDialog
-          align="center"
-          onKeyDown={handleKeyDown}
-        >
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t(`${translateKey}.delete`)}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t(`${translateKey}.delete.description`)}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={closeDeleteDialog}>
-              {t("core.form.leave.cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={onDelete}>
-              {t(`${translateKey}.delete.confirm`)}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteDialog />
     </>
   );
 });
