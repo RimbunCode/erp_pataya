@@ -124,7 +124,7 @@ function Tags() {
         {showSearch && (
           <div className={cn("px-8 mb-2")}>
             <ClickAwayListener onClickAway={() => setOpen(false)}>
-              <div className={cn(className)}>
+              <div>
                 <Command className="relative h-auto overflow-visible bg-transparent">
                   <CommandInput
                     ref={inputRef}

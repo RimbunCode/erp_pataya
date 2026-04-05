@@ -8,6 +8,7 @@ use App\Models\User\Role;
 use App\Models\User\RolePermission;
 use App\Models\User\User;
 use Illuminate\Database\Seeder;
+use Str;
 
 class AdministratorSeeder extends Seeder {
     /**
@@ -22,12 +23,14 @@ class AdministratorSeeder extends Seeder {
             ->first();
 
         // Create Admin User
-        $adminUser = User::factory()->create([
+        $adminUser = User::create([
             'name'              => 'Administrator',
             'username'          => 'admin',
             'email'             => 'test@example.com',
+            'email_verified_at' => now(),
             'password'          => bcrypt('admin'),
             'default_branch_id' => $defaultBranch->id,
+            'remember_token'    => Str::random(10),
         ]);
 
         // Create Role For Admin
