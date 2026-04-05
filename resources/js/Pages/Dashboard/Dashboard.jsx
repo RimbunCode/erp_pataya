@@ -1,13 +1,9 @@
-import DashboardChart from "@/Components/DashboardChart";
-import { Button } from "@/Components/ui/button";
+import { ChevronDownIcon, GripVerticalIcon } from "lucide-react";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/Components/ui/collapsible";
-import AppLayout from "@/Layouts/AppLayout";
-import { cn } from "@/lib/utils";
-import { Head } from "@inertiajs/react";
 import {
   DndContext,
   PointerSensor,
@@ -22,13 +18,18 @@ import {
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { ChevronDownIcon, GripVerticalIcon } from "lucide-react";
-import axios from "axios";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { FormPageDialog } from "../Core/FormPage";
+
+import AppLayout from "@/Layouts/AppLayout";
+import { Button } from "@/Components/ui/button";
+import { CSS } from "@dnd-kit/utilities";
+import DashboardChart from "@/Components/DashboardChart";
 import DashboardForm from "./DashboardForm";
+import { FormPageDialog } from "../Core/FormPage";
+import { Head } from "@inertiajs/react";
+import axios from "axios";
+import { cn } from "@/lib/utils";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function SortableWidgetCard({ itemId, children }) {
   const {

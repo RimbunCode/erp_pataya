@@ -1,26 +1,27 @@
-import React, { useEffect } from "react";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
-import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
-import { Separator } from "./ui/separator";
 import { ArrowDownRight, ArrowUpRight, FilterIcon } from "lucide-react";
-import DatetimePicker from "./DatetimePicker";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Label,
+  LabelList,
   Line,
   LineChart,
   Pie,
   PieChart,
-  XAxis,
-  Cell,
-  Label,
   Sector,
-  LabelList,
+  XAxis,
 } from "recharts";
-import axios from "axios";
+import { Card, CardContent } from "./ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "./ui/chart";
+import React, { useEffect } from "react";
+
+import { Button } from "./ui/button";
+import DatetimePicker from "./DatetimePicker";
 import Select from "./Select";
+import { Separator } from "./ui/separator";
+import axios from "axios";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function DashboardChart({ widget }) {
@@ -270,7 +271,7 @@ function DashboardChart({ widget }) {
             return (
               <div className="flex items-center gap-2">
                 <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                  className="h-2.5 w-2.5 shrink-0 rounded-md"
                   style={{
                     backgroundColor: color,
                   }}
@@ -455,7 +456,7 @@ function DashboardChart({ widget }) {
                   formatter={(value) => (
                     <div className="flex items-center gap-2">
                       <span
-                        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+                        className="h-2.5 w-2.5 shrink-0 rounded-md"
                         style={{
                           backgroundColor: chartConfig[metricKey].color,
                         }}

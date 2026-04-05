@@ -140,7 +140,6 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     Route::post('dashboard-update', [DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');
     Route::post('dashboard-widget-order/{dashboard}', [DashboardController::class, 'reorderWidgets'])->name('dashboard.widgets.reorder');
     Route::post('get-chart/{widget}', [WidgetController::class, 'getChartData'])->name('get-chart');
-    Route::resourceDetail('dashboard', DashboardController::class);
     // Settings
     Route::prefix('/settings')->group(function () {
         // Dashboard

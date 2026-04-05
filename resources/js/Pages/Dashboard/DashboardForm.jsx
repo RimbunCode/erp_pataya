@@ -1,13 +1,13 @@
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import React, { useMemo } from "react";
 import { FormPageContent, useFormPage } from "../Core/FormPage";
-import DashboardLinkModel from "../Settings/Dashboard/DashboardLinkModel";
+import React, { useMemo } from "react";
 
+import DashboardLinkModel from "../Settings/Dashboard/DashboardLinkModel";
 import FormTable from "@/Components/FormTable";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function DashboardForm() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, _defaultData, disabled } = useFormPage(
+  const { data, setData, disabled } = useFormPage(
     {
       date: new Date(),
     },
