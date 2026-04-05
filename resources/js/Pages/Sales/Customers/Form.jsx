@@ -127,7 +127,7 @@ export default function Form() {
               name: "branch_name",
               title: t("sales.customer.columns.branch_name"),
               required: true,
-              cell: ({ dataRow, toogleDialog, isEmpty }) => {
+              cell: ({ dataRow, toggleDialog, isEmpty }) => {
                 if (dataRow.is_main_branch) {
                   return (
                     <div className="flex self-start justify-start px-4 py-2 custom-cell">
@@ -141,7 +141,7 @@ export default function Form() {
                       <Button
                         size="sm"
                         className="h-8"
-                        onClick={toogleDialog}
+                        onClick={toggleDialog}
                         type="button"
                       >
                         {t("core.branch.add_branch")}
@@ -149,7 +149,7 @@ export default function Form() {
                     ) : (
                       <p
                         className="cursor-pointer hover:underline"
-                        onClick={toogleDialog}
+                        onClick={toggleDialog}
                       >
                         {dataRow.name ?? t("core.branch.empty")}
                       </p>

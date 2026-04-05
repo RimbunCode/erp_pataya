@@ -95,6 +95,13 @@ class User extends Authenticatable {
     }
 
     public function dashboards() {
-        return $this->belongsToMany(Dashboard::class, 'user_dashboards', 'user_id', 'dashboard_id');
+        return $this
+            ->belongsToMany(Dashboard::class, 'user_dashboards', 'user_id', 'dashboard_id')
+            ->withPivot('order')
+            ->orderByPivot('order');
+    }
+
+    public function providers() {
+        return $this->hasMany(UserProvider::class, 'user_id');
     }
 }

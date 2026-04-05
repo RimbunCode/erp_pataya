@@ -671,6 +671,7 @@ const FormPage = memo(
       deleteable = true,
       banner,
       printable: _printable,
+      usePasswordConfirmationForDelete,
     },
     ref,
   ) {
@@ -975,6 +976,10 @@ const FormPage = memo(
                       deleteItem(
                         `${pluralize.plural(name ?? "")}.destroy`,
                         defaultData.id,
+                        {
+                          usePasswordConfirmation:
+                            usePasswordConfirmationForDelete,
+                        },
                       )
                     }
                   >

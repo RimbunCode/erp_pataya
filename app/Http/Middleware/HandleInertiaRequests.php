@@ -27,17 +27,20 @@ class HandleInertiaRequests extends Middleware {
      * @return array<string, mixed>
      */
     public function share(Request $request): array {
-        $isDebug   = config('app.debug');
-        $flashKeys = $request->session()->has('_flash') ? $request->session()->get('_flash')['old'] : [];
-        $user      = $request->user();
+        $isDebug    = config('app.debug');
+        $flashKeys  = $request->session()->has('_flash') ? $request->session()->get('_flash')['old'] : [];
+        $user       = $request->user();
+        $sharedUser = null;
+
         if ($user) {
-            $user->id_roles = $user->idRoles()->pluck('roles.id');
+            $sharedUser             = $user->toArray();
+            $sharedUser['id_roles'] = $user->idRoles()->pluck('roles.id')->all();
         }
 
         return [
             ...parent::share($request),
             'auth' => [
-                'user' => $user,
+                'user' => $sharedUser,
             ],
             'lang'  => $request->cookie('lang') ?? 'en',
             'ziggy' => fn () => [

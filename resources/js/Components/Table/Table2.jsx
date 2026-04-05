@@ -126,7 +126,7 @@ const Cell = memo(
                   `?v=${new Date(row.updated_at).getTime()}`
                 }
                 alt={name}
-                className=" transition-[filter] group-hover:blur-sm"
+                className=" transition-[filter]"
               />
             )}
             <AvatarFallback className="rounded-lg flex!">

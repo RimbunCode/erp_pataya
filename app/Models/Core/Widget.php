@@ -24,6 +24,14 @@ class Widget extends Model {
         return ':title';
     }
 
+    public $appends = ['translateModelKey'];
+
+    protected function getTranslateModelKeyAttribute() {
+        $model = new $this->model_class;
+
+        return $model->translateKey;
+    }
+
     protected static function loadRelationsOnShow() {
         return ['dashboards', 'createdBy', 'model'];
     }
@@ -68,8 +76,8 @@ class Widget extends Model {
         'group_by_base_on' => [
             'valueTrans' => 'settings.widget.group_by_base_on.types',
         ],
-        'time_span' => [
-            'valueTrans' => 'settings.widget.time_spans',
+        'timespan' => [
+            'valueTrans' => 'settings.widget.timespans',
         ],
     ];
 

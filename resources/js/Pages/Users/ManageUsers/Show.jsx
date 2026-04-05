@@ -12,10 +12,13 @@ import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import { FormPage } from "@/Pages/Core/FormPage";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
+import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
 export default function Show({ user }) {
   const { t } = useLaravelReactI18n();
+  const { user: authUser } = usePage().props.auth;
   const [openAttachment, setOpenAttachment] = useState(false);
   const alias = user.name
     .split(" ")
@@ -32,10 +35,13 @@ export default function Show({ user }) {
           `?v=${new Date(user.updated_at).getTime()}`
         }
         alt={user.name}
-        className=" transition-[filter] group-hover:blur-sm"
+        className={cn(
+          "transition-[filter]",
+          authUser.id === user.id && "group-hover:blur-sm",
+        )}
       />
     );
-  }, [user.image]);
+  }, [user.image, authUser.id]);
   return (
     <FormPage
       name="user"
@@ -50,28 +56,34 @@ export default function Show({ user }) {
                   {alias}
                 </p>
               </AvatarFallback>
-              <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DialogTrigger asChild>
-                      <Button variant="default" size="icon">
-                        <UploadIcon className="size-5!" />
-                      </Button>
-                    </DialogTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent align="center">Upload</TooltipContent>
-                </Tooltip>
-                {user.image && (
+              {authUser.id === user.id && (
+                <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="destructive" size="icon">
-                        <Trash2 className="size-5!" />
-                      </Button>
+                      <DialogTrigger asChild>
+                        <Button variant="default" size="icon">
+                          <UploadIcon className="size-5!" />
+                        </Button>
+                      </DialogTrigger>
                     </TooltipTrigger>
-                    <TooltipContent align="center">Remove</TooltipContent>
+                    <TooltipContent align="center">
+                      {t("user.user.columns.image.upload")}
+                    </TooltipContent>
                   </Tooltip>
-                )}
-              </div>
+                  {user.image && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="destructive" size="icon">
+                          <Trash2 className="size-5!" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent align="center">
+                        {t("user.user.columns.image.remove")}
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              )}
             </Avatar>
             <UploadDialog
               open={openAttachment}
@@ -88,6 +100,14 @@ export default function Show({ user }) {
           {defaultComp}
         </>
       )}
+      usePasswordConfirmationForDelete
+      controls={() => {
+        return (
+          <Button type="button" variant="primary">
+            {t("user.user.controls.change_password")}
+          </Button>
+        );
+      }}
     >
       <Form />
     </FormPage>

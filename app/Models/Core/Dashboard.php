@@ -17,6 +17,10 @@ class Dashboard extends Model {
     public $translateKey         = 'settings.dashboard';
     public string $keyBreadcrumb = 'title';
 
+    public static function templateLink() {
+        return ':title';
+    }
+
     protected static function loadRelationsOnShow() {
         return ['widgets', 'widgets.widget', 'createdBy'];
     }

@@ -61,10 +61,11 @@ return [
         'monthly' => 'Monthly',
         'yearly'  => 'Yearly',
     ],
-    'time_spans' => [
+    'timespans' => [
         'last_week'    => 'Last Week',
         'last_month'   => 'Last Month',
         'last_quarter' => 'Last Quarter',
         'last_year'    => 'Last Year',
+        'custom'       => 'Specific Date Range',
     ],
 ];

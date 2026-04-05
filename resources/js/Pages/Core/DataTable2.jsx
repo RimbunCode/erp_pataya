@@ -139,6 +139,7 @@ export default memo(
       classNameDialog,
       actions: _actions,
       templateItem,
+      usePasswordConfirmationForDelete,
     },
     ref,
   ) {
@@ -170,6 +171,9 @@ export default memo(
                 deleteItem(
                   `${pluralize.plural(name ?? "")}.destroy`,
                   props.dataRow.id,
+                  {
+                    usePasswordConfirmation: usePasswordConfirmationForDelete,
+                  },
                 )
               }
             >
@@ -549,7 +553,17 @@ export default memo(
               <div className="flex flex-col flex-1">
                 {data?.data && data.data.length > 0 ? (
                   data.data.map((x) => {
-                    const item = templateItem?.({ dataRow: x });
+                    const item = templateItem?.({
+                      dataRow: x,
+                      deleteItem: deleteItem(
+                        `${pluralize.plural(name ?? "")}.destroy`,
+                        x.id,
+                        {
+                          usePasswordConfirmation:
+                            usePasswordConfirmationForDelete,
+                        },
+                      ),
+                    });
                     if (!item) return null;
                     return cloneElement(item, { key: x.id, ...item.props });
                   })

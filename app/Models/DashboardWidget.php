@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\Json;
 use App\Models\Core\Dashboard;
 use App\Models\Core\Widget;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -12,6 +13,10 @@ class DashboardWidget extends Model {
 
     protected $guarded   = ['id'];
     public $translateKey = 'settings.dashboard';
+    public $casts        = [
+        'config'     => Json::class,
+        'is_visible' => 'boolean',
+    ];
 
     protected static function loadRelationsOnShow() {
         return ['widget', 'dashboard', 'parent'];

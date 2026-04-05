@@ -2,7 +2,11 @@
 
 return [
     'title'                      => 'Manage Users',
+    'new'                        => 'New User',
     'add'                        => 'Add User',
+    'delete'                     => 'Delete User',
+    'delete.description'         => 'Are you sure you want to delete this user?',
+    'delete.confirm'             => 'Delete',
     'basic_info'                 => 'Basic Information',
     'roles_and_permissions'      => 'Roles & Permissions',
     'roles'                      => 'Roles',
@@ -11,15 +15,21 @@ return [
     'default_branch.placeholder' => 'Select a default branch',
     'show_permissions'           => 'Show Permissions',
     'permissions'                => 'Permissions',
-    'columns'                    => [
-        'name'             => 'Name',
-        'username'         => 'Username',
-        'email'            => 'Email',
-        'password'         => 'Password',
-        'confirm_password' => 'Confirm Password',
-        'phone'            => 'Phone',
-        'gender'           => 'Gender',
-        'gender.options'   => [
+    'controls'                   => [
+        'change_password' => 'Change Password',
+    ],
+    'columns' => [
+        'name'               => 'Name',
+        'username'           => 'Username',
+        'email'              => 'Email',
+        'email.verified'     => 'Email Verified',
+        'email.verify'       => 'Verify Email',
+        'email.not_verified' => 'Email Not Verified',
+        'password'           => 'Password',
+        'confirm_password'   => 'Confirm Password',
+        'phone'              => 'Phone',
+        'gender'             => 'Gender',
+        'gender.options'     => [
             'male'   => 'Male',
             'female' => 'Female',
         ],
@@ -30,5 +40,7 @@ return [
         'email_verified_at' => 'Email verified at',
         'default_branch'    => 'Default Branch',
         'image'             => 'Image',
+        'image.upload'      => 'Upload Image',
+        'image.remove'      => 'Remove Image',
     ],
 ];

@@ -137,6 +137,10 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
     // Dashboard
     Route::get('dashboard-view', [DashboardController::class, 'view'])->name('dashboard');
+    Route::post('dashboard-update', [DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');
+    Route::post('dashboard-widget-order/{dashboard}', [DashboardController::class, 'reorderWidgets'])->name('dashboard.widgets.reorder');
+    Route::post('get-chart/{widget}', [WidgetController::class, 'getChartData'])->name('get-chart');
+    Route::resourceDetail('dashboard', DashboardController::class);
     // Settings
     Route::prefix('/settings')->group(function () {
         // Dashboard
@@ -162,10 +166,11 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     // Files
     Route::resourceDetail('file', FileController::class);
     // Users
+    Route::get('/users/{user}/connect/{driver}/redirect', [UserController::class, 'connectToProvider'])->name('users.connect-provider');
     Route::post('/users/{user}/image', [UserController::class, 'image'])->name('users.image');
     Route::resourceDetail('user', UserController::class);
     // Roles
-    Route::get('/roles/permissions', [RoleController::class, 'getPermissions'])->name('roles.permissions');
+    Route::get('/roles/permissions', [RoleController::class, 'permissions'])->name('roles.permissions');
     Route::resourceDetail('role', RoleController::class);
     // Approval Instance
     Route::get('approvals', [ApprovalInstanceController::class, 'index'])->name('approvalInstances.index');

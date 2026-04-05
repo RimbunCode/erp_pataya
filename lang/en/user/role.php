@@ -1,13 +1,16 @@
 <?php
 
 return [
-    'title'    => 'Roles',
-    'add'      => 'Add Role',
-    'new'      => 'Create Role',
-    'new_rule' => 'New Rule',
-    'add_rule' => 'Add a new rule',
-    'rules'    => 'Rules',
-    'errors'   => [
+    'title'              => 'Roles',
+    'add'                => 'Add Role',
+    'new'                => 'Create Role',
+    'delete'             => 'Delete Role',
+    'delete.description' => 'Are you sure you want to delete this role?',
+    'delete.confirm'     => 'Delete',
+    'new_rule'           => 'New Rule',
+    'add_rule'           => 'Add a new rule',
+    'rules'              => 'Rules',
+    'errors'             => [
         'alert_already_exists' => 'Rule already exists',
     ],
     'general'            => 'General',
