@@ -76,7 +76,7 @@ export default function Form() {
   useDidMountEffect(() => {
     if (calculationType === "group_by") {
       setData("value_based_on", null);
-      setData("time_span", null);
+      setData("timespan", null);
       setData("time_interval", null);
       setData("time_based_on", null);
       if (!groupByType) {
@@ -191,7 +191,7 @@ export default function Form() {
                   setData("value_based_on", val);
                 }}
                 optionTrans="settings.widget.value_based_ons"
-                options={getNameColumns("number")}
+                options={getNameColumns(["number", "currency"])}
               />
             </FormInput>
           )}
@@ -251,7 +251,7 @@ export default function Form() {
         </div>
       </FormPageContent>
 
-      {data.calculation_type != "group_by" && data.type != "card" && (
+      {data.calculation_type != "group_by" && (
         <>
           <FormPageContent
             value="detail"
@@ -274,17 +274,17 @@ export default function Form() {
                 />
               </FormInput>
               <FormInput
-                name="time_span"
+                name="timespan"
                 className="col-start-1"
-                label={t("settings.widget.columns.time_span")}
+                label={t("settings.widget.columns.timespan")}
                 disabled={!modelClass}
               >
                 <Select
-                  value={data?.time_span}
+                  value={data?.timespan}
                   onValueChange={(val) => {
-                    setData("time_span", val);
+                    setData("timespan", val);
                   }}
-                  optionTrans="settings.widget.time_spans"
+                  optionTrans="settings.widget.timespans"
                   options={[
                     "last_week",
                     "last_month",
@@ -305,7 +305,13 @@ export default function Form() {
                     setData("time_interval", val);
                   }}
                   optionTrans="settings.widget.time_intervals"
-                  options={["daily", "weekly", "monthly", "Quaterly", "yearly"]}
+                  options={[
+                    "daily",
+                    "weekly",
+                    "monthly",
+                    "quarterly",
+                    "yearly",
+                  ]}
                 />
               </FormInput>
             </div>

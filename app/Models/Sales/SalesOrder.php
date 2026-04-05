@@ -13,119 +13,129 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class SalesOrder extends Model {
-  use DataTable, HasUlids, SoftDeletes, Submitable;
-  protected $guarded       = ['id'];
-  public    $keyBreadcrumb = "code";
-  public    $translateKey  = 'sales.salesOrder';
-  protected $casts         = [
-    'date'       => 'datetime',
-    'is_rent'    => 'boolean',
-    'start_date' => 'datetime',
-    'end_date'   => 'datetime',
-  ];
-  protected $appends       = [
-    'rent_date',
-  ];
+class SalesOrder extends Model
+{
+    use DataTable, HasUlids, SoftDeletes, Submitable;
 
-  public static function templateLink() {
-    return ":code";
-  }
+    protected $guarded = ['id'];
 
-  public function rentDate(): Attribute {
-    return Attribute::make(
-      get: fn () => [
-        'from' => $this->start_date,
-        'to'   => $this->end_date,
-      ],
-      set: fn ($value) => [
-        'start_date' => Carbon::parse($value['from'])->utc(),
-        'end_date'   => Carbon::parse($value['to'])->utc(),
-      ]
-    );
-  }
-  protected static string $defaultFormatCode = '@[branch_code]/SO-@[iiii]/@[yy]';
+    public $keyBreadcrumb = 'code';
 
-  public function codeRelations() {
-    return [
-      'branch_code:branch.code',
-      'branch_name:branch.name',
+    public $translateKey = 'sales.salesOrder';
+
+    protected $casts = [
+        'date' => 'datetime',
+        'is_rent' => 'boolean',
+        'start_date' => 'datetime',
+        'end_date' => 'datetime',
     ];
-  }
-  protected $configColumns = [
-    'code'                          => [
-      'isLink' => true,
-      'show'   => true,
-      'order'  => 0,
-    ],
-    'customer'                      => [
-      'show'  => true,
-      'order' => 1,
-    ],
-    'date'                          => [
-      'show'  => true,
-      'order' => 2,
-    ],
-    'is_rent'                       => [
-      'show'  => true,
-      'order' => 3,
-    ],
-    'status'                        => [
-      'show'  => true,
-      'order' => 4,
-    ],
-    'customer_branch',
-    "currency",
-    'branch'                        => [
-      'ignore' => true,
-    ],
-    'customer_name'                 => [
-      'ignore' => true,
-    ],
-    'customer_branch_name'          => [
-      'ignore' => true,
-    ],
-    'discount_amount_base_currency' => [
-      'ignore' => true,
-    ],
-    'amount'                        => [
-      'ignore' => true,
-    ],
-    'amount_base_currency'          => [
-      'ignore' => true,
-    ],
-    'base_currency_code'            => [
-      'ignore' => true,
-    ],
-    'referenceable',
-    'referenceSo',
-    'start_date'                    => [
-      'ignore' => true,
-    ],
-    'end_date'                      => [
-      'ignore' => true,
-    ],
-    'rent_date'                     => [
-      'type' => 'datetime',
-    ],
-  ];
 
-  protected static function loadRelationsOnShow() {
-    return [
-      'referenceable',
-      'referenceSo',
-      'items',
-      'customer',
-      'customer_branch',
-      'currency',
-      'items.item',
-      'items.tax',
-      'items.unit',
-      'items.sourceWarehouse',
-      'paymentSchedules',
-      'paymentSchedules.paymentTerm',
-      'paymentSchedules.paymentMethod',
+    protected $appends = [
+        'rent_date',
     ];
+
+    public static function templateLink()
+    {
+        return ':code';
+    }
+
+    public function rentDate(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => [
+                'from' => $this->start_date,
+                'to' => $this->end_date,
+            ],
+            set: fn ($value) => [
+                'start_date' => Carbon::parse($value['from'])->utc(),
+                'end_date' => Carbon::parse($value['to'])->utc(),
+            ]
+        );
+    }
+
+    protected static string $defaultFormatCode = '@[branch_code]/SO-@[iiii]/@[yy]';
+
+    public function codeRelations()
+    {
+        return [
+            'branch_code:branch.code',
+            'branch_name:branch.name',
+        ];
+    }
+
+    protected $configColumns = [
+        'code' => [
+            'isLink' => true,
+            'show' => true,
+            'order' => 0,
+        ],
+        'customer' => [
+            'show' => true,
+            'order' => 1,
+        ],
+        'date' => [
+            'show' => true,
+            'order' => 2,
+        ],
+        'is_rent' => [
+            'show' => true,
+            'order' => 3,
+        ],
+        'status' => [
+            'show' => true,
+            'order' => 4,
+        ],
+        'customer_branch',
+        'currency',
+        'branch' => [
+            'ignore' => true,
+        ],
+        'customer_name' => [
+            'ignore' => true,
+        ],
+        'customer_branch_name' => [
+            'ignore' => true,
+        ],
+        'discount_amount_base_currency' => [
+            'ignore' => true,
+        ],
+        'amount_base_currency' => [
+            'ignore' => true,
+        ],
+        'base_currency_code' => [
+            'ignore' => true,
+        ],
+        'referenceable',
+        'referenceSo',
+        'start_date' => [
+            'ignore' => true,
+        ],
+        'end_date' => [
+            'ignore' => true,
+        ],
+        'rent_date' => [
+            'type' => 'datetime',
+        ],
+    ];
+
+    protected static function loadRelationsOnShow()
+    {
+        return [
+            'referenceable',
+            'referenceSo',
+            'items',
+            'customer',
+            'customer_branch',
+            'currency',
+            'items.item',
+            'items.tax',
+            'items.unit',
+            'items.sourceWarehouse',
+            'paymentSchedules',
+            'paymentSchedules.paymentTerm',
+            'paymentSchedules.paymentMethod',
+        ];
+    }
 
     public function referenceable()
     {
@@ -162,8 +172,9 @@ class SalesOrder extends Model {
         return $this->belongsTo(Currency::class, 'currency_code');
     }
 
-  public function paymentSchedules() {
-    return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')
-      ->orderBy('due_date', 'asc');
-  }
+    public function paymentSchedules()
+    {
+        return $this->morphMany(PaymentSchedule::class, 'payment_scheduleable')
+            ->orderBy('due_date', 'asc');
+    }
 }

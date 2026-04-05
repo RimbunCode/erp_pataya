@@ -1,14 +1,10 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect } from "react";
-import SelectModel, { loadFromModel } from "@/Components/SelectModel";
-import { generateRandom } from "@/lib/utils";
-import DatetimePicker from "@/Components/DatetimePicker";
+import React from "react";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
-import { usePage } from "@inertiajs/react";
 import WidgetLinkModel from "../Widget/WidgetLinkModel";
 import Select from "@/Components/Select";
 import { FormCheckbox } from "@/Components/ui/checkbox";

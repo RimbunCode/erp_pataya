@@ -1,5 +1,6 @@
 import React, { forwardRef, memo } from "react";
 import { SidebarInset, SidebarProvider } from "@/Components/ui/sidebar";
+import { usePage } from "@inertiajs/react";
 
 import AppSidebar from "@/Components/Sidebar/AppSidebar";
 import MasterLayout from "./MasterLayout";
@@ -7,9 +8,17 @@ import Navbar from "@/Components/Navbar/Navbar";
 import { cn } from "@/lib/utils";
 
 export default memo(
-  forwardRef(function AppLayout({ className, children, ...props }, ref) {
+  forwardRef(function AppLayout(
+    { className, actions, children, ...props },
+    ref,
+  ) {
+    const { component } = usePage();
+    const isDashboardPage = component === "Dashboard";
     const [, setShowSearch] = React.useState(false);
     React.useEffect(() => {
+      if (!isDashboardPage) {
+        return;
+      }
       const down = (e) => {
         if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
           if (
@@ -28,7 +37,7 @@ export default memo(
 
       document.addEventListener("keydown", down);
       return () => document.removeEventListener("keydown", down);
-    }, []);
+    }, [isDashboardPage]);
 
     return (
       <MasterLayout>
@@ -36,7 +45,11 @@ export default memo(
           <SidebarProvider>
             <AppSidebar className="print:hidden " />
             <SidebarInset>
-              <Navbar setShowSearch={setShowSearch} />
+              <Navbar
+                actions={actions}
+                setShowSearch={setShowSearch}
+                isDashboardPage={isDashboardPage}
+              />
               {/* <CommandDialog open={showSearch} onOpenChange={setShowSearch}>
               <CommandInput
                 placeholder="Type a command or search..."
