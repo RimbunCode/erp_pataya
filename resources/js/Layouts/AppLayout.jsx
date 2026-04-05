@@ -19,7 +19,7 @@ import useTheme from "@/Hooks/useTheme";
 export default memo(
   forwardRef(function AppLayout({ className, children, ...props }, ref) {
     const [showSearch, setShowSearch] = React.useState(false);
-    const { setTheme } = useTheme();
+    const { _setTheme } = useTheme();
     React.useEffect(() => {
       const down = (e) => {
         if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
