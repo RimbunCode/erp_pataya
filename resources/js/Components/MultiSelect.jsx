@@ -131,7 +131,7 @@ export default forwardRef(function MultiSelect(
   );
   return (
     <ClickAwayListener onClickAway={() => setOpen(false)}>
-      <div className="contents">
+      <div className={cn(className)}>
         <Popover open={open} onOpenChange={() => {}}>
           <Command
             ref={commandRef}

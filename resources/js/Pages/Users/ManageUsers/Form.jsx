@@ -1,16 +1,26 @@
 import { Dialog, DialogContent, DialogHeader } from "@/Components/ui/dialog";
 import { DialogDescription, DialogTitle } from "@radix-ui/react-dialog";
+import { ExternalLinkIcon, MailCheckIcon, ShieldCheckIcon } from "lucide-react";
 import {
   FormPageContent,
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/Components/ui/input-group";
 import React, { useCallback, useState } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 import { WhenVisible, usePage } from "@inertiajs/react";
 
 import { Button } from "@/Components/ui/button";
 import DatetimePicker from "@/Components/DatetimePicker";
-import { ExternalLinkIcon } from "lucide-react";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -22,6 +32,7 @@ import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function Form() {
+  const { user: authUser } = usePage().props.auth;
   const { t } = useLaravelReactI18n();
   const { roles, branches } = usePage().props;
   const { data, setData } = useFormPage();
@@ -68,27 +79,68 @@ function Form() {
           maiores.
         </FormPageDescription> */}
         <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
-          <FormInput label={t("user.user.columns.email")} required={true}>
-            <Input
-              type="email"
-              value={data.email}
-              onChange={(e) => setData("email", e.target.value)}
-            />
+          <FormInput
+            label={t("user.user.columns.email")}
+            required={true}
+            error={
+              authUser.id === data?.id &&
+              !data?.email_verified_at &&
+              t("user.user.columns.email.not_verified")
+            }
+          >
+            <InputGroup>
+              <InputGroupInput
+                disabled={authUser.id != data?.id}
+                type="email"
+                value={data.email}
+                onChange={(e) => setData("email", e.target.value)}
+              />
+              {data.email_verified_at ? (
+                <InputGroupAddon align="inline-start">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <ShieldCheckIcon className="text-green-500 size-5" />
+                    </TooltipTrigger>
+                    <TooltipContent align="center" side="bottom">
+                      {t("user.user.columns.email.verified")}
+                    </TooltipContent>
+                  </Tooltip>
+                </InputGroupAddon>
+              ) : (
+                authUser.id == data?.id && (
+                  <InputGroupAddon align="inline-end">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button type="button" variant="ghost" size="icon">
+                          <MailCheckIcon />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent align="center" side="bottom">
+                        {t("user.user.columns.email.verify")}
+                      </TooltipContent>
+                    </Tooltip>
+                  </InputGroupAddon>
+                )
+              )}
+            </InputGroup>
           </FormInput>
           <FormInput label={t("user.user.columns.username")} required={true}>
             <Input
+              disabled={authUser.id != data?.id}
               value={data.username}
               onChange={(e) => setData("username", e.target.value)}
             />
           </FormInput>
           <FormInput label={t("user.user.columns.name")} required={true}>
             <Input
+              disabled={authUser.id != data?.id}
               value={data.name}
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
           <FormInput label={t("user.user.columns.gender")}>
             <Select
+              disabled={authUser.id != data?.id}
               value={data.gender}
               onValueChange={(val) => setData("gender", val)}
               optionTrans="user.user.columns.gender.options"
@@ -97,6 +149,7 @@ function Form() {
           </FormInput>
           <FormInput label={t("user.user.columns.phone")}>
             <Input
+              disabled={authUser.id != data?.id}
               type="text"
               value={data.phone}
               onChange={(e) => setData("phone", e.target.value)}
@@ -104,6 +157,7 @@ function Form() {
           </FormInput>
           <FormInput label={t("user.user.columns.birthdate")}>
             <DatetimePicker
+              disabled={authUser.id != data?.id}
               type="date"
               value={data.birthdate}
               onValueChange={(val) => setData("birthdate", val)}
@@ -111,7 +165,7 @@ function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      {
+      {authUser.id != data?.id && (
         <>
           <FormPageContent
             title={t("user.user.roles_and_permissions")}
@@ -241,7 +295,7 @@ function Form() {
             </FormInput>
           </FormPageContent>
         </>
-      }
+      )}
       <Dialog open={openDetailRole} onOpenChange={setOpenDetailRole}>
         <DialogContent className="max-w-(--breakpoint-lg) border-muted-foreground/25">
           <DialogHeader className="pb-2 border-b border-muted-foreground/25">

@@ -15,8 +15,9 @@ class CurrencySeeder extends Seeder {
         $currencies = $response->json();
 
         foreach ($currencies as $key => $currencyName) {
-            Currency::create([
+            Currency::updateOrCreate([
                 'code' => $key,
+            ], [
                 'name' => $currencyName,
             ]);
         }

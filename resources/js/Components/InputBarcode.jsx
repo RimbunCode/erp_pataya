@@ -21,12 +21,12 @@ import {
   useState,
 } from "react";
 
+import ClickAwayListener from "react-click-away-listener";
 import { Command as CommandPrimitive } from "cmdk";
 import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import React from "react";
 import axios from "axios";
-import ClickAwayListener from "react-click-away-listener";
 import { cn } from "@/lib/utils";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { toast } from "sonner";
@@ -314,7 +314,7 @@ export default memo(
 
     return (
       <ClickAwayListener onClickAway={() => setOpen(false)}>
-        <div className="contents">
+        <div className={cn(className)}>
           <Popover open={open} onOpenChange={() => {}}>
             <Command
               className="relative h-full overflow-visible bg-transparent"

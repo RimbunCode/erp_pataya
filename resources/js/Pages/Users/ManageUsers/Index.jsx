@@ -8,6 +8,7 @@ function Index() {
   const route = window.route;
   return (
     <DataTable2
+      usePasswordConfirmationForDelete
       templateItem={({ dataRow: user }) => {
         const alias = user.name
           .split(" ")

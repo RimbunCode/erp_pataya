@@ -10,8 +10,11 @@ use App\Models\User\Role;
 use App\Models\User\User;
 use App\Utils;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Laravel\Socialite\Socialite;
 
 class UserController extends Controller {
     public function __construct(Request $request) {
@@ -71,7 +74,7 @@ class UserController extends Controller {
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
-            'user' => function () use ($user) {
+            'user'     => function () use ($user) {
                 $user->roles    = $user->roles()->pluck('id');
                 $user->branches = $user->branches()->pluck('id');
 
@@ -98,10 +101,30 @@ class UserController extends Controller {
         return back();
     }
 
+    public function connectToProvider(User $user, string $driver) {
+        return Socialite::driver($driver)
+            ->redirect();
+    }
+
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id) {
-        //
+    public function destroy(Request $request, User $user) {
+        $request->validate([
+            'password' => ['required', 'current_password'],
+        ]);
+        DB::beginTransaction();
+        $user->delete();
+        $user->logForDeleted();
+        DB::commit();
+        if ($request->user()->id == $user->id) {
+            Auth::logout();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            return Redirect::to('/');
+        } else {
+            return redirect()->route('users.index');
+        }
     }
 }
