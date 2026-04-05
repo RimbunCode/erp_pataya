@@ -8,6 +8,7 @@ use App\Models\User\Role;
 use App\Models\User\RolePermission;
 use App\Models\User\User;
 use Illuminate\Database\Seeder;
+use Str;
 
 class AdministratorSeeder extends Seeder {
     /**
@@ -22,12 +23,14 @@ class AdministratorSeeder extends Seeder {
             ->first();
 
         // Create Admin User
-        $adminUser = User::factory()->create([
+        $adminUser = User::create([
             'name'              => 'Administrator',
             'username'          => 'admin',
             'email'             => 'test@example.com',
+            'email_verified_at' => now(),
             'password'          => bcrypt('admin'),
             'default_branch_id' => $defaultBranch->id,
+            'remember_token'    => Str::random(10),
         ]);
 
         // Create Role For Admin
@@ -40,7 +43,7 @@ class AdministratorSeeder extends Seeder {
         $adminUser->branches()->attach($defaultBranch->id);
 
         // Create Role Permission For Admin
-        $rules = [
+        $rules       = [
             [
                 'id'            => '01jmmcs994vb016dp2y2wy0w6p',
                 'permission_id' => '01jmmcget6fvq76zx13wsy3gc3',
@@ -60,9 +63,9 @@ class AdministratorSeeder extends Seeder {
                     'export' => true,
                     'share'  => true,
                 ],
-                'created_at' => '2025-02-21T13:57:35.000000Z',
-                'updated_at' => '2025-02-21T13:59:10.000000Z',
-                'deleted_at' => null,
+                'created_at'    => '2025-02-21T13:57:35.000000Z',
+                'updated_at'    => '2025-02-21T13:59:10.000000Z',
+                'deleted_at'    => null,
             ],
             [
                 'id'            => '01jmmcs9973gkmrdba36jre63f',
@@ -80,9 +83,9 @@ class AdministratorSeeder extends Seeder {
                     'delete' => true,
                     'print'  => true,
                 ],
-                'created_at' => '2025-02-21T13:57:35.000000Z',
-                'updated_at' => '2025-02-21T13:59:10.000000Z',
-                'deleted_at' => null,
+                'created_at'    => '2025-02-21T13:57:35.000000Z',
+                'updated_at'    => '2025-02-21T13:59:10.000000Z',
+                'deleted_at'    => null,
             ],
         ];
         $permissions = array_map(fn ($permission) => $permission['model'], $rules);
