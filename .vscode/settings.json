@@ -1,13 +1,16 @@
 {
   "php.version": "8.4",
+  "php.validate.executablePath": "C:\\Users\\RHD\\.config\\herd\\bin\\php84\\php.exe",
+  "Laravel.phpEnvironment": "herd",
+  "Laravel.pint.runOnSave": false,
   "[php]": {
-    "editor.defaultFormatter": "open-southeners.laravel-pint"
+    "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
   },
   "php.inlayHints.types.variable": true,
   "php.linkedEditing.variables": false,
   "php.problems.excludeGitIgnore": true,
   "php.problems.exclude": {
-    "**/*": ["PHP6615", "PHP0413", "PHP6602"]
+    "**/*": ["PHP6615", "PHP0413", "PHP6602", "PHP0416", "PHP0410"]
   },
   "php.suggest.basic": true,
   "php.validate.enable": true,

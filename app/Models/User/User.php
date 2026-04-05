@@ -100,4 +100,8 @@ class User extends Authenticatable {
             ->withPivot('order')
             ->orderByPivot('order');
     }
+
+    public function providers() {
+        return $this->hasMany(UserProvider::class, 'user_id');
+    }
 }

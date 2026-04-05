@@ -24,8 +24,18 @@ const AlertDialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
 AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 
 const AlertDialogContent = React.forwardRef(
-  ({ className, forceAsDialog = false, align = "top", ...props }, ref) => {
+  (
+    {
+      className,
+      forceAsDialog = false,
+      align = "top",
+      asChild: _asChild,
+      ...props
+    },
+    ref,
+  ) => {
     const isMobile = useIsMobile();
+
     return (
       <AlertDialogPortal>
         <AlertDialogOverlay />

@@ -41,9 +41,21 @@ class AuthenticationTest extends TestCase {
     public function test_users_can_logout(): void {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->post('/logout');
+        $response = $this->withCookie('lang', 'en')->actingAs($user)->post('/logout');
 
         $this->assertGuest();
         $response->assertRedirect('/');
+    }
+
+    public function test_users_can_logout_when_remember_token_exists(): void {
+        $user = User::factory()->create([
+            'remember_token' => 'existing-remember-token',
+        ]);
+
+        $response = $this->withCookie('lang', 'en')->actingAs($user)->post('/logout');
+
+        $this->assertGuest();
+        $response->assertRedirect('/');
+        $this->assertNotSame('existing-remember-token', $user->fresh()->remember_token);
     }
 }

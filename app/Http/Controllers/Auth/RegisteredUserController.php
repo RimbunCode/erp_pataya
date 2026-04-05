@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Models\User\User;
 use Illuminate\Auth\Events\Registered;
@@ -32,7 +33,7 @@ class RegisteredUserController extends Controller {
             'name'     => 'required|string|max:255',
             'username' => ['required', 'string', 'min:3', 'max:25', 'unique:' . User::class],
             'email'    => 'required|string|lowercase|email|max:255|unique:' . User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'confirmed', Rules\Password::min(8)],
         ]);
 
         $user = User::create([
@@ -40,6 +41,7 @@ class RegisteredUserController extends Controller {
             'username' => $request->username,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
+            'status'   => FormStatus::PENDING,
         ]);
 
         event(new Registered($user));

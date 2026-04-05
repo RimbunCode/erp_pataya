@@ -166,6 +166,7 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
     // Files
     Route::resourceDetail('file', FileController::class);
     // Users
+    Route::get('/users/{user}/connect/{driver}/redirect', [UserController::class, 'connectToProvider'])->name('users.connect-provider');
     Route::post('/users/{user}/image', [UserController::class, 'image'])->name('users.image');
     Route::resourceDetail('user', UserController::class);
     // Roles
