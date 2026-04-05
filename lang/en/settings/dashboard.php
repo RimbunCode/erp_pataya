@@ -21,4 +21,5 @@ return [
       'full' => 'Full',
     ],
     'is_visible' => 'Is Visible',
+  ],
 ];
