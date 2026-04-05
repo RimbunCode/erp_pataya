@@ -37,7 +37,7 @@ enum FormStatus: string {
     case TO_ORDER            = 'to_order';
     case PARTIALLY_ORDERED   = 'partially_ordered';
     case ORDERED             = 'ordered';
-    case INVITED             = "invited";
+    case INVITED             = 'invited';
     case PRE_REGISTERED      = 'pre_registered';
 
     public function label() {

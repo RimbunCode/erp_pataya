@@ -11,12 +11,12 @@ class UnitSeeder extends Seeder {
      */
     public function run(): void {
         $units = [
-            'Area'     => [
-                'SQUARE_METER'      => [
+            'Area' => [
+                'SQUARE_METER' => [
                     'code'              => 'm2',
                     'conversion_factor' => 1,
                 ],
-                'SQUARE_KILOMETER'  => [
+                'SQUARE_KILOMETER' => [
                     'code'              => 'km2',
                     'conversion_factor' => 1 * 1000000,
                 ],
@@ -30,34 +30,34 @@ class UnitSeeder extends Seeder {
                     'conversion_factor' => 1 / 1000000,
                 ],
 
-                'SQUARE_INCH'       => [
+                'SQUARE_INCH' => [
                     'code'              => 'in2',
                     'conversion_factor' => 1 * 0.00064516,
                 ],
-                'SQUARE_FOOT'       => [
+                'SQUARE_FOOT' => [
                     'code'              => 'ft2',
                     'conversion_factor' => 1 * 0.09290304,
                 ],
-                'SQUARE_YARD'       => [
+                'SQUARE_YARD' => [
                     'code'              => 'yd2',
                     'conversion_factor' => 1 * 0.83612736,
                 ],
-                'SQUARE_MILE'       => [
+                'SQUARE_MILE' => [
                     'code'              => 'mi2',
                     'conversion_factor' => 1 * 2589988.110336,
                 ],
 
-                'ACRE'              => [
+                'ACRE' => [
                     'code'              => 'ac',
                     'conversion_factor' => 1 * 4046.8564224,
                 ],
-                'HECTARE'           => [
+                'HECTARE' => [
                     'code'              => 'ha',
                     'conversion_factor' => 1 * 10000,
                 ],
             ],
-            'Length'   => [
-                'METER'      => [
+            'Length' => [
+                'METER' => [
                     'code'              => 'm',
                     'conversion_factor' => 1,
                 ],
@@ -69,34 +69,34 @@ class UnitSeeder extends Seeder {
                     'code'              => 'mm',
                     'conversion_factor' => 1 / 1000,
                 ],
-                'KILOMETER'  => [
+                'KILOMETER' => [
                     'code'              => 'km',
                     'conversion_factor' => 1000,
                 ],
-                'INCH'       => [
+                'INCH' => [
                     'code'              => 'in',
                     'conversion_factor' => 0.0254,
                 ],
-                'FOOT'       => [
+                'FOOT' => [
                     'code'              => 'ft',
                     'conversion_factor' => 0.3048,
                 ],
 
-                'YARD'       => [
+                'YARD' => [
                     'code'              => 'yd',
                     'conversion_factor' => 0.9144,
                 ],
-                'MILE'       => [
+                'MILE' => [
                     'code'              => 'mi',
                     'conversion_factor' => 1609.344,
                 ],
             ],
-            'Volume'   => [
-                'MILLILITER'  => [
+            'Volume' => [
+                'MILLILITER' => [
                     'code'              => 'ml',
                     'conversion_factor' => 1 / 1000,
                 ],
-                'LITER'       => [
+                'LITER' => [
                     'code'              => 'l',
                     'conversion_factor' => 1,
                 ],
@@ -104,38 +104,38 @@ class UnitSeeder extends Seeder {
                     'code'              => 'm3',
                     'conversion_factor' => 1000,
                 ],
-                'CUBIC_INCH'  => [
+                'CUBIC_INCH' => [
                     'code'              => 'in3',
                     'conversion_factor' => 1 / 61.0237441,
                 ],
-                'CUBIC_FOOT'  => [
+                'CUBIC_FOOT' => [
                     'code'              => 'ft3',
                     'conversion_factor' => 28.316846592,
                 ],
 
             ],
-            'Weight'   => [
+            'Weight' => [
                 'MILLIGRAM' => [
                     'code'              => 'mg',
                     'conversion_factor' => 1 / 1000,
                 ],
-                'GRAM'      => [
+                'GRAM' => [
                     'code'              => 'g',
                     'conversion_factor' => 1,
                 ],
-                'KILOGRAM'  => [
+                'KILOGRAM' => [
                     'code'              => 'kg',
                     'conversion_factor' => 1000,
                 ],
-                'TON'       => [
+                'TON' => [
                     'code'              => 't',
                     'conversion_factor' => 1000000,
                 ],
-                'OUNCE'     => [
+                'OUNCE' => [
                     'code'              => 'oz',
                     'conversion_factor' => 28.349523125,
                 ],
-                'POUND'     => [
+                'POUND' => [
                     'code'              => 'lb',
                     'conversion_factor' => 453.59237,
                 ],
@@ -153,11 +153,11 @@ class UnitSeeder extends Seeder {
                     'code'              => 'grs',
                     'conversion_factor' => 144,
                 ],
-                'KODI'  => [
+                'KODI' => [
                     'code'              => 'kodi',
                     'conversion_factor' => 20,
                 ],
-                'RIM'   => [
+                'RIM' => [
                     'code'              => 'rim',
                     'conversion_factor' => 500,
                 ],

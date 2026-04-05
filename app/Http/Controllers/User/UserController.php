@@ -12,7 +12,6 @@ use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Laravel\Socialite\Socialite;
 
@@ -74,7 +73,7 @@ class UserController extends Controller {
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
-            'user'     => function () use ($user) {
+            'user' => function () use ($user) {
                 $user->roles    = $user->roles()->pluck('id');
                 $user->branches = $user->branches()->pluck('id');
 
@@ -122,6 +121,7 @@ class UserController extends Controller {
 
             $request->session()->invalidate();
             $request->session()->regenerateToken();
+
             return Redirect::to('/');
         } else {
             return redirect()->route('users.index');

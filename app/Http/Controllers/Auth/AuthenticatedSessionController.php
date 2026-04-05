@@ -123,6 +123,7 @@ class AuthenticatedSessionController extends Controller {
 
             DB::commit();
             Auth::login($user);
+
             return redirect()->intended(route('dashboard', absolute: false));
         }
         // return $this->storeProviderUser($user, $driver);

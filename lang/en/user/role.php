@@ -26,7 +26,7 @@ return [
         'only_creator'      => 'Only Creator',
         'permissions'       => 'Permissions',
     ],
-    'permissions'        => [
+    'permissions' => [
         'all'    => 'All',
         'select' => 'Select',
         'read'   => 'Read',
