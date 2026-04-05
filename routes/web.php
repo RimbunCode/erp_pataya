@@ -132,120 +132,120 @@ Route::middleware(['auth', 'lang', 'app'])->group(function () {
             ]);
         });
     }
-    Route::get('/logs/{log}', [\App\Http\Controllers\Core\LogController::class, 'show'])->name('logs.show');
+    Route::get('/logs/{log}', [LogController::class, 'show'])->name('logs.show');
     // Branch Switcher
-    Route::put('/switch_branch/{id}', [\App\Http\Controllers\Core\BranchController::class, 'switch'])->name('branch.switch');
+    Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
     // Dashboard
-    Route::get('dashboard-view', [\App\Http\Controllers\Core\DashboardController::class, 'view'])->name('dashboard');
-    Route::post('dashboard-update', [\App\Http\Controllers\Core\DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');
-    Route::post('dashboard-widget-order/{dashboard}', [\App\Http\Controllers\Core\DashboardController::class, 'reorderWidgets'])->name('dashboard.widgets.reorder');
-    Route::post('get-chart/{widget}', [\App\Http\Controllers\Core\WidgetController::class, 'getChartData'])->name('get-chart');
-    Route::resourceDetail('dashboard', \App\Http\Controllers\Core\DashboardController::class);
+    Route::get('dashboard-view', [DashboardController::class, 'view'])->name('dashboard');
+    Route::post('dashboard-update', [DashboardController::class, 'storeUserDashboard'])->name('dashboardForms.store');
+    Route::post('dashboard-widget-order/{dashboard}', [DashboardController::class, 'reorderWidgets'])->name('dashboard.widgets.reorder');
+    Route::post('get-chart/{widget}', [WidgetController::class, 'getChartData'])->name('get-chart');
+    Route::resourceDetail('dashboard', DashboardController::class);
     // Settings
     Route::prefix('/settings')->group(function () {
         // Dashboard
-        Route::resourceDetail('dashboard', \App\Http\Controllers\Core\DashboardController::class);
+        Route::resourceDetail('dashboard', DashboardController::class);
 
         // Company
-        Route::controller(\App\Http\Controllers\Core\CompanyController::class)->group(function () {
+        Route::controller(CompanyController::class)->group(function () {
             Route::get('company', 'index')->name('companies.index');
             Route::put('company', 'update')->name('companies.update');
             Route::post('company/image', 'image')->name('companies.image');
         });
         // Branches
-        Route::resourceDetail('branch', \App\Http\Controllers\Core\BranchController::class);
-        Route::resourceDetail('formatingSeries', \App\Http\Controllers\Core\FormatingSeriesController::class);
-        Route::resourceDetail('approvalScheme', \App\Http\Controllers\Core\ApprovalSchemeController::class);
+        Route::resourceDetail('branch', BranchController::class);
+        Route::resourceDetail('formatingSeries', FormatingSeriesController::class);
+        Route::resourceDetail('approvalScheme', ApprovalSchemeController::class);
 
-        Route::resourceDetail('printTemplates', \App\Http\Controllers\Core\PrintTemplateController::class);
-        Route::get('/printTemplates/{printTemplates}/editor', [\App\Http\Controllers\Core\PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
-        Route::resourceDetail('widget', \App\Http\Controllers\Core\WidgetController::class);
+        Route::resourceDetail('printTemplates', PrintTemplateController::class);
+        Route::get('/printTemplates/{printTemplates}/editor', [PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
+        Route::resourceDetail('widget', WidgetController::class);
     });
     // Tags
-    Route::resourceDetail('tag', \App\Http\Controllers\Core\TagController::class);
+    Route::resourceDetail('tag', TagController::class);
     // Files
-    Route::resourceDetail('file', \App\Http\Controllers\Core\FileController::class);
+    Route::resourceDetail('file', FileController::class);
     // Users
-    Route::post('/users/{user}/image', [\App\Http\Controllers\User\UserController::class, 'image'])->name('users.image');
-    Route::resourceDetail('user', \App\Http\Controllers\User\UserController::class);
+    Route::post('/users/{user}/image', [UserController::class, 'image'])->name('users.image');
+    Route::resourceDetail('user', UserController::class);
     // Roles
-    Route::get('/roles/permissions', [\App\Http\Controllers\User\RoleController::class, 'permissions'])->name('roles.permissions');
-    Route::resourceDetail('role', \App\Http\Controllers\User\RoleController::class);
+    Route::get('/roles/permissions', [RoleController::class, 'permissions'])->name('roles.permissions');
+    Route::resourceDetail('role', RoleController::class);
     // Approval Instance
-    Route::get('approvals', [\App\Http\Controllers\Core\ApprovalInstanceController::class, 'index'])->name('approvalInstances.index');
-    Route::get('approvals/{approvalInstance}', [\App\Http\Controllers\Core\ApprovalInstanceController::class, 'show'])->name('approvalInstances.show');
-    Route::post('approvals/{approvalInstanceStep}/decision', [\App\Http\Controllers\Core\ApprovalInstanceController::class, 'decision'])->name('approvalInstances.decision');
+    Route::get('approvals', [ApprovalInstanceController::class, 'index'])->name('approvalInstances.index');
+    Route::get('approvals/{approvalInstance}', [ApprovalInstanceController::class, 'show'])->name('approvalInstances.show');
+    Route::post('approvals/{approvalInstanceStep}/decision', [ApprovalInstanceController::class, 'decision'])->name('approvalInstances.decision');
 
     // / Inventories Group
     // Warehouse
-    Route::resourceDetail('warehouse', \App\Http\Controllers\Inventory\WarehouseController::class);
+    Route::resourceDetail('warehouse', WarehouseController::class);
     // Units
-    Route::get('/units/groups/{search?}', [\App\Http\Controllers\Inventory\UnitController::class, 'getGroups'])->name('units.groups');
-    Route::resourceDetail('unit', \App\Http\Controllers\Inventory\UnitController::class);
+    Route::get('/units/groups/{search?}', [UnitController::class, 'getGroups'])->name('units.groups');
+    Route::resourceDetail('unit', UnitController::class);
     // Categories
-    Route::resourceDetail('category', \App\Http\Controllers\Inventory\CategoryController::class);
+    Route::resourceDetail('category', CategoryController::class);
     // Items
-    Route::resourceDetail('item', \App\Http\Controllers\Inventory\ItemController::class);
-    Route::post('itemVariants/info', [\App\Http\Controllers\Inventory\ItemVariantController::class, 'info'])->name('itemVariants.info');
-    Route::resourceDetail('itemVariant', \App\Http\Controllers\Inventory\ItemVariantController::class);
+    Route::resourceDetail('item', ItemController::class);
+    Route::post('itemVariants/info', [ItemVariantController::class, 'info'])->name('itemVariants.info');
+    Route::resourceDetail('itemVariant', ItemVariantController::class);
     // ItemAlternatives
-    Route::resourceDetail('itemAlternative', \App\Http\Controllers\Inventory\ItemAlternativeController::class);
+    Route::resourceDetail('itemAlternative', ItemAlternativeController::class);
     // Attributes
-    Route::resourceDetail('attribute', \App\Http\Controllers\Inventory\AttributeController::class);
+    Route::resourceDetail('attribute', AttributeController::class);
     // Stock Entries
-    Route::resourceDetail('stockEntry', \App\Http\Controllers\Inventory\StockEntryController::class, isSubmmitable: true);
+    Route::resourceDetail('stockEntry', StockEntryController::class, isSubmmitable: true);
     // Delivery Notes
-    Route::resourceDetail('deliveryNote', \App\Http\Controllers\Inventory\DeliveryNoteController::class, isSubmmitable: true);
+    Route::resourceDetail('deliveryNote', DeliveryNoteController::class, isSubmmitable: true);
     // Stock Ledgers
-    Route::resourceDetail('stockLedger', \App\Http\Controllers\Inventory\StockLedgerController::class);
+    Route::resourceDetail('stockLedger', StockLedgerController::class);
     // / Inventories Group End
 
     // / Purchase Group
     // Supplier
-    Route::resourceDetail('supplier', \App\Http\Controllers\Purchase\SupplierController::class);
+    Route::resourceDetail('supplier', SupplierController::class);
     // Purchase Request
-    Route::resourceDetail('purchaseRequest', \App\Http\Controllers\Purchase\PurchaseRequestController::class, isSubmmitable: true);
+    Route::resourceDetail('purchaseRequest', PurchaseRequestController::class, isSubmmitable: true);
     // Purchase Order
-    Route::resourceDetail('purchaseOrder', \App\Http\Controllers\Purchase\PurchaseOrderController::class, isSubmmitable: true);
+    Route::resourceDetail('purchaseOrder', PurchaseOrderController::class, isSubmmitable: true);
     // Purchase Receipt
-    Route::resourceDetail('purchaseReceipt', \App\Http\Controllers\Purchase\PurchaseReceiptController::class, isSubmmitable: true);
+    Route::resourceDetail('purchaseReceipt', PurchaseReceiptController::class, isSubmmitable: true);
     // / Purchase Group End
 
     // Customer
-    Route::resourceDetail('customer', \App\Http\Controllers\Sales\CustomerController::class);
+    Route::resourceDetail('customer', CustomerController::class);
 
     // / Service Group
     // Work Order
-    Route::resourceDetail('workOrder', \App\Http\Controllers\Service\WorkOrderController::class, isSubmmitable: true);
+    Route::resourceDetail('workOrder', WorkOrderController::class, isSubmmitable: true);
     // / Service Group End
 
     // / Sales Groups
     // Sales Orders
-    Route::resourceDetail('salesOrder', \App\Http\Controllers\Sales\SalesOrderController::class, isSubmmitable: true);
+    Route::resourceDetail('salesOrder', SalesOrderController::class, isSubmmitable: true);
     // Internal Orders
-    Route::resourceDetail('internalOrder', \App\Http\Controllers\Sales\InternalOrderController::class, isSubmmitable: true);
+    Route::resourceDetail('internalOrder', InternalOrderController::class, isSubmmitable: true);
     // / Sales Groups End
 
     // / Finances
     // Accounts
-    Route::resourceDetail('account', \App\Http\Controllers\Finances\AccountController::class);
+    Route::resourceDetail('account', AccountController::class);
     // General Ledgers
-    Route::resourceDetail('generalLedger', \App\Http\Controllers\Finances\GeneralLedgerController::class);
+    Route::resourceDetail('generalLedger', GeneralLedgerController::class);
     // Payment Methods
-    Route::resourceDetail('paymentMethod', \App\Http\Controllers\Finances\PaymentMethodController::class);
+    Route::resourceDetail('paymentMethod', PaymentMethodController::class);
     // Payment Terms
     // Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
     // Payment Term Template
-    Route::resourceDetail('paymentTermTemplate', \App\Http\Controllers\Finances\PaymentTermTemplateController::class);
+    Route::resourceDetail('paymentTermTemplate', PaymentTermTemplateController::class);
     // Payment Entries
-    Route::resourceDetail('paymentEntry', \App\Http\Controllers\Finances\PaymentEntryController::class, isSubmmitable: true);
+    Route::resourceDetail('paymentEntry', PaymentEntryController::class, isSubmmitable: true);
     // Purchase Invoices
-    Route::resourceDetail('purchaseInvoice', \App\Http\Controllers\Finances\PurchaseInvoiceController::class, isSubmmitable: true);
+    Route::resourceDetail('purchaseInvoice', PurchaseInvoiceController::class, isSubmmitable: true);
     // Sales Invoices
-    Route::resourceDetail('salesInvoice', \App\Http\Controllers\Finances\SalesInvoiceController::class, isSubmmitable: true);
+    Route::resourceDetail('salesInvoice', SalesInvoiceController::class, isSubmmitable: true);
     // Taxes
-    Route::resourceDetail('tax', \App\Http\Controllers\Finances\TaxesController::class);
+    Route::resourceDetail('tax', TaxesController::class);
     // / Finances End
 });
 
-require __DIR__.'/auth.php';
+require __DIR__ . '/auth.php';

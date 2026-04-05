@@ -264,7 +264,7 @@ function DashboardChart({ widget }) {
       content={
         <ChartTooltipContent
           color={chartConfig[metricKey].color}
-          formatter={(value, name, item) => {
+          formatter={(value, _name, item) => {
             const color = item?.payload?.fill || chartConfig[metricKey].color;
 
             return (
@@ -340,7 +340,7 @@ function DashboardChart({ widget }) {
                 data[index]?.period && setActivePeriod(data[index].period)
               }
             >
-              {data.map((entry, index) => (
+              {data.map((_entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={palette[index % palette.length]}
@@ -386,7 +386,7 @@ function DashboardChart({ widget }) {
                 data[index]?.period && setActivePeriod(data[index].period)
               }
             >
-              {data.map((entry, index) => (
+              {data.map((_entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={palette[index % palette.length]}

@@ -9,12 +9,10 @@ use App\Models\User\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-class WidgetChartDataTest extends TestCase
-{
+class WidgetChartDataTest extends TestCase {
     use RefreshDatabase;
 
-    public function test_it_fills_missing_daily_periods_with_zero_values(): void
-    {
+    public function test_it_fills_missing_daily_periods_with_zero_values(): void {
         $authenticatedUser = User::factory()->create([
             'created_at' => '2026-05-01 08:00:00',
             'updated_at' => '2026-05-01 08:00:00',
@@ -31,14 +29,14 @@ class WidgetChartDataTest extends TestCase
         ]);
 
         $widget = Widget::query()->create([
-            'title' => 'Users by Day',
-            'type' => 'line',
+            'title'            => 'Users by Day',
+            'type'             => 'line',
             'calculation_type' => 'count',
-            'time_based_on' => 'created_at',
-            'time_interval' => 'day',
-            'timespan' => 'custom',
-            'model_class' => User::class,
-            'created_by' => $authenticatedUser->id,
+            'time_based_on'    => 'created_at',
+            'time_interval'    => 'day',
+            'timespan'         => 'custom',
+            'model_class'      => User::class,
+            'created_by'       => $authenticatedUser->id,
         ]);
 
         $response = $this
@@ -48,7 +46,7 @@ class WidgetChartDataTest extends TestCase
                 'config' => [
                     'dateRange' => [
                         'from' => '2026-04-01 00:00:00',
-                        'to' => '2026-04-04 23:59:59',
+                        'to'   => '2026-04-04 23:59:59',
                     ],
                 ],
             ]);
@@ -63,8 +61,7 @@ class WidgetChartDataTest extends TestCase
         ]);
     }
 
-    public function test_it_does_not_fill_missing_periods_for_non_line_and_non_bar_charts(): void
-    {
+    public function test_it_does_not_fill_missing_periods_for_non_line_and_non_bar_charts(): void {
         $authenticatedUser = User::factory()->create([
             'created_at' => '2026-05-01 08:00:00',
             'updated_at' => '2026-05-01 08:00:00',
@@ -81,14 +78,14 @@ class WidgetChartDataTest extends TestCase
         ]);
 
         $widget = Widget::query()->create([
-            'title' => 'Users by Day',
-            'type' => 'pie',
+            'title'            => 'Users by Day',
+            'type'             => 'pie',
             'calculation_type' => 'count',
-            'time_based_on' => 'created_at',
-            'time_interval' => 'day',
-            'timespan' => 'custom',
-            'model_class' => User::class,
-            'created_by' => $authenticatedUser->id,
+            'time_based_on'    => 'created_at',
+            'time_interval'    => 'day',
+            'timespan'         => 'custom',
+            'model_class'      => User::class,
+            'created_by'       => $authenticatedUser->id,
         ]);
 
         $response = $this
@@ -98,7 +95,7 @@ class WidgetChartDataTest extends TestCase
                 'config' => [
                     'dateRange' => [
                         'from' => '2026-04-01 00:00:00',
-                        'to' => '2026-04-04 23:59:59',
+                        'to'   => '2026-04-04 23:59:59',
                     ],
                 ],
             ]);

@@ -8,21 +8,17 @@ use App\Models\Core\Widget;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class DashboardWidget extends Model
-{
+class DashboardWidget extends Model {
     use HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-
+    protected $guarded   = ['id'];
     public $translateKey = 'settings.dashboard';
-
-    public $casts = [
-        'config' => Json::class,
+    public $casts        = [
+        'config'     => Json::class,
         'is_visible' => 'boolean',
     ];
 
-    protected static function loadRelationsOnShow()
-    {
+    protected static function loadRelationsOnShow() {
         return ['widget', 'dashboard', 'parent'];
     }
 
@@ -32,18 +28,15 @@ class DashboardWidget extends Model
         'parent',
     ];
 
-    public function widget()
-    {
+    public function widget() {
         return $this->belongsTo(Widget::class, 'widget_id');
     }
 
-    public function dashboard()
-    {
+    public function dashboard() {
         return $this->belongsTo(Dashboard::class, 'dashboard_id');
     }
 
-    public function parent()
-    {
+    public function parent() {
         return $this->belongsTo(DashboardWidget::class, 'parent_id');
     }
 }

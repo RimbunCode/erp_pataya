@@ -9,47 +9,40 @@ use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Dashboard extends Model
-{
+class Dashboard extends Model {
     use DataTable, HasUlids, SoftDeletes;
     //
 
-    protected $guarded = ['id'];
-
-    public $translateKey = 'settings.dashboard';
-
+    protected $guarded           = ['id'];
+    public $translateKey         = 'settings.dashboard';
     public string $keyBreadcrumb = 'title';
 
-    public static function templateLink()
-    {
+    public static function templateLink() {
         return ':title';
     }
 
-    protected static function loadRelationsOnShow()
-    {
+    protected static function loadRelationsOnShow() {
         return ['widgets', 'widgets.widget', 'createdBy'];
     }
 
     protected $configColumns = [
         'title' => [
-            'show' => true,
-            'order' => 0,
+            'show'   => true,
+            'order'  => 0,
             'isLink' => true,
         ],
         'createdBy' => [
-            'show' => true,
+            'show'  => true,
             'order' => 1,
         ],
     ];
 
-    public function widgets()
-    {
+    public function widgets() {
         return $this->hasMany(DashboardWidget::class, 'dashboard_id')
             ->orderBy('order');
     }
 
-    public function createdBy()
-    {
+    public function createdBy() {
         return $this->belongsTo(User::class, 'created_by');
     }
 }

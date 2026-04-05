@@ -94,10 +94,10 @@ class User extends Authenticatable {
         return $this->belongsToMany(Branch::class, 'user_branch', 'user_id', 'branch_id');
     }
 
-  public function dashboards() {
-    return $this
-      ->belongsToMany(Dashboard::class, 'user_dashboards', 'user_id', 'dashboard_id')
-      ->withPivot('order')
-      ->orderByPivot('order');
-  }
+    public function dashboards() {
+        return $this
+            ->belongsToMany(Dashboard::class, 'user_dashboards', 'user_id', 'dashboard_id')
+            ->withPivot('order')
+            ->orderByPivot('order');
+    }
 }

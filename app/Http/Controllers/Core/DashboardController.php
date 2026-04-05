@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Core;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Core\DashboardWidgetOrderRequest;
 use App\Http\Requests\Core\DashboardRequest;
+use App\Http\Requests\Core\DashboardWidgetOrderRequest;
 use App\Models\Core\Dashboard;
 use App\Models\DashboardWidget;
 use DB;
@@ -35,8 +35,7 @@ class DashboardController extends Controller {
         );
     }
 
-    public function view(Request $request)
-    {
+    public function view(Request $request) {
         $this->setBreadcrumbs();
         $dashboards = $request->user()->dashboards()->with(['widgets', 'widgets.widget'])->get();
 
@@ -51,25 +50,23 @@ class DashboardController extends Controller {
     /**
      * Show the form for creating a new resource.
      */
-    public function create()
-    {
+    public function create() {
         //
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(DashboardRequest $request)
-    {
-        $data = $request->validated();
+    public function store(DashboardRequest $request) {
+        $data               = $request->validated();
         $data['created_by'] = $request->user()->id;
         DB::beginTransaction();
         $dashboard = Dashboard::create($data);
 
         foreach ($data['widgets'] as $idx => $widget) {
             $widget['order'] = $idx;
-            $widget = $this->fillWidgetRelation($widget, $dashboard);
-            $widget = $dashboard->widgets()->create($widget);
+            $widget          = $this->fillWidgetRelation($widget, $dashboard);
+            $widget          = $dashboard->widgets()->create($widget);
 
             $widget->refresh();
 
@@ -80,11 +77,10 @@ class DashboardController extends Controller {
         return redirect()->back()->with('id', $dashboard->id);
     }
 
-    public function storeUserDashboard(Request $request)
-    {
-        $user = $request->user();
+    public function storeUserDashboard(Request $request) {
+        $user       = $request->user();
         $dashboards = $request->validate([
-            'dashboards' => ['required', 'array', 'min:1'],
+            'dashboards'                => ['required', 'array', 'min:1'],
             'dashboards.*.dashboard.id' => ['required', 'exists:dashboards,id'],
         ]);
         $dashboards = array_map(
@@ -97,7 +93,7 @@ class DashboardController extends Controller {
 
         foreach ($dashboards as $order => $dashboardId) {
             $user->dashboards()->attach($dashboardId, [
-                'id' => (string) new Ulid,
+                'id'    => (string) new Ulid,
                 'order' => $order,
             ]);
         }
@@ -107,14 +103,13 @@ class DashboardController extends Controller {
         return response()->noContent();
     }
 
-    public function reorderWidgets(DashboardWidgetOrderRequest $request, Dashboard $dashboard)
-    {
+    public function reorderWidgets(DashboardWidgetOrderRequest $request, Dashboard $dashboard) {
         abort_unless(
             $request->user()->dashboards()->where('dashboards.id', $dashboard->id)->exists(),
             403,
         );
 
-        $orderedWidgetIds = collect($request->validated('widgets'))->pluck('id')->values();
+        $orderedWidgetIds     = collect($request->validated('widgets'))->pluck('id')->values();
         $dashboardWidgetCount = DashboardWidget::query()
             ->where('dashboard_id', $dashboard->id)
             ->count();
@@ -151,8 +146,7 @@ class DashboardController extends Controller {
     /**
      * Display the specified resource.
      */
-    public function show(Dashboard $dashboard)
-    {
+    public function show(Dashboard $dashboard) {
         $this->setBreadcrumbs($dashboard);
         $dashboard->showDetail();
 
@@ -168,16 +162,14 @@ class DashboardController extends Controller {
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Dashboard $dashboard)
-    {
+    public function edit(Dashboard $dashboard) {
         //
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(DashboardRequest $request, Dashboard $dashboard)
-    {
+    public function update(DashboardRequest $request, Dashboard $dashboard) {
         $data = $request->validated();
         DB::beginTransaction();
         $data['created_by'] = $request->user()->id;
@@ -186,7 +178,7 @@ class DashboardController extends Controller {
             ->delete();
         foreach ($data['widgets'] as $idx => $widget) {
             $widget['order'] = $idx;
-            $widget = $this->fillWidgetRelation($widget, $dashboard);
+            $widget          = $this->fillWidgetRelation($widget, $dashboard);
             if (Ulid::isValid($widget['id'])) {
                 $widget = $dashboard->widgets()
                     ->find($widget['id'])->fill($widget);
@@ -207,8 +199,7 @@ class DashboardController extends Controller {
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Dashboard $dashboard)
-    {
+    public function destroy(Dashboard $dashboard) {
         DB::beginTransaction();
         $dashboard->logForDeleted();
         $dashboard->delete();
