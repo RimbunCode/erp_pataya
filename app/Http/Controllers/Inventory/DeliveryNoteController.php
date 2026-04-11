@@ -18,253 +18,253 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DeliveryNoteController extends Controller {
-  private DeliveryNoteService $service;
+    private DeliveryNoteService $service;
 
-  public function __construct(Request $request, DeliveryNoteService $service) {
-    $this->service = $service;
-    parent::__construct($request, DeliveryNote::class);
-  }
+    public function __construct(Request $request, DeliveryNoteService $service) {
+        $this->service = $service;
+        parent::__construct($request, DeliveryNote::class);
+    }
 
-  /**
-   * Display a listing of the resource.
-   */
-  public function index(Request $request) {
-    $this->setBreadcrumbs();
-    DeliveryNote::dataTable($request);
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request) {
+        $this->setBreadcrumbs();
+        DeliveryNote::dataTable($request);
 
-    return Inertia::render('Inventory/DeliveryNotes/Index');
-  }
+        return Inertia::render('Inventory/DeliveryNotes/Index');
+    }
 
-  /**
-   * Show the form for creating a new resource.
-   */
-  public function create(Request $request, ?string $ref = null) {
-    if ($ref) {
-      $split    = \explode('/', $ref);
-      $modelOri = $split[0] ?? null;
-      if ($modelOri) {
-        switch ($modelOri) {
-          case 'salesOrder':
-            $so = SalesOrder::find($split[1]);
-            if ($so) {
-              $do = DeliveryNote::where('referenceable_type', SalesOrder::class)
-                ->where('referenceable_id', $so->id)
-                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                ->where('created_by_id', $request->user()->id)
-                ->first();
-              if ($do) {
-                return redirect()->route('deliveryNotes.show', $do);
-              }
-              $so->loadRelations();
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(Request $request, ?string $ref = null) {
+        if ($ref) {
+            $split    = \explode('/', $ref);
+            $modelOri = $split[0] ?? null;
+            if ($modelOri) {
+                switch ($modelOri) {
+                    case 'salesOrder':
+                        $so = SalesOrder::find($split[1]);
+                        if ($so) {
+                            $do = DeliveryNote::where('referenceable_type', SalesOrder::class)
+                                ->where('referenceable_id', $so->id)
+                                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
+                                ->where('created_by_id', $request->user()->id)
+                                ->first();
+                            if ($do) {
+                                return redirect()->route('deliveryNotes.show', $do);
+                            }
+                            $so->loadRelations();
 
-              $defaultData = [
-                'delivery_date'      => now(),
-                'customer'           => $so->customer,
-                'customer_branch'    => $so->customer_branch,
-                'referenceable_type' => SalesOrder::class,
-                'referenceable_id'   => $so->id,
-                'referenceable'      => $so,
-                'external_note'      => $so->external_note,
-                'model'              => Permission::where('model', SalesOrder::class)->first(),
-                'items'              => $so->items
-                  ->filter(fn ($item) => $item->item->is_stock_item)
-                  ->map(fn ($item) => [
-                    'id'                 => Utils::generateRandom(5),
-                    'item'               => $item->item,
-                    'source_warehouse'   => $item->sourceWarehouse,
-                    'quantity'           => $item->undelivered_quantity,
-                    'required_quantity'  => $item->undelivered_quantity,
-                    'unit'               => $item->unit,
-                    'referenceable_type' => SalesOrderItem::class,
-                    'referenceable_id'   => $item->id,
-                  ]),
-              ];
+                            $defaultData = [
+                                'delivery_date'      => now(),
+                                'customer'           => $so->customer,
+                                'customer_branch'    => $so->customer_branch,
+                                'referenceable_type' => SalesOrder::class,
+                                'referenceable_id'   => $so->id,
+                                'referenceable'      => $so,
+                                'external_note'      => $so->external_note,
+                                'model'              => Permission::where('model', SalesOrder::class)->first(),
+                                'items'              => $so->items
+                                    ->filter(fn ($item) => $item->item->is_stock_item)
+                                    ->map(fn ($item) => [
+                                        'id'                 => Utils::generateRandom(5),
+                                        'item'               => $item->item,
+                                        'source_warehouse'   => $item->sourceWarehouse,
+                                        'quantity'           => $item->undelivered_quantity,
+                                        'required_quantity'  => $item->undelivered_quantity,
+                                        'unit'               => $item->unit,
+                                        'referenceable_type' => SalesOrderItem::class,
+                                        'referenceable_id'   => $item->id,
+                                    ]),
+                            ];
+                        }
+                        break;
+
+                    case 'internalOrder':
+                        $io = InternalOrder::find($split[1]);
+                        if ($io) {
+                            $do = DeliveryNote::where('referenceable_type', InternalOrder::class)
+                                ->where('referenceable_id', $io->id)
+                                ->where('status', 'draft')
+                                ->where('created_by_id', $request->user()->id)
+                                ->first();
+                            if ($do) {
+                                return redirect()->route('deliveryNotes.show', $do);
+                            }
+                            $io->loadRelations();
+                            $defaultData = [
+                                'delivery_date'      => now(),
+                                'customer_branch'    => $io->branch,
+                                'referenceable_type' => InternalOrder::class,
+                                'referenceable_id'   => $io->id,
+                                'referenceable'      => $io,
+                                'external_note'      => $io->external_note,
+                                'model'              => Permission::where('model', InternalOrder::class)->first(),
+                                'items'              => $io->items
+                                    ->filter(fn ($item) => $item->item->is_stock_item)
+                                    ->map(fn ($item) => [
+                                        'id'                 => Utils::generateRandom(5),
+                                        'item'               => $item->item,
+                                        'source_warehouse'   => $item->sourceWarehouse,
+                                        'quantity'           => $item->undelivered_quantity,
+                                        'required_quantity'  => $item->undelivered_quantity,
+                                        'unit'               => $item->unit,
+                                        'referenceable_type' => InternalOrderItem::class,
+                                        'referenceable_id'   => $item->id,
+                                    ]),
+                            ];
+                        }
+                        break;
+
+                    case 'deliveryNote':
+                        $doTarget = DeliveryNote::find($split[1]);
+                        if ($doTarget) {
+                            $do = DeliveryNote::where('return_against_id', $doTarget->id)
+                                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
+                                ->where('created_by_id', $request->user()->id)
+                                ->first();
+                            if ($do) {
+                                return redirect()->route('deliveryNotes.show', $do);
+                            }
+
+                            $doTarget->loadRelations();
+                            $defaultData = [
+                                'is_return'          => true,
+                                'return_against'     => $doTarget,
+                                'delivery_date'      => now(),
+                                'reference_to'       => $doTarget->reference_to,
+                                'customer'           => $doTarget->customer,
+                                'customer_branch'    => $doTarget->customer_branch,
+                                'referenceable_type' => $doTarget->referenceable_type,
+                                'referenceable_id'   => $doTarget->referenceable_id,
+                                'referenceable'      => $doTarget->referenceable,
+                                'external_note'      => $doTarget->external_note,
+                                'model'              => Permission::where('model', $doTarget->referenceable_type)->first(),
+                                'items'              => $doTarget->items->map(fn ($item) => [
+                                    'id'                  => Utils::generateRandom(5),
+                                    'item'                => $item->item,
+                                    'source_warehouse'    => $item->sourceWarehouse,
+                                    'quantity'            => $item->unreturned_quantity,
+                                    'required_quantity'   => $item->unreturned_quantity,
+                                    'unit'                => $item->unit,
+                                    'referenceable_type'  => $item->referenceable_type,
+                                    'referenceable_id'    => $item->referenceable_id,
+                                    'return_against_item' => $item,
+                                ]),
+                            ];
+                        }
+                        break;
+
+                }
             }
-            break;
-
-          case 'internalOrder':
-            $io = InternalOrder::find($split[1]);
-            if ($io) {
-              $do = DeliveryNote::where('referenceable_type', InternalOrder::class)
-                ->where('referenceable_id', $io->id)
-                ->where('status', 'draft')
-                ->where('created_by_id', $request->user()->id)
-                ->first();
-              if ($do) {
-                return redirect()->route('deliveryNotes.show', $do);
-              }
-              $io->loadRelations();
-              $defaultData = [
-                'delivery_date'      => now(),
-                'customer_branch'    => $io->branch,
-                'referenceable_type' => InternalOrder::class,
-                'referenceable_id'   => $io->id,
-                'referenceable'      => $io,
-                'external_note'      => $io->external_note,
-                'model'              => Permission::where('model', InternalOrder::class)->first(),
-                'items'              => $io->items
-                  ->filter(fn ($item) => $item->item->is_stock_item)
-                  ->map(fn ($item) => [
-                    'id'                 => Utils::generateRandom(5),
-                    'item'               => $item->item,
-                    'source_warehouse'   => $item->sourceWarehouse,
-                    'quantity'           => $item->undelivered_quantity,
-                    'required_quantity'  => $item->undelivered_quantity,
-                    'unit'               => $item->unit,
-                    'referenceable_type' => InternalOrderItem::class,
-                    'referenceable_id'   => $item->id,
-                  ]),
-              ];
-            }
-            break;
-
-          case 'deliveryNote':
-            $doTarget = DeliveryNote::find($split[1]);
-            if ($doTarget) {
-              $do = DeliveryNote::where('return_against_id', $doTarget->id)
-                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                ->where('created_by_id', $request->user()->id)
-                ->first();
-              if ($do) {
-                return redirect()->route('deliveryNotes.show', $do);
-              }
-
-              $doTarget->loadRelations();
-              $defaultData = [
-                'is_return'          => true,
-                'return_against'     => $doTarget,
-                'delivery_date'      => now(),
-                'reference_to'       => $doTarget->reference_to,
-                'customer'           => $doTarget->customer,
-                'customer_branch'    => $doTarget->customer_branch,
-                'referenceable_type' => $doTarget->referenceable_type,
-                'referenceable_id'   => $doTarget->referenceable_id,
-                'referenceable'      => $doTarget->referenceable,
-                'external_note'      => $doTarget->external_note,
-                'model'              => Permission::where('model', $doTarget->referenceable_type)->first(),
-                'items'              => $doTarget->items->map(fn ($item) => [
-                  'id'                  => Utils::generateRandom(5),
-                  'item'                => $item->item,
-                  'source_warehouse'    => $item->sourceWarehouse,
-                  'quantity'            => $item->unreturned_quantity,
-                  'required_quantity'   => $item->unreturned_quantity,
-                  'unit'                => $item->unit,
-                  'referenceable_type'  => $item->referenceable_type,
-                  'referenceable_id'    => $item->referenceable_id,
-                  'return_against_item' => $item,
-                ]),
-              ];
-            }
-            break;
-
         }
-      }
+
+        $this->setBreadcrumbs('inventory.deliveryNote.new');
+
+        return Inertia::render('Inventory/DeliveryNotes/Show', [
+            'defaultData' => $defaultData ?? null,
+        ]);
     }
 
-    $this->setBreadcrumbs('inventory.deliveryNote.new');
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(DeliveryNoteRequest $request) {
+        try {
+            $data = $request->validated();
+            DB::beginTransaction();
 
-    return Inertia::render('Inventory/DeliveryNotes/Show', [
-      'defaultData' => $defaultData ?? null,
-    ]);
-  }
+            // branch dari session
+            $data['branch_id']     = $request->session()->get('currentBranch');
+            $data['created_by_id'] = $request->user()->id;
 
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(DeliveryNoteRequest $request) {
-    try {
-      $data = $request->validated();
-      DB::beginTransaction();
+            $deliveryNote = $this->service->create($data);
+            $deliveryNote->logForCreated();
 
-      // branch dari session
-      $data['branch_id']     = $request->session()->get('currentBranch');
-      $data['created_by_id'] = $request->user()->id;
+            DB::commit();
 
-      $deliveryNote = $this->service->create($data);
-      $deliveryNote->logForCreated();
-
-      DB::commit();
-
-      return redirect()->route('deliveryNotes.show', $deliveryNote)
-        ->with('success', 'DeliveryNote successfully created!');
-    } catch (\Throwable $th) {
-      DB::rollBack();
-      throw $th;
+            return redirect()->route('deliveryNotes.show', $deliveryNote)
+                ->with('success', 'DeliveryNote successfully created!');
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw $th;
+        }
     }
-  }
 
-  /**
-   * Display the specified resource.
-   */
-  public function show(DeliveryNote $deliveryNote) {
-    $this->setBreadcrumbs($deliveryNote);
-    $deliveryNote->showDetail();
+    /**
+     * Display the specified resource.
+     */
+    public function show(DeliveryNote $deliveryNote) {
+        $this->setBreadcrumbs($deliveryNote);
+        $deliveryNote->showDetail();
 
-    return Inertia::render('Inventory/DeliveryNotes/Show', [
-      'deliveryNote' => function () use ($deliveryNote) {
-        $deliveryNote->loadRelations();
+        return Inertia::render('Inventory/DeliveryNotes/Show', [
+            'deliveryNote' => function () use ($deliveryNote) {
+                $deliveryNote->loadRelations();
 
-        return $deliveryNote;
-      },
-    ]);
-  }
+                return $deliveryNote;
+            },
+        ]);
+    }
 
-  /**
-   * Show the form for editing the specified resource.
-   */
-  public function edit(string $id) {
-    //
-  }
+    /**
+     * Show the form for editing the specified resource.
+     */
+    public function edit(string $id) {
+        //
+    }
 
-  /**
-   * Update the specified resource in storage.
-   */
-  public function update(DeliveryNoteRequest $request, DeliveryNote $deliveryNote) {
-    $data = $request->validated();
-    DB::beginTransaction();
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(DeliveryNoteRequest $request, DeliveryNote $deliveryNote) {
+        $data = $request->validated();
+        DB::beginTransaction();
 
-    $this->service->update($deliveryNote, $data);
+        $this->service->update($deliveryNote, $data);
 
-    DB::commit();
+        DB::commit();
 
-    return redirect()->back();
-  }
+        return redirect()->back();
+    }
 
-  /**
-   * Remove the specified resource from storage.
-   */
-  public function destroy(DeliveryNote $deliveryNote) {
-    DB::beginTransaction();
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(DeliveryNote $deliveryNote) {
+        DB::beginTransaction();
 
-    $deliveryNote->delete();
-    $deliveryNote->logForDeleted();
+        $deliveryNote->delete();
+        $deliveryNote->logForDeleted();
 
-    DB::commit();
+        DB::commit();
 
-    return redirect()->route('deliveryNotes.index');
-  }
+        return redirect()->route('deliveryNotes.index');
+    }
 
-  public function submit(DeliveryNote $deliveryNote) {
-    $this->service->submit($deliveryNote);
+    public function submit(DeliveryNote $deliveryNote) {
+        $this->service->submit($deliveryNote);
 
-    return redirect()->back();
-  }
+        return redirect()->back();
+    }
 
-  public function onApproved(DeliveryNote $deliveryNote) {
-    $this->service->onApproved($deliveryNote);
+    public function onApproved(DeliveryNote $deliveryNote) {
+        $this->service->onApproved($deliveryNote);
 
-    return redirect()->back();
-  }
+        return redirect()->back();
+    }
 
-  public function onRejected(DeliveryNote $deliveryNote) {
-    $this->service->onRejected($deliveryNote);
+    public function onRejected(DeliveryNote $deliveryNote) {
+        $this->service->onRejected($deliveryNote);
 
-    return redirect()->back();
-  }
+        return redirect()->back();
+    }
 
-  public function cancel(DeliveryNote $deliveryNote) {
-    $this->service->cancel($deliveryNote);
+    public function cancel(DeliveryNote $deliveryNote) {
+        $this->service->cancel($deliveryNote);
 
-    return redirect()->back();
-  }
+        return redirect()->back();
+    }
 }

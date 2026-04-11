@@ -25,9 +25,9 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected        $permissions;
-    protected        $modelPermissions;
-    protected        $onlyCreator      = false;
+    protected $permissions;
+    protected $modelPermissions;
+    protected $onlyCreator = false;
     protected string $lang;
 
     /**
@@ -265,8 +265,8 @@ abstract class Controller {
         $printTemplate->loadRelations();
 
         return Inertia::render('Core/Print', [
-            'data'          => $data,
-            'document'      => [
+            'data'     => $data,
+            'document' => [
                 [
                     'name'       => 'name',
                     'titleTrans' => $data->translateKey . '.name',

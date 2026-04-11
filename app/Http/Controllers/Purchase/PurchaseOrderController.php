@@ -17,165 +17,165 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller {
-  private PurchaseOrderService $service;
+    private PurchaseOrderService $service;
 
-  public function __construct(Request $request, PurchaseOrderService $service) {
-    $this->service = $service;
-    parent::__construct($request, PurchaseOrder::class);
-  }
-
-  /**
-   * Display a listing of the resource.
-   */
-  public function index(Request $request) {
-    $this->setBreadcrumbs();
-    PurchaseOrder::dataTable($request);
-
-    return Inertia::render('Purchase/PurchaseOrders/Index');
-  }
-
-  /**
-   * Show the form for creating a new resource.
-   */
-  public function create(Request $request, $ref = null) {
-    if ($ref) {
-      $split    = \explode('/', $ref);
-      $modelOri = $split[0] ?? null;
-      if ($modelOri) {
-        switch ($modelOri) {
-          case 'workOrder':
-            $wo = WorkOrder::find($split[1]);
-            if ($wo) {
-              $wo->loadRelations();
-              $defaultData = [
-                'items' => $wo->items->map(fn ($item) => [
-                  ...$item,
-                  'id'                 => Utils::generateRandom(5),
-                  'quantity'           => $item->remaining_quantity,
-                  'unit'               => $item->unit,
-                  'referenceable_type' => WorkOrderItem::class,
-                  'referenceable_id'   => $item->id,
-                ]),
-              ];
-            }
-            break;
-
-          case 'purchaseRequest':
-            $pr = PurchaseRequest::find($split[1]);
-            if ($pr) {
-              $pr->loadRelations();
-              $defaultData = [
-                'required_date' => $pr->required_date,
-                'items'         => $pr->items->map(function ($item) {
-                  return [
-                    ...$item->toArray(),
-                    'id'                 => Utils::generateRandom(5),
-                    'quantity'           => $item->remaining_quantity,
-                    'required_date'      => $item->required_date,
-                    'unit'               => $item->unit,
-                    'referenceable_type' => PurchaseRequestItem::class,
-                    'referenceable_id'   => $item->id,
-                  ];
-                }),
-              ];
-            }
-            break;
-
-        }
-      }
+    public function __construct(Request $request, PurchaseOrderService $service) {
+        $this->service = $service;
+        parent::__construct($request, PurchaseOrder::class);
     }
-    $this->setBreadcrumbs('purchase.purchaseOrder.new');
 
-    return Inertia::render('Purchase/PurchaseOrders/Show', [
-      'defaultData' => $defaultData ?? null,
-    ]);
-  }
+    /**
+     * Display a listing of the resource.
+     */
+    public function index(Request $request) {
+        $this->setBreadcrumbs();
+        PurchaseOrder::dataTable($request);
 
-  /**
-   * Store a newly created resource in storage.
-   */
-  public function store(PurchaseOrderRequest $request) {
-    $data = $request->validated();
-    DB::beginTransaction();
+        return Inertia::render('Purchase/PurchaseOrders/Index');
+    }
 
-    // branch dari session
-    $data['branch_id']     = $request->session()->get('currentBranch');
-    $data['created_by_id'] = $request->user()->id;
+    /**
+     * Show the form for creating a new resource.
+     */
+    public function create(Request $request, $ref = null) {
+        if ($ref) {
+            $split    = \explode('/', $ref);
+            $modelOri = $split[0] ?? null;
+            if ($modelOri) {
+                switch ($modelOri) {
+                    case 'workOrder':
+                        $wo = WorkOrder::find($split[1]);
+                        if ($wo) {
+                            $wo->loadRelations();
+                            $defaultData = [
+                                'items' => $wo->items->map(fn ($item) => [
+                                    ...$item,
+                                    'id'                 => Utils::generateRandom(5),
+                                    'quantity'           => $item->remaining_quantity,
+                                    'unit'               => $item->unit,
+                                    'referenceable_type' => WorkOrderItem::class,
+                                    'referenceable_id'   => $item->id,
+                                ]),
+                            ];
+                        }
+                        break;
 
-    // create PO
-    $po = $this->service->create($data);
+                    case 'purchaseRequest':
+                        $pr = PurchaseRequest::find($split[1]);
+                        if ($pr) {
+                            $pr->loadRelations();
+                            $defaultData = [
+                                'required_date' => $pr->required_date,
+                                'items'         => $pr->items->map(function ($item) {
+                                    return [
+                                        ...$item->toArray(),
+                                        'id'                 => Utils::generateRandom(5),
+                                        'quantity'           => $item->remaining_quantity,
+                                        'required_date'      => $item->required_date,
+                                        'unit'               => $item->unit,
+                                        'referenceable_type' => PurchaseRequestItem::class,
+                                        'referenceable_id'   => $item->id,
+                                    ];
+                                }),
+                            ];
+                        }
+                        break;
 
-    DB::commit();
+                }
+            }
+        }
+        $this->setBreadcrumbs('purchase.purchaseOrder.new');
 
-    return redirect()->route('purchaseOrders.show', $po);
-  }
+        return Inertia::render('Purchase/PurchaseOrders/Show', [
+            'defaultData' => $defaultData ?? null,
+        ]);
+    }
 
-  /**
-   * Display the specified resource.
-   */
-  public function show(PurchaseOrder $purchaseOrder) {
-    $this->setBreadcrumbs($purchaseOrder);
-    $purchaseOrder->showDetail();
+    /**
+     * Store a newly created resource in storage.
+     */
+    public function store(PurchaseOrderRequest $request) {
+        $data = $request->validated();
+        DB::beginTransaction();
 
-    return Inertia::render('Purchase/PurchaseOrders/Show', [
-      'purchaseOrder' => function () use ($purchaseOrder) {
-        $purchaseOrder->loadRelations();
+        // branch dari session
+        $data['branch_id']     = $request->session()->get('currentBranch');
+        $data['created_by_id'] = $request->user()->id;
 
-        return $purchaseOrder;
-      },
-    ]);
-  }
+        // create PO
+        $po = $this->service->create($data);
 
-  /**
-   * Update the specified resource in storage.
-   */
-  public function update(PurchaseOrderRequest $request, PurchaseOrder $purchaseOrder) {
-    $data = $request->validated();
-    DB::beginTransaction();
+        DB::commit();
 
-    $po = $this->service->update($purchaseOrder, $data);
+        return redirect()->route('purchaseOrders.show', $po);
+    }
 
-    DB::commit();
+    /**
+     * Display the specified resource.
+     */
+    public function show(PurchaseOrder $purchaseOrder) {
+        $this->setBreadcrumbs($purchaseOrder);
+        $purchaseOrder->showDetail();
 
-    return redirect()->back();
-  }
+        return Inertia::render('Purchase/PurchaseOrders/Show', [
+            'purchaseOrder' => function () use ($purchaseOrder) {
+                $purchaseOrder->loadRelations();
 
-  /**
-   * Submit Purchase Order.
-   */
-  public function submit(Request $request, PurchaseOrder $purchaseOrder) {
-    $po = $this->service->submit($purchaseOrder);
+                return $purchaseOrder;
+            },
+        ]);
+    }
 
-    return redirect()->back();
-  }
+    /**
+     * Update the specified resource in storage.
+     */
+    public function update(PurchaseOrderRequest $request, PurchaseOrder $purchaseOrder) {
+        $data = $request->validated();
+        DB::beginTransaction();
 
-  public function onApproved(PurchaseOrder $purchaseOrder) {
-    $this->service->onApproved($purchaseOrder);
+        $po = $this->service->update($purchaseOrder, $data);
 
-    return back();
-  }
+        DB::commit();
 
-  public function onRejected(PurchaseOrder $purchaseOrder) {
-    $this->service->onRejected($purchaseOrder);
+        return redirect()->back();
+    }
 
-    return back();
-  }
+    /**
+     * Submit Purchase Order.
+     */
+    public function submit(Request $request, PurchaseOrder $purchaseOrder) {
+        $po = $this->service->submit($purchaseOrder);
 
-  public function cancel(PurchaseOrder $purchaseOrder) {
-    $this->service->cancel($purchaseOrder);
+        return redirect()->back();
+    }
 
-    return back();
-  }
+    public function onApproved(PurchaseOrder $purchaseOrder) {
+        $this->service->onApproved($purchaseOrder);
 
-  /**
-   * Remove the specified resource from storage.
-   */
-  public function destroy(PurchaseOrder $purchaseOrder) {
-    DB::beginTransaction();
-    $purchaseOrder->delete();
-    $purchaseOrder->logForDeleted();
-    DB::commit();
+        return back();
+    }
 
-    return redirect()->route('purchaseOrders.index');
-  }
+    public function onRejected(PurchaseOrder $purchaseOrder) {
+        $this->service->onRejected($purchaseOrder);
+
+        return back();
+    }
+
+    public function cancel(PurchaseOrder $purchaseOrder) {
+        $this->service->cancel($purchaseOrder);
+
+        return back();
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     */
+    public function destroy(PurchaseOrder $purchaseOrder) {
+        DB::beginTransaction();
+        $purchaseOrder->delete();
+        $purchaseOrder->logForDeleted();
+        DB::commit();
+
+        return redirect()->route('purchaseOrders.index');
+    }
 }

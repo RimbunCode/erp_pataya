@@ -5,21 +5,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
+    public function up(): void {
+        Schema::create('dashboards', function (Blueprint $table) {
+            $table->ulid('id')->primary();
+            $table->string('title');
+            $table->foreignUlid('created_by_id')->nullable()->references('id')->on('users')->nullOnDelete();
+            $table->softDeletes();
+            $table->timestamps();
+        });
+    }
 
-  /**
-   * Run the migrations.
-   */
-  public function up(): void {
-    Schema::create('dashboards', function (Blueprint $table) {
-      $table->ulid('id')->primary();
-      $table->string('title');
-      $table->foreignUlid('created_by_id')->nullable()->references('id')->on('users')->nullOnDelete();
-      $table->softDeletes();
-      $table->timestamps();
-    });
-  }
-
-  public function down(): void {
-    Schema::dropIfExists('dashboards');
-  }
+    public function down(): void {
+        Schema::dropIfExists('dashboards');
+    }
 };
