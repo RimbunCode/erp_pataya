@@ -76,27 +76,7 @@ abstract class Controller {
     }
 
     public function guard(string $action, int $level = 0) {
-        $levelPermissions = $this->modelPermissions[$level] ?? null;
-        if ($levelPermissions === null) {
-            abort(403);
-        }
-
-        $allowed     = false;
-        $onlyCreator = false;
-        foreach ($levelPermissions as $levelPermission) {
-            if ($levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
-                $allowed     = true;
-                $onlyCreator = true;
-            } elseif (! $levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
-                $allowed     = true;
-                $onlyCreator = false;
-            }
-        }
-        if (! $allowed) {
-            abort(403);
-        }
-
-        return $onlyCreator;
+        return $this->model::_checkPermission($action, $level);
     }
 
     public function __construct(Request $request, ?string $model = null) {
@@ -108,37 +88,40 @@ abstract class Controller {
         if (! $model) {
             return;
         }
+        Inertia::share([
+            'model' => $model,
+        ]);
 
-        // $this->permissions = $request->session()->get('permissions');
-        // $this->modelPermissions = $this->permissions[$this->model] ?? null;
-        // if ($this->modelPermissions === null) {
-        //     abort(403);
-        // }
+        $this->permissions      = $request->session()->get('permissions');
+        $this->modelPermissions = $this->permissions[$this->model] ?? null;
+        if ($this->modelPermissions === null) {
+            abort(403);
+        }
 
-        // $currentRoute = Route::getCurrentRoute();
-        // $method = $currentRoute->getActionMethod();
+        $currentRoute = Route::getCurrentRoute();
+        $method       = $currentRoute->getActionMethod();
 
-        // $keyPermission = match ($method) {
-        //     'index' => 'select',
-        //     'create' => 'create',
-        //     'store' => 'create',
-        //     'show' => 'read',
-        //     'update' => 'write',
-        //     'destroy' => 'delete',
-        //     'import' => 'import',
-        //     'export' => 'export',
-        //     'share' => 'share',
-        //     'submit' => 'submit',
-        //     'cancel' => 'cancel',
-        //     'print' => 'print',
-        //     'amend' => 'amend',
-        //     default => null,
-        // };
+        $keyPermission = match ($method) {
+            'index'   => 'select',
+            'create'  => 'create',
+            'store'   => 'create',
+            'show'    => 'read',
+            'update'  => 'write',
+            'destroy' => 'delete',
+            'import'  => 'import',
+            'export'  => 'export',
+            'share'   => 'share',
+            'submit'  => 'submit',
+            'cancel'  => 'cancel',
+            'print'   => 'print',
+            'amend'   => 'amend',
+            default   => null,
+        };
 
-        // if ($keyPermission) {
-        //     $this->onlyCreator = $this->guard($keyPermission, 0);
-        //     $request->onlyCreator = $this->onlyCreator ?? false;
-        // }
+        if ($keyPermission) {
+            $this->onlyCreator    = $this->guard($keyPermission, 0);
+            $request->onlyCreator = $this->onlyCreator ?? false;
+        }
     }
 
     protected function isInertiaRequest(Request $request) {

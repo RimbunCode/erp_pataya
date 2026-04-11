@@ -10,7 +10,14 @@
   "php.linkedEditing.variables": false,
   "php.problems.excludeGitIgnore": true,
   "php.problems.exclude": {
-    "**/*": ["PHP6615", "PHP0413", "PHP6602", "PHP0416", "PHP0410"]
+    "**/*": [
+      "PHP6615",
+      "PHP0413",
+      "PHP6602",
+      "PHP0416",
+      "PHP0410",
+      "PHP2436"
+    ]
   },
   "php.suggest.basic": true,
   "php.validate.enable": true,

@@ -4,7 +4,7 @@
   "scripts": {
     "build": "vite build && vite build --ssr",
     "dev": "vite",
-    "zodgen": "laravel-zodgen",
+    "zodgen": "laravel-zodgen && node zodgen-postprocess.mjs",
     "docs": "jsdoc -c jsdoc.conf.json",
     "lint": "eslint \"resources/js/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint \"resources/js/**/*.{js,jsx,ts,tsx}\" --fix",

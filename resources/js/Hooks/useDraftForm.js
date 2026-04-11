@@ -195,8 +195,10 @@ export const useDraftForm = (
               preserveUrl: false,
             }
           : {
-              // Halaman (create/update): muat ulang props terbaru dari backend
-              preserveState: false,
+              // Halaman update: simpan state hanya saat ada validation errors.
+              // Gunakan callback agar eksplisit dan konsisten dengan opsi yang didokumentasikan.
+              preserveState: (page) =>
+                Object.keys(page?.props?.errors ?? {}).length > 0,
               preserveScroll: true,
             }),
         replace: true,

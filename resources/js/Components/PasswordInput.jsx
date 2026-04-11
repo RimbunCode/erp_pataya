@@ -1,16 +1,33 @@
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-import React, { forwardRef, useState } from "react";
+import React, { forwardRef, useEffect, useState } from "react";
 
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { cn } from "@/lib/utils";
 
 export default forwardRef(function PasswordInput(
-  { className, disabled, ...props },
+  { className, disabled, visible, onVisibleChange, ...props },
   ref,
 ) {
-  const [isVisible, setIsVisible] = useState(false);
-  const toggleVisibility = () => setIsVisible((prevState) => !prevState);
+  const [internalVisible, setInternalVisible] = useState(false);
+  const isControlled = visible !== undefined;
+  const isVisible = isControlled ? Boolean(visible) : internalVisible;
+
+  useEffect(() => {
+    if (isControlled) {
+      setInternalVisible(Boolean(visible));
+    }
+  }, [isControlled, visible]);
+
+  const setVisibility = (nextVisible) => {
+    if (!isControlled) {
+      setInternalVisible(nextVisible);
+    }
+
+    onVisibleChange?.(nextVisible);
+  };
+
+  const toggleVisibility = () => setVisibility(!isVisible);
   return (
     <div
       className={cn(

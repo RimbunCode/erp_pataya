@@ -62,7 +62,7 @@ export default React.memo(function BranchSwitcher() {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground "
             >
-              <div className="flex items-center justify-center rounded-lg aspect-square size-8 -ml-2 bg-sidebar-foreground dark:text-muted! text-sidebar-primary-foreground">
+              <div className="flex items-center justify-center rounded-lg aspect-square size-8 bg-sidebar-foreground dark:text-muted! text-sidebar-primary-foreground">
                 <Building2Icon className="size-5" />
               </div>
               <div className="grid flex-1 text-sm leading-tight text-left">

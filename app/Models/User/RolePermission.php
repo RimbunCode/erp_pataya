@@ -31,7 +31,12 @@ class RolePermission extends Model {
             return ['read', 'write'];
         }
 
-        return $this->permission?->permissions ?? \array_keys((array) $this->permissions);
+        $permissionKeys = $this->permission?->permissions ?? \array_keys((array) $this->permissions);
+        if ($this->only_creator) {
+            return \array_values(\array_filter($permissionKeys, fn ($k) => $k !== 'create'));
+        }
+
+        return $permissionKeys;
     }
 
     public function permission() {

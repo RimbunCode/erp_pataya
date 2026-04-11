@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Socialite\Facades\Socialite;
@@ -70,6 +71,15 @@ class AuthenticatedSessionController extends Controller {
 
         DB::beginTransaction();
         if ($authUser) {
+            $alreadyConnected = UserProvider::where('provider', $driver)
+                ->where('provider_id', $user->getId())
+                ->exists();
+
+            if ($alreadyConnected) {
+                throw ValidationException::withMessages([
+                    'provider_account' => 'This provider account is already connected to your account.',
+                ]);
+            }
             $authUser->providers()->updateOrCreate([
                 'provider'    => $driver,
                 'provider_id' => $user->getId(),
