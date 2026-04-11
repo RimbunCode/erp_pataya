@@ -539,7 +539,7 @@ export default memo(
                   </Select>
                 </div>
               </div>
-              {form && can("create").allowed && (
+              {form && can("create") && (
                 <Button
                   className="p-2! size- fit h-8"
                   onClick={() => dialogRef?.current?.open()}
@@ -624,7 +624,7 @@ export default memo(
             </div>
           </div>
         </AppLayout>
-        {form && can("create").allowed && (
+        {form && can("create") && (
           <FormPageDialog
             ref={dialogRef}
             title={t(`${translateKey}.new`)}

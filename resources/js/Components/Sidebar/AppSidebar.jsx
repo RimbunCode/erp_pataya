@@ -122,19 +122,19 @@ const navList = [
         title: "Suppliers",
         url: "/suppliers",
         urlPattern: "/suppliers/*",
-        model: "App\\Models\\Inventory\\Supplier",
+        model: "App\\Models\\Purchase\\Supplier",
       },
       {
         title: "Purchase Requests",
         url: "/purchaseRequests",
         urlPattern: "/purchaseRequests/*",
-        model: "App\\Models\\Inventory\\PurchaseRequest",
+        model: "App\\Models\\Purchase\\PurchaseRequest",
       },
       {
         title: "Purchase Orders",
         url: "/purchaseOrders",
         urlPattern: "/purchaseOrders/*",
-        model: "App\\Models\\Inventory\\PurchaseOrder",
+        model: "App\\Models\\Purchase\\PurchaseOrder",
       },
     ],
   },
@@ -142,7 +142,7 @@ const navList = [
     title: "Customers",
     url: "/customers",
     urlPattern: "/customers/*",
-    model: "App\\Models\\Inventory\\Customer",
+    model: "App\\Models\\Sales\\Customer",
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
         <path
