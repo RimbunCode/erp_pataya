@@ -33,7 +33,6 @@ export function NavMain({ items: _items }) {
   useEffect(() => {
     setOpen(isLargeDesktop);
   }, [isLargeDesktop]);
-  console.log(permissions);
 
   const items = _items.map((item) => {
     if (item.items && Array.isArray(item.items)) {

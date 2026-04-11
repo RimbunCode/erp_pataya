@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Schema\Blueprint;
 
 Blueprint::macro('generalFields', function ($isUser = false) {
@@ -7,6 +6,6 @@ Blueprint::macro('generalFields', function ($isUser = false) {
     $this->timestamps();
     $this->softDeletes();
     if ($isUser) {
-        $this->foreignUlid('created_by')->nullable()->references('id')->on('users')->cascadeOnDelete();
+        $this->foreignUlid('created_by_id')->nullable()->references('id')->on('users')->cascadeOnDelete();
     }
 });

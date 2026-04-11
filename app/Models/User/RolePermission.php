@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Auth;
 
 class RolePermission extends Model {
     use HasUlids, SoftDeletes;
-
     protected $guarded = ['id'];
     protected $casts   = [
         'permissions'   => Json::class,
@@ -31,10 +30,11 @@ class RolePermission extends Model {
             return ['read', 'write'];
         }
 
-        $permissionKeys = $this->permission?->permissions ?? \array_keys((array) $this->permissions);
-        if ($this->only_creator) {
-            return \array_values(\array_filter($permissionKeys, fn ($k) => $k !== 'create'));
-        }
+        $permissionKeys = \array_values($this->permission?->permissions ?? \array_keys((array) $this->permissions));
+
+        // if ($this->only_creator) {
+        //     return \array_values(\array_filter($permissionKeys, fn ($k) => \in_array($k, ['create', 'import'])));
+        // }
 
         return $permissionKeys;
     }
@@ -53,7 +53,7 @@ class RolePermission extends Model {
             ->join('user_role', 'user_role.role_id', '=', 'roles.id')
             ->where('user_role.user_id', Auth::user()->id)
             ->where('model', $model);
-        $result = [];
+        $result          = [];
 
         foreach ($rolePermissions->get()->toArray() as $item) {
             foreach ($item['permissions'] as $key => $value) {
@@ -62,7 +62,7 @@ class RolePermission extends Model {
                 // CASE: read/write dengan level <= 0
                 if ($isReadWrite && $item['level'] <= 0) {
                     $result[$key][0] ??= [false, false];
-                    $ref = &$result[$key][0];
+                    $ref               = &$result[$key][0];
 
                     $idx       = $item['only_creator'] ? 1 : 0;
                     $ref[$idx] = $ref[$idx] || $value;
@@ -81,7 +81,7 @@ class RolePermission extends Model {
 
                 // CASE: key lain
                 $result[$key] ??= [false, false];
-                $ref = &$result[$key];
+                $ref            = &$result[$key];
 
                 $idx       = $item['only_creator'] ? 1 : 0;
                 $ref[$idx] = $ref[$idx] || $value;

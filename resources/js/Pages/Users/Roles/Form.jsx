@@ -67,11 +67,7 @@ function Form() {
         return;
       }
       const permissionKeys =
-        level > 0
-          ? ["read", "write"]
-          : onlyCreator
-            ? rule.model.permissions.filter((p) => p !== "create")
-            : rule.model.permissions;
+        level > 0 ? ["read", "write"] : rule.model.permissions;
 
       setData("rules", [
         {
@@ -142,6 +138,13 @@ function Form() {
                 share: false,
                 print: false,
               }),
+            };
+          }
+
+          if (key === "create" && !nextValue) {
+            permissions = {
+              ...permissions,
+              import: false,
             };
           }
 

@@ -17,165 +17,165 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller {
-    private PurchaseOrderService $service;
+  private PurchaseOrderService $service;
 
-    public function __construct(Request $request, PurchaseOrderService $service) {
-        $this->service = $service;
-        parent::__construct($request, PurchaseOrder::class);
-    }
+  public function __construct(Request $request, PurchaseOrderService $service) {
+    $this->service = $service;
+    parent::__construct($request, PurchaseOrder::class);
+  }
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request) {
-        $this->setBreadcrumbs();
-        PurchaseOrder::dataTable($request);
+  /**
+   * Display a listing of the resource.
+   */
+  public function index(Request $request) {
+    $this->setBreadcrumbs();
+    PurchaseOrder::dataTable($request);
 
-        return Inertia::render('Purchase/PurchaseOrders/Index');
-    }
+    return Inertia::render('Purchase/PurchaseOrders/Index');
+  }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(Request $request, $ref = null) {
-        if ($ref) {
-            $split    = \explode('/', $ref);
-            $modelOri = $split[0] ?? null;
-            if ($modelOri) {
-                switch ($modelOri) {
-                    case 'workOrder':
-                        $wo = WorkOrder::find($split[1]);
-                        if ($wo) {
-                            $wo->loadRelations();
-                            $defaultData = [
-                                'items' => $wo->items->map(fn ($item) => [
-                                    ...$item,
-                                    'id'                 => Utils::generateRandom(5),
-                                    'quantity'           => $item->remaining_quantity,
-                                    'unit'               => $item->unit,
-                                    'referenceable_type' => WorkOrderItem::class,
-                                    'referenceable_id'   => $item->id,
-                                ]),
-                            ];
-                        }
-                        break;
-
-                    case 'purchaseRequest':
-                        $pr = PurchaseRequest::find($split[1]);
-                        if ($pr) {
-                            $pr->loadRelations();
-                            $defaultData = [
-                                'required_date' => $pr->required_date,
-                                'items'         => $pr->items->map(function ($item) {
-                                    return [
-                                        ...$item->toArray(),
-                                        'id'                 => Utils::generateRandom(5),
-                                        'quantity'           => $item->remaining_quantity,
-                                        'required_date'      => $item->required_date,
-                                        'unit'               => $item->unit,
-                                        'referenceable_type' => PurchaseRequestItem::class,
-                                        'referenceable_id'   => $item->id,
-                                    ];
-                                }),
-                            ];
-                        }
-                        break;
-
-                }
+  /**
+   * Show the form for creating a new resource.
+   */
+  public function create(Request $request, $ref = null) {
+    if ($ref) {
+      $split    = \explode('/', $ref);
+      $modelOri = $split[0] ?? null;
+      if ($modelOri) {
+        switch ($modelOri) {
+          case 'workOrder':
+            $wo = WorkOrder::find($split[1]);
+            if ($wo) {
+              $wo->loadRelations();
+              $defaultData = [
+                'items' => $wo->items->map(fn ($item) => [
+                  ...$item,
+                  'id'                 => Utils::generateRandom(5),
+                  'quantity'           => $item->remaining_quantity,
+                  'unit'               => $item->unit,
+                  'referenceable_type' => WorkOrderItem::class,
+                  'referenceable_id'   => $item->id,
+                ]),
+              ];
             }
+            break;
+
+          case 'purchaseRequest':
+            $pr = PurchaseRequest::find($split[1]);
+            if ($pr) {
+              $pr->loadRelations();
+              $defaultData = [
+                'required_date' => $pr->required_date,
+                'items'         => $pr->items->map(function ($item) {
+                  return [
+                    ...$item->toArray(),
+                    'id'                 => Utils::generateRandom(5),
+                    'quantity'           => $item->remaining_quantity,
+                    'required_date'      => $item->required_date,
+                    'unit'               => $item->unit,
+                    'referenceable_type' => PurchaseRequestItem::class,
+                    'referenceable_id'   => $item->id,
+                  ];
+                }),
+              ];
+            }
+            break;
+
         }
-        $this->setBreadcrumbs('purchase.purchaseOrder.new');
-
-        return Inertia::render('Purchase/PurchaseOrders/Show', [
-            'defaultData' => $defaultData ?? null,
-        ]);
+      }
     }
+    $this->setBreadcrumbs('purchase.purchaseOrder.new');
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(PurchaseOrderRequest $request) {
-        $data = $request->validated();
-        DB::beginTransaction();
+    return Inertia::render('Purchase/PurchaseOrders/Show', [
+      'defaultData' => $defaultData ?? null,
+    ]);
+  }
 
-        // branch dari session
-        $data['branch_id']  = $request->session()->get('currentBranch');
-        $data['created_by'] = $request->user()->id;
+  /**
+   * Store a newly created resource in storage.
+   */
+  public function store(PurchaseOrderRequest $request) {
+    $data = $request->validated();
+    DB::beginTransaction();
 
-        // create PO
-        $po = $this->service->create($data);
+    // branch dari session
+    $data['branch_id']     = $request->session()->get('currentBranch');
+    $data['created_by_id'] = $request->user()->id;
 
-        DB::commit();
+    // create PO
+    $po = $this->service->create($data);
 
-        return redirect()->route('purchaseOrders.show', $po);
-    }
+    DB::commit();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(PurchaseOrder $purchaseOrder) {
-        $this->setBreadcrumbs($purchaseOrder);
-        $purchaseOrder->showDetail();
+    return redirect()->route('purchaseOrders.show', $po);
+  }
 
-        return Inertia::render('Purchase/PurchaseOrders/Show', [
-            'purchaseOrder' => function () use ($purchaseOrder) {
-                $purchaseOrder->loadRelations();
+  /**
+   * Display the specified resource.
+   */
+  public function show(PurchaseOrder $purchaseOrder) {
+    $this->setBreadcrumbs($purchaseOrder);
+    $purchaseOrder->showDetail();
 
-                return $purchaseOrder;
-            },
-        ]);
-    }
+    return Inertia::render('Purchase/PurchaseOrders/Show', [
+      'purchaseOrder' => function () use ($purchaseOrder) {
+        $purchaseOrder->loadRelations();
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(PurchaseOrderRequest $request, PurchaseOrder $purchaseOrder) {
-        $data = $request->validated();
-        DB::beginTransaction();
+        return $purchaseOrder;
+      },
+    ]);
+  }
 
-        $po = $this->service->update($purchaseOrder, $data);
+  /**
+   * Update the specified resource in storage.
+   */
+  public function update(PurchaseOrderRequest $request, PurchaseOrder $purchaseOrder) {
+    $data = $request->validated();
+    DB::beginTransaction();
 
-        DB::commit();
+    $po = $this->service->update($purchaseOrder, $data);
 
-        return redirect()->back();
-    }
+    DB::commit();
 
-    /**
-     * Submit Purchase Order.
-     */
-    public function submit(Request $request, PurchaseOrder $purchaseOrder) {
-        $po = $this->service->submit($purchaseOrder);
+    return redirect()->back();
+  }
 
-        return redirect()->back();
-    }
+  /**
+   * Submit Purchase Order.
+   */
+  public function submit(Request $request, PurchaseOrder $purchaseOrder) {
+    $po = $this->service->submit($purchaseOrder);
 
-    public function onApproved(PurchaseOrder $purchaseOrder) {
-        $this->service->onApproved($purchaseOrder);
+    return redirect()->back();
+  }
 
-        return back();
-    }
+  public function onApproved(PurchaseOrder $purchaseOrder) {
+    $this->service->onApproved($purchaseOrder);
 
-    public function onRejected(PurchaseOrder $purchaseOrder) {
-        $this->service->onRejected($purchaseOrder);
+    return back();
+  }
 
-        return back();
-    }
+  public function onRejected(PurchaseOrder $purchaseOrder) {
+    $this->service->onRejected($purchaseOrder);
 
-    public function cancel(PurchaseOrder $purchaseOrder) {
-        $this->service->cancel($purchaseOrder);
+    return back();
+  }
 
-        return back();
-    }
+  public function cancel(PurchaseOrder $purchaseOrder) {
+    $this->service->cancel($purchaseOrder);
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PurchaseOrder $purchaseOrder) {
-        DB::beginTransaction();
-        $purchaseOrder->delete();
-        $purchaseOrder->logForDeleted();
-        DB::commit();
+    return back();
+  }
 
-        return redirect()->route('purchaseOrders.index');
-    }
+  /**
+   * Remove the specified resource from storage.
+   */
+  public function destroy(PurchaseOrder $purchaseOrder) {
+    DB::beginTransaction();
+    $purchaseOrder->delete();
+    $purchaseOrder->logForDeleted();
+    DB::commit();
+
+    return redirect()->route('purchaseOrders.index');
+  }
 }

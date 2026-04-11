@@ -11,16 +11,42 @@
       "command": "composer run dev"
     },
     {
+      "name": "▶️ Composer Dev (Simple)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "composer run dev:simple"
+    },
+    {
+      "name": "▶️ Composer Dev (Debug)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "composer run dev:debug"
+    },
+    {
       "name": "🐞 Listen Xdebug",
       "type": "php",
       "request": "launch",
       "port": 9005
+    },
+    {
+      "name": "React Vite: Debug Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "https://erp.test:5173",
+      "webRoot": "${workspaceFolder}"
+    },
+    {
+      "name": "React Vite: Debug Edge",
+      "type": "msedge",
+      "request": "launch",
+      "url": "https://erp.test:5173",
+      "webRoot": "${workspaceFolder}"
     }
   ],
   "compounds": [
     {
       "name": "🚀 Dev Full (Composer + Xdebug)",
-      "configurations": ["🐞 Listen Xdebug", "▶️ Composer Dev"],
+      "configurations": ["🐞 Listen Xdebug", "▶️ Composer Dev (Debug)"],
       "stopAll": true
     }
   ]

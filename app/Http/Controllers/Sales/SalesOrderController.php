@@ -14,158 +14,158 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SalesOrderController extends Controller {
-    private SalesOrderService $service;
+  private SalesOrderService $service;
 
-    public function __construct(Request $request, SalesOrderService $service) {
-        $this->service = $service;
-        parent::__construct($request, SalesOrder::class);
-    }
+  public function __construct(Request $request, SalesOrderService $service) {
+    $this->service = $service;
+    parent::__construct($request, SalesOrder::class);
+  }
 
-    /**
-     * Display a listing of the resource.
-     */
-    public function index(Request $request) {
-        $this->setBreadcrumbs();
-        SalesOrder::dataTable($request);
+  /**
+   * Display a listing of the resource.
+   */
+  public function index(Request $request) {
+    $this->setBreadcrumbs();
+    SalesOrder::dataTable($request);
 
-        return Inertia::render('Sales/SalesOrders/Index');
-    }
+    return Inertia::render('Sales/SalesOrders/Index');
+  }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(Request $request, ?string $ref = null) {
-        if ($ref) {
-            $split    = \explode('/', $ref);
-            $modelOri = $split[0] ?? null;
-            if ($modelOri) {
-                switch ($modelOri) {
-                    case 'workOrder':
-                        $wo = WorkOrder::find($split[1]);
-                        if ($wo) {
-                            $so = SalesOrder::where('referenceable_type', WorkOrder::class)
-                                ->where('referenceable_id', $wo->id)
-                                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
-                                ->first();
-                            if ($so) {
-                                return redirect()->route('salesOrders.show', $so);
-                            }
-                            $defaultData = [
-                                'date'               => now(),
-                                'customer'           => $wo->customer,
-                                'customer_branch'    => $wo->customerBranch,
-                                'referenceable_type' => WorkOrder::class,
-                                'referenceable_id'   => $wo->id,
-                                'referenceable'      => $wo,
-                                'external_note'      => $wo->external_note,
-                                'items'              => $wo->items->map(fn ($item) => [
-                                    'id'       => Utils::generateRandom(5),
-                                    'item'     => $item->item,
-                                    'quantity' => $item->remaining_quantity,
-                                    'unit'     => $item->unit,
-                                ]),
-                            ];
-                        }
-                        break;
-
-                }
+  /**
+   * Show the form for creating a new resource.
+   */
+  public function create(Request $request, ?string $ref = null) {
+    if ($ref) {
+      $split    = \explode('/', $ref);
+      $modelOri = $split[0] ?? null;
+      if ($modelOri) {
+        switch ($modelOri) {
+          case 'workOrder':
+            $wo = WorkOrder::find($split[1]);
+            if ($wo) {
+              $so = SalesOrder::where('referenceable_type', WorkOrder::class)
+                ->where('referenceable_id', $wo->id)
+                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
+                ->where('created_by_id', $request->user()->id)
+                ->first();
+              if ($so) {
+                return redirect()->route('salesOrders.show', $so);
+              }
+              $defaultData = [
+                'date'               => now(),
+                'customer'           => $wo->customer,
+                'customer_branch'    => $wo->customerBranch,
+                'referenceable_type' => WorkOrder::class,
+                'referenceable_id'   => $wo->id,
+                'referenceable'      => $wo,
+                'external_note'      => $wo->external_note,
+                'items'              => $wo->items->map(fn ($item) => [
+                  'id'       => Utils::generateRandom(5),
+                  'item'     => $item->item,
+                  'quantity' => $item->remaining_quantity,
+                  'unit'     => $item->unit,
+                ]),
+              ];
             }
+            break;
+
         }
-
-        $this->setBreadcrumbs('sales.salesOrder.new');
-
-        return Inertia::render('Sales/SalesOrders/Show', [
-            'defaultData' => $defaultData ?? null,
-        ]);
+      }
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(SalesOrderRequest $request) {
-        $data = $request->validated();
-        DB::beginTransaction();
+    $this->setBreadcrumbs('sales.salesOrder.new');
 
-        // branch dari session
-        $data['branch_id']  = $request->session()->get('currentBranch');
-        $data['created_by'] = $request->user()->id;
+    return Inertia::render('Sales/SalesOrders/Show', [
+      'defaultData' => $defaultData ?? null,
+    ]);
+  }
 
-        // create SO
-        $so = $this->service->create($data);
-        $so->logForCreated();
+  /**
+   * Store a newly created resource in storage.
+   */
+  public function store(SalesOrderRequest $request) {
+    $data = $request->validated();
+    DB::beginTransaction();
 
-        DB::commit();
+    // branch dari session
+    $data['branch_id']     = $request->session()->get('currentBranch');
+    $data['created_by_id'] = $request->user()->id;
 
-        return redirect()->route('salesOrders.show', $so);
-    }
+    // create SO
+    $so = $this->service->create($data);
+    $so->logForCreated();
 
-    /**
-     * Display the specified resource
-     */
-    public function show(SalesOrder $salesOrder) {
-        $this->setBreadcrumbs($salesOrder);
-        $salesOrder->showDetail();
+    DB::commit();
 
-        return Inertia::render('Sales/SalesOrders/Show', [
-            'salesOrder' => function () use ($salesOrder) {
-                $salesOrder->loadRelations();
+    return redirect()->route('salesOrders.show', $so);
+  }
 
-                return $salesOrder;
-            },
-        ]);
-    }
+  /**
+   * Display the specified resource
+   */
+  public function show(SalesOrder $salesOrder) {
+    $this->setBreadcrumbs($salesOrder);
+    $salesOrder->showDetail();
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(SalesOrderRequest $request, SalesOrder $salesOrder) {
-        $data = $request->validated();
-        DB::beginTransaction();
+    return Inertia::render('Sales/SalesOrders/Show', [
+      'salesOrder' => function () use ($salesOrder) {
+        $salesOrder->loadRelations();
 
-        $so = $this->service->update($salesOrder, $data);
+        return $salesOrder;
+      },
+    ]);
+  }
 
-        DB::commit();
+  /**
+   * Update the specified resource in storage.
+   */
+  public function update(SalesOrderRequest $request, SalesOrder $salesOrder) {
+    $data = $request->validated();
+    DB::beginTransaction();
 
-        return redirect()->back();
-    }
+    $so = $this->service->update($salesOrder, $data);
 
-    /**
-     * Submit Sales Order.
-     */
-    public function submit(Request $request, SalesOrder $salesOrder) {
-        $so = $this->service->submit($salesOrder);
+    DB::commit();
 
-        return redirect()->back();
-    }
+    return redirect()->back();
+  }
 
-    public function onApproved(SalesOrder $salesOrder) {
-        $this->service->onApproved($salesOrder);
+  /**
+   * Submit Sales Order.
+   */
+  public function submit(Request $request, SalesOrder $salesOrder) {
+    $so = $this->service->submit($salesOrder);
 
-        return back();
-    }
+    return redirect()->back();
+  }
 
-    public function onRejected(SalesOrder $salesOrder) {
-        $this->service->onRejected($salesOrder);
+  public function onApproved(SalesOrder $salesOrder) {
+    $this->service->onApproved($salesOrder);
 
-        return back();
-    }
+    return back();
+  }
 
-    public function cancel(SalesOrder $salesOrder) {
-        $this->service->cancel($salesOrder);
+  public function onRejected(SalesOrder $salesOrder) {
+    $this->service->onRejected($salesOrder);
 
-        return back();
-    }
+    return back();
+  }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(SalesOrder $salesOrder) {
-        DB::beginTransaction();
-        $salesOrder->delete();
-        $salesOrder->logForDeleted();
-        DB::commit();
+  public function cancel(SalesOrder $salesOrder) {
+    $this->service->cancel($salesOrder);
 
-        return redirect()->route('salesOrders.index');
-    }
+    return back();
+  }
+
+  /**
+   * Remove the specified resource from storage.
+   */
+  public function destroy(SalesOrder $salesOrder) {
+    DB::beginTransaction();
+    $salesOrder->delete();
+    $salesOrder->logForDeleted();
+    DB::commit();
+
+    return redirect()->route('salesOrders.index');
+  }
 }
