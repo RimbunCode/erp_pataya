@@ -25,9 +25,9 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected $permissions;
-    protected $modelPermissions;
-    protected $onlyCreator = false;
+    protected        $permissions;
+    protected        $modelPermissions;
+    protected        $onlyCreator      = false;
     protected string $lang;
 
     /**
@@ -92,36 +92,36 @@ abstract class Controller {
             'model' => $model,
         ]);
 
-        // $this->permissions = $request->session()->get('permissions');
-        // $this->modelPermissions = $this->permissions[$this->model] ?? null;
-        // if ($this->modelPermissions === null) {
-        //     abort(403);
-        // }
+        $this->permissions      = $request->session()->get('permissions');
+        $this->modelPermissions = $this->permissions[$this->model] ?? null;
+        if ($this->modelPermissions === null) {
+            abort(403);
+        }
 
-        // $currentRoute = Route::getCurrentRoute();
-        // $method = $currentRoute->getActionMethod();
+        $currentRoute = Route::getCurrentRoute();
+        $method       = $currentRoute->getActionMethod();
 
-        // $keyPermission = match ($method) {
-        //     'index' => 'select',
-        //     'create' => 'create',
-        //     'store' => 'create',
-        //     'show' => 'read',
-        //     'update' => 'write',
-        //     'destroy' => 'delete',
-        //     'import' => 'import',
-        //     'export' => 'export',
-        //     'share' => 'share',
-        //     'submit' => 'submit',
-        //     'cancel' => 'cancel',
-        //     'print' => 'print',
-        //     'amend' => 'amend',
-        //     default => null,
-        // };
+        $keyPermission = match ($method) {
+            'index'   => 'select',
+            'create'  => 'create',
+            'store'   => 'create',
+            'show'    => 'read',
+            'update'  => 'write',
+            'destroy' => 'delete',
+            'import'  => 'import',
+            'export'  => 'export',
+            'share'   => 'share',
+            'submit'  => 'submit',
+            'cancel'  => 'cancel',
+            'print'   => 'print',
+            'amend'   => 'amend',
+            default   => null,
+        };
 
-        // if ($keyPermission) {
-        //     $this->onlyCreator = $this->guard($keyPermission, 0);
-        //     $request->onlyCreator = $this->onlyCreator ?? false;
-        // }
+        if ($keyPermission) {
+            $this->onlyCreator    = $this->guard($keyPermission, 0);
+            $request->onlyCreator = $this->onlyCreator ?? false;
+        }
     }
 
     protected function isInertiaRequest(Request $request) {
@@ -249,8 +249,8 @@ abstract class Controller {
         $printTemplate->loadRelations();
 
         return Inertia::render('Core/Print', [
-            'data'     => $data,
-            'document' => [
+            'data'          => $data,
+            'document'      => [
                 [
                     'name'       => 'name',
                     'titleTrans' => $data->translateKey . '.name',

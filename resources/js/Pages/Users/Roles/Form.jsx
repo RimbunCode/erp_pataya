@@ -194,7 +194,6 @@ function Form() {
   const getCheckState = useCallback((permissions, keys) => {
     let hasTrue = false,
       hasFalse = false;
-
     for (const k of keys) {
       permissions[k] ? (hasTrue = true) : (hasFalse = true);
       if (hasTrue && hasFalse) return "indeterminate";
