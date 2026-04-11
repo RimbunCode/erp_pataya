@@ -84,8 +84,8 @@ trait DataTable {
                 'en' => ':user created this',
                 'id' => ':user telah membuat ini',
             ],
-            'data_before' => $this->dataBefore ?? null,
-            'data_after'  => $this->dataAfter,
+            'data_before'   => $this->dataBefore ?? null,
+            'data_after'    => $this->dataAfter,
         ]);
     }
 
@@ -97,8 +97,8 @@ trait DataTable {
             return;
         }
         $this->loadRelations();
-        $keys            = $this->logableFields();
-        $this->dataAfter = \array_replace(
+        $keys             = $this->logableFields();
+        $this->dataAfter  = \array_replace(
             \array_fill_keys($keys, null),
             \array_intersect_key($this->toArray(), array_flip($keys)),
         );
@@ -115,8 +115,8 @@ trait DataTable {
                 'en' => ':user updated this',
                 'id' => ':user memperbarui ini',
             ],
-            'data_before' => $this->dataBefore,
-            'data_after'  => $this->dataAfter,
+            'data_before'   => $this->dataBefore,
+            'data_after'    => $this->dataAfter,
         ]);
     }
 
@@ -195,7 +195,6 @@ trait DataTable {
             ],
         ]);
     }
-
     private array $dataBefore = [];
 
     private function recordLogs(): void {
@@ -303,8 +302,8 @@ trait DataTable {
         $tableName = static::getTableName();
         $nameModel = Str::afterLast(static::class, '\\');
         $alias     = static::$alias ??
-          \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
-        $module = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), '\\');
+            \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
+        $module    = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), '\\');
         if (! $module) {
             \print_r("\e[39m" . static::class . " \e[91m(Module name not found) \e[39m" . \PHP_EOL);
 
@@ -530,7 +529,7 @@ trait DataTable {
                     //   });
                 },
             ),
-            'logs' => Inertia::defer(
+            'logs'         => Inertia::defer(
                 fn () => Log::with('user')
                     ->where('loggable_type', static::class)
                     ->where('loggable_id', operator: $this->id)
@@ -538,11 +537,11 @@ trait DataTable {
                     ->get(),
                 'logs',
             ),
-            'tags' => Inertia::defer(
+            'tags'         => Inertia::defer(
                 fn () => $this->tags()->get(['id', 'name']),
                 'tags',
             ),
-            'attachments' => Inertia::defer(
+            'attachments'  => Inertia::defer(
                 fn () => $this->files()->get(['id', 'name']),
                 'attachments',
             ),
@@ -610,6 +609,10 @@ trait DataTable {
     }
 
     public function checkPermission(string $action, int $level = 0) {
+        return static::_checkPermission($action, $level);
+    }
+
+    public static function _checkPermission(string $action, int $level = 0) {
         $permissions      = Session::get('permissions');
         $modelPermissions = $permissions[static::class] ?? null;
         $levelPermissions = $modelPermissions[$level] ?? null;

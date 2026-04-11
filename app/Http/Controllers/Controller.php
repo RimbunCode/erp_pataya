@@ -25,9 +25,9 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected $permissions;
-    protected $modelPermissions;
-    protected $onlyCreator = false;
+    protected        $permissions;
+    protected        $modelPermissions;
+    protected        $onlyCreator      = false;
     protected string $lang;
 
     /**
@@ -76,27 +76,7 @@ abstract class Controller {
     }
 
     public function guard(string $action, int $level = 0) {
-        $levelPermissions = $this->modelPermissions[$level] ?? null;
-        if ($levelPermissions === null) {
-            abort(403);
-        }
-
-        $allowed     = false;
-        $onlyCreator = false;
-        foreach ($levelPermissions as $levelPermission) {
-            if ($levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
-                $allowed     = true;
-                $onlyCreator = true;
-            } elseif (! $levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
-                $allowed     = true;
-                $onlyCreator = false;
-            }
-        }
-        if (! $allowed) {
-            abort(403);
-        }
-
-        return $onlyCreator;
+        return $this->model::_checkPermission($action, $level);
     }
 
     public function __construct(Request $request, ?string $model = null) {
@@ -108,6 +88,9 @@ abstract class Controller {
         if (! $model) {
             return;
         }
+        Inertia::share([
+            'model' => $model,
+        ]);
 
         // $this->permissions = $request->session()->get('permissions');
         // $this->modelPermissions = $this->permissions[$this->model] ?? null;
@@ -266,8 +249,8 @@ abstract class Controller {
         $printTemplate->loadRelations();
 
         return Inertia::render('Core/Print', [
-            'data'     => $data,
-            'document' => [
+            'data'          => $data,
+            'document'      => [
                 [
                     'name'       => 'name',
                     'titleTrans' => $data->translateKey . '.name',

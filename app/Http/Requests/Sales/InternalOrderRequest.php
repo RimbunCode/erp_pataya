@@ -20,7 +20,7 @@ class InternalOrderRequest extends FormRequest {
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
-        $rules = [
+        return [
             'date'               => ['required', 'date'],
             'referenceable_type' => ['required', 'string'],
             'referenceable_id'   => ['required', 'integer'],
@@ -30,19 +30,17 @@ class InternalOrderRequest extends FormRequest {
             'items.*.quantity'   => ['required', 'numeric', 'min:1'],
             'items.*.unit.id'    => ['required', 'exists:units,id'],
             'external_note'      => ['nullable', 'string'],
+            'customer.id'        => [
+                Rule::requiredIf($this->referenceable_type === 'App\\Models\\Sales\\SalesOrder'),
+                'exists:customers,id',
+            ],
+            'customer_branch.id' => [
+                Rule::requiredIf($this->referenceable_type === 'App\\Models\\Sales\\SalesOrder'),
+                'exists:customer_branches,id',
+            ],
+            'customer' => [
+                Rule::prohibitedIf($this->referenceable_type === 'App\\Models\\Sales\\InternalOrder'),
+            ],
         ];
-
-        // CONDITIONAL BUSINESS RULE
-        if ($this->referenceable_type === 'App\\Models\\Sales\\SalesOrder') {
-            $rules['customer.id']        = ['required', 'exists:customers,id'];
-            $rules['customer_branch.id'] = ['required', 'exists:customer_branches,id'];
-        }
-
-        if ($this->referenceable_type === 'App\\Models\\Sales\\InternalOrder') {
-            // customer MUST NOT exist
-            $rules['customer'] = ['prohibited'];
-        }
-
-        return $rules;
     }
 }

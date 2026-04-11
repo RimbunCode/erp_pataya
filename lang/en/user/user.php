@@ -15,10 +15,7 @@ return [
     'default_branch.placeholder' => 'Select a default branch',
     'show_permissions'           => 'Show Permissions',
     'permissions'                => 'Permissions',
-    'controls'                   => [
-        'change_password' => 'Change Password',
-    ],
-    'columns' => [
+    'columns'                    => [
         'name'               => 'Name',
         'username'           => 'Username',
         'email'              => 'Email',
@@ -33,14 +30,22 @@ return [
             'male'   => 'Male',
             'female' => 'Female',
         ],
-        'birthdate'         => 'Birthdate',
-        'role'              => 'Role',
-        'status'            => 'Status',
-        'created_at'        => 'Created at',
-        'email_verified_at' => 'Email verified at',
-        'default_branch'    => 'Default Branch',
-        'image'             => 'Image',
-        'image.upload'      => 'Upload Image',
-        'image.remove'      => 'Remove Image',
+        'birthdate'          => 'Birthdate',
+        'role'               => 'Role',
+        'status'             => 'Status',
+        'created_at'         => 'Created at',
+        'email_verified_at'  => 'Email verified at',
+        'default_branch'     => 'Default Branch',
+        'image'              => 'Image',
+        'image.upload'       => 'Upload Image',
+        'image.remove'       => 'Remove Image',
+    ],
+    'manage_password'            => [
+        'change_password' => 'Change Password',
+        'columns'         => [
+            'current_password'      => 'Current Password',
+            'password'              => 'New Password',
+            'password_confirmation' => 'Confirm Password',
+        ],
     ],
 ];

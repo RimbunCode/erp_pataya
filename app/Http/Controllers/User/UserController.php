@@ -79,9 +79,9 @@ class UserController extends Controller {
 
                 return $user;
             },
-            'roles'    => Inertia::defer(fn () => Role::with('rules')->get()),
-            'branches' => Inertia::defer(fn () => Branch::whereNull('branchable_type')
-                ->whereNull('branchable_id')->get(), ),
+            'roles'    => Inertia::defer(Role::with('rules')->get(...)),
+            'branches' => Inertia::defer(Branch::whereNull('branchable_type')
+                ->whereNull('branchable_id')->get(...), ),
         ]);
     }
 

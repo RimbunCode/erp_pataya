@@ -243,7 +243,7 @@ export default memo(function Comments() {
                             <Trash2 />
                           </Button>
                         </div>
-                        <div className="[&_pre]:font-sans! col-start-2 pt-2 **:text-sm  font-normal text-foreground ql-container ql-bubble font-sans! [&_a]:underline-offset-2 [&_a]:hover:underline">
+                        <div className="[&_pre]:font-sans! [&_span.ql-mention-value]:hidden col-start-2 pt-2 **:text-sm  font-normal text-foreground ql-container ql-bubble font-sans! [&_a]:underline-offset-2 [&_a]:hover:underline">
                           <div
                             className="ql-editor p-0!"
                             dangerouslySetInnerHTML={{

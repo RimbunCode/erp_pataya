@@ -375,12 +375,11 @@ export const getDataModel = async (model, filters, options = {}) => {
 export function checkPermission(permissions, model, action, level = 0) {
   const modelPermissions = permissions[model];
   const levelPermissions = modelPermissions ? modelPermissions[level] : null;
-
   if (!levelPermissions) return { allowed: false, onlyCreator: false };
 
   let allowed = false;
   let onlyCreator = false;
-  for (let levelPermission of levelPermissions) {
+  for (let levelPermission of Object.values(levelPermissions) ?? []) {
     if (levelPermission.only_creator && levelPermission.permissions[action]) {
       allowed = true;
       onlyCreator = true;

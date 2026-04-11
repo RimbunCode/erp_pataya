@@ -67,7 +67,11 @@ function Form() {
         return;
       }
       const permissionKeys =
-        level > 0 ? ["read", "write"] : rule.model.permissions;
+        level > 0
+          ? ["read", "write"]
+          : onlyCreator
+            ? rule.model.permissions.filter((p) => p !== "create")
+            : rule.model.permissions;
 
       setData("rules", [
         {
@@ -89,30 +93,30 @@ function Form() {
     },
     [data?.rules, hasDuplicateRule, setData, showDuplicateRuleAlert],
   );
-  const onOnlyCreatorChange = useCallback(
-    (val, rule) => {
-      const nextOnlyCreator = val === true;
-      const rules = data?.rules ?? [];
-      if (
-        hasDuplicateRule(rules, {
-          permissionId: rule.permission_id,
-          level: rule.level,
-          onlyCreator: nextOnlyCreator,
-          excludeId: rule.id,
-        })
-      ) {
-        showDuplicateRuleAlert();
-        return;
-      }
-      setData(
-        "rules",
-        rules.map((r) =>
-          r.id === rule.id ? { ...r, only_creator: nextOnlyCreator } : r,
-        ),
-      );
-    },
-    [data?.rules, hasDuplicateRule, setData, showDuplicateRuleAlert],
-  );
+  // const onOnlyCreatorChange = useCallback(
+  //   (val, rule) => {
+  //     const nextOnlyCreator = val === true;
+  //     const rules = data?.rules ?? [];
+  //     if (
+  //       hasDuplicateRule(rules, {
+  //         permissionId: rule.permission_id,
+  //         level: rule.level,
+  //         onlyCreator: nextOnlyCreator,
+  //         excludeId: rule.id,
+  //       })
+  //     ) {
+  //       showDuplicateRuleAlert();
+  //       return;
+  //     }
+  //     setData(
+  //       "rules",
+  //       rules.map((r) =>
+  //         r.id === rule.id ? { ...r, only_creator: nextOnlyCreator } : r,
+  //       ),
+  //     );
+  //   },
+  //   [data?.rules, hasDuplicateRule, setData, showDuplicateRuleAlert],
+  // );
   const onPermissionChange = useCallback(
     (rule, key, val) => {
       const nextValue = val === true;
@@ -263,17 +267,13 @@ function Form() {
                   key={rule.id}
                   className="grid col-span-4 py-4 border-b grid-cols-subgrid border-muted-foreground/25"
                 >
-                  <div className="flex flex-col gap-y-4">
+                  <div className="flex flex-col gap-y-2">
                     <span className="font-medium">{rule.name}</span>
-                    {rule.level <= 0 && rule.permission.allow_only_creator && (
-                      <FormCheckbox
-                        checked={rule.only_creator}
-                        onCheckedChange={(val) =>
-                          onOnlyCreatorChange(val, rule)
-                        }
-                        label={t("user.role.columns.only_creator")}
-                      />
-                    )}
+                    {rule.level <= 0 &&
+                      rule.permission.allow_only_creator &&
+                      rule.only_creator && (
+                        <span>{`(${t("user.role.columns.only_creator")})`}</span>
+                      )}
                   </div>
                   <div className="font-medium text-center">{rule.level}</div>
                   <div className="columns-[76px] space-y-3 self-center items-center">
