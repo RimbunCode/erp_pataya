@@ -43,7 +43,7 @@ class AdministratorSeeder extends Seeder {
         $adminUser->branches()->attach($defaultBranch->id);
 
         // Create Role Permission For Admin
-        $rules = [
+        $rules       = [
             [
                 'model'        => User::class,
                 'level'        => 0,
@@ -76,9 +76,9 @@ class AdministratorSeeder extends Seeder {
                     'delete' => true,
                     'print'  => true,
                 ],
-                'created_at' => '2025-02-21T13:57:35.000000Z',
-                'updated_at' => '2025-02-21T13:59:10.000000Z',
-                'deleted_at' => null,
+                'created_at'    => '2025-02-21T13:57:35.000000Z',
+                'updated_at'    => '2025-02-21T13:59:10.000000Z',
+                'deleted_at'    => null,
             ],
         ];
         $permissions = array_map(fn ($permission) => $permission['model'], $rules);
@@ -92,6 +92,7 @@ class AdministratorSeeder extends Seeder {
                 'permission_id' => $permission->id,
             ], values: [
                 'name'          => $permission->name,
+                'module'        => $permission->module,
                 'model'         => $permission->model,
                 'is_submitable' => $permission->is_submitable,
                 'level'         => $permission->is_submitable ? $rule['level'] : 0,

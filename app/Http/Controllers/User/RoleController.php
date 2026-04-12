@@ -126,6 +126,7 @@ class RoleController extends Controller {
             $permission = $permissions[$rule['permission_id']];
             $payload    = [
                 'name'          => $permission->name,
+                'module'        => $permission->module,
                 'model'         => $permission->model,
                 'is_submitable' => $permission->is_submitable,
                 'permissions'   => collect($rule['level'] > 0 ? ['read', 'write'] : $permission->permissions)
