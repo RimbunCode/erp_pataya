@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Auth;
 use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UserRequest;
-use App\Models\User\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
