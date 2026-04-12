@@ -24,7 +24,7 @@ class UserController extends Controller {
     protected function matchMethodWithPermission(string $method) {
         $route = Route::getCurrentRoute();
         $user  = $route->parameter('user');
-        if (\in_array($method, ['show', 'update']) && $user->id == Auth::user()->id) {
+        if (\in_array($method, ['show', 'update', 'image', 'connectToProvider']) && $user->id == Auth::user()->id) {
             return true;
         }
     }

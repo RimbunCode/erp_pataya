@@ -84,6 +84,10 @@ abstract class Controller {
         return null;
     }
 
+    private function _matchMethodWithPermission(string $method) {
+        return \in_array($method, ['addComment', 'addTag', 'addFile', 'removeFile', 'removeComment', 'removeTag']);
+    }
+
     public function __construct(Request $request, ?string $model = null) {
         if (! $model) {
             return;
@@ -101,7 +105,7 @@ abstract class Controller {
             $currentRoute = Route::getCurrentRoute();
             $method       = $currentRoute->getActionMethod();
 
-            $customPermission = $this->matchMethodWithPermission($method);
+            $customPermission = $this->_matchMethodWithPermission($method) || $this->matchMethodWithPermission($method);
 
             // dd($method, $keyPermission, $keyPermission === false, null == false);
             if ($customPermission != true) {
@@ -289,7 +293,7 @@ abstract class Controller {
         $model         = Permission::where('model', $this->model)->first();
         $printTemplate = PrintTemplate::create([
             'model'      => $this->model,
-            'name'       => $model->name . '-' . Utils::generateRandom(5),
+            'name'       => "{$model->name}-" . Utils::generateRandom(5),
             'name_model' => $model->name,
         ]);
 
