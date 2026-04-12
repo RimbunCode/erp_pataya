@@ -12,12 +12,21 @@ use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Socialite\Socialite;
 
 class UserController extends Controller {
     public function __construct(Request $request) {
         parent::__construct($request, User::class);
+    }
+
+    protected function matchMethodWithPermission(string $method) {
+        $route = Route::getCurrentRoute();
+        $user  = $route->parameter('user');
+        if (\in_array($method, ['show', 'update']) && $user->id == Auth::user()->id) {
+            return true;
+        }
     }
 
     /**

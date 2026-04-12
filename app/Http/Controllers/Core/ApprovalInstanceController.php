@@ -18,6 +18,7 @@ use ReflectionMethod;
 
 class ApprovalInstanceController extends Controller {
     public function __construct(Request $request) {
+        $this->ignorePermission = true;
         parent::__construct($request, ApprovalInstanceStep::class);
     }
 

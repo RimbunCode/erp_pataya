@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import { Building2Icon, ChevronsUpDown, Plus } from "lucide-react";
 import {
   DropdownMenu,
@@ -17,21 +15,22 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/Components/ui/sidebar";
+import { memo, useEffect, useState } from "react";
 
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default React.memo(function BranchSwitcher() {
+export default memo(function BranchSwitcher() {
   const route = window.route;
   const { branches, currentBranch } = usePage().props.branchSettings;
   const { t } = useLaravelReactI18n();
   const { isMobile } = useSidebar();
-  const [activeBranch, setActiveBranch] = React.useState(currentBranch);
+  const [activeBranch, setActiveBranch] = useState(currentBranch);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setActiveBranch(currentBranch);
   }, [branches, currentBranch]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleKeyDown = (event) => {
       const key = event.key;
       if ((event.metaKey || event.ctrlKey) && key <= branches.length) {

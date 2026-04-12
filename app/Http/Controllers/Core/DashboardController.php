@@ -17,6 +17,12 @@ class DashboardController extends Controller {
         parent::__construct($request, Dashboard::class);
     }
 
+    protected function matchMethodWithPermission(string $method) {
+        if ($method == 'view') {
+            return true;
+        }
+    }
+
     private function fillWidgetRelation(array $data, Dashboard $dashboard) {
         $data['widget_id'] = $data['widget']['id'];
 

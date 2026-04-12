@@ -8,99 +8,190 @@ use App\Models\User\Role;
 use App\Models\User\RolePermission;
 use App\Models\User\User;
 use Illuminate\Database\Seeder;
-use Str;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class AdministratorSeeder extends Seeder {
     /**
      * Run the database seeds.
      */
     public function run(): void {
-        $this->call(PermissionSeeder::class);
+        if (Permission::query()->doesntExist()) {
+            $this->call(PermissionSeeder::class);
+        }
 
         $defaultBranch = Branch::where('is_main_branch', true)
             ->whereNull('branchable_type')
             ->whereNull('branchable_id')
-            ->first();
+            ->firstOrFail();
 
-        // Create Admin User
-        $adminUser = User::create([
-            'name'              => 'Administrator',
-            'username'          => 'admin',
-            'email'             => 'test@example.com',
-            'email_verified_at' => now(),
-            'password'          => bcrypt('admin'),
-            'default_branch_id' => $defaultBranch->id,
-            'remember_token'    => Str::random(10),
-        ]);
+        $permissions = Permission::query()
+            ->orderBy('module')
+            ->orderBy('name')
+            ->get();
 
-        // Create Role For Admin
-        $roleAdmin = Role::create([
-            'name' => 'System Manager',
-        ]);
-
-        // Attach Admin User To Admin Role
-        $adminUser->roles()->attach($roleAdmin->id);
-        $adminUser->branches()->attach($defaultBranch->id);
-
-        // Create Role Permission For Admin
-        $rules = [
+        $adminUser = User::updateOrCreate(
+            ['username' => 'admin'],
             [
-                'model'        => User::class,
-                'level'        => 0,
-                'only_creator' => 0,
-                'permissions'  => [
-                    'select' => true,
-                    'read'   => true,
-                    'write'  => true,
-                    'create' => true,
-                    'delete' => true,
-                    'print'  => true,
-                    'import' => true,
-                    'export' => true,
-                    'share'  => true,
+                'name'              => 'Administrator',
+                'email'             => 'test@example.com',
+                'email_verified_at' => now(),
+                'password'          => bcrypt('admin'),
+                'default_branch_id' => $defaultBranch->id,
+                'remember_token'    => Str::random(10),
+            ],
+        );
+
+        $systemManagerRoleId = null;
+        foreach ($this->defaultRoles() as $roleDefinition) {
+            $role = Role::updateOrCreate(
+                ['name' => $roleDefinition['name']],
+                [
+                    'description' => $roleDefinition['description'] ?? null,
+                    'is_disabled' => $roleDefinition['is_disabled'] ?? false,
                 ],
+            );
+
+            $selectedPermissions = $this->resolvePermissionsForRole($permissions, $roleDefinition['modules']);
+            $this->syncRolePermissions($role, $selectedPermissions, $roleDefinition['profile']);
+
+            if ($role->name === 'System Manager') {
+                $systemManagerRoleId = $role->id;
+            }
+        }
+
+        if ($systemManagerRoleId !== null) {
+            $adminUser->roles()->sync([$systemManagerRoleId]);
+        }
+
+        $adminUser->branches()->syncWithoutDetaching([$defaultBranch->id]);
+    }
+
+    /**
+     * @return array<int, array{name: string, description: string, modules: array<int, string>, profile: string}>
+     */
+    private function defaultRoles(): array {
+        return [
+            [
+                'name'        => 'System Manager',
+                'description' => 'Full access to all ERP modules and settings.',
+                'modules'     => ['*'],
+                'profile'     => 'full',
             ],
             [
-                'id'            => '01jmmcs9973gkmrdba36jre63f',
-                'permission_id' => '01jmmcgetkfgf9j80phwc3aga2',
-                'name'          => 'Roles',
-                'model'         => Role::class,
-                'role_id'       => '01jmmcgn4ks9c7wxzk07jx42r7',
-                'level'         => 0,
-                'only_creator'  => 0,
-                'permissions'   => [
-                    'select' => true,
-                    'read'   => true,
-                    'write'  => true,
-                    'create' => true,
-                    'delete' => true,
-                    'print'  => true,
-                ],
-                'created_at' => '2025-02-21T13:57:35.000000Z',
-                'updated_at' => '2025-02-21T13:59:10.000000Z',
-                'deleted_at' => null,
+                'name'        => 'User & Access Administrator',
+                'description' => 'Manage users, roles, and access configuration.',
+                'modules'     => ['User'],
+                'profile'     => 'full',
+            ],
+            [
+                'name'        => 'Master Data Administrator',
+                'description' => 'Manage core data and global ERP configuration.',
+                'modules'     => ['Core'],
+                'profile'     => 'full',
+            ],
+            [
+                'name'        => 'Sales Officer',
+                'description' => 'Handle day-to-day sales transactions.',
+                'modules'     => ['Sales'],
+                'profile'     => 'operator',
+            ],
+            [
+                'name'        => 'Purchasing Officer',
+                'description' => 'Handle day-to-day purchasing transactions.',
+                'modules'     => ['Purchase'],
+                'profile'     => 'operator',
+            ],
+            [
+                'name'        => 'Warehouse Officer',
+                'description' => 'Manage inventory and warehouse operations.',
+                'modules'     => ['Inventory', 'Service'],
+                'profile'     => 'operator',
+            ],
+            [
+                'name'        => 'Finance Officer',
+                'description' => 'Manage accounting and financial transactions.',
+                'modules'     => ['Finances'],
+                'profile'     => 'operator',
+            ],
+            [
+                'name'        => 'Approver',
+                'description' => 'Review and approve operational documents.',
+                'modules'     => ['Core', 'Sales', 'Purchase', 'Inventory', 'Service', 'Finances'],
+                'profile'     => 'approval',
+            ],
+            [
+                'name'        => 'Auditor',
+                'description' => 'Read-only access across all ERP modules.',
+                'modules'     => ['*'],
+                'profile'     => 'read_only',
             ],
         ];
-        $permissions = array_map(fn ($permission) => $permission['model'], $rules);
-        $permissions = Permission::whereIn('model', $permissions)->get()
-            ->mapWithKeys(fn ($permission) => [$permission->model => $permission]);
+    }
 
-        foreach ($rules as $rule) {
-            $permission = $permissions[$rule['model']];
+    /**
+     * @param  Collection<int, Permission>  $permissions
+     * @param  array<int, string>  $modules
+     * @return Collection<int, Permission>
+     */
+    private function resolvePermissionsForRole(Collection $permissions, array $modules): Collection {
+        if (\in_array('*', $modules, true)) {
+            return $permissions;
+        }
+
+        return $permissions->whereIn('module', $modules)->values();
+    }
+
+    /**
+     * @param  Collection<int, Permission>  $permissions
+     */
+    private function syncRolePermissions(Role $role, Collection $permissions, string $profile): void {
+        $permissionIds = $permissions->pluck('id')->all();
+        if (! empty($permissionIds)) {
+            $role->rules()
+                ->whereNotIn('permission_id', $permissionIds)
+                ->delete();
+        }
+
+        foreach ($permissions as $permission) {
+            $permissionFlags = $this->resolvePermissionFlags((array) $permission->permissions, $profile);
+
             RolePermission::updateOrCreate([
-                'role_id'       => $roleAdmin->id,
+                'role_id'       => $role->id,
                 'permission_id' => $permission->id,
-            ], values: [
+            ], [
                 'name'          => $permission->name,
                 'module'        => $permission->module,
                 'model'         => $permission->model,
                 'is_submitable' => $permission->is_submitable,
-                'level'         => $permission->is_submitable ? $rule['level'] : 0,
-                'only_creator'  => $permission->is_submitable ? $rule['only_creator'] : false,
-                'permissions'   => collect($permission->permissions)->mapWithKeys(function ($permission) use ($rule) {
-                    return [$permission => $rule['permissions'][$permission] ?? false];
-                }),
+                'level'         => 0,
+                'only_creator'  => false,
+                'permissions'   => $permissionFlags,
             ]);
         }
+    }
+
+    /**
+     * @param  array<int, string>  $permissionKeys
+     * @return array<string, bool>
+     */
+    private function resolvePermissionFlags(array $permissionKeys, string $profile): array {
+        $permissionFlags = array_fill_keys($permissionKeys, false);
+
+        $enabledKeys = match ($profile) {
+            'full'      => $permissionKeys,
+            'operator'  => ['select', 'read', 'write', 'create', 'submit', 'cancel', 'amend', 'print', 'import', 'export', 'share'],
+            'approval'  => ['select', 'read', 'submit', 'cancel', 'amend', 'print', 'export'],
+            'read_only' => ['select', 'read', 'print', 'export'],
+            default     => [],
+        };
+
+        foreach ($enabledKeys as $key) {
+            if (\array_key_exists($key, $permissionFlags)) {
+                $permissionFlags[$key] = true;
+            }
+        }
+
+        return $permissionFlags;
     }
 }
