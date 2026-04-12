@@ -144,7 +144,7 @@ class ApprovalInstanceController extends Controller {
             }
             $isApproved = match ($step->status) {
                 FormStatus::PENDING, FormStatus::SKIPPED => false,
-                FormStatus::APPROVED                     => true,
+                FormStatus::APPROVED => true,
             };
         }
 
@@ -178,7 +178,7 @@ class ApprovalInstanceController extends Controller {
             'notes'       => $notes,
         ]);
 
-        $isRejected                  = false;
+        $isRejected = false;
         $approval->current_sequence += 1;
         foreach ($approval->steps()->get() as $step) {
             if ($isRejected) {
