@@ -1,4 +1,5 @@
-import { checkPermission } from "@/lib/utils";
+import { checkPermission, inArray } from "@/lib/utils";
+
 import { usePage } from "@inertiajs/react";
 
 /**
@@ -18,10 +19,14 @@ export default function usePermission(model) {
   const { user } = usePage().props.auth;
 
   const _can = (model, action, options = { level: 0 }) => {
+    options = options && typeof options === "object" ? options : { level: 0 };
     const result = checkPermission(permissions, model, action, options.level);
     const allowed =
       result.allowed &&
-      (result.onlyCreator ? user.id === options.user_id : true);
+      (!inArray(["create", "import", "select"], action) && result.onlyCreator
+        ? user.id === options.user_id
+        : true);
+
     return allowed;
   };
 

@@ -49,6 +49,7 @@ import { format } from "date-fns";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import useDynamicRefs from "@/Hooks/useDynamicRefs";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import usePermission from "@/Hooks/usePermission";
 
 export const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
@@ -108,6 +109,7 @@ const Cell = memo(
     const { lang } = usePage().props;
     const { t } = useLaravelReactI18n();
     const value = row[name];
+    const { can, canGlobal } = usePermission(row.thisModel);
     let valueCell = "";
     switch (type) {
       case "image": {
@@ -211,7 +213,7 @@ const Cell = memo(
         });
       }
     }
-    if (isLink) {
+    if (isLink && can("read", { user_id: row.created_by_id })) {
       return (
         <Link
           className="text-blue-800 dark:text-blue-200 hover:underline"
@@ -220,7 +222,14 @@ const Cell = memo(
           {valueCell}
         </Link>
       );
-    } else if (type == "relation" && route && !colProps?.disabledNavigation) {
+    } else if (
+      type == "relation" &&
+      route &&
+      !colProps?.disabledNavigation &&
+      canGlobal(value.thisModel, "read", {
+        user_id: value.created_by_id,
+      })
+    ) {
       return (
         <Link
           href={window.route(

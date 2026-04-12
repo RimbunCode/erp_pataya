@@ -46,7 +46,7 @@ class PurchaseInvoiceController extends Controller {
                         if ($po) {
                             $purchaseInvoice = PurchaseInvoice::where('purchase_order_id', $po->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($purchaseInvoice) {
                                 return redirect()->route('purchaseInvoices.show', $purchaseInvoice);
@@ -87,7 +87,7 @@ class PurchaseInvoiceController extends Controller {
                         if ($purchaseInvoice) {
                             $purchaseInvoiceTarget = PurchaseInvoice::where('return_against_id', $purchaseInvoice->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($purchaseInvoiceTarget) {
                                 return redirect()->route('purchaseInvoices.show', $purchaseInvoiceTarget);
@@ -141,8 +141,8 @@ class PurchaseInvoiceController extends Controller {
         DB::beginTransaction();
 
         // branch dari session
-        $data['branch_id']  = $request->session()->get('currentBranch');
-        $data['created_by'] = $request->user()->id;
+        $data['branch_id']     = $request->session()->get('currentBranch');
+        $data['created_by_id'] = $request->user()->id;
 
         // create SO
         $purchaseInvoice = $this->service->create($data);

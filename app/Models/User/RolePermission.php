@@ -31,10 +31,11 @@ class RolePermission extends Model {
             return ['read', 'write'];
         }
 
-        $permissionKeys = $this->permission?->permissions ?? \array_keys((array) $this->permissions);
-        if ($this->only_creator) {
-            return \array_values(\array_filter($permissionKeys, fn ($k) => $k !== 'create'));
-        }
+        $permissionKeys = \array_values($this->permission?->permissions ?? \array_keys((array) $this->permissions));
+
+        // if ($this->only_creator) {
+        //     return \array_values(\array_filter($permissionKeys, fn ($k) => \in_array($k, ['create', 'import'])));
+        // }
 
         return $permissionKeys;
     }

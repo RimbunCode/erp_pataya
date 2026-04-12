@@ -75,8 +75,12 @@ abstract class Controller {
         ]);
     }
 
-    public function guard(string $action, int $level = 0) {
+    protected function guard(string $action, int $level = 0) {
         return $this->model::_checkPermission($action, $level);
+    }
+
+    protected function matchMethodWithPermission(string $method) {
+        return null;
     }
 
     public function __construct(Request $request, ?string $model = null) {
@@ -115,12 +119,24 @@ abstract class Controller {
             'cancel'  => 'cancel',
             'print'   => 'print',
             'amend'   => 'amend',
-            default   => null,
+            default   => $this->matchMethodWithPermission($method),
         };
 
         if ($keyPermission) {
             $this->onlyCreator    = $this->guard($keyPermission, 0);
             $request->onlyCreator = $this->onlyCreator ?? false;
+
+            foreach ($currentRoute->parameters() as $key => $value) {
+                if (get_class($value) === $this->model) {
+                    $data = $value;
+                }
+            }
+            if (isset($data)) {
+                $allowed = $this->onlyCreator ? $data?->created_by_id == auth()->user()->id : true;
+                if (! $allowed) {
+                    abort(403);
+                }
+            }
         }
     }
 

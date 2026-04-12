@@ -83,8 +83,8 @@ class WidgetController extends Controller {
 
         $shouldFillEmptyPeriods = in_array((string) $widget->type, ['bar', 'line'], true);
         $periodKeys             = $shouldFillEmptyPeriods
-            ? $this->buildPeriodKeys($startDate, $endDate, $interval)
-            : [];
+          ? $this->buildPeriodKeys($startDate, $endDate, $interval)
+          : [];
 
         if ($periodKeys !== []) {
             $rowsByPeriod = $data->keyBy('period');
@@ -232,10 +232,10 @@ class WidgetController extends Controller {
     public function store(WidgetRequest $request) {
         $data = $request->validated();
         DB::beginTransaction();
-        $data['model_id']    = $data['model']['id'];
-        $data['model_class'] = $data['model']['model'];
-        $data['created_by']  = $request->user()->id;
-        $widget              = Widget::create($data);
+        $data['model_id']      = $data['model']['id'];
+        $data['model_class']   = $data['model']['model'];
+        $data['created_by_id'] = $request->user()->id;
+        $widget                = Widget::create($data);
         $widget->logForCreated();
         DB::commit();
 
@@ -271,9 +271,9 @@ class WidgetController extends Controller {
     public function update(WidgetRequest $request, Widget $widget) {
         $data = $request->validated();
         DB::beginTransaction();
-        $data['model_id']    = $data['model']['id'];
-        $data['model_class'] = $data['model']['model'];
-        $data['created_by']  = $request->user()->id;
+        $data['model_id']      = $data['model']['id'];
+        $data['model_class']   = $data['model']['model'];
+        $data['created_by_id'] = $request->user()->id;
         $widget->fillForUpdate($data);
         $widget->logForUpdated();
         DB::commit();

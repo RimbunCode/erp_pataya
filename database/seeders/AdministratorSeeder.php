@@ -45,14 +45,10 @@ class AdministratorSeeder extends Seeder {
         // Create Role Permission For Admin
         $rules = [
             [
-                'id'            => '01jmmcs994vb016dp2y2wy0w6p',
-                'permission_id' => '01jmmcget6fvq76zx13wsy3gc3',
-                'name'          => 'Manage Users',
-                'model'         => User::class,
-                'role_id'       => '01jmmcgn4ks9c7wxzk07jx42r7',
-                'level'         => 0,
-                'only_creator'  => 0,
-                'permissions'   => [
+                'model'        => User::class,
+                'level'        => 0,
+                'only_creator' => 0,
+                'permissions'  => [
                     'select' => true,
                     'read'   => true,
                     'write'  => true,
@@ -63,9 +59,6 @@ class AdministratorSeeder extends Seeder {
                     'export' => true,
                     'share'  => true,
                 ],
-                'created_at' => '2025-02-21T13:57:35.000000Z',
-                'updated_at' => '2025-02-21T13:59:10.000000Z',
-                'deleted_at' => null,
             ],
             [
                 'id'            => '01jmmcs9973gkmrdba36jre63f',
@@ -99,6 +92,7 @@ class AdministratorSeeder extends Seeder {
                 'permission_id' => $permission->id,
             ], values: [
                 'name'          => $permission->name,
+                'module'        => $permission->module,
                 'model'         => $permission->model,
                 'is_submitable' => $permission->is_submitable,
                 'level'         => $permission->is_submitable ? $rule['level'] : 0,

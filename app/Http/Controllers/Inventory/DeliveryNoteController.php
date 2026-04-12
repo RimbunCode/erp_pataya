@@ -50,7 +50,7 @@ class DeliveryNoteController extends Controller {
                             $do = DeliveryNote::where('referenceable_type', SalesOrder::class)
                                 ->where('referenceable_id', $so->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($do) {
                                 return redirect()->route('deliveryNotes.show', $do);
@@ -88,7 +88,7 @@ class DeliveryNoteController extends Controller {
                             $do = DeliveryNote::where('referenceable_type', InternalOrder::class)
                                 ->where('referenceable_id', $io->id)
                                 ->where('status', 'draft')
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($do) {
                                 return redirect()->route('deliveryNotes.show', $do);
@@ -123,7 +123,7 @@ class DeliveryNoteController extends Controller {
                         if ($doTarget) {
                             $do = DeliveryNote::where('return_against_id', $doTarget->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($do) {
                                 return redirect()->route('deliveryNotes.show', $do);
@@ -177,8 +177,8 @@ class DeliveryNoteController extends Controller {
             DB::beginTransaction();
 
             // branch dari session
-            $data['branch_id']  = $request->session()->get('currentBranch');
-            $data['created_by'] = $request->user()->id;
+            $data['branch_id']     = $request->session()->get('currentBranch');
+            $data['created_by_id'] = $request->user()->id;
 
             $deliveryNote = $this->service->create($data);
             $deliveryNote->logForCreated();

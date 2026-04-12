@@ -67,15 +67,12 @@ function Form() {
         return;
       }
       const permissionKeys =
-        level > 0
-          ? ["read", "write"]
-          : onlyCreator
-            ? rule.model.permissions.filter((p) => p !== "create")
-            : rule.model.permissions;
+        level > 0 ? ["read", "write"] : rule.model.permissions;
 
       setData("rules", [
         {
           permission_id: rule.model.id,
+          module: rule.model.module,
           name: rule.model.name,
           level,
           only_creator: onlyCreator,
@@ -142,6 +139,13 @@ function Form() {
                 share: false,
                 print: false,
               }),
+            };
+          }
+
+          if (key === "create" && !nextValue) {
+            permissions = {
+              ...permissions,
+              import: false,
             };
           }
 
@@ -266,14 +270,16 @@ function Form() {
                   key={rule.id}
                   className="grid col-span-4 py-4 border-b grid-cols-subgrid border-muted-foreground/25"
                 >
-                  <div className="flex flex-col gap-y-2">
-                    <span className="font-medium">{rule.name}</span>
+                  <p className="">
+                    <b className="font-bold text-base">{rule.name}</b>
                     {rule.level <= 0 &&
                       rule.permission.allow_only_creator &&
                       rule.only_creator && (
-                        <span>{`(${t("user.role.columns.only_creator")})`}</span>
+                        <span className="">{` (${t("user.role.columns.only_creator")})`}</span>
                       )}
-                  </div>
+                    <br />
+                    <span className="">{rule.module}</span>
+                  </p>
                   <div className="font-medium text-center">{rule.level}</div>
                   <div className="columns-[76px] space-y-3 self-center items-center">
                     <FormCheckbox

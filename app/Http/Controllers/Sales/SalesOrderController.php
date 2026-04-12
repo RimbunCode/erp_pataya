@@ -46,7 +46,7 @@ class SalesOrderController extends Controller {
                             $so = SalesOrder::where('referenceable_type', WorkOrder::class)
                                 ->where('referenceable_id', $wo->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($so) {
                                 return redirect()->route('salesOrders.show', $so);
@@ -88,8 +88,8 @@ class SalesOrderController extends Controller {
         DB::beginTransaction();
 
         // branch dari session
-        $data['branch_id']  = $request->session()->get('currentBranch');
-        $data['created_by'] = $request->user()->id;
+        $data['branch_id']     = $request->session()->get('currentBranch');
+        $data['created_by_id'] = $request->user()->id;
 
         // create SO
         $so = $this->service->create($data);

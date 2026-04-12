@@ -155,12 +155,16 @@ trait LinkModel {
     protected function getArrayableAppends() {
         $this->appends = array_unique(array_merge(
             $this->appends,
-            ['route', 'canDelete', 'keyModel', 'appendStatus'],
+            ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel'],
             \method_exists(static::class, 'templateLink') ? ['templateLink'] : [],
             \method_exists(static::class, 'disabledOn') ? ['disabledOn'] : [],
         ));
 
         return parent::getArrayableAppends();
+    }
+
+    protected function getThisModelAttribute() {
+        return static::class;
     }
 
     /**

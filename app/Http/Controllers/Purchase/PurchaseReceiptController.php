@@ -44,7 +44,7 @@ class PurchaseReceiptController extends Controller {
                         if ($purchaseOrder) {
                             $purchaseReceipt = PurchaseReceipt::where('purchase_order_id', $purchaseOrder->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($purchaseReceipt) {
                                 return redirect()->route('purchaseReceipts.show', $purchaseReceipt);
@@ -76,7 +76,7 @@ class PurchaseReceiptController extends Controller {
                         if ($purchaseReceiptTarget) {
                             $purchaseReceipt = PurchaseReceipt::where('return_against_id', $purchaseReceiptTarget->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($purchaseReceipt) {
                                 return redirect()->route('purchaseReceipts.show', $purchaseReceipt);
@@ -123,8 +123,8 @@ class PurchaseReceiptController extends Controller {
         $data = $request->validated();
         DB::beginTransaction();
 
-        $data['branch_id']  = $request->session()->get('currentBranch');
-        $data['created_by'] = $request->user()->id;
+        $data['branch_id']     = $request->session()->get('currentBranch');
+        $data['created_by_id'] = $request->user()->id;
 
         $purchaseReceipt = $this->service->create($data);
         $purchaseReceipt->logForCreated();

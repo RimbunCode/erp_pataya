@@ -64,7 +64,7 @@ class PaymentEntryController extends Controller {
                         $paymentEntry = PaymentEntry::where('paymentable_type', SalesInvoice::class)
                             ->where('paymentable_id', $salesInvoice->id)
                             ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                            ->where('created_by', $request->user()->id)
+                            ->where('created_by_id', $request->user()->id)
                             ->first();
                         if ($paymentEntry) {
                             return redirect()->route('paymentEntries.show', $paymentEntry);
@@ -92,7 +92,7 @@ class PaymentEntryController extends Controller {
                         $paymentEntry    = PaymentEntry::where('paymentable_type', PurchaseInvoice::class)
                             ->where('paymentable_id', $purchaseInvoice->id)
                             ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                            ->where('created_by', $request->user()->id)
+                            ->where('created_by_id', $request->user()->id)
                             ->first();
                         if ($paymentEntry) {
                             return redirect()->route('paymentEntries.show', $paymentEntry);

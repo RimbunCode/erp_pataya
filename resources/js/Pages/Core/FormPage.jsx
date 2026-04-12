@@ -970,7 +970,10 @@ const FormPage = memo(
                 deleteable &&
                 defaultData?.canDelete &&
                 defaultData?.id &&
-                can("delete") && (
+                can(
+                  "delete",
+                  submitable && { user_id: defaultData?.created_by_id },
+                ) && (
                   <Button
                     type="button"
                     variant="destructive"
@@ -993,9 +996,12 @@ const FormPage = memo(
                 )}
               {!isDirty && !isCreate
                 ? submitable &&
-                  defaultData?.created_by?.id == user?.id &&
+                  defaultData?.created_by_id == user?.id &&
                   (!defaultData?.submitted_at
-                    ? can("submit") && (
+                    ? can(
+                        "submit",
+                        submitable && { user_id: defaultData?.created_by_id },
+                      ) && (
                         <Button
                           type="button"
                           className="p-2! size-fit h-8"
@@ -1007,7 +1013,10 @@ const FormPage = memo(
                         </Button>
                       )
                     : inArray(defaultData?.status, ["canceled", "rejected"])
-                      ? can("amend") && (
+                      ? can(
+                          "amend",
+                          submitable && { user_id: defaultData?.created_by_id },
+                        ) && (
                           <Button
                             type="button"
                             className="p-2! size-fit h-8"
@@ -1019,7 +1028,10 @@ const FormPage = memo(
                           </Button>
                         )
                       : !isCompletedStatus(defaultData?.status) &&
-                        can("cancel") && (
+                        can(
+                          "cancel",
+                          submitable && { user_id: defaultData?.created_by_id },
+                        ) && (
                           <Button
                             type="button"
                             className="p-2! size-fit h-8"
@@ -1030,7 +1042,10 @@ const FormPage = memo(
                             {t("core.form.cancel")}
                           </Button>
                         ))
-                : can("write") && (
+                : can(
+                    "write",
+                    submitable && { user_id: defaultData?.created_by_id },
+                  ) && (
                     <Button
                       type="submit"
                       className="p-2! size-fit h-8"

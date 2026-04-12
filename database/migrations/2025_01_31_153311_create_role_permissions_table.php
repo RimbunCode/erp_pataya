@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,6 +12,7 @@ return new class extends Migration
         Schema::create('role_permissions', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->foreignUlid('permission_id')->references('id')->on('permissions')->cascadeOnDelete();
+            $table->string('module');
             $table->string('name');
             $table->text('model');
             $table->foreignUlid('role_id')->references('id')->on('roles')->cascadeOnDelete();

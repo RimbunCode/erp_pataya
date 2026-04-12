@@ -351,9 +351,9 @@ trait DataTable {
                     $table->json('status')->nullable();
                 });
             }
-            if (! Schema::hasColumn($tableName, 'created_by')) {
+            if (! Schema::hasColumn($tableName, 'created_by_id')) {
                 Schema::table($tableName, function (Blueprint $table) {
-                    $table->foreignUlid('created_by')->references('id')->on('users')->restrictOnDelete();
+                    $table->foreignUlid('created_by_id')->references('id')->on('users')->restrictOnDelete();
                 });
             }
             if (! Schema::hasColumn($tableName, 'submitted_at')) {
@@ -388,9 +388,9 @@ trait DataTable {
                 });
             }
         } else {
-            // if (Schema::hasColumn($tableName, 'created_by')) {
+            // if (Schema::hasColumn($tableName, 'created_by_id')) {
             //   Schema::table($tableName, function (Blueprint $table) {
-            //     $table->dropColumn('created_by');
+            //     $table->dropColumn('created_by_id');
             //   });
             // }
             if (Schema::hasColumn($tableName, 'submitted_at')) {

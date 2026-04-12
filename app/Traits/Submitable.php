@@ -44,8 +44,8 @@ trait Submitable {
             if ($model->status == null) {
                 $model->status = FormStatus::DRAFT;
             }
-            if ($model->created_by == null) {
-                $model->created_by = Auth::id();
+            if ($model->created_by_id == null) {
+                $model->created_by_id = Auth::id();
             }
         });
         self::saving(function ($model) {
@@ -84,7 +84,7 @@ trait Submitable {
     }
 
     public function createdBy() {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by_id');
     }
 
     public function branch() {
@@ -128,7 +128,7 @@ trait Submitable {
             'submitted_at',
             'status',
             'revision_number',
-            'created_by',
+            'created_by_id',
             'code',
         ]);
         $newData->code            = $newCode;

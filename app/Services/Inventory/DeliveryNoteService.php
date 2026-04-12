@@ -99,7 +99,7 @@ class DeliveryNoteService {
             });
             $query->where('return_against_id', $deliveryNote->return_against_id);
         })->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-            ->whereNot('created_by', Auth::user()->id)
+            ->whereNot('created_by_id', Auth::user()->id)
             ->update([
                 'status'      => 'canceled',
                 'canceled_at' => now(),

@@ -157,7 +157,7 @@ class SalesOrderService {
             SalesOrder::where('referenceable_type', $salesOrder->referenceable_type)
                 ->where('referenceable_id', $salesOrder->referenceable_id)
                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                ->whereNot('created_by', Auth::user()->id)
+                ->whereNot('created_by_id', Auth::user()->id)
                 ->update([
                     'status'      => 'canceled',
                     'canceled_at' => now(),

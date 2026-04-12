@@ -8,6 +8,9 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(dirname(__DIR__))
     ->withRouting(
@@ -30,5 +33,19 @@ return Application::configure(dirname(__DIR__))
         Feature::class,
     ])
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        $exceptions->respond(function (Response $response, Throwable $exception, Request $request): Response {
+            if (
+                config('app.debug')
+                || $request->expectsJson()
+                || ! $request->user()
+                || ! \in_array($response->getStatusCode(), [403, 404, 500, 503], true)
+            ) {
+                return $response;
+            }
+
+            return Inertia::render('Error', [
+                'status'       => $response->getStatusCode(),
+                'useAppLayout' => true,
+            ])->toResponse($request)->setStatusCode($response->getStatusCode());
+        });
     })->create();

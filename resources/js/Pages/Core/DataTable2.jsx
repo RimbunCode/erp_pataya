@@ -161,7 +161,10 @@ export default memo(
 
     const actions = useCallback(
       (props) => {
-        if (props.dataRow.canDelete === false || !can("delete"))
+        if (
+          props.dataRow.canDelete === false ||
+          !can("delete", { user_id: props.dataRow?.created_by_id })
+        )
           return _actions?.(props);
         return (
           <>
