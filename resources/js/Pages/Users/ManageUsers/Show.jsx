@@ -106,13 +106,15 @@ export default function Show({ user }) {
         usePasswordConfirmationForDelete
         controls={() => {
           return (
-            <Button
-              type="button"
-              variant="primary"
-              onClick={() => changePasswordDialogRef.current?.open()}
-            >
-              {t("user.user.manage_password.change_password")}
-            </Button>
+            authUser.id === user.id && (
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => changePasswordDialogRef.current?.open()}
+              >
+                {t("user.user.manage_password.change_password")}
+              </Button>
+            )
           );
         }}
       >

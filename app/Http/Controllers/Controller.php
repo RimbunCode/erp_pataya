@@ -25,11 +25,11 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected $permissions;
-    protected $modelPermissions;
-    protected $onlyCreator = false;
+    protected        $permissions;
+    protected        $modelPermissions;
+    protected        $onlyCreator      = false;
     protected string $lang;
-    protected bool $ignorePermission = false;
+    protected bool   $ignorePermission = false;
 
     /**
      * Summary of setBreadcrumbs
@@ -84,6 +84,10 @@ abstract class Controller {
         return null;
     }
 
+    private function _matchMethodWithPermission(string $method) {
+        return \in_array($method, ['addComment', 'addTag', 'addFile', 'removeFile', 'removeComment', 'removeTag']);
+    }
+
     public function __construct(Request $request, ?string $model = null) {
         if (! $model) {
             return;
@@ -101,11 +105,11 @@ abstract class Controller {
             $currentRoute = Route::getCurrentRoute();
             $method       = $currentRoute->getActionMethod();
 
-            $customPermission = $this->matchMethodWithPermission($method);
+            $customPermission = $this->_matchMethodWithPermission($method) || $this->matchMethodWithPermission($method);
 
             // dd($method, $keyPermission, $keyPermission === false, null == false);
             if ($customPermission != true) {
-                $keyPermission = match ($method) {
+                $keyPermission          = match ($method) {
                     'index'   => 'select',
                     'create'  => 'create',
                     'store'   => 'create',
@@ -274,8 +278,8 @@ abstract class Controller {
         $printTemplate->loadRelations();
 
         return Inertia::render('Core/Print', [
-            'data'     => $data,
-            'document' => [
+            'data'          => $data,
+            'document'      => [
                 [
                     'name'       => 'name',
                     'titleTrans' => $data->translateKey . '.name',
@@ -289,7 +293,7 @@ abstract class Controller {
         $model         = Permission::where('model', $this->model)->first();
         $printTemplate = PrintTemplate::create([
             'model'      => $this->model,
-            'name'       => $model->name . '-' . Utils::generateRandom(5),
+            'name'       => "{$model->name}-" . Utils::generateRandom(5),
             'name_model' => $model->name,
         ]);
 
