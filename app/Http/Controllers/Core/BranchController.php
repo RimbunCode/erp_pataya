@@ -14,6 +14,12 @@ class BranchController extends Controller {
         parent::__construct($request, Branch::class);
     }
 
+    protected function matchMethodWithPermission(string $method) {
+        if ($method == 'switch') {
+            return true;
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
