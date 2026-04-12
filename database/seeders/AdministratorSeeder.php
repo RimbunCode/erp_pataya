@@ -30,8 +30,22 @@ class AdministratorSeeder extends Seeder {
             ->orderBy('name')
             ->get();
 
+<<<<<<< HEAD
         $adminUser = User::updateOrCreate(
             ['username' => 'admin'],
+=======
+        // Create Role For Admin
+        $roleAdmin = Role::create([
+            'name' => 'System Manager',
+        ]);
+
+        // Attach Admin User To Admin Role
+        $adminUser->roles()->attach($roleAdmin->id);
+        $adminUser->branches()->attach($defaultBranch->id);
+
+        // Create Role Permission For Admin
+        $rules = [
+>>>>>>> 82dfe776c7b126fbdf38c59ef1c2a5f2f4baad4e
             [
                 'name'              => 'Administrator',
                 'email'             => 'test@example.com',
