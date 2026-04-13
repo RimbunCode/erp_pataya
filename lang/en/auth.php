@@ -13,11 +13,11 @@ return [
     |
     */
 
-    'failed'         => 'These credentials do not match our records.',
-    'password'       => 'The provided password is incorrect.',
-    'throttle'       => 'Too many login attempts. Please try again in :seconds seconds.',
-    'your_password'  => 'Your Password',
-    'login'          => [
+    'failed'        => 'These credentials do not match our records.',
+    'password'      => 'The provided password is incorrect.',
+    'throttle'      => 'Too many login attempts. Please try again in :seconds seconds.',
+    'your_password' => 'Your Password',
+    'login'         => [
         'title'           => 'Welcome Back',
         'description'     => 'Login with your credential or Google account',
         'usernameOrEmail' => 'Username or Email',
@@ -30,7 +30,7 @@ return [
         'register'        => 'Don\'t have an account?',
         'registerLink'    => 'Register Now',
     ],
-    'register'       => [
+    'register' => [
         'title'              => 'Register',
         'description'        => 'Register with your credential or Google account',
         'name'               => 'Name',
@@ -38,7 +38,7 @@ return [
         'email'              => 'Email',
         'password'           => 'Password',
         'password.strengths' => [
-            'status'       => [
+            'status' => [
                 'weak'   => 'Weak Security',
                 'medium' => 'Medium Security',
                 'good'   => 'Good Security',
@@ -52,18 +52,18 @@ return [
                 'special'   => 'At least 1 special character',
             ],
         ],
-        'confirm_password'   => 'Confirm Password',
-        'button'             => 'Register',
-        'or'                 => 'Or continue with',
-        'google'             => 'Register with Google',
-        'login'              => 'Already have an account?',
-        'loginLink'          => 'Login Now',
+        'confirm_password' => 'Confirm Password',
+        'button'           => 'Register',
+        'or'               => 'Or continue with',
+        'google'           => 'Register with Google',
+        'login'            => 'Already have an account?',
+        'loginLink'        => 'Login Now',
     ],
     'forgotPassword' => [
         'description' => 'Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.',
         'button'      => 'Send Password Reset Link',
     ],
-    'setupUser'      => [
+    'setupUser' => [
         'title'               => 'Setup Your Account',
         'title.waiting'       => 'Waiting for Approval',
         'description'         => 'Please fill in the form below to setup your account',

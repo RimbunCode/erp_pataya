@@ -4,7 +4,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/Components/ui/card";
-import { Head, useForm, useFormContext } from "@inertiajs/react";
+import { Head, useForm } from "@inertiajs/react";
 
 import GuestLayout from "@/Layouts/GuestLayout";
 import { Input } from "@/Components/ui/input";
@@ -15,7 +15,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 function SetupUser({ user }) {
   const route = window.route;
   const { t, loading } = useLaravelReactI18n();
-  const { data, setData, put, processing, reset } = useForm(user);
+  const { data, setData, put, _processing, reset } = useForm(user);
 
   const onSubmit = (e) => {
     e.preventDefault();
