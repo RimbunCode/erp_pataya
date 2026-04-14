@@ -14,6 +14,7 @@ return [
     */
 
     'failed'        => 'These credentials do not match our records.',
+    'disabled'      => 'Your account has been disabled!',
     'password'      => 'The provided password is incorrect.',
     'throttle'      => 'Too many login attempts. Please try again in :seconds seconds.',
     'your_password' => 'Your Password',
@@ -65,11 +66,13 @@ return [
     ],
     'setupUser' => [
         'title'               => 'Setup Your Account',
-        'title.waiting'       => 'Waiting for Approval',
         'description'         => 'Please fill in the form below to setup your account',
-        'description.waiting' => 'Please wait for the admin to approve your account',
+        'waiting.title'       => 'Contact Your Admin for Approval',
+        'waiting.description' => 'Please contact your admin to approve your account.',
+        'credential'          => 'Credential',
+        'profile'             => 'Profile',
         'button'              => [
-            'submit' => 'Submit',
+            'save'   => 'Save',
             'setup'  => 'Setup',
             'logout' => 'Logout',
         ],

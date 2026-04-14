@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\FormStatus;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\User\User;
 use Illuminate\Auth\Events\Lockout;
@@ -39,24 +40,22 @@ class LoginRequest extends BaseFormRequest {
     public function authenticate(): void {
         $this->ensureIsNotRateLimited();
         $login_type = filter_var($this->input('usernameOrEmail'), FILTER_VALIDATE_EMAIL)
-          ? 'email'
-          : 'username';
+            ? 'email'
+            : 'username';
 
         $this->merge([
             $login_type => $this->input('usernameOrEmail'),
         ]);
 
         $user = User::where('email', $this->input('usernameOrEmail'))->orWhere('username', $this->input('usernameOrEmail'))->first();
-        if ($this->mode != 'setup') {
-            if (in_array($user?->status, ['draft', 'invited'])) {
-                throw ValidationException::withMessages([
-                    'status' => trans('Your credentials are incorrect!'),
-                ]);
-            } elseif ($user?->status == 'inactive') {
-                throw ValidationException::withMessages([
-                    'status' => 'Your account has been disabled!',
-                ]);
-            }
+        if (! $user->password) {
+            throw ValidationException::withMessages([
+                'status' => trans('auth.failed'),
+            ]);
+        } elseif ($user?->status == FormStatus::INACTIVE) {
+            throw ValidationException::withMessages([
+                'status' => trans('auth.disabled'),
+            ]);
         }
         if (! Auth::attempt($this->only($login_type, 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());

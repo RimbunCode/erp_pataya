@@ -65,6 +65,7 @@ return [
     'ipv4'      => 'Isian :attribute harus berupa alamat IPv4 yang valid.',
     'ipv6'      => 'Isian :attribute harus berupa alamat IPv6 yang valid.',
     'json'      => 'Isian :attribute harus berupa JSON string yang valid.',
+    'list'      => 'Isian :attribute harus berupa list (daftar).',
     'lowercase' => 'Isian :attribute harus berupa huruf kecil.',
     'lt'        => [
         'array'   => 'Isian :attribute harus memiliki kurang dari :value item.',
@@ -125,7 +126,6 @@ return [
     'required_array_keys'  => 'Isian :attribute harus berisi entri untuk: :values.',
     'required_if'          => 'Isian :attribute wajib diisi bila :other bernilai :value.',
     'required_if_accepted' => 'Isian :attribute wajib diisi bila :other disetujui.',
-    'required_case'        => 'Isian :attribute diwajibkan ketika :other bernama opsi lain.',
     'required_if_declined' => 'Isian :attribute diwajibkan bila :other ditolak.',
     'required_unless'      => 'Isian :attribute wajib diisi kecuali :other memiliki nilai :values.',
     'required_with'        => 'Isian :attribute wajib diisi bila terdapat :values.',

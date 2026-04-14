@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\User;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UserRequest;
 use App\Models\Core\Branch;
@@ -95,7 +96,7 @@ class UserController extends Controller {
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
-            'user'     => function () use ($user) {
+            'user' => function () use ($user) {
                 $user->roles    = $user->roles()->pluck('id');
                 $user->branches = $user->branches()->pluck('id');
 
@@ -113,7 +114,10 @@ class UserController extends Controller {
     public function update(UserRequest $request, User $user) {
         $data = $request->validated();
         DB::beginTransaction();
-        $user->fillForUpdate($data);
+        if ($user->id != $request->user()->id) {
+            $data['status'] = \in_array($user->status, [FormStatus::ACTIVE, FormStatus::INACTIVE]) ? $user->status : FormStatus::ACTIVE;
+        }
+        $user->fillForUpdate($data, true);
         $user->roles()->sync($data['roles']);
         $user->branches()->sync($data['branches']);
         $user->logForUpdated();
@@ -144,7 +148,7 @@ class UserController extends Controller {
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return Redirect::to('/');
+            return redirect()->to('/');
         } else {
             return redirect()->route('users.index');
         }

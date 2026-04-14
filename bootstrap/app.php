@@ -1,7 +1,7 @@
 <?php
-
 use App\Console\Commands\Feature;
 use App\Http\Middleware\AppMiddleware;
+use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LanguageMiddleware;
 use Illuminate\Foundation\Application;
@@ -37,8 +37,9 @@ return Application::configure(dirname(__DIR__))
             HandleInertiaRequests::class,
         ]);
         $middleware->alias([
-            'app'  => AppMiddleware::class,
-            'lang' => LanguageMiddleware::class,
+            'app'       => AppMiddleware::class,
+            'lang'      => LanguageMiddleware::class,
+            'onboarded' => EnsureUserIsOnboarded::class,
         ]);
         //
     })

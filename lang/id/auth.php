@@ -1,7 +1,8 @@
 <?php
 
 return [
-    'failed'        => 'Kredensial ini tidak cocok dengan catatan kami.',
+    'failed'        => 'Kredensial ini tidak cocok dengan data kami.',
+    'disabled'      => 'Akun Anda telah dinonaktifkan.',
     'password'      => 'Kata sandi yang diberikan tidak diverifikasi.',
     'throttle'      => 'Terlalu banyak percobaan login. Silakan coba lagi dalam :seconds detik.',
     'your_password' => 'Kata Sandi Anda',
@@ -53,11 +54,13 @@ return [
     ],
     'setupUser' => [
         'title'               => 'Siapkan Akun Anda',
-        'title.waiting'       => 'Menunggu Persetujuan',
         'description'         => 'Silakan isi form di bawah ini untuk menyiapkan akun Anda',
-        'description.waiting' => 'Silakan tunggu admin menyetujui akun Anda',
+        'waiting.title'       => 'Hubungi Admin Anda untuk Persetujuan',
+        'waiting.description' => 'Silakan hubungi admin Anda untuk menyetujui akun Anda.',
+        'credential'          => 'Kredensial',
+        'profile'             => 'Profil',
         'button'              => [
-            'submit' => 'Kirim',
+            'save'   => 'Simpan',
             'setup'  => 'Siapkan',
             'logout' => 'Keluar',
         ],
