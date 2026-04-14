@@ -1,50 +1,65 @@
 <?php
 
 return [
-
-    /*
-    |--------------------------------------------------------------------------
-    | Authentication Language Lines
-    |--------------------------------------------------------------------------
-    |
-    | The following language lines are used during authentication for various
-    | messages that we need to display to the user. You are free to modify
-    | these language lines according to your application's requirements.
-    |
-    */
-
-    'failed'   => 'These credentials do not match our records.',
-    'password' => 'The provided password is incorrect.',
-    'throttle' => 'Too many login attempts. Please try again in :seconds seconds.',
-    'login'    => [
+    'failed'        => 'Kredensial ini tidak cocok dengan catatan kami.',
+    'password'      => 'Kata sandi yang diberikan tidak diverifikasi.',
+    'throttle'      => 'Terlalu banyak percobaan login. Silakan coba lagi dalam :seconds detik.',
+    'your_password' => 'Kata Sandi Anda',
+    'login'         => [
         'title'           => 'Selamat Datang Kembali',
-        'description'     => 'Masuk dengan kredensial atau akun Google Anda',
-        'usernameOrEmail' => 'Username atau Email',
+        'description'     => 'Login dengan kredensial atau akun Google Anda',
+        'usernameOrEmail' => 'Nama Pengguna atau Email',
         'password'        => 'Kata Sandi',
         'remember'        => 'Ingat Saya',
         'forgotPassword'  => 'Lupa Kata Sandi?',
-        'button'          => 'Masuk',
-        'or'              => 'Atau masuk dengan',
-        'google'          => 'Masuk dengan Google',
+        'button'          => 'Login',
+        'or'              => 'Atau lanjutkan dengan',
+        'google'          => 'Login dengan Google',
         'register'        => 'Belum punya akun?',
         'registerLink'    => 'Daftar Sekarang',
     ],
     'register' => [
-        'title'            => 'Daftar',
-        'description'      => 'Daftar dengan kredensial atau akun Google Anda',
-        'name'             => 'Nama',
-        'username'         => 'Username',
-        'email'            => 'Email',
-        'password'         => 'Kata Sandi',
+        'title'              => 'Daftar',
+        'description'        => 'Daftar dengan kredensial atau akun Google Anda',
+        'name'               => 'Nama',
+        'username'           => 'Nama Pengguna',
+        'email'              => 'Email',
+        'password'           => 'Kata Sandi',
+        'password.strengths' => [
+            'status' => [
+                'weak'   => 'Keamanan Lemah',
+                'medium' => 'Keamanan Sedang',
+                'good'   => 'Keamanan Baik',
+                'strong' => 'Keamanan Kuat',
+            ],
+            'requirements' => [
+                'length'    => 'Minimal 8 karakter (Wajib)',
+                'lowercase' => 'Minimal 1 huruf kecil',
+                'uppercase' => 'Minimal 1 huruf besar',
+                'num'       => 'Minimal 1 angka',
+                'special'   => 'Minimal 1 karakter khusus',
+            ],
+        ],
         'confirm_password' => 'Konfirmasi Kata Sandi',
         'button'           => 'Daftar',
-        'or'               => 'Atau daftar dengan',
+        'or'               => 'Atau lanjutkan dengan',
         'google'           => 'Daftar dengan Google',
         'login'            => 'Sudah punya akun?',
-        'loginLink'        => 'Masuk Sekarang',
+        'loginLink'        => 'Login Sekarang',
     ],
     'forgotPassword' => [
-        'description' => 'Lupa kata sandi? Tidak masalah. Harap berikan email yang Anda gunakan, kami akan mengirimkan sebuah tautan untuk memulihkan kata sandi Anda.',
+        'description' => 'Lupa kata sandi? Tidak masalah. Beri tahu kami alamat email Anda dan kami akan mengirimkan tautan reset kata sandi agar Anda dapat memilih yang baru.',
         'button'      => 'Kirim Tautan Reset Kata Sandi',
+    ],
+    'setupUser' => [
+        'title'               => 'Siapkan Akun Anda',
+        'title.waiting'       => 'Menunggu Persetujuan',
+        'description'         => 'Silakan isi form di bawah ini untuk menyiapkan akun Anda',
+        'description.waiting' => 'Silakan tunggu admin menyetujui akun Anda',
+        'button'              => [
+            'submit' => 'Kirim',
+            'setup'  => 'Siapkan',
+            'logout' => 'Keluar',
+        ],
     ],
 ];

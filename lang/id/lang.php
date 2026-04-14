@@ -7,6 +7,6 @@ return [
      */
     'locale'      => 'id-ID',
     'title'       => 'Pengaturan Bahasa',
-    'description' => 'Silahkan pilih bahasa yang Anda inginkan',
+    'description' => 'Pilih bahasa yang Anda inginkan',
     'language'    => 'Bahasa',
 ];
