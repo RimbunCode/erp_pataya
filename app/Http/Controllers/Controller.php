@@ -25,11 +25,11 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected $permissions;
-    protected $modelPermissions;
-    protected $onlyCreator = false;
+    protected        $permissions;
+    protected        $modelPermissions;
+    protected        $onlyCreator      = false;
     protected string $lang;
-    protected bool $ignorePermission = false;
+    protected bool   $ignorePermission = false;
 
     /**
      * Summary of setBreadcrumbs
@@ -105,49 +105,50 @@ abstract class Controller {
             $currentRoute = Route::getCurrentRoute();
             $method       = $currentRoute->getActionMethod();
 
-            $customPermission = $this->_matchMethodWithPermission($method) || $this->matchMethodWithPermission($method);
-
-            // dd($method, $keyPermission, $keyPermission === false, null == false);
-            if ($customPermission != true) {
-                $keyPermission = match ($method) {
-                    'index'   => 'select',
-                    'create'  => 'create',
-                    'store'   => 'create',
-                    'show'    => 'read',
-                    'update'  => 'write',
-                    'destroy' => 'delete',
-                    'import'  => 'import',
-                    'export'  => 'export',
-                    'share'   => 'share',
-                    'submit'  => 'submit',
-                    'cancel'  => 'cancel',
-                    'print'   => 'print',
-                    'amend'   => 'amend',
-                    default   => null,
-                };
-                $this->permissions      = $request->session()->get('permissions');
-                $this->modelPermissions = $this->permissions[$this->model] ?? null;
-                if ($this->modelPermissions === null) {
-                    abort(403);
-                }
-
-                if ($keyPermission) {
-                    $this->onlyCreator    = $this->guard($keyPermission, 0);
-                    $request->onlyCreator = $this->onlyCreator ?? false;
-
-                    foreach ($currentRoute->parameters() as $key => $value) {
-                        if (get_class($value) === $this->model) {
-                            $data = $value;
-                        }
+            $customPermission = $this->matchMethodWithPermission($method);
+            if (! ($request->hasValidSignature() && $request->user()->id == ($request->u ?? ""))) {
+                if ($customPermission != true) {
+                    $keyPermission          = match ($method) {
+                        'index'   => 'select',
+                        'create'  => 'create',
+                        'store'   => 'create',
+                        'show'    => 'read',
+                        'update'  => 'write',
+                        'destroy' => 'delete',
+                        'import'  => 'import',
+                        'export'  => 'export',
+                        'share'   => 'share',
+                        'submit'  => 'submit',
+                        'cancel'  => 'cancel',
+                        'print'   => 'print',
+                        'amend'   => 'amend',
+                        default   => null,
+                    };
+                    $this->permissions      = $request->session()->get('permissions');
+                    $this->modelPermissions = $this->permissions[$this->model] ?? null;
+                    if ($this->modelPermissions === null) {
+                        abort(403);
                     }
-                    if (isset($data)) {
-                        $allowed = $this->onlyCreator ? $data?->created_by_id == auth()->user()->id : true;
-                        if (! $allowed) {
+                    if (! $this->_matchMethodWithPermission($method)) {
+                        if ($keyPermission) {
+                            $this->onlyCreator    = $this->guard($keyPermission, 0);
+                            $request->onlyCreator = $this->onlyCreator ?? false;
+
+                            foreach ($currentRoute->parameters() as $key => $value) {
+                                if (get_class($value) === $this->model) {
+                                    $data = $value;
+                                }
+                            }
+                            if (isset($data)) {
+                                $allowed = $this->onlyCreator ? $data?->created_by_id == auth()->user()->id : true;
+                                if (! $allowed) {
+                                    abort(403);
+                                }
+                            }
+                        } else {
                             abort(403);
                         }
                     }
-                } else {
-                    abort(403);
                 }
             }
         }
@@ -278,8 +279,8 @@ abstract class Controller {
         $printTemplate->loadRelations();
 
         return Inertia::render('Core/Print', [
-            'data'     => $data,
-            'document' => [
+            'data'          => $data,
+            'document'      => [
                 [
                     'name'       => 'name',
                     'titleTrans' => $data->translateKey . '.name',

@@ -12,6 +12,19 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
+$temporaryPath = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'framework' . DIRECTORY_SEPARATOR . 'temp';
+
+if (! is_dir($temporaryPath)) {
+    mkdir($temporaryPath, 0755, true);
+}
+
+if (is_writable($temporaryPath)) {
+    ini_set('sys_temp_dir', $temporaryPath);
+    ini_set('upload_tmp_dir', $temporaryPath);
+    putenv("TMP={$temporaryPath}");
+    putenv("TEMP={$temporaryPath}");
+}
+
 return Application::configure(dirname(__DIR__))
     ->withRouting(
         web: __DIR__ . '/../routes/web.php',

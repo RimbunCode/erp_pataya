@@ -830,7 +830,7 @@ export default memo(
                 </PopoverContent>
               )}
             </Command>
-            {disabledAdd && (
+            {!disabledAdd && (
               <FormPageLinkModelDialog
                 title={titleDialog}
                 name={name}

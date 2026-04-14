@@ -22,9 +22,22 @@ class UserController extends Controller {
     }
 
     protected function matchMethodWithPermission(string $method) {
-        $route = Route::getCurrentRoute();
-        $user  = $route->parameter('user');
-        if (\in_array($method, ['show', 'update', 'image', 'connectToProvider']) && $user->id == Auth::user()->id) {
+        $route   = Route::getCurrentRoute();
+        $user_id = $route->originalParameter('user');
+        if (
+            \in_array($method, [
+                'show',
+                'update',
+                'image',
+                'connectToProvider',
+                'addComment',
+                'addTag',
+                'addFile',
+                'removeFile',
+                'removeComment',
+                'removeTag',
+            ]) && $user_id == Auth::user()->id
+        ) {
             return true;
         }
     }
@@ -82,7 +95,7 @@ class UserController extends Controller {
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
-            'user' => function () use ($user) {
+            'user'     => function () use ($user) {
                 $user->roles    = $user->roles()->pluck('id');
                 $user->branches = $user->branches()->pluck('id');
 

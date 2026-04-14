@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Inventory;
 
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class StockEntryRequest extends FormRequest {
+class StockEntryRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */

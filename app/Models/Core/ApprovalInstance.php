@@ -9,6 +9,7 @@ use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 
 class ApprovalInstance extends Model {
     use HasUlids, SoftDeletes;
@@ -18,6 +19,14 @@ class ApprovalInstance extends Model {
         'status'  => FormStatusCast::class,
         'options' => Json::class,
     ];
+    // protected $appends = ['signed_url'];
+
+    // protected function getSignedUrlAttribute() {
+    //     return URL::signedRoute('approvalInstances.show', [
+    //         'approvalInstance' => $this->id,
+    //     ]);
+    // }
+
     protected $with             = ['steps', 'document'];
     public string $translateKey = 'core.approvalInstance';
     public $configColumns       = [

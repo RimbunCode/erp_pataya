@@ -2,12 +2,12 @@
 
 namespace App\Http\Requests\User;
 
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Lang;
 use Illuminate\Validation\Rule;
 
-class UserRequest extends FormRequest {
+class UserRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */

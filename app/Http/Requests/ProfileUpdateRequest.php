@@ -4,10 +4,9 @@ namespace App\Http\Requests;
 
 use App\Models\User\User;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class ProfileUpdateRequest extends FormRequest {
+class ProfileUpdateRequest extends BaseFormRequest {
     /**
      * Get the validation rules that apply to the request.
      *

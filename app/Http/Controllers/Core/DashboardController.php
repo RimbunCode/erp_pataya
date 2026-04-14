@@ -18,7 +18,7 @@ class DashboardController extends Controller {
     }
 
     protected function matchMethodWithPermission(string $method) {
-        if ($method == 'view') {
+        if ($method == 'view' || $method == 'storeUserDashboard') {
             return true;
         }
     }

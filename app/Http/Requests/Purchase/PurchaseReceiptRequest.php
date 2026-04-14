@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Purchase;
 
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class PurchaseReceiptRequest extends FormRequest {
+class PurchaseReceiptRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */
