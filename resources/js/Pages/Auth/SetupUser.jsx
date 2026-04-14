@@ -39,7 +39,7 @@ import ToggleTheme from "@/Components/ToggleTheme";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useState } from "react";
 
-function SetupUser({ user, hasPassword, _isWaiting }) {
+function SetupUser({ user, hasPassword, isWaiting }) {
   const route = window.route;
   const { t, loading } = useLaravelReactI18n();
   const [isVisible, setIsVisible] = useState(false);
@@ -98,17 +98,19 @@ function SetupUser({ user, hasPassword, _isWaiting }) {
         </div>
       </CardHeader>
       <CardContent>
-        <Alert variant="warning" appearance="light" className="mb-4">
-          <AlertIcon>
-            <RiErrorWarningFill />
-          </AlertIcon>
-          <AlertContent>
-            <AlertTitle>{t("auth.setupUser.waiting.title")}</AlertTitle>
-            <AlertDescription>
-              {t("auth.setupUser.waiting.description")}
-            </AlertDescription>
-          </AlertContent>
-        </Alert>
+        {isWaiting && (
+          <Alert variant="warning" appearance="light" className="mb-4">
+            <AlertIcon>
+              <RiErrorWarningFill />
+            </AlertIcon>
+            <AlertContent>
+              <AlertTitle>{t("auth.setupUser.waiting.title")}</AlertTitle>
+              <AlertDescription>
+                {t("auth.setupUser.waiting.description")}
+              </AlertDescription>
+            </AlertContent>
+          </Alert>
+        )}
         <form onSubmit={onSubmit}>
           <div className="grid gap-y-4">
             <div className="border-b-0">

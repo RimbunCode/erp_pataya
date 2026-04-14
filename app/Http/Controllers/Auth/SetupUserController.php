@@ -23,11 +23,12 @@ class SetupUserController extends Controller {
         }
 
         $hasPassword = $userRequest->password != null;
+        $isWaiting   = $userRequest->status == FormStatus::PRE_REGISTERED && ($hasPassword);
 
         return Inertia::render('Auth/SetupUser', [
             'user'        => $userRequest,
             'hasPassword' => $hasPassword,
-            'isWaiting'   => true,
+            'isWaiting'   => $isWaiting,
         ]);
     }
 
