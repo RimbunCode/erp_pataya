@@ -39,7 +39,7 @@ import ToggleTheme from "@/Components/ToggleTheme";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useState } from "react";
 
-function SetupUser({ user, hasPassword, isWaiting }) {
+function SetupUser({ user, hasPassword, _isWaiting }) {
   const route = window.route;
   const { t, loading } = useLaravelReactI18n();
   const [isVisible, setIsVisible] = useState(false);
