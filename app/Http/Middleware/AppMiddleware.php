@@ -36,7 +36,7 @@ class AppMiddleware extends Middleware {
             }
 
             $activeBranch = $branches->firstWhere('id', $currentBranch)
-              ?? $branches->firstWhere('id', $user->default_branch_id);
+                ?? $branches->firstWhere('id', $user->default_branch_id);
 
             Inertia::share([
                 'permissions'    => $permissions,
@@ -54,8 +54,8 @@ class AppMiddleware extends Middleware {
         $preferences = Preference::query()->pluck('value', 'key');
         $countryId   = $preferences->get('country_id');
         $countryName = $countryId !== null
-          ? Country::query()->whereKey($countryId)->value('name')
-          : null;
+            ? Country::query()->whereKey($countryId)->value('name')
+            : null;
 
         return [
             ...parent::share($request),

@@ -28,6 +28,9 @@ export default memo(function Comments() {
   const { t } = useLaravelReactI18n();
   const commentRef = useRef();
   const route = window.route;
+  const currentPath = window.location.pathname.replace(/\/$/, "");
+  const currentQueryString = window.location.search;
+  const commentBasePath = `${currentPath}/comment`;
   const [comment, setComment] = useState("");
   const [showSend, setShowSend] = useState(false);
   const [focusedOnComment, setFocusedOnComment] = useState(false);
@@ -39,31 +42,37 @@ export default memo(function Comments() {
       setShowSend(true);
     }
   }, [comment]);
-  const onSubmit = useCallback((_comment) => {
-    router.post(
-      route(route().current(), route().params) + "/comment",
-      { comment: cleanedQuillOutput(_comment) },
-      {
+  const onSubmit = useCallback(
+    (_comment) => {
+      router.post(
+        `${commentBasePath}${currentQueryString}`,
+        { comment: cleanedQuillOutput(_comment) },
+        {
+          reset: ["logs"],
+          preserveScroll: true,
+          preserveState: true,
+          replace: true,
+          onSuccess: () => {
+            setComment("");
+            setFocusedOnComment(false);
+            commentRef.current.blur();
+          },
+        },
+      );
+    },
+    [commentBasePath, currentQueryString],
+  );
+  const removeComment = useCallback(
+    (id) => {
+      router.delete(`${commentBasePath}/${id}${currentQueryString}`, {
         reset: ["logs"],
         preserveScroll: true,
         preserveState: true,
         replace: true,
-        onSuccess: () => {
-          setComment("");
-          setFocusedOnComment(false);
-          commentRef.current.blur();
-        },
-      },
-    );
-  }, []);
-  const removeComment = useCallback((id) => {
-    router.delete(route(route().current(), route().params) + `/comment/${id}`, {
-      reset: ["logs"],
-      preserveScroll: true,
-      preserveState: true,
-      replace: true,
-    });
-  }, []);
+      });
+    },
+    [commentBasePath, currentQueryString],
+  );
 
   const onKeyDown = useCallback((e, comment, focusedOnComment) => {
     e.stopPropagation();

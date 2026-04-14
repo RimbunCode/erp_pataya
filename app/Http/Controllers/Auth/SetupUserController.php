@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\FormStatus;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\User\UserRequest;
+use App\Http\Requests\Auth\SetupUserRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -18,24 +18,32 @@ class SetupUserController extends Controller {
 
     public function show(Request $request) {
         $userRequest = $request->user();
+        if ($userRequest->status == FormStatus::ACTIVE) {
+            return redirect()->route('dashboard');
+        }
 
         $hasPassword = $userRequest->password != null;
 
         return Inertia::render('Auth/SetupUser', [
             'user'        => $userRequest,
             'hasPassword' => $hasPassword,
+            'isWaiting'   => true,
         ]);
     }
 
-    public function update(UserRequest $request) {
+    public function update(SetupUserRequest $request) {
         $data = $request->validated();
         DB::beginTransaction();
-        $user = $request->user();
+        $user        = $request->user();
+        $hasPassword = $user->password != null;
 
-        $data['password'] = isset($data['password']) ? Hash::make($data['password']) : $user->password;
+        $hasBranch = $user->branches()->exists();
+
+        $data['password'] = isset($data['password']) && (isset($data['current_password']) || ! $hasPassword)
+            ? Hash::make($data['password']) : $user->password;
 
         $hasPassword    = $data['password'] != null;
-        $data['status'] = $user->method == FormStatus::PRE_REGISTERED && $hasPassword ? FormStatus::ACTIVE : $user->status;
+        $data['status'] = $user->status == FormStatus::INVITED && $hasPassword && $hasBranch ? FormStatus::ACTIVE : $user->status;
         $user->fillForUpdate($data);
         $user->logForUpdated();
         DB::commit();

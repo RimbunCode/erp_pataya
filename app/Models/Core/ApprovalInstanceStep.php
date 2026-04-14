@@ -23,8 +23,9 @@ class ApprovalInstanceStep extends Model {
     public string $translateKey = 'core.approvalInstance.steps';
     public $configColumns       = [
         'approvalInstance' => [
-            'show'  => true,
-            'order' => 0,
+            'show'            => true,
+            'order'           => 0,
+            'forceNavigation' => true,
         ],
         'status' => [
             'show'  => true,

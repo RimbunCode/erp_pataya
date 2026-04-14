@@ -22,6 +22,9 @@ export default function Show({ user }) {
   const changePasswordDialogRef = useRef();
   const { user: authUser } = usePage().props.auth;
   const [openAttachment, setOpenAttachment] = useState(false);
+  const currentPath = window.location.pathname.replace(/\/$/, "");
+  const currentQueryString = window.location.search;
+  const basePath = `${currentPath}/image`;
   const alias = user.name
     .split(" ")
     .slice(0, 2)
@@ -92,7 +95,7 @@ export default function Show({ user }) {
                 open={openAttachment}
                 imageOnly
                 options={{
-                  route: route(route().current(), route().params) + "/image",
+                  route: `${basePath}${currentQueryString}`,
                   reset: ["user", "auth"],
                 }}
                 onClose={() => {

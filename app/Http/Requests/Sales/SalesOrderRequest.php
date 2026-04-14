@@ -2,14 +2,14 @@
 
 namespace App\Http\Requests\Sales;
 
+use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Models\Core\Preference;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class SalesOrderRequest extends FormRequest {
+class SalesOrderRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */

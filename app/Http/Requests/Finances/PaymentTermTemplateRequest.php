@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Finances;
 
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
 
-class PaymentTermTemplateRequest extends FormRequest {
+class PaymentTermTemplateRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */

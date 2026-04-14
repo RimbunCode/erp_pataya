@@ -22,7 +22,10 @@ export default memo(function Attachments() {
   const [openAttachment, setOpenAttachment] = useState(false);
 
   const removeFile = useCallback((id) => {
-    router.delete(route(route().current(), route().params) + `/file/${id}`, {
+    const currentPath = window.location.pathname.replace(/\/$/, "");
+    const currentQueryString = window.location.search;
+    const basePath = `${currentPath}/file`;
+    router.delete(`${basePath}/${id}${currentQueryString}`, {
       reset: ["attachments"],
       preserveScroll: true,
       preserveState: true,

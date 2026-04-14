@@ -1,0 +1,44 @@
+<?php
+
+return [
+    'approvalScheme'     => 'Skema Persetujuan',
+    'approvalSchemes'    => 'Skema Persetujuan',
+    'title'              => 'Skema Persetujuan',
+    'add'                => 'Tambah Skema Persetujuan',
+    'new'                => 'Skema Persetujuan Baru',
+    'delete'             => 'Hapus Skema Persetujuan',
+    'delete.description' => 'Apakah Anda yakin ingin menghapus Skema Persetujuan ini?',
+    'delete.confirm'     => 'Hapus',
+    'columns'            => [
+        'name'              => 'Nama',
+        'model'             => 'Model',
+        'model.placeholder' => 'Pilih model',
+        'name_model'        => 'Model',
+        'is_active'         => 'Aktif',
+        'status'            => 'Status',
+        'config'            => 'Konfigurasi',
+        'steps'             => 'Langkah-langkah',
+        'document'          => 'Dokumen',
+        'options'           => 'Opsi',
+        'current_sequence'  => 'Urutan Saat Ini',
+        'approval_scheme'   => 'Skema Persetujuan',
+    ],
+    'steps' => [
+        'columns' => [
+            'sequence'              => 'Urutan',
+            'approval_scheme'       => 'Skema Persetujuan',
+            'approver_type'         => 'Tipe Penyetuju',
+            'approver_type.options' => [
+                'user' => 'Pengguna',
+                'role' => 'Peran',
+            ],
+            'approver'          => 'Penyetuju',
+            'config'            => 'Konfigurasi',
+            'acted_at'          => 'Tindakan Pada',
+            'acted_by'          => 'Tindakan Oleh',
+            'status'            => 'Status',
+            'approval_instance' => 'Instansi Persetujuan',
+            'notes'             => 'Catatan',
+        ],
+    ],
+];

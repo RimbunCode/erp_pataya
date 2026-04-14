@@ -43,9 +43,10 @@ return [
     'manage_password' => [
         'change_password' => 'Change Password',
         'columns'         => [
-            'current_password'      => 'Current Password',
-            'password'              => 'New Password',
-            'password_confirmation' => 'Confirm Password',
+            'current_password'             => 'Current Password',
+            'current_password.description' => 'Fill if you want to change your password',
+            'password'                     => 'New Password',
+            'password_confirmation'        => 'Confirm Password',
         ],
     ],
 ];

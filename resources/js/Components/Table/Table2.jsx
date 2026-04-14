@@ -213,6 +213,7 @@ const Cell = memo(
         });
       }
     }
+    console.log(colProps);
     if (isLink && can("read", { user_id: row.created_by_id })) {
       return (
         <Link
@@ -226,16 +227,21 @@ const Cell = memo(
       type == "relation" &&
       route &&
       !colProps?.disabledNavigation &&
-      canGlobal(value.thisModel, "read", {
-        user_id: value.created_by_id,
-      })
+      (colProps.signedRouteKey ||
+        colProps.forceNavigation ||
+        canGlobal(value.thisModel, "read", {
+          user_id: value.created_by_id,
+        }))
     ) {
       return (
         <Link
-          href={window.route(
-            value?.["route"] ? value?.["route"] + ".show" : (route ?? ""),
-            value?.[primaryKey] ?? "",
-          )}
+          href={
+            value[colProps.signedRouteKey] ??
+            window.route(
+              value?.["route"] ? value?.["route"] + ".show" : (route ?? ""),
+              value?.[primaryKey] ?? "",
+            )
+          }
           className="text-blue-800 dark:text-blue-200 hover:underline"
         >
           {valueCell}

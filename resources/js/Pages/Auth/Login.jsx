@@ -12,11 +12,13 @@ import GuestLayout from "@/Layouts/GuestLayout";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
 import Link from "@/Components/Link";
+import React from "react";
+import { RiErrorWarningFill } from "@remixicon/react";
 import { Skeleton } from "@/Components/ui/skeleton";
 import ToggleTheme from "@/Components/ToggleTheme";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function Login() {
+export default function Login({ errors }) {
   const { t, loading } = useLaravelReactI18n();
   const route = window.route;
   // const { addToast } = useToasts();
@@ -59,6 +61,20 @@ export default function Login() {
         </div>
       </CardHeader>
       <CardContent className="pt-2!">
+        {errors && Object.keys(errors).length > 0 && (
+          <div className="flex-col w-full mb-4 alert error">
+            <div className="flex gap-x-2">
+              <RiErrorWarningFill />
+              <div className="flex items-center">
+                <ul className="block">
+                  {Object.entries(errors).map(([key, value]) => (
+                    <li key={key}>{value}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
         <form onSubmit={submit}>
           <div className="grid gap-6">
             <div className="grid gap-6">

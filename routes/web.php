@@ -114,7 +114,7 @@ Route::get('/model/{model}', [ModelController::class, 'columns'])
     ->middleware(middleware: ['auth'])
     ->name('model.columns');
 
-Route::middleware(['auth', 'lang', 'app'])->group(function () {
+Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     if (config('app.debug')) {
         Route::get('/status', function () {
             return Inertia::render('Status', [
