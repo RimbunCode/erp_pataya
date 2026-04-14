@@ -25,11 +25,11 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected        $permissions;
-    protected        $modelPermissions;
-    protected        $onlyCreator      = false;
+    protected $permissions;
+    protected $modelPermissions;
+    protected $onlyCreator = false;
     protected string $lang;
-    protected bool   $ignorePermission = false;
+    protected bool $ignorePermission = false;
 
     /**
      * Summary of setBreadcrumbs
@@ -106,9 +106,9 @@ abstract class Controller {
             $method       = $currentRoute->getActionMethod();
 
             $customPermission = $this->matchMethodWithPermission($method);
-            if (! ($request->hasValidSignature() && $request->user()->id == ($request->u ?? ""))) {
+            if (! ($request->hasValidSignature() && $request->user()->id == ($request->u ?? ''))) {
                 if ($customPermission != true) {
-                    $keyPermission          = match ($method) {
+                    $keyPermission = match ($method) {
                         'index'   => 'select',
                         'create'  => 'create',
                         'store'   => 'create',
@@ -279,8 +279,8 @@ abstract class Controller {
         $printTemplate->loadRelations();
 
         return Inertia::render('Core/Print', [
-            'data'          => $data,
-            'document'      => [
+            'data'     => $data,
+            'document' => [
                 [
                     'name'       => 'name',
                     'titleTrans' => $data->translateKey . '.name',
