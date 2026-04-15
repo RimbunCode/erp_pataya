@@ -44,8 +44,8 @@ class InternalOrderController extends Controller {
         DB::beginTransaction();
 
         // branch dari session
-        $data['branch_id']  = $request->session()->get('currentBranch');
-        $data['created_by'] = $request->user()->id;
+        $data['branch_id']     = $request->session()->get('currentBranch');
+        $data['created_by_id'] = $request->user()->id;
 
         // create SO
         $io = $this->service->create($data);

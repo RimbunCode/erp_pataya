@@ -32,11 +32,11 @@ class ApprovalScheme extends Model {
 
         self::saved(function ($data) {
             if ($data->is_active) {
-                PrintTemplate::where('permission_id', $data->permission_id)
+                ApprovalScheme::where('permission_id', $data->permission_id)
                     ->whereNot('id', $data->id)
                     ->update(['is_active' => false]);
             } else {
-                $counter = PrintTemplate::where('permission_id', $data->permission_id)
+                $counter = ApprovalScheme::where('permission_id', $data->permission_id)
                     ->whereNot('id', $data->id)
                     ->count();
 

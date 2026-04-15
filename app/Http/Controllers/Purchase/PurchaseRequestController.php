@@ -90,7 +90,7 @@ class PurchaseRequestController extends Controller {
     /**
      * Display the specified resource.
      */
-    public function show(PurchaseRequest $purchaseRequest) {
+    public function show(Request $request, PurchaseRequest $purchaseRequest) {
         $this->setBreadcrumbs($purchaseRequest);
         $purchaseRequest->showDetail();
 

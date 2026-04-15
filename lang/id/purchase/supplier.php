@@ -1,0 +1,30 @@
+<?php
+
+return [
+    'title'           => 'Kelola Pemasok (Supplier)',
+    'add'             => 'Tambah Pemasok',
+    'basic_info'      => 'Informasi Dasar',
+    'suppliers'       => 'Pemasok',
+    'supplier_detail' => 'Detail Pemasok',
+    'address'         => 'Alamat Pemasok',
+    'new'             => 'Pemasok Baru',
+    'columns'         => [
+        'branch_of'           => 'Cabang Dari',
+        'name'                => 'Nama',
+        'phone'               => 'Telepon',
+        'email'               => 'Email',
+        'banks'               => 'Bank',
+        'address'             => 'Alamat',
+        'street'              => 'Jalan',
+        'city'                => 'Kota',
+        'province'            => 'Provinsi',
+        'zip_code'            => 'Kode Pos',
+        'country'             => 'Negara',
+        'country.placeholder' => 'Pilih negara',
+        'is_disabled'         => 'Dinonaktifkan',
+        'created_at'          => 'Dibuat pada',
+        'bank'                => 'Bank',
+        'no_acc'              => 'No. Rekening',
+        'account'             => 'Nama Akun',
+    ],
+];

@@ -399,6 +399,9 @@ export default function Company({ company }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const [openAttachment, setOpenAttachment] = useState(false);
+  const currentPath = window.location.pathname.replace(/\/$/, "");
+  const currentQueryString = window.location.search;
+  const basePath = `${currentPath}/image`;
   const alias = company.company_name
     .split(" ")
     .slice(0, 2)
@@ -466,7 +469,7 @@ export default function Company({ company }) {
               single
               imageOnly
               options={{
-                route: route(route().current()) + "/image",
+                route: `${basePath}${currentQueryString}`,
                 reset: ["company", "auth"],
               }}
               onClose={() => {

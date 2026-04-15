@@ -2,11 +2,11 @@
 
 namespace App\Http\Requests\Inventory;
 
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class AttributeRequest extends FormRequest {
+class AttributeRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */

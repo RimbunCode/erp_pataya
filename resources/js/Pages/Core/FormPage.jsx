@@ -83,6 +83,7 @@ import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import usePermission from "@/Hooks/usePermission";
 
 /**
  * @typedef {object} FormPageContentTitleProps
@@ -683,6 +684,8 @@ const FormPage = memo(
     const prints = usePage().props.prints ?? [];
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
     const user = usePage().props.auth.user;
+    const { model } = usePage().props;
+    const { can } = usePermission(model);
     const {
       data,
       setData: _setData,
@@ -966,7 +969,11 @@ const FormPage = memo(
                   (submitable && inArray(defaultData?.status, "draft"))) &&
                 deleteable &&
                 defaultData?.canDelete &&
-                defaultData?.id && (
+                defaultData?.id &&
+                can(
+                  "delete",
+                  submitable && { user_id: defaultData?.created_by_id },
+                ) && (
                   <Button
                     type="button"
                     variant="destructive"
@@ -987,52 +994,67 @@ const FormPage = memo(
                     {t("core.form.delete")}
                   </Button>
                 )}
-              {!isDirty && !isCreate ? (
-                submitable &&
-                defaultData?.created_by?.id == user?.id &&
-                (!defaultData?.submitted_at ? (
-                  <Button
-                    type="button"
-                    className="p-2! size-fit h-8"
-                    disabled={processing}
-                    onClick={submit}
-                    variant="primary"
-                  >
-                    {t("core.form.submit")}
-                  </Button>
-                ) : inArray(defaultData?.status, ["canceled", "rejected"]) ? (
-                  <Button
-                    type="button"
-                    className="p-2! size-fit h-8"
-                    disabled={processing}
-                    onClick={amend}
-                    variant="primary"
-                  >
-                    {t("core.form.amend")}
-                  </Button>
-                ) : (
-                  !isCompletedStatus(defaultData?.status) && (
+              {!isDirty && !isCreate
+                ? submitable &&
+                  defaultData?.created_by_id == user?.id &&
+                  (!defaultData?.submitted_at
+                    ? can(
+                        "submit",
+                        submitable && { user_id: defaultData?.created_by_id },
+                      ) && (
+                        <Button
+                          type="button"
+                          className="p-2! size-fit h-8"
+                          disabled={processing}
+                          onClick={submit}
+                          variant="primary"
+                        >
+                          {t("core.form.submit")}
+                        </Button>
+                      )
+                    : inArray(defaultData?.status, ["canceled", "rejected"])
+                      ? can(
+                          "amend",
+                          submitable && { user_id: defaultData?.created_by_id },
+                        ) && (
+                          <Button
+                            type="button"
+                            className="p-2! size-fit h-8"
+                            disabled={processing}
+                            onClick={amend}
+                            variant="primary"
+                          >
+                            {t("core.form.amend")}
+                          </Button>
+                        )
+                      : !isCompletedStatus(defaultData?.status) &&
+                        can(
+                          "cancel",
+                          submitable && { user_id: defaultData?.created_by_id },
+                        ) && (
+                          <Button
+                            type="button"
+                            className="p-2! size-fit h-8"
+                            disabled={processing}
+                            onClick={cancel}
+                            variant="destructive"
+                          >
+                            {t("core.form.cancel")}
+                          </Button>
+                        ))
+                : can(
+                    "write",
+                    submitable && { user_id: defaultData?.created_by_id },
+                  ) && (
                     <Button
-                      type="button"
+                      type="submit"
                       className="p-2! size-fit h-8"
                       disabled={processing}
-                      onClick={cancel}
-                      variant="destructive"
                     >
-                      {t("core.form.cancel")}
+                      <SaveIcon />
+                      {t("core.form.save")}
                     </Button>
-                  )
-                ))
-              ) : (
-                <Button
-                  type="submit"
-                  className="p-2! size-fit h-8"
-                  disabled={processing}
-                >
-                  <SaveIcon />
-                  {t("core.form.save")}
-                </Button>
-              )}
+                  )}
             </div>
           </div>
           {banner}
@@ -1529,6 +1551,9 @@ const FormPageDialog = memo(
       defaultValue,
       children,
       badge,
+      method = "post",
+      routeName,
+      ignoreDraft = false,
     },
     ref,
   ) {
@@ -1553,7 +1578,6 @@ const FormPageDialog = memo(
     const {
       data,
       setData: _setData,
-      post,
       processing,
       errors,
       isDirty,
@@ -1561,6 +1585,7 @@ const FormPageDialog = memo(
       setDefaults,
       clearErrors,
       key,
+      submit,
     } = form;
     const disabled = disabledProps ?? processing;
 
@@ -1569,12 +1594,13 @@ const FormPageDialog = memo(
       _setData(defaultValue ?? {});
     }, [defaultValue]);
     useEffect(() => {
+      if (ignoreDraft) return;
       if (!open) return;
       else {
         loadDraft();
       }
       reset();
-    }, [open]);
+    }, [open, ignoreDraft]);
 
     const setData = useCallback(
       (...args) => {
@@ -1644,8 +1670,8 @@ const FormPageDialog = memo(
       e.stopPropagation();
       if (disabled) return;
       if (!name) return;
-      const pluralized = `${pluralize.plural(name ?? "")}.store`;
-      post(route(pluralized), {
+      const pluralized = routeName ?? `${pluralize.plural(name ?? "")}.store`;
+      submit(method, route(pluralized), {
         preserveState: true,
         preserveUrl: false,
         onSuccess: () => {

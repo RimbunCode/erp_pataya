@@ -17,6 +17,12 @@ class DashboardController extends Controller {
         parent::__construct($request, Dashboard::class);
     }
 
+    protected function matchMethodWithPermission(string $method) {
+        if ($method == 'view' || $method == 'storeUserDashboard') {
+            return true;
+        }
+    }
+
     private function fillWidgetRelation(array $data, Dashboard $dashboard) {
         $data['widget_id'] = $data['widget']['id'];
 
@@ -58,8 +64,8 @@ class DashboardController extends Controller {
      * Store a newly created resource in storage.
      */
     public function store(DashboardRequest $request) {
-        $data               = $request->validated();
-        $data['created_by'] = $request->user()->id;
+        $data                  = $request->validated();
+        $data['created_by_id'] = $request->user()->id;
         DB::beginTransaction();
         $dashboard = Dashboard::create($data);
 
@@ -172,7 +178,7 @@ class DashboardController extends Controller {
     public function update(DashboardRequest $request, Dashboard $dashboard) {
         $data = $request->validated();
         DB::beginTransaction();
-        $data['created_by'] = $request->user()->id;
+        $data['created_by_id'] = $request->user()->id;
         $dashboard->widgets()
             ->whereNotIn('id', array_column($data['widgets'], 'id'))
             ->delete();

@@ -63,6 +63,7 @@ import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import usePermission from "@/Hooks/usePermission";
 
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
 /**
@@ -143,24 +144,28 @@ export default memo(
     },
     ref,
   ) {
-    // const lang = usePage().props.lang;
-    // const route = window.route;
     const isMobile = useIsMobile();
     const { t } = useLaravelReactI18n();
     const query = usePage().props.ziggy.query;
     const { deleteItem } = useDeleteModal();
-    const { data, defaultSort, dataTableColumns, translateKey, name } =
+    const { data, defaultSort, dataTableColumns, translateKey, model, name } =
       usePage().props;
+    const { can } = usePermission(model);
     const [options, setOptions] = useState({
       sort: query?.sort ?? defaultSort,
       f: query?.f ?? [],
       page: query?.page ?? 1,
     });
+    const { user } = usePage().props.auth;
     const dialogRef = useRef();
 
     const actions = useCallback(
       (props) => {
-        if (props.dataRow.canDelete === false) return _actions?.(props);
+        if (
+          props.dataRow.canDelete === false ||
+          !can("delete", { user_id: props.dataRow?.created_by_id })
+        )
+          return _actions?.(props);
         return (
           <>
             <Button
@@ -183,7 +188,7 @@ export default memo(
           </>
         );
       },
-      [_actions, name],
+      [_actions, name, model, user],
     );
     // const [columns] = useState(
     //   _columns.findIndex((x) => x.name === "created_at") > -1
@@ -537,7 +542,7 @@ export default memo(
                   </Select>
                 </div>
               </div>
-              {form && (
+              {form && can("create") && (
                 <Button
                   className="p-2! size- fit h-8"
                   onClick={() => dialogRef?.current?.open()}
@@ -622,7 +627,7 @@ export default memo(
             </div>
           </div>
         </AppLayout>
-        {form && (
+        {form && can("create") && (
           <FormPageDialog
             ref={dialogRef}
             title={t(`${translateKey}.new`)}

@@ -55,7 +55,15 @@
     ],
     "dev": [
       "Composer\\Config::disableProcessTimeout",
-      "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan dev:logs\" \"npm run dev\" --names=server,queue,logs,vite"
+      "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"npx cross-env XDEBUG_MODE=off php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan dev:logs\" \"npm run dev\" --names=server,queue,logs,vite"
+    ],
+    "dev:simple": [
+      "Composer\\Config::disableProcessTimeout",
+      "npx concurrently -c \"#93c5fd,#fdba74\" \"npx cross-env XDEBUG_MODE=off php artisan serve\"  \"npm run dev\" --names=server,vite"
+    ],
+    "dev:debug": [
+      "Composer\\Config::disableProcessTimeout",
+      "npx concurrently -c \"#93c5fd,#fdba74\" \"cross-env XDEBUG_MODE=debug XDEBUG_TRIGGER=1 php artisan serve\"  \"npm run dev\" --names=server,vite"
     ],
     "pint": [
       "./vendor/bin/pint"

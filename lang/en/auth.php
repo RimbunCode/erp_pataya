@@ -14,6 +14,7 @@ return [
     */
 
     'failed'        => 'These credentials do not match our records.',
+    'disabled'      => 'Your account has been disabled!',
     'password'      => 'The provided password is incorrect.',
     'throttle'      => 'Too many login attempts. Please try again in :seconds seconds.',
     'your_password' => 'Your Password',
@@ -62,5 +63,18 @@ return [
     'forgotPassword' => [
         'description' => 'Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.',
         'button'      => 'Send Password Reset Link',
+    ],
+    'setupUser' => [
+        'title'               => 'Setup Your Account',
+        'description'         => 'Please fill in the form below to setup your account',
+        'waiting.title'       => 'Contact Your Admin for Approval',
+        'waiting.description' => 'Please contact your admin to approve your account.',
+        'credential'          => 'Credential',
+        'profile'             => 'Profile',
+        'button'              => [
+            'save'   => 'Save',
+            'setup'  => 'Setup',
+            'logout' => 'Logout',
+        ],
     ],
 ];

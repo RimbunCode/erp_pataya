@@ -15,10 +15,7 @@ return [
     'default_branch.placeholder' => 'Select a default branch',
     'show_permissions'           => 'Show Permissions',
     'permissions'                => 'Permissions',
-    'controls'                   => [
-        'change_password' => 'Change Password',
-    ],
-    'columns' => [
+    'columns'                    => [
         'name'               => 'Name',
         'username'           => 'Username',
         'email'              => 'Email',
@@ -42,5 +39,14 @@ return [
         'image'             => 'Image',
         'image.upload'      => 'Upload Image',
         'image.remove'      => 'Remove Image',
+    ],
+    'manage_password' => [
+        'change_password' => 'Change Password',
+        'columns'         => [
+            'current_password'             => 'Current Password',
+            'current_password.description' => 'Fill if you want to change your password',
+            'password'                     => 'New Password',
+            'password_confirmation'        => 'Confirm Password',
+        ],
     ],
 ];

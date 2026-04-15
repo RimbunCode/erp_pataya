@@ -303,7 +303,7 @@ trait DataTable {
         $tableName = static::getTableName();
         $nameModel = Str::afterLast(static::class, '\\');
         $alias     = static::$alias ??
-          \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
+            \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
         $module = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), '\\');
         if (! $module) {
             \print_r("\e[39m" . static::class . " \e[91m(Module name not found) \e[39m" . \PHP_EOL);
@@ -351,9 +351,9 @@ trait DataTable {
                     $table->json('status')->nullable();
                 });
             }
-            if (! Schema::hasColumn($tableName, 'created_by')) {
+            if (! Schema::hasColumn($tableName, 'created_by_id')) {
                 Schema::table($tableName, function (Blueprint $table) {
-                    $table->foreignUlid('created_by')->references('id')->on('users')->restrictOnDelete();
+                    $table->foreignUlid('created_by_id')->references('id')->on('users')->restrictOnDelete();
                 });
             }
             if (! Schema::hasColumn($tableName, 'submitted_at')) {
@@ -388,9 +388,9 @@ trait DataTable {
                 });
             }
         } else {
-            // if (Schema::hasColumn($tableName, 'created_by')) {
+            // if (Schema::hasColumn($tableName, 'created_by_id')) {
             //   Schema::table($tableName, function (Blueprint $table) {
-            //     $table->dropColumn('created_by');
+            //     $table->dropColumn('created_by_id');
             //   });
             // }
             if (Schema::hasColumn($tableName, 'submitted_at')) {
@@ -610,6 +610,10 @@ trait DataTable {
     }
 
     public function checkPermission(string $action, int $level = 0) {
+        return static::_checkPermission($action, $level);
+    }
+
+    public static function _checkPermission(string $action, int $level = 0) {
         $permissions      = Session::get('permissions');
         $modelPermissions = $permissions[static::class] ?? null;
         $levelPermissions = $modelPermissions[$level] ?? null;

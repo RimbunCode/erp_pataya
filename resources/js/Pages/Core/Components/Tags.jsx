@@ -7,7 +7,7 @@ import {
 } from "@/Components/ui/command";
 import { Deferred, router, usePage } from "@inertiajs/react";
 import { Plus, TagsIcon, X } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { cn, generateRandom, isNullOrWhitespace } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
@@ -29,6 +29,10 @@ function Tags() {
   const [listTags, setListTags] = useState([]);
   const [open, setOpen] = useState();
   const [showSearch, setShowSearch] = useState(false);
+
+  const currentPath = window.location.pathname.replace(/\/$/, "");
+  const currentQueryString = window.location.search;
+  const basePath = `${currentPath}/tag`;
   useEffect(() => {
     setTags(_tags ?? []);
   }, [_tags]);
@@ -41,39 +45,36 @@ function Tags() {
     }
   }, [showSearch]);
 
-  const addTag = useCallback(
-    (tag) => {
-      if (tags.findIndex((t) => t.name == tag.name) >= 0) {
-        setSearch("");
-        setShowSearch(false);
-        return;
-      }
-      setTags([...tags, { ...tag, isLoading: true }]);
-      router.post(
-        route(route().current(), route().params) + "/tag",
-        { ...tag },
-        {
-          reset: ["tags"],
-          preserveScroll: true,
-          preserveState: true,
-          replace: true,
-          onSuccess: () => {},
-        },
-      );
+  const addTag = (tag) => {
+    if (tags.findIndex((t) => t.name == tag.name) >= 0) {
       setSearch("");
       setShowSearch(false);
-    },
-    [tags],
-  );
+      return;
+    }
+    setTags([...tags, { ...tag, isLoading: true }]);
+    router.post(
+      `${basePath}${currentQueryString}`,
+      { ...tag },
+      {
+        reset: ["tags"],
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+        onSuccess: () => {},
+      },
+    );
+    setSearch("");
+    setShowSearch(false);
+  };
 
-  const removeTag = useCallback((id) => {
-    router.delete(route(route().current(), route().params) + `/tag/${id}`, {
+  const removeTag = (id) => {
+    router.delete(`${basePath}/${id}${currentQueryString}`, {
       reset: ["tags"],
       preserveScroll: true,
       preserveState: true,
       replace: true,
     });
-  }, []);
+  };
 
   useDidMountEffect(() => {
     const reloadData = setTimeout(() => {

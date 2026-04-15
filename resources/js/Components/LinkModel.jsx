@@ -30,6 +30,7 @@ import { isEqual } from "lodash";
 import pluralize from "pluralize";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import usePermission from "@/Hooks/usePermission";
 import { useRef } from "react";
 
 /**
@@ -94,6 +95,7 @@ export default memo(
     const [allowSearch, setAllowSearch] = useState(true);
     const [loading, setLoading] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
+    const { can } = usePermission(model);
     const cacheConfig = useMemo(() => {
       if (typeof cache === "object") {
         return {
@@ -619,6 +621,13 @@ export default memo(
       () => !cacheConfig.enabled && total > limit,
       [cacheConfig.enabled, limit, total],
     );
+
+    const disabledAdd = useMemo(() => {
+      if (disabledAddButton) return true;
+      else if (!form) return true;
+      else if (!can("create")) return true;
+      return false;
+    }, [disabledAddButton, form, can]);
     return (
       <ClickAwayListener onClickAway={() => setOpen(false)}>
         <div className={cn("w-full", className)}>
@@ -671,36 +680,45 @@ export default memo(
                           <LoadingIcon className="size-4" />
                         ) : (
                           <>
-                            {!disabledNavigation && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className={cn(
-                                  "size-6 hidden",
-                                  valueBefore && "inline-flex!",
-                                  option &&
-                                    search &&
-                                    "group-focus-within/model:inline-flex",
-                                )}
-                                onClick={() => {
-                                  if (!name || !option || !search) return;
-                                  if (
-                                    customNavigation &&
-                                    typeof customNavigation === "function"
-                                  ) {
-                                    customNavigation(value);
-                                  }
-                                  const pluralized = `${pluralize.plural(name ?? "")}.show`;
-                                  window.open(
-                                    route(pluralized, option[keyRoute ?? "id"]),
-                                    "_blank",
-                                  );
-                                }}
-                              >
-                                <ArrowRight className="size-3" />
-                              </Button>
-                            )}
+                            {!disabledNavigation &&
+                              name &&
+                              option &&
+                              search &&
+                              can("read", {
+                                user_id: option.created_by_id,
+                              }) && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className={cn(
+                                    "size-6 hidden",
+                                    valueBefore && "inline-flex!",
+                                    option &&
+                                      search &&
+                                      "group-focus-within/model:inline-flex",
+                                  )}
+                                  onClick={() => {
+                                    if (!name || !option || !search) return;
+                                    if (
+                                      customNavigation &&
+                                      typeof customNavigation === "function"
+                                    ) {
+                                      customNavigation(value);
+                                    }
+                                    const pluralized = `${pluralize.plural(name ?? "")}.show`;
+                                    window.open(
+                                      route(
+                                        pluralized,
+                                        option[keyRoute ?? "id"],
+                                      ),
+                                      "_blank",
+                                    );
+                                  }}
+                                >
+                                  <ArrowRight className="size-3" />
+                                </Button>
+                              )}
                             <Button
                               type="button"
                               variant="ghost"
@@ -778,7 +796,7 @@ export default memo(
                               </CommandItem>
                             );
                           })}
-                        {showMore && !disabledAddButton && <CommandSeparator />}
+                        {showMore && !disabledAdd && <CommandSeparator />}
                         {showMore && (
                           <CommandItem
                             className="text-blue-700 hover:text-blue-900! dark:text-blue-300 dark:hover:text-blue-200!"
@@ -789,7 +807,7 @@ export default memo(
                             {t("core.form.linkmodel.more")}
                           </CommandItem>
                         )}
-                        {!disabledAddButton && (
+                        {!disabledAdd && (
                           <CommandItem
                             onSelect={() => {
                               if (form) {
@@ -812,7 +830,7 @@ export default memo(
                 </PopoverContent>
               )}
             </Command>
-            {form && (
+            {!disabledAdd && (
               <FormPageLinkModelDialog
                 title={titleDialog}
                 name={name}

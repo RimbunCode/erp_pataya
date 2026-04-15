@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -25,7 +24,7 @@ return new class extends Migration
             $table->json('filters')->nullable();
             $table->json('config')->nullable();
             $table->text('description')->nullable();
-            $table->foreignUlid('created_by')->nullable()->references('id')->on('users')->nullOnDelete();
+            $table->foreignUlid('created_by_id')->nullable()->references('id')->on('users')->nullOnDelete();
             $table->foreignUlid('model_id')->nullable()->references('id')->on('permissions')->nullOnDelete();
             $table->string('model_class')->nullable();
             $table->softDeletes();

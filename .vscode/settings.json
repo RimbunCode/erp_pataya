@@ -10,7 +10,7 @@
   "php.linkedEditing.variables": false,
   "php.problems.excludeGitIgnore": true,
   "php.problems.exclude": {
-    "**/*": ["PHP6615", "PHP0413", "PHP6602", "PHP0416", "PHP0410"]
+    "**/*": ["PHP6615", "PHP0413", "PHP6602", "PHP0416", "PHP0410", "PHP2436"]
   },
   "php.suggest.basic": true,
   "php.validate.enable": true,
@@ -122,5 +122,77 @@
     "javascriptreact",
     "typescript",
     "typescriptreact"
-  ]
+  ],
+  "todo-tree.filtering.excludeGlobs": [
+    "**/node_modules/*/**",
+    "**/public/vendor/**",
+    "**/public/build/**",
+    "**/bootstrap/ssr/**"
+  ],
+  "todo-tree.filtering.ignoreGitSubmodules": true,
+  "todo-tree.general.tags": [
+    "BUG",
+    "HACK",
+    "TODO",
+    "XXX",
+    "[ ]",
+    "[x]",
+    "FIXME",
+    "EXAMPLE"
+  ],
+  "todo-tree.highlights.customHighlight": {
+    "TODO": {
+      "gutterIcon": true,
+      "iconColour": "#00ffff"
+    },
+    "BUG": {
+      "icon": "bug",
+      "gutterIcon": true,
+      "iconColour": "#FFFF00",
+      "background": "#FFFF00",
+      "foreground": "#000"
+    },
+    "HACK": {
+      "icon": "tools",
+      "gutterIcon": true,
+      "iconColour": "#ffa600",
+      "foreground": "#003a05",
+      "background": "#ffa600"
+    },
+    "XXX": {
+      "icon": "x",
+      "iconColour": "#FF0000",
+      "gutterIcon": true,
+      "foreground": "#FFF",
+      "background": "#FF0000"
+    },
+    "EXAMPLE": {
+      "gutterIcon": true,
+      "icon": "code",
+      "hideFromTree": false,
+      "foreground": "#c7c7c7",
+      "background": "#474747"
+    },
+    "[ ]": {
+      "icon": "issue-draft",
+      "iconColour": "#00ff00",
+      "foreground": "#fff",
+      "background": "#006308",
+      "gutterIcon": true
+    },
+    "[x]": {
+      "icon": "issue-closed",
+      "iconColour": "#00FF00",
+      "foreground": "#000",
+      "background": "#00FF00",
+      "gutterIcon": true
+    },
+    "FIXME": {
+      "icon": "flame",
+      "gutterIcon": true,
+      "iconColour": "#ff0000",
+      "background": "#ff0000",
+      "foreground": "#FFF"
+    }
+  }
 }

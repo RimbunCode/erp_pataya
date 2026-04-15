@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Session;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Socialite\Facades\Socialite;
@@ -23,7 +24,7 @@ class AuthenticatedSessionController extends Controller {
      */
     public function create(): Response {
         return Inertia::render('Auth/Login', [
-            'canResetPassword' => Route::has('password.request'),
+            'canResetPassword' => false, // Route::has('password.request'),
             'status'           => session('status'),
         ]);
     }
@@ -70,6 +71,15 @@ class AuthenticatedSessionController extends Controller {
 
         DB::beginTransaction();
         if ($authUser) {
+            $alreadyConnected = UserProvider::where('provider', $driver)
+                ->where('provider_id', $user->getId())
+                ->exists();
+
+            if ($alreadyConnected) {
+                throw ValidationException::withMessages([
+                    'provider_account' => 'This provider account is already connected to your account.',
+                ]);
+            }
             $authUser->providers()->updateOrCreate([
                 'provider'    => $driver,
                 'provider_id' => $user->getId(),
@@ -86,7 +96,7 @@ class AuthenticatedSessionController extends Controller {
 
             DB::commit();
 
-            return redirect()->intended(route('dashboard', absolute: false));
+            return redirect()->route('users.show', $authUser->id);
         } else {
             $provider = UserProvider::where('provider', $driver)
                 ->where('provider_id', $user->getId())->first();
@@ -109,10 +119,10 @@ class AuthenticatedSessionController extends Controller {
                 ]);
             } else {
                 $provider->update($payload);
-                $authUser = $user = $provider->user;
+                $authUser = $provider->user;
             }
 
-            $authUser         = $user = $provider->user;
+            $authUser         = $provider->user;
             $selectedProvider = $authUser->providers()->whereNotNull('avatar_url')->latest()->first();
 
             if ($selectedProvider) {
@@ -122,7 +132,22 @@ class AuthenticatedSessionController extends Controller {
             }
 
             DB::commit();
-            Auth::login($user);
+
+            if (! $authUser->password) {
+                throw ValidationException::withMessages([
+                    'status' => trans('auth.failed'),
+                ])->redirectTo(route('login'));
+            } elseif ($authUser?->status == FormStatus::INACTIVE) {
+                throw ValidationException::withMessages([
+                    'status' => trans('auth.disabled'),
+                ])->redirectTo(route('login'));
+            }
+
+            Auth::login($authUser);
+
+            if (\in_array($authUser->status, [FormStatus::PRE_REGISTERED, FormStatus::INVITED])) {
+                return redirect()->route('setup.show');
+            }
 
             return redirect()->intended(route('dashboard', absolute: false));
         }

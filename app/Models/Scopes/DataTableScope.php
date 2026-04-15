@@ -112,8 +112,11 @@ class DataTableScope implements Scope {
             if ($isSubmitable) {
                 $query->where(function (Builder $query) use ($request) {
                     $query->whereNotNull('submitted_at');
-                    $query->orWhere('created_by', $request->user()->id);
+                    $query->orWhere('created_by_id', $request->user()->id);
                 });
+                if ($request->onlyCreator) {
+                    $query->where('created_by_id', $request->user()->id);
+                }
             }
 
             $data = [

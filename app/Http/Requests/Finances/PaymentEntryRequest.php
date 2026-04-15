@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\Finances;
 
+use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Foundation\Http\FormRequest;
 
-class PaymentEntryRequest extends FormRequest {
+class PaymentEntryRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */

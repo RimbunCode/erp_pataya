@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\User;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UserRequest;
 use App\Models\Core\Branch;
@@ -12,12 +13,34 @@ use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Socialite\Socialite;
 
 class UserController extends Controller {
     public function __construct(Request $request) {
         parent::__construct($request, User::class);
+    }
+
+    protected function matchMethodWithPermission(string $method) {
+        $route   = Route::getCurrentRoute();
+        $user_id = $route->originalParameter('user');
+        if (
+            \in_array($method, [
+                'show',
+                'update',
+                'image',
+                'connectToProvider',
+                'addComment',
+                'addTag',
+                'addFile',
+                'removeFile',
+                'removeComment',
+                'removeTag',
+            ]) && $user_id == Auth::user()->id
+        ) {
+            return true;
+        }
     }
 
     /**
@@ -79,9 +102,9 @@ class UserController extends Controller {
 
                 return $user;
             },
-            'roles'    => Inertia::defer(fn () => Role::with('rules')->get()),
-            'branches' => Inertia::defer(fn () => Branch::whereNull('branchable_type')
-                ->whereNull('branchable_id')->get(), ),
+            'roles'    => Inertia::defer(Role::with('rules')->get(...)),
+            'branches' => Inertia::defer(Branch::whereNull('branchable_type')
+                ->whereNull('branchable_id')->get(...), ),
         ]);
     }
 
@@ -91,7 +114,10 @@ class UserController extends Controller {
     public function update(UserRequest $request, User $user) {
         $data = $request->validated();
         DB::beginTransaction();
-        $user->fillForUpdate($data);
+        if ($user->id != $request->user()->id) {
+            $data['status'] = \in_array($user->status, [FormStatus::ACTIVE, FormStatus::INACTIVE]) ? $user->status : FormStatus::ACTIVE;
+        }
+        $user->fillForUpdate($data, true);
         $user->roles()->sync($data['roles']);
         $user->branches()->sync($data['branches']);
         $user->logForUpdated();
@@ -122,7 +148,7 @@ class UserController extends Controller {
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
-            return Redirect::to('/');
+            return redirect()->to('/');
         } else {
             return redirect()->route('users.index');
         }

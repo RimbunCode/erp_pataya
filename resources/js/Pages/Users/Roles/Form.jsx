@@ -72,6 +72,7 @@ function Form() {
       setData("rules", [
         {
           permission_id: rule.model.id,
+          module: rule.model.module,
           name: rule.model.name,
           level,
           only_creator: onlyCreator,
@@ -89,30 +90,30 @@ function Form() {
     },
     [data?.rules, hasDuplicateRule, setData, showDuplicateRuleAlert],
   );
-  const onOnlyCreatorChange = useCallback(
-    (val, rule) => {
-      const nextOnlyCreator = val === true;
-      const rules = data?.rules ?? [];
-      if (
-        hasDuplicateRule(rules, {
-          permissionId: rule.permission_id,
-          level: rule.level,
-          onlyCreator: nextOnlyCreator,
-          excludeId: rule.id,
-        })
-      ) {
-        showDuplicateRuleAlert();
-        return;
-      }
-      setData(
-        "rules",
-        rules.map((r) =>
-          r.id === rule.id ? { ...r, only_creator: nextOnlyCreator } : r,
-        ),
-      );
-    },
-    [data?.rules, hasDuplicateRule, setData, showDuplicateRuleAlert],
-  );
+  // const onOnlyCreatorChange = useCallback(
+  //   (val, rule) => {
+  //     const nextOnlyCreator = val === true;
+  //     const rules = data?.rules ?? [];
+  //     if (
+  //       hasDuplicateRule(rules, {
+  //         permissionId: rule.permission_id,
+  //         level: rule.level,
+  //         onlyCreator: nextOnlyCreator,
+  //         excludeId: rule.id,
+  //       })
+  //     ) {
+  //       showDuplicateRuleAlert();
+  //       return;
+  //     }
+  //     setData(
+  //       "rules",
+  //       rules.map((r) =>
+  //         r.id === rule.id ? { ...r, only_creator: nextOnlyCreator } : r,
+  //       ),
+  //     );
+  //   },
+  //   [data?.rules, hasDuplicateRule, setData, showDuplicateRuleAlert],
+  // );
   const onPermissionChange = useCallback(
     (rule, key, val) => {
       const nextValue = val === true;
@@ -138,6 +139,13 @@ function Form() {
                 share: false,
                 print: false,
               }),
+            };
+          }
+
+          if (key === "create" && !nextValue) {
+            permissions = {
+              ...permissions,
+              import: false,
             };
           }
 
@@ -190,7 +198,6 @@ function Form() {
   const getCheckState = useCallback((permissions, keys) => {
     let hasTrue = false,
       hasFalse = false;
-
     for (const k of keys) {
       permissions[k] ? (hasTrue = true) : (hasFalse = true);
       if (hasTrue && hasFalse) return "indeterminate";
@@ -263,18 +270,16 @@ function Form() {
                   key={rule.id}
                   className="grid col-span-4 py-4 border-b grid-cols-subgrid border-muted-foreground/25"
                 >
-                  <div className="flex flex-col gap-y-4">
-                    <span className="font-medium">{rule.name}</span>
-                    {rule.level <= 0 && rule.permission.allow_only_creator && (
-                      <FormCheckbox
-                        checked={rule.only_creator}
-                        onCheckedChange={(val) =>
-                          onOnlyCreatorChange(val, rule)
-                        }
-                        label={t("user.role.columns.only_creator")}
-                      />
-                    )}
-                  </div>
+                  <p className="">
+                    <b className="font-bold text-base">{rule.name}</b>
+                    {rule.level <= 0 &&
+                      rule.permission.allow_only_creator &&
+                      rule.only_creator && (
+                        <span className="">{` (${t("user.role.columns.only_creator")})`}</span>
+                      )}
+                    <br />
+                    <span className="">{rule.module}</span>
+                  </p>
                   <div className="font-medium text-center">{rule.level}</div>
                   <div className="columns-[76px] space-y-3 self-center items-center">
                     <FormCheckbox

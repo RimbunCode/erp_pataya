@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -13,7 +12,7 @@ return new class extends Migration
         Schema::create('dashboards', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('title');
-            $table->foreignUlid('created_by')->nullable()->references('id')->on('users')->nullOnDelete();
+            $table->foreignUlid('created_by_id')->nullable()->references('id')->on('users')->nullOnDelete();
             $table->softDeletes();
             $table->timestamps();
         });

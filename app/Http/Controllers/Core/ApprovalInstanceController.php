@@ -13,11 +13,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use ReflectionMethod;
 
 class ApprovalInstanceController extends Controller {
     public function __construct(Request $request) {
+        $this->ignorePermission = true;
         parent::__construct($request, ApprovalInstanceStep::class);
     }
 
@@ -50,10 +53,47 @@ class ApprovalInstanceController extends Controller {
         return Inertia::render('Core/ApprovalInstanceIndex');
     }
 
-    public function show(ApprovalInstance $approvalInstance) {
-        $document = $approvalInstance->document;
+    public function show(Request $request, ApprovalInstance $approvalInstance) {
+        abort_unless($this->canAccessApprovalInstance($request, $approvalInstance), 403);
 
-        return redirect(route("{$document->route}.show", $document->id));
+        $document = $approvalInstance->document;
+        abort_if(! $document, 404);
+
+        $routeName  = "{$document->route}.show";
+        $routeParam = $this->resolveRouteParameter($routeName, $document);
+        $targetUrl  = URL::signedRoute($routeName, [
+            $routeParam => $document->id,
+            'u'         => $request->user()->id,
+        ]);
+
+        return redirect()->to($targetUrl);
+    }
+
+    private function resolveRouteParameter(string $routeName, Model $document): string {
+        $route = Route::getRoutes()->getByName($routeName);
+
+        return $route?->parameterNames()[0] ?? Str::camel(class_basename($document));
+    }
+
+    private function canAccessApprovalInstance(Request $request, ApprovalInstance $approvalInstance): bool {
+        $user = $request->user();
+        if (! $user) {
+            return false;
+        }
+
+        $roleIds = $user->roles()->pluck('roles.id');
+
+        return $approvalInstance->steps()
+            ->where(function (Builder $query) use ($user, $roleIds) {
+                $query->where(function (Builder $query) use ($roleIds) {
+                    $query->where('approver_type', 'role')
+                        ->whereIn('approverable_id', $roleIds);
+                })->orWhere(function (Builder $query) use ($user) {
+                    $query->where('approver_type', 'user')
+                        ->where('approverable_id', $user->id);
+                })->orWhere('acted_by_id', $user->id);
+            })
+            ->exists();
     }
 
     public function checkApproval(Model $data, array $options = []) {

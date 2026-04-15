@@ -1,7 +1,5 @@
 import { CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
-import { CheckIcon, EyeIcon, EyeOffIcon, XIcon } from "lucide-react";
 import { Head, useForm } from "@inertiajs/react";
-import { useMemo, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
 import { CardDescription } from "@/Components/ui/card";
@@ -10,9 +8,12 @@ import { Input } from "@/Components/ui/input";
 import InputError from "@/Components/InputError";
 import { Label } from "@/Components/ui/label";
 import Link from "@/Components/Link";
+import PasswordChecker from "@/Components/PasswordChecker";
+import PasswordInput from "@/Components/PasswordInput";
 import { Skeleton } from "@/Components/ui/skeleton";
 import ToggleTheme from "@/Components/ToggleTheme";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { useState } from "react";
 
 export default function Register() {
   const { t, loading } = useLaravelReactI18n();
@@ -33,54 +34,6 @@ export default function Register() {
     });
   };
   const [isVisible, setIsVisible] = useState(false);
-  const toggleVisibility = () => setIsVisible((prevState) => !prevState);
-  const checkStrength = (pass) => {
-    const requirements = [
-      {
-        regex: /.{8,}/,
-        text: t("auth.register.password.strengths.requirements.length"),
-      },
-      {
-        regex: /[0-9]/,
-        text: t("auth.register.password.strengths.requirements.num"),
-      },
-      {
-        regex: /[a-z]/,
-        text: t("auth.register.password.strengths.requirements.lowercase"),
-      },
-      {
-        regex: /[A-Z]/,
-        text: t("auth.register.password.strengths.requirements.uppercase"),
-      },
-      {
-        regex: /[!@#$%^&*(),.?":{}|<>]/,
-        text: t("auth.register.password.strengths.requirements.special"),
-      },
-    ];
-    return requirements.map((req) => ({
-      met: req.regex.test(pass),
-      text: req.text,
-    }));
-  };
-  const strength = checkStrength(data.password);
-  const strengthScore = useMemo(() => {
-    return strength.filter((req) => req.met).length;
-  }, [strength]);
-  const getStrengthColor = (score) => {
-    if (score === 0) return "bg-border";
-    if (score <= 1) return "bg-red-500";
-    if (score <= 2) return "bg-orange-500";
-    if (score <= 3) return "bg-amber-500";
-    if (score <= 4) return "bg-green-500";
-    return "bg-emerald-500";
-  };
-  const getStrengthText = (score) => {
-    if (score === 0) return "";
-    if (score <= 2) return t("auth.register.password.strengths.status.weak");
-    if (score <= 3) return t("auth.register.password.strengths.status.medium");
-    if (score <= 4) return t("auth.register.password.strengths.status.good");
-    return t("auth.register.password.strengths.status.strong");
-  };
   return (
     <GuestLayout>
       <Head title="Register" />
@@ -175,86 +128,19 @@ export default function Register() {
                     t("auth.register.password")
                   )}
                 </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={isVisible ? "text" : "password"}
-                    name="password"
-                    autoComplete="password"
-                    value={data.password}
-                    onChange={(e) => setData("password", e.target.value)}
-                    required
-                  />{" "}
-                  <button
-                    aria-controls="password"
-                    aria-label={isVisible ? "Hide password" : "Show password"}
-                    aria-pressed={isVisible}
-                    className="text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-y-0 inset-e-0 flex h-full w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none focus:z-10 focus-visible:ring-[3px] disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
-                    onClick={toggleVisibility}
-                    type="button"
-                  >
-                    {isVisible ? (
-                      <EyeOffIcon className="size-3.5" aria-hidden="true" />
-                    ) : (
-                      <EyeIcon className="size-3.5" aria-hidden="true" />
-                    )}
-                  </button>
-                </div>
+                <PasswordInput
+                  id="password"
+                  type={isVisible ? "text" : "password"}
+                  name="password"
+                  autoComplete="password"
+                  value={data.password}
+                  onChange={(e) => setData("password", e.target.value)}
+                  required
+                  visible={isVisible}
+                  onVisibleChange={setIsVisible}
+                />
                 <InputError message={errors.password} className="" />
-                <div className="mt-2 flex items-center justify-between">
-                  <p
-                    className="text-foreground text-sm font-medium"
-                    id={`password-description`}
-                  >
-                    {getStrengthText(strengthScore)}
-                  </p>
-                </div>
-                <div
-                  aria-label="Password strength"
-                  aria-valuemax={5}
-                  aria-valuemin={0}
-                  aria-valuenow={strengthScore}
-                  className="mb-3 flex gap-1"
-                  role="progressbar"
-                >
-                  {[...Array(5)].map((_, i) => (
-                    <div
-                      key={i}
-                      className={`h-1 flex-1 rounded-full transition-colors duration-500 ${
-                        i < strengthScore
-                          ? getStrengthColor(strengthScore)
-                          : "bg-border"
-                      }`}
-                    />
-                  ))}
-                </div>
-                <ul aria-label="Password requirements" className="space-y-1.5">
-                  {strength.map((req) => (
-                    <li className="flex items-center gap-1" key={req.text}>
-                      {req.met ? (
-                        <CheckIcon
-                          className="size-3.5 text-emerald-500"
-                          aria-hidden="true"
-                        />
-                      ) : (
-                        <XIcon
-                          className="text-muted-foreground/60 size-3.5"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <span
-                        className={`text-xs transition-colors ${req.met ? "text-emerald-600" : "text-muted-foreground"}`}
-                      >
-                        {req.text}
-                        <span className="sr-only">
-                          {req.met
-                            ? " - Requirement met"
-                            : " - Requirement not met"}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <PasswordChecker password={data.password} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password_confirmation">
@@ -264,7 +150,7 @@ export default function Register() {
                     t("auth.register.confirm_password")
                   )}
                 </Label>
-                <Input
+                <PasswordInput
                   id="password_confirmation"
                   type="password"
                   name="password_confirmation"
@@ -274,6 +160,8 @@ export default function Register() {
                     setData("password_confirmation", e.target.value)
                   }
                   required
+                  visible={isVisible}
+                  onVisibleChange={setIsVisible}
                 />
                 <InputError
                   message={errors.password_confirmation}

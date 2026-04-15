@@ -15,6 +15,12 @@ export default defineConfig({
     },
     sourcemapIgnoreList: ["node_modules"],
   },
+  server: {
+    watch: {
+      usePolling: true,
+      interval: 1000,
+    },
+  },
   plugins: [
     tailwindcss(),
     laravel({

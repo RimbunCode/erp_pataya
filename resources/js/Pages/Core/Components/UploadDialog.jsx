@@ -23,7 +23,6 @@ function UploadDialog({
   imageOnly = false,
   options: { route: routeProp, ...optionsProp } = {},
 }) {
-  const route = window.route;
   const isMobile = useIsMobile();
   const [menu, setMenu] = useState("home");
   const [files, setFiles] = useState([]);
@@ -96,28 +95,26 @@ function UploadDialog({
         formData.append(`name[${index}]`, file.name || file.file.name);
       });
     }
-    console.log(routeProp);
-    router.post(
-      routeProp ?? route(route().current(), route().params) + "/file",
-      formData,
-      {
-        reset: ["attachments"],
-        forceFormData: true,
-        replace: true,
-        preserveState: true,
-        preserveScroll: true,
-        showProgress: true,
-        ...optionsProp,
-        onProgress: (e) => {
-          setProgress(e);
-        },
-        onSuccess: () => {
-          setFiles([]);
-          onClose();
-          setProgress(false);
-        },
+    const currentPath = window.location.pathname.replace(/\/$/, "");
+    const currentQueryString = window.location.search;
+    const basePath = `${currentPath}/file`;
+    router.post(routeProp ?? `${basePath}${currentQueryString}`, formData, {
+      reset: ["attachments"],
+      forceFormData: true,
+      replace: true,
+      preserveState: true,
+      preserveScroll: true,
+      showProgress: true,
+      ...optionsProp,
+      onProgress: (e) => {
+        setProgress(e);
       },
-    );
+      onSuccess: () => {
+        setFiles([]);
+        onClose();
+        setProgress(false);
+      },
+    });
   }, []);
 
   const getMenu = () => {

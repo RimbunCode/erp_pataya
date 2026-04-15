@@ -46,7 +46,7 @@ class SalesInvoiceController extends Controller {
                         if ($so) {
                             $salesInvoice = SalesInvoice::where('sales_order_id', $so->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($salesInvoice) {
                                 return redirect()->route('salesInvoices.show', $salesInvoice);
@@ -89,7 +89,7 @@ class SalesInvoiceController extends Controller {
                         if ($salesInvoice) {
                             $salesInvoiceTarget = SalesInvoice::where('return_against_id', $salesInvoice->id)
                                 ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
-                                ->where('created_by', $request->user()->id)
+                                ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($salesInvoiceTarget) {
                                 return redirect()->route('salesInvoices.show', $salesInvoiceTarget);
@@ -150,7 +150,7 @@ class SalesInvoiceController extends Controller {
         // branch dari session
         $data['branch_id'] = $request->session()->get('currentBranch');
 
-        $data['created_by'] = $request->user()->id;
+        $data['created_by_id'] = $request->user()->id;
 
         // create SO
         $so = $this->service->create($data);

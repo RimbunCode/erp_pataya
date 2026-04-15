@@ -29,6 +29,7 @@ abstract class Controller {
     protected $modelPermissions;
     protected $onlyCreator = false;
     protected string $lang;
+    protected bool $ignorePermission = false;
 
     /**
      * Summary of setBreadcrumbs
@@ -75,28 +76,16 @@ abstract class Controller {
         ]);
     }
 
-    public function guard(string $action, int $level = 0) {
-        $levelPermissions = $this->modelPermissions[$level] ?? null;
-        if ($levelPermissions === null) {
-            abort(403);
-        }
+    protected function guard(string $action, int $level = 0) {
+        return $this->model::_checkPermission($action, $level);
+    }
 
-        $allowed     = false;
-        $onlyCreator = false;
-        foreach ($levelPermissions as $levelPermission) {
-            if ($levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
-                $allowed     = true;
-                $onlyCreator = true;
-            } elseif (! $levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
-                $allowed     = true;
-                $onlyCreator = false;
-            }
-        }
-        if (! $allowed) {
-            abort(403);
-        }
+    protected function matchMethodWithPermission(string $method) {
+        return null;
+    }
 
-        return $onlyCreator;
+    private function _matchMethodWithPermission(string $method) {
+        return \in_array($method, ['addComment', 'addTag', 'addFile', 'removeFile', 'removeComment', 'removeTag']);
     }
 
     public function __construct(Request $request, ?string $model = null) {
@@ -108,37 +97,61 @@ abstract class Controller {
         if (! $model) {
             return;
         }
+        Inertia::share([
+            'model' => $model,
+        ]);
 
-        // $this->permissions = $request->session()->get('permissions');
-        // $this->modelPermissions = $this->permissions[$this->model] ?? null;
-        // if ($this->modelPermissions === null) {
-        //     abort(403);
-        // }
+        if (! $this->ignorePermission) {
+            $currentRoute = Route::getCurrentRoute();
+            $method       = $currentRoute->getActionMethod();
 
-        // $currentRoute = Route::getCurrentRoute();
-        // $method = $currentRoute->getActionMethod();
+            $customPermission = $this->matchMethodWithPermission($method);
+            if (! ($request->hasValidSignature() && $request->user()->id == ($request->u ?? ''))) {
+                if ($customPermission != true) {
+                    $keyPermission = match ($method) {
+                        'index'   => 'select',
+                        'create'  => 'create',
+                        'store'   => 'create',
+                        'show'    => 'read',
+                        'update'  => 'write',
+                        'destroy' => 'delete',
+                        'import'  => 'import',
+                        'export'  => 'export',
+                        'share'   => 'share',
+                        'submit'  => 'submit',
+                        'cancel'  => 'cancel',
+                        'print'   => 'print',
+                        'amend'   => 'amend',
+                        default   => null,
+                    };
+                    $this->permissions      = $request->session()->get('permissions');
+                    $this->modelPermissions = $this->permissions[$this->model] ?? null;
+                    if ($this->modelPermissions === null) {
+                        abort(403);
+                    }
+                    if (! $this->_matchMethodWithPermission($method)) {
+                        if ($keyPermission) {
+                            $this->onlyCreator    = $this->guard($keyPermission, 0);
+                            $request->onlyCreator = $this->onlyCreator ?? false;
 
-        // $keyPermission = match ($method) {
-        //     'index' => 'select',
-        //     'create' => 'create',
-        //     'store' => 'create',
-        //     'show' => 'read',
-        //     'update' => 'write',
-        //     'destroy' => 'delete',
-        //     'import' => 'import',
-        //     'export' => 'export',
-        //     'share' => 'share',
-        //     'submit' => 'submit',
-        //     'cancel' => 'cancel',
-        //     'print' => 'print',
-        //     'amend' => 'amend',
-        //     default => null,
-        // };
-
-        // if ($keyPermission) {
-        //     $this->onlyCreator = $this->guard($keyPermission, 0);
-        //     $request->onlyCreator = $this->onlyCreator ?? false;
-        // }
+                            foreach ($currentRoute->parameters() as $key => $value) {
+                                if (get_class($value) === $this->model) {
+                                    $data = $value;
+                                }
+                            }
+                            if (isset($data)) {
+                                $allowed = $this->onlyCreator ? $data?->created_by_id == auth()->user()->id : true;
+                                if (! $allowed) {
+                                    abort(403);
+                                }
+                            }
+                        } else {
+                            abort(403);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     protected function isInertiaRequest(Request $request) {
@@ -281,7 +294,7 @@ abstract class Controller {
         $model         = Permission::where('model', $this->model)->first();
         $printTemplate = PrintTemplate::create([
             'model'      => $this->model,
-            'name'       => $model->name . '-' . Utils::generateRandom(5),
+            'name'       => "{$model->name}-" . Utils::generateRandom(5),
             'name_model' => $model->name,
         ]);
 

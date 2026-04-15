@@ -4,7 +4,7 @@
   "scripts": {
     "build": "vite build && vite build --ssr",
     "dev": "vite",
-    "zodgen": "laravel-zodgen",
+    "zodgen": "laravel-zodgen && node zodgen-postprocess.mjs",
     "docs": "jsdoc -c jsdoc.conf.json",
     "lint": "eslint \"resources/js/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint \"resources/js/**/*.{js,jsx,ts,tsx}\" --fix",
@@ -22,6 +22,7 @@
     "axios": "^1.13.6",
     "baseline-browser-mapping": "^2.10.0",
     "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^62.7.1",
