@@ -56,7 +56,7 @@ class AdministratorSeeder extends Seeder {
             $profileRole            = $roleDefinition['profile'];
             $profileOnlyCreatorRole = $roleDefinition['profile_only_creator'] ?? false;
             $registerPermission     = collect([]);
-            if ($roleDefinition['modules'] == "*") {
+            if ($roleDefinition['modules'] == '*') {
                 $filteredModels = $permissions;
                 if ($profileOnlyCreatorRole) {
                     $registerPermission->push(...$filteredModels->map(function ($model) use ($profileOnlyCreatorRole) {
@@ -85,14 +85,18 @@ class AdministratorSeeder extends Seeder {
                     foreach ($filteredModels as $model) {
                         $isValidOnZeroLevel = true;
                         foreach ($profileRole as $level => $profile) {
-                            if (! $isValidOnZeroLevel) break;
+                            if (! $isValidOnZeroLevel) {
+                                break;
+                            }
 
                             $permissionFlags = $this->resolvePermissionFlags((array) $model->permissions, $profile, $level > 0);
                             $isValid         = \array_any($permissionFlags, fn ($f) => $f == true);
                             if ($level == 0) {
                                 $isValidOnZeroLevel = $isValid;
                             }
-                            if (! $isValid) continue;
+                            if (! $isValid) {
+                                continue;
+                            }
 
                             $model->level        = $level;
                             $model->only_creator = false;
