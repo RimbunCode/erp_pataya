@@ -53,7 +53,7 @@ class AdministratorSeeder extends Seeder {
             foreach ($this->defaultRoles() as $roleDefinition) {
                 $normalizedRoleDefinition = $this->normalizeRoleDefinition($roleDefinition);
 
-                $role      = Role::updateOrCreate(
+                $role = Role::updateOrCreate(
                     ['name' => $normalizedRoleDefinition['name']],
                     [
                         'description' => $normalizedRoleDefinition['description'],
@@ -142,7 +142,7 @@ class AdministratorSeeder extends Seeder {
                         'models' => ['Items', 'Categories', 'Units', 'Attributes'],
                     ],
                 ],
-                'profile'     => 'operator',
+                'profile' => 'operator',
             ],
             [
                 'name'        => 'Purchasing Officer',
@@ -159,7 +159,7 @@ class AdministratorSeeder extends Seeder {
                         'models'       => ['Items', 'Categories', 'Units', 'Attributes'],
                     ],
                 ],
-                'profile'     => 'operator',
+                'profile' => 'operator',
             ],
             [
                 'name'        => 'Warehouse Officer',
@@ -193,8 +193,8 @@ class AdministratorSeeder extends Seeder {
         if (\is_array($modules) && $modules === ['*']) {
             $modules = '*';
         }
-        $roleDefinition['modules']                = $modules;
-        $roleDefinition['profile']              ??= 'read_only';
+        $roleDefinition['modules'] = $modules;
+        $roleDefinition['profile'] ??= 'read_only';
         $roleDefinition['profile_only_creator'] ??= null;
 
         return $roleDefinition;

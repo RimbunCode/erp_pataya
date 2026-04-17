@@ -28,8 +28,8 @@ class Utils {
     }
 
     public static function generateRandom($length, $includeSpecial = false) {
-        $result           = '';
-        $characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        $result     = '';
+        $characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
         if ($includeSpecial) {
             $characters .= '!@#$%^&*()_+-=[]{}|;\':",./<>?';
         }
