@@ -49,7 +49,7 @@ class AdministratorSeeder extends Seeder {
             foreach ($this->defaultRoles() as $roleDefinition) {
                 $normalizedRoleDefinition = $this->normalizeRoleDefinition($roleDefinition);
 
-                $role      = Role::updateOrCreate(
+                $role = Role::updateOrCreate(
                     ['name' => $normalizedRoleDefinition['name']],
                     [
                         'description' => $normalizedRoleDefinition['description'],
@@ -135,7 +135,7 @@ class AdministratorSeeder extends Seeder {
                         'models' => ['Items', 'Categories', 'Units', 'Attributes'],
                     ],
                 ],
-                'profile'     => 'operator',
+                'profile' => 'operator',
             ],
             [
                 'name'        => 'Purchasing Officer',
@@ -152,7 +152,7 @@ class AdministratorSeeder extends Seeder {
                         'models'       => ['Items', 'Categories', 'Units', 'Attributes'],
                     ],
                 ],
-                'profile'     => 'operator',
+                'profile' => 'operator',
             ],
             [
                 'name'        => 'Warehouse Officer',
@@ -438,7 +438,7 @@ class AdministratorSeeder extends Seeder {
 
                 if ($level === 0) {
                     $isValidOnZeroLevel = $isValid;
-                } else if (! $permission->is_submitable) {
+                } elseif (! $permission->is_submitable) {
                     break;
                 }
 
