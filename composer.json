@@ -65,7 +65,7 @@
     ],
     "dev:debug": [
       "Composer\\Config::disableProcessTimeout",
-      "npx concurrently -c \"#93c5fd,#fdba74\" \"cross-env XDEBUG_MODE=debug XDEBUG_TRIGGER=1 php artisan serve\"  \"npm run dev\" --names=server,vite"
+      "npx concurrently -c \"#93c5fd,#fdba74\" \"npx cross-env XDEBUG_MODE=debug XDEBUG_TRIGGER=1 php artisan serve --no-reload\"  \"npm run dev\" --names=server,vite"
     ],
     "pint": [
       "./vendor/bin/pint"

@@ -1,11 +1,11 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('model_display')->nullable();
             $table->ulidMorphs('reference');
             $table->string('reference_display')->nullable();
+            $table->boolean('is_manual')->default(false);
             $table->timestamps();
             $table->softDeletes();
         });

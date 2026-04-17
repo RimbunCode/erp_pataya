@@ -27,9 +27,12 @@ class Utils {
         return $request->header('X-Inertia') == 'true' || $request->header('X-Inertia-Partial') == 'true';
     }
 
-    public static function generateRandom($length) {
+    public static function generateRandom($length, $includeSpecial = false) {
         $result           = '';
         $characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        if ($includeSpecial) {
+            $characters .= '!@#$%^&*()_+-=[]{}|;\':",./<>?';
+        }
         $charactersLength = strlen($characters);
         $counter          = 0;
         while ($counter < $length) {

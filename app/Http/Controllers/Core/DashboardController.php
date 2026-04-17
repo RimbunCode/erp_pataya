@@ -7,8 +7,8 @@ use App\Http\Requests\Core\DashboardRequest;
 use App\Http\Requests\Core\DashboardWidgetOrderRequest;
 use App\Models\Core\Dashboard;
 use App\Models\DashboardWidget;
-use DB;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Symfony\Component\Uid\Ulid;
 
@@ -17,7 +17,7 @@ class DashboardController extends Controller {
         parent::__construct($request, Dashboard::class);
     }
 
-    protected function matchMethodWithPermission(string $method) {
+    protected function exceptPermission(string $method) {
         if ($method == 'view' || $method == 'storeUserDashboard') {
             return true;
         }

@@ -2,11 +2,13 @@
 
 namespace Database\Seeders;
 
+use App\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\User\Permission;
 use App\Models\User\Role;
 use App\Models\User\RolePermission;
 use App\Models\User\User;
+use App\Utils;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -33,15 +35,17 @@ class AdministratorSeeder extends Seeder {
                 ->orderBy('name')
                 ->get();
 
-            $adminUser = User::updateOrCreate(
+            $passwordAdmin = config('app.debug') ? 'admin' : Utils::generateRandom(10, true);
+            $adminUser     = User::updateOrCreate(
                 ['username' => 'admin'],
                 [
                     'name'              => 'Administrator',
                     'email'             => 'test@example.com',
                     'email_verified_at' => now(),
-                    'password'          => bcrypt('admin'),
+                    'password'          => bcrypt($passwordAdmin),
                     'default_branch_id' => $defaultBranch->id,
                     'remember_token'    => Str::random(10),
+                    'status'            => FormStatus::ACTIVE,
                 ],
             );
 
@@ -49,7 +53,7 @@ class AdministratorSeeder extends Seeder {
             foreach ($this->defaultRoles() as $roleDefinition) {
                 $normalizedRoleDefinition = $this->normalizeRoleDefinition($roleDefinition);
 
-                $role = Role::updateOrCreate(
+                $role      = Role::updateOrCreate(
                     ['name' => $normalizedRoleDefinition['name']],
                     [
                         'description' => $normalizedRoleDefinition['description'],
@@ -64,6 +68,9 @@ class AdministratorSeeder extends Seeder {
 
             $adminUser->roles()->sync($roleIds);
             $adminUser->branches()->syncWithoutDetaching([$defaultBranch->id]);
+            if (! config('app.debug')) {
+                print_r("\e[93m  Admin Password: {$passwordAdmin} \e[39m" . \PHP_EOL);
+            }
         });
     }
 
@@ -135,7 +142,7 @@ class AdministratorSeeder extends Seeder {
                         'models' => ['Items', 'Categories', 'Units', 'Attributes'],
                     ],
                 ],
-                'profile' => 'operator',
+                'profile'     => 'operator',
             ],
             [
                 'name'        => 'Purchasing Officer',
@@ -152,7 +159,7 @@ class AdministratorSeeder extends Seeder {
                         'models'       => ['Items', 'Categories', 'Units', 'Attributes'],
                     ],
                 ],
-                'profile' => 'operator',
+                'profile'     => 'operator',
             ],
             [
                 'name'        => 'Warehouse Officer',
@@ -181,28 +188,19 @@ class AdministratorSeeder extends Seeder {
         ];
     }
 
-    /**
-     * @param  RoleDefinition  $roleDefinition
-     * @return RoleDefinition
-     */
-    private function normalizeRoleDefinition(mixed $roleDefinition) {
+    private function normalizeRoleDefinition(array $roleDefinition) {
         $modules = $roleDefinition['modules'] ?? '*';
         if (\is_array($modules) && $modules === ['*']) {
             $modules = '*';
         }
-        $roleDefinition['modules']              = $modules;
-        $roleDefinition['profile']              = $roleDefinition['profile'] ?? 'read_only';
-        $roleDefinition['profile_only_creator'] = $roleDefinition['profile_only_creator'] ?? null;
+        $roleDefinition['modules']                = $modules;
+        $roleDefinition['profile']              ??= 'read_only';
+        $roleDefinition['profile_only_creator'] ??= null;
 
         return $roleDefinition;
     }
 
-    /**
-     * @param  Collection<int, Permission>  $permissions
-     * @param  RoleDefinition  $roleDefinition
-     * @return Collection<string, PermissionPayload>
-     */
-    private function buildRolePermissionPayloads(Collection $permissions, $roleDefinition) {
+    private function buildRolePermissionPayloads(Collection $permissions, array $roleDefinition) {
         $payloadsByKey = [];
 
         foreach ($this->resolvePermissionScopes($roleDefinition) as $scope) {
@@ -225,10 +223,6 @@ class AdministratorSeeder extends Seeder {
         return collect($payloadsByKey);
     }
 
-    /**
-     * @param  RoleDefinition  $roleDefinition
-     * @return array<int, PermissionScope>
-     */
     private function resolvePermissionScopes(array $roleDefinition): array {
         $roleProfile            = $roleDefinition['profile'];
         $roleProfileOnlyCreator = $roleDefinition['profile_only_creator'] ?? null;
@@ -264,14 +258,9 @@ class AdministratorSeeder extends Seeder {
         return $scopes;
     }
 
-    /**
-     * @param  PermissionProfile  $roleProfile
-     * @param  ProfileOnlyCreator  $roleProfileOnlyCreator
-     * @return array<int, PermissionScope>
-     */
     private function resolveModuleScopes(
         string $moduleName,
-        mixed $moduleDefinition,
+        string|array $moduleDefinition,
         array|string $roleProfile,
         array|string|null $roleProfileOnlyCreator,
     ): array {
@@ -316,12 +305,6 @@ class AdministratorSeeder extends Seeder {
         return $this->resolveModelScopes($moduleName, $moduleModels, $moduleProfile, $moduleProfileOnlyCreator);
     }
 
-    /**
-     * @param  array<int|string, ModelDefinition>  $modelDefinitions
-     * @param  PermissionProfile  $baseProfile
-     * @param  ProfileOnlyCreator  $baseProfileOnlyCreator
-     * @return array<int, PermissionScope>
-     */
     private function resolveModelScopes(
         string $moduleName,
         array $modelDefinitions,
@@ -362,11 +345,6 @@ class AdministratorSeeder extends Seeder {
         return $scopes;
     }
 
-    /**
-     * @param  PermissionProfile  $profile
-     * @param  ProfileOnlyCreator  $profileOnlyCreator
-     * @return PermissionScope
-     */
     private function makeScope(
         string $module,
         ?string $model,
@@ -397,10 +375,6 @@ class AdministratorSeeder extends Seeder {
         return $filteredPermissions->values();
     }
 
-    /**
-     * @param  ProfileOnlyCreator  $profileOnlyCreator
-     * @return array<int, PermissionPayload>
-     */
     private function buildPermissionPayloads(
         Permission $permission,
         array|string $profile,
@@ -460,9 +434,6 @@ class AdministratorSeeder extends Seeder {
         return $payloads;
     }
 
-    /**
-     * @param  PermissionProfile  $profile
-     */
     private function isLeveledProfile(array|string $profile): bool {
         if (\is_string($profile)) {
             return false;
@@ -502,10 +473,6 @@ class AdministratorSeeder extends Seeder {
         return \in_array(true, $permissionFlags, true);
     }
 
-    /**
-     * @param  array<string, bool>  $permissionFlags
-     * @return PermissionPayload
-     */
     private function toPermissionPayload(
         Permission $permission,
         int $level,
@@ -528,9 +495,6 @@ class AdministratorSeeder extends Seeder {
         return $payload['permission_id'] . '|' . $payload['level'] . '|' . ($payload['only_creator'] ? '1' : '0');
     }
 
-    /**
-     * @param  Collection<int, PermissionPayload>  $permissionPayloads
-     */
     private function syncRolePermissions(Role $role, Collection $permissionPayloads): void {
         $targetKeys = $permissionPayloads->keys()->flip();
 
