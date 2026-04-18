@@ -80,7 +80,11 @@ abstract class Controller {
         return $this->model::_checkPermission($action, $level);
     }
 
-    protected function matchMethodWithPermission(string $method) {
+    protected function exceptPermission(string $method) {
+        return null;
+    }
+
+    protected function enforcePermission(string $method) {
         return null;
     }
 
@@ -105,9 +109,14 @@ abstract class Controller {
             $currentRoute = Route::getCurrentRoute();
             $method       = $currentRoute->getActionMethod();
 
-            $customPermission = $this->matchMethodWithPermission($method);
+            $customPermission = $this->exceptPermission($method);
             if (! ($request->hasValidSignature() && $request->user()->id == ($request->u ?? ''))) {
                 if ($customPermission != true) {
+                    $this->permissions      = $request->session()->get('permissions');
+                    $this->modelPermissions = $this->permissions[$this->model] ?? null;
+                    if ($this->modelPermissions === null) {
+                        abort(403);
+                    }
                     $keyPermission = match ($method) {
                         'index'   => 'select',
                         'create'  => 'create',
@@ -122,17 +131,13 @@ abstract class Controller {
                         'cancel'  => 'cancel',
                         'print'   => 'print',
                         'amend'   => 'amend',
-                        default   => null,
+                        default   => $this->enforcePermission($method),
                     };
-                    $this->permissions      = $request->session()->get('permissions');
-                    $this->modelPermissions = $this->permissions[$this->model] ?? null;
-                    if ($this->modelPermissions === null) {
-                        abort(403);
-                    }
                     if (! $this->_matchMethodWithPermission($method)) {
-                        if ($keyPermission) {
-                            $this->onlyCreator    = $this->guard($keyPermission, 0);
-                            $request->onlyCreator = $this->onlyCreator ?? false;
+                        // dd($keyPermission, \is_string($keyPermission), $keyPermission == null);
+                        if (\is_string($keyPermission)) {
+                            $this->onlyCreator = $this->guard($keyPermission, 0);
+                            $request->merge(['onlyCreator' => $this->onlyCreator ?? false]);
 
                             foreach ($currentRoute->parameters() as $key => $value) {
                                 if (get_class($value) === $this->model) {
@@ -140,12 +145,12 @@ abstract class Controller {
                                 }
                             }
                             if (isset($data)) {
-                                $allowed = $this->onlyCreator ? $data?->created_by_id == auth()->user()->id : true;
+                                $allowed = $this->onlyCreator ? $data?->created_by_id == $request->user()->id : true;
                                 if (! $allowed) {
                                     abort(403);
                                 }
                             }
-                        } else {
+                        } elseif ($keyPermission == null) {
                             abort(403);
                         }
                     }

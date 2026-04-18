@@ -18,9 +18,11 @@ import {
 import { memo, useEffect, useState } from "react";
 
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import usePermission from "@/Hooks/usePermission";
 
 export default memo(function BranchSwitcher() {
   const route = window.route;
+  const { can } = usePermission("App\\Models\\Core\\Branch");
   const { branches, currentBranch } = usePage().props.branchSettings;
   const { t } = useLaravelReactI18n();
   const { isMobile } = useSidebar();
@@ -104,17 +106,21 @@ export default memo(function BranchSwitcher() {
                 </Link>
               </DropdownMenuItem>
             ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="w-full gap-2 p-2" asChild>
-              <Link href={route("branches.index")} as="button">
-                <div className="flex items-center justify-center border rounded-md size-6 bg-background">
-                  <Plus className="size-4" />
-                </div>
-                <div className="font-medium text-muted-foreground">
-                  {t("core.branch.add_branch")}
-                </div>
-              </Link>
-            </DropdownMenuItem>
+            {can("create") && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="w-full gap-2 p-2" asChild>
+                  <Link href={route("branches.index")} as="button">
+                    <div className="flex items-center justify-center border rounded-md size-6 bg-background">
+                      <Plus className="size-4" />
+                    </div>
+                    <div className="font-medium text-muted-foreground">
+                      {t("core.branch.add_branch")}
+                    </div>
+                  </Link>
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>

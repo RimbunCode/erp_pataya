@@ -39,8 +39,10 @@ function Form() {
   const route = window.route;
   const [openDetailRole, setOpenDetailRole] = useState(false);
   const [detailsRole, setDetailsRole] = useState();
+  const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
 
   const getDetailsRole = useCallback((id) => {
+    setIsLoadingPermissions(true);
     axios
       .get(
         route("roles.show", Array.isArray(id) ? "id" : id) +
@@ -52,9 +54,13 @@ function Form() {
       })
       .catch((err) => {
         console.log(err);
+      })
+      .finally(() => {
+        setIsLoadingPermissions(false);
       });
   }, []);
   const getDetailAllRole = useCallback(() => {
+    setIsLoadingPermissions(true);
     axios
       .get(
         route("roles.permissions") +
@@ -67,6 +73,9 @@ function Form() {
       })
       .catch((err) => {
         console.log(err);
+      })
+      .finally(() => {
+        setIsLoadingPermissions(false);
       });
   }, [data?.roles]);
 
@@ -176,9 +185,12 @@ function Form() {
               <Button
                 type="button"
                 variant="primary"
-                disabled={!data.roles || data.roles?.length <= 0}
+                disabled={
+                  isLoadingPermissions || !data.roles || data.roles?.length <= 0
+                }
                 onClick={() => getDetailAllRole()}
               >
+                {isLoadingPermissions && <LoadingIcon className="size-4" />}{" "}
                 {t("user.user.show_permissions")}
               </Button>
             </FormPageContentTitle>
@@ -194,44 +206,53 @@ function Form() {
             >
               <div className="columns-[15rem] *:break-inside-avoid gap-x-2 space-y-4 mt-2">
                 {roles &&
-                  roles.map((role) => (
-                    <FormCheckbox
-                      className="min-h-6 "
-                      key={role.id}
-                      disabled={role.is_disabled}
-                      checked={data.roles.includes(role.id)}
-                      onCheckedChange={(val) => {
-                        if (val) {
-                          setData("roles", [...data.roles, role.id]);
-                        } else {
-                          setData(
-                            "roles",
-                            data.roles.filter((x) => x !== role.id),
-                          );
-                        }
-                      }}
-                      classNameLabel="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70 group flex items-center"
-                    >
-                      <div>
-                        <span onClick={() => getDetailsRole(role.id)}>
-                          {role.name}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className={cn(
-                            " opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1! size-fit! [&>svg]:size-3",
-                          )}
-                          onClick={() => {
-                            window.open(route("roles.show", role.id), "_blank");
+                  roles.map(
+                    (role) =>
+                      !role.is_disabled && (
+                        <FormCheckbox
+                          className="min-h-6 "
+                          key={role.id}
+                          disabled={isLoadingPermissions || role.is_disabled}
+                          checked={data.roles.includes(role.id)}
+                          onCheckedChange={(val) => {
+                            if (val) {
+                              setData("roles", [...data.roles, role.id]);
+                            } else {
+                              setData(
+                                "roles",
+                                data.roles.filter((x) => x !== role.id),
+                              );
+                            }
                           }}
+                          classNameLabel="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70 group flex items-center"
                         >
-                          <ExternalLinkIcon />
-                        </Button>
-                      </div>
-                    </FormCheckbox>
-                  ))}
+                          <div>
+                            {isLoadingPermissions && (
+                              <LoadingIcon className="size-4 mr-2!" />
+                            )}{" "}
+                            <span onClick={() => getDetailsRole(role.id)}>
+                              {role.name}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className={cn(
+                                " opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1! size-fit! [&>svg]:size-3",
+                              )}
+                              onClick={() => {
+                                window.open(
+                                  route("roles.show", role.id),
+                                  "_blank",
+                                );
+                              }}
+                            >
+                              <ExternalLinkIcon />
+                            </Button>
+                          </div>
+                        </FormCheckbox>
+                      ),
+                  )}
               </div>
             </WhenVisible>
           </FormPageContent>
