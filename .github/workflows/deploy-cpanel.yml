@@ -40,7 +40,13 @@ jobs:
 
       - name: Create artifact
         run: |
-          tar --exclude="*.tar.gz" -czf release.tar.gz .
+          mkdir -p build
+          tar \
+            --exclude="./build" \
+            --exclude="node_modules" \
+            --exclude=".git" \
+            --warning=no-file-changed \
+            -czf build/release.tar.gz .
 
       - name: Upload artifact
         uses: appleboy/scp-action@v0.1.7
@@ -49,7 +55,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: "release.tar.gz"
+          source: "build/release.tar.gz"
           target: "${{ secrets.SSH_PATH }}/tmp"
 
       - name: Upload deploy script
