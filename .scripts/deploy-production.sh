@@ -3,8 +3,8 @@ set -e
 
 DOMAIN=https://erp.ptpsn.co.id
 
-BASE_DIR=./production
-TEMP=./incoming
+BASE_DIR=../production
+TEMP=../tmp
 RELEASES=$BASE_DIR/releases
 CURRENT=$BASE_DIR/current
 SHARED=$BASE_DIR/shared

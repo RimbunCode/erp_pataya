@@ -65,7 +65,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          source: "scripts/*.sh"
+          source: ".scripts/*.sh"
           target: "${{ secrets.SSH_PATH }}"
 
       - name: Create Permission Script & Deploy with rollback
