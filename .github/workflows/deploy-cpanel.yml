@@ -77,4 +77,4 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             chmod +x ${{ secrets.SSH_PATH }}/*.sh
-            ./deploy staging
+            ./.scripts/deploy staging
