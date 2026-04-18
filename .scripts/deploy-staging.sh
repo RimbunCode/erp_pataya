@@ -3,11 +3,12 @@ set -e
 
 DOMAIN=https://erp.staging.ptpsn.co.id
 
-BASE_DIR=../staging
-TEMP=../tmp
-RELEASES=$BASE_DIR/releases
-CURRENT=$BASE_DIR/current
-SHARED=$BASE_DIR/shared
+BASE_DIR=/home/ptpsn/erp/staging
+DIR=$BASE_DIR/staging
+TEMP=$BASE_DIR/tmp
+RELEASES=$DIR/releases
+CURRENT=$DIR/current
+SHARED=$DIR/shared
 
 mkdir -p $RELEASES
 

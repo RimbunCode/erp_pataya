@@ -2,10 +2,10 @@
 
 case "$1" in
   production)
-    bash ./deploy-production.sh
+    bash /home/ptpsn/erp/.scripts/deploy-production.sh
     ;;
   staging)
-    bash ./deploy-staging.sh
+    bash /home/ptpsn/erp/.scripts/deploy-staging.sh
     ;;
   *)
     echo "Usage: deploy [production|staging]"
