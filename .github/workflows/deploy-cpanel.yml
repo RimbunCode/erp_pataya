@@ -40,7 +40,7 @@ jobs:
 
       - name: Create artifact
         run: |
-          tar -czf release.tar.gz . --exclude="*.tar.gz"
+          tar --exclude="*.tar.gz" -czf release.tar.gz .
 
       - name: Upload artifact
         uses: appleboy/scp-action@v0.1.7
