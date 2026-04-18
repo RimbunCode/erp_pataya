@@ -39,43 +39,39 @@ jobs:
           php-version: "8.4"
           tools: composer:v2
 
-      - name: Install Composer dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build frontend assets
-        run: npm run build
-
-      - name: Prepare deploy worktree
+      # 🔥 KEY CHANGE: RESET production FROM main (clean snapshot)
+      - name: Prepare deploy worktree (reset from main)
         run: |
-          git fetch origin ${{ env.DEPLOY_BRANCH }} --depth=1 || true
+          rm -rf ../deploy-worktree || true
+          git worktree add -B ${{ env.DEPLOY_BRANCH }} ../deploy-worktree HEAD
 
-          if git show-ref --verify --quiet refs/remotes/origin/${{ env.DEPLOY_BRANCH }}; then
-            git worktree add ../deploy-worktree origin/${{ env.DEPLOY_BRANCH }}
-          else
-            git worktree add -b ${{ env.DEPLOY_BRANCH }} ../deploy-worktree HEAD
-          fi
-
-      - name: Sync clean deploy contents
+      # 🔥 Build langsung di worktree
+      - name: Build in deploy worktree
         run: |
-          rsync -a --delete \
-            --exclude=".git" \
-            --exclude="node_modules" \
-            --exclude="vendor" \
-            --exclude="resources/js" \
-            --exclude="resources/css" \
-            ./ ../deploy-worktree/
+          cd ../deploy-worktree
 
-          mkdir -p ../deploy-worktree/resources/js
-          mkdir -p ../deploy-worktree/resources/css
+          composer install --no-dev --optimize-autoloader
+          npm ci
+          npm run build
+
+      # 🔥 Cleanup (pengganti rsync)
+      - name: Cleanup unnecessary files
+        run: |
+          cd ../deploy-worktree
+
+          rm -rf vendor
+          rm -rf node_modules
+          rm -rf resources/js
+          rm -rf resources/css
+
+          mkdir -p resources/js
+          mkdir -p resources/css
 
       - name: Publish deploy branch
         id: publish
@@ -116,10 +112,16 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
+            set -e
+
             cd ${{ secrets.SSH_PATH }}
-            git pull origin ${{ env.DEPLOY_BRANCH }}
+
+            git fetch origin
+            git reset --hard origin/${{ env.DEPLOY_BRANCH }}
+
             composer install --no-dev --optimize-autoloader
             composer dump-autoload -o
+
             php artisan optimize:clear
             php artisan migrate:fresh --seed
             php artisan optimize
