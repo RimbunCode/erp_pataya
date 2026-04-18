@@ -20,7 +20,7 @@ mkdir -p $NEW_RELEASE
 
 echo "Deploying to $NEW_RELEASE"
 
-tar -xzf $INCOMING/release.tar.gz -C $NEW_RELEASE
+tar -xzf $TEMP/release.tar.gz -C $NEW_RELEASE
 
 ln -sfn $SHARED/.env $NEW_RELEASE/.env
 
