@@ -12,10 +12,15 @@ SHARED=$DIR/shared
 
 mkdir -p $RELEASES
 
-PREVIOUS=$(readlink -f $CURRENT || echo "")
+PREVIOUS=$(readlink -f $CURRENT 2>/dev/null || echo "")
 
 RELEASE_NAME=$(stat -c %Y $TEMP/release.tar.gz)
 NEW_RELEASE=$RELEASES/$RELEASE_NAME
+
+if [ "$PREVIOUS" = "$(readlink -f $NEW_RELEASE 2>/dev/null || echo "")" ]; then
+  echo "⚠️ Same release, skipping deploy"
+  exit 0
+fi
 
 mkdir -p $NEW_RELEASE
 
