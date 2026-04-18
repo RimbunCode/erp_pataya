@@ -19,6 +19,9 @@ class ModelConnection extends Model {
         'model',
         'reference',
     ];
+    protected $casts = [
+        'is_manual' => 'boolean',
+    ];
 
     protected static function booted() {
         static::creating(function ($model) {

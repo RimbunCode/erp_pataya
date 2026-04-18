@@ -22,7 +22,7 @@ class UserController extends Controller {
         parent::__construct($request, User::class);
     }
 
-    protected function matchMethodWithPermission(string $method) {
+    protected function exceptPermission(string $method) {
         $route   = Route::getCurrentRoute();
         $user_id = $route->originalParameter('user');
         if (

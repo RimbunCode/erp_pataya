@@ -69,7 +69,9 @@ class AppMiddleware extends Middleware {
     private function resolvePermissions(string $userId): array {
         return RolePermission::select('role_permissions.model', 'role_permissions.permissions', 'role_permissions.level', 'role_permissions.only_creator')
             ->join('user_role', 'user_role.role_id', '=', 'role_permissions.role_id')
+            ->join('roles', 'roles.id', '=', 'user_role.role_id')
             ->where('user_role.user_id', $userId)
+            ->where('roles.is_disabled', false)
             ->get()
             ->groupBy([
                 'model',

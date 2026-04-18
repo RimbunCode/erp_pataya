@@ -46,7 +46,7 @@ export default memo(
 
     return (
       <MasterLayout>
-        <div className="relative mx-auto max-w-[1920px] print:invisible print:bg-white!">
+        <div className="relative mx-auto max-w-full print:invisible print:bg-white!">
           <SidebarProvider>
             <AppSidebar className="print:hidden " />
             <SidebarInset>

@@ -17,6 +17,12 @@ class RoleController extends Controller {
         parent::__construct($request, Role::class);
     }
 
+    public function enforcePermission(string $method) {
+        if ($method == 'permissions') {
+            return true;
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -78,7 +84,7 @@ class RoleController extends Controller {
         ]);
     }
 
-    public function getPermissions(Request $request) {
+    public function permissions(Request $request) {
         if ($this->isInertiaRequest($request)) {
             abort(404);
         }

@@ -14,7 +14,7 @@ class BranchController extends Controller {
         parent::__construct($request, Branch::class);
     }
 
-    protected function matchMethodWithPermission(string $method) {
+    protected function exceptPermission(string $method) {
         if ($method == 'switch') {
             return true;
         }

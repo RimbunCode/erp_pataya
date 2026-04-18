@@ -64,10 +64,13 @@ export function mergeRefs(...inputRefs) {
     });
   };
 }
-export function generateRandom(length) {
+export function generateRandom(length, includeSpecial = false) {
   let result = "";
-  const characters =
+  let characters =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  if (includeSpecial) {
+    characters += "!@#$%^&*()_+-=[]{}|;':\",./<>?";
+  }
   const charactersLength = characters.length;
   let counter = 0;
   while (counter < length) {
