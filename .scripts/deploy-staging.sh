@@ -4,7 +4,7 @@ set -e
 DOMAIN=https://erp.staging.ptpsn.co.id
 
 BASE_DIR=../staging
-TEMP=../temp
+TEMP=../tmp
 RELEASES=$BASE_DIR/releases
 CURRENT=$BASE_DIR/current
 SHARED=$BASE_DIR/shared
