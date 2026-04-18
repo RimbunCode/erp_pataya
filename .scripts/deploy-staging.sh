@@ -3,7 +3,7 @@ set -e
 
 DOMAIN=https://erp.staging.ptpsn.co.id
 
-BASE_DIR=/home/ptpsn/erp/staging
+BASE_DIR=/home/ptpsn/erp
 DIR=$BASE_DIR/staging
 TEMP=$BASE_DIR/tmp
 RELEASES=$DIR/releases
