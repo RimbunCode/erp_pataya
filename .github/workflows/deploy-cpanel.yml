@@ -67,6 +67,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           source: ".scripts/*.sh"
           target: "${{ secrets.SSH_PATH }}"
+          strip_components: 1
 
       - name: Create Permission Script & Deploy with rollback
         uses: appleboy/ssh-action@v1.0.3
