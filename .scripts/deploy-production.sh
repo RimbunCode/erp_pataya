@@ -35,6 +35,8 @@ php artisan migrate --force
 
 php artisan optimize
 
+ln -sfn $NEW_RELEASE $CURRENT
+
 # health check production
 if ! curl -f $DOMAIN/health > /dev/null 2>&1; then
   echo "❌ Health check failed"
@@ -46,8 +48,6 @@ if ! curl -f $DOMAIN/health > /dev/null 2>&1; then
 
   exit 1
 fi
-
-ln -sfn $NEW_RELEASE $CURRENT
 
 echo "✅ Production deploy success"
 
