@@ -57,6 +57,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           source: "build/release.tar.gz"
           target: "${{ secrets.SSH_PATH }}/tmp"
+          strip_components: 1
 
       - name: Upload deploy script
         uses: appleboy/scp-action@v0.1.7
@@ -67,7 +68,6 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           source: ".scripts/*.sh"
           target: "${{ secrets.SSH_PATH }}"
-          strip_components: 1
 
       - name: Create Permission Script & Deploy with rollback
         uses: appleboy/ssh-action@v1.0.3
@@ -77,5 +77,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            chmod +x ${{ secrets.SSH_PATH }}/*.sh
+            cd ${{ secrets.SSH_PATH }}
+
+            chmod +x .scripts/*.sh
             bash ./.scripts/deploy.sh staging
