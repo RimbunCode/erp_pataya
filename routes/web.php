@@ -248,4 +248,6 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // / Finances End
 });
 
+Route::get('/health', fn () => response()->json(['status' => 'ok']));
+
 require __DIR__ . '/auth.php';
