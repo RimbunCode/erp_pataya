@@ -1,11 +1,14 @@
 #!/bin/bash
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 case "$1" in
   production)
-    bash /home/ptpsn/erp/.scripts/deploy-production.sh
+    bash "$SCRIPT_DIR/deploy-production.sh"
     ;;
   staging)
-    bash /home/ptpsn/erp/.scripts/deploy-staging.sh
+    bash "$SCRIPT_DIR/deploy-staging.sh"
     ;;
   *)
     echo "Usage: deploy [production|staging]"
