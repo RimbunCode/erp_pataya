@@ -16,6 +16,7 @@ return new class extends Migration
             $table->ulidMorphs('reference');
             $table->string('reference_display')->nullable();
             $table->boolean('is_manual')->default(false);
+            $table->json('data')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

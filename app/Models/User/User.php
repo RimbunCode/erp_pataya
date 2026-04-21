@@ -75,6 +75,9 @@ class User extends Authenticatable {
             'order' => 4,
         ],
         'defaultBranch',
+        'avatar_url' => [
+            'ignore' => true,
+        ],
     ];
 
     public function defaultBranch() {

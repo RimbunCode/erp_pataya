@@ -139,7 +139,10 @@ abstract class Controller {
                             $this->onlyCreator = $this->guard($keyPermission, 0);
                             $request->merge(['onlyCreator' => $this->onlyCreator ?? false]);
 
-                            foreach ($currentRoute->parameters() as $key => $value) {
+                            foreach ($currentRoute->parameters() as $value) {
+                                if (is_string($value)) {
+                                    continue;
+                                }
                                 if (get_class($value) === $this->model) {
                                     $data = $value;
                                 }

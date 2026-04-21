@@ -2,25 +2,27 @@
 
 namespace App\Models\Core;
 
+use App\Casts\Json;
 use App\Models\Model;
 use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ModelConnection extends Model {
     use HasUlids, SoftDeletes;
-
-    protected $guarded = [
+    protected $guarded       = [
         'id',
     ];
-    public $translateKey     = 'core.modelConnection';
+    public    $translateKey  = 'core.modelConnection';
     protected $configColumns = [
         'model',
         'reference',
     ];
-    protected $casts = [
+    protected $casts         = [
         'is_manual' => 'boolean',
+        'data'      => Json::class,
     ];
 
     protected static function booted() {
@@ -44,37 +46,45 @@ class ModelConnection extends Model {
         } else {
             $keyBreadcrumb = $data->keyBreadcrumb ?? 'name';
 
-            return $data->$keyBreadcrumb ?? $data->name;
+            return $data->$keyBreadcrumb ?? $data->name ?? null;
         }
     }
 
-    public function scopeSearch(Builder $query, ?string $type, ?string $id) {
+    public function scopeSearch(Builder $query, ?string $type, string|array $id) {
         if ($type == null || $id == null) {
             return $query;
         }
         $query
             ->selectRaw(
-                'id, IF(`model_type` = ?, `reference_type`, `model_type`) as reference_type, IF(`model_type` = ?, `reference_id`, `model_id`) as reference_id, IF(`model_type` = ?, `reference_display`, `model_display`) as reference_display',
+                'id, IF(`model_type` = ?, `reference_type`, `model_type`) as reference_type, IF(`model_type` = ?, `reference_id`, `model_id`) as reference_id, IF(`model_type` = ?, `reference_display`, `model_display`) as reference_display, `data`, `is_manual`',
                 [$type, $type, $type],
             );
 
         return $query->where(function (Builder $query) use ($type, $id): void {
             $query->where(function (Builder $query) use ($type, $id) {
                 $query->where('model_type', $type);
-                $query->where('model_id', $id);
+                if (\is_array($id)) {
+                    $query->whereIn('model_id', $id);
+                } else {
+                    $query->where('model_id', $id);
+                }
             });
             $query->orWhere(function (Builder $query) use ($type, $id) {
                 $query->where('reference_type', $type);
-                $query->where('reference_id', $id);
+                if (\is_array($id)) {
+                    $query->whereIn('reference_id', $id);
+                } else {
+                    $query->where('reference_id', $id);
+                }
             });
         });
     }
 
-    public function model() {
-        return $this->morphTo();
+    public function model(): MorphTo {
+        return $this->morphTo(__FUNCTION__, 'model_type', 'model_id');
     }
 
-    public function reference() {
-        return $this->morphTo();
+    public function reference(): MorphTo {
+        return $this->morphTo(__FUNCTION__, 'reference_type', 'reference_id');
     }
 }

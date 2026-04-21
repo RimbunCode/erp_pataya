@@ -6,12 +6,12 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Purchase\PurchaseRequest;
+use App\Models\Purchase\PurchaseRequestItem;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
 class PurchaseRequestService {
     private function fillRelations(array $data) {
-
         return $data;
     }
 
@@ -87,10 +87,22 @@ class PurchaseRequestService {
         foreach ($items as $item) {
             // Update ordered_quantity from source item
             $sourceItem = $item->referenceable;
-            $orderedQty = $sourceItem->ordered_quantity + $item->quantity;
-            $sourceItem->update([
-                'ordered_quantity' => $orderedQty > $sourceItem->quantity ? $sourceItem->quantity : $orderedQty,
-            ]);
+            // $requestedQty = (ModelConnection::search($item->referenceable_type, $item->referenceable_id)
+            //     ->having('reference_type', PurchaseRequest::class)
+            //     ->sum('data->qty') ?? 0) + $item->quantity;
+            // $sourceItem->update([
+            //     'requested_quantity' => $requestedQty > $sourceItem->quantity ? $sourceItem->quantity : $requestedQty,
+            // ]);
+
+            $modelConnections[] = [
+                'model_type'     => $item->referenceable_type,
+                'model_id'       => $item->referenceable_id,
+                'reference_type' => PurchaseRequestItem::class,
+                'reference_id'   => $item->id,
+                'data'           => [
+                    'requested_quantity' => $item->quantity,
+                ],
+            ];
 
             $parentRelation     = $sourceItem->parentRelation();
             $parentRelationKey  = $parentRelation->getForeignKeyName();
@@ -106,8 +118,9 @@ class PurchaseRequestService {
             ModelConnection::create([
                 'model_type'     => $modelConnection['model_type'],
                 'model_id'       => $modelConnection['model_id'],
-                'reference_type' => PurchaseRequest::class,
-                'reference_id'   => $purchaseRequest->id,
+                'reference_type' => $modelConnection['reference_type'] ?? PurchaseRequest::class,
+                'reference_id'   => $modelConnection['reference_id'] ?? $purchaseRequest->id,
+                'data'           => $modelConnection['data'] ?? null,
             ]);
         }
 

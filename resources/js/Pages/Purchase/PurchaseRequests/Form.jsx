@@ -126,7 +126,7 @@ function Form() {
         titleTrans: "purchase.purchaseRequest.columns.required_date",
         required: true,
         type: "date",
-        width: 1,
+        width: 2,
         cell({ dataRow, data, setData, attributes }) {
           return (
             <DatetimePicker
@@ -275,7 +275,7 @@ function Form() {
                 "App\\Models\\Service\\WorkOrder": {
                   columns: ["code", "date"],
                   filters: {
-                    status: "submitted",
+                    submitted_at: { not: null },
                   },
                   selects: {
                     items: {
