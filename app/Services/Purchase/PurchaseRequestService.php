@@ -86,11 +86,11 @@ class PurchaseRequestService {
         $modelConnections = [];
         foreach ($items as $item) {
             // Update ordered_quantity from source item
-            $sourceItem = $item->referenceable;
+            $sourceItem         = $item->referenceable;
             $modelConnections[] = [
-                'model'          => $item->referenceable,
-                'reference'      => $item,
-                'data'           => [
+                'model'     => $item->referenceable,
+                'reference' => $item,
+                'data'      => [
                     'requested_quantity' => $item->quantity,
                 ],
             ];
@@ -119,7 +119,7 @@ class PurchaseRequestService {
                     'reference_id'   => $rId,
                 ],
                 [
-                    // Tetap pasang object ke dalam array payload agar 
+                    // Tetap pasang object ke dalam array payload agar
                     // event creating/updating pada model_display tetap berjalan.
                     ...(isset($modelConnection['model']) ? [
                         'model' => $modelConnection['model'],
@@ -128,7 +128,7 @@ class PurchaseRequestService {
                         'reference' => $modelConnection['reference'],
                     ] : []),
                     'data' => $modelConnection['data'] ?? null,
-                ]
+                ],
             );
         }
 
@@ -146,8 +146,8 @@ class PurchaseRequestService {
                 ->map(fn ($group) => $group->sum('data.requested_quantity'));
 
             foreach ($uniqueReference as $reference) {
-                $qty = $sums->get($reference->id, 0);
-                $item       = $reference->reference;
+                $qty  = $sums->get($reference->id, 0);
+                $item = $reference->reference;
                 $item->update([
                     'requested_quantity' => $qty,
                 ]);

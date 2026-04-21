@@ -14,9 +14,8 @@ class PurchaseOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'purchaseOrder';
-
-    protected $guarded = ['id'];
-    protected $casts   = [
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'required_date' => 'datetime',
     ];
 

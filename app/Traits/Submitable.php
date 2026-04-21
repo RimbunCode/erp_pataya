@@ -183,7 +183,7 @@ trait Submitable {
         $parentRelation = $sourceItem->parentRelation;
         if ($parentRelation) {
             ModelConnection::createConnection([
-                'model' => $parentRelation,
+                'model'     => $parentRelation,
                 'reference' => $this,
             ]);
         }

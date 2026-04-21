@@ -14,9 +14,8 @@ class PurchaseInvoiceItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'purchaseInvoice';
-
-    protected $guarded = ['id'];
-    protected $casts   = [
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'required_date' => 'datetime',
     ];
 

@@ -21,10 +21,10 @@ class PurchaseOrderService {
         $data['supplier_id']   = $data['supplier']['id'];
         $data['supplier_name'] = $data['supplier']['name'];
 
-        $defaultCurrency              = Preference::find('default_currency_id')->value;
-        $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
-        $data['base_currency_code']   = $defaultCurrency;
-        $data['exchange_rate']      ??= 1;
+        $defaultCurrency            = Preference::find('default_currency_id')->value;
+        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
+        $data['base_currency_code'] = $defaultCurrency;
+        $data['exchange_rate'] ??= 1;
 
         return $data;
     }
@@ -65,7 +65,7 @@ class PurchaseOrderService {
             $item = $purchaseOrder->items()->create($item);
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount   += $item->tax_amount;
+            $taxAmount += $item->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
@@ -107,7 +107,7 @@ class PurchaseOrderService {
             }
 
             $basicAmount += $itemModel->basic_amount;
-            $taxAmount   += $itemModel->tax_amount;
+            $taxAmount += $itemModel->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);

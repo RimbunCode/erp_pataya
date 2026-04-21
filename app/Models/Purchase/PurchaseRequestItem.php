@@ -12,9 +12,8 @@ class PurchaseRequestItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'purchaseRequest';
-
-    protected $guarded       = ['id'];
-    protected $configColumns = [
+    protected $guarded            = ['id'];
+    protected $configColumns      = [
         'purchaseRequest',
     ];
     protected $casts = [

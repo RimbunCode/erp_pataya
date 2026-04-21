@@ -14,8 +14,7 @@ class SalesOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'salesOrder';
-
-    protected $guarded = [
+    protected $guarded            = [
         'id',
         'remaining_quantity',
         'basic_amount',

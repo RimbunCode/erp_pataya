@@ -11,10 +11,9 @@ class StockEntryItem extends Model {
     use SoftDeletes;
 
     public static $parentRelation = 'stockEntry';
-
-    protected $guarded       = ['id'];
-    public $translateKey     = 'inventory.stockEntry.item_columns';
-    protected $configColumns = [
+    protected $guarded            = ['id'];
+    public $translateKey          = 'inventory.stockEntry.item_columns';
+    protected $configColumns      = [
         'sourceWarehouse' => [
             'type'  => 'relation',
             'show'  => true,

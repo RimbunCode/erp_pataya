@@ -10,10 +10,9 @@ class PaymentTermTemplateItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'paymentTermTemplate';
-
-    protected $guarded          = ['id'];
-    public string $translateKey = 'finances.paymentTerm';
-    protected $configColumns    = [
+    protected $guarded            = ['id'];
+    public string $translateKey   = 'finances.paymentTerm';
+    protected $configColumns      = [
         'due_date_based_on' => [
             'order'      => 1,
             'show'       => true,

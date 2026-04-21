@@ -13,8 +13,7 @@ class PurchaseReceiptItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'purchaseReceipt';
-
-    protected $guarded = ['id'];
+    protected $guarded            = ['id'];
 
     public function purchaseReceipt() {
         return $this->belongsTo(PurchaseReceipt::class, 'purchase_receipt_id');

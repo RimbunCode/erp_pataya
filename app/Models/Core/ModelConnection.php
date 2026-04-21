@@ -12,15 +12,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ModelConnection extends Model {
     use HasUlids, SoftDeletes;
-    protected $guarded       = [
+
+    protected $guarded = [
         'id',
     ];
-    public    $translateKey  = 'core.modelConnection';
+    public $translateKey     = 'core.modelConnection';
     protected $configColumns = [
         'model',
         'reference',
     ];
-    protected $casts         = [
+    protected $casts = [
         'is_manual' => 'boolean',
         'data'      => Json::class,
     ];
@@ -32,7 +33,7 @@ class ModelConnection extends Model {
                 $model->setAttribute('model_id', $model->model->id);
                 $modelDisplay = static::getDisplayFromTemplateLink($model->model);
                 $model->setAttribute('model_display', $modelDisplay);
-            } else if (! isset($model->model_display) && $model->model_type && $model->model_id) {
+            } elseif (! isset($model->model_display) && $model->model_type && $model->model_id) {
                 $modelDisplay = static::getDisplayFromTemplateLink($model->model_type, $model->model_id);
                 $model->setAttribute('model_display', $modelDisplay);
             }
@@ -42,7 +43,7 @@ class ModelConnection extends Model {
                 $model->setAttribute('reference_id', $model->reference->id);
                 $referenceDisplay = static::getDisplayFromTemplateLink($model->reference);
                 $model->setAttribute('reference_display', $referenceDisplay);
-            } else if (! isset($model->reference_display) && $model->reference_type && $model->reference_id) {
+            } elseif (! isset($model->reference_display) && $model->reference_type && $model->reference_id) {
                 $referenceDisplay = static::getDisplayFromTemplateLink($model->reference_type, $model->reference_id);
                 $model->setAttribute('reference_display', $referenceDisplay);
             }

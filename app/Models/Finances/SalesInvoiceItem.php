@@ -13,8 +13,7 @@ class SalesInvoiceItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'salesInvoice';
-
-    protected $guarded = ['id'];
+    protected $guarded            = ['id'];
 
     public static function templateLink() {
         return ':item';

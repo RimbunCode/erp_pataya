@@ -12,10 +12,9 @@ class WorkOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation = 'workOrder';
-
-    protected $guarded          = ['id'];
-    public string $translateKey = 'service.workOrder.workOrderItem';
-    protected $configColumns    = [
+    protected $guarded            = ['id'];
+    public string $translateKey   = 'service.workOrder.workOrderItem';
+    protected $configColumns      = [
         'workOrder' => [
             'show'  => true,
             'order' => 0,

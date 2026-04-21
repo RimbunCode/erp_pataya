@@ -234,10 +234,11 @@ trait LinkModel {
     }
 
     public function parentRelation() {
-        $relation = static::$parentRelation ??false;
+        $relation = static::$parentRelation ?? false;
         if ($relation) {
             return $this->$relation();
         }
+
         return null;
     }
 
