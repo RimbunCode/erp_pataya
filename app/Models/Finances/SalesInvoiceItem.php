@@ -12,6 +12,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class SalesInvoiceItem extends Model {
     use HasUlids, SoftDeletes;
 
+    public static $parentRelation = 'salesInvoice';
+
     protected $guarded = ['id'];
 
     public static function templateLink() {

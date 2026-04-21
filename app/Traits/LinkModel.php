@@ -8,7 +8,6 @@ use App\Casts\Json;
 use App\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -234,7 +233,15 @@ trait LinkModel {
         return with(new static)->getTable();
     }
 
-    public function connections(): Builder {
+    public function parentRelation() {
+        $relation = static::$parentRelation ??false;
+        if ($relation) {
+            return $this->$relation();
+        }
+        return null;
+    }
+
+    public function connections() {
         if ($this->getKey() === null) {
             return ModelConnection::query()->whereRaw('1 = 0');
         }

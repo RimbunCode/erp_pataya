@@ -13,14 +13,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
+    public static $parentRelation = 'purchaseOrder';
+
     protected $guarded = ['id'];
     protected $casts   = [
         'required_date' => 'datetime',
     ];
-
-    // protected $configColumns =[
-
-    // ]
 
     public function purchaseOrder() {
         return $this->belongsTo(PurchaseOrder::class);

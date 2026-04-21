@@ -8,8 +8,10 @@ use App\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
+use App\Models\Core\ModelConnection;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -163,5 +165,28 @@ trait Submitable {
         DB::commit();
 
         return $newData;
+    }
+
+    public function attachConnections(Model $item, ?array $data) {
+        if ($item && ($item->referenceable_type == null || $item->referenceable_id == null)) {
+            return;
+        }
+
+        $sourceItem = $item->referenceable;
+
+        ModelConnection::createConnection([
+            'model'     => $sourceItem,
+            'reference' => $item,
+            'data'      => $data,
+        ]);
+
+        $parentRelation = $sourceItem->parentRelation;
+        if ($parentRelation) {
+            ModelConnection::createConnection([
+                'model' => $parentRelation,
+                'reference' => $this,
+            ]);
+        }
+        $this->attachConnections($sourceItem, $data);
     }
 }

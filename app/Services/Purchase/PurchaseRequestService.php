@@ -87,18 +87,9 @@ class PurchaseRequestService {
         foreach ($items as $item) {
             // Update ordered_quantity from source item
             $sourceItem = $item->referenceable;
-            // $requestedQty = (ModelConnection::search($item->referenceable_type, $item->referenceable_id)
-            //     ->having('reference_type', PurchaseRequest::class)
-            //     ->sum('data->qty') ?? 0) + $item->quantity;
-            // $sourceItem->update([
-            //     'requested_quantity' => $requestedQty > $sourceItem->quantity ? $sourceItem->quantity : $requestedQty,
-            // ]);
-
             $modelConnections[] = [
-                'model_type'     => $item->referenceable_type,
-                'model_id'       => $item->referenceable_id,
-                'reference_type' => PurchaseRequestItem::class,
-                'reference_id'   => $item->id,
+                'model'          => $item->referenceable,
+                'reference'      => $item,
                 'data'           => [
                     'requested_quantity' => $item->quantity,
                 ],
@@ -115,13 +106,52 @@ class PurchaseRequestService {
 
         // Create ModelConnection for each item
         foreach ($modelConnections as $modelConnection) {
-            ModelConnection::create([
-                'model_type'     => $modelConnection['model_type'],
-                'model_id'       => $modelConnection['model_id'],
-                'reference_type' => $modelConnection['reference_type'] ?? PurchaseRequest::class,
-                'reference_id'   => $modelConnection['reference_id'] ?? $purchaseRequest->id,
-                'data'           => $modelConnection['data'] ?? null,
-            ]);
+            $mType = isset($modelConnection['model']) ? \get_class($modelConnection['model']) : $modelConnection['model_type'];
+            $mId   = isset($modelConnection['model']) ? $modelConnection['model']->id : $modelConnection['model_id'];
+            $rType = isset($modelConnection['reference']) ? \get_class($modelConnection['reference']) : ($modelConnection['reference_type'] ?? PurchaseRequest::class);
+            $rId   = isset($modelConnection['reference']) ? $modelConnection['reference']->id : ($modelConnection['reference_id'] ?? $purchaseRequest->id);
+
+            ModelConnection::updateOrCreate(
+                [
+                    'model_type'     => $mType,
+                    'model_id'       => $mId,
+                    'reference_type' => $rType,
+                    'reference_id'   => $rId,
+                ],
+                [
+                    // Tetap pasang object ke dalam array payload agar 
+                    // event creating/updating pada model_display tetap berjalan.
+                    ...(isset($modelConnection['model']) ? [
+                        'model' => $modelConnection['model'],
+                    ] : []),
+                    ...(isset($modelConnection['reference']) ? [
+                        'reference' => $modelConnection['reference'],
+                    ] : []),
+                    'data' => $modelConnection['data'] ?? null,
+                ]
+            );
+        }
+
+        $itemConnections = ModelConnection::with('reference')
+            ->search(PurchaseRequestItem::class, $items->pluck('id')->toArray())
+            ->get();
+
+        foreach ($itemConnections->groupBy('reference_type') as $type => $connections) {
+            $uniqueReference = $connections->unique('reference_id');
+            $ids             = $uniqueReference->pluck('reference_id')->toArray();
+
+            $sums = ModelConnection::search($type, $ids)
+                ->get()
+                ->groupBy('reference_id')
+                ->map(fn ($group) => $group->sum('data.requested_quantity'));
+
+            foreach ($uniqueReference as $reference) {
+                $qty = $sums->get($reference->id, 0);
+                $item       = $reference->reference;
+                $item->update([
+                    'requested_quantity' => $qty,
+                ]);
+            }
         }
 
         DB::commit();

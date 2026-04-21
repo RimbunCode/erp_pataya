@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class SalesOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
+    public static $parentRelation = 'salesOrder';
+
     protected $guarded = [
         'id',
         'remaining_quantity',

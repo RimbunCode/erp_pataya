@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PaymentTermTemplateItem extends Model {
     use HasUlids, SoftDeletes;
 
+    public static $parentRelation = 'paymentTermTemplate';
+
     protected $guarded          = ['id'];
     public string $translateKey = 'finances.paymentTerm';
     protected $configColumns    = [
@@ -32,6 +34,10 @@ class PaymentTermTemplateItem extends Model {
             'show'  => true,
         ],
     ];
+
+    public function paymentTermTemplate() {
+        return $this->belongsTo(PaymentTermTemplate::class, 'payment_term_template_id');
+    }
 
     public function paymentMethod() {
         return $this->belongsTo(PaymentMethod::class);

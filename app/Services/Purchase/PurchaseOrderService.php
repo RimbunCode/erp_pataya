@@ -21,10 +21,10 @@ class PurchaseOrderService {
         $data['supplier_id']   = $data['supplier']['id'];
         $data['supplier_name'] = $data['supplier']['name'];
 
-        $defaultCurrency            = Preference::find('default_currency_id')->value;
-        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
-        $data['base_currency_code'] = $defaultCurrency;
-        $data['exchange_rate'] ??= 1;
+        $defaultCurrency              = Preference::find('default_currency_id')->value;
+        $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
+        $data['base_currency_code']   = $defaultCurrency;
+        $data['exchange_rate']      ??= 1;
 
         return $data;
     }
@@ -65,7 +65,7 @@ class PurchaseOrderService {
             $item = $purchaseOrder->items()->create($item);
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $taxAmount   += $item->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
@@ -107,7 +107,7 @@ class PurchaseOrderService {
             }
 
             $basicAmount += $itemModel->basic_amount;
-            $taxAmount += $itemModel->tax_amount;
+            $taxAmount   += $itemModel->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
@@ -203,82 +203,37 @@ class PurchaseOrderService {
             ->whereNotNull('referenceable_id')
             ->with([
                 'referenceable',
+                'referenceable.parentRelation',
                 'referenceable.referenceable',
+                'referenceable.referenceable.parentRelation',
             ])
             ->get();
 
-        $modelConnections = [];
         foreach ($items as $item) {
-            if ($item->referenceable_type == null || $item->referenceable_id == null) {
-                continue;
-            }
-            // Update ordered_quantity from source item
-            $sourceItem = $item->referenceable;
-            // $orderedQty = $sourceItem->ordered_quantity + $item->quantity;
-            // $sourceItem->update([
-            //     'ordered_quantity' => $orderedQty > $sourceItem->quantity ? $sourceItem->quantity : $orderedQty,
-            // ]);
-
-            $modelConnections[] = [
-                'model_type'     => $item->referenceable_type,
-                'model_id'       => $item->referenceable_id,
-                'reference_type' => PurchaseOrderItem::class,
-                'reference_id'   => $item->id,
-                'data'           => [
-                    'ordered_quantity' => $item->quantity,
-                ],
-            ];
-
-            $parentRelation     = $sourceItem->parentRelation();
-            $parentRelationKey  = $parentRelation->getForeignKeyName();
-            $modelConnections[] = [
-                'model_type' => \get_class($parentRelation->getRelated()),
-                'model_id'   => $sourceItem->$parentRelationKey,
-            ];
-
-            if ($sourceItem->referenceable_type == null || $sourceItem->referenceable_id == null) {
-                continue;
-            }
-
-            $modelConnections[] = [
-                'model_type'     => $sourceItem->referenceable_type,
-                'model_id'       => $sourceItem->referenceable_id,
-                'reference_type' => PurchaseOrderItem::class,
-                'reference_id'   => $item->id,
-                'data'           => [
-                    'ordered_quantity' => $sourceItem->quantity,
-                ],
-            ];
-            $sourceItem = $sourceItem->referenceable;
-
-            $parentRelation     = $sourceItem->parentRelation();
-            $parentRelationKey  = $parentRelation->getForeignKeyName();
-            $modelConnections[] = [
-                'model_type' => \get_class($parentRelation->getRelated()),
-                'model_id'   => $sourceItem->$parentRelationKey,
-            ];
-        }
-        $modelConnections = \collect($modelConnections)->unique('model_id')->toArray();
-
-        // Create ModelConnection for each item
-        foreach ($modelConnections as $modelConnection) {
-            ModelConnection::create([
-                'model_type'     => $modelConnection['model_type'],
-                'model_id'       => $modelConnection['model_id'],
-                'reference_type' => $modelConnection['reference_type'] ?? PurchaseOrder::class,
-                'reference_id'   => $modelConnection['reference_id'] ?? $purchaseOrder->id,
-                'data'           => $modelConnection['data'] ?? null,
+            $purchaseOrder->attachConnections($item, [
+                'ordered_quantity' => $item->quantity,
             ]);
         }
-        $itemConnections = ModelConnection::with('reference')->search(PurchaseOrderItem::class, $items->pluck('id')->toArray())
+
+        $itemConnections = ModelConnection::with('reference')
+            ->search(PurchaseOrderItem::class, $items->pluck('id')->toArray())
             ->get();
 
-        foreach ($itemConnections as $itemConnection) {
-            $orderedQty = ModelConnection::search($itemConnection->reference_type, $itemConnection->reference_id)->sum('data->ordered_quantity');
-            $item       = $itemConnection->reference;
-            $item->update([
-                'ordered_quantity' => $orderedQty,
-            ]);
+        foreach ($itemConnections->groupBy('reference_type') as $type => $connections) {
+            $uniqueReference = $connections->unique('reference_id');
+            $ids             = $uniqueReference->pluck('reference_id')->toArray();
+
+            $sums = ModelConnection::search($type, $ids)
+                ->get()
+                ->groupBy('reference_id')
+                ->map(fn ($group) => $group->sum('data.ordered_quantity'));
+
+            foreach ($uniqueReference as $reference) {
+                $qty = $sums->get($reference->id, 0);
+                $reference->reference->update([
+                    'ordered_quantity' => $qty,
+                ]);
+            }
         }
 
         DB::commit();

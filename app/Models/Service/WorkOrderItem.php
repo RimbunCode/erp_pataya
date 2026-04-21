@@ -11,6 +11,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class WorkOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
+    public static $parentRelation = 'workOrder';
+
     protected $guarded          = ['id'];
     public string $translateKey = 'service.workOrder.workOrderItem';
     protected $configColumns    = [
@@ -34,10 +36,6 @@ class WorkOrderItem extends Model {
 
     public function workOrder() {
         return $this->belongsTo(WorkOrder::class);
-    }
-
-    public function parentRelation() {
-        return $this->workOrder();
     }
 
     public function item(): mixed {
