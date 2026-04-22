@@ -11,8 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseRequest extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
-    protected               $guarded           = ['id'];
-    protected               $casts             = [
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'date'          => 'datetime',
         'required_date' => 'datetime',
     ];
@@ -28,16 +29,17 @@ class PurchaseRequest extends Model {
     public static function templateLink() {
         return ':code';
     }
-    public        $keyBreadcrumb = 'code';
+
+    public $keyBreadcrumb        = 'code';
     public string $formComponent = 'Purchase/PurchaseRequests/Form';
     public string $translateKey  = 'purchase.purchaseRequest';
-    protected     $configColumns = [
-        'code'          => [
+    protected $configColumns     = [
+        'code' => [
             'show'   => true,
             'isLink' => true,
             'order'  => 0,
         ],
-        'date'          => [
+        'date' => [
             'show'  => true,
             'order' => 1,
         ],
@@ -45,7 +47,7 @@ class PurchaseRequest extends Model {
             'show'  => true,
             'order' => 2,
         ],
-        'status'        => [
+        'status' => [
             'show'  => true,
             'order' => 3,
         ],

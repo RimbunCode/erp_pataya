@@ -14,15 +14,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ModelConnection extends Model {
     use HasUlids, SoftDeletes;
-    protected $guarded       = [
+
+    protected $guarded = [
         'id',
     ];
-    public    $translateKey  = 'core.modelConnection';
+    public $translateKey     = 'core.modelConnection';
     protected $configColumns = [
         'model',
         'reference',
     ];
-    protected $casts         = [
+    protected $casts = [
         'is_manual' => 'boolean',
         'data'      => Json::class,
     ];
@@ -77,7 +78,7 @@ class ModelConnection extends Model {
             return $relatedModel instanceof Model ? $relatedModel : null;
         }
 
-        $attributes = $model->getAttributes();
+        $attributes   = $model->getAttributes();
         $relatedModel = $attributes[$relationName] ?? null;
         if (\array_key_exists($relationName, $attributes)) {
             unset($model->{$relationName});

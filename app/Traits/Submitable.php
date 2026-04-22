@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 
 trait Submitable {
     use DataTable;
+
     protected static bool $is_submitable = true;
 
     public function initializeSubmitable() {
@@ -109,7 +110,7 @@ trait Submitable {
             $newCode       = $dataOri->code . "-{$dataOri->revision_number}";
             $amendedFromId = $dataOri->id;
         }
-        $newData                  = $this->replicate([
+        $newData = $this->replicate([
             'id',
             'created_at',
             'updated_at',
@@ -130,7 +131,7 @@ trait Submitable {
                 if ($value instanceof Collection) {
                     $foreignKey = $newData->$key()->getForeignKeyName();
                     foreach ($value as $item) {
-                        $item              = $item->replicate([
+                        $item = $item->replicate([
                             'id',
                             'created_at',
                             'updated_at',
