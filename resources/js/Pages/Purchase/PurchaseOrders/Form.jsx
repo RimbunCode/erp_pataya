@@ -415,6 +415,9 @@ function Form() {
               from={{
                 "App\\Models\\Service\\WorkOrder": {
                   columns: ["code", "date"],
+                  columnAlias: {
+                    unordered_quantity: "required_quantity",
+                  },
                   filters: {
                     status: "submitted",
                   },

@@ -215,26 +215,12 @@ class PurchaseOrderService {
             ]);
         }
 
-        $itemConnections = ModelConnection::with('reference')
-            ->search(PurchaseOrderItem::class, $items->pluck('id')->toArray())
-            ->get();
-
-        foreach ($itemConnections->groupBy('reference_type') as $type => $connections) {
-            $uniqueReference = $connections->unique('reference_id');
-            $ids             = $uniqueReference->pluck('reference_id')->toArray();
-
-            $sums = ModelConnection::search($type, $ids)
-                ->get()
-                ->groupBy('reference_id')
-                ->map(fn ($group) => $group->sum('data.ordered_quantity'));
-
-            foreach ($uniqueReference as $reference) {
-                $qty = $sums->get($reference->id, 0);
-                $reference->reference->update([
-                    'ordered_quantity' => $qty,
-                ]);
-            }
-        }
+        ModelConnection::getReferenceAttributes(PurchaseOrderItem::class, $items->pluck('id')->toArray(), function ($connections, $reference) {
+            $sumOrderedQty = $connections->sum('data.ordered_quantity');
+            $reference->update([
+                'ordered_quantity' => $sumOrderedQty,
+            ]);
+        });
 
         DB::commit();
 

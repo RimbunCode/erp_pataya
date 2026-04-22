@@ -5,61 +5,85 @@ namespace App\Models\Core;
 use App\Casts\Json;
 use App\Models\Model;
 use App\Utils;
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ModelConnection extends Model {
     use HasUlids, SoftDeletes;
-
-    protected $guarded = [
+    protected $guarded       = [
         'id',
     ];
-    public $translateKey     = 'core.modelConnection';
+    public    $translateKey  = 'core.modelConnection';
     protected $configColumns = [
         'model',
         'reference',
     ];
-    protected $casts = [
+    protected $casts         = [
         'is_manual' => 'boolean',
         'data'      => Json::class,
     ];
 
-    protected static function booted() {
-        static::creating(function ($model) {
-            if ($model->model) {
-                $model->setAttribute('model_type', \get_class($model->model));
-                $model->setAttribute('model_id', $model->model->id);
-                $modelDisplay = static::getDisplayFromTemplateLink($model->model);
-                $model->setAttribute('model_display', $modelDisplay);
-            } elseif (! isset($model->model_display) && $model->model_type && $model->model_id) {
-                $modelDisplay = static::getDisplayFromTemplateLink($model->model_type, $model->model_id);
-                $model->setAttribute('model_display', $modelDisplay);
-            }
-
-            if ($model->reference) {
-                $model->setAttribute('reference_type', \get_class($model->reference));
-                $model->setAttribute('reference_id', $model->reference->id);
-                $referenceDisplay = static::getDisplayFromTemplateLink($model->reference);
-                $model->setAttribute('reference_display', $referenceDisplay);
-            } elseif (! isset($model->reference_display) && $model->reference_type && $model->reference_id) {
-                $referenceDisplay = static::getDisplayFromTemplateLink($model->reference_type, $model->reference_id);
-                $model->setAttribute('reference_display', $referenceDisplay);
-            }
+    protected static function booted(): void {
+        static::saving(function (self $model): void {
+            static::syncLinkedAttributes($model, 'model');
+            static::syncLinkedAttributes($model, 'reference');
         });
     }
 
-    public static function getDisplayFromTemplateLink(Model|string $model_type, ?string $model_id = null) {
+    public static function getDisplayFromTemplateLink(Model|string $model_type, ?string $model_id = null): ?string {
         $data = \is_string($model_type) ? $model_type::find($model_id) : $model_type;
+
+        if (! $data instanceof Model) {
+            return null;
+        }
 
         if (isset($data->templateLink)) {
             return Utils::convertTemplateLink($data);
-        } else {
-            $keyBreadcrumb = $data->keyBreadcrumb ?? 'name';
-
-            return $data->$keyBreadcrumb ?? $data->name ?? null;
         }
+
+        $keyBreadcrumb = $data->keyBreadcrumb ?? 'name';
+
+        return $data->$keyBreadcrumb ?? $data->name ?? null;
+    }
+
+    private static function syncLinkedAttributes(self $model, string $relationName): void {
+        $typeAttribute    = "{$relationName}_type";
+        $idAttribute      = "{$relationName}_id";
+        $displayAttribute = "{$relationName}_display";
+        $relatedModel     = static::extractLinkedModel($model, $relationName);
+
+        if ($relatedModel instanceof Model) {
+            $model->setAttribute($typeAttribute, \get_class($relatedModel));
+            $model->setAttribute($idAttribute, $relatedModel->id);
+            $model->setAttribute($displayAttribute, static::getDisplayFromTemplateLink($relatedModel));
+
+            return;
+        }
+
+        if (! isset($model->{$displayAttribute}) && $model->{$typeAttribute} && $model->{$idAttribute}) {
+            $model->setAttribute($displayAttribute, static::getDisplayFromTemplateLink($model->{$typeAttribute}, $model->{$idAttribute}));
+        }
+    }
+
+    private static function extractLinkedModel(self $model, string $relationName): ?Model {
+        if ($model->relationLoaded($relationName)) {
+            $relatedModel = $model->getRelation($relationName);
+            $model->unsetRelation($relationName);
+
+            return $relatedModel instanceof Model ? $relatedModel : null;
+        }
+
+        $attributes = $model->getAttributes();
+        $relatedModel = $attributes[$relationName] ?? null;
+        if (\array_key_exists($relationName, $attributes)) {
+            unset($model->{$relationName});
+        }
+
+        return $relatedModel instanceof Model ? $relatedModel : null;
     }
 
     public function scopeSearch(Builder $query, ?string $type, string|array $id) {
@@ -68,8 +92,8 @@ class ModelConnection extends Model {
         }
         $query
             ->selectRaw(
-                'id, IF(`model_type` = ?, `reference_type`, `model_type`) as reference_type, IF(`model_type` = ?, `reference_id`, `model_id`) as reference_id, IF(`model_type` = ?, `reference_display`, `model_display`) as reference_display, `data`, `is_manual`',
-                [$type, $type, $type],
+                'id, IF(`model_type` = ?, `reference_type`, `model_type`) as reference_type, IF(`model_type` = ?, `reference_id`, `model_id`) as reference_id, IF(`model_type` = ?, `reference_display`, `model_display`) as reference_display, IF(`model_type` = ?, `model_type`, `reference_type`) as model_type, IF(`model_type` = ?, `model_id`, `reference_id`) as model_id, IF(`model_type` = ?, `model_display`, `reference_display`) as model_display, `data`, `is_manual`',
+                [$type, $type, $type, $type, $type, $type],
             );
 
         return $query->where(function (Builder $query) use ($type, $id): void {
@@ -122,5 +146,53 @@ class ModelConnection extends Model {
             ] : []),
             'data' => $attributes['data'] ?? null,
         ]);
+    }
+
+    /**
+     * Summary of getReferenceAttributes
+     *
+     * @param  Closure(Collection<int, ModelConnection>, ModelConnection): void  $eachReference
+     * @return Collection<int|string, Collection<int, ModelConnection>>
+     */
+    public static function getReferenceAttributes(string $model, string|array $ids, callable $eachReference) {
+        if (empty($ids)) {
+            return collect([]);
+        }
+
+        $itemConnections = ModelConnection::with('reference')
+            ->search($model, $ids)
+            ->get();
+
+        if ($itemConnections->isEmpty()) {
+            return collect([]);
+        }
+
+        $grouped = [];
+        foreach ($itemConnections->groupBy('reference_type') as $type => $connections) {
+            $uniqueReference = $connections->unique('reference_id');
+            $referenceIds    = $uniqueReference->pluck('reference_id')->toArray();
+
+            if (empty($referenceIds)) {
+                continue;
+            }
+
+            $referenceGrouped = ModelConnection::search($type, $referenceIds)
+                ->having('reference_type', $model)
+                ->get()
+                ->groupBy('model_id');
+
+            $grouped[$type] = $referenceGrouped;
+
+            foreach ($uniqueReference as $reference) {
+                if ($reference->reference === null) {
+                    continue;
+                }
+
+                $data = $referenceGrouped->get($reference->reference_id, collect([]));
+                $eachReference($data, $reference->reference);
+            }
+        }
+
+        return collect($grouped);
     }
 }

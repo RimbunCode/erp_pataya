@@ -21,7 +21,6 @@ use Illuminate\Support\Facades\DB;
 
 trait Submitable {
     use DataTable;
-
     protected static bool $is_submitable = true;
 
     public function initializeSubmitable() {
@@ -74,17 +73,6 @@ trait Submitable {
         });
     }
 
-    /**
-     * Summary of replaceStatus
-     *
-     * @param  FormStatus|array<FormStatus>  $from
-     * @param  FormStatus|array<FormStatus>  $to
-     * @return FormStatus|array<FormStatus>
-     */
-    public function replaceStatus($from, $to) {
-        return \array_replace($this->status, $from, $to);
-    }
-
     public function createdBy() {
         return $this->belongsTo(User::class, 'created_by_id');
     }
@@ -121,7 +109,7 @@ trait Submitable {
             $newCode       = $dataOri->code . "-{$dataOri->revision_number}";
             $amendedFromId = $dataOri->id;
         }
-        $newData = $this->replicate([
+        $newData                  = $this->replicate([
             'id',
             'created_at',
             'updated_at',
@@ -142,7 +130,7 @@ trait Submitable {
                 if ($value instanceof Collection) {
                     $foreignKey = $newData->$key()->getForeignKeyName();
                     foreach ($value as $item) {
-                        $item = $item->replicate([
+                        $item              = $item->replicate([
                             'id',
                             'created_at',
                             'updated_at',
@@ -167,7 +155,10 @@ trait Submitable {
         return $newData;
     }
 
-    public function attachConnections(Model $item, ?array $data) {
+    public function attachConnections(Model $item, ?array $data, ?int $depth = null) {
+        if ($depth !== null && $depth < 0) {
+            return;
+        }
         if ($item && ($item->referenceable_type == null || $item->referenceable_id == null)) {
             return;
         }
@@ -187,6 +178,7 @@ trait Submitable {
                 'reference' => $this,
             ]);
         }
-        $this->attachConnections($sourceItem, $data);
+        $nextDepth = $depth === null ? null : $depth - 1;
+        $this->attachConnections($sourceItem, $data, $nextDepth);
     }
 }

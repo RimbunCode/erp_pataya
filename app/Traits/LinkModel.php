@@ -8,6 +8,7 @@ use App\Casts\Json;
 use App\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
+use App\Utils;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -26,69 +27,69 @@ trait LinkModel {
 
     public function initializeLinkModel() {
         $this->defaultConfigColumns = array_merge([
-            'created_at' => [
+            'created_at'        => [
                 'titleTrans' => 'core.form.created_at',
             ],
-            'updated_at' => [
+            'updated_at'        => [
                 'titleTrans' => 'core.form.updated_at',
             ],
-            'deleted_at' => [
+            'deleted_at'        => [
                 'titleTrans' => 'core.form.deleted_at',
             ],
-            'canceled_at' => [
+            'canceled_at'       => [
                 'titleTrans' => 'core.form.canceled_at',
             ],
-            'submitted_at' => [
+            'submitted_at'      => [
                 'titleTrans' => 'core.form.submitted_at',
             ],
-            'logs' => [
+            'logs'              => [
                 'titleTrans' => 'core.form.logs',
                 'filter'     => [
                     'type' => 'comment',
                 ],
             ],
-            'tags' => [
+            'tags'              => [
                 'titleTrans' => 'core.form.tags',
             ],
-            'files' => [
+            'files'             => [
                 'titleTrans' => 'core.form.files',
             ],
             'have_transactions' => [
                 'ignore' => true,
             ],
-            'createdBy' => [
+            'createdBy'         => [
                 'titleTrans' => 'core.form.created_by',
             ],
-            'status' => [
+            'status'            => [
                 'titleTrans' => 'core.form.status',
                 'width'      => 'minimum',
                 'valueTrans' => 'status',
             ],
-            'branch' => [
+            'branch'            => [
                 'titleTrans' => 'core.branch.branch',
             ],
-            'templateLink' => [
+            'templateLink'      => [
                 'ignore' => true,
             ],
-            'additional_data' => [
+            'additional_data'   => [
                 'ignore' => true,
             ],
-            'amendedFrom' => [
+            'amendedFrom'       => [
                 'titleTrans' => 'core.form.amended_from',
             ],
-            'revision_number' => [
+            'revision_number'   => [
                 'ignore' => true,
             ],
-            'lft' => [
+            'lft'               => [
                 'ignore' => true,
             ],
-            'rgt' => [
+            'rgt'               => [
                 'ignore' => true,
             ],
-            'depth' => [
+            'depth'             => [
                 'ignore' => true,
             ],
-            'appendStatus' => [
+            'appendStatus'      => [
                 'ignore' => true,
             ],
         ]);
@@ -113,8 +114,8 @@ trait LinkModel {
             ...static::loadRelationsOnShow() ?? [],
             ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
         ];
-        $relations = (\is_string($relations) ? [$relations] : ($relations ?? []));
-        $relations = [...$defaultRelations, ...$relations];
+        $relations        = (\is_string($relations) ? [$relations] : ($relations ?? []));
+        $relations        = [...$defaultRelations, ...$relations];
 
         $instance = new static;
         $toLoad   = [];
@@ -177,19 +178,62 @@ trait LinkModel {
         return [];
     }
 
+    /**
+     * Summary of replaceStatus
+     *
+     * @return array<string, FormStatus|array<FormStatus>|array{
+     *     values: array<FormStatus>,
+     *     forceReplace?: bool
+     * }>
+     * */
+    protected function replaceStatus() {
+        return [];
+    }
+
     protected function getAppendStatusAttribute() {
         $baseStatus = $this->status;
         $baseStatus = $baseStatus instanceof FormStatus ? [$baseStatus] : ($baseStatus ?? []);
 
-        $append = $this->appendStatus();
-        $append = $append instanceof FormStatus ? [$append] : ($append ?? []);
-
-        return collect($baseStatus)
+        $append     = $this->appendStatus();
+        $append     = $append instanceof FormStatus ? [$append] : ($append ?? []);
+        $mergeValue = collect($baseStatus)
             ->merge($append)
             ->filter()
-            ->unique(fn ($s) => $s instanceof FormStatus ? $s->value : $s)
+            ->map(fn ($s) => $s instanceof FormStatus ? $s->value : $s)
+            ->unique()
+            ->values();
+
+        $flipedValues = $mergeValue->mapWithKeys(fn ($k) => [$k => $k]);
+        $result       = [];
+        $replaces     = $this->replaceStatus();
+
+        foreach ($replaces as $key => $replace) {
+            $forceReplace = false;
+            $result       = [];
+            if (\is_array($replace)) {
+                if (\array_any(\array_keys($replace), fn ($v) => \is_string($v))) {
+                    $forceReplace = $replace['forceReplace'] ?? false;
+                    $result       = $replace['values'] ?? [];
+                } else {
+                    $result = [...$result, ...$replace];
+                }
+            } else {
+                $result = $replace;
+            }
+
+            if ($flipedValues->get($key)) {
+                $flipedValues->put($key, $result);
+            } else if ($forceReplace) {
+                $flipedValues->put(Utils::generateRandom(5), $result);
+            }
+        }
+
+        return $flipedValues
             ->values()
-            ->all();
+            ->flatten()
+            ->map(fn ($s) => $s instanceof FormStatus ? $s->value : $s)
+            ->unique();
+
     }
 
     protected function getKeyModelAttribute() {
@@ -335,7 +379,7 @@ trait LinkModel {
 
         return [
             // "db_type"   => $type,
-            'name' => $dataColumn['name'],
+            'name'    => $dataColumn['name'],
             // "length"    => $length,    // alias precision untuk decimal/float
             // "precision" => $precision, // panjang digit total
             // "scale"     => $scale,     // digit setelah koma (0 kalau tidak ada)
@@ -401,7 +445,7 @@ trait LinkModel {
             $instance->defaultConfigColumns ?? [],
             $instance->configColumns ?? [],
         );
-        $translateKey = $instance->translateKey ?? null;
+        $translateKey  = $instance->translateKey ?? null;
 
         $newColumns = [];
 
