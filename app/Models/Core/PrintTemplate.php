@@ -94,22 +94,39 @@ class PrintTemplate extends Model {
     public static function boot() {
         parent::boot();
 
-        self::saved(function ($model) {
+        self::saving(function (self $model) {
             if ($model->is_default) {
-                PrintTemplate::where('model', $model->model)
-                    ->whereNot('id', $model->id)
-                    ->update(['is_default' => false]);
-            } else {
-                $counter = PrintTemplate::where('model', $model->model)
-                    ->whereNot('id', $model->id)
-                    ->count();
-
-                if ($counter <= 0) {
-                    $model->is_default = true;
-                }
+                return;
             }
 
-            $model->saveQuietly();
+            if ($model->exists && ! $model->isDirty(['is_default', 'model'])) {
+                return;
+            }
+
+            $hasOtherTemplate = PrintTemplate::where('model', $model->model)
+                ->when($model->exists, function ($query) use ($model) {
+                    $query->whereKeyNot($model->id);
+                })
+                ->exists();
+
+            if (! $hasOtherTemplate) {
+                $model->is_default = true;
+            }
+        });
+
+        self::saved(function (self $model) {
+            if (! $model->is_default) {
+                return;
+            }
+
+            if (! $model->wasRecentlyCreated && ! $model->wasChanged(['is_default', 'model'])) {
+                return;
+            }
+
+            PrintTemplate::where('model', $model->model)
+                ->whereKeyNot($model->id)
+                ->where('is_default', true)
+                ->update(['is_default' => false]);
         });
     }
 

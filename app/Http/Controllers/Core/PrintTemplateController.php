@@ -14,6 +14,12 @@ class PrintTemplateController extends Controller {
         parent::__construct($request, PrintTemplate::class);
     }
 
+    protected function enforcePermission($method) {
+        if ($method == 'editor') {
+            return ['write', 'create'];
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
