@@ -84,6 +84,11 @@ abstract class Controller {
         return null;
     }
 
+    /**
+     * Summary of enforcePermission
+     *
+     * @return null|string|string[]|bool
+     */
     protected function enforcePermission(string $method) {
         return null;
     }
