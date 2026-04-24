@@ -103,12 +103,12 @@ const Select = memo(
       // apply default hanya sekali per key
       _setOption((prev) => {
         if (prev?.value === opt.value) return prev;
-        onValueChange?.(opt.value);
         return opt;
       });
+      onValueChange?.(opt.value);
 
       appliedDefaultKeyRef.current = defaultValue;
-    }, [defaultValue, getOption, onValueChange, _setOption]);
+    }, [defaultValue, getOption, onValueChange, option, _setOption]);
 
     const options = useMemo(() => {
       if (!oriOptions) return [];

@@ -32,7 +32,7 @@ export default function Form() {
               onValueChange={(v) => setData("type", v)}
               placeholder={t("inventory.category.columns.type.placeholder")}
               optionTrans="inventory.category.types"
-              options={["stock", "vehicle", "service"]}
+              options={["inventory", "vehicle", "service"]}
             />
           </FormInput>
         </div>
