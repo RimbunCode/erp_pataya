@@ -15,41 +15,33 @@ class TagFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition(): array {
-        $domain = fake()->randomElement([
-            'inventory',
-            'sales',
-            'purchase',
-            'finance',
-            'warehouse',
+        $entity = fake()->randomElement([
+            'item',
             'customer',
             'supplier',
+            'purchase-order',
+            'sales-order',
+            'payment',
+            'warehouse',
             'service',
             'approval',
         ]);
 
-        $context = fake()->randomElement([
-            'priority',
+        $purpose = fake()->randomElement([
+            'urgent',
             'follow-up',
             'revision',
             'audit',
-            'ops',
-            'schedule',
+            'ops-check',
             'compliance',
+            'vip',
         ]);
 
-        $status = fake()->randomElement([
-            'draft',
-            'pending',
-            'active',
-            'done',
-            'overdue',
-            'internal',
-            'external',
-        ]);
+        $priority = fake()->randomElement(['low', 'normal', 'high', 'critical']);
 
         return [
-            'name'        => fake()->unique()->bothify("{$domain}-{$context}-{$status}-##"),
-            'description' => fake()->sentence(),
+            'name'        => fake()->unique()->bothify("{$entity}-{$purpose}-{$priority}-##"),
+            'description' => "Tag for {$entity} records flagged as {$purpose} with {$priority} priority.",
         ];
     }
 }

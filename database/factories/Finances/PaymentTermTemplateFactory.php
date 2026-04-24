@@ -17,18 +17,34 @@ class PaymentTermTemplateFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition(): array {
+        $templateType = fake()->randomElement([
+            'Project Milestone',
+            'Procurement Schedule',
+            'Service Contract',
+            'Operational Purchase',
+            'Advance and Final Payment',
+        ]);
+
         return [
-            'name'        => fake()->unique()->words(3, true),
-            'description' => fake()->optional()->sentence(),
+            'name'        => "{$templateType} " . fake()->unique()->numerify('##'),
+            'description' => "Staged payment template for {$templateType} transactions.",
         ];
     }
 
     public function configure(): static {
         return $this->afterCreating(function (PaymentTermTemplate $paymentTermTemplate): void {
             $paymentMethodId = PaymentMethod::query()->inRandomOrder()->value('id') ?? PaymentMethodFactory::new()->create()->id;
-            $installments = [60, 40];
+            $installments    = fake()->randomElement([
+                [100],
+                [60, 40],
+                [50, 30, 20],
+            ]);
 
             foreach ($installments as $index => $invoicePortion) {
+                $discountType = $index === 0 && fake()->boolean(30)
+                    ? fake()->randomElement(['percentage', 'amount'])
+                    : null;
+
                 PaymentTermTemplateItem::query()->create([
                     'payment_term_template_id' => $paymentTermTemplate->id,
                     'due_date_based_on'        => fake()->randomElement([
@@ -36,11 +52,11 @@ class PaymentTermTemplateFactory extends Factory {
                         'weeks_after_invoice_date',
                         'months_after_invoice_month',
                     ]),
-                    'credit_period'   => fake()->numberBetween(0, 60) + ($index * 15),
-                    'invoice_portion' => $invoicePortion,
-                    'discount_type'   => null,
-                    'discount'        => null,
-                    'description'     => fake()->sentence(),
+                    'credit_period'     => (($index + 1) * 15) + fake()->numberBetween(0, 10),
+                    'invoice_portion'   => $invoicePortion,
+                    'discount_type'     => $discountType,
+                    'discount'          => $discountType ? fake()->randomFloat(2, 1, 5) : null,
+                    'description'       => 'Installment ' . ($index + 1) . ' payment portion.',
                     'payment_method_id' => $paymentMethodId,
                 ]);
             }

@@ -15,9 +15,32 @@ class CategoryFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition(): array {
+        $type         = fake()->randomElement(['inventory', 'service', 'vehicle']);
+        $categoryName = match ($type) {
+            'inventory' => fake()->randomElement([
+                'Raw Material',
+                'Finished Goods',
+                'Packaging',
+                'Spare Parts',
+                'Consumables',
+            ]),
+            'service' => fake()->randomElement([
+                'Installation Service',
+                'Maintenance Service',
+                'Consulting Service',
+                'Delivery Service',
+            ]),
+            default => fake()->randomElement([
+                'Operational Vehicle',
+                'Project Vehicle',
+                'Field Vehicle',
+                'Transport Vehicle',
+            ]),
+        };
+
         return [
-            'name' => fake()->unique()->words(2, true),
-            'type' => fake()->randomElement(['inventory', 'service', 'asset']),
+            'name' => $categoryName . ' ' . fake()->unique()->numerify('##'),
+            'type' => $type,
         ];
     }
 }

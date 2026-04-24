@@ -24,24 +24,47 @@ class WidgetFactory extends Factory {
             'route'       => 'widgets',
             'permissions' => ['select', 'read', 'write', 'create', 'delete'],
         ]);
+        $metric = fake()->randomElement([
+            'Sales Amount',
+            'Purchase Amount',
+            'Open Invoices',
+            'Stock Movement',
+            'Ready Stock',
+            'New Customers',
+            'Outstanding Payables',
+        ]);
+        $type         = fake()->randomElement(['summary', 'number', 'list']);
+        $timeInterval = fake()->randomElement(['daily', 'weekly', 'monthly']);
+        $timespan     = match ($timeInterval) {
+            'daily'  => '7_days',
+            'weekly' => '30_days',
+            default  => '90_days',
+        };
+        $valueBasedOn      = str_contains($metric, 'Amount') ? 'amount' : 'quantity';
+        $aggregateFunction = $valueBasedOn === 'amount'
+            ? 'sum'
+            : fake()->randomElement(['count', 'sum']);
 
         return [
-            'title'                       => fake()->unique()->words(3, true),
-            'type'                        => fake()->randomElement(['summary', 'number', 'list']),
+            'title'                       => "{$metric} " . fake()->randomElement(['Today', 'This Week', 'This Month']),
+            'type'                        => $type,
             'calculation_type'            => fake()->randomElement(['sum', 'count', 'avg']),
             'time_based_on'               => fake()->randomElement(['created_at', 'updated_at']),
-            'time_interval'               => fake()->randomElement(['daily', 'weekly', 'monthly']),
-            'timespan'                    => fake()->randomElement(['7_days', '30_days', '90_days']),
-            'value_based_on'              => fake()->randomElement(['amount', 'quantity']),
+            'time_interval'               => $timeInterval,
+            'timespan'                    => $timespan,
+            'value_based_on'              => $valueBasedOn,
             'group_by_type'               => fake()->randomElement(['none', 'branch', 'status']),
             'group_by_base_on'            => fake()->randomElement(['date', 'model']),
-            'aggregate_function_based_on' => fake()->randomElement(['sum', 'count']),
-            'filters'                     => ['active' => true],
-            'config'                      => ['show_legend' => true],
-            'description'                 => fake()->sentence(),
-            'created_by_id'               => User::query()->inRandomOrder()->value('id'),
-            'model_id'                    => $permission->id,
-            'model_class'                 => $permission->model,
+            'aggregate_function_based_on' => $aggregateFunction,
+            'filters'                     => ['status' => ['active', 'submitted']],
+            'config'                      => [
+                'show_legend' => true,
+                'chart_type'  => fake()->randomElement(['bar', 'line', 'table']),
+            ],
+            'description'   => "Widget to monitor {$metric} with {$type} presentation.",
+            'created_by_id' => User::query()->inRandomOrder()->value('id'),
+            'model_id'      => $permission->id,
+            'model_class'   => $permission->model,
         ];
     }
 }

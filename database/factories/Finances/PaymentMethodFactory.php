@@ -16,9 +16,32 @@ class PaymentMethodFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition(): array {
+        $method = fake()->randomElement([
+            [
+                'name'        => 'Cash Payment',
+                'description' => 'Direct cash settlement at cashier desk.',
+            ],
+            [
+                'name'        => 'Bank Transfer',
+                'description' => 'Settlement through interbank transfer.',
+            ],
+            [
+                'name'        => 'Virtual Account',
+                'description' => 'Automated settlement using virtual account.',
+            ],
+            [
+                'name'        => 'Credit Card',
+                'description' => 'Settlement through corporate credit card.',
+            ],
+            [
+                'name'        => 'Digital Wallet',
+                'description' => 'Settlement using approved digital wallet.',
+            ],
+        ]);
+
         return [
-            'name'               => fake()->unique()->words(2, true),
-            'description'        => fake()->optional()->sentence(),
+            'name'               => $method['name'] . ' ' . fake()->unique()->numerify('##'),
+            'description'        => $method['description'],
             'default_account_id' => $this->resolveAccountId(),
         ];
     }

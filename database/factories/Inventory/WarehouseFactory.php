@@ -18,16 +18,30 @@ class WarehouseFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition(): array {
+        $warehouseType = fake()->randomElement([
+            'Main Warehouse',
+            'Transit Warehouse',
+            'Return Warehouse',
+            'Spare Parts Warehouse',
+            'Project Warehouse',
+        ]);
+        $zone = fake()->randomElement(['North', 'South', 'East', 'West', 'Central']);
+
         return [
             'branch_id' => $this->resolveBranchId(),
-            'name'      => fake()->unique()->company() . ' Warehouse',
-            'code'      => fake()->unique()->bothify('WH-##??'),
+            'name'      => "{$warehouseType} {$zone}",
+            'code'      => fake()->unique()->bothify('WH-???-##'),
             'user_id'   => User::query()->inRandomOrder()->value('id'),
         ];
     }
 
     private function resolveBranchId(): string {
-        $branchId = Branch::query()->inRandomOrder()->value('id');
+        $branchId = Branch::query()
+            ->whereNull('branchable_type')
+            ->whereNull('branchable_id')
+            ->inRandomOrder()
+            ->value('id');
+
         if ($branchId) {
             return $branchId;
         }
@@ -37,6 +51,8 @@ class WarehouseFactory extends Factory {
         return Branch::query()->create([
             'code'                => fake()->unique()->bothify('BR-??##'),
             'name'                => fake()->company(),
+            'branchable_type'     => null,
+            'branchable_id'       => null,
             'is_main_branch'      => false,
             'is_disabled'         => false,
             'billing_address'     => 'same_shipping',

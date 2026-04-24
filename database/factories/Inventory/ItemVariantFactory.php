@@ -17,22 +17,39 @@ class ItemVariantFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition(): array {
-        $item = Item::query()->inRandomOrder()->first() ?? ItemFactory::new()->create();
+        $item         = Item::query()->inRandomOrder()->first() ?? ItemFactory::new()->create();
+        $variantLabel = $item->type === 'goods'
+            ? fake()->randomElement([
+                'Small',
+                'Medium',
+                'Large',
+                'Blue',
+                'Red',
+                'Heavy Duty',
+            ])
+            : fake()->randomElement([
+                'Basic Package',
+                'Standard Package',
+                'Premium Package',
+                'Emergency Call',
+            ]);
 
         return [
-            'code'                   => fake()->unique()->bothify('VAR-####'),
+            'code'                   => $item->code . '-' . fake()->unique()->bothify('V##'),
             'item_id'                => $item->id,
             'category_id'            => $item->category_id,
             'default_unit_id'        => $item->default_unit_id,
             'item_code'              => $item->code,
-            'item_name'              => $item->name,
-            'format_variant'         => fake()->optional()->word(),
-            'description'            => fake()->optional()->sentence(),
+            'item_name'              => $item->name . ' ' . $variantLabel,
+            'format_variant'         => $variantLabel,
+            'description'            => "Variant {$variantLabel} for {$item->name}.",
             'is_disabled'            => false,
-            'allow_alternative_item' => fake()->boolean(30),
-            'conversion_factor'      => 1,
-            'is_stock_item'          => $item->is_stock_item,
-            'type'                   => $item->type,
+            'allow_alternative_item' => (bool) $item->allow_alternative_item,
+            'conversion_factor'      => $item->type === 'goods'
+                ? fake()->randomFloat(2, 0.5, 5)
+                : 1,
+            'is_stock_item' => $item->is_stock_item,
+            'type'          => $item->type,
         ];
     }
 

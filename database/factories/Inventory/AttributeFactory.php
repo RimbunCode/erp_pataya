@@ -16,15 +16,52 @@ class AttributeFactory extends Factory {
      */
     public function definition(): array {
         $isNumeric = fake()->boolean(30);
-        $values = $isNumeric
-            ? collect(range(1, fake()->numberBetween(3, 6)))->map(fn (int $value): array => ['value' => (string) $value])->all()
-            : collect(range(1, fake()->numberBetween(3, 6)))->map(fn (int $index): array => ['value' => fake()->unique()->word() . $index])->all();
+
+        if ($isNumeric) {
+            $preset = fake()->randomElement([
+                [
+                    'name'        => 'Length',
+                    'description' => 'Product length in centimeter.',
+                    'values'      => ['10', '20', '30', '40'],
+                ],
+                [
+                    'name'        => 'Weight',
+                    'description' => 'Net weight in kilogram.',
+                    'values'      => ['1', '2', '5', '10'],
+                ],
+                [
+                    'name'        => 'Capacity',
+                    'description' => 'Capacity value in liter.',
+                    'values'      => ['250', '500', '750', '1000'],
+                ],
+            ]);
+        } else {
+            $preset = fake()->randomElement([
+                [
+                    'name'        => 'Color',
+                    'description' => 'Color options for product display.',
+                    'values'      => ['Red', 'Blue', 'Black', 'White'],
+                ],
+                [
+                    'name'        => 'Size',
+                    'description' => 'Standard size options.',
+                    'values'      => ['S', 'M', 'L', 'XL'],
+                ],
+                [
+                    'name'        => 'Material',
+                    'description' => 'Primary material composition.',
+                    'values'      => ['Steel', 'Plastic', 'Aluminum', 'Wood'],
+                ],
+            ]);
+        }
 
         return [
-            'name'        => fake()->unique()->words(2, true),
-            'description' => fake()->optional()->sentence(),
+            'name'        => $preset['name'] . ' ' . fake()->unique()->numerify('##'),
+            'description' => $preset['description'],
             'is_numeric'  => $isNumeric,
-            'values'      => $values,
+            'values'      => collect($preset['values'])
+                ->map(fn (string $value): array => ['value' => $value])
+                ->all(),
         ];
     }
 }
