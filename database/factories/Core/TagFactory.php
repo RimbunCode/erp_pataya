@@ -15,8 +15,41 @@ class TagFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition(): array {
+        $domain = fake()->randomElement([
+            'inventory',
+            'sales',
+            'purchase',
+            'finance',
+            'warehouse',
+            'customer',
+            'supplier',
+            'service',
+            'approval',
+        ]);
+
+        $context = fake()->randomElement([
+            'priority',
+            'follow-up',
+            'revision',
+            'audit',
+            'ops',
+            'schedule',
+            'compliance',
+        ]);
+
+        $status = fake()->randomElement([
+            'draft',
+            'pending',
+            'active',
+            'done',
+            'overdue',
+            'internal',
+            'external',
+        ]);
+
         return [
-            'name' => $this->faker->unique()->word(),
+            'name'        => fake()->unique()->bothify("{$domain}-{$context}-{$status}-##"),
+            'description' => fake()->sentence(),
         ];
     }
 }

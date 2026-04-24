@@ -2,8 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Core\Tag;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder {
@@ -18,9 +16,9 @@ class DatabaseSeeder extends Seeder {
         $this->call(CountrySeeder::class);
         $this->call(AdministratorSeeder::class);
         $this->call(AccountSeeder::class);
-        // Create Random Tags
+
         if (config('app.debug')) {
-            Tag::factory(50)->create();
+            $this->call(DataTableNonSubmitableSeeder::class);
         }
     }
 }
