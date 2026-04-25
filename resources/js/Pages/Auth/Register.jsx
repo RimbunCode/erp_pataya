@@ -3,7 +3,7 @@ import { Head, useForm } from "@inertiajs/react";
 
 import { Button } from "@/Components/ui/button";
 import { CardDescription } from "@/Components/ui/card";
-import GuestLayout from "@/Layouts/GuestLayout";
+import AuthLayout from "@/Layouts/AuthLayout";
 import { Input } from "@/Components/ui/input";
 import InputError from "@/Components/InputError";
 import { Label } from "@/Components/ui/label";
@@ -35,7 +35,7 @@ export default function Register() {
   };
   const [isVisible, setIsVisible] = useState(false);
   return (
-    <GuestLayout>
+    <AuthLayout>
       <Head title="Register" />
       <CardHeader>
         <div className="flex items-center justify-between gap-x-4">
@@ -218,6 +218,6 @@ export default function Register() {
           </div>
         </form>
       </CardContent>
-    </GuestLayout>
+    </AuthLayout>
   );
 }

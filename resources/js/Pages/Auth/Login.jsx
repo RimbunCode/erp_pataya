@@ -8,7 +8,7 @@ import { Head, useForm } from "@inertiajs/react";
 
 import { Button } from "@/Components/ui/button";
 import { FormCheckbox } from "@/Components/ui/checkbox";
-import GuestLayout from "@/Layouts/GuestLayout";
+import AuthLayout from "@/Layouts/AuthLayout";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
 import Link from "@/Components/Link";
@@ -37,7 +37,7 @@ export default function Login({ errors }) {
   };
 
   return (
-    <GuestLayout>
+    <AuthLayout>
       <Head title="Login" />
       <CardHeader>
         <div className="flex items-center justify-between gap-x-4">
@@ -190,6 +190,6 @@ export default function Login({ errors }) {
           </div>
         </form>
       </CardContent>
-    </GuestLayout>
+    </AuthLayout>
   );
 }

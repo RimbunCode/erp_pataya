@@ -12,12 +12,10 @@ class DatabaseSeeder extends Seeder {
      */
     public function run(): void {
         $this->call(ErrorLensConfigurationSeeder::class);
-        $this->call(UnitSeeder::class);
         $this->call(PreferenceSeeder::class);
         $this->call(CurrencySeeder::class);
         $this->call(CountrySeeder::class);
         $this->call(AdministratorSeeder::class);
-        $this->call(AccountSeeder::class);
         // Create Random Tags
         if (config('app.debug')) {
             Tag::factory(50)->create();

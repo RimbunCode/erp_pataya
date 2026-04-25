@@ -2,7 +2,7 @@ import { Head, useForm } from "@inertiajs/react";
 
 import { Button } from "@/Components/ui/button";
 import { CardContent } from "@/Components/ui/card";
-import GuestLayout from "@/Layouts/GuestLayout";
+import AuthLayout from "@/Layouts/AuthLayout";
 import Link from "@/Components/Link";
 
 export default function VerifyEmail({ status }) {
@@ -16,7 +16,7 @@ export default function VerifyEmail({ status }) {
   };
 
   return (
-    <GuestLayout>
+    <AuthLayout>
       <Head title="Email Verification" />
 
       <CardContent>
@@ -48,6 +48,6 @@ export default function VerifyEmail({ status }) {
           </div>
         </form>
       </CardContent>
-    </GuestLayout>
+    </AuthLayout>
   );
 }

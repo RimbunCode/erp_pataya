@@ -13,33 +13,8 @@ use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
-use App\Http\Controllers\Finances\AccountController;
-use App\Http\Controllers\Finances\GeneralLedgerController;
-use App\Http\Controllers\Finances\PaymentEntryController;
-use App\Http\Controllers\Finances\PaymentMethodController;
-use App\Http\Controllers\Finances\PaymentTermTemplateController;
-use App\Http\Controllers\Finances\PurchaseInvoiceController;
-use App\Http\Controllers\Finances\SalesInvoiceController;
-use App\Http\Controllers\Finances\TaxesController;
-use App\Http\Controllers\Inventory\AttributeController;
-use App\Http\Controllers\Inventory\CategoryController;
-use App\Http\Controllers\Inventory\DeliveryNoteController;
-use App\Http\Controllers\Inventory\ItemAlternativeController;
-use App\Http\Controllers\Inventory\ItemController;
-use App\Http\Controllers\Inventory\ItemVariantController;
-use App\Http\Controllers\Inventory\StockEntryController;
-use App\Http\Controllers\Inventory\StockLedgerController;
-use App\Http\Controllers\Inventory\UnitController;
-use App\Http\Controllers\Inventory\WarehouseController;
+use App\Http\Controllers\MockAuthController;
 use App\Http\Controllers\ModelController;
-use App\Http\Controllers\Purchase\PurchaseOrderController;
-use App\Http\Controllers\Purchase\PurchaseReceiptController;
-use App\Http\Controllers\Purchase\PurchaseRequestController;
-use App\Http\Controllers\Purchase\SupplierController;
-use App\Http\Controllers\Sales\CustomerController;
-use App\Http\Controllers\Sales\InternalOrderController;
-use App\Http\Controllers\Sales\SalesOrderController;
-use App\Http\Controllers\Service\WorkOrderController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Foundation\Application;
@@ -176,76 +151,34 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::get('approvals/{approvalInstance}', [ApprovalInstanceController::class, 'show'])->name('approvalInstances.show');
     Route::post('approvals/{approvalInstanceStep}/decision', [ApprovalInstanceController::class, 'decision'])->name('approvalInstances.decision');
 
-    // / Inventories Group
-    // Warehouse
-    Route::resourceDetail('warehouse', WarehouseController::class);
-    // Units
-    Route::get('/units/groups/{search?}', [UnitController::class, 'getGroups'])->name('units.groups');
-    Route::resourceDetail('unit', UnitController::class);
-    // Categories
-    Route::resourceDetail('category', CategoryController::class);
-    // Items
-    Route::resourceDetail('item', ItemController::class);
-    Route::post('itemVariants/info', [ItemVariantController::class, 'info'])->name('itemVariants.info');
-    Route::resourceDetail('itemVariant', ItemVariantController::class);
-    // ItemAlternatives
-    Route::resourceDetail('itemAlternative', ItemAlternativeController::class);
-    // Attributes
-    Route::resourceDetail('attribute', AttributeController::class);
-    // Stock Entries
-    Route::resourceDetail('stockEntry', StockEntryController::class, isSubmmitable: true);
-    // Delivery Notes
-    Route::resourceDetail('deliveryNote', DeliveryNoteController::class, isSubmmitable: true);
-    // Stock Ledgers
-    Route::resourceDetail('stockLedger', StockLedgerController::class);
-    // / Inventories Group End
+});
+Route::post('/mock-login', [MockAuthController::class, 'login'])->name('mock.login');
+Route::post('/mock-logout', [MockAuthController::class, 'logout'])->name('mock.logout');
 
-    // / Purchase Group
-    // Supplier
-    Route::resourceDetail('supplier', SupplierController::class);
-    // Purchase Request
-    Route::resourceDetail('purchaseRequest', PurchaseRequestController::class, isSubmmitable: true);
-    // Purchase Order
-    Route::resourceDetail('purchaseOrder', PurchaseOrderController::class, isSubmmitable: true);
-    // Purchase Receipt
-    Route::resourceDetail('purchaseReceipt', PurchaseReceiptController::class, isSubmmitable: true);
-    // / Purchase Group End
-
-    // Customer
-    Route::resourceDetail('customer', CustomerController::class);
-
-    // / Service Group
-    // Work Order
-    Route::resourceDetail('workOrder', WorkOrderController::class, isSubmmitable: true);
-    // / Service Group End
-
-    // / Sales Groups
-    // Sales Orders
-    Route::resourceDetail('salesOrder', SalesOrderController::class, isSubmmitable: true);
-    // Internal Orders
-    Route::resourceDetail('internalOrder', InternalOrderController::class, isSubmmitable: true);
-    // / Sales Groups End
-
-    // / Finances
-    // Accounts
-    Route::resourceDetail('account', AccountController::class);
-    // General Ledgers
-    Route::resourceDetail('generalLedger', GeneralLedgerController::class);
-    // Payment Methods
-    Route::resourceDetail('paymentMethod', PaymentMethodController::class);
-    // Payment Terms
-    // Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
-    // Payment Term Template
-    Route::resourceDetail('paymentTermTemplate', PaymentTermTemplateController::class);
-    // Payment Entries
-    Route::resourceDetail('paymentEntry', PaymentEntryController::class, isSubmmitable: true);
-    // Purchase Invoices
-    Route::resourceDetail('purchaseInvoice', PurchaseInvoiceController::class, isSubmmitable: true);
-    // Sales Invoices
-    Route::resourceDetail('salesInvoice', SalesInvoiceController::class, isSubmmitable: true);
-    // Taxes
-    Route::resourceDetail('tax', TaxesController::class);
-    // / Finances End
+Route::prefix('/student')->group(function () {
+    Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
+    Route::get('/classes', fn () => inertia('Students/EnrolledClasses'))->name('student.classes');
+    Route::get('/profile', fn () => inertia('Students/ProfileSettings'))->name('student.profile');
+    Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
+    Route::get('/classEnrollment', fn () => inertia('Students/WishlistCart'))->name('student.wishlistCart');
+});
+Route::prefix('/instructor')->group(function () {
+    Route::get('/dashboard', fn () => inertia('Instructors/Dashboard'))->name('instructor.dashboard');
+    Route::get('/classes', fn () => inertia('Instructors/ManageClasses'))->name('instructor.classes');
+    Route::get('/students', fn () => inertia('Instructors/StudentManagement'))->name('instructor.students');
+    Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('instructor.growth');
+    Route::get('/financial', fn () => inertia('Instructors/Financials'))->name('instructor.financial');
+    Route::get('/profile', fn () => inertia('Instructors/ProfileSettings'))->name('instructor.profile');
 });
 
+Route::prefix('/organization')->group(function () {
+    Route::get('/dashboard', fn () => inertia('Organizations/Dashboard'))->name('organization.dashboard');
+    Route::get('/partner', fn () => inertia('Organizations/PartnerTrainers'))->name('organization.partner');
+    Route::get('/profile', fn () => inertia('Organizations/ProfileSettings'))->name('organization.profile');
+    Route::get('/financial', fn () => inertia('Organizations/Financials'))->name('organization.financial');
+});
+
+Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
+
 require __DIR__ . '/auth.php';
+require __DIR__ . '/guest.php';

@@ -6,7 +6,7 @@ import {
 } from "@/Components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 
-import GuestLayout from "@/Layouts/GuestLayout";
+import AuthLayout from "@/Layouts/AuthLayout";
 import { Head } from "@inertiajs/react";
 import Link from "@/Components/Link";
 import React from "react";
@@ -19,7 +19,7 @@ function Index({ lang, locales }) {
   const route = window.route;
   const { t, loading } = useLaravelReactI18n();
   return (
-    <GuestLayout className="w-fit! min-w-80">
+    <AuthLayout className="w-fit! min-w-80">
       <Head title="Select Language" />
       <CardHeader>
         <div className="flex items-center justify-between gap-x-4">
@@ -67,7 +67,7 @@ function Index({ lang, locales }) {
           </TabsList>
         </Tabs>
       </CardContent>
-    </GuestLayout>
+    </AuthLayout>
   );
 }
 

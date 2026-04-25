@@ -2,7 +2,7 @@ import { Head, useForm } from "@inertiajs/react";
 
 import { Button } from "@/Components/ui/button";
 import { CardContent } from "@/Components/ui/card";
-import GuestLayout from "@/Layouts/GuestLayout";
+import AuthLayout from "@/Layouts/AuthLayout";
 import InputError from "@/Components/InputError";
 import { Skeleton } from "@/Components/ui/skeleton";
 import TextInput from "@/Components/TextInput";
@@ -22,7 +22,7 @@ export default function ForgotPassword({ status }) {
   };
 
   return (
-    <GuestLayout>
+    <AuthLayout>
       <Head title="Forgot Password" />
       <CardContent>
         <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
@@ -63,6 +63,6 @@ export default function ForgotPassword({ status }) {
           </div>
         </form>
       </CardContent>
-    </GuestLayout>
+    </AuthLayout>
   );
 }

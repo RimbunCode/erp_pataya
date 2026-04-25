@@ -10,7 +10,6 @@ use App\Models\Core\Log;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
-use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Utils;
@@ -311,8 +310,6 @@ abstract class Controller {
         if (! $data) {
             return back();
         }
-
-        $test = new SalesOrder;
 
         $newData = $data->amend();
 

@@ -26,7 +26,7 @@ import {
 
 import { Button } from "@/Components/ui/button";
 import DatetimePicker from "@/Components/DatetimePicker";
-import GuestLayout from "@/Layouts/GuestLayout";
+import AuthLayout from "@/Layouts/AuthLayout";
 import { Input } from "@/Components/ui/input";
 import InputError from "@/Components/InputError";
 import { Label } from "@/Components/ui/label";
@@ -61,7 +61,7 @@ function SetupUser({ user, hasPassword, isWaiting }) {
   };
 
   return (
-    <GuestLayout className="max-w-xl">
+    <AuthLayout className="max-w-xl">
       <Head title={t("auth.setupUser.title")} />
       <CardHeader>
         <div className="flex items-center justify-between gap-x-4">
@@ -386,7 +386,7 @@ function SetupUser({ user, hasPassword, isWaiting }) {
           </div>
         </form>
       </CardContent>
-    </GuestLayout>
+    </AuthLayout>
   );
 }
 

@@ -8,8 +8,6 @@ use App\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
-use App\Models\Finances\GeneralLedger;
-use App\Models\Inventory\StockLedgerEntry;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
@@ -62,12 +60,6 @@ trait Submitable {
             }
             if (\in_array(FormStatus::CANCELED, $model->status)) {
                 $model->canceled_at = now();
-                GeneralLedger::where('referenceable_type', get_class($model))->where('referenceable_id', $model->id)->update([
-                    'deleted_at' => now(),
-                ]);
-                StockLedgerEntry::where('referenceable_type', get_class($model))->where('referenceable_id', $model->id)->update([
-                    'deleted_at' => now(),
-                ]);
             }
         });
     }
