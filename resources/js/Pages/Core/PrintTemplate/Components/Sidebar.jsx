@@ -18,6 +18,7 @@ import {
   CollapsibleTrigger,
 } from "@/Components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
+import axios from "axios";
 
 import CustomBlockManager from "./CustomBlockManager";
 import CustomLayerManager from "./CustomLayerManager";
@@ -32,11 +33,60 @@ function VariableItem({ path = "", ...variable }) {
   const { editor } = useEditor();
   const { t } = useLaravelReactI18n();
   const fullKey = path ? `${path}.${variable.name}` : variable.name;
+  const hasInlineColumns =
+    Array.isArray(variable.columns) && variable.columns.length > 0;
+  const relationModel = variable.related ?? null;
+  const canFetchColumns = Boolean(relationModel);
   const isRelation =
     (variable.type === "relation" ||
+      variable.type === "relations" ||
       variable.type === "data" ||
       variable.type === "preferences") &&
-    variable.columns?.length;
+    (hasInlineColumns || canFetchColumns);
+
+  const [nestedColumns, setNestedColumns] = React.useState(
+    hasInlineColumns ? variable.columns : [],
+  );
+  const [isLoadingColumns, setIsLoadingColumns] = React.useState(false);
+  const [hasFetchedColumns, setHasFetchedColumns] =
+    React.useState(hasInlineColumns);
+  const [columnsError, setColumnsError] = React.useState(null);
+
+  const fetchColumns = React.useCallback(async () => {
+    if (!canFetchColumns || isLoadingColumns || hasFetchedColumns) {
+      return;
+    }
+
+    setIsLoadingColumns(true);
+    setColumnsError(null);
+
+    try {
+      const response = await axios.get(
+        window.route("model.columns", { model: relationModel }),
+      );
+
+      setNestedColumns(response?.data?.columns ?? []);
+      setHasFetchedColumns(true);
+    } catch (error) {
+      console.error(error);
+      setColumnsError("Gagal memuat kolom.");
+    } finally {
+      setIsLoadingColumns(false);
+    }
+  }, [canFetchColumns, hasFetchedColumns, isLoadingColumns, relationModel]);
+
+  const handleOpenChange = React.useCallback(
+    async (open) => {
+      if (!open) {
+        return;
+      }
+
+      if (!hasInlineColumns) {
+        await fetchColumns();
+      }
+    },
+    [fetchColumns, hasInlineColumns],
+  );
 
   const handleInsert = () => {
     if (!editor) return;
@@ -63,12 +113,29 @@ function VariableItem({ path = "", ...variable }) {
     }
   };
 
+  const canDrag = variable.type !== "data" && variable.type !== "preferences";
+
+  const handleDragStart = (e) => {
+    if (!canDrag) {
+      return;
+    }
+
+    e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.setData(
+      "variable/json",
+      JSON.stringify({
+        ...variable,
+        columns: nestedColumns,
+      }),
+    );
+  };
+
   // Kalau bukan relasi, langsung render item biasa
   if (!isRelation) {
     return (
       <div
         className="flex flex-col px-2 py-1 border rounded-md hover:bg-muted cursor-pointer transition-colors mt-1"
-        draggable
+        draggable={canDrag}
         onClick={() => {
           if (
             variable.type === "relations" ||
@@ -78,21 +145,7 @@ function VariableItem({ path = "", ...variable }) {
             return;
           handleInsert();
         }}
-        onDragStart={(e) => {
-          if (variable.type === "data" || variable.type === "preferences") {
-            return;
-          }
-          e.dataTransfer.effectAllowed = "copy";
-          e.dataTransfer.setData(
-            "variable/json",
-            JSON.stringify({
-              ...variable,
-            }),
-          );
-
-          // const token = `{{${variable.parentType == "preferences" ? "companyDetail " : ""}${fullKey}}}`;
-          // e.dataTransfer.setData("text/html", `<p>${token}</p>`);
-        }}
+        onDragStart={handleDragStart}
       >
         <span className="text-sm font-medium">
           {variable.title ||
@@ -109,8 +162,10 @@ function VariableItem({ path = "", ...variable }) {
 
   // Kalau relasi, pakai Collapsible
   return (
-    <Collapsible className="mt-1">
+    <Collapsible className="mt-1" onOpenChange={handleOpenChange}>
       <CollapsibleTrigger
+        draggable={canDrag}
+        onDragStart={handleDragStart}
         className={cn(
           "flex items-center gap-1 w-full px-2 py-1 border rounded-md hover:bg-muted transition-colors [&[data-state=open]_svg]:rotate-90",
         )}
@@ -130,19 +185,31 @@ function VariableItem({ path = "", ...variable }) {
       </CollapsibleTrigger>
 
       <CollapsibleContent className="pl-4 mt-1 border-l border-muted-foreground/25">
-        {variable.columns.map((sub) => {
-          sub.parentType =
+        {isLoadingColumns && (
+          <p className="px-2 py-1 text-xs text-muted-foreground">
+            Memuat kolom...
+          </p>
+        )}
+
+        {columnsError && (
+          <p className="px-2 py-1 text-xs text-destructive">{columnsError}</p>
+        )}
+
+        {nestedColumns.map((sub) => {
+          const parentType =
             variable.type === "data" || variable.type === "preferences"
               ? variable.type
               : variable.parentType;
+
           return (
             <VariableItem
-              key={sub.name}
+              key={`${fullKey}.${sub.name}`}
               path={
                 variable.type === "data" || variable.type === "preferences"
                   ? ""
                   : fullKey
               }
+              parentType={parentType}
               {...sub}
             />
           );

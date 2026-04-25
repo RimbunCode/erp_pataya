@@ -59,7 +59,7 @@ class PrintTemplate extends Model {
                             'name'       => Str::lower(Str::snake(Str::singular($this->name_model))),
                             'type'       => 'data',
                             'titleTrans' => isset($instance) ? $instance->translateKey . '.title' : Str::singular($this->name_model),
-                            'columns'    => $this->model::getColumns(),
+                            'columns'    => $this->model::getColumns(1),
                         ],
                     ];
                 }
