@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('email');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
-            $table->string('image')->nullable();
+            $table->foreignUlid('image')->nullable()->references('id')->on('files');
             $table->string('avatar_url')->nullable();
             $table->string('status')->default('pending');
             $table->enum('gender', ['male', 'female'])->nullable();

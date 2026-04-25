@@ -38,6 +38,12 @@ class Item extends Model {
     public string $formComponent = 'Inventory/Items/Form';
     public string $translateKey  = 'inventory.item';
     protected $configColumns     = [
+        'image_id' => [
+            'show'  => true,
+            'order' => 0,
+            'type'  => 'image',
+            'width' => 'fit',
+        ],
         'code' => [
             'show'   => true,
             'order'  => 0,

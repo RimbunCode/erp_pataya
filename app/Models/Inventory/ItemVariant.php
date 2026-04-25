@@ -19,6 +19,7 @@ class ItemVariant extends Model {
     public $aliasBreadcrumb     = 'Variant';
     public string $translateKey = 'inventories.itemVariant';
     protected $guarded          = ['id'];
+    protected $with             = ['item'];
     protected $casts            = [
         'is_disabled'            => 'boolean',
         'allow_alternative_item' => 'boolean',
@@ -44,7 +45,17 @@ class ItemVariant extends Model {
         ];
     }
 
+    protected function getImageAttribute() {
+        return $this->image_id ?? $this->item?->image_id ?? null;
+    }
+
     protected $configColumns = [
+        'image' => [
+            'show'  => true,
+            'order' => 0,
+            'type'  => 'image',
+            'width' => 'fit',
+        ],
         'code' => [
             'show'  => true,
             'order' => 0,
@@ -66,6 +77,9 @@ class ItemVariant extends Model {
             'type'  => 'boolean',
             'show'  => true,
             'order' => 4,
+        ],
+        'image_id' => [
+            'ignore' => true,
         ],
         'values',
         'item',
