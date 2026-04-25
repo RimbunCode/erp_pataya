@@ -260,7 +260,7 @@ const navList = [
         title: "Company",
         url: "/settings/company",
         urlPattern: "/settings/company/*",
-        model: "App\\Models\\Core\\Prefence",
+        model: "App\\Models\\Core\\Preference",
       },
       {
         title: "Branches",

@@ -80,6 +80,11 @@ abstract class Controller {
         return $this->model::_checkPermission($action, $level);
     }
 
+    /**
+     * Summary of exceptPermission
+     *
+     * @return null|bool
+     */
     protected function exceptPermission(string $method) {
         return null;
     }

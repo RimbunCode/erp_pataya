@@ -43,6 +43,12 @@ class UserController extends Controller {
         }
     }
 
+    protected function enforcePermission($method) {
+        if ($method == 'image') {
+            return ['write'];
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
