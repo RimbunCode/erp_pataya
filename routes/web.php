@@ -181,5 +181,6 @@ Route::get("/multi", fn () => inertia('MultirolePage'))->name('multi.dashboard')
 
 Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
 
+Route::get('/health', fn () => response()->json(['status' => 'ok']));
 require __DIR__ . '/auth.php';
 require __DIR__ . '/guest.php';
