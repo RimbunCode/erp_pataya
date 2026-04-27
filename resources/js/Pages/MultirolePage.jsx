@@ -130,7 +130,7 @@ const schedule = [
   },
   {
     time: "09:00",
-    label: null,
+    label: "Tomorrow",
     title: "Ethics Exam",
     type: "Assessment",
   },

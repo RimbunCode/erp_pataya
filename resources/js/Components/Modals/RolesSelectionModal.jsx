@@ -100,7 +100,58 @@ const roles = [
       </svg>
     ),
   },
+  {
+    key: "multi",
+    label: "Student + Instructor",
+    desc: "Testing multi-role access.",
+    href: "/student/dashboard",
+    iconBg: "bg-indigo-100",
+    iconColor: "text-indigo-600",
+    icon: (
+      <svg
+        className="w-6 h-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+        />
+      </svg>
+    ),
+  },
 ];
+
+const studentRole = {
+  key: "student",
+  label: "Student",
+  desc: "Access your courses, track progress, and get certified.",
+  iconBg: "bg-blue-100",
+  iconColor: "text-blue-600",
+  icon: (
+    <svg
+      className="w-6 h-6"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 14l9-5-9-5-9 5 9 5z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 14l6.16-3.422A12.083 12.083 0 0112 21.5a12.083 12.083 0 01-6.16-10.922L12 14z"
+      />
+    </svg>
+  ),
+};
 
 function StepSelectRole({ onSelect, onSwitchToRegister }) {
   return (
@@ -164,8 +215,14 @@ function StepSelectRole({ onSelect, onSwitchToRegister }) {
   );
 }
 
-function StepLogin({ role, onBack }) {
+function StepLogin({ role, onSwitchToRegister }) {
   const [showPassword, setShowPassword] = useState(false);
+  const [form, setForm] = useState({
+    usernameOrEmail: "",
+    password: "",
+    remember: false,
+  });
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = () => {
     router.post("/mock-login", { role: role.key });
@@ -173,7 +230,6 @@ function StepLogin({ role, onBack }) {
 
   return (
     <>
-      {/* Role Badge */}
       <div
         className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl mb-5 ${role.iconBg}`}
       >
@@ -188,24 +244,26 @@ function StepLogin({ role, onBack }) {
       <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-1">
         Welcome Back
       </h2>
-      <p className="text-sm text-gray-600 mb-7">
-        Sign in to your {role.label} account to continue.
+      <p className="text-sm text-gray-400 mb-7">
+        Sign in to your account to continue.
       </p>
 
       <div className="flex flex-col gap-4">
-        {/* Email */}
         <div>
           <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
-            Email Address
+            Email or Username
           </label>
           <input
-            type="email"
-            placeholder="john@example.com"
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+            type="text"
+            value={form.usernameOrEmail}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, usernameOrEmail: e.target.value }))
+            }
+            placeholder="email@example.com"
+            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
           />
         </div>
 
-        {/* Password */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
@@ -221,8 +279,12 @@ function StepLogin({ role, onBack }) {
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
+              value={form.password}
+              onChange={(e) =>
+                setForm((p) => ({ ...p, password: e.target.value }))
+              }
               placeholder="••••••••"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
             />
             <button
               type="button"
@@ -267,10 +329,13 @@ function StepLogin({ role, onBack }) {
           </div>
         </div>
 
-        {/* Remember Me */}
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
+            checked={form.remember}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, remember: e.target.checked }))
+            }
             className="w-4 h-4 rounded border-gray-200 text-blue-600 focus:ring-blue-500"
           />
           <span className="text-xs font-semibold text-gray-500">
@@ -278,57 +343,70 @@ function StepLogin({ role, onBack }) {
           </span>
         </label>
 
-        {/* Submit */}
         <button
           onClick={handleLogin}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-0.5 shadow-md shadow-blue-200 mt-2"
+          disabled={loading || !form.usernameOrEmail || !form.password}
+          className={`w-full font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 mt-2
+            ${
+              loading || !form.usernameOrEmail || !form.password
+                ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700 text-white hover:-translate-y-0.5 shadow-md shadow-blue-200"
+            }`}
         >
-          Sign In
+          {loading ? (
+            <>
+              <svg
+                className="w-4 h-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v8z"
+                />
+              </svg>
+              Signing In...
+            </>
+          ) : (
+            "Sign In"
+          )}
         </button>
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between mt-7 pt-5 border-t border-gray-100">
+        <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">
+          Don't have an account?
+        </span>
         <button
-          onClick={onBack}
-          className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest text-gray-480 hover:text-gray-600 uppercase transition-colors"
-        >
-          <svg
-            className="w-3 h-3"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Change Role
-        </button>
-        <Link
-          href="/register"
+          onClick={onSwitchToRegister}
           className="text-[10px] font-extrabold tracking-widest text-blue-600 hover:text-blue-700 uppercase transition-colors"
         >
           Register Here
-        </Link>
+        </button>
       </div>
     </>
   );
 }
 
 export default function LoginModal({ onClose, onSwitchToRegister }) {
-  const [selectedRole, setSelectedRole] = useState(null);
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      style={{
+        backgroundColor: "rgba(0,0,0,0.5)",
+        backdropFilter: "blur(6px)",
+      }}
     >
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
-        {/* Close */}
         <button
           onClick={onClose}
           className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors"
@@ -348,7 +426,6 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
           </svg>
         </button>
 
-        {/* Header */}
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
             <svg
@@ -364,15 +441,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
           </span>
         </div>
 
-        {/* Step content */}
-        {selectedRole === null ? (
-          <StepSelectRole
-            onSelect={setSelectedRole}
-            onSwitchToRegister={onSwitchToRegister}
-          />
-        ) : (
-          <StepLogin role={selectedRole} onBack={() => setSelectedRole(null)} />
-        )}
+        <StepLogin role={studentRole} onSwitchToRegister={onSwitchToRegister} />
       </div>
     </div>
   );

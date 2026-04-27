@@ -59,7 +59,6 @@ export default memo(function NavbarGuest() {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-2 shrink-0">
-          <ToggleTheme />
           <button
             onClick={openLogin}
             className="text-[11px] font-bold tracking-widest text-gray-700 hover:text-blue-600 transition-colors uppercase px-2"

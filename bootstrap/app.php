@@ -38,6 +38,7 @@ return Application::configure(dirname(__DIR__))
         ]);
         $middleware->alias([
             'app'       => AppMiddleware::class,
+            'role'      => RoleMiddleware::class,
             'lang'      => LanguageMiddleware::class,
             'onboarded' => EnsureUserIsOnboarded::class,
         ]);
