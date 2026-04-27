@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Role extends Model {
     use DataTable, HasUlids, SoftDeletes;
-    protected $guarded       = ['id'];
-    protected $casts         = [
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'is_disabled' => 'boolean',
     ];
-    public    $configColumns = [
-        'name'        => [
+    public $configColumns = [
+        'name' => [
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
@@ -28,7 +29,7 @@ class Role extends Model {
             'order' => 2,
         ],
     ];
-    public    $translateKey  = 'user.role';
+    public $translateKey = 'user.role';
 
     public static function templateLink() {
         return ':name';
