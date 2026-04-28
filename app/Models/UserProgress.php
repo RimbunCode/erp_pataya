@@ -2,16 +2,13 @@
 
 namespace App\Models;
 
-use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class UserProgress extends Model
-{
+class UserProgress extends Model {
     use HasUlids, SoftDeletes;
 
     //
 
     protected $guarded = ['id'];
-
 }
