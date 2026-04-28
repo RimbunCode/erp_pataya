@@ -178,9 +178,10 @@ Route::prefix('/organization')->group(function () {
     Route::get('/profile', fn () => inertia('Organizations/ProfileSettings'))->name('organization.profile');
     Route::get('/financial', fn () => inertia('Organizations/Financials'))->name('organization.financial');
 });
-Route::get("/multi", fn () => inertia('MultirolePage'))->name('multi.dashboard');
+Route::get('/multi', fn () => inertia('MultirolePage'))->name('multi.dashboard');
 
 Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
 
+Route::get('/health', fn () => response()->json(['status' => 'ok']));
 require __DIR__ . '/auth.php';
 require __DIR__ . '/guest.php';
