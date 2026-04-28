@@ -19,10 +19,8 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable {
     /** @use HasFactory<UserFactory> */
     use DataTable, HasFactory, HasUlids, LinkModel, Notifiable, SoftDeletes;
-
-    public $translateKey = 'user.user';
-    protected $guarded   = ['id'];
-
+    public    $translateKey = 'user.user';
+    protected $guarded      = ['id'];
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -49,15 +47,14 @@ class User extends Authenticatable {
     public static function templateLink() {
         return ':name';
     }
-
     public $configColumns = [
-        'image' => [
+        'image'    => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
             'width' => 'fit',
         ],
-        'name' => [
+        'name'     => [
             'show'   => true,
             'order'  => 1,
             'isLink' => true,
@@ -66,16 +63,24 @@ class User extends Authenticatable {
             'show'  => true,
             'order' => 2,
         ],
-        'email' => [
+        'email'    => [
             'show'  => true,
             'order' => 3,
         ],
-        'status' => [
+        'status'   => [
             'show'  => true,
             'order' => 4,
         ],
         'defaultBranch',
     ];
+
+    public function payments() {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function enrollments() {
+        return $this->hasMany(Enrollment::class);
+    }
 
     public function defaultBranch() {
         return $this->belongsTo(Branch::class, 'default_branch_id');

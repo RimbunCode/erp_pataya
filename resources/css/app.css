@@ -65,7 +65,7 @@
 
 .dark {
   --background: var(--color-zinc-950);
-  --background-accent: var(--color-blue-500);
+  --background-accent: var(--color-grey-800);
   --foreground: var(--color-zinc-50);
   --card: var(--color-zinc-950);
   --card-foreground: var(--color-zinc-50);

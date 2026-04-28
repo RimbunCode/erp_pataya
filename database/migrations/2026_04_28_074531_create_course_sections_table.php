@@ -10,16 +10,12 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void {
-        Schema::create('courses', function (Blueprint $table) {
+        Schema::create('course_sections', function (Blueprint $table) {
             $table->ulid('id')->primary();
+            $table->foreignUlid('course_id')->constrained()->cascadeOnDelete();
             $table->string('title');
-            $table->text('description')->nullable();
-            $table->decimal('price', 12, 2)->default(0);
-            $table->string('thumbnail')->nullable();
-            $table->boolean('is_published')->default(false);
-            $table->foreignUlid('created_by')->nullable(); // buat instructor ntar
+            $table->integer('order')->default(0);
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 
@@ -27,6 +23,6 @@ return new class extends Migration
      * Reverse the migrations.
      */
     public function down(): void {
-        Schema::dropIfExists('courses');
+        Schema::dropIfExists('course_sections');
     }
 };

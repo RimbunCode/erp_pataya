@@ -157,10 +157,11 @@ Route::post('/mock-logout', [MockAuthController::class, 'logout'])->name('mock.l
 
 Route::prefix('/student')->group(function () {
     Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
-    Route::get('/classes', fn () => inertia('Students/EnrolledClasses'))->name('student.classes');
+    Route::get('/classes', fn () => inertia('Students/StudentCourseList'))->name('student.classes');
     Route::get('/profile', fn () => inertia('Students/ProfileSettings'))->name('student.profile');
     Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
     Route::get('/classEnrollment', fn () => inertia('Students/WishlistCart'))->name('student.wishlistCart');
+    Route::get('/student/training/{id}', fn ($id) => inertia('Students/TrainingDetail', ['courseId' => $id]))->name('student.training.detail');
 });
 Route::prefix('/instructor')->group(function () {
     Route::get('/dashboard', fn () => inertia('Instructors/Dashboard'))->name('instructor.dashboard');

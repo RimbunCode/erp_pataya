@@ -37,9 +37,27 @@ class AuthenticatedSessionController extends Controller {
 
         $request->session()->regenerate();
 
-        $request->session()->put('currentBranch', Auth::user()->default_branch_id);
+        $user = Auth::user();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Load roles
+        $roles = $user->roles->pluck('name')->toArray();
+
+        // Simpan roles ke session supaya bisa diakses di frontend
+        $request->session()->put('user_roles', $roles);
+
+        $primaryRole = $roles[0] ?? null;
+
+        return redirect()->intended($this->redirectByRole($primaryRole));
+    }
+
+    private function redirectByRole(?string $role): string {
+        return match ($role) {
+            'student'      => route('student.dashboard', absolute: false),
+            'instructor'   => route('instructor.dashboard', absolute: false),
+            'organization' => route('organization.dashboard', absolute: false),
+            'admin'        => route('admin.dashboard', absolute: false),
+            default        => '/guest',
+        };
     }
 
     public function redirectToProvider(string $driver) {

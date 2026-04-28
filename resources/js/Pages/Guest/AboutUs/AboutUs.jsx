@@ -9,9 +9,14 @@ export default function AboutUs() {
   ];
 
   const missions = [
-    "Standardizing professional competencies across all engineering disciplines.",
-    "Integrating cutting-edge BIM and digital twins into traditional workflows.",
-    "Bridging the gap between academic knowledge and industrial application.",
+    "1. Inkindo Jatim sebagai learning organisation yang dinamis dan adaptif terhadap perubahan peradaban.",
+    "2. Inkindo Jatim sebgai wadah komunikasi anggota dan salah satu pusat environment jasa konstruksi khususnya di Jawa Timur.",
+    "3. Penegakan norma, etika dan aturan organisasi.",
+    "4. Menjunjung dan menjaga marwah organisasi.",
+    "5. Mendorong dan menjaga iklim usaha jasa konsultan yang kondusif.",
+    "6. Mendorong inovasi yang bermanfaat bagi masyarakat, berwawasan lingkungan serta berkelanjutan.",
+    "7. Mendorong anggota dalam adaptasi terhadap perubahan peradaban melalui transformasi digital.",
+    "8. Mitra strategis bagi pemerintah, dunia usaha atau mitra kerja, dunia akademik serta masyarakat.",
   ];
 
   return (
@@ -170,7 +175,7 @@ export default function AboutUs() {
 
         {/* ── Vision & Mission ── */}
         <section className="py-24 px-6">
-          <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Vision */}
             <div className="group bg-white rounded-3xl p-10 border border-blue-100 shadow-sm border-b-4 border-b-blue-500 hover:bg-gray-50 hover:shadow-md transition-all duration-300">
               <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-6">
@@ -190,14 +195,14 @@ export default function AboutUs() {
                 Our Vision
               </h2>
               <p className="text-sm text-gray-500 leading-relaxed">
-                To be the leading global standard for professional engineering
-                training and certification, fostering a sustainable and
-                technologically advanced construction ecosystem in Indonesia.
+                Menjunjung tinggi kehormatan, kemuliaan dan nama baik profesi
+                konsultan dalam hubungan kerja dengan pemberi tugas, sesama
+                rekan konsultan dan masyarakat.
               </p>
             </div>
 
             {/* Mission */}
-            <div className="group bg-white rounded-3xl p-10 border border-purple-100 shadow-sm border-b-4 border-b-purple-500 hover:bg-gray-50 hover:shadow-md transition-all duration-300">
+            <div className="group bg-white rounded-3xl p-11 border border-purple-100 shadow-sm border-b-4 border-b-purple-500 hover:bg-gray-50 hover:shadow-md transition-all duration-300">
               <div className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center mb-6">
                 <svg
                   className="w-7 h-7 text-white"
@@ -213,7 +218,7 @@ export default function AboutUs() {
               <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wide mb-5">
                 Our Mission
               </h2>
-              <ul className="space-y-5">
+              <ul className="space-y-4">
                 {missions.map((item) => (
                   <li key={item} className="flex items-start gap-3">
                     <span className="text-blue-600 font-black text-xl leading-tight mt-0.5">
