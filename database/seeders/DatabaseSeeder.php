@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Core\Tag;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
