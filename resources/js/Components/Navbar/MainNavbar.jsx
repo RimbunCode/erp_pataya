@@ -69,7 +69,7 @@ export default function MainNavbar({
           {profileDropdown && (
             <div className="absolute top-full right-0 mt-2 w-44 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50">
               <Link
-                href="/guest"
+                href="/home"
                 className="flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all"
               >
                 <svg

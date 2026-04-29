@@ -11,14 +11,14 @@ import {
 import MainLayout from "@/Layouts/MainLayout";
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
-const revenueData = [
-  { day: "Mon", rev: 3800 },
-  { day: "Tue", rev: 3200 },
-  { day: "Wed", rev: 6800 },
-  { day: "Thu", rev: 7200 },
-  { day: "Fri", rev: 6500 },
-  { day: "Sat", rev: 9800 },
-  { day: "Sun", rev: 11000 },
+const growthData = [
+  { day: "Mon", Students: 100 },
+  { day: "Tue", Students: 123 },
+  { day: "Wed", Students: 223 },
+  { day: "Thu", Students: 131 },
+  { day: "Fri", Students: 123 },
+  { day: "Sat", Students: 128 },
+  { day: "Sun", Students: 393 },
 ];
 
 const announcements = [
@@ -112,7 +112,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <div className="bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-lg text-xs">
         <p className="font-bold text-gray-700">{label}</p>
         <p className="text-blue-600 font-black">
-          rev : {payload[0].value.toLocaleString()}
+          students : {payload[0].value.toLocaleString()}
         </p>
       </div>
     );
@@ -162,27 +162,6 @@ export default function InstructorDashboard() {
         {/* Stat Cards */}
         <div className="flex gap-4 flex-wrap">
           <StatCard
-            label="Total Revenue"
-            value="Rp 84.5M"
-            trendLabel="+12.5%"
-            iconBg="bg-blue-50"
-            icon={
-              <svg
-                className="w-5 h-5 text-blue-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                />
-              </svg>
-            }
-          />
-          <StatCard
             label="Active Students"
             value="1,284"
             trendLabel="+48"
@@ -231,11 +210,11 @@ export default function InstructorDashboard() {
           {/* Chart */}
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex-1 min-w-0">
             <h3 className="text-xs font-black tracking-widest text-gray-900 uppercase mb-6">
-              Revenue Analytics
+              Growth Analytics
             </h3>
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart
-                data={revenueData}
+                data={growthData}
                 margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
               >
                 <defs>
@@ -263,7 +242,7 @@ export default function InstructorDashboard() {
                 <Tooltip content={<CustomTooltip />} />
                 <Area
                   type="monotone"
-                  dataKey="rev"
+                  dataKey="Students"
                   stroke="#2563eb"
                   strokeWidth={2.5}
                   fill="url(#revGradient)"

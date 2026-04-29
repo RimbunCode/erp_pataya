@@ -54,75 +54,75 @@ const roles = [
       </svg>
     ),
   },
-  {
-    key: "organization",
-    label: "Organization",
-    desc: "Manage affiliate trainers and corporate training.",
-    href: "/login/organization",
-    iconBg: "bg-green-100",
-    iconColor: "text-green-600",
-    icon: (
-      <svg
-        className="w-6 h-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-        />
-      </svg>
-    ),
-  },
-  {
-    key: "admin",
-    label: "Administrator",
-    desc: "System-wide management, approvals, and CMS.",
-    href: "/login/admin",
-    iconBg: "bg-gray-100",
-    iconColor: "text-gray-600",
-    icon: (
-      <svg
-        className="w-6 h-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-        />
-      </svg>
-    ),
-  },
-  {
-    key: "multi",
-    label: "Student + Instructor",
-    desc: "Testing multi-role access.",
-    href: "/student/dashboard",
-    iconBg: "bg-indigo-100",
-    iconColor: "text-indigo-600",
-    icon: (
-      <svg
-        className="w-6 h-6"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
-        />
-      </svg>
-    ),
-  },
+  // {
+  //   key: "organization",
+  //   label: "Organization",
+  //   desc: "Manage affiliate trainers and corporate training.",
+  //   href: "/login/organization",
+  //   iconBg: "bg-green-100",
+  //   iconColor: "text-green-600",
+  //   icon: (
+  //     <svg
+  //       className="w-6 h-6"
+  //       fill="none"
+  //       viewBox="0 0 24 24"
+  //       stroke="currentColor"
+  //       strokeWidth={2}
+  //     >
+  //       <path
+  //         strokeLinecap="round"
+  //         strokeLinejoin="round"
+  //         d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+  //       />
+  //     </svg>
+  //   ),
+  // },
+  // {
+  //   key: "admin",
+  //   label: "Administrator",
+  //   desc: "System-wide management, approvals, and CMS.",
+  //   href: "/login/admin",
+  //   iconBg: "bg-gray-100",
+  //   iconColor: "text-gray-600",
+  //   icon: (
+  //     <svg
+  //       className="w-6 h-6"
+  //       fill="none"
+  //       viewBox="0 0 24 24"
+  //       stroke="currentColor"
+  //       strokeWidth={2}
+  //     >
+  //       <path
+  //         strokeLinecap="round"
+  //         strokeLinejoin="round"
+  //         d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+  //       />
+  //     </svg>
+  //   ),
+  // },
+  // {
+  //   key: "multi",
+  //   label: "Student + Instructor",
+  //   desc: "Testing multi-role access.",
+  //   href: "/student/dashboard",
+  //   iconBg: "bg-indigo-100",
+  //   iconColor: "text-indigo-600",
+  //   icon: (
+  //     <svg
+  //       className="w-6 h-6"
+  //       fill="none"
+  //       viewBox="0 0 24 24"
+  //       stroke="currentColor"
+  //       strokeWidth={2}
+  //     >
+  //       <path
+  //         strokeLinecap="round"
+  //         strokeLinejoin="round"
+  //         d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"
+  //       />
+  //     </svg>
+  //   ),
+  // },
 ];
 
 const studentRole = {
@@ -202,7 +202,7 @@ function StepSelectRole({ onSelect, onSwitchToRegister }) {
 
       <div className="flex items-center justify-between mt-7 pt-5 border-t border-gray-100">
         <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">
-          Don't have an account?
+          <p>{"Don't forget your password"}</p>
         </span>
         <button
           onClick={onSwitchToRegister}
@@ -215,7 +215,7 @@ function StepSelectRole({ onSelect, onSwitchToRegister }) {
   );
 }
 
-function StepLogin({ role, onSwitchToRegister }) {
+function StepLogin({ role, onBack, onSwitchToRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     usernameOrEmail: "",
@@ -384,7 +384,7 @@ function StepLogin({ role, onSwitchToRegister }) {
 
       <div className="flex items-center justify-between mt-7 pt-5 border-t border-gray-100">
         <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">
-          Don't have an account?
+          <p>{"Don't forget your password"}</p>
         </span>
         <button
           onClick={onSwitchToRegister}
@@ -398,50 +398,74 @@ function StepLogin({ role, onSwitchToRegister }) {
 }
 
 export default function LoginModal({ onClose, onSwitchToRegister }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{
-        backgroundColor: "rgba(0,0,0,0.5)",
-        backdropFilter: "blur(6px)",
-      }}
-    >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+  const [selectedRole, setSelectedRole] = useState(null);
 
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
-            <svg
-              className="w-5 h-5 text-white"
-              fill="currentColor"
-              viewBox="0 0 24 24"
+  const handleSelectRole = (role) => setSelectedRole(role);
+  const handleBack = () => setSelectedRole(null);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
+        {/* 🔥 HEADER */}
+        <div className="flex items-center justify-between mb-6">
+          {/* LEFT: BACK */}
+          {selectedRole ? (
+            <button
+              onClick={handleBack}
+              className="flex items-center gap-1 text-[10px] font-bold tracking-widest text-gray-400 hover:text-gray-600 uppercase transition-colors"
             >
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back
+            </button>
+          ) : (
+            <div /> // biar spacing kanan tetap sejajar
+          )}
+
+          {/* RIGHT: CLOSE */}
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
-          </div>
-          <span className="text-xs font-extrabold tracking-widest text-black uppercase">
-            INKINDO Login
-          </span>
+          </button>
         </div>
 
-        <StepLogin role={studentRole} onSwitchToRegister={onSwitchToRegister} />
+        {/* 🔥 CONTENT */}
+        {!selectedRole ? (
+          <StepSelectRole
+            onSelect={handleSelectRole}
+            onSwitchToRegister={onSwitchToRegister}
+          />
+        ) : (
+          <StepLogin
+            role={selectedRole}
+            onSwitchToRegister={onSwitchToRegister}
+          />
+        )}
       </div>
     </div>
   );
