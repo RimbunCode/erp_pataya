@@ -17,8 +17,5 @@ class DatabaseSeeder extends Seeder {
             CategorySeeder::class,
             CourseSeeder::class,
         ]);
-        if (config('app.debug')) {
-            Tag::factory(50)->create();
-        }
     }
 }
