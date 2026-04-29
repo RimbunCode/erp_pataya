@@ -14,8 +14,9 @@ const getInitialTheme = (_current = false) => {
       return selectedTheme;
     }
 
+    return "light";
     return !_current
-      ? "light"
+      ? "system"
       : window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"
         : "light";
