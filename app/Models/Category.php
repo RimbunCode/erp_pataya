@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Category extends Model {
     use HasUlids;
+
     protected $guarded = ['id'];
 
     public function courses(): BelongsToMany {

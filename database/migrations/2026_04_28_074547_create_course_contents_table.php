@@ -5,7 +5,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-
     /**
      * Run the migrations.
      */
@@ -14,7 +13,7 @@ return new class extends Migration
             $table->ulid('id')->primary();
             $table->foreignUlid('section_id')->references('id')->on('course_sections')->cascadeOnDelete();
             $table->string('title');
-            $table->string('type', );
+            $table->string('type');
             $table->text('description')->nullable();
             $table->date('deadline')->nullable();          // untuk assignment
             $table->boolean('is_optional')->default(false); // untuk pre_assessment

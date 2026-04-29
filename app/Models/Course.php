@@ -2,17 +2,18 @@
 
 namespace App\Models;
 
-use App\Models\User\User;
 use App\Models\Core\File;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Course extends Model {
     use HasUlids, SoftDeletes;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'is_published' => 'boolean',

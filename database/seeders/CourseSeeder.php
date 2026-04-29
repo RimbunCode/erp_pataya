@@ -2,14 +2,14 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use Illuminate\Support\Str;
-use App\Models\Course;
 use App\Models\Category;
-use App\Models\CourseSection;
+use App\Models\Course;
 use App\Models\CourseContent;
 use App\Models\CourseNote;
+use App\Models\CourseSection;
 use App\Models\User\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class CourseSeeder extends Seeder {
     public function run(): void {

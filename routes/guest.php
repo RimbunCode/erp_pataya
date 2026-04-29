@@ -1,7 +1,6 @@
 <?php
-use Illuminate\Support\Facades\Route;
-
 use App\Http\Controllers\Guest\TrainingController;
+use Illuminate\Support\Facades\Route;
 
 Route::prefix('guest')->group(function () {
     Route::get('/', fn () => inertia('Guest/Index'));

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Guest;
 
 use App\Http\Controllers\Controller;
-use App\Models\Course;
 use App\Models\Category;
+use App\Models\Course;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -12,17 +12,21 @@ class TrainingController extends Controller {
     public function index(Request $request) {
         $courses = Course::with(['categories', 'creator'])
             ->where('is_published', true)
-            ->when($request->search, fn ($q) =>
-                $q->where('title', 'like', "%{$request->search}%")
-                    ->orWhere('description', 'like', "%{$request->search}%")
+            ->when(
+                $request->search,
+                fn ($q) => $q->where('title', 'like', "%{$request->search}%")
+                    ->orWhere('description', 'like', "%{$request->search}%"),
             )
-            ->when($request->level, fn ($q) =>
-                $q->where('level', $request->level)
+            ->when(
+                $request->level,
+                fn ($q) => $q->where('level', $request->level),
             )
-            ->when($request->category, fn ($q) =>
-                $q->whereHas('categories', fn ($q) =>
-                    $q->where('slug', $request->category)
-                )
+            ->when(
+                $request->category,
+                fn ($q) => $q->whereHas(
+                    'categories',
+                    fn ($q) => $q->where('slug', $request->category),
+                ),
             )
             ->latest()
             ->get()

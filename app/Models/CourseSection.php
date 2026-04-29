@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CourseSection extends Model {
     use HasUlids;
+
     protected $guarded = ['id'];
 
     public function course(): BelongsTo {

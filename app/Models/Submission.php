@@ -2,14 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
-use App\Models\User\User;
 
 class Submission extends Model {
     use HasUlids;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'submitted_at' => 'datetime',
