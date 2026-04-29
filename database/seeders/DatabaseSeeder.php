@@ -11,11 +11,12 @@ class DatabaseSeeder extends Seeder {
      * Seed the application's database.
      */
     public function run(): void {
-        $this->call(ErrorLensConfigurationSeeder::class);
-        $this->call(PreferenceSeeder::class);
-        $this->call(RoleSeeder::class);
-        $this->call(UserSeeder::class);
-        // Create Random Tags
+        $this->call([
+            RoleSeeder::class,
+            UserSeeder::class,
+            CategorySeeder::class,
+            CourseSeeder::class,
+        ]);
         if (config('app.debug')) {
             Tag::factory(50)->create();
         }

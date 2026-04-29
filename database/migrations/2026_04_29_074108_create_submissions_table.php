@@ -10,12 +10,13 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void {
-        Schema::create('user_progress', function (Blueprint $table) {
+        Schema::create('submissions', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->foreignUlid('content_id')->references('id')->on('course_contents')->cascadeOnDelete();
-            $table->boolean('is_completed')->default(false);
-            $table->timestamp('completed_at')->nullable();
+            $table->text('notes')->nullable();
+            $table->string('status')->default('submitted');
+            $table->timestamp('submitted_at')->useCurrent();
             $table->timestamps();
             $table->unique(['user_id', 'content_id']);
         });
@@ -25,6 +26,6 @@ return new class extends Migration
      * Reverse the migrations.
      */
     public function down(): void {
-        Schema::dropIfExists('user_progress');
+        Schema::dropIfExists('submissions');
     }
 };

@@ -5,18 +5,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
     public function up(): void {
         Schema::create('course_contents', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('section_id')->constrained('course_sections')->cascadeOnDelete();
+            $table->foreignUlid('section_id')->references('id')->on('course_sections')->cascadeOnDelete();
             $table->string('title');
-            $table->string('type'); // pretest, material, assignment
-            $table->longText('content')->nullable();
+            $table->string('type', );
+            $table->text('description')->nullable();
+            $table->date('deadline')->nullable();          // untuk assignment
+            $table->boolean('is_optional')->default(false); // untuk pre_assessment
+            $table->boolean('is_required')->default(true);
             $table->integer('order')->default(0);
-            $table->boolean('is_required')->default(false);
             $table->timestamps();
         });
     }

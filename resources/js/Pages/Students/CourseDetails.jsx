@@ -1,7 +1,7 @@
 // resources/js/Pages/Student/TrainingDetail.jsx
 
 import { useState } from "react";
-import DashboardLayout from "@/Layouts/DashboardLayout";
+import MainLayout from "@/Layouts/MainLayout";
 
 const course = {
   title: "Advanced Project Planning & Control (PPC)",
@@ -679,7 +679,7 @@ function ChapterCard({ chapter }) {
 
 export default function CourseDetails() {
   return (
-    <DashboardLayout title="Training Detail" breadcrumb="My Learning">
+    <MainLayout title="Training Detail" breadcrumb="My Learning">
       <div className="p-8 flex flex-col gap-6">
         {/* ── Course Header ── */}
         <div className="relative rounded-3xl overflow-hidden h-48">
@@ -794,6 +794,6 @@ export default function CourseDetails() {
           ))}
         </div>
       </div>
-    </DashboardLayout>
+    </MainLayout>
   );
 }

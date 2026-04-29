@@ -3,15 +3,19 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CourseSection extends Model {
-    use HasUlids, SoftDeletes;
-    //
-
+    use HasUlids;
     protected $guarded = ['id'];
 
-    public function contents() {
-        return $this->hasMany(CourseContent::class, 'section_id');
+    public function course(): BelongsTo {
+        return $this->belongsTo(Course::class);
+    }
+
+    public function contents(): HasMany {
+        return $this->hasMany(CourseContent::class, 'section_id')->orderBy('order');
     }
 }

@@ -5,20 +5,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
     public function up(): void {
         Schema::create('enrollments', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignUlid('course_id')->constrained()->cascadeOnDelete();
-            $table->foreignUlid('payment_id')->nullable()->constrained()->nullOnDelete();
-
+            $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->foreignUlid('course_id')->references('id')->on('courses')->cascadeOnDelete();
+            $table->foreignUlid('payment_id')->nullable()->references('id')->on('payments')->nullOnDelete();
             $table->timestamp('enrolled_at')->useCurrent();
-
             $table->timestamps();
-
             $table->unique(['user_id', 'course_id']);
         });
     }

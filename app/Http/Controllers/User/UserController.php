@@ -64,7 +64,7 @@ class UserController extends Controller {
 
     public function image(Request $request, User $user) {
         DB::beginTransaction();
-        File::uploadFile($request, 'ImageProfile', function ($file) use ($user) {
+        File::uploadFile($request, 'ImageProfile', function ($file) use ($user): void {
             $user->update([
                 'image' => $file->id,
             ]);
@@ -96,7 +96,7 @@ class UserController extends Controller {
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
-            'user' => function () use ($user) {
+            'user'     => function () use ($user) {
                 $user->roles    = $user->roles()->pluck('id');
                 $user->branches = $user->branches()->pluck('id');
 
