@@ -11,14 +11,11 @@ return new class extends Migration
     public function up(): void {
         Schema::create('user_progress', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignUlid('content_id')->constrained('course_contents')->cascadeOnDelete();
-
+            $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->foreignUlid('content_id')->references('id')->on('course_contents')->cascadeOnDelete();
             $table->boolean('is_completed')->default(false);
             $table->timestamp('completed_at')->nullable();
-
             $table->timestamps();
-
             $table->unique(['user_id', 'content_id']);
         });
     }

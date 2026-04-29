@@ -54,11 +54,11 @@ class File extends Model {
      * @param  callable(File)  $onUploadedFile
      * @return void
      */
-    public static function uploadFile(Request $request, string $folderName, callable $onUploadedFile, array $defaultValue = []) {
+    public static function uploadFile(Request $request, string $folderName, callable $onUploadedFile, array $defaultValue = [], ?string $maxFileSize = null) {
         if ($request->has('filesId')) {
             $validatedData = $request->validate([
                 'filesId'   => ['required', 'array'],
-                'filesId.*' => ['required', 'string', 'exists:files,id'],
+                'filesId.*' => ['required', 'string', 'exists:files,id', $maxFileSize ? "max:$maxFileSize" : ''],
             ]);
             $files = File::whereIn('id', $validatedData['filesId'])->get();
             $files->each(function ($file) use ($onUploadedFile) {

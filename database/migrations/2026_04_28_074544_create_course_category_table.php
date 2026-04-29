@@ -10,9 +10,9 @@ return new class extends Migration
      */
     public function up(): void {
         Schema::create('course_category', function (Blueprint $table) {
-            $table->foreignUlid('course_id')->constrained()->cascadeOnDelete();
-            $table->foreignUlid('category_id')->constrained()->cascadeOnDelete();
-            $table->unique(['course_id', 'category_id']);
+            $table->foreignUlid('course_id')->references('id')->on('courses')->cascadeOnDelete();
+            $table->foreignUlid('category_id')->references('id')->on('categories')->cascadeOnDelete();
+            $table->primary(['course_id', 'category_id']);
         });
     }
 

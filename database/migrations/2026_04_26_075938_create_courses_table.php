@@ -16,7 +16,12 @@ return new class extends Migration
             $table->decimal('price', 12, 2)->default(0);
             $table->string('thumbnail')->nullable();
             $table->boolean('is_published')->default(false);
-            $table->foreignUlid('created_by')->nullable(); // buat instructor ntar
+            $table->string('level')->nullable();           // beginner, intermediate, advanced
+            $table->string('language')->default('id');
+            $table->string('certificate_type')->nullable(); // professional, competency, attendance
+            $table->integer('total_hours')->default(0);
+            $table->integer('total_sessions')->default(0);
+            $table->foreignUlid('created_by')->references('id')->on('users')->cascadeOnDelete();
             $table->timestamps();
             $table->softDeletes();
         });

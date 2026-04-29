@@ -11,20 +11,17 @@ return new class extends Migration
     public function up(): void {
         Schema::create('payments', function (Blueprint $table) {
             $table->ulid('id')->primary();
-            $table->foreignUlid('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignUlid('course_id')->constrained()->cascadeOnDelete();
-
+            $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->foreignUlid('course_id')->references('id')->on('courses')->cascadeOnDelete();
             $table->decimal('amount', 12, 2);
-            $table->string('payment_method');
-            $table->string('status')->default('pending');
-
+            $table->string('payment_method')->nullable();
+            $table->string('status')->default('pending'); // pending, verified, rejected
             $table->string('proof_image')->nullable();
-
             $table->timestamp('paid_at')->nullable();
             $table->timestamp('verified_at')->nullable();
-            $table->foreignUlid('verified_by')->nullable();
-
+            $table->foreignUlid('verified_by')->nullable()->references('id')->on('users')->nullOnDelete();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

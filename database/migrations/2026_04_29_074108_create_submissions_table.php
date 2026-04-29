@@ -9,14 +9,15 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void {
-        Schema::create('enrollments', function (Blueprint $table) {
+        Schema::create('submissions', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
-            $table->foreignUlid('course_id')->references('id')->on('courses')->cascadeOnDelete();
-            $table->foreignUlid('payment_id')->nullable()->references('id')->on('payments')->nullOnDelete();
-            $table->timestamp('enrolled_at')->useCurrent();
+            $table->foreignUlid('content_id')->references('id')->on('course_contents')->cascadeOnDelete();
+            $table->text('notes')->nullable();
+            $table->string('status')->default('submitted');
+            $table->timestamp('submitted_at')->useCurrent();
             $table->timestamps();
-            $table->unique(['user_id', 'course_id']);
+            $table->unique(['user_id', 'content_id']);
         });
     }
 
@@ -24,6 +25,6 @@ return new class extends Migration
      * Reverse the migrations.
      */
     public function down(): void {
-        Schema::dropIfExists('enrollments');
+        Schema::dropIfExists('submissions');
     }
 };
