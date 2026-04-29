@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import useTheme from "@/Hooks/useTheme";
 import NavbarGuest from "@/Components/Navbar/NavbarGuest";
 import { SiteFooter } from "@/Pages/Guest/Footer";
-import RolesSelectionModal from "@/Components/Modals/RolesSelectionModal";
+import RolesSelectionModal from "@/Components/Modals/LoginModal";
 import RegisterModal from "@/Components/Modals/RegisterModal";
 
 export const RolesSelectionModalContext = createContext(null);

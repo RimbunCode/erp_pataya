@@ -178,6 +178,15 @@ Route::prefix('/organization')->group(function () {
     Route::get('/profile', fn () => inertia('Organizations/ProfileSettings'))->name('organization.profile');
     Route::get('/financial', fn () => inertia('Organizations/Financials'))->name('organization.financial');
 });
+Route::prefix('home')->group(function () {
+    Route::get('/', fn () => inertia('Guest/Index'));
+    Route::get('/training', [TrainingController::class, 'index']);
+    Route::get('/training/{id}', [TrainingController::class, 'show'])->name('home.training.preview');
+    Route::get('/verify', fn () => inertia('Guest/VerifyCTA/VerifyCTA'));
+    Route::get('/about', fn () => inertia('Guest/AboutUs/AboutUs'));
+    Route::get('/contact', fn () => inertia('Guest/Contact/ContactInfo'));
+});
+
 Route::get('/multi', fn () => inertia('MultirolePage'))->name('multi.dashboard');
 
 Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
