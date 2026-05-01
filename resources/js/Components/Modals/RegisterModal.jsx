@@ -1,5 +1,6 @@
 import { useState } from "react";
 import Link from "@/Components/Link";
+import { router } from "@inertiajs/react";
 
 const roles = [
   {
@@ -85,9 +86,9 @@ const roles = [
 ];
 
 export default function RegisterModal({ onClose, onSwitchToLogin }) {
+  const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
     fullName: "",
-    nickname: "",
     email: "",
     password: "",
     confirmPassword: "",
@@ -97,15 +98,38 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
   });
   const [selectedRole, setSelectedRole] = useState(null);
 
+  const handleSubmit = () => {
+    const dob =
+      form.dobYear && form.dobMonth && form.dobDay
+        ? `${form.dobYear}-${String(form.dobMonth).padStart(2, "0")}-${String(form.dobDay).padStart(2, "0")}`
+        : "";
+    router.post(
+      "/register",
+      {
+        name: form.fullName,
+        email: form.email,
+        password: form.password,
+        password_confirmation: form.confirmPassword,
+        role: selectedRole.key,
+        dob: dob,
+      },
+      {
+        onError: (errors) => {
+          setErrors(errors);
+        },
+      },
+    );
+  };
+
   const isFormComplete =
     form.fullName.trim() &&
-    form.nickname.trim() &&
     form.email.trim() &&
-    form.password.trim() &&
-    form.confirmPassword.trim() &&
     form.dobDay &&
     form.dobMonth &&
-    form.dobYear; // ← ganti dari dob
+    form.dobYear &&
+    form.password.trim() &&
+    form.confirmPassword.trim() &&
+    form.password === form.confirmPassword;
 
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -174,21 +198,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             />
           </div>
 
-          {/* Panggilan */}
-          <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
-              Nickname
-            </label>
-            <input
-              type="text"
-              name="nickname"
-              value={form.nickname}
-              onChange={handleChange}
-              placeholder="e.g. Budi"
-              className="w-full bg-gray-50 border border-gray-250 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
-            />
-          </div>
-
           {/* Email */}
           <div>
             <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
@@ -202,6 +211,11 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
               placeholder="john@example.com"
               className="w-full bg-gray-50 border border-gray-250 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
             />
+            {errors.email && (
+              <p className="mt-1.5 text-xs font-semibold text-red-400">
+                {errors.email}
+              </p>
+            )}
           </div>
 
           {/* Password */}
@@ -495,6 +509,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
 
         {/* Submit */}
         <button
+          onClick={handleSubmit}
           disabled={!isFormComplete || !selectedRole}
           className={`w-full font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300
             ${

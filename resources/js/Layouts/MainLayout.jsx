@@ -39,7 +39,7 @@ export default function MainLayout({
     localStorage.setItem("sidebar_collapsed", value);
   };
 
-  const handleLogout = () => router.post("/mock-logout");
+  const handleLogout = () => router.post("/logout");
 
   return (
     <MasterLayout>
