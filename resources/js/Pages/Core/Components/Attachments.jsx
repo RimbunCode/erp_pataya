@@ -1,7 +1,7 @@
 import { Deferred, router, usePage } from "@inertiajs/react";
-import { Dialog, DialogTrigger } from "@/Components/ui/dialog";
+
 import { FileTextIcon, Paperclip, Plus, X } from "lucide-react";
-import React, { memo, useCallback, useState } from "react";
+import React, { memo, useCallback, useRef } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -19,7 +19,7 @@ export default memo(function Attachments() {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const attachments = usePage().props.attachments;
-  const [openAttachment, setOpenAttachment] = useState(false);
+  const uploadDialogRef = useRef();
 
   const removeFile = useCallback((id) => {
     const currentPath = window.location.pathname.replace(/\/$/, "");
@@ -37,25 +37,16 @@ export default memo(function Attachments() {
       <div className="flex w-full items-center gap-2 rounded-md py-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
         <Paperclip />
         <span className="flex-1">{t("core.form.attachments")}</span>
-
-        <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
-          <DialogTrigger asChild>
-            <Button
-              variant="ghost"
-              className="rounded-full p-0!"
-              size="icon"
-              type="button"
-            >
-              <Plus />
-            </Button>
-          </DialogTrigger>
-          <UploadDialog
-            open={openAttachment}
-            onClose={() => {
-              setOpenAttachment(false);
-            }}
-          />
-        </Dialog>
+        <Button
+          variant="ghost"
+          className="rounded-full p-0!"
+          size="icon"
+          type="button"
+          onClick={() => uploadDialogRef.current?.open()}
+        >
+          <Plus />
+        </Button>
+        <UploadDialog ref={uploadDialogRef} />
       </div>
       <Deferred
         data={["attachments"]}

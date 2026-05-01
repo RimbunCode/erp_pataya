@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback } from "@/Components/ui/avatar";
 import { Dialog, DialogTrigger } from "@/Components/ui/dialog";
 import { FormPage, FormPageContent, useFormPage } from "../Core/FormPage";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -398,7 +398,7 @@ function Form() {
 export default function Company({ company }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
-  const [openAttachment, setOpenAttachment] = useState(false);
+  const uploadDialogRef = useRef();
   const currentPath = window.location.pathname.replace(/\/$/, "");
   const currentQueryString = window.location.search;
   const basePath = `${currentPath}/image`;
@@ -428,12 +428,12 @@ export default function Company({ company }) {
     );
   }, [company.company_image]);
   return (
-    <FormPage
-      name="company"
-      title={t("core.company.title")}
-      sidebarContent={() => {
-        return (
-          <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
+    <>
+      <FormPage
+        name="company"
+        title={t("core.company.title")}
+        sidebarContent={() => {
+          return (
             <Avatar className="relative  h-auto border rounded-xl aspect-square w-64 group">
               {avatar}
               <AvatarFallback className="rounded-lg ">
@@ -444,11 +444,14 @@ export default function Company({ company }) {
               <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <DialogTrigger asChild>
-                      <Button variant="default" size="icon" type="button">
-                        <UploadIcon className="size-5!" />
-                      </Button>
-                    </DialogTrigger>
+                    <Button
+                      variant="default"
+                      size="icon"
+                      type="button"
+                      onClick={() => uploadDialogRef.current?.open()}
+                    >
+                      <UploadIcon className="size-5!" />
+                    </Button>
                   </TooltipTrigger>
                   <TooltipContent align="center">Upload</TooltipContent>
                 </Tooltip>
@@ -464,24 +467,21 @@ export default function Company({ company }) {
                 )}
               </div>
             </Avatar>
-            <UploadDialog
-              open={openAttachment}
-              single
-              imageOnly
-              options={{
-                route: `${basePath}${currentQueryString}`,
-                reset: ["company", "auth"],
-              }}
-              onClose={() => {
-                setOpenAttachment(false);
-              }}
-            />
-          </Dialog>
-        );
-      }}
-      bottombarContent={false}
-    >
-      <Form />
-    </FormPage>
+          );
+        }}
+        bottombarContent={false}
+      >
+        <Form />
+      </FormPage>
+      <UploadDialog
+        ref={uploadDialogRef}
+        single
+        imageOnly
+        options={{
+          route: `${basePath}${currentQueryString}`,
+          reset: ["company", "auth"],
+        }}
+      />
+    </>
   );
 }
