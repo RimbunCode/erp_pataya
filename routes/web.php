@@ -14,10 +14,10 @@ use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
 use App\Http\Controllers\MockAuthController;
 use App\Http\Controllers\ModelController;
-use App\Http\Controllers\Student\ProfileController as StudentProfileController;
-use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
+use App\Http\Controllers\Student\ProfileController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Foundation\Application;
@@ -74,8 +74,8 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('/student')->group(function () {
         Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
         Route::get('/classes', fn () => inertia('Students/StudentCourseList'))->name('student.classes');
-        Route::get('/profile', [\App\Http\Controllers\Student\ProfileController::class, 'index'])->name('student.profile');
-        Route::put('/profile', [\App\Http\Controllers\Student\ProfileController::class, 'update'])->name('student.profile.update');
+        Route::get('/profile', [ProfileController::class, 'index'])->name('student.profile');
+        Route::put('/profile', [ProfileController::class, 'update'])->name('student.profile.update');
         Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
         Route::get('/classEnrollment', fn () => inertia('Students/WishlistCart'))->name('student.wishlistCart');
         Route::get('/training/{id}', fn ($id) => inertia('Students/TrainingDetail', ['courseId' => $id]))->name('student.training.detail');
