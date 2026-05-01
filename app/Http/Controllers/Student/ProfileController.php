@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
-use App\Models\StudentProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -14,7 +13,7 @@ class ProfileController extends Controller {
         $profile = $user->studentProfile;
 
         return Inertia::render('Students/ProfileSettings', [
-            'user'    => [
+            'user' => [
                 'id'        => $user->id,
                 'name'      => $user->name,
                 'email'     => $user->email,

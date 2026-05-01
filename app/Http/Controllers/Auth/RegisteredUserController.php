@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\FormStatus;
 use App\Http\Controllers\Controller;
+use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -68,7 +69,7 @@ class RegisteredUserController extends Controller {
             ]);
         }
 
-        $role = \App\Models\User\Role::where('name', $request->role)
+        $role = Role::where('name', $request->role)
             ->where('is_disabled', false)
             ->firstOrFail();
 
