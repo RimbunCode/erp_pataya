@@ -64,7 +64,53 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
 });
 
 Route::get('/', function () {
-    return redirect()->route('dashboard');
+    return redirect('/guest');
+});
+
+Route::middleware(['auth'])->group(function () {
+    Route::prefix('/student')->group(function () {
+        Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
+        Route::get('/classes', fn () => inertia('Students/StudentCourseList'))->name('student.classes');
+        Route::get('/profile', [\App\Http\Controllers\Student\ProfileController::class, 'index'])->name('student.profile');
+        Route::put('/profile', [\App\Http\Controllers\Student\ProfileController::class, 'update'])->name('student.profile.update');
+        Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
+        Route::get('/classEnrollment', fn () => inertia('Students/WishlistCart'))->name('student.wishlistCart');
+        Route::get('/training/{id}', fn ($id) => inertia('Students/TrainingDetail', ['courseId' => $id]))->name('student.training.detail');
+    });
+
+    Route::prefix('/instructor')->group(function () {
+        Route::get('/dashboard', fn () => inertia('Instructors/Dashboard'))->name('instructor.dashboard');
+        Route::get('/classes', [CourseController::class, 'index'])->name('instructor.classes.index');
+        Route::post('/classes', [CourseController::class, 'store'])->name('instructor.classes.store');
+        Route::get('/classes/{id}', [CourseController::class, 'show'])->name('instructor.classes.show');
+        Route::get('/classes/{id}/edit', [CourseController::class, 'edit'])->name('instructor.classes.edit');
+        Route::put('/classes/{id}', [CourseController::class, 'update'])->name('instructor.classes.update');
+        Route::patch('/classes/{id}/toggle-publish', [CourseController::class, 'togglePublish'])->name('instructor.classes.togglePublish');
+        Route::get('/students', fn () => inertia('Instructors/StudentManagement'))->name('instructor.students');
+        Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('instructor.growth');
+        Route::get('/financial', fn () => inertia('Instructors/Financials'))->name('instructor.financial');
+        Route::get('/profile', [InstructorProfileController::class, 'index'])->name('instructor.profile');
+        Route::put('/profile', [InstructorProfileController::class, 'update'])->name('instructor.profile.update');
+        Route::post('/instructor/profile/avatar', [InstructorProfileController::class, 'updateAvatar'])->name('instructor.avatar.update');
+    });
+
+    Route::prefix('/organization')->group(function () {
+        Route::get('/dashboard', fn () => inertia('Organizations/Dashboard'))->name('organization.dashboard');
+        Route::get('/partner', fn () => inertia('Organizations/PartnerTrainers'))->name('organization.partner');
+        Route::get('/profile', fn () => inertia('Organizations/ProfileSettings'))->name('organization.profile');
+        Route::get('/financial', fn () => inertia('Organizations/Financials'))->name('organization.financial');
+    });
+
+    Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
+});
+
+Route::prefix('home')->group(function () {
+    Route::get('/', fn () => inertia('Guest/Index'));
+    Route::get('/training', [TrainingController::class, 'index']);
+    Route::get('/training/{id}', [TrainingController::class, 'show'])->name('home.training.preview');
+    Route::get('/verify', fn () => inertia('Guest/VerifyCTA/VerifyCTA'));
+    Route::get('/about', fn () => inertia('Guest/AboutUs/AboutUs'));
+    Route::get('/contact', fn () => inertia('Guest/Contact/ContactInfo'));
 });
 
 // Languages
