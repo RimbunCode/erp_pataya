@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Link from "@/Components/Link";
-import { router } from "@inertiajs/react";
+import { router, useForm } from "@inertiajs/react";
 
 const roles = [
   {
@@ -125,34 +125,6 @@ const roles = [
   // },
 ];
 
-const studentRole = {
-  key: "student",
-  label: "Student",
-  desc: "Access your courses, track progress, and get certified.",
-  iconBg: "bg-blue-100",
-  iconColor: "text-blue-600",
-  icon: (
-    <svg
-      className="w-6 h-6"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 14l9-5-9-5-9 5 9 5z"
-      />
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 14l6.16-3.422A12.083 12.083 0 0112 21.5a12.083 12.083 0 01-6.16-10.922L12 14z"
-      />
-    </svg>
-  ),
-};
-
 function StepSelectRole({ onSelect, onSwitchToRegister }) {
   return (
     <>
@@ -217,15 +189,14 @@ function StepSelectRole({ onSelect, onSwitchToRegister }) {
 
 function StepLogin({ role, onBack, onSwitchToRegister }) {
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({
-    usernameOrEmail: "",
+  const { data, setData, post, processing, errors } = useForm({
+    usernameOrEmail: "", // ← sesuai LoginRequest
     password: "",
     remember: false,
   });
-  const [loading, setLoading] = useState(false);
 
   const handleLogin = () => {
-    router.post("/mock-login", { role: role.key });
+    post(route("login"));
   };
 
   return (
@@ -249,21 +220,36 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
       </p>
 
       <div className="flex flex-col gap-4">
+        {/* Email or Username */}
         <div>
           <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
             Email or Username
           </label>
           <input
             type="text"
-            value={form.usernameOrEmail}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, usernameOrEmail: e.target.value }))
-            }
+            value={data.usernameOrEmail}
+            onChange={(e) => setData("usernameOrEmail", e.target.value)}
             placeholder="email@example.com"
             className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
           />
+          {errors.usernameOrEmail && (
+            <p className="mt-1.5 text-xs font-semibold text-red-400">
+              {errors.usernameOrEmail}
+            </p>
+          )}
+          {errors.email && (
+            <p className="mt-1.5 text-xs font-semibold text-red-400">
+              {errors.email}
+            </p>
+          )}
+          {errors.status && (
+            <p className="mt-1.5 text-xs font-semibold text-red-400">
+              {errors.status}
+            </p>
+          )}
         </div>
 
+        {/* Password */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
@@ -279,10 +265,8 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
-              value={form.password}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, password: e.target.value }))
-              }
+              value={data.password}
+              onChange={(e) => setData("password", e.target.value)}
               placeholder="••••••••"
               className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
             />
@@ -327,15 +311,19 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
               )}
             </button>
           </div>
+          {errors.password && (
+            <p className="mt-1.5 text-xs font-semibold text-red-400">
+              {errors.password}
+            </p>
+          )}
         </div>
 
+        {/* Remember me */}
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input
             type="checkbox"
-            checked={form.remember}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, remember: e.target.checked }))
-            }
+            checked={data.remember}
+            onChange={(e) => setData("remember", e.target.checked)}
             className="w-4 h-4 rounded border-gray-200 text-blue-600 focus:ring-blue-500"
           />
           <span className="text-xs font-semibold text-gray-500">
@@ -343,17 +331,18 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
           </span>
         </label>
 
+        {/* Submit */}
         <button
           onClick={handleLogin}
-          disabled={loading || !form.usernameOrEmail || !form.password}
+          disabled={processing || !data.usernameOrEmail || !data.password}
           className={`w-full font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 mt-2
             ${
-              loading || !form.usernameOrEmail || !form.password
+              processing || !data.usernameOrEmail || !data.password
                 ? "bg-gray-100 text-gray-300 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 text-white hover:-translate-y-0.5 shadow-md shadow-blue-200"
             }`}
         >
-          {loading ? (
+          {processing ? (
             <>
               <svg
                 className="w-4 h-4 animate-spin"
@@ -384,7 +373,7 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
 
       <div className="flex items-center justify-between mt-7 pt-5 border-t border-gray-100">
         <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">
-          <p>{"Don't forget your password"}</p>
+          Don't have an account?
         </span>
         <button
           onClick={onSwitchToRegister}

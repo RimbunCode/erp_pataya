@@ -32,42 +32,69 @@ class RegisteredUserController extends Controller {
     public function store(Request $request): RedirectResponse {
         $request->validate([
             'name'     => ['required', 'string', 'max:255'],
-            'username' => ['required', 'string', 'min:3', 'max:25', 'unique:' . User::class],
             'email'    => ['required', 'string', 'lowercase', 'email', 'max:255'],
             'password' => ['required', 'confirmed', Rules\Password::min(8)],
+            'dob'      => ['required', 'date', 'before:today'],
+            'role'     => ['required', 'string', 'exists:roles,name'],
         ]);
 
         DB::beginTransaction();
+
         $findUser = User::where('email', $request->email)->first();
+
         if ($findUser) {
             if ($findUser->status != FormStatus::INVITED) {
                 throw ValidationException::withMessages([
                     'email' => 'Email already exists',
                 ]);
             }
-            $findUser->update([[
-                'name'     => $request->name,
-                'username' => $request->username,
-                'email'    => $request->email,
-                'password' => Hash::make($request->password),
-                'status'   => FormStatus::ACTIVE,
-            ]]);
+            $findUser->update([
+                'name'      => $request->name,
+                'username'  => $request->nickname,
+                'email'     => $request->email,
+                'password'  => Hash::make($request->password),
+                'birthdate' => $request->dob,
+                'status'    => FormStatus::ACTIVE,
+            ]);
             $user = $findUser->refresh();
         } else {
             $user = User::create([
-                'name'     => $request->name,
-                'username' => $request->username,
-                'email'    => $request->email,
-                'password' => Hash::make($request->password),
-                'status'   => FormStatus::ACTIVE,
+                'name'      => $request->name,
+                'username'  => $request->nickname,
+                'email'     => $request->email,
+                'password'  => Hash::make($request->password),
+                'birthdate' => $request->dob,
+                'status'    => FormStatus::ACTIVE,
             ]);
         }
+
+        $role = \App\Models\User\Role::where('name', $request->role)
+            ->where('is_disabled', false)
+            ->firstOrFail();
+
+        DB::table('user_role')->insertOrIgnore([
+            'user_id'    => $user->id,
+            'role_id'    => $role->id,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         DB::commit();
 
         event(new Registered($user));
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        return redirect($this->redirectByRole($request->role));
+    }
+
+    private function redirectByRole(string $role): string {
+        return match ($role) {
+            'student'      => route('student.dashboard', absolute: false),
+            'instructor'   => route('instructor.dashboard', absolute: false),
+            'organization' => route('organization.dashboard', absolute: false),
+            'admin'        => route('admin.dashboard', absolute: false),
+            default        => '/guest',
+        };
     }
 }

@@ -7,11 +7,14 @@ namespace App\Models\User;
 use App\Casts\FormStatusCast;
 use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
+use App\Models\InstructorProfile;
+use App\Models\StudentProfile;
 use App\Traits\DataTable;
 use App\Traits\LinkModel;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -19,10 +22,8 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable {
     /** @use HasFactory<UserFactory> */
     use DataTable, HasFactory, HasUlids, LinkModel, Notifiable, SoftDeletes;
-
-    public $translateKey = 'user.user';
-    protected $guarded   = ['id'];
-
+    public    $translateKey = 'user.user';
+    protected $guarded      = ['id'];
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -49,15 +50,14 @@ class User extends Authenticatable {
     public static function templateLink() {
         return ':name';
     }
-
     public $configColumns = [
-        'image' => [
+        'image'    => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
             'width' => 'fit',
         ],
-        'name' => [
+        'name'     => [
             'show'   => true,
             'order'  => 1,
             'isLink' => true,
@@ -66,11 +66,11 @@ class User extends Authenticatable {
             'show'  => true,
             'order' => 2,
         ],
-        'email' => [
+        'email'    => [
             'show'  => true,
             'order' => 3,
         ],
-        'status' => [
+        'status'   => [
             'show'  => true,
             'order' => 4,
         ],
@@ -110,5 +110,13 @@ class User extends Authenticatable {
 
     public function providers() {
         return $this->hasMany(UserProvider::class, 'user_id');
+    }
+
+    public function studentProfile(): HasOne {
+        return $this->hasOne(StudentProfile::class);
+    }
+
+    public function instructorProfile(): HasOne {
+        return $this->hasOne(InstructorProfile::class);
     }
 }

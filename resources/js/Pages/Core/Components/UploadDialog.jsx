@@ -1,4 +1,5 @@
 import {
+  Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -6,7 +7,14 @@ import {
   DialogTitle,
 } from "@/Components/ui/dialog";
 import { Laptop2, LibraryIcon } from "lucide-react";
-import React, { useCallback, useId, useRef, useState } from "react";
+import React, {
+  forwardRef,
+  useCallback,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import { checkFileType, cn, formatBytes, generateRandom } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
@@ -17,13 +25,17 @@ import { Transition } from "@headlessui/react";
 import { router } from "@inertiajs/react";
 import { useIsMobile } from "@/Hooks/use-mobile";
 
-function UploadDialog({
-  onClose,
-  single = false,
-  imageOnly = false,
-  options: { route: routeProp, ...optionsProp } = {},
-}) {
+const UploadDialog = forwardRef(function UploadDialog(
+  {
+    onClose,
+    single = false,
+    imageOnly = false,
+    options: { route: routeProp, ...optionsProp } = {},
+  },
+  ref,
+) {
   const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
   const [menu, setMenu] = useState("home");
   const [files, setFiles] = useState([]);
   const [hover, setHover] = useState(false);
@@ -31,6 +43,15 @@ function UploadDialog({
   const [checklistFile, setChecklistFile] = useState(new Set());
   const libraryRef = useRef();
   const id = useId();
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      open: () => setOpen(true),
+      close: () => setOpen(false),
+    }),
+    [],
+  );
 
   const addFile = useCallback(
     (file) => {
@@ -111,8 +132,9 @@ function UploadDialog({
       },
       onSuccess: () => {
         setFiles([]);
-        onClose();
+        onClose?.();
         setProgress(false);
+        setOpen(false);
       },
     });
   }, []);
@@ -274,79 +296,81 @@ function UploadDialog({
     }
   };
   return (
-    <DialogContent className="max-w-xl overflow-hidden!">
-      <DialogHeader className="pb-2 border-b">
-        <DialogTitle>Upload</DialogTitle>
-        <DialogDescription className="sr-only"></DialogDescription>
-      </DialogHeader>
-      {getMenu()}
-      {progress && (
-        <div className="flex items-center w-full text-xs text-muted-foreground">
-          <Progress value={progress.progress * 100} className="h-2!" />
-          <p className="mx-3 text-nowrap">
-            ({formatBytes(progress.loaded)} / {formatBytes(progress.total)})
-          </p>
-          <p>{(progress.progress * 100).toFixed(1)}%</p>
-        </div>
-      )}
-      <DialogFooter
-        className={cn(
-          files.length > 0 && menu === "home" && !single
-            ? "justify-between!"
-            : "justify-end!",
-          "flex flex-row!  pt-2 border-t gap-x-2",
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent className="max-w-xl overflow-hidden!">
+        <DialogHeader className="pb-2 border-b">
+          <DialogTitle>Upload</DialogTitle>
+          <DialogDescription className="sr-only"></DialogDescription>
+        </DialogHeader>
+        {getMenu()}
+        {progress && (
+          <div className="flex items-center w-full text-xs text-muted-foreground">
+            <Progress value={progress.progress * 100} className="h-2!" />
+            <p className="mx-3 text-nowrap">
+              ({formatBytes(progress.loaded)} / {formatBytes(progress.total)})
+            </p>
+            <p>{(progress.progress * 100).toFixed(1)}%</p>
+          </div>
         )}
-      >
-        {files.length > 0 && menu === "home" && (
-          <>
-            {!single && (
-              <Button
-                variant="secondary"
-                size="sm"
-                asChild
-                className="cursor-pointer"
-              >
-                <label htmlFor={id}>Browse</label>
-              </Button>
-            )}
-
-            <input
-              id={id}
-              type="file"
-              className="hidden"
-              multiple
-              onChange={(e) => {
-                const files = e.currentTarget.files;
-                setFiles((prev) => {
-                  return [
-                    ...prev,
-                    ...Array.from(files).map((file) => {
-                      return {
-                        id: generateRandom(8),
-                        file: file,
-                      };
-                    }),
-                  ];
-                });
-                e.currentTarget.value = null;
-              }}
-            />
-          </>
-        )}
-        <Button
-          disabled={
-            menu == "home" ? files.length <= 0 : checklistFile.size <= 0
-          }
-          size="sm"
-          onClick={() =>
-            onAttach(menu, menu == "library" ? checklistFile : files)
-          }
+        <DialogFooter
+          className={cn(
+            files.length > 0 && menu === "home" && !single
+              ? "justify-between!"
+              : "justify-end!",
+            "flex flex-row!  pt-2 border-t gap-x-2",
+          )}
         >
-          Attach
-        </Button>
-      </DialogFooter>
-    </DialogContent>
+          {files.length > 0 && menu === "home" && (
+            <>
+              {!single && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  asChild
+                  className="cursor-pointer"
+                >
+                  <label htmlFor={id}>Browse</label>
+                </Button>
+              )}
+
+              <input
+                id={id}
+                type="file"
+                className="hidden"
+                multiple
+                onChange={(e) => {
+                  const files = e.currentTarget.files;
+                  setFiles((prev) => {
+                    return [
+                      ...prev,
+                      ...Array.from(files).map((file) => {
+                        return {
+                          id: generateRandom(8),
+                          file: file,
+                        };
+                      }),
+                    ];
+                  });
+                  e.currentTarget.value = null;
+                }}
+              />
+            </>
+          )}
+          <Button
+            disabled={
+              menu == "home" ? files.length <= 0 : checklistFile.size <= 0
+            }
+            size="sm"
+            onClick={() =>
+              onAttach(menu, menu == "library" ? checklistFile : files)
+            }
+          >
+            Attach
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
-}
+});
 
 export default UploadDialog;

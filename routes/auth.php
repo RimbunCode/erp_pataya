@@ -11,7 +11,7 @@ use App\Http\Controllers\Auth\SetupUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
-Route::middleware(['guest', 'lang'])->group(function () {
+Route::middleware(['guest'])->group(function () {
     Route::get('register', [RegisteredUserController::class, 'create'])
         ->name('register');
 
@@ -39,7 +39,7 @@ Route::middleware(['guest', 'lang'])->group(function () {
 
 Route::get('/auth/{driver}/callback', [AuthenticatedSessionController::class, 'handleProviderCallback']);
 
-Route::middleware(['auth', 'lang'])->group(function () {
+Route::middleware(['auth'])->group(function () {
     Route::get('verify-email', EmailVerificationPromptController::class)
         ->name('verification.notice');
 

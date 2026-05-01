@@ -12,16 +12,15 @@ use Illuminate\Http\Request;
 
 class File extends Model {
     use DataTable, HasUlids, SoftDeletes, TreeView;
-
-    protected $guarded = ['id'];
-    protected $casts   = [
+    protected     $guarded            = ['id'];
+    protected     $casts              = [
         'is_public' => 'boolean',
     ];
-    protected $appends                = ['fullname'];
-    public $translateKey              = 'core.file';
+    protected     $appends            = ['fullname'];
+    public        $translateKey       = 'core.file';
     public static $allow_only_creator = true;
-    protected $configColumns          = [
-        'name' => [
+    protected     $configColumns      = [
+        'name'      => [
             'show'  => true,
             'order' => 0,
         ],
@@ -31,7 +30,7 @@ class File extends Model {
         ],
         'folder',
         'user',
-        'path' => [
+        'path'      => [
             'ignore' => true,
         ],
     ];
@@ -60,7 +59,7 @@ class File extends Model {
                 'filesId'   => ['required', 'array'],
                 'filesId.*' => ['required', 'string', 'exists:files,id', $maxFileSize ? "max:$maxFileSize" : ''],
             ]);
-            $files = File::whereIn('id', $validatedData['filesId'])->get();
+            $files         = File::whereIn('id', $validatedData['filesId'])->get();
             $files->each(function ($file) use ($onUploadedFile) {
                 $onUploadedFile($file);
             });
@@ -73,7 +72,7 @@ class File extends Model {
                 'name'       => ['required', 'array'],
                 'name.*'     => ['required', 'string'],
             ]);
-            $folder = File::firstOrCreate([
+            $folder        = File::firstOrCreate([
                 'name'      => $folderName,
                 'mime_type' => 'folder',
             ]);

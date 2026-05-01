@@ -4,7 +4,7 @@ import { useState } from "react";
 import { usePage, router } from "@inertiajs/react";
 import MasterLayout from "@/Layouts/MasterLayout";
 import Sidebar from "@/Components/Sidebar/MainSidebar";
-import Header from "@/Components/Navbar/MainNavbar";
+import MainNavbar from "@/Components/Navbar/MainNavbar";
 import { roleLabel } from "@/Components/Navbar/NavConfig";
 
 export default function MainLayout({
@@ -39,7 +39,7 @@ export default function MainLayout({
     localStorage.setItem("sidebar_collapsed", value);
   };
 
-  const handleLogout = () => router.post("/mock-logout");
+  const handleLogout = () => router.post("/logout");
 
   return (
     <MasterLayout>
@@ -60,7 +60,7 @@ export default function MainLayout({
 
         {/* ── Main ── */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <Header
+          <MainNavbar
             title={title}
             breadcrumb={breadcrumb}
             initials={initials}

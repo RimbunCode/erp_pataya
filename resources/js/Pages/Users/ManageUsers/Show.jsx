@@ -1,7 +1,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { Dialog, DialogTrigger } from "@/Components/ui/dialog";
+
 import { FormPage, FormPageDialog } from "@/Pages/Core/FormPage";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -21,7 +21,7 @@ export default function Show({ user }) {
   const { t } = useLaravelReactI18n();
   const changePasswordDialogRef = useRef();
   const { user: authUser } = usePage().props.auth;
-  const [openAttachment, setOpenAttachment] = useState(false);
+  const uploadDialogRef = useRef();
   const currentPath = window.location.pathname.replace(/\/$/, "");
   const currentQueryString = window.location.search;
   const basePath = `${currentPath}/image`;
@@ -54,55 +54,44 @@ export default function Show({ user }) {
         title={user?.name ?? t("user.user.new")}
         sidebarContent={(defaultComp) => (
           <>
-            <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
-              <Avatar className="relative w-full h-auto border rounded-xl aspect-square max-w-64 group">
-                {avatar}
-                <AvatarFallback className="rounded-lg">
-                  <p className="w-full font-semibold text-center text-muted-foreground text-9xl transition-[filter]">
-                    {alias}
-                  </p>
-                </AvatarFallback>
-                {authUser.id === user.id && (
-                  <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
+            <Avatar className="relative w-full h-auto border rounded-xl aspect-square max-w-64 group">
+              {avatar}
+              <AvatarFallback className="rounded-lg">
+                <p className="w-full font-semibold text-center text-muted-foreground text-9xl transition-[filter]">
+                  {alias}
+                </p>
+              </AvatarFallback>
+              {authUser.id === user.id && (
+                <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="default"
+                        size="icon"
+                        onClick={() => uploadDialogRef.current?.open()}
+                      >
+                        <UploadIcon className="size-5!" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent align="center">
+                      {t("user.user.columns.image.upload")}
+                    </TooltipContent>
+                  </Tooltip>
+                  {user.image && (
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <DialogTrigger asChild>
-                          <Button variant="default" size="icon">
-                            <UploadIcon className="size-5!" />
-                          </Button>
-                        </DialogTrigger>
+                        <Button variant="destructive" size="icon">
+                          <Trash2 className="size-5!" />
+                        </Button>
                       </TooltipTrigger>
                       <TooltipContent align="center">
-                        {t("user.user.columns.image.upload")}
+                        {t("user.user.columns.image.remove")}
                       </TooltipContent>
                     </Tooltip>
-                    {user.image && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="destructive" size="icon">
-                            <Trash2 className="size-5!" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent align="center">
-                          {t("user.user.columns.image.remove")}
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-                  </div>
-                )}
-              </Avatar>
-              <UploadDialog
-                open={openAttachment}
-                imageOnly
-                options={{
-                  route: `${basePath}${currentQueryString}`,
-                  reset: ["user", "auth"],
-                }}
-                onClose={() => {
-                  setOpenAttachment(false);
-                }}
-              />
-            </Dialog>
+                  )}
+                </div>
+              )}
+            </Avatar>
             {defaultComp}
           </>
         )}
@@ -123,6 +112,14 @@ export default function Show({ user }) {
       >
         <Form />
       </FormPage>
+      <UploadDialog
+        ref={uploadDialogRef}
+        imageOnly
+        options={{
+          route: `${basePath}${currentQueryString}`,
+          reset: ["user", "auth"],
+        }}
+      />
       <FormPageDialog
         ref={changePasswordDialogRef}
         name="change_password"
