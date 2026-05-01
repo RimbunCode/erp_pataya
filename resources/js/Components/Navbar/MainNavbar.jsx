@@ -51,19 +51,20 @@ export default function MainNavbar({
 
         {/* Avatar + dropdown */}
         <div className="flex items-center gap-3 relative">
-          <div className="text-right">
-            <p className="text-xs font-bold text-gray-800">{userName}</p>
-            <p className="text-[9px] font-bold tracking-widest text-blue-500 uppercase">
-              {roleLabel}
-            </p>
-          </div>
-
-          <button
+          <div
             onClick={onToggleDropdown}
-            className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-black hover:ring-2 hover:ring-blue-300 transition-all"
+            className="flex items-center gap-3 cursor-pointer select-none hover:bg-gray-50 px-2 py-1 rounded-xl transition"
           >
-            {initials}
-          </button>
+            <div className="text-right">
+              <p className="text-xs font-bold text-gray-800">{userName}</p>
+              <p className="text-[9px] font-bold tracking-widest text-blue-500 uppercase">
+                {roleLabel}
+              </p>
+            </div>
+            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-black">
+              {initials}
+            </div>
+          </div>
 
           {/* Dropdown */}
           {profileDropdown && (

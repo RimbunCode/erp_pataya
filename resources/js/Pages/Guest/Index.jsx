@@ -5,8 +5,6 @@ import { PopularTrainingSection } from "./PopularTrainingSection";
 import { CTABannerSection } from "./CTABannerSection";
 import { WhyInkindoSection } from "./WhyInkindo";
 
-// ── Animated Floating Cards ───────────────────────────────────────────────────
-
 function FadingCard({ icon, title, subtitle, className }) {
   const [visible, setVisible] = useState(true);
 

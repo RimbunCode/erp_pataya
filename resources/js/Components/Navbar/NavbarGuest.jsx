@@ -10,6 +10,8 @@ import { router, usePage } from "@inertiajs/react";
 export default memo(function NavbarGuest() {
   const { auth } = usePage().props;
   const user = auth?.user;
+  const isLoggedIn = !!user;
+  const baseUrl = isLoggedIn ? "/home" : "/guest";
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const openLogin = useRolesSelectionModal();
   const openRegister = useRegisterModal();
@@ -61,11 +63,11 @@ export default memo(function NavbarGuest() {
         {/* Nav Links */}
         <nav className="hidden md:flex items-center gap-6">
           {[
-            { label: "HOME", href: "/guest" },
-            { label: "TRAINING CATALOGUE", href: "/guest/training" },
-            { label: "CERTIFICATE VERIFICATION", href: "/guest/verify" },
-            { label: "ABOUT US", href: "/guest/about" },
-            { label: "CONTACT US", href: "/guest/contact" },
+            { label: "HOME", href: `${baseUrl}` },
+            { label: "TRAINING CATALOGUE", href: `${baseUrl}/training` },
+            { label: "CERTIFICATE VERIFICATION", href: `${baseUrl}/verify` },
+            { label: "ABOUT US", href: `${baseUrl}/about` },
+            { label: "CONTACT US", href: `${baseUrl}/contact` },
           ].map((item) => (
             <Link
               key={item.href}
