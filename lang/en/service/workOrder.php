@@ -21,14 +21,14 @@ return [
         'create_pr'         => 'Create Purchase Request',
         'create_stockEntry' => 'Create Item Consumption',
     ],
-    'columns' => [
+    'columns'            => [
         'code'                         => 'Code',
         'customer'                     => 'Customer',
         'customer_branch'              => 'Customer Branch',
         'internal_branch'              => 'Internal Branch',
         'date'                         => 'Date',
-        'item_service'                 => 'Item Service',
-        'item_service.placeholder'     => 'Select a item service',
+        'item_service'                 => 'Maintenance Item',
+        'item_service.placeholder'     => 'Select a maintenance item',
         'external_note'                => 'External Note',
         'items'                        => 'Items',
         'item'                         => 'Item',
@@ -46,7 +46,7 @@ return [
         'started_at'                   => 'Started At',
         'completed_at'                 => 'completed At',
     ],
-    'workOrderItem' => [
+    'workOrderItem'      => [
         'columns' => [
             'work_order' => 'Work Order',
             'item'       => 'Item',

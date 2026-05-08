@@ -1,10 +1,10 @@
 <?php
 
 return [
-    'title'                => 'Faktur Pembelian',
-    'add'                  => 'Faktur Pembelian Baru',
+    'title'                => 'Purchase Invoices',
+    'add'                  => 'Purchase Invoice Baru',
     'supplier'             => 'Pemasok',
-    'new'                  => 'Faktur Pembelian Baru',
+    'new'                  => 'Purchase Invoice Baru',
     'items'                => 'Item',
     'detail'               => 'Detail',
     'status'               => 'Status',
@@ -19,8 +19,8 @@ return [
     ],
     'columns' => [
         'code'                         => 'Kode',
-        'purchase_order'               => 'Pesanan Pembelian',
-        'purchase_order.placeholder'   => 'Pilih Pesanan Pembelian',
+        'purchase_order'               => 'Purchase Order',
+        'purchase_order.placeholder'   => 'Pilih Purchase Order',
         'target_warehouse'             => 'Gudang Tujuan',
         'rate'                         => 'Tarif',
         'amount'                       => 'Jumlah',
@@ -76,7 +76,7 @@ return [
             'months_after_invoice_month' => 'Bulan setelah bulan faktur',
         ],
         'outstanding_amount'   => 'Jumlah Belum Dibayar',
-        'return_against'       => 'Retur Terhadap Faktur Pembelian',
+        'return_against'       => 'Retur Terhadap Purchase Invoice',
         'is_return'            => 'Apakah Retur (Nota Debit)',
         'accounts'             => 'Akun',
         'expense_head_account' => 'Akun Kepala Biaya',

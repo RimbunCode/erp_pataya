@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
@@ -16,7 +17,6 @@ return new class extends Migration
             $table->string('email');
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password')->nullable();
-            $table->foreignUlid('image')->nullable()->references('id')->on('files');
             $table->string('avatar_url')->nullable();
             $table->string('status')->default('pending');
             $table->enum('gender', ['male', 'female'])->nullable();

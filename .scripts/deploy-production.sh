@@ -55,8 +55,8 @@ composer install --no-dev --optimize-autoloader
 composer dump-autoload -o
 
 # 6. Database & Cache
-php artisan optimize:clear
 php artisan migrate --force
+php artisan optimize:clear
 php artisan optimize
 
 # 7. Switch Symlink

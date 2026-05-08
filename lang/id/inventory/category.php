@@ -15,9 +15,9 @@ return [
         'type'             => 'Tipe',
         'type.placeholder' => 'Pilih tipe',
     ],
-    'types' => [
-        'stock'   => 'Stok',
-        'vehicle' => 'Kendaraan',
-        'service' => 'Jasa/Layanan',
+    'types'              => [
+        'inventory' => "Inventaris",
+        'vehicle'   => 'Kendaraan',
+        'service'   => 'Jasa/Layanan',
     ],
 ];

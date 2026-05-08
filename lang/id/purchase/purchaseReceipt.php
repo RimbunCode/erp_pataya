@@ -1,10 +1,10 @@
 <?php
 
 return [
-    'title'                  => 'Tanda Terima Pembelian',
-    'add'                    => 'Tanda Terima Pembelian Baru',
+    'title'                  => 'Purchase Receipts',
+    'add'                    => 'Purchase Receipt Baru',
     'supplier'               => 'Pemasok',
-    'new'                    => 'Tanda Terima Pembelian Baru',
+    'new'                    => 'Purchase Receipt Baru',
     'items'                  => 'Item',
     'detail'                 => 'Detail',
     'status'                 => 'Status',
@@ -13,13 +13,13 @@ return [
     'exchange_rate'          => 'Nilai Tukar',
     'currency'               => 'Mata Uang',
     'currency.placeholder'   => 'Pilih Mata Uang',
-    'create_purchase_return' => 'Buat Retur Pembelian',
+    'create_purchase_return' => 'Buat Purchase Return',
     'columns'                => [
         'required_date'                => 'Tanggal Dibutuhkan',
         'date'                         => 'Tanggal',
         'code'                         => 'Kode',
-        'purchase_order'               => 'Pesanan Pembelian',
-        'purchase_order.placeholder'   => 'Pilih Pesanan Pembelian',
+        'purchase_order'               => 'Purchase Order',
+        'purchase_order.placeholder'   => 'Pilih Purchase Order',
         'supplier'                     => 'Pemasok',
         'item'                         => 'Item',
         'item.placeholder'             => 'Pilih item',
@@ -30,7 +30,7 @@ return [
         'unit'                         => 'Unit',
         'unit.placeholder'             => 'Pilih unit',
         'external_note'                => 'Catatan Eksternal',
-        'return_against'               => 'Retur Terhadap Tanda Terima Pembelian',
-        'is_return'                    => 'Apakah Retur (Retur Pembelian)',
+        'return_against'               => 'Retur Terhadap Purchase Receipt',
+        'is_return'                    => 'Apakah Retur (Purchase Return)',
     ],
 ];

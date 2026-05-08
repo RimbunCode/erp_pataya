@@ -1,9 +1,9 @@
 <?php
 
 return [
-    'title'   => 'Surat Jalan (Delivery Note)',
-    'add'     => 'Surat Jalan Baru',
-    'new'     => 'Surat Jalan Baru',
+    'title'   => 'Delivery Notes',
+    'add'     => 'Delivery Note Baru',
+    'new'     => 'Delivery Note Baru',
     'items'   => 'Item',
     'detail'  => 'Detail',
     'status'  => 'Status',
@@ -29,10 +29,10 @@ return [
         'external_note'                => 'Catatan Eksternal',
         'insert_item'                  => 'Masukkan Item',
         'referenceable'                => 'Referensi Ke',
-        'return_against'               => 'Retur Terhadap Surat Jalan',
-        'is_return'                    => 'Apakah Retur (Retur Penjualan)',
+        'return_against'               => 'Retur Terhadap Delivery Note',
+        'is_return'                    => 'Apakah Retur (Sales Return)',
     ],
     'actions' => [
-        'create_sales_return' => 'Buat Retur Penjualan',
+        'create_sales_return' => 'Buat Sales Return',
     ],
 ];

@@ -15,9 +15,9 @@ return [
         'type'             => 'Type',
         'type.placeholder' => 'Select a type',
     ],
-    'types' => [
-        'stock'   => 'Stock',
-        'vehicle' => 'Vehicle',
-        'service' => 'Service',
+    'types'              => [
+        'inventory' => 'Inventory',
+        'vehicle'   => 'Vehicle',
+        'service'   => 'Service',
     ],
 ];
