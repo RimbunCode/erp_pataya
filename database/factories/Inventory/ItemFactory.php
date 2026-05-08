@@ -19,8 +19,8 @@ class ItemFactory extends Factory {
      * @return array<string, mixed>
      */
     public function definition(): array {
-        $itemType     = fake()->randomElement(['goods', 'service']);
-        $categoryType = $itemType === 'goods' ? 'inventory' : 'service';
+        $itemType     = fake()->randomElement(['inventory', 'service']);
+        $categoryType = $itemType === 'inventory' ? 'inventory' : 'service';
         $category     = Category::query()
             ->where('type', $categoryType)
             ->inRandomOrder()
@@ -28,7 +28,7 @@ class ItemFactory extends Factory {
                 'type' => $categoryType,
             ])->create();
 
-        $baseName = $itemType === 'goods'
+        $baseName = $itemType === 'inventory'
             ? fake()->randomElement([
                 'Steel Pipe',
                 'Safety Helmet',
@@ -47,23 +47,23 @@ class ItemFactory extends Factory {
         $defaultUnitId = $this->resolveDefaultUnitId();
 
         return [
-            'code'        => fake()->unique()->bothify(($itemType === 'goods' ? 'GDS' : 'SRV') . '-####'),
-            'name'        => $baseName . ' ' . fake()->unique()->numerify('###'),
-            'description' => $itemType === 'goods'
+            'code'                   => fake()->unique()->bothify(($itemType === 'inventory' ? 'GDS' : 'SRV') . '-####'),
+            'name'                   => $baseName . ' ' . fake()->unique()->numerify('###'),
+            'description'            => $itemType === 'inventory'
                 ? "Physical inventory item for {$category->name}."
                 : "Service item for {$category->name}.",
-            'category_id'       => $category->id,
-            'default_unit_id'   => $defaultUnitId,
-            'conversion_factor' => $itemType === 'goods'
+            'category_id'            => $category->id,
+            'default_unit_id'        => $defaultUnitId,
+            'conversion_factor'      => $itemType === 'inventory'
                 ? fake()->randomFloat(2, 1, 10)
                 : 1,
-            'stock_minimum' => $itemType === 'goods'
+            'stock_minimum'          => $itemType === 'inventory'
                 ? fake()->numberBetween(5, 50)
                 : 0,
             'image_id'               => File::query()->inRandomOrder()->value('id'),
             'is_disabled'            => false,
-            'allow_alternative_item' => $itemType === 'goods' ? fake()->boolean(40) : false,
-            'is_stock_item'          => $itemType === 'goods',
+            'allow_alternative_item' => $itemType === 'inventory' ? fake()->boolean(40) : false,
+            'is_stock_item'          => $itemType === 'inventory',
             'type'                   => $itemType,
             'format_variant'         => null,
         ];

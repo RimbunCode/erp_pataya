@@ -16,6 +16,12 @@ use Inertia\Inertia;
 class ItemVariantController extends Controller {
     private $itemService;
 
+    protected function enforcePermission($method) {
+        if ($method == 'info') {
+            return true;
+        }
+    }
+
     public function __construct(Request $request, ItemServices $itemService) {
         $this->itemService = $itemService;
         parent::__construct($request, ItemVariant::class);
@@ -87,7 +93,7 @@ class ItemVariantController extends Controller {
 
                 return $itemVariant;
             },
-            'stocks' => Inertia::defer(function () use ($itemVariant) {
+            'stocks'      => Inertia::defer(function () use ($itemVariant) {
                 $warehouses = Warehouse::with(['stocks' => fn ($query) => $query->where('item_variant_id', $itemVariant->id), 'stocks.unit', 'branch']);
                 if (Session::has('currentBranch')) {
                     $branch = Branch::find(Session::get('currentBranch'));

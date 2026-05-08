@@ -207,7 +207,7 @@ export default memo(function Form() {
       cell({ dataRow, data: value, setData, attributes }) {
         return (
           <WarehouseLinkModel
-            disabled={!dataRow?.item}
+            disabled={!dataRow?.item || !dataRow?.item?.is_stock_item}
             placeholder={t(
               "sales.salesOrder.columns.source_warehouse.placeholder",
             )}
@@ -229,9 +229,13 @@ export default memo(function Form() {
         return (
           <CurrencyInput
             {...attributes}
-            disabled={!dataRow?.item}
+            disabled={!dataRow?.item || !dataRow?.item?.is_stock_item}
             readOnly={true}
-            value={additionalData?.available_stock ?? 0}
+            value={
+              dataRow?.item?.is_stock_item
+                ? (additionalData?.available_stock ?? 0)
+                : "∞"
+            }
           />
         );
       },

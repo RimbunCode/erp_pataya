@@ -41,7 +41,7 @@ class SalesOrderService {
         $data['currency_code']       = $salesOrder->currency_code;
         $data['base_currency_code']  = $salesOrder->base_currency_code;
         $data['exchange_rate']       = $salesOrder->exchange_rate;
-        $data['source_warehouse_id'] = $data['source_warehouse']['id'];
+        $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
 
         return $data;
     }
@@ -70,7 +70,7 @@ class SalesOrderService {
 
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $taxAmount   += $item->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
         $salesOrder->update([
@@ -108,7 +108,7 @@ class SalesOrderService {
 
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $taxAmount   += $item->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
         $salesOrder->fill([
