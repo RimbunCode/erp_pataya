@@ -154,7 +154,7 @@ export default function InstructorDashboard() {
                   d="M12 4v16m8-8H4"
                 />
               </svg>
-              Create New Class
+              Create New Course
             </button>
           </div>
         </div>

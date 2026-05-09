@@ -16,8 +16,6 @@ import Link from "@/Components/Link";
 export default function ProfileSettings({ user, profile }) {
   const [preview, setPreview] = useState(null);
   const uploadDialogRef = useRef();
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -34,38 +32,6 @@ export default function ProfileSettings({ user, profile }) {
     socials: profile?.socials ?? [],
     bio: profile?.bio ?? "",
   });
-
-  const uploadFile = (file) => {
-    const data = new FormData();
-
-    data.append("file", file);
-
-    router.post(route("instructor.image.update"), data, {
-      forceFormData: true,
-      onSuccess: () => {
-        setIsUploadOpen(false);
-        router.reload();
-      },
-    });
-  };
-
-  const handleUploadAvatar = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setSelectedFile(file);
-    setPreview(URL.createObjectURL(file));
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-
-    const file = e.dataTransfer.files[0];
-    if (!file) return;
-
-    setSelectedFile(file);
-    setPreview(URL.createObjectURL(file));
-  };
 
   const addSocial = () => {
     setForm((prev) => ({
@@ -155,10 +121,9 @@ export default function ProfileSettings({ user, profile }) {
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="destructive" size="icon" asChild>
-                      {/* TODO: Jangan lupa diupdate yaa */}
                       <Link
                         href={route("instructor.image.delete")}
-                        method="destroy"
+                        method="delete"
                       >
                         <Trash2Icon className="size-5!" />
                       </Link>
@@ -174,7 +139,7 @@ export default function ProfileSettings({ user, profile }) {
               {user?.name}
             </h2>
             <p className="text-xs pl-4 font-extrabold tracking-widest text-blue-500 uppercase mt-1">
-              Instructor Account
+              {user?.roles.map((r) => r.name)?.join(", ")} Account
             </p>
             <div className="flex items-center gap-4 mt-3">
               <button

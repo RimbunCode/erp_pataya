@@ -2,6 +2,9 @@
 
 import Link from "@/Components/Link";
 import { navConfig, roleLabel } from "@/Components/Navbar/NavConfig";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 
 export default function MainSidebar({
   collapsed,
@@ -11,10 +14,19 @@ export default function MainSidebar({
   currentPath,
   initials,
   userName,
-  role,
-  roleLabel,
   onLogout,
 }) {
+  const { auth } = usePage().props;
+  const user = auth.user;
+
+  const avatarSrc = useMemo(() => {
+    if (!user.image) return null;
+
+    return (
+      route("files.preview", user.image) +
+      `?v=${new Date(user.updated_at).getTime()}`
+    );
+  }, [user.image, user.updated_at]);
   return (
     <aside
       className={`flex-shrink-0 bg-background border-r border-gray-100 flex flex-col transition-all duration-300 ${
@@ -187,16 +199,24 @@ export default function MainSidebar({
       <div
         className={`px-4 py-4 border-t border-gray-100 flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}
       >
-        <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-black flex-shrink-0">
-          {initials}
-        </div>
+        <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center">
+          <AvatarImage
+            src={avatarSrc}
+            alt={user?.name}
+            className="w-full h-full object-cover"
+          />
+
+          <AvatarFallback className="bg-blue-600 text-white text-sm font-black">
+            {initials}
+          </AvatarFallback>
+        </Avatar>
         {!collapsed && (
           <div className="min-w-0">
             <p className="text-xs font-bold text-gray-800 truncate">
               {userName}
             </p>
             <p className="text-[9px] font-bold tracking-widest text-blue-500 uppercase">
-              {roleLabel}
+              {user?.roles?.join(", ")}
             </p>
           </div>
         )}

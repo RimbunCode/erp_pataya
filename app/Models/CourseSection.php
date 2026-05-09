@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\CourseNote;
 
 class CourseSection extends Model {
     use HasUlids;
-
     protected $guarded = ['id'];
 
     public function course(): BelongsTo {
@@ -18,5 +18,9 @@ class CourseSection extends Model {
 
     public function contents(): HasMany {
         return $this->hasMany(CourseContent::class, 'section_id')->orderBy('order');
+    }
+
+    public function notes() {
+        return $this->hasMany(CourseNote::class, 'section_id');
     }
 }

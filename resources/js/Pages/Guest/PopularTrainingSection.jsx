@@ -18,12 +18,20 @@ export function PopularTrainingSection() {
   }) {
     return (
       <div
-        className={`bg-white rounded-2xl shadow-md overflow-hidden flex flex-col group ${featured ? "scale-105 shadow-xl z-10" : ""}`}
+        className={`
+    bg-white rounded-2xl overflow-hidden flex flex-col group cursor-pointer
+    transition-all duration-500 ease-out
+    hover:-translate-y-3 hover:scale-[1.02] hover:shadow-2xl
+    ${featured ? "scale-105 shadow-xl z-10" : "shadow-md"}
+  `}
       >
         {/* Image — tambah overflow-hidden + scale di dalam */}
-        <div className="h-52 overflow-hidden">
+        <div className="h-40 overflow-hidden">
           <div
-            className={`w-full h-full ${image} bg-cover bg-center transition-transform duration-500 group-hover:scale-110`}
+            className={`w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-110`}
+            style={{
+              backgroundImage: `url(${image})`,
+            }}
           />
         </div>
 
@@ -122,7 +130,7 @@ export function PopularTrainingSection() {
       level: "Advanced",
       rating: 4.9,
       price: "2.500.000",
-      image: "bg-gradient-to-br from-gray-800 via-blue-900 to-gray-900",
+      image: "/images/bim.png",
     },
     {
       category: "Project Management",
@@ -136,7 +144,7 @@ export function PopularTrainingSection() {
       level: "Intermediate",
       rating: 4.8,
       price: "1.850.000",
-      image: "bg-gradient-to-br from-slate-500 via-slate-400 to-slate-600",
+      image: "/images/project-management.png",
       featured: true,
     },
     {
@@ -151,7 +159,7 @@ export function PopularTrainingSection() {
       level: "Advanced",
       rating: 4.9,
       price: "3.100.000",
-      image: "bg-gradient-to-br from-gray-300 via-slate-200 to-gray-400",
+      image: "/images/green-building.png",
     },
   ];
 

@@ -52,6 +52,7 @@ class CourseController extends Controller {
         $course = Course::with([
             'categories',
             'sections.contents',
+            'sections.notes',
         ])
             ->where('created_by', Auth::id())
             ->withCount('enrollments as students_count')
@@ -83,7 +84,12 @@ class CourseController extends Controller {
                         'deadline'    => $content->deadline?->format('d M Y'),
                         'is_optional' => $content->is_optional,
                         'order'       => $content->order,
+
                     ])->values(),
+                    'notes'    => $section->notes->map(fn ($note) => [
+                        'id'      => $note->id,
+                        'message' => $note->message,
+                    ]),
                 ])->values(),
             ],
         ]);

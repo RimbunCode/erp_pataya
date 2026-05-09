@@ -9,11 +9,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CourseNote extends Model {
     use HasUlids;
-
     protected $guarded = ['id'];
     protected $casts   = [
         'is_urgent' => 'boolean',
     ];
+
+    public function section() {
+        return $this->belongsTo(CourseSection::class, 'section_id');
+    }
 
     public function course(): BelongsTo {
         return $this->belongsTo(Course::class);

@@ -57,6 +57,18 @@ class ProfileController extends Controller {
         return back()->with('success', 'Profile updated successfully.');
     }
 
+    public function destroyImage() {
+        $user = Auth::user();
+
+        $image_id = $user->image;
+        $user->update([
+            'image' => null,
+        ]);
+        File::find($image_id)?->delete();
+
+        return back()->with('success', 'Image deleted successfully.');
+    }
+
     public function updateAvatar(Request $request) {
         DB::beginTransaction();
 

@@ -43,8 +43,4 @@ class Course extends Model {
     public function payments(): HasMany {
         return $this->hasMany(Payment::class);
     }
-
-    public function thumbnailFile(): BelongsTo {
-        return $this->belongsTo(File::class, 'thumbnail');
-    }
 }

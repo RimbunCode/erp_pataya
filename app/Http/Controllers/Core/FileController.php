@@ -24,8 +24,8 @@ class FileController extends Controller {
                 $files->where('parent_id', $request->folder ?? null);
             }
             $files->where(function ($query) use ($request) {
-                $query->where('user_id', $request->user()->id)
-                    ->orWhereNull('user_id');
+                $query->where('created_by_id', $request->user()->id)
+                    ->orWhereNull('created_by_id');
             });
 
             return response()->json($files->get());

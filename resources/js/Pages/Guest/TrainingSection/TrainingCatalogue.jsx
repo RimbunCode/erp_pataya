@@ -4,6 +4,7 @@ import { useState } from "react";
 import GuestLayout from "@/Layouts/GuestLayout";
 import Link from "@/Components/Link";
 import { router } from "@inertiajs/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function formatRp(amount) {
@@ -241,9 +242,25 @@ function CourseCard({
         onMouseLeave={() => setHovered(false)}
       >
         {/* Thumbnail */}
-        <div
-          className={`w-24 h-20 rounded-xl bg-gradient-to-br ${color} flex-shrink-0 flex items-center justify-center`}
-        >
+        <div className="w-20 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-600 to-indigo-700">
+          <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
+            {course.thumbnail && (
+              <AvatarImage
+                src={
+                  route("files.preview", course.thumbnail) +
+                  `?v=${new Date(course.updated_at).getTime()}`
+                }
+                alt={course.name}
+              />
+            )}
+            <AvatarFallback className="rounded-lg object-fit">
+              <img
+                src="/images/logo-default.png"
+                alt={course.title}
+                className="w-full h-full object-fill"
+              />
+            </AvatarFallback>
+          </Avatar>
           <span className="text-white text-[9px] font-black opacity-40 uppercase tracking-widest text-center px-1">
             {course.categories?.[0] ?? ""}
           </span>
@@ -607,7 +624,6 @@ export default function TrainingCatalogue({
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
 
-  // Filter aktif — sinkron ke server via Inertia
   const [activeFilters, setActiveFilters] = useState({
     search: initialFilters.search ?? "",
     level: initialFilters.level ?? "",

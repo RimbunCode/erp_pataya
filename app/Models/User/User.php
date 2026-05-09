@@ -7,6 +7,7 @@ namespace App\Models\User;
 use App\Casts\FormStatusCast;
 use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
+use App\Models\Core\File;
 use App\Models\InstructorProfile;
 use App\Models\StudentProfile;
 use App\Traits\DataTable;
@@ -118,5 +119,17 @@ class User extends Authenticatable {
 
     public function instructorProfile(): HasOne {
         return $this->hasOne(InstructorProfile::class);
+    }
+
+    public function imageFile() {
+        return $this->belongsTo(File::class, 'image');
+    }
+
+    public function getImageUrlAttribute() {
+        if (! $this->imageFile) {
+            return null;
+        }
+
+        return asset('storage/' . $this->imageFile->path);
     }
 }

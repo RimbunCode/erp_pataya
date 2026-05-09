@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 class MockAuthController extends Controller {
     // Data dummy per role
     private array $mockUsers = [
-        'student' => [
+        'student'      => [
             'id'       => '01MOCK000000000000STUDENT',
             'name'     => 'Budi Santoso',
             'nickname' => 'Budi',
@@ -16,34 +16,34 @@ class MockAuthController extends Controller {
             'role'     => 'student',
             'avatar'   => null,
         ], 'instructor' => [
-            'id'       => '01MOCK0000000INSTRUCTOR1',
-            'name'     => 'Dr. Siti Rahayu',
-            'nickname' => 'Siti',
-            'email'    => 'instructor@inkindo.test',
-            'role'     => 'instructor',
-            'avatar'   => null,
-        ], 'organization' => [
-            'id'       => '01MOCK000000ORGANIZATION',
-            'name'     => 'PT. Maju Bersama',
-            'nickname' => 'Maju Corp',
-            'email'    => 'org@inkindo.test',
-            'role'     => 'organization',
-            'avatar'   => null,
-        ], 'admin' => [
-            'id'       => '01MOCK00000000000ADMIN01',
-            'name'     => 'Administrator',
-            'nickname' => 'Admin',
-            'email'    => 'admin@inkindo.test',
-            'role'     => 'admin',
-            'avatar'   => null,
-        ], 'multi' => [
-            'id'       => '01MOCK000000000MULTIROLE',
-            'name'     => 'Ahmad Faisal',
-            'nickname' => 'Ahmad',
-            'email'    => 'multi@inkindo.test',
-            'roles'    => ['student', 'instructor'],
-            'avatar'   => null,
-        ],
+                'id'       => '01MOCK0000000INSTRUCTOR1',
+                'name'     => 'Dr. Siti Rahayu',
+                'nickname' => 'Siti',
+                'email'    => 'instructor@inkindo.test',
+                'role'     => 'instructor',
+                'avatar'   => null,
+            ], 'organization' => [
+                'id'       => '01MOCK000000ORGANIZATION',
+                'name'     => 'PT. Maju Bersama',
+                'nickname' => 'Maju Corp',
+                'email'    => 'org@inkindo.test',
+                'role'     => 'organization',
+                'avatar'   => null,
+            ], 'admin' => [
+                'id'       => '01MOCK00000000000ADMIN01',
+                'name'     => 'Administrator',
+                'nickname' => 'Admin',
+                'email'    => 'admin@inkindo.test',
+                'role'     => 'admin',
+                'avatar'   => null,
+            ], 'multi' => [
+                'id'       => '01MOCK000000000MULTIROLE',
+                'name'     => 'Ahmad Faisal',
+                'nickname' => 'Ahmad',
+                'email'    => 'multi@inkindo.test',
+                'roles'    => ['student', 'instructor'],
+                'avatar'   => null,
+            ],
     ];
 
     public function login(Request $request): RedirectResponse {

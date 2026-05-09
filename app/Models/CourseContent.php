@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 class CourseContent extends Model {
     use HasUlids;
-
     protected $guarded = ['id'];
     protected $casts   = [
         'is_optional' => 'boolean',
@@ -25,9 +24,8 @@ class CourseContent extends Model {
     }
 
     public function files(): MorphToMany {
-        return $this->morphToMany(File::class, 'fileable', 'fileables', 'fileable_id', 'file_id')
-            ->using(Fileable::class)
-            ->withTimestamps();
+        return $this->morphToMany(File::class, 'fileable')
+            ->whereNull('fileables.deleted_at');
     }
 
     public function submissions(): HasMany {

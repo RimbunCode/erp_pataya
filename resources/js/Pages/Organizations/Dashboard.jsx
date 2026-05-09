@@ -1,5 +1,3 @@
-// resources/js/Pages/Organization/Dashboard.jsx
-
 import { useState } from "react";
 import MainLayout from "@/Layouts/MainLayout";
 

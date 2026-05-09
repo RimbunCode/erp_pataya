@@ -9,6 +9,8 @@ use App\Traits\TreeView;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Auth;
 
 class File extends Model {
     use DataTable, HasUlids, SoftDeletes, TreeView;
@@ -50,11 +52,32 @@ class File extends Model {
     /**
      * Summary of uploadFile
      *
+     * @param  Request|UploadedFile $request
+     * @param string $folderName
      * @param  callable(File)  $onUploadedFile
      * @return void
      */
-    public static function uploadFile(Request $request, string $folderName, callable $onUploadedFile, array $defaultValue = [], ?string $maxFileSize = null) {
-        if ($request->has('filesId')) {
+    public static function uploadFile(mixed $request, string $folderName, callable $onUploadedFile, array $defaultValue = [], ?string $maxFileSize = null) {
+        if ($request instanceof UploadedFile) {
+            $folder    = File::firstOrCreate([
+                'name'      => $folderName,
+                'mime_type' => 'folder',
+            ]);
+            $user      = Auth::user();
+            $file      = $request;
+            $extension = $file->getClientOriginalExtension();
+            $file      = File::create([
+                'name'      => $file->getFilename(),
+                'path'      => $file->store('files'),
+                'is_public' => false,
+                'extension' => $extension,
+                'mime_type' => $file->getMimeType(),
+                'user_id'   => $user->id,
+                'parent_id' => $folder->id,
+                ...$defaultValue,
+            ]);
+            $onUploadedFile($file);
+        } elseif ($request->has('filesId')) {
             $validatedData = $request->validate([
                 'filesId'   => ['required', 'array'],
                 'filesId.*' => ['required', 'string', 'exists:files,id', $maxFileSize ? "max:$maxFileSize" : ''],

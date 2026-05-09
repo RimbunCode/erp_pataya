@@ -41,6 +41,7 @@ class TrainingController extends Controller {
                 'certificate_type' => $course->certificate_type,
                 'is_published'     => $course->is_published,
                 'instructor'       => $course->creator?->name,
+                'thumbnail'        => $course->thumbnail,
                 'categories'       => $course->categories->pluck('name'),
             ]);
 

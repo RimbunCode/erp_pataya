@@ -39,6 +39,7 @@ const FormCheckbox = React.forwardRef(
       classNameCheckbox,
       classNameLabel,
       children,
+      disabledRunningText = false,
       readOnly: _readOnly,
       ...props
     },
@@ -51,6 +52,8 @@ const FormCheckbox = React.forwardRef(
     const hasPlainLabel =
       typeof labelContent === "string" || typeof labelContent === "number";
 
+    const Comp = disabledRunningText ? "div" : RunningText;
+
     return (
       <div className={cn("flex min-w-0 items-center gap-2", className)}>
         <Checkbox
@@ -62,8 +65,8 @@ const FormCheckbox = React.forwardRef(
           readOnly={readOnly}
           {...props}
         />
-        <RunningText
-          asChild
+        <Comp
+          asChild={!disabledRunningText}
           className={cn(
             "min-w-0 flex-1 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70",
             classNameLabel,
@@ -76,7 +79,7 @@ const FormCheckbox = React.forwardRef(
           ) : (
             labelContent
           )}
-        </RunningText>
+        </Comp>
       </div>
     );
   },

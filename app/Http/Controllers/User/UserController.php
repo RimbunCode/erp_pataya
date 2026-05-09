@@ -96,8 +96,8 @@ class UserController extends Controller {
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
-            'user' => function () use ($user) {
-                $user->roles    = $user->roles()->pluck('id');
+            'user'     => function () use ($user) {
+                $user->load('roles:id,name');
                 $user->branches = $user->branches()->pluck('id');
 
                 return $user;
