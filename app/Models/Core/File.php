@@ -53,14 +53,13 @@ class File extends Model {
     /**
      * Summary of uploadFile
      *
-     * @param  Request|UploadedFile $request
-     * @param string $folderName
+     * @param  Request|UploadedFile  $request
      * @param  callable(File)  $onUploadedFile
      * @return void
      */
     public static function uploadFile(mixed $request, string $folderName, callable $onUploadedFile, array $defaultValue = [], ?string $maxFileSize = null) {
         if ($request instanceof UploadedFile) {
-            $folder    = File::firstOrCreate([
+            $folder = File::firstOrCreate([
                 'name'      => $folderName,
                 'mime_type' => 'folder',
             ]);

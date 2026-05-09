@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Core\File;
-use App\Models\Core\Fileable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 class CourseContent extends Model {
     use HasUlids;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'is_optional' => 'boolean',

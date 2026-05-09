@@ -42,7 +42,7 @@ class HandleInertiaRequests extends Middleware {
 
         return [
             ...parent::share($request),
-            'auth'  => [
+            'auth' => [
                 'user' => $sharedUser,
             ],
             'lang'  => $request->cookie('lang') ?? 'en',

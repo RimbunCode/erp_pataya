@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\User\User;
 
 class Cart extends Model {
     use HasUlids;
+
     protected $guarded = ['id'];
 
     public function user(): BelongsTo {

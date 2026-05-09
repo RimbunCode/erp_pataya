@@ -6,10 +6,10 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\CourseNote;
 
 class CourseSection extends Model {
     use HasUlids;
+
     protected $guarded = ['id'];
 
     public function course(): BelongsTo {

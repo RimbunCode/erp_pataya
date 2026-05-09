@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CourseNote extends Model {
     use HasUlids;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'is_urgent' => 'boolean',

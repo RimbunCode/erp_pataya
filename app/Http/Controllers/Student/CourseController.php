@@ -44,7 +44,7 @@ class CourseController extends Controller {
                 'image'          => $course->thumbnail
                     ? asset('storage/' . $course->thumbnail)
                     : null,
-                'inCart'         => in_array($course->id, $cartIds),
+                'inCart' => in_array($course->id, $cartIds),
             ]);
 
         $cartCourses = Course::with(['creator'])

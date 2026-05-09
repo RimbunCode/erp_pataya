@@ -10,7 +10,6 @@ use App\Models\CourseSection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 class CourseContentController extends Controller {
     // POST /instructor/classes/{courseId}/sections/{sectionId}/contents
@@ -55,7 +54,7 @@ class CourseContentController extends Controller {
     // POST /instructor/classes/{courseId}/sections/{sectionId}/contents/{id}/upload
     public function upload(Request $request, CourseContent $content) {
         DB::beginTransaction();
-        File::uploadFile($request, "Content File", function ($file) use ($content) {
+        File::uploadFile($request, 'Content File', function ($file) use ($content) {
             Fileable::create([
                 'fileable_id'   => $content->id,
                 'fileable_type' => CourseContent::class,
@@ -77,17 +76,20 @@ class CourseContentController extends Controller {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private function authorizedSection(string $courseId, string $sectionId): CourseSection {
-        return CourseSection::whereHas('course', fn ($q) =>
-            $q->where('created_by', Auth::id())->where('id', $courseId)
+        return CourseSection::whereHas(
+            'course',
+            fn ($q) => $q->where('created_by', Auth::id())->where('id', $courseId),
         )->findOrFail($sectionId);
     }
 
     private function authorizedContent(string $courseId, string $sectionId, string $id): CourseContent {
-        return CourseContent::whereHas('section', fn ($q) =>
-            $q->where('id', $sectionId)
-                ->whereHas('course', fn ($q2) =>
-                    $q2->where('created_by', Auth::id())->where('id', $courseId)
-                )
+        return CourseContent::whereHas(
+            'section',
+            fn ($q) => $q->where('id', $sectionId)
+                ->whereHas(
+                    'course',
+                    fn ($q2) => $q2->where('created_by', Auth::id())->where('id', $courseId),
+                ),
         )->findOrFail($id);
     }
 }

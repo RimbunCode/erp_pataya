@@ -87,7 +87,7 @@ class CourseController extends Controller {
                         'order'       => $content->order,
 
                     ])->values(),
-                    'notes'    => $section->notes->map(fn ($note) => [
+                    'notes' => $section->notes->map(fn ($note) => [
                         'id'      => $note->id,
                         'message' => $note->message,
                     ]),

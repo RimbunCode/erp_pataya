@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\CourseSection;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class CourseSectionController extends Controller {
     public function store(Request $request, Course $course) {

@@ -9,7 +9,6 @@ use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -17,12 +16,13 @@ class CourseController extends Controller {
     public function index(Request $request): Response {
         $courses = Course::with(['categories'])
             ->where('created_by', Auth::id())
-            ->when($request->search, fn ($q) =>
-                $q->where('title', 'like', "%{$request->search}%")
+            ->when(
+                $request->search,
+                fn ($q) => $q->where('title', 'like', "%{$request->search}%"),
             )
             ->when(
                 $request->status && $request->status !== 'all',
-                fn ($q) => $q->where('is_published', $request->status === 'published')
+                fn ($q) => $q->where('is_published', $request->status === 'published'),
             )
             ->withCount('enrollments as students_count')
             ->latest()
@@ -41,7 +41,7 @@ class CourseController extends Controller {
         $course->load(['categories', 'sections.contents']);
 
         return Inertia::render('Instructors/CourseDetail', [
-            'course'     => [
+            'course' => [
                 ...$this->mapCourse($course),
                 'sections' => $course->sections
                     ->sortBy('order')
@@ -189,7 +189,7 @@ class CourseController extends Controller {
 
         return back()->with(
             'success',
-            $course->is_published ? 'Course published.' : 'Course unpublished.'
+            $course->is_published ? 'Course published.' : 'Course unpublished.',
         );
     }
 
