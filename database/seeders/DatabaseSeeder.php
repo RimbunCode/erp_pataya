@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\Core\Tag;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -18,8 +17,5 @@ class DatabaseSeeder extends Seeder {
             CategorySeeder::class,
             CourseSeeder::class,
         ]);
-        if (config('app.debug')) {
-            Tag::factory(50)->create();
-        }
     }
 }
