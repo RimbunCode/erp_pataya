@@ -53,6 +53,7 @@ class CourseSeeder extends Seeder {
         // Course Note
         CourseNote::create([
             'id'         => Str::ulid(),
+            'section_id' => $section1->id,
             'course_id'  => $course1->id,
             'title'      => 'Schedule Update',
             'message'    => 'Live session on Chapter 2 has been moved to Friday, 15 Feb 2026 at 19:00 WIB.',
