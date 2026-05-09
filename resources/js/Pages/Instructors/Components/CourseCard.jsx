@@ -30,12 +30,12 @@ export default function CourseCard({ course }) {
               course.thumbnail
                 ? route("files.preview", course.thumbnail) +
                   `?v=${new Date(course.updated_at).getTime()}`
-                : "/images/logo-default.png"
+                : "/storage/images/logo-default.png"
             }
             alt={course.title}
             className="w-full h-full object-cover"
             onError={(e) => {
-              e.currentTarget.src = "/images/logo-default.png";
+              e.currentTarget.src = "/storage/images/logo-default.png";
             }}
           />
           {course.thumbnail && (

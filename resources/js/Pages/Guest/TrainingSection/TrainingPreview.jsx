@@ -683,7 +683,7 @@ export default function TrainingPreview({
               )}
               <AvatarFallback className="rounded-lg bg-transparent">
                 <img
-                  src="/images/logo-default.png"
+                  src="/storage/images/logo-default.png"
                   alt={course.title}
                   className="w-full h-full object-contain"
                 />

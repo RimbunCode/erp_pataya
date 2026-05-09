@@ -130,7 +130,7 @@ export function PopularTrainingSection() {
       level: "Advanced",
       rating: 4.9,
       price: "2.500.000",
-      image: "/images/bim.png",
+      image: "/storage/images/bim.png",
     },
     {
       category: "Project Management",
@@ -144,7 +144,7 @@ export function PopularTrainingSection() {
       level: "Intermediate",
       rating: 4.8,
       price: "1.850.000",
-      image: "/images/project-management.png",
+      image: "/storage/images/project-management.png",
       featured: true,
     },
     {
@@ -159,7 +159,7 @@ export function PopularTrainingSection() {
       level: "Advanced",
       rating: 4.9,
       price: "3.100.000",
-      image: "/images/green-building.png",
+      image: "/storage/images/green-building.png",
     },
   ];
 

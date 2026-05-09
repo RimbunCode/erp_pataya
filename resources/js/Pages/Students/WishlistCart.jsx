@@ -9,7 +9,7 @@ import CheckoutModal from "./Components/CheckoutModal";
 import CourseCard from "./Components/CourseCard";
 
 // Logo default perusahaan — ganti path sesuai asset kamu
-const DEFAULT_THUMBNAIL = "/images/logo-default.png";
+const DEFAULT_THUMBNAIL = "/storage/images/logo-default.png";
 
 // ── Main Page ─────────────────────────────────────
 export default function WishlistCart() {
