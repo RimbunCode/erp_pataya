@@ -194,7 +194,7 @@ function HeroSection() {
         <div className="flex-1 relative flex justify-center items-center min-h-[420px]">
           <div className="relative w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl">
             <img
-              src="/images/hero-bg.png"
+              src="/storage/images/hero-bg.png"
               alt="Engineering visualization"
               className="w-full aspect-[4/3] object-cover"
             />

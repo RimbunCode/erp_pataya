@@ -62,6 +62,8 @@ php artisan optimize
 # 7. Switch Symlink
 ln -sfn "$NEW_RELEASE" "$CURRENT"
 
+ln -sfn "$SHARED/storage/app/public" "$CURRENT/public/storage"
+
 # 8. Health check staging
 if ! curl -f "$DOMAIN/health" > /dev/null 2>&1; then
   echo "❌ Health check failed"

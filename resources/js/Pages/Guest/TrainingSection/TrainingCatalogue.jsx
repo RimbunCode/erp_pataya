@@ -257,7 +257,7 @@ function CourseCard({
             )}
             <AvatarFallback className="rounded-lg object-fit">
               <img
-                src="/images/logo-default.png"
+                src="/storage/images/logo-default.png"
                 alt={course.title}
                 className="w-full h-full object-fill"
               />
@@ -333,7 +333,7 @@ function CourseCard({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Thumbnail */}
-      <div className="h-69 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-600 to-indigo-700">
+      <div className="relative h-69 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-600 to-indigo-700">
         <Avatar className="relative w-full h-full border rounded-xl aspect-square  group">
           {course.thumbnail && (
             <AvatarImage
@@ -346,7 +346,7 @@ function CourseCard({
           )}
           <AvatarFallback className="rounded-lg ">
             <img
-              src="/images/logo-default.png"
+              src="/storage/images/logo-default.png"
               alt={course.title}
               className="w-full h-full object-contain"
             />
@@ -593,7 +593,7 @@ export default function TrainingCatalogue({
   const [search, setSearch] = useState(initialFilters.search ?? "");
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
-  const DEFAULT_THUMBNAIL = "/images/logo-default.png";
+  const DEFAULT_THUMBNAIL = "/storage/images/logo-default.png";
 
   const [activeFilters, setActiveFilters] = useState({
     search: initialFilters.search ?? "",

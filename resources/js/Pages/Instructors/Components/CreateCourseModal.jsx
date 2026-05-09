@@ -7,7 +7,7 @@ export default function CreateCourseModal({ categories, onClose }) {
   const [sections, setSections] = useState([
     { id: 1, title: "", contents: [] },
   ]);
-  const DEFAULT_THUMBNAIL = "/images/logo-default.png";
+  const DEFAULT_THUMBNAIL = "/storage/images/logo-default.png";
 
   const thumbnailRef = useRef();
   const [thumbnailPreview, setThumbnailPreview] = useState(null);

@@ -33,7 +33,7 @@ export default function CourseRow({ course }) {
           )}
           <AvatarFallback className="rounded-lg object-fit">
             <img
-              src="/images/logo-default.png"
+              src="/storage/images/logo-default.png"
               alt={course.title}
               className="w-full h-full object-fit"
             />
