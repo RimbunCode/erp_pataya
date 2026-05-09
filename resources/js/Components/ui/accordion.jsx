@@ -37,7 +37,7 @@ AccordionTrigger.displayName = AccordionPrimitive.Trigger.displayName;
 
 const AccordionTriggerCustom = React.forwardRef(
   ({ className, children, ...props }, ref) => (
-    <AccordionPrimitive.Header className="flex">
+    <AccordionPrimitive.Header className="flex-1">
       <AccordionPrimitive.Trigger
         ref={ref}
         className={cn(

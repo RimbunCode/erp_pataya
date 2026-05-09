@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { router, useForm } from "@inertiajs/react";
 import GuestLayout from "@/Layouts/GuestLayout";
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function formatRp(amount) {
@@ -670,15 +671,24 @@ export default function TrainingPreview({
         {/* ── Hero ── */}
         <div className="relative">
           <div className="absolute inset-0">
-            {course.image ? (
-              <img
-                src={course.image}
-                alt={course.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-gray-800 to-gray-900" />
-            )}
+            <Avatar className="relative w-full h-96 border rounded-xl aspect-square  group">
+              {course.thumbnail && (
+                <AvatarImage
+                  src={
+                    route("files.preview", course.thumbnail) +
+                    `?v=${new Date(course.updated_at).getTime()}`
+                  }
+                  alt={course.name}
+                />
+              )}
+              <AvatarFallback className="rounded-lg bg-transparent">
+                <img
+                  src="/images/logo-default.png"
+                  alt={course.title}
+                  className="w-full h-full object-contain"
+                />
+              </AvatarFallback>
+            </Avatar>
             <div className="absolute inset-0 bg-gradient-to-r from-gray-900/92 via-gray-900/70 to-gray-900/30" />
           </div>
 
