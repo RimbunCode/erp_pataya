@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Enrollment extends Model {
     use HasUlids;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'enrolled_at' => 'datetime',

@@ -2,9 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
-use App\Models\Course;
 use App\Models\Category;
+use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -14,11 +13,13 @@ class CourseController extends Controller {
     public function index(Request $request) {
         $courses = Course::with(['categories'])
             ->where('created_by', Auth::id())
-            ->when($request->search, fn ($q) =>
-                $q->where('title', 'like', "%{$request->search}%")
+            ->when(
+                $request->search,
+                fn ($q) => $q->where('title', 'like', "%{$request->search}%"),
             )
-            ->when($request->status && $request->status !== 'all', fn ($q) =>
-                $q->where('is_published', $request->status === 'published')
+            ->when(
+                $request->status && $request->status !== 'all',
+                fn ($q) => $q->where('is_published', $request->status === 'published'),
             )
             ->withCount('enrollments as students_count')
             ->latest()
@@ -196,8 +197,9 @@ class CourseController extends Controller {
         $course = Course::where('created_by', Auth::id())->findOrFail($id);
         $course->update(['is_published' => ! $course->is_published]);
 
-        return back()->with('success',
-            $course->is_published ? 'Course published.' : 'Course unpublished.'
+        return back()->with(
+            'success',
+            $course->is_published ? 'Course published.' : 'Course unpublished.',
         );
     }
 }
