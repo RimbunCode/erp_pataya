@@ -19,4 +19,8 @@ class CourseSection extends Model {
     public function contents(): HasMany {
         return $this->hasMany(CourseContent::class, 'section_id')->orderBy('order');
     }
+
+    public function notes() {
+        return $this->hasMany(CourseNote::class, 'section_id');
+    }
 }

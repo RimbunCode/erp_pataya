@@ -41,6 +41,7 @@ class TrainingController extends Controller {
                 'certificate_type' => $course->certificate_type,
                 'is_published'     => $course->is_published,
                 'instructor'       => $course->creator?->name,
+                'thumbnail'        => $course->thumbnail,
                 'categories'       => $course->categories->pluck('name'),
             ]);
 
@@ -53,15 +54,8 @@ class TrainingController extends Controller {
         ]);
     }
 
-    public function show(string $id) {
-        $course = Course::with([
-            'categories',
-            'creator',
-            'sections.contents',
-            'notes' => fn ($q) => $q->latest()->take(5),
-        ])
-            ->where('is_published', true)
-            ->findOrFail($id);
+    public function show(Course $course) {
+        $course->load(['categories', 'creator', 'sections.contents']);
 
         return Inertia::render('Guest/TrainingSection/TrainingPreview', [
             'course' => [
@@ -75,6 +69,7 @@ class TrainingController extends Controller {
                 'total_sessions'   => $course->total_sessions,
                 'certificate_type' => $course->certificate_type,
                 'instructor'       => $course->creator?->name,
+                'thumbnail'        => $course->thumbnail,
                 'categories'       => $course->categories->pluck('name'),
                 'sections'         => $course->sections->map(fn ($section) => [
                     'id'       => $section->id,

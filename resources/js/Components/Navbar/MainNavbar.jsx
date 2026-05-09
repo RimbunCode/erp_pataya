@@ -1,6 +1,10 @@
 // resources/js/Layouts/DashboardLayout/Header.jsx
 
 import Link from "@/Components/Link";
+import { usePage } from "@inertiajs/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
+import { useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 export default function MainNavbar({
   title,
@@ -13,6 +17,17 @@ export default function MainNavbar({
   onToggleDropdown,
   onLogout,
 }) {
+  const { auth } = usePage().props;
+  const user = auth.user;
+
+  const avatarSrc = useMemo(() => {
+    if (!user.image) return null;
+
+    return (
+      route("files.preview", user.image) +
+      `?v=${new Date(user.updated_at).getTime()}`
+    );
+  }, [user.image, user.updated_at]);
   return (
     <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 flex-shrink-0">
       {/* Left — title & breadcrumb */}
@@ -58,12 +73,20 @@ export default function MainNavbar({
             <div className="text-right">
               <p className="text-xs font-bold text-gray-800">{userName}</p>
               <p className="text-[9px] font-bold tracking-widest text-blue-500 uppercase">
-                {roleLabel}
+                {user?.roles?.join(", ")}
               </p>
             </div>
-            <div className="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-black">
-              {initials}
-            </div>
+            <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center">
+              <AvatarImage
+                src={avatarSrc}
+                alt={user?.name}
+                className="w-full h-full object-cover"
+              />
+
+              <AvatarFallback className="bg-blue-600 text-white text-sm font-black">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
           </div>
 
           {/* Dropdown */}

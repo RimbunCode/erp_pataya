@@ -192,95 +192,12 @@ function HeroSection() {
 
         {/* Right – image + floating cards */}
         <div className="flex-1 relative flex justify-center items-center min-h-[420px]">
-          {/* Main image placeholder */}
           <div className="relative w-full max-w-lg rounded-2xl overflow-hidden shadow-2xl">
-            <div className="aspect-[4/3] bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center">
-              {/* engineering/blueprint visual */}
-              <svg
-                viewBox="0 0 400 300"
-                className="w-full h-full opacity-40"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <rect width="400" height="300" fill="#cbd5e1" />
-                <rect
-                  x="30"
-                  y="40"
-                  width="340"
-                  height="220"
-                  fill="white"
-                  rx="4"
-                />
-                <line
-                  x1="30"
-                  y1="40"
-                  x2="370"
-                  y2="260"
-                  stroke="#93c5fd"
-                  strokeWidth="1"
-                />
-                <line
-                  x1="370"
-                  y1="40"
-                  x2="30"
-                  y2="260"
-                  stroke="#93c5fd"
-                  strokeWidth="1"
-                />
-                {[60, 120, 180, 240, 300, 360].map((x) => (
-                  <line
-                    key={x}
-                    x1={x}
-                    y1="40"
-                    x2={x}
-                    y2="260"
-                    stroke="#bfdbfe"
-                    strokeWidth="0.5"
-                  />
-                ))}
-                {[70, 110, 150, 190, 230].map((y) => (
-                  <line
-                    key={y}
-                    x1="30"
-                    y1={y}
-                    x2="370"
-                    y2={y}
-                    stroke="#bfdbfe"
-                    strokeWidth="0.5"
-                  />
-                ))}
-                <circle
-                  cx="200"
-                  cy="150"
-                  r="60"
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="2"
-                />
-                <circle
-                  cx="200"
-                  cy="150"
-                  r="40"
-                  fill="none"
-                  stroke="#3b82f6"
-                  strokeWidth="1"
-                  strokeDasharray="4"
-                />
-                <rect
-                  x="155"
-                  y="105"
-                  width="90"
-                  height="90"
-                  fill="none"
-                  stroke="#1d4ed8"
-                  strokeWidth="1.5"
-                />
-                <path
-                  d="M155 150 L245 150 M200 105 L200 195"
-                  stroke="#1d4ed8"
-                  strokeWidth="1"
-                />
-              </svg>
-            </div>
+            <img
+              src="/images/hero-bg.png"
+              alt="Engineering visualization"
+              className="w-full aspect-[4/3] object-cover"
+            />
           </div>
 
           {/* Top-right card */}

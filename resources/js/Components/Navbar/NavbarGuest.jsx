@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import Link from "../Link";
 import {
   useRolesSelectionModal,
@@ -6,6 +6,7 @@ import {
 } from "@/Layouts/GuestLayout";
 import ToggleTheme from "../ToggleTheme";
 import { router, usePage } from "@inertiajs/react";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export default memo(function NavbarGuest() {
   const { auth } = usePage().props;
@@ -34,6 +35,15 @@ export default memo(function NavbarGuest() {
     setDropdownOpen(false);
     router.post("/logout");
   };
+
+  const avatarSrc = useMemo(() => {
+    if (!user?.image) return null;
+
+    return (
+      route("files.preview", user.image) +
+      `?v=${new Date(user.updated_at).getTime()}`
+    );
+  }, [user?.image, user?.updated_at]);
 
   return (
     <header className="print:hidden sticky top-0 z-50 w-full bg-white border-b border-gray-200 shadow-sm">
@@ -108,9 +118,17 @@ export default memo(function NavbarGuest() {
                   onClick={() => setDropdownOpen((v) => !v)}
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white text-sm font-black flex-shrink-0">
-                    {initials}
-                  </div>
+                  <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center">
+                    <AvatarImage
+                      src={avatarSrc}
+                      alt={user?.name}
+                      className="w-full h-full object-cover"
+                    />
+
+                    <AvatarFallback className="bg-blue-600 text-white text-sm font-black">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="text-left hidden sm:block">
                     <p className="text-xs font-bold text-gray-800 leading-tight">
                       {user.name}

@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Core\File;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -42,9 +41,5 @@ class Course extends Model {
 
     public function payments(): HasMany {
         return $this->hasMany(Payment::class);
-    }
-
-    public function thumbnailFile(): BelongsTo {
-        return $this->belongsTo(File::class, 'thumbnail');
     }
 }

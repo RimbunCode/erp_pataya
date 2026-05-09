@@ -12,6 +12,7 @@ return new class extends Migration
         Schema::create('fileables', function (Blueprint $table) {
             $table->foreignUlid('file_id')->references('id')->on('files')->cascadeOnDelete();
             $table->ulidMorphs('fileable');
+            $table->text('description')->nullable();
             $table->timestamps();
             $table->softDeletes();
         });

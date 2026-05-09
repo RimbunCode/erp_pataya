@@ -15,6 +15,10 @@ class CourseNote extends Model {
         'is_urgent' => 'boolean',
     ];
 
+    public function section() {
+        return $this->belongsTo(CourseSection::class, 'section_id');
+    }
+
     public function course(): BelongsTo {
         return $this->belongsTo(Course::class);
     }

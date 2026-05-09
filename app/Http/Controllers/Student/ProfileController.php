@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\File;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ProfileController extends Controller {
@@ -13,20 +15,8 @@ class ProfileController extends Controller {
         $profile = $user->studentProfile;
 
         return Inertia::render('Students/ProfileSettings', [
-            'user' => [
-                'id'        => $user->id,
-                'name'      => $user->name,
-                'email'     => $user->email,
-                'phone'     => $user->phone,
-                'birthdate' => $user->birthdate?->format('Y-m-d'),
-                'gender'    => $user->gender,
-                'avatar'    => $user->avatar_url,
-            ],
-            'profile' => [
-                'institution'       => $profile?->institution,
-                'student_id_number' => $profile?->student_id_number,
-                'socials'           => $profile?->socials ?? [],
-            ],
+            'user'    => $user,
+            'profile' => $profile,
         ]);
     }
 
@@ -63,5 +53,38 @@ class ProfileController extends Controller {
         );
 
         return back()->with('success', 'Profile updated successfully.');
+    }
+
+    public function destroyImage() {
+        $user = Auth::user();
+
+        $image_id = $user->image;
+        $user->update([
+            'image' => null,
+        ]);
+        File::find($image_id)?->delete();
+
+        return back()->with('success', 'Image deleted successfully.');
+    }
+
+    public function updateAvatar(Request $request) {
+        DB::beginTransaction();
+
+        try {
+            $user = $request->user();
+
+            File::uploadFile($request, 'ImageProfile', function ($file) use ($user) {
+                $user->update([
+                    'image' => $file->id,
+                ]);
+            });
+
+            DB::commit();
+
+            return back();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
     }
 }

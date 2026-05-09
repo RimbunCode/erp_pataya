@@ -13,11 +13,16 @@ use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
-use App\Http\Controllers\CourseController;
+use App\Http\Controllers\Instructor\CourseContentController;
+use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
+use App\Http\Controllers\Instructor\CourseSectionController;
+use App\Http\Controllers\Instructor\CourseSectionNoteController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
 use App\Http\Controllers\MockAuthController;
 use App\Http\Controllers\ModelController;
-use App\Http\Controllers\Student\ProfileController;
+use App\Http\Controllers\Student\CartController;
+use App\Http\Controllers\Student\CourseController as StudentCourseController;
+use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Foundation\Application;
@@ -71,30 +76,56 @@ Route::get('/', function () {
 });
 
 Route::middleware(['auth'])->group(function () {
+
+    //     // Files
+    Route::resourceDetail('file', FileController::class);
+
     Route::prefix('/student')->group(function () {
         Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
         Route::get('/classes', fn () => inertia('Students/StudentCourseList'))->name('student.classes');
-        Route::get('/profile', [ProfileController::class, 'index'])->name('student.profile');
-        Route::put('/profile', [ProfileController::class, 'update'])->name('student.profile.update');
+        Route::get('/classEnrollment', [StudentCourseController::class, 'index'])->name('student.wishlistCart');
+        Route::post('/cart', [CartController::class, 'store'])->name('student.cart.store');
+        Route::delete('/cart/{courseId}', [CartController::class, 'destroy'])->name('student.cart.destroy');
+        Route::get('/profile', [StudentProfileController::class, 'index'])->name('student.profile');
+        Route::put('/profile', [StudentProfileController::class, 'update'])->name('student.profile.update');
         Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
-        Route::get('/classEnrollment', fn () => inertia('Students/WishlistCart'))->name('student.wishlistCart');
         Route::get('/training/{id}', fn ($id) => inertia('Students/TrainingDetail', ['courseId' => $id]))->name('student.training.detail');
     });
 
-    Route::prefix('/instructor')->group(function () {
-        Route::get('/dashboard', fn () => inertia('Instructors/Dashboard'))->name('instructor.dashboard');
-        Route::get('/classes', [CourseController::class, 'index'])->name('instructor.classes.index');
-        Route::post('/classes', [CourseController::class, 'store'])->name('instructor.classes.store');
-        Route::get('/classes/{id}', [CourseController::class, 'show'])->name('instructor.classes.show');
-        Route::get('/classes/{id}/edit', [CourseController::class, 'edit'])->name('instructor.classes.edit');
-        Route::put('/classes/{id}', [CourseController::class, 'update'])->name('instructor.classes.update');
-        Route::patch('/classes/{id}/toggle-publish', [CourseController::class, 'togglePublish'])->name('instructor.classes.togglePublish');
-        Route::get('/students', fn () => inertia('Instructors/StudentManagement'))->name('instructor.students');
-        Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('instructor.growth');
-        Route::get('/financial', fn () => inertia('Instructors/Financials'))->name('instructor.financial');
-        Route::get('/profile', [InstructorProfileController::class, 'index'])->name('instructor.profile');
-        Route::put('/profile', [InstructorProfileController::class, 'update'])->name('instructor.profile.update');
-        Route::post('/instructor/profile/avatar', [InstructorProfileController::class, 'updateAvatar'])->name('instructor.avatar.update');
+    Route::prefix('/instructor')->name('instructor.')->group(function () {
+
+        Route::get('/dashboard', fn () => inertia('Instructors/Dashboard'))->name('dashboard');
+        Route::prefix('classes')->name('classes.')->group(function () {
+            // Course CRUD
+            Route::get('/', [InstructorCourseController::class, 'index'])->name('index');
+            Route::post('/', [InstructorCourseController::class, 'store'])->name('store');
+            Route::get('/{course}', [InstructorCourseController::class, 'show'])->name('show');
+            Route::put('/{course}', [InstructorCourseController::class, 'update'])->name('update');
+            Route::post('/{course}/avatar', [InstructorCourseController::class, 'updateThumbnail'])->name('thumbnail.update');
+            Route::delete('/{course}/avatar', [InstructorCourseController::class, 'destroyThumbnail'])->name('thumbnail.delete');
+            Route::patch('/{course}/publish', [InstructorCourseController::class, 'togglePublish'])->name('togglePublish');
+            // Sections
+            Route::post('/{course}/sections', [CourseSectionController::class, 'store'])->name('sections.store');
+            Route::patch('/sections/{section}', [CourseSectionController::class, 'update'])->name('sections.update');
+            Route::delete('/sections/{section}', [CourseSectionController::class, 'destroy'])->name('sections.destroy');
+            // Notes (per section)
+            Route::post('/sections/{section}/notes', [CourseSectionNoteController::class, 'store'])->name('sections.notes.store');
+            Route::delete('/notes/{note}', [CourseSectionNoteController::class, 'destroy'])->name('sections.notes.destroy');
+            // Contents
+            Route::post('/sections/{section}/contents', [CourseContentController::class, 'store'])->name('sections.contents.store');
+            Route::patch('/contents/{content}', [CourseContentController::class, 'update'])->name('sections.contents.update');
+            Route::delete('/contents/{content}', [CourseContentController::class, 'destroy'])->name('sections.contents.destroy');
+            Route::post('/contents/{content}/upload', [CourseContentController::class, 'upload'])->name('sections.contents.upload');
+            Route::delete('/contents/{content}/files/{file}', [CourseContentController::class, 'destroyFile'])->name('sections.contents.files.destroy');
+        });
+        Route::get('/students', fn () => inertia('Instructors/StudentManagement'))->name('students');
+        Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('growth');
+        Route::get('/financial', fn () => inertia('Instructors/Financials'))->name('financial');
+
+        Route::get('/profile', [InstructorProfileController::class, 'index'])->name('profile');
+        Route::put('/profile', [InstructorProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/avatar', [InstructorProfileController::class, 'updateAvatar'])->name('avatar.update');
+        Route::delete('/profile/avatar', [InstructorProfileController::class, 'destroyImage'])->name('image.delete');
     });
 
     Route::prefix('/organization')->group(function () {

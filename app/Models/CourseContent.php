@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Models\Core\File;
-use App\Models\Core\Fileable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -25,9 +24,8 @@ class CourseContent extends Model {
     }
 
     public function files(): MorphToMany {
-        return $this->morphToMany(File::class, 'fileable', 'fileables', 'fileable_id', 'file_id')
-            ->using(Fileable::class)
-            ->withTimestamps();
+        return $this->morphToMany(File::class, 'fileable')
+            ->whereNull('fileables.deleted_at');
     }
 
     public function submissions(): HasMany {

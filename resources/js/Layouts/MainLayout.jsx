@@ -14,14 +14,9 @@ export default function MainLayout({
 }) {
   const { auth } = usePage().props;
   const user = auth?.user;
-  const role = user?.role ?? "student";
-
-  const userRoles = user?.roles?.length
-    ? user.roles
-    : user?.role
-      ? [user.role]
-      : ["student"];
+  const userRoles = user?.roles ?? [];
   const isMultiRole = userRoles.length > 1;
+  const role = userRoles[0]?.name;
 
   const initials = user?.nickname
     ? user.nickname.slice(0, 1).toUpperCase()
@@ -65,8 +60,6 @@ export default function MainLayout({
             breadcrumb={breadcrumb}
             initials={initials}
             userName={user?.name ?? "User"}
-            role={role}
-            roleLabel={roleLabel[role]}
             profileDropdown={profileDropdown}
             onToggleDropdown={() => setProfileDropdown((prev) => !prev)}
             onLogout={handleLogout}

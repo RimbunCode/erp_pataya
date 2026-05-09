@@ -56,6 +56,7 @@ export default memo(function FileItems({ files, folderId = null }) {
               value={file.id}
             >
               <FormCheckbox
+                disabledRunningText
                 checked={checklistFile.has(file.id)}
                 onCheckedChange={(val) => setChecklistFile(file.id, val)}
                 classNameLabel="flex items-center gap-x-2 overflow-hidden [&_svg]:size-5 group-hover:underline text-sm font-normal cursor-pointer"

@@ -4,6 +4,8 @@ import { useState } from "react";
 import GuestLayout from "@/Layouts/GuestLayout";
 import Link from "@/Components/Link";
 import { router } from "@inertiajs/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
+import { GitCompareArrowsIcon, PlusIcon, XIcon } from "lucide-react";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function formatRp(amount) {
@@ -228,6 +230,7 @@ function CourseCard({
   const color = thumbColors[index % thumbColors.length];
   const levelKey = course.level?.toLowerCase();
   const levelBg = levelColor[levelKey] ?? "bg-gray-400";
+  const DEFAULT_THUMB = "images/logo-default.png";
 
   const goToDetail = () =>
     router.visit(route("guest.training.preview", course.id));
@@ -241,9 +244,25 @@ function CourseCard({
         onMouseLeave={() => setHovered(false)}
       >
         {/* Thumbnail */}
-        <div
-          className={`w-24 h-20 rounded-xl bg-gradient-to-br ${color} flex-shrink-0 flex items-center justify-center`}
-        >
+        <div className="w-20 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-600 to-indigo-700">
+          <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
+            {course.thumbnail && (
+              <AvatarImage
+                src={
+                  route("files.preview", course.thumbnail) +
+                  `?v=${new Date(course.updated_at).getTime()}`
+                }
+                alt={course.name}
+              />
+            )}
+            <AvatarFallback className="rounded-lg object-fit">
+              <img
+                src="/images/logo-default.png"
+                alt={course.title}
+                className="w-full h-full object-fill"
+              />
+            </AvatarFallback>
+          </Avatar>
           <span className="text-white text-[9px] font-black opacity-40 uppercase tracking-widest text-center px-1">
             {course.categories?.[0] ?? ""}
           </span>
@@ -287,34 +306,10 @@ function CourseCard({
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200
                 ${isSelected ? "bg-blue-600 text-white" : canAdd ? "border border-gray-200 text-gray-400 hover:border-blue-400 hover:text-blue-500" : "border border-gray-100 text-gray-200 cursor-not-allowed"}`}
             >
-              {isSelected ? (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+              {!isSelected ? (
+                <GitCompareArrowsIcon className="w-4 h-4" />
               ) : (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
+                <XIcon className="w-4 h-4" />
               )}
             </button>
             <button
@@ -338,9 +333,25 @@ function CourseCard({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Thumbnail */}
-      <div
-        className={`relative h-52 bg-gradient-to-br ${color} flex items-end`}
-      >
+      <div className="h-69 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-600 to-indigo-700">
+        <Avatar className="relative w-full h-full border rounded-xl aspect-square  group">
+          {course.thumbnail && (
+            <AvatarImage
+              src={
+                route("files.preview", course.thumbnail) +
+                `?v=${new Date(course.updated_at).getTime()}`
+              }
+              alt={course.name}
+            />
+          )}
+          <AvatarFallback className="rounded-lg ">
+            <img
+              src="/images/logo-default.png"
+              alt={course.title}
+              className="w-full h-full object-contain"
+            />
+          </AvatarFallback>
+        </Avatar>
         <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
           <span
             className={`px-3 py-1 rounded-full text-[10px] font-extrabold tracking-widest uppercase text-white ${levelBg}`}
@@ -436,34 +447,10 @@ function CourseCard({
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200
                 ${isSelected ? "bg-blue-600 text-white shadow-md shadow-blue-200" : canAdd ? "border-2 border-gray-200 text-gray-400 hover:border-blue-400 hover:text-blue-500" : "border-2 border-gray-100 text-gray-200 cursor-not-allowed"}`}
             >
-              {isSelected ? (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
+              {!isSelected ? (
+                <GitCompareArrowsIcon className="w-4 h-4" />
               ) : (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 4v16m8-8H4"
-                  />
-                </svg>
+                <XIcon className="w-4 h-4" />
               )}
             </button>
             <button
@@ -606,8 +593,8 @@ export default function TrainingCatalogue({
   const [search, setSearch] = useState(initialFilters.search ?? "");
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
+  const DEFAULT_THUMBNAIL = "/images/logo-default.png";
 
-  // Filter aktif — sinkron ke server via Inertia
   const [activeFilters, setActiveFilters] = useState({
     search: initialFilters.search ?? "",
     level: initialFilters.level ?? "",

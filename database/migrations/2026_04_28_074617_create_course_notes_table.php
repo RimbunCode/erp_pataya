@@ -12,6 +12,7 @@ return new class extends Migration
         Schema::create('course_notes', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->foreignUlid('course_id')->references('id')->on('courses')->cascadeOnDelete();
+            $table->foreignUlid('section_id')->references('id')->on('course_sections')->cascadeOnDelete();
             $table->string('title');
             $table->text('message');
             $table->string('type');

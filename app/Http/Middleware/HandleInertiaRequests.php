@@ -33,8 +33,9 @@ class HandleInertiaRequests extends Middleware {
         $sharedUser = null;
 
         if ($user) {
-            $sharedUser          = $user->toArray();
-            $sharedUser['roles'] = $user->roles->pluck('name')->toArray();
+            $sharedUser              = $user->toArray();
+            $sharedUser['image_url'] = $user->image_url;
+            $sharedUser['roles']     = $user->roles->pluck('name')->toArray();
         } elseif ($request->session()->get('mock_auth')) {
             $sharedUser = $request->session()->get('mock_user');
         }
