@@ -227,7 +227,7 @@ trait DataTable {
         return array_values(array_diff($keys, $except));
     }
 
-    protected function logableFields() {
+    public function logableFields() {
         return $this->getDefaultLogableField();
     }
 

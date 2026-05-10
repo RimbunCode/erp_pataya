@@ -1,0 +1,72 @@
+<?php
+
+namespace DummyNamespace;
+
+use App\Services\Migration\BaseMigrator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+
+class DummyClass extends BaseMigrator
+{
+    /**
+     * Nama tabel sumber di database legacy.
+     */
+    protected string $sourceTable = 'dummy_source_table';
+
+    /**
+     * Model tujuan untuk pencatatan Log (contoh: \App\Models\Inventory\Item::class)
+     */
+    protected string $targetModel = 'App\Models\DummyModel';
+
+    /**
+     * Execute the migration logic.
+     */
+    public function migrate(): void
+    {
+        $this->log("Memulai migrasi untuk tabel: {$this->sourceTable}");
+
+        // Menggunakan chunk(500) agar tidak memberatkan RAM/Memori saat data sangat besar
+        DB::connection($this->sourceConnection)
+            ->table($this->sourceTable)
+            ->orderBy('id') // Ubah 'id' dengan nama Primary Key di legacy jika berbeda
+            ->chunk(500, function ($records) {
+                
+                foreach ($records as $record) {
+                    // Transformasi data sekaligus menangani perbedaan tipe data dan RELASI
+                    $mappedData = $this->transform((array) $record, [
+                        'nama_kolom_baru_teks' => 'kolom_lama_teks',
+                        
+                        // Jika tipe data berbeda (misal: String ke Integer), gunakan Fungsi (Closure)
+                        'kolom_baru_angka' => function($row) {
+                            return (int) $row['kolom_lama_string'];
+                        },
+                        'is_active' => function($row) {
+                            return $row['status_kode'] === 'AKTIF' ? true : false;
+                        },
+
+                        // CARA MENANGANI RELASI (Foreign Key)
+                        'customer_id' => function($row) {
+                            return $this->getNewId('customers', $row['old_customer_id']); 
+                        }
+                    ]);
+
+                    // Assign ULID baru
+                    $newUlid = (string) Str::ulid();
+                    $mappedData['id'] = $newUlid;
+
+                    // Simpan ke database baru
+                    // DB::table('new_table_name')->insert($mappedData);
+
+                    // Simpan pemetaan ID untuk menjaga relasi
+                    $this->mapId($this->sourceTable, $record->id, $newUlid);
+
+                    // Mencatat aktivitas ke Log (App\Models\Core\Log)
+                    // $this->recordModelLog($this->targetModel, $newUlid, $mappedData);
+                }
+                
+                $this->log("Berhasil memproses " . count($records) . " baris...");
+            });
+
+        $this->log("Migrasi {$this->sourceTable} selesai sepenuhnya.");
+    }
+}

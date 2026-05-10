@@ -52,8 +52,12 @@ class ItemController extends Controller {
         $data                    = $request->validated();
         $data['category_id']     = $data['category']['id'];
         $data['default_unit_id'] = $data['default_unit']['id'];
+        $data['uoms']            = $this->service->sanitizeUoms($data['default_unit_id'], $data['uoms'] ?? []);
 
-        $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn ($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+        $data['conversion_factor'] = $this->service->resolveDefaultUnitConversionFactor(
+            $data['default_unit_id'],
+            $data['uoms'],
+        );
 
         DB::beginTransaction();
         $category              = Category::find($data['category_id']);
@@ -88,9 +92,10 @@ class ItemController extends Controller {
         }
 
         return Inertia::render('Inventory/Items/Show', [
-            'item' => function () use ($item) {
+            'item'     => function () use ($item) {
                 $item->loadRelations();
-                $itemArray = $item->toArray();
+                $item->uoms = $item->uoms();
+                $itemArray  = $item->toArray();
 
                 $variant = $item->variants
                     ->whereNull('format_variant')
@@ -127,8 +132,14 @@ class ItemController extends Controller {
         $data['category_id'] = $data['category']['id'];
         if (! $item->have_transactions) {
             $data['default_unit_id'] = $data['default_unit']['id'];
+        } else {
+            $data['default_unit_id'] = $item->default_unit_id;
         }
-        $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn ($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+        $data['uoms']              = $this->service->sanitizeUoms($data['default_unit_id'], $data['uoms'] ?? []);
+        $data['conversion_factor'] = $this->service->resolveDefaultUnitConversionFactor(
+            $data['default_unit_id'],
+            $data['uoms'],
+        );
 
         DB::beginTransaction();
         Unit::find($item->default_unit_id)->updateHaveTransactions();

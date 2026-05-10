@@ -32,6 +32,7 @@ const Select = memo(
       required,
       readOnly,
       onKeyDown,
+      onSearchChange,
       optionTrans,
       options: _options,
     },
@@ -40,22 +41,24 @@ const Select = memo(
     const { t } = useLaravelReactI18n();
     const [search, setSearch] = useState("");
     const oriOptions = useMemo(() => {
-      const options = _options?.map((x) => {
-        const label =
-          typeof x === "object" && x.label
-            ? x.label
-            : x.titleTrans
-              ? t(x.titleTrans)
-              : optionTrans
-                ? t(`${optionTrans}.${x.value ?? x}`)
-                : (x.value ?? x);
+      const options = _options
+        ?.filter((x) => x)
+        ?.map((x) => {
+          const label =
+            typeof x === "object" && x.label
+              ? x.label
+              : x.titleTrans
+                ? t(x.titleTrans)
+                : optionTrans
+                  ? t(`${optionTrans}.${x.value ?? x}`)
+                  : (x.value ?? x);
 
-        const value = typeof x === "object" ? x.value : x;
-        return {
-          label,
-          value,
-        };
-      });
+          const value = typeof x === "object" ? x.value : x;
+          return {
+            label,
+            value,
+          };
+        });
       return options;
     }, [_options, optionTrans, t]);
 
@@ -233,8 +236,9 @@ const Select = memo(
                         required={required}
                         value={search}
                         onChange={(e) => {
-                          // setAllowSearch(true);
-                          setSearch(e.target.value);
+                          const newSearch = e.target.value;
+                          setSearch(newSearch);
+                          onSearchChange?.(newSearch);
                         }}
                         className={cn(
                           "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0!  focus-visible:ring-0! focus-visible:ring-offset-0!  ",
@@ -255,6 +259,7 @@ const Select = memo(
                             onClick={() => {
                               setOption(null);
                               setSearch("");
+                              onSearchChange?.("");
                             }}
                           >
                             <XIcon className="size-3" />

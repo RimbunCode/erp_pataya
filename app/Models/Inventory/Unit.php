@@ -19,6 +19,14 @@ class Unit extends Model {
         return ':name (:code)';
     }
 
+    public function getGroupAttribute(?string $value): string {
+        return $value ?? 'Others';
+    }
+
+    public function setGroupAttribute(?string $value): void {
+        $this->attributes['group'] = $value === 'Others' ? null : $value;
+    }
+
     public string $formComponent = 'Inventory/Units/Form';
     public string $translateKey  = 'inventory.unit';
     protected $configColumns     = [

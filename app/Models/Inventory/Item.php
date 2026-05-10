@@ -7,11 +7,9 @@ use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\DB;
 
 class Item extends Model {
     use DataTable, HasUlids, SoftDeletes;
-
     protected $guarded = ['id'];
     protected $casts   = [
         'is_disabled'            => 'boolean',
@@ -34,26 +32,25 @@ class Item extends Model {
             'barcodes',
         ];
     }
-
     public string $formComponent = 'Inventory/Items/Form';
     public string $translateKey  = 'inventory.item';
-    protected $configColumns     = [
-        'image_id' => [
+    protected     $configColumns = [
+        'image_id'          => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
             'width' => 'fit',
         ],
-        'code' => [
+        'code'              => [
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
         ],
-        'name' => [
+        'name'              => [
             'show'  => true,
             'order' => 1,
         ],
-        'category' => [
+        'category'          => [
             'type'  => 'relation',
             'show'  => true,
             'order' => 2,
@@ -91,30 +88,49 @@ class Item extends Model {
         }
     }
 
-    protected function uoms() {
-        $uom = Unit::joinSub(
-            DB::table(Unit::getTableName())
-                ->select('group')
-                ->where('id', $this->default_unit_id)
-                ->limit(1),
-            'target_group',
-            function ($join) {
-                $join->on('units.group', '=', 'target_group.group');
-            },
-        )
-            ->selectRaw('*,ISNULL(`conversion_factor`) AS `isCustom`')
-            ->get();
-        $uomIds = $this->uom->pluck('unit_id');
+    public function uoms() {
+        $uoms = $this->uom()
+            ->orderBy('order', 'asc')
+            ->get()
+            ->filter(fn (ItemUnit $itemUom) => $itemUom->unit !== null)
+            ->map(function (ItemUnit $itemUom) {
+                $isManual               = $itemUom->is_manual;
+                $generatedByDefaultUnit = $itemUom->generated_by_default_unit === true;
+                $readOnly               = $generatedByDefaultUnit || ($isManual !== null ? $isManual === false : false);
+                $conversionFactor       = $itemUom->conversion_factor;
 
-        return $uom->map(function (Unit $uom) use ($uomIds) {
-            $uom->isCustom = $uom->isCustom == 1;
-            $uom->readOnly = $uom->isCustom == 0;
-            if (\in_array($uom->id, $uomIds->toArray())) {
-                $uom->conversion_factor = $this->uom->where('unit_id', $uom->id)->first()->conversion_factor;
-            }
+                return [
+                    ...$itemUom->unit->toArray(),
+                    'conversion_factor'      => $conversionFactor,
+                    'isCustom'               => $conversionFactor === null,
+                    'isManual'               => $isManual === true,
+                    'generatedByDefaultUnit' => $generatedByDefaultUnit,
+                    'readOnly'               => $readOnly,
+                ];
+            })
+            ->values();
 
-            return $uom;
-        })->reject(fn (Unit $uom) => $uom->isCustom && $uom->conversion_factor == null);
+        if (! $this->default_unit_id || $uoms->contains(fn ($uom) => ($uom['id'] ?? null) === $this->default_unit_id)) {
+            return $uoms;
+        }
+
+        $defaultUnit = $this->defaultUnit;
+        if (! $defaultUnit) {
+            return $uoms;
+        }
+
+        $defaultConversionFactor = $this->conversion_factor ?? $defaultUnit->conversion_factor;
+
+        return $uoms
+            ->prepend([
+                ...$defaultUnit->toArray(),
+                'conversion_factor'      => $defaultConversionFactor,
+                'isCustom'               => $defaultConversionFactor === null,
+                'isManual'               => false,
+                'generatedByDefaultUnit' => true,
+                'readOnly'               => true,
+            ])
+            ->values();
     }
 
     public function category() {

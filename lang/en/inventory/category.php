@@ -11,11 +11,13 @@ return [
     'cancel'             => 'Cancel',
     'category'           => 'Category',
     'columns'            => [
-        'name'             => 'Name',
-        'type'             => 'Type',
-        'type.placeholder' => 'Select a type',
+        'name'                     => 'Name',
+        'type'                     => 'Type',
+        'type.placeholder'         => 'Select a type',
+        'default_unit'             => 'Default Unit',
+        'default_unit.placeholder' => 'Select a default unit',
     ],
-    'types'              => [
+    'types' => [
         'inventory' => 'Inventory',
         'vehicle'   => 'Vehicle',
         'service'   => 'Service',

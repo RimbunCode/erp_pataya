@@ -29,5 +29,20 @@ class Category extends Model {
             'order'      => 1,
             'valueTrans' => 'inventory.category.types',
         ],
+        'defaultUnit' => [
+            'show'       => true,
+            'order'      => 2,
+            'valueTrans' => 'inventory.category.default_unit',
+        ],
     ];
+
+    protected static function loadRelationsOnShow() {
+        return [
+            'defaultUnit',
+        ];
+    }
+
+    public function defaultUnit() {
+        return $this->belongsTo(Unit::class, 'default_unit_id');
+    }
 }

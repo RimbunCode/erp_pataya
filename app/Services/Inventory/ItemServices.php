@@ -5,6 +5,7 @@ namespace App\Services\Inventory;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Unit;
+use Illuminate\Support\Collection;
 
 class ItemServices {
     /**
@@ -29,20 +30,140 @@ class ItemServices {
         return $result;
     }
 
+    public function sanitizeUoms(?string $defaultUnitId, array $uoms): array {
+        if (! $defaultUnitId) {
+            return [];
+        }
+
+        $unitIds = array_values(array_unique(array_filter([
+            ...array_column($uoms, 'id'),
+            $defaultUnitId,
+        ])));
+
+        /** @var Collection<string, Unit> $units */
+        $units = Unit::query()
+            ->whereIn('id', $unitIds)
+            ->get()
+            ->keyBy('id');
+
+        $defaultUnit = $units->get($defaultUnitId);
+        if (! $defaultUnit) {
+            return [];
+        }
+
+        $defaultGroup          = $this->normalizeUnitGroup($defaultUnit->getRawOriginal('group'));
+        $primaryNonOthersGroup = $defaultGroup;
+        $normalizedUoms        = [];
+
+        foreach ($uoms as $uom) {
+            $unitId = $uom['id'] ?? null;
+            if (! \is_string($unitId)) {
+                continue;
+            }
+
+            $unit = $units->get($unitId);
+            if (! $unit) {
+                continue;
+            }
+
+            $unitGroup = $this->normalizeUnitGroup($unit->getRawOriginal('group'));
+            if (! $primaryNonOthersGroup && $unitGroup) {
+                $primaryNonOthersGroup = $unitGroup;
+            }
+
+            $normalizedUoms[$unitId] = [
+                'id'                     => $unitId,
+                'conversion_factor'      => $this->normalizeConversionFactor($uom['conversion_factor'] ?? null),
+                'isManual'               => array_key_exists('isManual', $uom) ? (bool) $uom['isManual'] : null,
+                'generatedByDefaultUnit' => array_key_exists('generatedByDefaultUnit', $uom) ? (bool) $uom['generatedByDefaultUnit'] : null,
+            ];
+        }
+
+        $filteredUoms = [];
+        foreach ($normalizedUoms as $unitId => $uom) {
+            $unit = $units->get($unitId);
+            if (! $unit) {
+                continue;
+            }
+
+            $unitGroup = $this->normalizeUnitGroup($unit->getRawOriginal('group'));
+            $isDefault = $unitId === $defaultUnitId;
+            $isOthers  = $unitGroup === null;
+            $inPrimary = $primaryNonOthersGroup && $unitGroup === $primaryNonOthersGroup;
+
+            if (! ($isDefault || $isOthers || $inPrimary)) {
+                continue;
+            }
+
+            $filteredUoms[$unitId] = $uom;
+        }
+
+        if (! \array_key_exists($defaultUnitId, $filteredUoms)) {
+            $filteredUoms = [
+                $defaultUnitId => [
+                    'id'                     => $defaultUnitId,
+                    'conversion_factor'      => $this->normalizeConversionFactor($defaultUnit->conversion_factor),
+                    'isManual'               => false,
+                    'generatedByDefaultUnit' => true,
+                ],
+                ...$filteredUoms,
+            ];
+        }
+
+        return array_values($filteredUoms);
+    }
+
+    public function resolveDefaultUnitConversionFactor(?string $defaultUnitId, array $uoms): ?float {
+        if (! $defaultUnitId) {
+            return null;
+        }
+
+        $defaultUom = collect($uoms)->first(fn ($uom) => ($uom['id'] ?? null) === $defaultUnitId);
+
+        if ($defaultUom) {
+            return $this->normalizeConversionFactor($defaultUom['conversion_factor'] ?? null);
+        }
+
+        $fallback = Unit::query()
+            ->where('id', $defaultUnitId)
+            ->value('conversion_factor');
+
+        return $this->normalizeConversionFactor($fallback);
+    }
+
     public function updateUom(Item $item, array $uoms) {
         Unit::whereIn('id', array_column($uoms, 'id'))->update(['have_transactions' => 1]);
-        foreach ($uoms as $uom) {
+        foreach ($uoms as $order => $uom) {
             $item->uom()->updateOrCreate([
                 'unit_id' => $uom['id'],
             ], [
-                'conversion_factor' => $uom['conversion_factor'],
+                'order'                     => $order,
+                'conversion_factor'         => $this->normalizeConversionFactor($uom['conversion_factor'] ?? null),
+                'is_manual'                 => \array_key_exists('isManual', $uom) ? (bool) $uom['isManual'] : null,
+                'generated_by_default_unit' => \array_key_exists('generatedByDefaultUnit', $uom) ? (bool) $uom['generatedByDefaultUnit'] : null,
             ]);
         }
         foreach ($item->uom as $uom) {
-            if (! in_array($uom->unit_id, array_column($uoms, 'id'))) {
+            if (! \in_array($uom->unit_id, array_column($uoms, 'id'))) {
                 $uom->delete();
             }
         }
+    }
+
+    private function normalizeUnitGroup(mixed $group): ?string {
+        if ($group === null || $group === '' || $group === 'Others') {
+            return null;
+        }
+
+        return (string) $group;
+    }
+
+    private function normalizeConversionFactor(mixed $value): ?float {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return (float) $value;
     }
 
     public function updateVariants(Item $item, string $formatVariants, array $attributes) {
@@ -204,7 +325,7 @@ class ItemServices {
                 continue;
             }
 
-            $model = $variant->barcodes()->updateOrCreate(
+            $model     = $variant->barcodes()->updateOrCreate(
                 ['barcode' => $barcode['barcode']],
                 $payload,
             );

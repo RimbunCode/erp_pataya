@@ -1,15 +1,19 @@
-import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
+import { FormPageContent } from "@/Pages/Core/FormPage";
 import { memo, useMemo } from "react";
 
 import FormTable from "@/Components/FormTable";
 import React from "react";
 import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
-export default memo(function FormBarcodes({ disabled, isVariant = false }) {
-  const { data, setData } = useFormPage();
-  const item = usePage().props.item;
+export default memo(function FormBarcodes({
+  disabled,
+  isVariant = false,
+  item = null,
+  barcodes = [],
+  defaultUnitGroup = null,
+  onBarcodesChange,
+}) {
   const { t } = useLaravelReactI18n();
   const barcodeColumns = useMemo(
     () => [
@@ -32,21 +36,17 @@ export default memo(function FormBarcodes({ disabled, isVariant = false }) {
                 setData("unit", val);
               }}
               filters={{
-                group: isVariant
-                  ? item?.default_unit?.group
-                  : data?.default_unit?.group,
+                group: isVariant ? item?.default_unit?.group : defaultUnitGroup,
               }}
               defaultValueForm={{
-                group: isVariant
-                  ? item?.default_unit?.group
-                  : data?.default_unit?.group,
+                group: isVariant ? item?.default_unit?.group : defaultUnitGroup,
               }}
             />
           );
         },
       },
     ],
-    [isVariant, data, item],
+    [defaultUnitGroup, isVariant, item],
   );
   return (
     <FormPageContent
@@ -57,9 +57,9 @@ export default memo(function FormBarcodes({ disabled, isVariant = false }) {
       <FormTable
         disabled={disabled}
         columns={barcodeColumns}
-        value={data.barcodes ?? []}
+        value={barcodes ?? []}
         onValueChange={(val) => {
-          setData("barcodes", val);
+          onBarcodesChange?.(val);
         }}
       />
     </FormPageContent>
