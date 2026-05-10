@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { formatRp } from "../Utils/formatRp";
 import { useState } from "react";
 export default function CourseCard({
@@ -18,11 +19,24 @@ export default function CourseCard({
         onMouseLeave={() => setHovered(false)}
       >
         <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0">
-          <img
-            src={course.image}
-            alt={course.title}
-            className="w-full h-full object-cover"
-          />
+          <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
+            {course.thumbnail && (
+              <AvatarImage
+                src={
+                  route("files.preview", course.thumbnail) +
+                  `?v=${new Date(course.updated_at).getTime()}`
+                }
+                alt={course.name}
+              />
+            )}
+            <AvatarFallback className="rounded-lg">
+              <img
+                src="/storage/images/logo-default.png"
+                alt={course.title}
+                className="w-full h-full object-contain"
+              />
+            </AvatarFallback>
+          </Avatar>
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-black text-gray-800 uppercase tracking-wide leading-tight">
@@ -79,23 +93,25 @@ export default function CourseCard({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Image */}
-      <div className="relative h-44 overflow-hidden">
-        <img
-          src={course.image}
-          alt={course.title}
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-        <div className="absolute top-3 left-3 flex items-center gap-1.5">
-          {course.tags.map((tag) => (
-            <span
-              key={tag}
-              className="px-2.5 py-1 rounded-full text-[9px] font-extrabold tracking-widest uppercase bg-white/20 backdrop-blur-sm text-white"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
+      <div className="relative h-100 overflow-hidden">
+        <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
+          {course.thumbnail && (
+            <AvatarImage
+              src={
+                route("files.preview", course.thumbnail) +
+                `?v=${new Date(course.updated_at).getTime()}`
+              }
+              alt={course.name}
+            />
+          )}
+          <AvatarFallback className="rounded-lg">
+            <img
+              src="/storage/images/logo-default.png"
+              alt={course.title}
+              className="w-full h-auto object-contain"
+            />
+          </AvatarFallback>
+        </Avatar>
         <div className="absolute bottom-3 left-3 flex items-center gap-1">
           {[1, 2, 3, 4, 5].map((s) => (
             <svg

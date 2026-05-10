@@ -318,6 +318,10 @@ const MasterLayout = memo(({ children }) => {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [isDebug]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-role", "student");
+  }, []);
   return (
     <>
       <TooltipProvider>{children}</TooltipProvider>

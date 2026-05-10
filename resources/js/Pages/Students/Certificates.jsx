@@ -522,7 +522,6 @@ function CertRow({ cert, onVerify }) {
 // ── Page ─────────────────────────────────────────
 export default function Certificates() {
   const [search, setSearch] = useState("");
-  const [showAdd, setShowAdd] = useState(false);
   const [verifyTarget, setVerifyTarget] = useState(null);
 
   const filtered = certificates.filter((c) =>
@@ -553,27 +552,6 @@ export default function Certificates() {
                 className="pl-9 pr-4 py-2.5 text-xs bg-white border border-gray-350 rounded-xl w-52 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-600"
               />
             </div>
-
-            {/* Add Button */}
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold tracking-widest uppercase rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Add Certificate
-            </button>
           </div>
         </div>
 
@@ -592,14 +570,6 @@ export default function Certificates() {
           )}
         </div>
       </div>
-
-      {showAdd && <AddCertificateModal onClose={() => setShowAdd(false)} />}
-      {verifyTarget && (
-        <VerifyModal
-          cert={verifyTarget}
-          onClose={() => setVerifyTarget(null)}
-        />
-      )}
     </MainLayout>
   );
 }

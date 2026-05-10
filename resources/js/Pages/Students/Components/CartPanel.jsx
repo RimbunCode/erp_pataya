@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { formatRp } from "../Utils/formatRp";
 import useCart from "@/Hooks/useCart";
 import { useState } from "react";
@@ -153,11 +154,24 @@ export default function CartPanel({
 
                   {/* Thumbnail */}
                   <div className="w-14 h-12 rounded-xl overflow-hidden flex-shrink-0">
-                    <img
-                      src={item.image}
-                      alt={item.title}
-                      className="w-full h-full object-cover"
-                    />
+                    <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
+                      {cartItems.thumbnail && (
+                        <AvatarImage
+                          src={
+                            route("files.preview", cartItems.thumbnail) +
+                            `?v=${new Date(cartItems.updated_at).getTime()}`
+                          }
+                          alt={cartItems.name}
+                        />
+                      )}
+                      <AvatarFallback className="rounded-lg object-fit">
+                        <img
+                          src="/storage/images/logo-default.png"
+                          alt={cartItems.title}
+                          className="w-full h-full object-fit"
+                        />
+                      </AvatarFallback>
+                    </Avatar>
                   </div>
 
                   {/* Info */}

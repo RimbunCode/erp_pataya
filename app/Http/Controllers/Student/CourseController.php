@@ -41,10 +41,10 @@ class CourseController extends Controller {
                 'instructor'     => $course->creator?->name,
                 'categories'     => $course->categories->pluck('name'),
                 'tags'           => $course->categories->pluck('name')->take(2)->toArray(),
-                'image'          => $course->thumbnail
+                'thumbnail'      => $course->thumbnail
                     ? asset('storage/' . $course->thumbnail)
                     : null,
-                'inCart' => in_array($course->id, $cartIds),
+                'inCart'         => in_array($course->id, $cartIds),
             ]);
 
         $cartCourses = Course::with(['creator'])

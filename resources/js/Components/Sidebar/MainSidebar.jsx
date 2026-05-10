@@ -29,7 +29,7 @@ export default function MainSidebar({
   }, [user.image, user.updated_at]);
   return (
     <aside
-      className={`flex-shrink-0 bg-background border-r border-gray-100 flex flex-col transition-all duration-300 ${
+      className={`flex-shrink-0 bg-background border-r-[0.5px] border-secondary flex flex-col transition-all duration-300 ${
         collapsed ? "w-20" : "w-64"
       }`}
     >
@@ -145,7 +145,7 @@ export default function MainSidebar({
                       ${collapsed ? "justify-center" : ""}
                       ${
                         isActive
-                          ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                          ? "bg-primary text-white shadow-md shadow-blue-200"
                           : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"
                       }`}
                   >
@@ -169,58 +169,6 @@ export default function MainSidebar({
           );
         })}
       </nav>
-
-      {/* ── Logout ── */}
-      <div className="px-3 pb-3">
-        <button
-          onClick={onLogout}
-          title={collapsed ? "Logout" : undefined}
-          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-xs font-bold tracking-widest uppercase text-red-400 hover:bg-red-50 hover:text-red-500 transition-all duration-200
-            ${collapsed ? "justify-center" : ""}`}
-        >
-          <svg
-            className="w-5 h-5 flex-shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-            />
-          </svg>
-          {!collapsed && "Logout"}
-        </button>
-      </div>
-
-      {/* ── User Footer ── */}
-      <div
-        className={`px-4 py-4 border-t border-gray-100 flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}
-      >
-        <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center">
-          <AvatarImage
-            src={avatarSrc}
-            alt={user?.name}
-            className="w-full h-full object-cover"
-          />
-
-          <AvatarFallback className="bg-blue-600 text-white text-sm font-black">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        {!collapsed && (
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-gray-800 truncate">
-              {userName}
-            </p>
-            <p className="text-[9px] font-bold tracking-widest text-blue-500 uppercase">
-              {user?.roles?.join(", ")}
-            </p>
-          </div>
-        )}
-      </div>
     </aside>
   );
 }

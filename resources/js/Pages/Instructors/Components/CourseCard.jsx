@@ -24,7 +24,7 @@ export default function CourseCard({ course }) {
       onClick={() => router.visit(route("instructor.classes.show", course.id))}
     >
       <div className="relative h-69 overflow-hidden bg-black">
-        <div className="relative h-69 overflow-hidden bg-gray-100">
+        <div className="relative h-auto overflow-hidden bg-gray-100">
           <img
             src={
               course.thumbnail
