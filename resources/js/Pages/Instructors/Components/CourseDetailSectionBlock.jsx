@@ -43,15 +43,15 @@ export default function CourseDetailSectionBlock({
     (section.contents ?? []).filter((contentItem) => contentItem.type === type);
 
   return (
-    <div className="border-2 border-gray-100 rounded-2xl overflow-hidden">
+    <div className="border-2 border-border rounded-2xl overflow-hidden">
       <AccordionItem value={value} className="border-0">
-        <div className="flex items-center gap-3 px-5 py-4 bg-gray-50 border-b border-gray-100">
+        <div className="flex items-center gap-3 px-5 py-4 bg-muted border-b border-border">
           <AccordionTriggerCustom
             asChild
             className="py-0 flex-1 w-full hover:no-underline"
           >
             <button className="flex items-center gap-3 flex-1 min-w-0 text-left">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
                 <span className="text-xs font-black text-white">
                   {String(index + 1).padStart(2, "0")}
                 </span>
@@ -72,15 +72,15 @@ export default function CourseDetailSectionBlock({
                     }
                   }}
                   onClick={(event) => event.stopPropagation()}
-                  className="flex-1 bg-white border border-blue-300 rounded-lg px-3 py-1.5 text-base font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 bg-card border border-primary/35 rounded-lg px-3 py-1.5 text-base font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               ) : (
-                <span className="flex-1 text-base font-black text-gray-800 uppercase tracking-wide truncate">
+                <span className="flex-1 text-base font-black text-foreground uppercase tracking-wide truncate">
                   {section.title}
                 </span>
               )}
               <svg
-                className={`w-5 h-5 text-gray-400 transition-transform flex-shrink-0 ${isOpen ? "rotate-180" : ""}`}
+                className={`w-5 h-5 text-muted-foreground transition-transform flex-shrink-0 ${isOpen ? "rotate-180" : ""}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -99,7 +99,7 @@ export default function CourseDetailSectionBlock({
               <>
                 <button
                   onClick={saveTitle}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-all"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-primary-soft0 text-white hover:bg-primary-hover transition-all"
                 >
                   <svg
                     className="w-4 h-4"
@@ -120,7 +120,7 @@ export default function CourseDetailSectionBlock({
                     setEditingTitle(false);
                     setTitle(section.title);
                   }}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 text-gray-400 transition-all"
+                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-muted text-muted-foreground transition-all"
                 >
                   <svg
                     className="w-4 h-4"
@@ -140,7 +140,7 @@ export default function CourseDetailSectionBlock({
             ) : (
               <button
                 onClick={() => setEditingTitle(true)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-300 hover:text-blue-500 hover:border-blue-300 transition-all"
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-primary hover:border-primary/35 transition-all"
               >
                 <svg
                   className="w-4 h-4"
@@ -159,7 +159,7 @@ export default function CourseDetailSectionBlock({
             )}
             <button
               onClick={() => onDelete(section.id)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-300 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
+              className="w-8 h-8 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
             >
               <svg
                 className="w-4 h-4"

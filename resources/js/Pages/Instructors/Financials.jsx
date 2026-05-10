@@ -66,10 +66,10 @@ function RequestPayoutModal({ onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative">
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-md p-8 relative">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-300 hover:text-gray-500 transition-colors"
+          className="absolute top-5 right-5 text-muted-foreground hover:text-muted-foreground transition-colors"
         >
           <svg
             className="w-5 h-5"
@@ -87,7 +87,7 @@ function RequestPayoutModal({ onClose }) {
         </button>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
             <svg
               className="w-5 h-5 text-white"
               fill="none"
@@ -103,19 +103,19 @@ function RequestPayoutModal({ onClose }) {
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-black text-gray-700 uppercase tracking-tight">
+            <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
               Request Payout
             </h3>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Available balance:{" "}
-              <span className="font-bold text-gray-600">Rp 42,500,000</span>
+              <span className="font-bold text-foreground">Rp 42,500,000</span>
             </p>
           </div>
         </div>
 
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Amount
             </label>
             <input
@@ -123,11 +123,11 @@ function RequestPayoutModal({ onClose }) {
               placeholder="e.g. 5000000"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Bank Name
             </label>
             <input
@@ -135,11 +135,11 @@ function RequestPayoutModal({ onClose }) {
               placeholder="e.g. BCA, Mandiri, BNI"
               value={bank}
               onChange={(e) => setBank(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
             />
           </div>
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Account Number
             </label>
             <input
@@ -147,7 +147,7 @@ function RequestPayoutModal({ onClose }) {
               placeholder="e.g. 1234567890"
               value={account}
               onChange={(e) => setAccount(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
             />
           </div>
         </div>
@@ -155,7 +155,7 @@ function RequestPayoutModal({ onClose }) {
         <div className="flex gap-3 mt-7">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
           >
             Cancel
           </button>
@@ -164,8 +164,8 @@ function RequestPayoutModal({ onClose }) {
             className={`flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
               ${
                 isComplete
-                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5"
-                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                  ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
           >
             Submit Request
@@ -182,22 +182,22 @@ function TransactionRow({ item }) {
 
   return (
     <div
-      className={`flex items-center gap-4 py-4 border-b border-gray-50 last:border-none -mx-2 px-2 rounded-xl transition-all duration-200 cursor-default
-        ${hovered ? "bg-gray-50" : ""}`}
+      className={`flex items-center gap-4 py-4 border-b border-border last:border-none -mx-2 px-2 rounded-xl transition-all duration-200 cursor-default
+        ${hovered ? "bg-muted" : ""}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div className="w-32 flex-shrink-0">
-        <p className="text-sm font-black text-gray-700">{item.id}</p>
+        <p className="text-sm font-black text-foreground">{item.id}</p>
       </div>
       <div className="flex-1">
-        <p className="text-sm text-gray-600 font-semibold">{item.type}</p>
+        <p className="text-sm text-foreground font-semibold">{item.type}</p>
       </div>
       <div className="w-32 flex-shrink-0">
-        <p className="text-sm text-gray-400">{item.date}</p>
+        <p className="text-sm text-muted-foreground">{item.date}</p>
       </div>
       <div className="w-40 flex-shrink-0">
-        <p className="text-sm font-black text-gray-700">
+        <p className="text-sm font-black text-foreground">
           {formatRp(item.amount)}
         </p>
       </div>
@@ -229,16 +229,16 @@ export default function Financials() {
         {/* ── Header ── */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-black text-gray-700 uppercase tracking-tight">
+            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">
               Financial Management
             </h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Track your earnings and payout history.
             </p>
           </div>
           <button
             onClick={() => setShowPayout(true)}
-            className="flex items-center gap-2 px-5 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200"
+            className="flex items-center gap-2 px-5 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
           >
             <svg
               className="w-4 h-4"
@@ -274,13 +274,13 @@ export default function Financials() {
           ].map((card) => (
             <div
               key={card.label}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-7"
+              className="bg-card rounded-2xl border border-border shadow-sm p-7"
             >
-              <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-3">
+              <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-3">
                 {card.label}
               </p>
-              <p className="text-3xl font-black text-gray-700">{card.value}</p>
-              <p className="text-[10px] font-semibold text-gray-400 mt-2">
+              <p className="text-3xl font-black text-foreground">{card.value}</p>
+              <p className="text-[10px] font-semibold text-muted-foreground mt-2">
                 {card.sub}
               </p>
             </div>
@@ -288,13 +288,13 @@ export default function Financials() {
         </div>
 
         {/* ── Transaction Table ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
           {/* Table header + filter */}
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">
+            <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
               Transaction History
             </h3>
-            <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+            <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
               {filters.map((f) => (
                 <button
                   key={f}
@@ -302,8 +302,8 @@ export default function Financials() {
                   className={`px-3 py-1.5 text-[10px] font-extrabold tracking-widest uppercase rounded-lg transition-all duration-200
                     ${
                       filter === f
-                        ? "bg-white text-blue-600 shadow-sm"
-                        : "text-gray-400 hover:text-gray-600"
+                        ? "bg-card text-primary shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                 >
                   {f}
@@ -313,29 +313,29 @@ export default function Financials() {
           </div>
 
           {/* Column headers */}
-          <div className="flex items-center gap-4 pb-3 border-b border-gray-100 -mx-2 px-2">
+          <div className="flex items-center gap-4 pb-3 border-b border-border -mx-2 px-2">
             <div className="w-32 flex-shrink-0">
-              <span className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                 Transaction ID
               </span>
             </div>
             <div className="flex-1">
-              <span className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                 Type
               </span>
             </div>
             <div className="w-32 flex-shrink-0">
-              <span className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                 Date
               </span>
             </div>
             <div className="w-40 flex-shrink-0">
-              <span className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                 Amount
               </span>
             </div>
             <div className="w-24 flex-shrink-0">
-              <span className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                 Status
               </span>
             </div>
@@ -345,7 +345,7 @@ export default function Financials() {
           {filtered.length > 0 ? (
             filtered.map((item) => <TransactionRow key={item.id} item={item} />)
           ) : (
-            <div className="text-center py-12 text-gray-300">
+            <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm font-bold uppercase tracking-widest">
                 No transactions found
               </p>

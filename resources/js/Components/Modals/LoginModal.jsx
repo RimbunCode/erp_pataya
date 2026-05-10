@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Link from "@/Components/Link";
-import { router, useForm } from "@inertiajs/react";
+import { useForm } from "@inertiajs/react";
 
 const roles = [
   {
@@ -8,8 +8,8 @@ const roles = [
     label: "Student",
     desc: "Access your courses, track progress, and get certified.",
     href: "/login/student",
-    iconBg: "bg-blue-100",
-    iconColor: "text-blue-600",
+    iconBg: "bg-blue-100 dark:bg-blue-500/20",
+    iconColor: "text-blue-700 dark:text-blue-300",
     icon: (
       <svg
         className="w-6 h-6"
@@ -36,8 +36,8 @@ const roles = [
     label: "Instructor",
     desc: "Create courses, manage students, and view earnings.",
     href: "/login/instructor",
-    iconBg: "bg-purple-100",
-    iconColor: "text-purple-600",
+    iconBg: "bg-violet-100 dark:bg-violet-500/20",
+    iconColor: "text-violet-700 dark:text-violet-300",
     icon: (
       <svg
         className="w-6 h-6"
@@ -128,19 +128,19 @@ const roles = [
 function StepSelectRole({ onSelect, onSwitchToRegister }) {
   return (
     <>
-      <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-1">
+      <h2 className="text-2xl font-black text-foreground uppercase tracking-tight mb-1">
         Select Your Access Portal
       </h2>
-      <p className="text-sm text-gray-400 mb-7">
+      <p className="text-base text-muted-foreground mb-7">
         Please choose the role you would like to explore for this demonstration.
       </p>
 
-      <div className="flex flex-col divide-y divide-gray-100">
+      <div className="flex flex-col divide-y divide-border">
         {roles.map((role) => (
           <button
             key={role.key}
             onClick={() => onSelect(role)}
-            className="flex items-center gap-4 py-4 group hover:bg-gray-50 -mx-2 px-2 rounded-xl transition-colors text-left w-full"
+            className="flex items-center gap-4 py-4 group hover:bg-muted -mx-2 px-2 rounded-xl border border-transparent hover:border-border transition-colors text-left w-full"
           >
             <div
               className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${role.iconBg} ${role.iconColor}`}
@@ -148,15 +148,15 @@ function StepSelectRole({ onSelect, onSwitchToRegister }) {
               {role.icon}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-gray-900 uppercase tracking-wide">
+              <p className="text-base font-black text-foreground uppercase tracking-wide">
                 {role.label}
               </p>
-              <p className="text-xs text-gray-400 mt-0.5 leading-snug">
+              <p className="text-sm text-muted-foreground mt-0.5 leading-snug">
                 {role.desc}
               </p>
             </div>
             <svg
-              className="w-4 h-4 text-gray-300 group-hover:text-blue-500 transition-colors flex-shrink-0"
+              className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -172,13 +172,13 @@ function StepSelectRole({ onSelect, onSwitchToRegister }) {
         ))}
       </div>
 
-      <div className="flex items-center justify-between mt-7 pt-5 border-t border-gray-100">
-        <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">
+      <div className="flex items-center justify-between mt-7 pt-5 border-t border-border">
+        <span className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
           <p>{"Don't forget your password"}</p>
         </span>
         <button
           onClick={onSwitchToRegister}
-          className="text-[10px] font-extrabold tracking-widest text-blue-600 hover:text-blue-700 uppercase transition-colors"
+          className="text-xs font-extrabold tracking-widest text-primary hover:text-primary-hover uppercase transition-colors"
         >
           Register Here
         </button>
@@ -187,7 +187,7 @@ function StepSelectRole({ onSelect, onSwitchToRegister }) {
   );
 }
 
-function StepLogin({ role, onBack, onSwitchToRegister }) {
+function StepLogin({ role, onSwitchToRegister }) {
   const [showPassword, setShowPassword] = useState(false);
   const { data, setData, post, processing, errors } = useForm({
     usernameOrEmail: "", // ← sesuai LoginRequest
@@ -206,23 +206,23 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
       >
         <span className={`w-4 h-4 ${role.iconColor}`}>{role.icon}</span>
         <span
-          className={`text-[10px] font-extrabold tracking-widest uppercase ${role.iconColor}`}
+          className={`text-xs font-extrabold tracking-widest uppercase ${role.iconColor}`}
         >
           {role.label}
         </span>
       </div>
 
-      <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight mb-1">
+      <h2 className="text-2xl font-black text-foreground uppercase tracking-tight mb-1">
         Welcome Back
       </h2>
-      <p className="text-sm text-gray-400 mb-7">
+      <p className="text-base text-muted-foreground mb-7">
         Sign in to your account to continue.
       </p>
 
       <div className="flex flex-col gap-4">
         {/* Email or Username */}
         <div>
-          <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+          <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
             Email or Username
           </label>
           <input
@@ -230,20 +230,20 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
             value={data.usernameOrEmail}
             onChange={(e) => setData("usernameOrEmail", e.target.value)}
             placeholder="email@example.com"
-            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+            className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
           />
           {errors.usernameOrEmail && (
-            <p className="mt-1.5 text-xs font-semibold text-red-400">
+            <p className="mt-1.5 text-sm font-semibold text-destructive">
               {errors.usernameOrEmail}
             </p>
           )}
           {errors.email && (
-            <p className="mt-1.5 text-xs font-semibold text-red-400">
+            <p className="mt-1.5 text-sm font-semibold text-destructive">
               {errors.email}
             </p>
           )}
           {errors.status && (
-            <p className="mt-1.5 text-xs font-semibold text-red-400">
+            <p className="mt-1.5 text-sm font-semibold text-destructive">
               {errors.status}
             </p>
           )}
@@ -252,12 +252,12 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
         {/* Password */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase">
               Password
             </label>
             <Link
               href="/forgot-password"
-              className="text-[10px] font-bold tracking-widest text-blue-500 hover:text-blue-600 uppercase transition-colors"
+              className="text-xs font-bold tracking-widest text-primary hover:text-primary-hover uppercase transition-colors"
             >
               Forgot Password?
             </Link>
@@ -268,12 +268,12 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
               value={data.password}
               onChange={(e) => setData("password", e.target.value)}
               placeholder="••••••••"
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 pr-11 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
             />
             <button
               type="button"
               onClick={() => setShowPassword((v) => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
               {showPassword ? (
                 <svg
@@ -312,7 +312,7 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
             </button>
           </div>
           {errors.password && (
-            <p className="mt-1.5 text-xs font-semibold text-red-400">
+            <p className="mt-1.5 text-sm font-semibold text-destructive">
               {errors.password}
             </p>
           )}
@@ -324,9 +324,9 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
             type="checkbox"
             checked={data.remember}
             onChange={(e) => setData("remember", e.target.checked)}
-            className="w-4 h-4 rounded border-gray-200 text-blue-600 focus:ring-blue-500"
+            className="w-4 h-4 rounded border-border text-primary focus:ring-ring"
           />
-          <span className="text-xs font-semibold text-gray-500">
+          <span className="text-sm font-semibold text-muted-foreground">
             Remember me
           </span>
         </label>
@@ -335,11 +335,11 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
         <button
           onClick={handleLogin}
           disabled={processing || !data.usernameOrEmail || !data.password}
-          className={`w-full font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 mt-2
+          className={`w-full font-extrabold tracking-widest uppercase text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 mt-2
             ${
               processing || !data.usernameOrEmail || !data.password
-                ? "bg-gray-100 text-gray-300 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700 text-white hover:-translate-y-0.5 shadow-md shadow-blue-200"
+                ? "bg-muted text-muted-foreground/70 cursor-not-allowed"
+                : "bg-primary hover:bg-primary-hover text-primary-foreground hover:-translate-y-0.5 shadow-md shadow-primary/25"
             }`}
         >
           {processing ? (
@@ -371,13 +371,13 @@ function StepLogin({ role, onBack, onSwitchToRegister }) {
         </button>
       </div>
 
-      <div className="flex items-center justify-between mt-7 pt-5 border-t border-gray-100">
-        <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">
-          Don't have an account?
+      <div className="flex items-center justify-between mt-7 pt-5 border-t border-border">
+        <span className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
+          {"Don't have an account?"}
         </span>
         <button
           onClick={onSwitchToRegister}
-          className="text-[10px] font-extrabold tracking-widest text-blue-600 hover:text-blue-700 uppercase transition-colors"
+          className="text-xs font-extrabold tracking-widest text-primary hover:text-primary-hover uppercase transition-colors"
         >
           Register Here
         </button>
@@ -393,15 +393,15 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
   const handleBack = () => setSelectedRole(null);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-background/70 backdrop-blur-sm">
+      <div className="bg-card text-card-foreground rounded-3xl border border-border shadow-2xl w-full max-w-lg p-8 relative">
         {/* 🔥 HEADER */}
         <div className="flex items-center justify-between mb-6">
           {/* LEFT: BACK */}
           {selectedRole ? (
             <button
               onClick={handleBack}
-              className="flex items-center gap-1 text-[10px] font-bold tracking-widest text-gray-400 hover:text-gray-600 uppercase transition-colors"
+              className="flex items-center gap-1 text-xs font-bold tracking-widest text-muted-foreground hover:text-foreground uppercase transition-colors"
             >
               <svg
                 className="w-4 h-4"
@@ -425,7 +425,7 @@ export default function LoginModal({ onClose, onSwitchToRegister }) {
           {/* RIGHT: CLOSE */}
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-muted-foreground hover:text-foreground transition-colors"
           >
             <svg
               className="w-5 h-5"

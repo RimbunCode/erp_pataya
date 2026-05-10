@@ -9,7 +9,7 @@ export function SiteFooter() {
           {/* Brand */}
           <div className="col-span-1">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -23,12 +23,12 @@ export function SiteFooter() {
                 <div className="font-extrabold text-sm tracking-widest uppercase">
                   INKINDO
                 </div>
-                <div className="text-[9px] tracking-widest text-blue-400 uppercase font-semibold">
+                <div className="text-[9px] tracking-widest text-primary uppercase font-semibold">
                   Learning Center
                 </div>
               </div>
             </div>
-            <p className="text-gray-400 text-xs leading-relaxed mb-6 max-w-[220px]">
+            <p className="text-muted-foreground text-xs leading-relaxed mb-6 max-w-[220px]">
               Leading the digital transformation of professional training and
               certification for engineering and construction industries in
               Indonesia.
@@ -44,7 +44,7 @@ export function SiteFooter() {
                 <a
                   key={s.label}
                   href={s.href}
-                  className="w-8 h-8 rounded-full border border-gray-700 hover:border-blue-500 flex items-center justify-center text-gray-400 hover:text-blue-400 text-[10px] font-bold transition-colors"
+                  className="w-8 h-8 rounded-full border border-border hover:border-primary/50 flex items-center justify-center text-muted-foreground hover:text-primary text-[10px] font-bold transition-colors"
                 >
                   {s.label}
                 </a>
@@ -54,7 +54,7 @@ export function SiteFooter() {
 
           {/* Explore */}
           <div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-5">
+            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5">
               EXPLORE
             </p>
             <ul className="space-y-3">
@@ -67,7 +67,7 @@ export function SiteFooter() {
                 <li key={l}>
                   <Link
                     href="#"
-                    className="text-gray-400 hover:text-white text-[11px] font-semibold tracking-widest uppercase transition-colors"
+                    className="text-muted-foreground hover:text-white text-[11px] font-semibold tracking-widest uppercase transition-colors"
                   >
                     {l}
                   </Link>
@@ -78,7 +78,7 @@ export function SiteFooter() {
 
           {/* Company */}
           <div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-5">
+            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5">
               COMPANY
             </p>
             <ul className="space-y-3">
@@ -91,7 +91,7 @@ export function SiteFooter() {
                 <li key={l}>
                   <Link
                     href="#"
-                    className="text-gray-400 hover:text-white text-[11px] font-semibold tracking-widest uppercase transition-colors"
+                    className="text-muted-foreground hover:text-white text-[11px] font-semibold tracking-widest uppercase transition-colors"
                   >
                     {l}
                   </Link>
@@ -102,13 +102,13 @@ export function SiteFooter() {
 
           {/* Contact */}
           <div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-blue-400 mb-5">
+            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5">
               CONTACT US
             </p>
             <ul className="space-y-4">
-              <li className="flex items-start gap-2 text-gray-400 text-xs">
+              <li className="flex items-start gap-2 text-muted-foreground text-xs">
                 <svg
-                  className="w-3.5 h-3.5 mt-0.5 shrink-0 text-blue-400"
+                  className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
@@ -116,9 +116,9 @@ export function SiteFooter() {
                 </svg>
                 Jl. Bendungan Hilir No.29, Jakarta Pusat, DKI Jakarta 10210
               </li>
-              <li className="flex items-center gap-2 text-gray-400 text-xs">
+              <li className="flex items-center gap-2 text-muted-foreground text-xs">
                 <svg
-                  className="w-3.5 h-3.5 shrink-0 text-blue-400"
+                  className="w-3.5 h-3.5 shrink-0 text-primary"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
@@ -126,9 +126,9 @@ export function SiteFooter() {
                 </svg>
                 +62 (21) 573-8603
               </li>
-              <li className="flex items-center gap-2 text-gray-400 text-xs">
+              <li className="flex items-center gap-2 text-muted-foreground text-xs">
                 <svg
-                  className="w-3.5 h-3.5 shrink-0 text-blue-400"
+                  className="w-3.5 h-3.5 shrink-0 text-primary"
                   fill="currentColor"
                   viewBox="0 0 24 24"
                 >
@@ -141,13 +141,13 @@ export function SiteFooter() {
         </div>
 
         {/* Bottom bar */}
-        <div className="border-t border-gray-800 pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-[10px] text-gray-500 tracking-widest uppercase">
+        <div className="border-t border-border pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-[10px] text-muted-foreground tracking-widest uppercase">
           <span>© 2024 INKINDO LEARNING CENTER. ALL RIGHTS RESERVED.</span>
           <div className="flex gap-6">
-            <Link href="#" className="hover:text-gray-300 transition-colors">
+            <Link href="#" className="hover:text-muted-foreground transition-colors">
               HELP CENTER
             </Link>
-            <Link href="#" className="hover:text-gray-300 transition-colors">
+            <Link href="#" className="hover:text-muted-foreground transition-colors">
               SITEMAP
             </Link>
           </div>

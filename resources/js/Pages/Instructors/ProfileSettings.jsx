@@ -74,6 +74,13 @@ export default function ProfileSettings({ user, profile }) {
   const handleSubmit = () => {
     router.put(route("instructor.profile.update"), form);
   };
+  const roleNames = (user?.roles ?? [])
+    .map((roleItem) =>
+      typeof roleItem === "string" ? roleItem : roleItem?.name,
+    )
+    .filter(Boolean);
+  const accountRoleLabel =
+    roleNames.length > 0 ? roleNames.join(", ") : "Instructor";
   const alias = user.name
     .split(" ")
     .slice(0, 2)
@@ -135,32 +142,29 @@ export default function ProfileSettings({ user, profile }) {
             </div>
           </Avatar>
           <div>
-            <h2 className="text-2xl pl-4 font-black text-gray-600 uppercase tracking-tight">
+            <h2 className="text-2xl pl-4 font-black text-foreground uppercase tracking-tight">
               {user?.name}
             </h2>
-            <p className="text-xs pl-4 font-extrabold tracking-widest text-blue-500 uppercase mt-1">
-              {user?.roles.map((r) => r.name)?.join(", ")} Account
+            <p className="text-sm pl-4 font-extrabold tracking-widest text-primary uppercase mt-1">
+              {accountRoleLabel} Account
             </p>
             <div className="flex items-center gap-4 mt-3">
               <button
                 onClick={() => uploadDialogRef.current?.open()}
-                className="text-xs font-extrabold ..."
+                className="text-sm font-extrabold tracking-widest text-primary uppercase hover:text-primary-hover transition-colors"
               >
                 Update Photo
-              </button>
-              <button className="text-xs font-extrabold tracking-widest text-red-400 uppercase hover:text-red-500 transition-colors">
-                Remove
               </button>
             </div>
           </div>
         </div>
 
         {/* ── Form Card ── */}
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 flex flex-col gap-6">
+        <div className="bg-card rounded-3xl border border-border shadow-sm p-8 flex flex-col gap-6">
           {/* Row 1 */}
           <div className="grid grid-cols-2 gap-6">
             <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Full Name
               </label>
               <input
@@ -168,11 +172,11 @@ export default function ProfileSettings({ user, profile }) {
                 name="name"
                 value={form.name}
                 onChange={handleChange}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-400 shadow-md transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Email Address
               </label>
               <input
@@ -180,11 +184,11 @@ export default function ProfileSettings({ user, profile }) {
                 name="email"
                 value={form.email}
                 onChange={handleChange}
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-400 shadow-md transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Academic / Professional Title
               </label>
               <input
@@ -193,11 +197,11 @@ export default function ProfileSettings({ user, profile }) {
                 value={form.professional_title}
                 onChange={handleChange}
                 placeholder="Senior Structural Engineer"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-400 shadow-md transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Expertise
               </label>
               <input
@@ -206,7 +210,7 @@ export default function ProfileSettings({ user, profile }) {
                 value={form.expertise}
                 onChange={handleChange}
                 placeholder="Structural Engineer"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-400 shadow-md transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
           </div>
@@ -215,13 +219,13 @@ export default function ProfileSettings({ user, profile }) {
           <div className="grid grid-cols-2 gap-6">
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+                <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase">
                   Social Media
                 </label>
                 <button
                   type="button"
                   onClick={addSocial}
-                  className="flex items-center gap-1 text-[10px] font-extrabold tracking-widest text-blue-600 hover:text-blue-700 uppercase transition-colors"
+                  className="flex items-center gap-1 text-xs font-extrabold tracking-widest text-primary hover:text-primary uppercase transition-colors"
                 >
                   <svg
                     className="w-3 h-3"
@@ -243,10 +247,10 @@ export default function ProfileSettings({ user, profile }) {
               {form.socials.length === 0 ? (
                 <div
                   onClick={addSocial}
-                  className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-dashed border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all duration-200"
+                  className="flex items-center gap-3 px-4 py-3 bg-muted border border-dashed border-border rounded-xl cursor-pointer hover:border-primary/40 hover:bg-primary-soft transition-all duration-200"
                 >
                   <svg
-                    className="w-4 h-4 text-gray-300"
+                    className="w-4 h-4 text-muted-foreground"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -258,7 +262,7 @@ export default function ProfileSettings({ user, profile }) {
                       d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
                     />
                   </svg>
-                  <span className="text-xs text-gray-300 font-semibold">
+                  <span className="text-sm text-muted-foreground font-semibold">
                     Add your social media links
                   </span>
                 </div>
@@ -272,7 +276,7 @@ export default function ProfileSettings({ user, profile }) {
                         onChange={(e) =>
                           updateSocial(index, "platform", e.target.value)
                         }
-                        className="w-36 flex-shrink-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 text-xs font-bold text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+                        className="w-36 flex-shrink-0 bg-muted border border-border rounded-xl px-3 py-3 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
                       >
                         <option value="">Platform</option>
                         <option value="linkedin">LinkedIn</option>
@@ -292,14 +296,14 @@ export default function ProfileSettings({ user, profile }) {
                           updateSocial(index, "url", e.target.value)
                         }
                         placeholder="https://..."
-                        className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+                        className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
                       />
 
                       {/* Remove button */}
                       <button
                         type="button"
                         onClick={() => removeSocial(index)}
-                        className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl border border-gray-200 text-gray-300 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all duration-200"
+                        className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 hover:bg-destructive/10 transition-all duration-200"
                       >
                         <svg
                           className="w-4 h-4"
@@ -322,7 +326,7 @@ export default function ProfileSettings({ user, profile }) {
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Phone Number
               </label>
               <input
@@ -331,14 +335,14 @@ export default function ProfileSettings({ user, profile }) {
                 value={form.phone}
                 onChange={handleChange}
                 placeholder="+62 812 XXXX XXXX"
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-400 shadow-md transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
           </div>
 
           {/* Bio */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Professional Bio
             </label>
             <textarea
@@ -347,7 +351,7 @@ export default function ProfileSettings({ user, profile }) {
               onChange={handleChange}
               rows={5}
               placeholder="Tell us about your engineering background..."
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-400 transition-all resize-none"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground shadow-md focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border transition-all resize-none"
             />
           </div>
         </div>
@@ -356,13 +360,13 @@ export default function ProfileSettings({ user, profile }) {
         <div className="flex items-center justify-end gap-4 pt-2">
           <button
             onClick={handleDiscard}
-            className="px-6 py-3 text-xs font-extrabold tracking-widest text-black uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="px-6 py-3 text-sm font-extrabold tracking-widest text-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
           >
             Discard Changes
           </button>
           <button
             onClick={handleSubmit}
-            className="px-8 py-3 text-xs font-extrabold tracking-widest text-white uppercase bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200"
+            className="px-8 py-3 text-sm font-extrabold tracking-widest text-primary-foreground uppercase bg-primary hover:bg-primary-hover rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
           >
             Save Profile Settings
           </button>

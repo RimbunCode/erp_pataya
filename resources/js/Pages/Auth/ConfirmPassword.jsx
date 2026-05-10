@@ -26,7 +26,7 @@ export default function ConfirmPassword() {
       <Head title="Confirm Password" />
 
       <CardContent>
-        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+        <div className="mb-4 text-sm text-foreground dark:text-muted-foreground">
           This is a secure area of the application. Please confirm your password
           before continuing.
         </div>

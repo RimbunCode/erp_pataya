@@ -4,7 +4,7 @@ import Link from "@/Components/Link";
 import { usePage } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
+import ToggleTheme from "../ToggleTheme";
 
 export default function MainNavbar({
   title,
@@ -20,70 +20,68 @@ export default function MainNavbar({
   const { auth } = usePage().props;
   const user = auth.user;
 
+  const normalizedRoles = useMemo(() => {
+    if (!Array.isArray(user?.roles)) {
+      return [];
+    }
+
+    return user.roles
+      .map((roleItem) =>
+        typeof roleItem === "string" ? roleItem : roleItem?.name,
+      )
+      .filter(Boolean);
+  }, [user?.roles]);
+
+  const activeRole = role ?? normalizedRoles[0] ?? "student";
+  const displayRole = roleLabel ?? normalizedRoles.join(", ");
+
   const avatarSrc = useMemo(() => {
-    if (!user.image) return null;
+    if (!user.image) {
+      return null;
+    }
 
     return (
       route("files.preview", user.image) +
       `?v=${new Date(user.updated_at).getTime()}`
     );
   }, [user.image, user.updated_at]);
+
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center justify-between px-8 flex-shrink-0">
-      {/* Left — title & breadcrumb */}
+    <header className="h-16 bg-background border-b border-border flex items-center justify-between px-8 flex-shrink-0">
+      {/* Left - title & breadcrumb */}
       <div>
-        <h1 className="text-sm font-black tracking-widest text-gray-900 uppercase">
+        <h1 className="text-sm font-black tracking-widest text-foreground uppercase">
           {title}
         </h1>
-        <p className="text-[10px] font-semibold tracking-widest text-gray-400 uppercase">
-          Dashboard <span className="mx-1">›</span> {breadcrumb}
+        <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+          Dashboard <span className="mx-1">/</span> {breadcrumb}
         </p>
       </div>
 
-      {/* Right — search + avatar */}
+      {/* Right - search + avatar */}
       <div className="flex items-center gap-4">
-        {/* Search */}
-        <div className="relative">
-          <svg
-            className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-            />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search in dashboard..."
-            className="pl-9 pr-4 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl w-56 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder-gray-300"
-          />
-        </div>
+        <ToggleTheme />
 
         {/* Avatar + dropdown */}
         <div className="flex items-center gap-3 relative">
           <div
             onClick={onToggleDropdown}
-            className="flex items-center gap-3 cursor-pointer select-none hover:bg-gray-50 px-2 py-1 rounded-xl transition"
+            className="flex items-center gap-3 cursor-pointer select-none hover:bg-primary-soft px-2 py-1 rounded-xl transition"
           >
             <div className="text-right">
-              <p className="text-xs font-bold text-gray-800">{userName}</p>
-              <p className="text-[9px] font-bold tracking-widest text-blue-500 uppercase">
-                {user?.roles?.join(", ")}
+              <p className="text-xs font-bold text-foreground">{userName}</p>
+              <p className="text-[9px] font-bold tracking-widest text-role-label uppercase">
+                {displayRole}
               </p>
             </div>
-            <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center">
+            <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-primary flex items-center justify-center">
               <AvatarImage
                 src={avatarSrc}
                 alt={user?.name}
                 className="w-full h-full object-cover"
               />
 
-              <AvatarFallback className="bg-blue-600 text-white text-sm font-black">
+              <AvatarFallback className="bg-primary text-primary-foreground text-sm font-black">
                 {initials}
               </AvatarFallback>
             </Avatar>
@@ -91,10 +89,10 @@ export default function MainNavbar({
 
           {/* Dropdown */}
           {profileDropdown && (
-            <div className="absolute top-full right-0 mt-2 w-44 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50">
+            <div className="absolute top-full right-0 mt-2 w-44 bg-card rounded-2xl border border-border shadow-xl overflow-hidden z-50">
               <Link
                 href="/home"
-                className="flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all"
+                className="flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
               >
                 <svg
                   className="w-4 h-4 flex-shrink-0"
@@ -113,8 +111,8 @@ export default function MainNavbar({
               </Link>
 
               <Link
-                href={`/${role}/profile`}
-                className="flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all border-t border-gray-50"
+                href={`/${activeRole}/profile`}
+                className="flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-muted-foreground hover:text-foreground hover:bg-muted transition-all border-t border-border"
               >
                 <svg
                   className="w-4 h-4 flex-shrink-0"
@@ -134,7 +132,7 @@ export default function MainNavbar({
 
               <button
                 onClick={onLogout}
-                className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-red-400 hover:text-red-500 hover:bg-red-50 transition-all border-t border-gray-50 text-left"
+                className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all border-t border-border text-left"
               >
                 <svg
                   className="w-4 h-4 flex-shrink-0"

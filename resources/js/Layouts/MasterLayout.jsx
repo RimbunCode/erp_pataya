@@ -9,7 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/Components/ui/alert-dialog";
-import { memo, useEffect } from "react";
+import { memo, useEffect, useMemo } from "react";
 
 import DeleteDialog from "./AlertDialogs/DeleteDialog";
 import { RiErrorWarningFill } from "@remixicon/react";
@@ -116,8 +116,36 @@ AlertDialogs.displayName = "AlertDialogs";
 
 const MasterLayout = memo(({ children }) => {
   const { theme, currentTheme, setCurrentTheme } = useTheme();
-  const { debug: isDebug } = usePage().props;
+  const page = usePage();
+  const { debug: isDebug, auth } = page.props;
+  const currentUrl = page.url;
   const { t } = useLaravelReactI18n();
+  const activeRole = useMemo(() => {
+    const normalizedRoles = Array.isArray(auth?.user?.roles)
+      ? auth.user.roles
+          .map((roleItem) =>
+            typeof roleItem === "string" ? roleItem : roleItem?.name,
+          )
+          .filter(Boolean)
+      : [];
+
+    const pathRole = currentUrl
+      ?.split("?")[0]
+      ?.split("/")
+      ?.filter(Boolean)?.[0]
+      ?.toLowerCase();
+    const validRoles = ["student", "instructor", "organization", "admin"];
+
+    if (pathRole && normalizedRoles.includes(pathRole)) {
+      return pathRole;
+    }
+
+    if (pathRole && validRoles.includes(pathRole)) {
+      return pathRole;
+    }
+
+    return normalizedRoles[0] ?? "student";
+  }, [auth?.user?.roles, currentUrl]);
 
   useEffect(() => {
     if (isDebug) return;
@@ -318,6 +346,10 @@ const MasterLayout = memo(({ children }) => {
       document.removeEventListener("keydown", onKeyDown);
     };
   }, [isDebug]);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-role", activeRole);
+  }, [activeRole]);
   return (
     <>
       <TooltipProvider>{children}</TooltipProvider>

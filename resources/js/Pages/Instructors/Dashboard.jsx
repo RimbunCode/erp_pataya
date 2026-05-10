@@ -57,18 +57,18 @@ const trainings = [
 
 function StatCard({ icon, label, value, trend, trendLabel, iconBg }) {
   return (
-    <div className="bg-white rounded-2xl p-6 flex flex-col gap-3 shadow-sm border border-gray-100 flex-1 min-w-0">
+    <div className="bg-card rounded-2xl p-6 flex flex-col gap-3 shadow-sm border border-border flex-1 min-w-0">
       <div className="flex items-start justify-between">
         <div
           className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconBg}`}
         >
           {icon}
         </div>
-        <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+        <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
           {label}
         </span>
       </div>
-      <p className="text-2xl font-black text-gray-900 tracking-tight">
+      <p className="text-2xl font-black text-foreground tracking-tight">
         {value}
       </p>
       <p className="text-xs font-bold text-green-500 flex items-center gap-1">
@@ -98,7 +98,7 @@ function StatusBadge({ status }) {
       className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-widest border ${
         isActive
           ? "bg-green-50 text-green-600 border-green-200"
-          : "bg-gray-100 text-gray-500 border-gray-200"
+          : "bg-muted text-muted-foreground border-border"
       }`}
     >
       {status}
@@ -109,9 +109,9 @@ function StatusBadge({ status }) {
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-lg text-xs">
-        <p className="font-bold text-gray-700">{label}</p>
-        <p className="text-blue-600 font-black">
+      <div className="bg-card border border-border rounded-xl px-4 py-2 shadow-lg text-xs">
+        <p className="font-bold text-foreground">{label}</p>
+        <p className="text-primary font-black">
           students : {payload[0].value.toLocaleString()}
         </p>
       </div>
@@ -129,18 +129,18 @@ export default function InstructorDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h2 className="text-2xl font-black tracking-tight text-gray-900 uppercase">
+            <h2 className="text-2xl font-black tracking-tight text-foreground uppercase">
               Instructor Hub
             </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Empower the next generation of engineers.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="px-5 py-2.5 text-xs font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-all">
+            <button className="px-5 py-2.5 text-xs font-black tracking-widest uppercase border-2 border-border rounded-xl text-foreground hover:border-border hover:text-foreground transition-all">
               View Public Profile
             </button>
-            <button className="px-5 py-2.5 text-xs font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-md shadow-blue-200">
+            <button className="px-5 py-2.5 text-xs font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all flex items-center gap-2 shadow-md shadow-primary/20">
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -208,8 +208,8 @@ export default function InstructorDashboard() {
         {/* Revenue Analytics + Announcements */}
         <div className="flex gap-4 flex-wrap lg:flex-nowrap">
           {/* Chart */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex-1 min-w-0">
-            <h3 className="text-xs font-black tracking-widest text-gray-900 uppercase mb-6">
+          <div className="bg-card rounded-2xl p-6 shadow-sm border border-border flex-1 min-w-0">
+            <h3 className="text-xs font-black tracking-widest text-foreground uppercase mb-6">
               Growth Analytics
             </h3>
             <ResponsiveContainer width="100%" height={220}>
@@ -269,36 +269,36 @@ export default function InstructorDashboard() {
                   <p className="text-sm font-bold text-white leading-snug">
                     {a.title}
                   </p>
-                  <p className="text-[10px] font-bold tracking-widest text-gray-400 mt-1">
+                  <p className="text-[10px] font-bold tracking-widest text-muted-foreground mt-1">
                     {a.time}
                   </p>
                 </div>
               ))}
             </div>
-            <button className="w-full py-3 bg-blue-600 text-white text-xs font-black tracking-widest uppercase rounded-xl hover:bg-blue-500 transition-all">
+            <button className="w-full py-3 bg-primary text-white text-xs font-black tracking-widest uppercase rounded-xl hover:bg-primary-hover transition-all">
               Broadcast New
             </button>
           </div>
         </div>
 
         {/* My Trainings */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-gray-100">
-            <h3 className="text-xs font-black tracking-widest text-gray-900 uppercase">
+        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+            <h3 className="text-xs font-black tracking-widest text-foreground uppercase">
               My Trainings
             </h3>
-            <button className="text-[10px] font-black tracking-widest text-blue-600 uppercase hover:text-blue-800 transition-colors">
+            <button className="text-[10px] font-black tracking-widest text-primary uppercase hover:text-primary transition-colors">
               See Detailed List
             </button>
           </div>
 
           {/* Table header */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-gray-50">
+          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-border">
             {["Training Title", "Students", "Revenue", "Status", ""].map(
               (col, i) => (
                 <span
                   key={i}
-                  className="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                  className="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
                 >
                   {col}
                 </span>
@@ -311,19 +311,19 @@ export default function InstructorDashboard() {
             <div
               key={t.id}
               className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center px-6 py-4 ${
-                idx !== trainings.length - 1 ? "border-b border-gray-50" : ""
-              } hover:bg-gray-50/50 transition-colors`}
+                idx !== trainings.length - 1 ? "border-b border-border" : ""
+              } hover:bg-muted/50 transition-colors`}
             >
               {/* Title + tags */}
               <div>
-                <p className="text-sm font-black text-gray-900 tracking-wide uppercase">
+                <p className="text-sm font-black text-foreground tracking-wide uppercase">
                   {t.title}
                 </p>
                 <div className="flex items-center gap-3 mt-1.5">
                   {t.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="flex items-center gap-1 text-[9px] font-bold tracking-widest text-gray-400 uppercase"
+                      className="flex items-center gap-1 text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
                     >
                       {tag.includes("ZOOM") ? (
                         <svg
@@ -367,16 +367,16 @@ export default function InstructorDashboard() {
 
               {/* Students */}
               <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-gray-800">
+                <span className="text-sm font-black text-foreground">
                   {t.students}
                 </span>
-                <span className="text-[9px] font-black tracking-widest text-gray-400 uppercase bg-gray-100 px-2 py-0.5 rounded-md">
+                <span className="text-[9px] font-black tracking-widest text-muted-foreground uppercase bg-muted px-2 py-0.5 rounded-md">
                   Enrolled
                 </span>
               </div>
 
               {/* Revenue */}
-              <span className="text-sm font-black text-gray-800">
+              <span className="text-sm font-black text-foreground">
                 {t.revenue}
               </span>
 
@@ -384,7 +384,7 @@ export default function InstructorDashboard() {
               <StatusBadge status={t.status} />
 
               {/* Actions */}
-              <button className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors">
+              <button className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-muted-foreground hover:bg-muted transition-colors">
                 <svg
                   className="w-4 h-4"
                   fill="currentColor"

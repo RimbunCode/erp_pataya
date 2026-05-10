@@ -25,7 +25,7 @@ export default function ForgotPassword({ status }) {
     <AuthLayout>
       <Head title="Forgot Password" />
       <CardContent>
-        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+        <div className="mb-4 text-sm text-foreground dark:text-muted-foreground">
           {loading ? (
             <Skeleton className="w-full h-16" />
           ) : (

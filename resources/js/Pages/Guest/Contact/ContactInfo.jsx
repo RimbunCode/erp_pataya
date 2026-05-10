@@ -5,7 +5,7 @@ export default function ContactUs() {
     {
       icon: (
         <svg
-          className="w-5 h-5 text-blue-600"
+          className="w-5 h-5 text-primary"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -29,7 +29,7 @@ export default function ContactUs() {
     {
       icon: (
         <svg
-          className="w-5 h-5 text-blue-600"
+          className="w-5 h-5 text-primary"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -43,13 +43,13 @@ export default function ContactUs() {
         </svg>
       ),
       label: "PHONE NUMBER",
-      className: "text-blue-600",
+      className: "text-primary",
       value: "+62 (21) 573-8603",
     },
     {
       icon: (
         <svg
-          className="w-5 h-5 text-blue-600"
+          className="w-5 h-5 text-primary"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -69,13 +69,13 @@ export default function ContactUs() {
 
   return (
     <GuestLayout>
-      <div className="bg-white min-h-screen">
+      <div className="bg-card min-h-screen">
         {/* ── Hero ── */}
-        <section className="bg-blue-600 px-6 pt-20 pb-32 text-center">
+        <section className="bg-primary px-6 pt-20 pb-32 text-center">
           <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight uppercase">
             Get In Touch
           </h1>
-          <p className="mt-5 text-blue-100 text-sm md:text-base leading-relaxed max-w-lg mx-auto">
+          <p className="mt-5 text-primary-soft text-sm md:text-base leading-relaxed max-w-lg mx-auto">
             Have questions about our certification programs or institutional
             partnerships? Our team is here to help.
           </p>
@@ -88,27 +88,27 @@ export default function ContactUs() {
             <div className="md:col-span-2 pt-20 flex flex-col gap-8">
               {contactInfo.map((c) => (
                 <div key={c.label} className="flex items-start gap-4">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <div className="w-11 h-11 rounded-xl bg-primary-soft flex items-center justify-center flex-shrink-0">
                     {c.icon}
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold tracking-[2px] text-blue-600 uppercase mb-1">
+                    <p className="text-[10px] font-bold tracking-[2px] text-primary uppercase mb-1">
                       {c.label}
                     </p>
-                    <p className="text-sm font-black text-gray-900 leading-snug whitespace-pre-line">
+                    <p className="text-sm font-black text-foreground leading-snug whitespace-pre-line">
                       {c.value}
                     </p>
                   </div>
                 </div>
               ))}
 
-              <hr className="border-gray-100 mt-2" />
+              <hr className="border-border mt-2" />
 
               <div>
-                <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+                <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                   Global Support
                 </p>
-                <p className="text-sm text-gray-500 leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   Available Monday to Friday,
                   <br />
                   08:00 AM – 05:00 PM WIB
@@ -117,53 +117,53 @@ export default function ContactUs() {
             </div>
 
             {/* Right — Form Card */}
-            <div className="md:col-span-3 bg-white rounded-3xl shadow-xl border border-gray-100 p-8">
+            <div className="md:col-span-3 bg-card rounded-3xl shadow-xl border border-border p-8">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 mb-5">
                 <div>
-                  <label className="block text-[10px] font-bold tracking-[2px] text-blue-600 uppercase mb-2">
+                  <label className="block text-[10px] font-bold tracking-[2px] text-primary uppercase mb-2">
                     Full Name
                   </label>
                   <input
                     type="text"
                     placeholder="John Doe"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-black-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-black-800 placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold tracking-[2px] text-blue-600 uppercase mb-2">
+                  <label className="block text-[10px] font-bold tracking-[2px] text-primary uppercase mb-2">
                     Email Address
                   </label>
                   <input
                     type="email"
                     placeholder="john@example.com"
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                    className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
                   />
                 </div>
               </div>
 
               <div className="mb-5">
-                <label className="block text-[10px] font-bold tracking-[2px] text-blue-600 uppercase mb-2">
+                <label className="block text-[10px] font-bold tracking-[2px] text-primary uppercase mb-2">
                   Subject
                 </label>
                 <input
                   type="text"
                   placeholder="Inquiry about BIM Certification"
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-black-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                  className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-black-800 placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
                 />
               </div>
 
               <div className="mb-7">
-                <label className="block text-[10px] font-bold tracking-[2px] text-blue-600 uppercase mb-2">
+                <label className="block text-[10px] font-bold tracking-[2px] text-primary uppercase mb-2">
                   Message
                 </label>
                 <textarea
                   rows={5}
                   placeholder="Tell us more about your needs..."
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-black-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all resize-none"
+                  className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-black-800 placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all resize-none"
                 />
               </div>
 
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 hover:-translate-y-0.5 shadow-md shadow-blue-200">
+              <button className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 hover:-translate-y-0.5 shadow-md shadow-primary/20">
                 Send Message
                 <svg
                   className="w-4 h-4"

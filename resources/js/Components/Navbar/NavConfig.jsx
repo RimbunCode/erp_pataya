@@ -3,7 +3,7 @@
 export const navConfig = {
   student: {
     groupLabel: "Student",
-    color: "text-blue-500",
+    color: "text-blue-600 dark:text-blue-300",
     items: [
       {
         key: "my-learning",
@@ -110,7 +110,7 @@ export const navConfig = {
 
   instructor: {
     groupLabel: "Instructor",
-    color: "text-purple-500",
+    color: "text-violet-600 dark:text-violet-300",
     items: [
       {
         key: "dashboard",
@@ -237,7 +237,7 @@ export const navConfig = {
 
   organization: {
     groupLabel: "Organization",
-    color: "text-green-500",
+    color: "text-emerald-600 dark:text-emerald-300",
     items: [
       {
         key: "dashboard",

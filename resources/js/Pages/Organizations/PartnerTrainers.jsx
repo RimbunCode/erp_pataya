@@ -15,7 +15,7 @@ const trainers = [
     tier: "Platinum",
     tierColor: "text-amber-500 bg-amber-50 border-amber-200",
     initial: "A",
-    color: "bg-blue-600",
+    color: "bg-primary",
     joined: "Jan 2023",
   },
   {
@@ -55,7 +55,7 @@ const trainers = [
     rating: 4.5,
     status: "inactive",
     tier: "Silver",
-    tierColor: "text-gray-500 bg-gray-50 border-gray-200",
+    tierColor: "text-muted-foreground bg-muted border-border",
     initial: "H",
     color: "bg-orange-500",
     joined: "Sep 2023",
@@ -69,7 +69,7 @@ const trainers = [
     rating: 4.6,
     status: "pending",
     tier: "Silver",
-    tierColor: "text-gray-500 bg-gray-50 border-gray-200",
+    tierColor: "text-muted-foreground bg-muted border-border",
     initial: "R",
     color: "bg-teal-500",
     joined: "Nov 2023",
@@ -85,8 +85,8 @@ const statusConfig = {
   },
   inactive: {
     label: "Inactive",
-    color: "text-gray-400",
-    bg: "bg-gray-100",
+    color: "text-muted-foreground",
+    bg: "bg-muted",
     dot: "bg-gray-300",
   },
   pending: {
@@ -118,12 +118,12 @@ function InviteTrainerModal({ onClose }) {
         backdropFilter: "blur(6px)",
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden">
-        <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 to-indigo-500" />
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden">
+        <div className="h-1.5 w-full bg-gradient-to-r from-primary to-indigo-500" />
         <div className="p-8">
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 text-gray-300 hover:text-gray-500 transition-colors"
+            className="absolute top-6 right-6 text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -141,7 +141,7 @@ function InviteTrainerModal({ onClose }) {
           </button>
 
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
               <svg
                 className="w-5 h-5 text-white"
                 fill="none"
@@ -157,10 +157,10 @@ function InviteTrainerModal({ onClose }) {
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-700 uppercase tracking-tight">
+              <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
                 Invite Trainer
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 Send an invitation to a partner trainer.
               </p>
             </div>
@@ -188,7 +188,7 @@ function InviteTrainerModal({ onClose }) {
               },
             ].map((f) => (
               <div key={f.name}>
-                <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+                <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                   {f.label}
                 </label>
                 <input
@@ -198,13 +198,13 @@ function InviteTrainerModal({ onClose }) {
                   onChange={(e) =>
                     setForm((p) => ({ ...p, [f.name]: e.target.value }))
                   }
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+                  className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
                 />
               </div>
             ))}
 
             <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+              <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Partnership Tier
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -213,7 +213,7 @@ function InviteTrainerModal({ onClose }) {
                     value: "Silver",
                     label: "Silver",
                     sub: "15% Share",
-                    color: "border-gray-300 text-gray-500",
+                    color: "border-border text-muted-foreground",
                   },
                   {
                     value: "Gold",
@@ -236,15 +236,15 @@ function InviteTrainerModal({ onClose }) {
                       ${
                         form.tier === t.value
                           ? `${t.color} bg-opacity-10 shadow-sm scale-105`
-                          : "border-gray-100 text-gray-400 hover:border-gray-200"
+                          : "border-border text-muted-foreground hover:border-border"
                       }`}
                   >
                     <p
-                      className={`text-xs font-extrabold tracking-widest uppercase ${form.tier === t.value ? t.color.split(" ")[1] : "text-gray-400"}`}
+                      className={`text-xs font-extrabold tracking-widest uppercase ${form.tier === t.value ? t.color.split(" ")[1] : "text-muted-foreground"}`}
                     >
                       {t.label}
                     </p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{t.sub}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{t.sub}</p>
                   </button>
                 ))}
               </div>
@@ -254,7 +254,7 @@ function InviteTrainerModal({ onClose }) {
           <div className="flex gap-3 mt-7">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
             >
               Cancel
             </button>
@@ -263,8 +263,8 @@ function InviteTrainerModal({ onClose }) {
               className={`flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
                 ${
                   isComplete
-                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5"
-                    : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                    ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
             >
               Send Invitation
@@ -285,8 +285,8 @@ function TrainerDetailModal({ trainer, onClose }) {
         backdropFilter: "blur(6px)",
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden">
-        <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 to-indigo-500" />
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden">
+        <div className="h-1.5 w-full bg-gradient-to-r from-primary to-indigo-500" />
 
         {/* Header dark */}
         <div
@@ -341,15 +341,15 @@ function TrainerDetailModal({ trainer, onClose }) {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+        <div className="grid grid-cols-3 divide-x divide-border border-b border-border">
           {[
             { label: "Courses", value: trainer.courses },
             { label: "Students", value: trainer.students },
             { label: "Rating", value: trainer.rating },
           ].map((s) => (
             <div key={s.label} className="text-center py-5">
-              <p className="text-2xl font-black text-gray-700">{s.value}</p>
-              <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mt-1">
+              <p className="text-2xl font-black text-foreground">{s.value}</p>
+              <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mt-1">
                 {s.label}
               </p>
             </div>
@@ -358,18 +358,18 @@ function TrainerDetailModal({ trainer, onClose }) {
 
         <div className="p-8 flex flex-col gap-4">
           <div className="flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
               Member Since
             </span>
-            <span className="text-sm font-bold text-gray-700">
+            <span className="text-sm font-bold text-foreground">
               {trainer.joined}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
               Profit Share
             </span>
-            <span className="text-sm font-bold text-gray-700">
+            <span className="text-sm font-bold text-foreground">
               {trainer.tier === "Platinum"
                 ? "30%"
                 : trainer.tier === "Gold"
@@ -381,11 +381,11 @@ function TrainerDetailModal({ trainer, onClose }) {
           <div className="flex gap-3 mt-2">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
             >
               Close
             </button>
-            <button className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200">
+            <button className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200">
               Manage Trainer
             </button>
           </div>
@@ -404,8 +404,8 @@ function TrainerCard({ trainer, onClick }) {
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`bg-white rounded-2xl border-2 p-6 flex flex-col gap-4 cursor-pointer transition-all duration-200
-        ${hovered ? "border-blue-500 shadow-lg shadow-blue-100 -translate-y-0.5" : "border-gray-100 shadow-lg shadow-gray-100"}`}
+      className={`bg-card rounded-2xl border-2 p-6 flex flex-col gap-4 cursor-pointer transition-all duration-200
+        ${hovered ? "border-primary/50 shadow-lg shadow-primary/20 -translate-y-0.5" : "border-border shadow-lg shadow-gray-100"}`}
     >
       {/* Top row */}
       <div className="flex items-start justify-between">
@@ -424,10 +424,10 @@ function TrainerCard({ trainer, onClick }) {
 
       {/* Info */}
       <div>
-        <h3 className="text-sm font-black text-gray-700 leading-tight">
+        <h3 className="text-sm font-black text-foreground leading-tight">
           {trainer.name}
         </h3>
-        <p className="text-xs text-gray-400 mt-1">{trainer.expertise}</p>
+        <p className="text-xs text-muted-foreground mt-1">{trainer.expertise}</p>
       </div>
 
       {/* Stats */}
@@ -439,10 +439,10 @@ function TrainerCard({ trainer, onClick }) {
         ].map((s) => (
           <div
             key={s.label}
-            className="bg-gray-50 rounded-xl p-2.5 text-center"
+            className="bg-muted rounded-xl p-2.5 text-center"
           >
-            <p className="text-sm font-black text-gray-700">{s.value}</p>
-            <p className="text-[9px] font-bold tracking-widest text-gray-400 uppercase mt-0.5">
+            <p className="text-sm font-black text-foreground">{s.value}</p>
+            <p className="text-[9px] font-bold tracking-widest text-muted-foreground uppercase mt-0.5">
               {s.label}
             </p>
           </div>
@@ -450,13 +450,13 @@ function TrainerCard({ trainer, onClick }) {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+      <div className="flex items-center justify-between pt-1 border-t border-border">
         <span
           className={`text-[10px] font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-lg border ${trainer.tierColor}`}
         >
           {trainer.tier}
         </span>
-        <span className="text-[10px] font-bold text-gray-400">
+        <span className="text-[10px] font-bold text-muted-foreground">
           Since {trainer.joined}
         </span>
       </div>
@@ -485,16 +485,16 @@ export default function PartnerTrainers() {
         {/* ── Header ── */}
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-black text-gray-700 uppercase tracking-tight">
+            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">
               Partner Trainers
             </h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Manage and monitor your affiliated instructors.
             </p>
           </div>
           <button
             onClick={() => setShowInvite(true)}
-            className="flex items-center gap-2 px-5 py-3 text-xs font-extrabold tracking-widest uppercase bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200"
+            className="flex items-center gap-2 px-5 py-3 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
           >
             <svg
               className="w-4 h-4"
@@ -519,8 +519,8 @@ export default function PartnerTrainers() {
             {
               label: "Total Trainers",
               value: trainers.length,
-              color: "text-blue-600",
-              bg: "bg-blue-50",
+              color: "text-primary",
+              bg: "bg-primary-soft",
             },
             {
               label: "Active",
@@ -537,8 +537,8 @@ export default function PartnerTrainers() {
             {
               label: "Inactive",
               value: trainers.filter((t) => t.status === "inactive").length,
-              color: "text-gray-400",
-              bg: "bg-gray-100",
+              color: "text-muted-foreground",
+              bg: "bg-muted",
             },
           ].map((s) => (
             <div
@@ -546,7 +546,7 @@ export default function PartnerTrainers() {
               className={`${s.bg} rounded-2xl px-5 py-4 flex items-center gap-3`}
             >
               <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest leading-tight">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest leading-tight">
                 {s.label}
               </p>
             </div>
@@ -555,7 +555,7 @@ export default function PartnerTrainers() {
 
         {/* ── Filters ── */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
             {["All", "Active", "Pending", "Inactive"].map((f) => (
               <button
                 key={f}
@@ -563,8 +563,8 @@ export default function PartnerTrainers() {
                 className={`px-4 py-2 text-[10px] font-extrabold tracking-widest uppercase rounded-lg transition-all duration-200
                   ${
                     filterStatus === f
-                      ? "bg-white text-blue-600 shadow-sm"
-                      : "text-gray-400 hover:text-gray-600"
+                      ? "bg-card text-primary shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
               >
                 {f}
@@ -574,7 +574,7 @@ export default function PartnerTrainers() {
 
           <div className="relative">
             <svg
-              className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"
+              className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -591,7 +591,7 @@ export default function PartnerTrainers() {
               placeholder="Search trainers..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 pr-4 py-2.5 text-xs bg-white border border-gray-200 rounded-xl w-52 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-300"
+              className="pl-9 pr-4 py-2.5 text-xs bg-card border border-border rounded-xl w-52 focus:outline-none focus:ring-2 focus:ring-ring transition-all placeholder-muted-foreground"
             />
           </div>
         </div>
@@ -608,8 +608,8 @@ export default function PartnerTrainers() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-            <p className="text-sm font-bold uppercase tracking-widest text-gray-300">
+          <div className="text-center py-20 bg-card rounded-2xl border border-border">
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
               No trainers found
             </p>
           </div>

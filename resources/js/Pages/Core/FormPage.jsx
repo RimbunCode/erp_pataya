@@ -1241,7 +1241,7 @@ const FormPage = memo(
 //                               <div key={item.id}>
 //                                 <Link
 //                                   href={route(item.route, item.reference_id)}
-//                                   className="text-blue-800 dark:text-blue-200 hover:underline"
+//                                   className="text-primary dark:text-primary-soft hover:underline"
 //                                 >
 //                                   {item.reference_display}
 //                                 </Link>
@@ -1473,7 +1473,7 @@ const SidebarChildren = memo(
                               <div key={item.id} className="ml-6">
                                 <Link
                                   href={route(item.route, item.reference_id)}
-                                  className="text-blue-800 dark:text-blue-200 hover:underline"
+                                  className="text-primary dark:text-primary-soft hover:underline"
                                 >
                                   {item.reference_display}
                                 </Link>

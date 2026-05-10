@@ -21,7 +21,7 @@ export default function AboutUs() {
 
   return (
     <GuestLayout>
-      <div className="bg-gray-50 min-h-screen">
+      <div className="bg-muted min-h-screen">
         {/* ── Hero + Stats ── */}
         <section
           className="relative px-6 pt-32 pb-16"
@@ -46,7 +46,7 @@ export default function AboutUs() {
               <br />
               Since 1970
             </h1>
-            <p className="mt-6 text-sm md:text-base text-blue-200 leading-relaxed max-w-xl mx-auto">
+            <p className="mt-6 text-sm md:text-base text-primary-soft leading-relaxed max-w-xl mx-auto">
               INKINDO (Ikatan Nasional Konsultan Indonesia) Learning Center is
               the premier hub for engineering excellence and professional
               development in Indonesia.
@@ -96,9 +96,9 @@ export default function AboutUs() {
                     />
                   </svg>
                 ),
-                accent: "from-blue-400/20 to-blue-600/10 border-blue-400/20",
-                iconBg: "bg-blue-400/20 text-blue-300",
-                numColor: "text-blue-300",
+                accent: "from-primary/20 to-primary/10 border-primary/20",
+                iconBg: "bg-primary/20 text-primary-soft",
+                numColor: "text-primary-soft",
               },
               {
                 num: "450+",
@@ -177,8 +177,8 @@ export default function AboutUs() {
         <section className="py-24 px-6">
           <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Vision */}
-            <div className="group bg-white rounded-3xl p-10 border border-blue-100 shadow-sm border-b-4 border-b-blue-500 hover:bg-gray-50 hover:shadow-md transition-all duration-300">
-              <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mb-6">
+            <div className="group bg-card rounded-3xl p-10 border border-primary/20 shadow-sm border-b-4 border-b-blue-500 hover:bg-muted hover:shadow-md transition-all duration-300">
+              <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-6">
                 <svg
                   className="w-7 h-7 text-white"
                   fill="none"
@@ -191,10 +191,10 @@ export default function AboutUs() {
                   <circle cx="12" cy="12" r="2" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wide mb-5">
+              <h2 className="text-2xl font-black text-foreground uppercase tracking-wide mb-5">
                 Our Vision
               </h2>
-              <p className="text-sm text-gray-500 leading-relaxed">
+              <p className="text-sm text-muted-foreground leading-relaxed">
                 Menjunjung tinggi kehormatan, kemuliaan dan nama baik profesi
                 konsultan dalam hubungan kerja dengan pemberi tugas, sesama
                 rekan konsultan dan masyarakat.
@@ -202,7 +202,7 @@ export default function AboutUs() {
             </div>
 
             {/* Mission */}
-            <div className="group bg-white rounded-3xl p-11 border border-purple-100 shadow-sm border-b-4 border-b-purple-500 hover:bg-gray-50 hover:shadow-md transition-all duration-300">
+            <div className="group bg-card rounded-3xl p-11 border border-purple-100 shadow-sm border-b-4 border-b-purple-500 hover:bg-muted hover:shadow-md transition-all duration-300">
               <div className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center mb-6">
                 <svg
                   className="w-7 h-7 text-white"
@@ -215,16 +215,16 @@ export default function AboutUs() {
                   <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
                 </svg>
               </div>
-              <h2 className="text-2xl font-black text-gray-900 uppercase tracking-wide mb-5">
+              <h2 className="text-2xl font-black text-foreground uppercase tracking-wide mb-5">
                 Our Mission
               </h2>
               <ul className="space-y-4">
                 {missions.map((item) => (
                   <li key={item} className="flex items-start gap-3">
-                    <span className="text-blue-600 font-black text-xl leading-tight mt-0.5">
+                    <span className="text-primary font-black text-xl leading-tight mt-0.5">
                       ›
                     </span>
-                    <span className="text-sm font-semibold text-gray-800 leading-snug">
+                    <span className="text-sm font-semibold text-foreground leading-snug">
                       {item}
                     </span>
                   </li>

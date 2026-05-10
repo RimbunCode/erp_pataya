@@ -17,17 +17,17 @@ function FadingCard({ icon, title, subtitle, className }) {
 
   return (
     <div
-      className={`absolute bg-white rounded-xl shadow-xl px-4 py-3 flex items-center gap-3 transition-opacity duration-700 ease-in-out ${className}`}
+      className={`absolute bg-card rounded-xl shadow-xl px-4 py-3 flex items-center gap-3 transition-opacity duration-700 ease-in-out ${className}`}
       style={{ opacity: visible ? 1 : 0.3 }}
     >
-      <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center shrink-0 text-white text-lg">
+      <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shrink-0 text-white text-lg">
         {icon}
       </div>
       <div>
-        <p className="text-[9px] text-gray-400 uppercase tracking-widest font-semibold">
+        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">
           {subtitle}
         </p>
-        <p className="text-[11px] font-bold text-gray-800 tracking-wide uppercase">
+        <p className="text-[11px] font-bold text-foreground tracking-wide uppercase">
           {title}
         </p>
       </div>
@@ -48,16 +48,16 @@ function BouncingCard({ icon, title, subtitle, className }) {
         }
       `}</style>
       <div
-        className={`bounce-card absolute bg-white rounded-xl shadow-xl px-4 py-3 flex items-center gap-3 ${className}`}
+        className={`bounce-card absolute bg-card rounded-xl shadow-xl px-4 py-3 flex items-center gap-3 ${className}`}
       >
-        <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center shrink-0 text-white text-lg">
+        <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shrink-0 text-white text-lg">
           {icon}
         </div>
         <div>
-          <p className="text-[9px] text-gray-400 uppercase tracking-widest font-semibold">
+          <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">
             {subtitle}
           </p>
-          <p className="text-[11px] font-bold text-gray-800 tracking-wide uppercase">
+          <p className="text-[11px] font-bold text-foreground tracking-wide uppercase">
             {title}
           </p>
         </div>
@@ -69,7 +69,7 @@ function BouncingCard({ icon, title, subtitle, className }) {
 // ── Floating badge component ──────────────────────────────────────────────────
 function Badge({ icon, label }) {
   return (
-    <span className="inline-flex items-center gap-1.5 border border-blue-200 bg-white text-blue-600 text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm">
+    <span className="inline-flex items-center gap-1.5 border border-primary/30 bg-card text-primary text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full shadow-sm">
       <span>{icon}</span>
       {label}
     </span>
@@ -96,7 +96,7 @@ function Stars({ count = 5 }) {
 // ── Avatar stack ──────────────────────────────────────────────────────────────
 function AvatarStack() {
   const colors = [
-    "bg-blue-400",
+    "bg-primary",
     "bg-pink-400",
     "bg-green-400",
     "bg-orange-400",
@@ -119,7 +119,7 @@ function AvatarStack() {
 // ── Hero Section ──────────────────────────────────────────────────────────────
 function HeroSection() {
   return (
-    <section className="relative bg-gray-50 overflow-hidden pt-16 pb-20">
+    <section className="relative bg-muted overflow-hidden pt-16 pb-20">
       {/* subtle grid bg */}
       <div
         className="absolute inset-0 opacity-30"
@@ -135,11 +135,11 @@ function HeroSection() {
         <div className="flex-1 flex flex-col gap-6 max-w-xl">
           <Badge icon="⚡" label="NEW: BIM CERTIFICATION 2024" />
 
-          <h1 className="text-5xl lg:text-6xl font-black leading-tight tracking-tight text-gray-900">
-            ENGINEER YOUR <span className="text-blue-600">DIGITAL FUTURE</span>
+          <h1 className="text-5xl lg:text-6xl font-black leading-tight tracking-tight text-foreground">
+            ENGINEER YOUR <span className="text-primary">DIGITAL FUTURE</span>
           </h1>
 
-          <p className="text-gray-500 text-base leading-relaxed max-w-md">
+          <p className="text-muted-foreground text-base leading-relaxed max-w-md">
             The official Learning Management System of INKINDO. Advanced
             training, professional certifications, and a community of experts.
           </p>
@@ -147,7 +147,7 @@ function HeroSection() {
           <div className="flex items-center gap-4 flex-wrap">
             <Link
               href="/training"
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold tracking-widest uppercase px-6 py-3.5 rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold tracking-widest uppercase px-6 py-3.5 rounded-lg transition-colors"
             >
               START LEARNING
               <svg
@@ -162,10 +162,10 @@ function HeroSection() {
               </svg>
             </Link>
 
-            <button className="inline-flex items-center gap-3 text-gray-700 hover:text-blue-600 transition-colors group">
-              <span className="w-10 h-10 rounded-full bg-white shadow border border-gray-100 flex items-center justify-center group-hover:shadow-md transition-shadow">
+            <button className="inline-flex items-center gap-3 text-foreground hover:text-primary transition-colors group">
+              <span className="w-10 h-10 rounded-full bg-card shadow border border-border flex items-center justify-center group-hover:shadow-md transition-shadow">
                 <svg
-                  className="w-4 h-4 text-blue-600 ml-0.5"
+                  className="w-4 h-4 text-primary ml-0.5"
                   viewBox="0 0 24 24"
                   fill="currentColor"
                 >
@@ -183,7 +183,7 @@ function HeroSection() {
             <AvatarStack />
             <div>
               <Stars />
-              <p className="text-[10px] font-bold tracking-widest text-gray-500 uppercase mt-0.5">
+              <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-0.5">
                 12K+ CERTIFIED MEMBERS
               </p>
             </div>
@@ -231,16 +231,16 @@ function TrustedBy() {
     "WASZKITA",
   ];
   return (
-    <section className="bg-white py-10 border-b border-gray-100">
+    <section className="bg-card py-10 border-b border-border">
       <div className="max-w-7xl mx-auto px-6">
-        <p className="text-center text-[10px] tracking-[0.25em] text-gray-400 uppercase font-semibold mb-6">
+        <p className="text-center text-[10px] tracking-[0.25em] text-muted-foreground uppercase font-semibold mb-6">
           TRUSTED BY INDUSTRY LEADERS
         </p>
         <div className="flex flex-wrap justify-center items-center gap-8 lg:gap-14">
           {companies.map((c) => (
             <span
               key={c}
-              className="text-gray-300 font-black text-sm lg:text-base tracking-widest uppercase hover:text-gray-400 transition-colors"
+              className="text-muted-foreground font-black text-sm lg:text-base tracking-widest uppercase hover:text-muted-foreground transition-colors"
             >
               {c}
             </span>

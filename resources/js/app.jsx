@@ -1,4 +1,4 @@
-import "../css/app.css";
+import "../css/appTheme.css";
 import "quill/dist/quill.core.css";
 import "./bootstrap";
 

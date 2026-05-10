@@ -16,7 +16,7 @@ const coursesData = [
     enrolled: true,
     progress: 65,
     thumbnail: "BM",
-    color: "bg-blue-600",
+    color: "bg-primary",
     praAsesmen: {
       description:
         "Selesaikan pra asesmen ini sebelum memulai kelas. Jawab semua soal dengan jujur sesuai kemampuan Anda saat ini.",
@@ -162,14 +162,14 @@ function EnrollModal({ course, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+        className="bg-card rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="bg-gray-900 px-6 pt-6 pb-8 relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-card/10 text-white/60 hover:bg-card/20 hover:text-white transition-all"
           >
             <svg
               className="w-4 h-4"
@@ -185,13 +185,13 @@ function EnrollModal({ course, onClose }) {
               />
             </svg>
           </button>
-          <p className="text-[9px] font-black tracking-widest text-blue-400 uppercase mb-1">
+          <p className="text-[9px] font-black tracking-widest text-primary uppercase mb-1">
             Enroll Kelas
           </p>
           <h3 className="text-sm font-black text-white leading-snug pr-8">
             {course.title}
           </h3>
-          <p className="text-lg font-black text-blue-400 mt-2">
+          <p className="text-lg font-black text-primary mt-2">
             {course.price}
           </p>
 
@@ -201,7 +201,7 @@ function EnrollModal({ course, onClose }) {
               <div key={i} className="flex items-center gap-2">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all
-                  ${step > i + 1 ? "bg-green-500 text-white" : step === i + 1 ? "bg-blue-500 text-white" : "bg-white/10 text-white/40"}`}
+                  ${step > i + 1 ? "bg-green-500 text-white" : step === i + 1 ? "bg-primary-soft0 text-white" : "bg-card/10 text-white/40"}`}
                 >
                   {step > i + 1 ? "✓" : i + 1}
                 </div>
@@ -212,7 +212,7 @@ function EnrollModal({ course, onClose }) {
                 </span>
                 {i < 2 && (
                   <div
-                    className={`w-6 h-px ${step > i + 1 ? "bg-green-500" : "bg-white/10"}`}
+                    className={`w-6 h-px ${step > i + 1 ? "bg-green-500" : "bg-card/10"}`}
                   />
                 )}
               </div>
@@ -224,7 +224,7 @@ function EnrollModal({ course, onClose }) {
           {/* Step 1 — Pilih metode */}
           {step === 1 && (
             <>
-              <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+              <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                 Pilih Metode Pembayaran
               </p>
               <div className="space-y-2">
@@ -233,19 +233,19 @@ function EnrollModal({ course, onClose }) {
                     key={m.id}
                     onClick={() => setMethod(m.id)}
                     className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl border-2 transition-all text-left
-                      ${method === m.id ? "border-blue-500 bg-blue-50" : "border-gray-100 hover:border-gray-200"}`}
+                      ${method === m.id ? "border-primary/50 bg-primary-soft" : "border-border hover:border-border"}`}
                   >
                     <span className="text-2xl">{m.icon}</span>
                     <div>
-                      <p className="text-xs font-black text-gray-800 uppercase tracking-wide">
+                      <p className="text-xs font-black text-foreground uppercase tracking-wide">
                         {m.label}
                       </p>
-                      <p className="text-[9px] text-gray-400 font-medium">
+                      <p className="text-[9px] text-muted-foreground font-medium">
                         {m.bank}
                       </p>
                     </div>
                     {method === m.id && (
-                      <div className="ml-auto w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                      <div className="ml-auto w-5 h-5 rounded-full bg-primary-soft0 flex items-center justify-center">
                         <svg
                           className="w-3 h-3 text-white"
                           fill="none"
@@ -267,7 +267,7 @@ function EnrollModal({ course, onClose }) {
               <button
                 disabled={!method}
                 onClick={() => setStep(2)}
-                className="w-full py-3 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-3 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Lanjutkan →
               </button>
@@ -277,25 +277,25 @@ function EnrollModal({ course, onClose }) {
           {/* Step 2 — Instruksi */}
           {step === 2 && method && (
             <>
-              <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+              <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                 Instruksi Pembayaran
               </p>
-              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-2.5">
+              <div className="bg-muted rounded-2xl border border-border p-4 space-y-2.5">
                 {instructions[method].map((ins, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-[9px] font-black text-blue-600">
+                    <div className="w-5 h-5 rounded-full bg-primary-soft flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-[9px] font-black text-primary">
                         {i + 1}
                       </span>
                     </div>
-                    <p className="text-xs font-medium text-gray-700">{ins}</p>
+                    <p className="text-xs font-medium text-foreground">{ins}</p>
                   </div>
                 ))}
               </div>
               {method === "qris" && (
                 <div className="flex justify-center">
-                  <div className="w-32 h-32 bg-gray-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300">
-                    <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-center">
+                  <div className="w-32 h-32 bg-muted rounded-2xl flex items-center justify-center border-2 border-dashed border-border">
+                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest text-center">
                       QR Code
                       <br />
                       Placeholder
@@ -306,13 +306,13 @@ function EnrollModal({ course, onClose }) {
               <div className="flex gap-2">
                 <button
                   onClick={() => setStep(1)}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 hover:border-gray-300 transition-all"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border transition-all"
                 >
                   ← Kembali
                 </button>
                 <button
                   onClick={() => setStep(3)}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
                 >
                   Sudah Bayar →
                 </button>
@@ -323,13 +323,13 @@ function EnrollModal({ course, onClose }) {
           {/* Step 3 — Upload bukti */}
           {step === 3 && (
             <>
-              <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+              <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                 Upload Bukti Pembayaran
               </p>
               <div
                 onClick={() => fileRef.current?.click()}
                 className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center gap-3 cursor-pointer transition-all
-                  ${file ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"}`}
+                  ${file ? "border-primary/40 bg-primary-soft" : "border-border hover:border-primary/35 hover:bg-muted"}`}
               >
                 <input
                   ref={fileRef}
@@ -340,7 +340,7 @@ function EnrollModal({ course, onClose }) {
                 />
                 {file ? (
                   <>
-                    <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-primary-soft0 flex items-center justify-center">
                       <svg
                         className="w-5 h-5 text-white"
                         fill="none"
@@ -355,18 +355,18 @@ function EnrollModal({ course, onClose }) {
                         />
                       </svg>
                     </div>
-                    <p className="text-xs font-black text-blue-700 text-center">
+                    <p className="text-xs font-black text-primary text-center">
                       {file.name}
                     </p>
-                    <p className="text-[9px] text-blue-400 font-medium">
+                    <p className="text-[9px] text-primary font-medium">
                       Klik untuk ganti file
                     </p>
                   </>
                 ) : (
                   <>
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
                       <svg
-                        className="w-5 h-5 text-gray-400"
+                        className="w-5 h-5 text-muted-foreground"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -379,17 +379,17 @@ function EnrollModal({ course, onClose }) {
                         />
                       </svg>
                     </div>
-                    <p className="text-xs font-black text-gray-500 text-center">
+                    <p className="text-xs font-black text-muted-foreground text-center">
                       Klik untuk upload bukti
                     </p>
-                    <p className="text-[9px] text-gray-300 font-medium">
+                    <p className="text-[9px] text-muted-foreground font-medium">
                       JPG, PNG, atau PDF • Maks. 5MB
                     </p>
                   </>
                 )}
               </div>
               <div>
-                <label className="text-[9px] font-black tracking-widest text-gray-400 uppercase block mb-1.5">
+                <label className="text-[9px] font-black tracking-widest text-muted-foreground uppercase block mb-1.5">
                   Catatan (opsional)
                 </label>
                 <textarea
@@ -397,20 +397,20 @@ function EnrollModal({ course, onClose }) {
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
                   placeholder="Tambahkan catatan jika diperlukan..."
-                  className="w-full text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder-gray-300"
+                  className="w-full text-xs text-foreground bg-muted border border-border rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all placeholder-muted-foreground"
                 />
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setStep(2)}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 hover:border-gray-300 transition-all"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border transition-all"
                 >
                   ← Kembali
                 </button>
                 <button
                   disabled={!file}
                   onClick={() => setStep(4)}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Kirim →
                 </button>
@@ -437,10 +437,10 @@ function EnrollModal({ course, onClose }) {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-black text-gray-900 uppercase tracking-wide">
+                <p className="text-sm font-black text-foreground uppercase tracking-wide">
                   Bukti Terkirim!
                 </p>
-                <p className="text-xs text-gray-400 font-medium mt-1">
+                <p className="text-xs text-muted-foreground font-medium mt-1">
                   Pendaftaran Anda sedang diverifikasi oleh admin. Anda akan
                   mendapat notifikasi setelah disetujui.
                 </p>
@@ -455,7 +455,7 @@ function EnrollModal({ course, onClose }) {
               </div>
               <button
                 onClick={onClose}
-                className="w-full py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                className="w-full py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
               >
                 Tutup
               </button>
@@ -489,14 +489,14 @@ function SubmitModal({ title, description, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+        className="bg-card rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="bg-gray-900 px-6 pt-6 pb-8 relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-card/10 text-white/60 hover:bg-card/20 hover:text-white transition-all"
           >
             <svg
               className="w-4 h-4"
@@ -512,7 +512,7 @@ function SubmitModal({ title, description, onClose }) {
               />
             </svg>
           </button>
-          <p className="text-[9px] font-black tracking-widest text-blue-400 uppercase mb-1">
+          <p className="text-[9px] font-black tracking-widest text-primary uppercase mb-1">
             Pengumpulan
           </p>
           <h3 className="text-sm font-black text-white leading-snug pr-8">
@@ -524,11 +524,11 @@ function SubmitModal({ title, description, onClose }) {
           {!done ? (
             <>
               {description && (
-                <div className="bg-blue-50 rounded-2xl border border-blue-100 px-4 py-3">
-                  <p className="text-[9px] font-black tracking-widest text-blue-400 uppercase mb-1">
+                <div className="bg-primary-soft rounded-2xl border border-primary/20 px-4 py-3">
+                  <p className="text-[9px] font-black tracking-widest text-primary uppercase mb-1">
                     Instruksi
                   </p>
-                  <p className="text-xs text-blue-700 font-medium leading-relaxed">
+                  <p className="text-xs text-primary font-medium leading-relaxed">
                     {description}
                   </p>
                 </div>
@@ -536,13 +536,13 @@ function SubmitModal({ title, description, onClose }) {
 
               {/* Upload area */}
               <div>
-                <label className="text-[9px] font-black tracking-widest text-gray-400 uppercase block mb-1.5">
+                <label className="text-[9px] font-black tracking-widest text-muted-foreground uppercase block mb-1.5">
                   File Jawaban *
                 </label>
                 <div
                   onClick={() => fileRef.current?.click()}
                   className={`border-2 border-dashed rounded-2xl p-5 flex flex-col items-center gap-2.5 cursor-pointer transition-all
-                    ${file ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"}`}
+                    ${file ? "border-primary/40 bg-primary-soft" : "border-border hover:border-primary/35 hover:bg-muted"}`}
                 >
                   <input
                     ref={fileRef}
@@ -553,7 +553,7 @@ function SubmitModal({ title, description, onClose }) {
                   />
                   {file ? (
                     <>
-                      <div className="w-9 h-9 rounded-xl bg-blue-500 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-xl bg-primary-soft0 flex items-center justify-center">
                         <svg
                           className="w-4 h-4 text-white"
                           fill="none"
@@ -568,18 +568,18 @@ function SubmitModal({ title, description, onClose }) {
                           />
                         </svg>
                       </div>
-                      <p className="text-xs font-black text-blue-700">
+                      <p className="text-xs font-black text-primary">
                         {file.name}
                       </p>
-                      <p className="text-[9px] text-blue-400">
+                      <p className="text-[9px] text-primary">
                         Klik untuk ganti
                       </p>
                     </>
                   ) : (
                     <>
-                      <div className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center">
                         <svg
-                          className="w-4 h-4 text-gray-400"
+                          className="w-4 h-4 text-muted-foreground"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -592,10 +592,10 @@ function SubmitModal({ title, description, onClose }) {
                           />
                         </svg>
                       </div>
-                      <p className="text-xs font-black text-gray-500">
+                      <p className="text-xs font-black text-muted-foreground">
                         Klik untuk upload file
                       </p>
-                      <p className="text-[9px] text-gray-300">
+                      <p className="text-[9px] text-muted-foreground">
                         PDF, Excel, Word • Maks. 10MB
                       </p>
                     </>
@@ -605,7 +605,7 @@ function SubmitModal({ title, description, onClose }) {
 
               {/* Note */}
               <div>
-                <label className="text-[9px] font-black tracking-widest text-gray-400 uppercase block mb-1.5">
+                <label className="text-[9px] font-black tracking-widest text-muted-foreground uppercase block mb-1.5">
                   Catatan untuk Instruktur (opsional)
                 </label>
                 <textarea
@@ -613,21 +613,21 @@ function SubmitModal({ title, description, onClose }) {
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
                   placeholder="Tulis catatan atau hal yang ingin disampaikan terkait jawaban Anda..."
-                  className="w-full text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder-gray-300"
+                  className="w-full text-xs text-foreground bg-muted border border-border rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all placeholder-muted-foreground"
                 />
               </div>
 
               <div className="flex gap-2">
                 <button
                   onClick={onClose}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 hover:border-gray-300 transition-all"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border transition-all"
                 >
                   Batal
                 </button>
                 <button
                   disabled={!file}
                   onClick={handleSubmit}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Kumpulkan →
                 </button>
@@ -651,16 +651,16 @@ function SubmitModal({ title, description, onClose }) {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-black text-gray-900 uppercase">
+                <p className="text-sm font-black text-foreground uppercase">
                   Berhasil Dikumpulkan!
                 </p>
-                <p className="text-xs text-gray-400 font-medium mt-1">
+                <p className="text-xs text-muted-foreground font-medium mt-1">
                   Jawaban Anda telah diterima. Instruktur akan segera memeriksa.
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="w-full py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                className="w-full py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
               >
                 Tutup
               </button>
@@ -677,10 +677,10 @@ function InnerSection({ title, icon, children, accent = "blue" }) {
   const [open, setOpen] = useState(false);
   const accents = {
     blue: {
-      bg: "bg-blue-50",
-      border: "border-blue-100",
-      text: "text-blue-600",
-      dot: "bg-blue-500",
+      bg: "bg-primary-soft",
+      border: "border-primary/20",
+      text: "text-primary",
+      dot: "bg-primary-soft0",
     },
     green: {
       bg: "bg-green-50",
@@ -732,7 +732,7 @@ function InnerSection({ title, icon, children, accent = "blue" }) {
           />
         </svg>
       </button>
-      {open && <div className="px-4 py-4 bg-white space-y-3">{children}</div>}
+      {open && <div className="px-4 py-4 bg-card space-y-3">{children}</div>}
     </div>
   );
 }
@@ -740,12 +740,12 @@ function InnerSection({ title, icon, children, accent = "blue" }) {
 // ── Course Card (accordion) ────────────────────────────────────────────────────
 function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
   const progressColor =
-    course.progress === 100 ? "bg-green-500" : "bg-blue-600";
+    course.progress === 100 ? "bg-green-500" : "bg-primary";
 
   return (
     <div
-      className={`bg-white rounded-2xl border-2 shadow-sm transition-all duration-300
-      ${isOpen ? "border-blue-500 shadow-blue-100" : "border-gray-100 hover:border-gray-200"}`}
+      className={`bg-card rounded-2xl border-2 shadow-sm transition-all duration-300
+      ${isOpen ? "border-primary/50 shadow-primary/20" : "border-border hover:border-border"}`}
     >
       {/* ── Card Header (always visible) ── */}
       <button
@@ -762,19 +762,19 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[9px] font-black tracking-widest text-gray-400 uppercase bg-gray-100 px-2 py-0.5 rounded-md">
+            <span className="text-[9px] font-black tracking-widest text-muted-foreground uppercase bg-muted px-2 py-0.5 rounded-md">
               {course.category}
             </span>
             {course.enrolled && (
-              <span className="text-[9px] font-black tracking-widest text-blue-600 uppercase bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
+              <span className="text-[9px] font-black tracking-widest text-primary uppercase bg-primary-soft border border-primary/20 px-2 py-0.5 rounded-md">
                 Terdaftar
               </span>
             )}
           </div>
-          <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide mt-1.5 leading-snug">
+          <h3 className="text-sm font-black text-foreground uppercase tracking-wide mt-1.5 leading-snug">
             {course.title}
           </h3>
-          <p className="text-[10px] text-gray-400 font-medium mt-1 flex items-center gap-2">
+          <p className="text-[10px] text-muted-foreground font-medium mt-1 flex items-center gap-2">
             {course.instructor}
             <span className="w-1 h-1 rounded-full bg-gray-300 inline-block" />
             {course.duration}
@@ -785,26 +785,26 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
         <div className="flex flex-col items-end gap-2 flex-shrink-0">
           {course.enrolled ? (
             <div className="flex flex-col items-end gap-1.5">
-              <span className="text-xs font-black text-gray-800">
+              <span className="text-xs font-black text-foreground">
                 {course.progress}%
               </span>
-              <div className="w-28 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div className="w-28 h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full ${progressColor}`}
                   style={{ width: `${course.progress}%` }}
                 />
               </div>
-              <span className="text-[9px] font-bold text-gray-400">
+              <span className="text-[9px] font-bold text-muted-foreground">
                 {course.progress === 100 ? "Selesai" : "Berlangsung"}
               </span>
             </div>
           ) : (
-            <span className="text-sm font-black text-blue-600">
+            <span className="text-sm font-black text-primary">
               {course.price}
             </span>
           )}
           <svg
-            className={`w-4 h-4 text-gray-400 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+            className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -821,21 +821,21 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
 
       {/* ── Expanded Content ── */}
       {isOpen && (
-        <div className="px-6 pb-6 space-y-3 border-t border-gray-100 pt-4">
+        <div className="px-6 pb-6 space-y-3 border-t border-border pt-4">
           {/* Not enrolled CTA */}
           {!course.enrolled && (
-            <div className="bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
+            <div className="bg-primary-soft border border-primary/20 rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
               <div>
-                <p className="text-xs font-black text-blue-800 uppercase tracking-wide">
+                <p className="text-xs font-black text-primary uppercase tracking-wide">
                   Belum Terdaftar
                 </p>
-                <p className="text-[10px] text-blue-500 font-medium mt-0.5">
+                <p className="text-[10px] text-primary font-medium mt-0.5">
                   Enroll sekarang untuk mengakses semua materi
                 </p>
               </div>
               <button
                 onClick={() => onEnroll(course)}
-                className="px-5 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 whitespace-nowrap flex-shrink-0"
+                className="px-5 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 whitespace-nowrap flex-shrink-0"
               >
                 Enroll Sekarang
               </button>
@@ -859,13 +859,13 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
                 )
               }
             >
-              <p className="text-xs text-gray-600 leading-relaxed">
+              <p className="text-xs text-foreground leading-relaxed">
                 {course.praAsesmen.description}
               </p>
               <div className="flex items-center gap-3">
                 <a
                   href={course.praAsesmen.fileUrl}
-                  className="flex items-center gap-2 px-4 py-2 text-[9px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 text-[9px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-foreground hover:border-border hover:text-foreground transition-all"
                 >
                   <svg
                     className="w-3.5 h-3.5"
@@ -917,12 +917,12 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
             {course.modules.map((mod) => (
               <div
                 key={mod.id}
-                className="flex items-center justify-between gap-4 py-2 border-b border-gray-50 last:border-0"
+                className="flex items-center justify-between gap-4 py-2 border-b border-border last:border-0"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                  <div className="w-7 h-7 rounded-lg bg-primary-soft flex items-center justify-center flex-shrink-0">
                     <svg
-                      className="w-3.5 h-3.5 text-blue-400"
+                      className="w-3.5 h-3.5 text-primary"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -935,14 +935,14 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
                       />
                     </svg>
                   </div>
-                  <span className="text-xs font-bold text-gray-700 truncate">
+                  <span className="text-xs font-bold text-foreground truncate">
                     {mod.title}
                   </span>
                 </div>
                 {course.enrolled ? (
                   <a
                     href={mod.fileUrl}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black tracking-widest uppercase text-blue-600 bg-blue-50 border border-blue-100 rounded-lg hover:bg-blue-100 transition-all flex-shrink-0"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[9px] font-black tracking-widest uppercase text-primary bg-primary-soft border border-primary/20 rounded-lg hover:bg-primary-soft transition-all flex-shrink-0"
                   >
                     <svg
                       className="w-3 h-3"
@@ -960,7 +960,7 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
                     Unduh
                   </a>
                 ) : (
-                  <span className="flex items-center gap-1 text-[9px] font-black text-gray-300 uppercase tracking-widest">
+                  <span className="flex items-center gap-1 text-[9px] font-black text-muted-foreground uppercase tracking-widest">
                     <svg
                       className="w-3 h-3"
                       fill="none"
@@ -986,10 +986,10 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
             {course.tugas.map((task) => (
               <div
                 key={task.id}
-                className="bg-gray-50 rounded-xl border border-gray-100 p-4 space-y-3"
+                className="bg-muted rounded-xl border border-border p-4 space-y-3"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-xs font-black text-gray-800 uppercase tracking-wide leading-snug">
+                  <p className="text-xs font-black text-foreground uppercase tracking-wide leading-snug">
                     {task.title}
                   </p>
                   {task.submitted ? (
@@ -1002,14 +1002,14 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   {task.description}
                 </p>
                 <div className="flex items-center gap-3">
                   {task.fileUrl && (
                     <a
                       href={task.fileUrl}
-                      className="inline-flex items-center gap-2 px-4 py-2 text-[9px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-all"
+                      className="inline-flex items-center gap-2 px-4 py-2 text-[9px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-foreground hover:border-border hover:text-foreground transition-all"
                     >
                       <svg
                         className="w-3.5 h-3.5"
@@ -1050,7 +1050,7 @@ function CourseCard({ course, isOpen, onToggle, onEnroll, onSubmit }) {
                   )}
                 </div>
                 {!course.enrolled && (
-                  <p className="text-[9px] text-gray-300 font-bold uppercase tracking-widest flex items-center gap-1">
+                  <p className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest flex items-center gap-1">
                     <svg
                       className="w-3 h-3"
                       fill="none"
@@ -1106,10 +1106,10 @@ export default function StudentCourseList() {
         <div className="p-8 space-y-6">
           {/* Header */}
           <div>
-            <h2 className="text-2xl font-black tracking-tight text-gray-900 uppercase">
+            <h2 className="text-2xl font-black tracking-tight text-foreground uppercase">
               My Learning
             </h2>
-            <p className="text-xs text-gray-400 font-medium mt-0.5">
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Akses semua kelas dan materi pembelajaran Anda.
             </p>
           </div>
@@ -1126,11 +1126,11 @@ export default function StudentCourseList() {
                   key={tab.key}
                   onClick={() => setFilter(tab.key)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black tracking-widest uppercase transition-all
-                  ${filter === tab.key ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-white border border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-600"}`}
+                  ${filter === tab.key ? "bg-primary text-white shadow-md shadow-primary/20" : "bg-card border border-border text-muted-foreground hover:border-border hover:text-foreground"}`}
                 >
                   {tab.label}
                   <span
-                    className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${filter === tab.key ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"}`}
+                    className={`px-1.5 py-0.5 rounded-md text-[9px] font-black ${filter === tab.key ? "bg-card/20 text-white" : "bg-muted text-muted-foreground"}`}
                   >
                     {tab.count}
                   </span>
@@ -1141,7 +1141,7 @@ export default function StudentCourseList() {
             {/* Search */}
             <div className="relative">
               <svg
-                className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"
+                className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -1158,7 +1158,7 @@ export default function StudentCourseList() {
                 placeholder="Cari kelas..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2 text-xs bg-white border border-gray-200 rounded-xl w-52 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder-gray-300"
+                className="pl-9 pr-4 py-2 text-xs bg-card border border-border rounded-xl w-52 focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all placeholder-muted-foreground"
               />
             </div>
           </div>
@@ -1179,9 +1179,9 @@ export default function StudentCourseList() {
                 />
               ))
             ) : (
-              <div className="bg-white rounded-2xl border border-gray-100 py-16 flex flex-col items-center gap-3">
+              <div className="bg-card rounded-2xl border border-border py-16 flex flex-col items-center gap-3">
                 <svg
-                  className="w-10 h-10 text-gray-200"
+                  className="w-10 h-10 text-muted-foreground"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -1193,7 +1193,7 @@ export default function StudentCourseList() {
                     d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
                   />
                 </svg>
-                <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                   Tidak ada kelas ditemukan
                 </p>
               </div>

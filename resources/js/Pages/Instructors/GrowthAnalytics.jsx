@@ -91,11 +91,11 @@ const metrics = [
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-gray-100 rounded-xl px-4 py-2.5 shadow-lg">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
+      <div className="bg-card border border-border rounded-xl px-4 py-2.5 shadow-lg">
+        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
           {label}
         </p>
-        <p className="text-sm font-black text-blue-600">
+        <p className="text-sm font-black text-primary">
           {payload[0].value.toLocaleString()}
         </p>
       </div>
@@ -116,10 +116,10 @@ export default function GrowthAnalytics() {
         {/* ── Header ── */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-black text-gray-700 uppercase tracking-tight">
+            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">
               Growth Analytics
             </h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Insights and performance tracking.
             </p>
           </div>
@@ -128,10 +128,10 @@ export default function GrowthAnalytics() {
           <div className="relative">
             <button
               onClick={() => setDropdownOpen((v) => !v)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-extrabold tracking-widest text-gray-600 uppercase hover:bg-gray-50 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl text-xs font-extrabold tracking-widest text-foreground uppercase hover:bg-muted transition-colors shadow-sm"
             >
               <svg
-                className="w-4 h-4 text-gray-400"
+                className="w-4 h-4 text-muted-foreground"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -145,7 +145,7 @@ export default function GrowthAnalytics() {
               </svg>
               {timespanLabel[activeSpan]}
               <svg
-                className={`w-3 h-3 text-gray-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+                className={`w-3 h-3 text-muted-foreground transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -160,7 +160,7 @@ export default function GrowthAnalytics() {
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 top-11 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-10 w-40">
+              <div className="absolute right-0 top-11 bg-card border border-border rounded-xl shadow-lg py-1 z-10 w-40">
                 {timespans.map((span) => (
                   <button
                     key={span}
@@ -171,8 +171,8 @@ export default function GrowthAnalytics() {
                     className={`w-full text-left px-4 py-2.5 text-xs font-bold tracking-widest uppercase transition-colors
                       ${
                         activeSpan === span
-                          ? "text-blue-600 bg-blue-50"
-                          : "text-gray-500 hover:bg-gray-50"
+                          ? "text-primary bg-primary-soft"
+                          : "text-muted-foreground hover:bg-muted"
                       }`}
                   >
                     {timespanLabel[span]}
@@ -186,13 +186,13 @@ export default function GrowthAnalytics() {
         {/* ── Chart + Key Metrics ── */}
         <div className="grid grid-cols-3 gap-6">
           {/* Chart */}
-          <div className="col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="col-span-2 bg-card rounded-2xl border border-border shadow-sm p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">
+              <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
                 Performance Trend
               </h3>
               {/* Pill tabs */}
-              <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+              <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
                 {timespans.map((span) => (
                   <button
                     key={span}
@@ -200,8 +200,8 @@ export default function GrowthAnalytics() {
                     className={`px-3 py-1.5 text-[10px] font-extrabold tracking-widest uppercase rounded-lg transition-all duration-200
                       ${
                         activeSpan === span
-                          ? "bg-white text-blue-600 shadow-sm"
-                          : "text-gray-400 hover:text-gray-600"
+                          ? "bg-card text-primary shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                   >
                     {span}
@@ -282,12 +282,12 @@ export default function GrowthAnalytics() {
                       {m.growth}
                     </span>
                   </div>
-                  <div className="h-px bg-white/10 mt-1" />
+                  <div className="h-px bg-card/10 mt-1" />
                 </div>
               ))}
             </div>
 
-            <button className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold tracking-widest uppercase py-3.5 rounded-xl transition-colors duration-200">
+            <button className="w-full bg-primary hover:bg-primary-hover text-white text-xs font-extrabold tracking-widest uppercase py-3.5 rounded-xl transition-colors duration-200">
               Export Report
             </button>
           </div>

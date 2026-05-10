@@ -72,21 +72,21 @@ export default function CourseDetailEditModal({ course, categories, onClose }) {
         backdropFilter: "blur(6px)",
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500 flex-shrink-0" />
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="h-1.5 bg-gradient-to-r from-primary to-indigo-500 flex-shrink-0" />
 
-        <div className="px-8 pt-7 pb-4 flex-shrink-0 flex items-center justify-between border-b border-gray-100">
+        <div className="px-8 pt-7 pb-4 flex-shrink-0 flex items-center justify-between border-b border-border">
           <div>
-            <h3 className="text-base font-black text-gray-800 uppercase tracking-tight">
+            <h3 className="text-base font-black text-foreground uppercase tracking-tight">
               Edit Course Info
             </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Update course details and settings
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-300 hover:text-gray-500 transition-colors"
+            className="text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -115,7 +115,7 @@ export default function CourseDetailEditModal({ course, categories, onClose }) {
               onChange={handleThumbnailChange}
             />
             <div className="flex items-center gap-4">
-              <div className="w-32 h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 border-gray-100 bg-gray-50 relative">
+              <div className="w-32 h-24 rounded-xl overflow-hidden flex-shrink-0 border-2 border-border bg-muted relative">
                 {thumbnailPreview ? (
                   <>
                     <img
@@ -125,7 +125,7 @@ export default function CourseDetailEditModal({ course, categories, onClose }) {
                     />
                     <div className="absolute bottom-1.5 left-1.5">
                       <span
-                        className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${isCurrentImage ? "bg-gray-800/60 text-white/80" : "bg-blue-600 text-white"}`}
+                        className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md ${isCurrentImage ? "bg-gray-800/60 text-white/80" : "bg-primary text-white"}`}
                       >
                         {isCurrentImage ? "Current" : "New"}
                       </span>
@@ -134,7 +134,7 @@ export default function CourseDetailEditModal({ course, categories, onClose }) {
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-1">
                     <svg
-                      className="w-6 h-6 text-gray-300"
+                      className="w-6 h-6 text-muted-foreground"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -146,7 +146,7 @@ export default function CourseDetailEditModal({ course, categories, onClose }) {
                         d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                       />
                     </svg>
-                    <span className="text-[9px] text-gray-300 font-bold uppercase tracking-widest">
+                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest">
                       Default
                     </span>
                   </div>
@@ -157,7 +157,7 @@ export default function CourseDetailEditModal({ course, categories, onClose }) {
                 <button
                   type="button"
                   onClick={() => thumbnailRef.current?.click()}
-                  className="flex items-center gap-2 px-3 py-2 text-[10px] font-extrabold tracking-widest uppercase bg-blue-50 text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all"
+                  className="flex items-center gap-2 px-3 py-2 text-[10px] font-extrabold tracking-widest uppercase bg-primary-soft text-primary border border-primary/30 rounded-xl hover:bg-primary-soft transition-all"
                 >
                   <svg
                     className="w-3 h-3"
@@ -196,7 +196,7 @@ export default function CourseDetailEditModal({ course, categories, onClose }) {
                     Hapus Thumbnail
                   </button>
                 )}
-                <p className="text-[9px] text-gray-300 font-medium">
+                <p className="text-[9px] text-muted-foreground font-medium">
                   JPG, PNG, WEBP - Maks. 2MB
                   {!thumbnailFile &&
                     !thumbnailPreview &&
@@ -306,17 +306,17 @@ export default function CourseDetailEditModal({ course, categories, onClose }) {
           </div>
         </div>
 
-        <div className="px-8 py-5 border-t border-gray-100 flex gap-3 flex-shrink-0">
+        <div className="px-8 py-5 border-t border-border flex gap-3 flex-shrink-0">
           <button
             onClick={onClose}
-            className="flex-1 py-3 text-xs font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition-all"
+            className="flex-1 py-3 text-xs font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:bg-muted transition-all"
           >
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={processing}
-            className="flex-1 py-3 text-xs font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-60"
+            className="flex-1 py-3 text-xs font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-60"
           >
             {processing ? "Saving..." : "Save Changes"}
           </button>

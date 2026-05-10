@@ -46,7 +46,7 @@ export default memo(function NavbarGuest() {
   }, [user?.image, user?.updated_at]);
 
   return (
-    <header className="print:hidden sticky top-0 z-50 w-full bg-white border-b border-gray-200 shadow-sm">
+    <header className="print:hidden sticky top-0 z-50 w-full bg-background border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/guest" className="flex items-center gap-2 shrink-0">
@@ -61,10 +61,10 @@ export default memo(function NavbarGuest() {
             </svg>
           </div>
           <div className="leading-tight">
-            <div className="font-extrabold text-sm tracking-widest text-gray-900 uppercase">
+            <div className="font-extrabold text-sm tracking-widest text-black dark:text-white uppercase">
               INKINDO
             </div>
-            <div className="text-[9px] tracking-widest text-blue-600 uppercase font-semibold">
+            <div className="text-xs tracking-widest text-primary uppercase font-semibold">
               Learning Center
             </div>
           </div>
@@ -82,7 +82,7 @@ export default memo(function NavbarGuest() {
             <Link
               key={item.href}
               href={item.href}
-              className="text-[11px] font-bold tracking-widest text-gray-700 hover:text-blue-600 transition-colors uppercase"
+              className="text-[11px] font-bold tracking-widest text-black dark:text-white hover:text-primary-hover transition-colors uppercase"
             >
               {item.label}
             </Link>
@@ -91,6 +91,7 @@ export default memo(function NavbarGuest() {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-3 shrink-0">
+          <ToggleTheme />
           {user ? (
             <>
               {/* Notification bell */}
@@ -229,13 +230,13 @@ export default memo(function NavbarGuest() {
             <>
               <button
                 onClick={() => openLogin()}
-                className="text-[11px] font-bold tracking-widest text-gray-700 hover:text-blue-600 transition-colors uppercase px-2"
+                className="text-[11px] border border-primary px-4 py-2 rounded-md hover:bg-primary-soft hover:border-primary-hover font-bold tracking-widest text-black dark:text-white hover:dark:text-blue-300 hover:text-primary-600 transition-colors uppercase cursor-pointer"
               >
                 SIGN IN
               </button>
               <button
                 onClick={() => openRegister()}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold tracking-widest uppercase px-4 py-2 rounded-md transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold tracking-widest uppercase px-4 py-2 rounded-md transition-colors cursor-pointer"
               >
                 JOIN NOW
               </button>

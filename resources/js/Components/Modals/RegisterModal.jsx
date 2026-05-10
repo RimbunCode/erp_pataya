@@ -8,10 +8,10 @@ const roles = [
     label: "Student / Learner",
     desc: "Access your courses, track progress, and get certified.",
     note: "We recommend using your campus or school email address for easier verification.",
-    iconBg: "bg-blue-100",
-    iconColor: "text-blue-600",
-    borderColor: "border-blue-500",
-    activeBg: "bg-blue-50",
+    iconBg: "bg-blue-100 dark:bg-blue-500/20",
+    iconColor: "text-blue-700 dark:text-blue-300",
+    borderColor: "border-blue-500/70 dark:border-blue-400/70",
+    activeBg: "bg-blue-50 dark:bg-blue-950/40",
     icon: (
       <svg
         className="w-6 h-6"
@@ -38,10 +38,10 @@ const roles = [
     label: "Instructor",
     desc: "Create courses, manage students, and view earnings.",
     note: "We recommend using your institutional or professional email for credibility and verification.",
-    iconBg: "bg-purple-100",
-    iconColor: "text-purple-600",
-    borderColor: "border-purple-500",
-    activeBg: "bg-purple-50",
+    iconBg: "bg-violet-100 dark:bg-violet-500/20",
+    iconColor: "text-violet-700 dark:text-violet-300",
+    borderColor: "border-violet-500/70 dark:border-violet-400/70",
+    activeBg: "bg-violet-50 dark:bg-violet-950/40",
     icon: (
       <svg
         className="w-6 h-6"
@@ -140,15 +140,12 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-    >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 relative max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-background/70 backdrop-blur-sm">
+      <div className="bg-card text-card-foreground rounded-3xl border border-border shadow-2xl w-full max-w-lg p-8 relative max-h-[90vh] overflow-y-auto">
         {/* Close */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-5 right-5 text-muted-foreground hover:text-foreground transition-colors"
         >
           <svg
             className="w-5 h-5"
@@ -167,16 +164,16 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
             <svg
-              className="w-5 h-5 text-white"
+              className="w-5 h-5 text-primary-foreground"
               fill="currentColor"
               viewBox="0 0 24 24"
             >
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
             </svg>
           </div>
-          <span className="text-xl font-extrabold tracking-widest text-black uppercase">
+          <span className="text-2xl font-extrabold tracking-widest text-foreground uppercase">
             Create Account
           </span>
         </div>
@@ -185,7 +182,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
         <div className="flex flex-col gap-4 mb-7">
           {/* Nama Lengkap */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Full Name
             </label>
             <input
@@ -194,13 +191,13 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
               value={form.fullName}
               onChange={handleChange}
               placeholder="e.g. Budi Santoso"
-              className="w-full bg-gray-50 border border-gray-250 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
             />
           </div>
 
           {/* Email */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Email Address
             </label>
             <input
@@ -209,10 +206,10 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
               value={form.email}
               onChange={handleChange}
               placeholder="john@example.com"
-              className="w-full bg-gray-50 border border-gray-250 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
             />
             {errors.email && (
-              <p className="mt-1.5 text-xs font-semibold text-red-400">
+              <p className="mt-1.5 text-sm font-semibold text-destructive">
                 {errors.email}
               </p>
             )}
@@ -220,7 +217,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
 
           {/* Password */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Password
             </label>
             <div className="relative">
@@ -230,12 +227,12 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 value={form.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full bg-gray-50 border border-gray-250 rounded-xl px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showPassword ? (
                   <svg
@@ -277,7 +274,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
 
           {/* Confirm Password */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Confirm Password
             </label>
             <div className="relative">
@@ -287,17 +284,17 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 value={form.confirmPassword}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className={`w-full bg-gray-50 border rounded-xl px-4 py-3 pr-11 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:bg-white transition-all
+                className={`w-full bg-muted border rounded-xl px-4 py-3 pr-11 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:bg-card transition-all
         ${
           form.confirmPassword && form.password !== form.confirmPassword
-            ? "border-red-300 focus:ring-red-400"
-            : "border-gray-250 focus:ring-blue-500"
+            ? "border-destructive/60 focus:ring-destructive"
+            : "border-border focus:ring-ring"
         }`}
               />
               <button
                 type="button"
                 onClick={() => setShowConfirm((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showConfirm ? (
                   <svg
@@ -337,7 +334,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             </div>
             {/* Error message */}
             {form.confirmPassword && form.password !== form.confirmPassword && (
-              <p className="mt-1.5 text-xs font-semibold text-red-400">
+              <p className="mt-1.5 text-sm font-semibold text-destructive">
                 Passwords do not match.
               </p>
             )}
@@ -345,7 +342,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
 
           {/* Tanggal Lahir */}
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase mb-2">
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Date of Birth
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -353,7 +350,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 name="dobDay"
                 value={form.dobDay}
                 onChange={handleChange}
-                className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                className="bg-muted border border-border rounded-xl px-3 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
               >
                 <option value="">Day</option>
                 {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
@@ -367,7 +364,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 name="dobMonth"
                 value={form.dobMonth}
                 onChange={handleChange}
-                className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                className="bg-muted border border-border rounded-xl px-3 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
               >
                 <option value="">Month</option>
                 {[
@@ -394,7 +391,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 name="dobYear"
                 value={form.dobYear}
                 onChange={handleChange}
-                className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                className="bg-muted border border-border rounded-xl px-3 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
               >
                 <option value="">Year</option>
                 {Array.from(
@@ -413,11 +410,11 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
         {/* Role Selection */}
         <div className="mb-7">
           <div className="flex items-center justify-between mb-3">
-            <label className="block text-[10px] font-bold tracking-[2px] text-black uppercase">
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase">
               Select Your Role
             </label>
             {!isFormComplete && (
-              <span className="text-[10px] font-semibold text-black uppercase tracking-widest">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                 Please complete fields above to unlock
               </span>
             )}
@@ -437,10 +434,10 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                     relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 text-center transition-all duration-200
                     ${
                       isDisabled
-                        ? "border-gray-100 bg-gray-50 opacity-40 cursor-not-allowed"
+                        ? "border-border bg-muted/50 opacity-50 cursor-not-allowed"
                         : isActive
                           ? `${role.borderColor} ${role.activeBg} shadow-sm`
-                          : "border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50 cursor-pointer"
+                          : "border-border bg-card hover:border-primary/40 hover:bg-muted cursor-pointer"
                     }
                   `}
                 >
@@ -471,7 +468,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                     {role.icon}
                   </div>
                   <span
-                    className={`text-[10px] font-extrabold tracking-wide uppercase leading-tight ${isActive ? role.iconColor : "text-gray-500"}`}
+                    className={`text-xs font-extrabold tracking-wide uppercase leading-tight ${isActive ? role.iconColor : "text-muted-foreground"}`}
                   >
                     {role.label}
                   </span>
@@ -511,24 +508,24 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
         <button
           onClick={handleSubmit}
           disabled={!isFormComplete || !selectedRole}
-          className={`w-full font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300
+          className={`w-full font-extrabold tracking-widest uppercase text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300
             ${
               isFormComplete && selectedRole
-                ? "bg-blue-600 hover:bg-blue-700 text-white hover:-translate-y-0.5 shadow-md shadow-blue-200 cursor-pointer"
-                : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                ? "bg-primary hover:bg-primary-hover text-primary-foreground hover:-translate-y-0.5 shadow-md shadow-primary/25 cursor-pointer"
+                : "bg-muted text-muted-foreground/70 cursor-not-allowed"
             }`}
         >
           Create Account
         </button>
 
         {/* Footer */}
-        <div className="flex items-center justify-between mt-7 pt-5 border-t border-gray-100">
-          <span className="text-[10px] font-bold tracking-widest text-gray-300 uppercase">
+        <div className="flex items-center justify-between mt-7 pt-5 border-t border-border">
+          <span className="text-xs font-bold tracking-widest text-muted-foreground uppercase">
             Already have an account?
           </span>
           <button
             onClick={onSwitchToLogin}
-            className="text-[10px] font-extrabold tracking-widest text-blue-600 hover:text-blue-700 uppercase transition-colors"
+            className="text-xs font-extrabold tracking-widest text-primary hover:text-primary-hover uppercase transition-colors"
           >
             Sign In Here
           </button>

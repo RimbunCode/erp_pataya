@@ -22,7 +22,7 @@ function StarRating({ rating = 0, size = "w-4 h-4" }) {
       {[1, 2, 3, 4, 5].map((s) => (
         <svg
           key={s}
-          className={`${size} ${s <= Math.round(rating) ? "text-amber-400" : "text-gray-200"}`}
+          className={`${size} ${s <= Math.round(rating) ? "text-amber-400" : "text-muted-foreground"}`}
           fill="currentColor"
           viewBox="0 0 24 24"
         >
@@ -36,7 +36,7 @@ function StarRating({ rating = 0, size = "w-4 h-4" }) {
 // Warna thumbnail otomatis karena tidak ada image dari controller
 const thumbColors = [
   "from-gray-700 to-gray-900",
-  "from-blue-600 to-blue-900",
+  "from-primary to-primary",
   "from-green-600 to-green-800",
   "from-violet-600 to-violet-900",
   "from-teal-500 to-teal-700",
@@ -58,11 +58,11 @@ function TrainingCompare({ selected, onBack }) {
 
   return (
     <GuestLayout>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-muted">
         <div className="max-w-6xl mx-auto px-6 py-12">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-xs font-bold tracking-widest text-gray-400 uppercase hover:text-gray-600 transition-colors mb-8"
+            className="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase hover:text-foreground transition-colors mb-8"
           >
             <svg
               className="w-4 h-4"
@@ -80,36 +80,36 @@ function TrainingCompare({ selected, onBack }) {
             Back to Catalogue
           </button>
 
-          <h1 className="text-5xl font-black text-gray-900 uppercase tracking-tight mb-2">
+          <h1 className="text-5xl font-black text-foreground uppercase tracking-tight mb-2">
             Compare Trainings
           </h1>
-          <p className="text-base text-gray-400 mb-10">
+          <p className="text-base text-muted-foreground mb-10">
             Analyze side-by-side and choose the path that best fits your career
             goals.
           </p>
 
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-card rounded-3xl border border-border shadow-sm overflow-hidden">
             {/* Header */}
-            <div className={`grid border-b border-gray-100 ${cols}`}>
+            <div className={`grid border-b border-border ${cols}`}>
               {selected.map((course, i) => (
                 <div
                   key={course.id}
-                  className={`px-8 py-8 ${i > 0 ? "border-l border-gray-100" : ""}`}
+                  className={`px-8 py-8 ${i > 0 ? "border-l border-border" : ""}`}
                 >
-                  <span className="text-[10px] font-extrabold tracking-[2px] text-blue-600 uppercase block mb-3">
+                  <span className="text-[10px] font-extrabold tracking-[2px] text-primary uppercase block mb-3">
                     {course.categories?.[0] ?? "General"}
                   </span>
-                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight leading-tight mb-2">
+                  <h3 className="text-lg font-black text-foreground uppercase tracking-tight leading-tight mb-2">
                     {course.title}
                   </h3>
-                  <p className="text-[10px] font-bold tracking-[2px] text-blue-500 uppercase mb-3">
+                  <p className="text-[10px] font-bold tracking-[2px] text-primary uppercase mb-3">
                     By {course.instructor}
                   </p>
                   <div className="mb-5">
-                    <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-1">
+                    <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-1">
                       Investment
                     </p>
-                    <p className="text-3xl font-black text-blue-600">
+                    <p className="text-3xl font-black text-primary">
                       {formatRp(course.price)}
                     </p>
                   </div>
@@ -117,7 +117,7 @@ function TrainingCompare({ selected, onBack }) {
                     onClick={() =>
                       router.visit(route("guest.training.preview", course.id))
                     }
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-blue-200 transition-all duration-200"
+                    className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 transition-all duration-200"
                   >
                     View Details
                   </button>
@@ -126,16 +126,16 @@ function TrainingCompare({ selected, onBack }) {
             </div>
 
             {/* Description */}
-            <div className={`grid border-b border-gray-100 ${cols}`}>
+            <div className={`grid border-b border-border ${cols}`}>
               {selected.map((course, i) => (
                 <div
                   key={course.id}
-                  className={`px-8 py-6 ${i > 0 ? "border-l border-gray-100" : ""}`}
+                  className={`px-8 py-6 ${i > 0 ? "border-l border-border" : ""}`}
                 >
-                  <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-3">
+                  <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-3">
                     Description
                   </p>
-                  <p className="text-sm text-gray-600 leading-relaxed">
+                  <p className="text-sm text-foreground leading-relaxed">
                     {course.description}
                   </p>
                 </div>
@@ -143,16 +143,16 @@ function TrainingCompare({ selected, onBack }) {
             </div>
 
             {/* Level */}
-            <div className={`grid border-b border-gray-100 ${cols}`}>
+            <div className={`grid border-b border-border ${cols}`}>
               {selected.map((course, i) => (
                 <div
                   key={course.id}
-                  className={`px-8 py-5 ${i > 0 ? "border-l border-gray-100" : ""}`}
+                  className={`px-8 py-5 ${i > 0 ? "border-l border-border" : ""}`}
                 >
-                  <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-3">
+                  <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-3">
                     Level
                   </p>
-                  <span className="text-xs font-extrabold tracking-widest uppercase px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg capitalize">
+                  <span className="text-xs font-extrabold tracking-widest uppercase px-3 py-1.5 bg-primary-soft text-primary rounded-lg capitalize">
                     {course.level}
                   </span>
                 </div>
@@ -160,16 +160,16 @@ function TrainingCompare({ selected, onBack }) {
             </div>
 
             {/* Duration */}
-            <div className={`grid border-b border-gray-100 ${cols}`}>
+            <div className={`grid border-b border-border ${cols}`}>
               {selected.map((course, i) => (
                 <div
                   key={course.id}
-                  className={`px-8 py-5 flex items-center justify-between ${i > 0 ? "border-l border-gray-100" : ""}`}
+                  className={`px-8 py-5 flex items-center justify-between ${i > 0 ? "border-l border-border" : ""}`}
                 >
-                  <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+                  <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                     Duration
                   </p>
-                  <p className="text-sm font-black text-gray-800">
+                  <p className="text-sm font-black text-foreground">
                     {course.total_hours}h ({course.total_sessions} Sessions)
                   </p>
                 </div>
@@ -177,16 +177,16 @@ function TrainingCompare({ selected, onBack }) {
             </div>
 
             {/* Certificate */}
-            <div className={`grid border-b border-gray-100 ${cols}`}>
+            <div className={`grid border-b border-border ${cols}`}>
               {selected.map((course, i) => (
                 <div
                   key={course.id}
-                  className={`px-8 py-5 flex items-center justify-between ${i > 0 ? "border-l border-gray-100" : ""}`}
+                  className={`px-8 py-5 flex items-center justify-between ${i > 0 ? "border-l border-border" : ""}`}
                 >
-                  <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+                  <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                     Certificate
                   </p>
-                  <p className="text-sm font-black text-gray-800">
+                  <p className="text-sm font-black text-foreground">
                     {course.certificate_type ?? "-"}
                   </p>
                 </div>
@@ -198,12 +198,12 @@ function TrainingCompare({ selected, onBack }) {
               {selected.map((course, i) => (
                 <div
                   key={course.id}
-                  className={`px-8 py-6 flex items-center justify-between ${i > 0 ? "border-l border-gray-100" : ""}`}
+                  className={`px-8 py-6 flex items-center justify-between ${i > 0 ? "border-l border-border" : ""}`}
                 >
-                  <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+                  <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                     Total Price
                   </p>
-                  <p className="text-2xl font-black text-blue-600">
+                  <p className="text-2xl font-black text-primary">
                     {formatRp(course.price)}
                   </p>
                 </div>
@@ -238,13 +238,13 @@ function CourseCard({
   if (viewMode === "list") {
     return (
       <div
-        className={`bg-white rounded-2xl border-2 flex items-center gap-5 px-5 py-4 transition-all duration-200
-          ${hovered ? "border-blue-500 shadow-lg shadow-blue-100 -translate-y-0.5" : "border-gray-100 shadow-sm"}`}
+        className={`bg-card rounded-2xl border-2 flex items-center gap-5 px-5 py-4 transition-all duration-200
+          ${hovered ? "border-primary/50 shadow-lg shadow-primary/20 -translate-y-0.5" : "border-border shadow-sm"}`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
         {/* Thumbnail */}
-        <div className="w-20 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-600 to-indigo-700">
+        <div className="w-20 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-primary to-indigo-700">
           <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
             {course.thumbnail && (
               <AvatarImage
@@ -276,27 +276,27 @@ function CourseCard({
               {course.level}
             </span>
             {course.certificate_type && (
-              <span className="text-[9px] font-black text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md">
+              <span className="text-[9px] font-black text-muted-foreground bg-muted px-2 py-0.5 rounded-md">
                 {course.certificate_type}
               </span>
             )}
           </div>
-          <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide truncate">
+          <h3 className="text-sm font-black text-foreground uppercase tracking-wide truncate">
             {course.title}
           </h3>
-          <p className="text-xs text-blue-500 font-bold mt-0.5">
+          <p className="text-xs text-primary font-bold mt-0.5">
             By {course.instructor}
           </p>
           <div className="flex items-center gap-2 mt-1.5">
             <StarRating rating={course.rating} size="w-3 h-3" />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-muted-foreground">
               {course.total_hours}h • {course.total_sessions} sesi
             </span>
           </div>
         </div>
 
         <div className="text-right flex-shrink-0">
-          <p className="text-base font-black text-gray-900">
+          <p className="text-base font-black text-foreground">
             {formatRp(course.price)}
           </p>
           <div className="flex items-center gap-2 mt-2">
@@ -304,7 +304,7 @@ function CourseCard({
               onClick={() => onToggleCompare(course)}
               disabled={!isSelected && !canAdd}
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200
-                ${isSelected ? "bg-blue-600 text-white" : canAdd ? "border border-gray-200 text-gray-400 hover:border-blue-400 hover:text-blue-500" : "border border-gray-100 text-gray-200 cursor-not-allowed"}`}
+                ${isSelected ? "bg-primary text-white" : canAdd ? "border border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border border-border text-muted-foreground cursor-not-allowed"}`}
             >
               {!isSelected ? (
                 <GitCompareArrowsIcon className="w-4 h-4" />
@@ -314,7 +314,7 @@ function CourseCard({
             </button>
             <button
               onClick={goToDetail}
-              className="px-4 py-2 text-xs font-extrabold tracking-widest uppercase bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors"
+              className="px-4 py-2 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl transition-colors"
             >
               View Details
             </button>
@@ -327,13 +327,13 @@ function CourseCard({
   // Grid view
   return (
     <div
-      className={`bg-white rounded-2xl overflow-hidden border-2 transition-all duration-200
-        ${hovered ? "border-blue-500 shadow-xl shadow-blue-100 -translate-y-1" : "border-gray-100 shadow-md"}`}
+      className={`bg-card rounded-2xl overflow-hidden border-2 transition-all duration-200
+        ${hovered ? "border-primary/50 shadow-xl shadow-primary/20 -translate-y-1" : "border-border shadow-md"}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {/* Thumbnail */}
-      <div className="relative h-69 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-blue-600 to-indigo-700">
+      <div className="relative h-69 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-primary to-indigo-700">
         <Avatar className="relative w-full h-full border rounded-xl aspect-square  group">
           {course.thumbnail && (
             <AvatarImage
@@ -361,7 +361,7 @@ function CourseCard({
           {course.categories?.slice(0, 1).map((cat) => (
             <span
               key={cat}
-              className="px-3 py-1 rounded-full text-[10px] font-extrabold tracking-widest uppercase bg-white/20 backdrop-blur-sm text-white"
+              className="px-3 py-1 rounded-full text-[10px] font-extrabold tracking-widest uppercase bg-card/20 backdrop-blur-sm text-white"
             >
               {cat}
             </span>
@@ -377,17 +377,17 @@ function CourseCard({
 
       {/* Content */}
       <div className="p-5">
-        <h3 className="text-base font-black text-gray-900 uppercase tracking-tight leading-tight mb-1">
+        <h3 className="text-base font-black text-foreground uppercase tracking-tight leading-tight mb-1">
           {course.title}
         </h3>
-        <p className="text-[10px] font-bold tracking-widest text-blue-500 uppercase mb-2">
+        <p className="text-[10px] font-bold tracking-widest text-primary uppercase mb-2">
           By {course.instructor}
         </p>
-        <p className="text-xs text-gray-500 leading-relaxed mb-4 line-clamp-2">
+        <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2">
           {course.description}
         </p>
 
-        <div className="flex items-center gap-4 text-xs text-gray-400 mb-5">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-5">
           <span className="flex items-center gap-1.5">
             <svg
               className="w-3.5 h-3.5"
@@ -426,10 +426,10 @@ function CourseCard({
 
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[9px] font-bold tracking-[2px] text-gray-400 uppercase">
+            <p className="text-[9px] font-bold tracking-[2px] text-muted-foreground uppercase">
               Investment
             </p>
-            <p className="text-lg font-black text-gray-900">
+            <p className="text-lg font-black text-foreground">
               {formatRp(course.price)}
             </p>
           </div>
@@ -445,7 +445,7 @@ function CourseCard({
                     : "Maximum 3 courses"
               }
               className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200
-                ${isSelected ? "bg-blue-600 text-white shadow-md shadow-blue-200" : canAdd ? "border-2 border-gray-200 text-gray-400 hover:border-blue-400 hover:text-blue-500" : "border-2 border-gray-100 text-gray-200 cursor-not-allowed"}`}
+                ${isSelected ? "bg-primary text-white shadow-md shadow-primary/20" : canAdd ? "border-2 border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border-2 border-border text-muted-foreground cursor-not-allowed"}`}
             >
               {!isSelected ? (
                 <GitCompareArrowsIcon className="w-4 h-4" />
@@ -455,7 +455,7 @@ function CourseCard({
             </button>
             <button
               onClick={goToDetail}
-              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200"
+              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
             >
               View Details
             </button>
@@ -478,7 +478,7 @@ function FilterSidebar({ categories, activeFilters, onFilter, onReset }) {
         <div
           onClick={() => onFilter(filterKey, active ? "" : value)}
           className={`w-4 h-4 rounded flex items-center justify-center transition-all flex-shrink-0
-            ${active ? "bg-blue-600" : "border-2 border-gray-200 group-hover:border-blue-400"}`}
+            ${active ? "bg-primary" : "border-2 border-border group-hover:border-primary/40"}`}
         >
           {active && (
             <svg
@@ -497,7 +497,7 @@ function FilterSidebar({ categories, activeFilters, onFilter, onReset }) {
           )}
         </div>
         <span
-          className={`text-sm transition-colors ${active ? "font-bold text-gray-800" : "text-gray-600 group-hover:text-gray-800"}`}
+          className={`text-sm transition-colors ${active ? "font-bold text-foreground" : "text-foreground group-hover:text-foreground"}`}
         >
           {label}
         </span>
@@ -506,13 +506,13 @@ function FilterSidebar({ categories, activeFilters, onFilter, onReset }) {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sticky top-24">
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-6 sticky top-24">
       <div className="flex items-center justify-between mb-6">
-        <h3 className="text-xs font-extrabold tracking-[2px] text-gray-700 uppercase">
+        <h3 className="text-xs font-extrabold tracking-[2px] text-foreground uppercase">
           Filters
         </h3>
         <svg
-          className="w-4 h-4 text-gray-400"
+          className="w-4 h-4 text-muted-foreground"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -528,7 +528,7 @@ function FilterSidebar({ categories, activeFilters, onFilter, onReset }) {
 
       {/* Category — dari DB */}
       <div className="mb-6">
-        <p className="text-[10px] font-extrabold tracking-[2px] text-gray-400 uppercase mb-3">
+        <p className="text-[10px] font-extrabold tracking-[2px] text-muted-foreground uppercase mb-3">
           Category
         </p>
         <div className="flex flex-col gap-2">
@@ -545,7 +545,7 @@ function FilterSidebar({ categories, activeFilters, onFilter, onReset }) {
 
       {/* Level */}
       <div className="mb-6">
-        <p className="text-[10px] font-extrabold tracking-[2px] text-gray-400 uppercase mb-3">
+        <p className="text-[10px] font-extrabold tracking-[2px] text-muted-foreground uppercase mb-3">
           Level
         </p>
         <div className="flex flex-col gap-2">
@@ -562,7 +562,7 @@ function FilterSidebar({ categories, activeFilters, onFilter, onReset }) {
 
       {/* Certification */}
       <div className="mb-6">
-        <p className="text-[10px] font-extrabold tracking-[2px] text-gray-400 uppercase mb-3">
+        <p className="text-[10px] font-extrabold tracking-[2px] text-muted-foreground uppercase mb-3">
           Certification
         </p>
         <div className="flex flex-col gap-2">
@@ -574,7 +574,7 @@ function FilterSidebar({ categories, activeFilters, onFilter, onReset }) {
 
       <button
         onClick={onReset}
-        className="w-full py-2.5 text-xs font-extrabold tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 hover:bg-gray-50 transition-colors"
+        className="w-full py-2.5 text-xs font-extrabold tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:bg-muted transition-colors"
       >
         Clear All
       </button>
@@ -639,20 +639,20 @@ export default function TrainingCatalogue({
 
   return (
     <GuestLayout>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-muted">
         <div className="max-w-7xl mx-auto px-6 py-10">
           {/* ── Hero ── */}
           <div className="text-center mb-10">
-            <h1 className="text-5xl font-black text-gray-900 uppercase tracking-tight mb-4">
+            <h1 className="text-5xl font-black text-foreground uppercase tracking-tight mb-4">
               Training Catalogue
             </h1>
-            <p className="text-base text-gray-400 mb-8 max-w-xl mx-auto">
+            <p className="text-base text-muted-foreground mb-8 max-w-xl mx-auto">
               Explore professional certifications and upscale your engineering
               career with INKINDO standards.
             </p>
-            <div className="flex items-center gap-3 max-w-2xl mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-3">
+            <div className="flex items-center gap-3 max-w-2xl mx-auto bg-card rounded-2xl border border-border shadow-sm px-5 py-3">
               <svg
-                className="w-5 h-5 text-gray-300 flex-shrink-0"
+                className="w-5 h-5 text-muted-foreground flex-shrink-0"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -670,11 +670,11 @@ export default function TrainingCatalogue({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                className="flex-1 text-sm text-gray-700 placeholder-gray-300 focus:outline-none bg-transparent"
+                className="flex-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none bg-transparent"
               />
               <button
                 onClick={handleSearch}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold tracking-widest uppercase px-6 py-2.5 rounded-xl transition-colors flex-shrink-0"
+                className="bg-primary hover:bg-primary-hover text-white text-xs font-extrabold tracking-widest uppercase px-6 py-2.5 rounded-xl transition-colors flex-shrink-0"
               >
                 Search
               </button>
@@ -695,15 +695,15 @@ export default function TrainingCatalogue({
             {/* ── Main Content ── */}
             <div className="flex-1 min-w-0">
               {/* Results bar */}
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-3.5 flex items-center justify-between mb-5">
-                <p className="text-xs font-extrabold tracking-[2px] text-gray-500 uppercase">
-                  <span className="text-blue-600">{courses.length}</span>{" "}
+              <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-3.5 flex items-center justify-between mb-5">
+                <p className="text-xs font-extrabold tracking-[2px] text-muted-foreground uppercase">
+                  <span className="text-primary">{courses.length}</span>{" "}
                   Results Found
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-50"}`}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"}`}
                   >
                     <svg
                       className="w-4 h-4"
@@ -715,7 +715,7 @@ export default function TrainingCatalogue({
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-50"}`}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"}`}
                   >
                     <svg
                       className="w-4 h-4"
@@ -756,9 +756,9 @@ export default function TrainingCatalogue({
                   ))}
                 </div>
               ) : (
-                <div className="bg-white rounded-2xl border border-gray-100 py-20 flex flex-col items-center gap-3">
+                <div className="bg-card rounded-2xl border border-border py-20 flex flex-col items-center gap-3">
                   <svg
-                    className="w-12 h-12 text-gray-200"
+                    className="w-12 h-12 text-muted-foreground"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -770,12 +770,12 @@ export default function TrainingCatalogue({
                       d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
                     />
                   </svg>
-                  <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                     Tidak ada kelas ditemukan
                   </p>
                   <button
                     onClick={resetFilters}
-                    className="text-xs font-black text-blue-500 hover:text-blue-700 uppercase tracking-widest"
+                    className="text-xs font-black text-primary hover:text-primary uppercase tracking-widest"
                   >
                     Reset Filter
                   </button>
@@ -796,7 +796,7 @@ export default function TrainingCatalogue({
               }}
             >
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-xl bg-blue-600 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-xl bg-primary flex items-center justify-center">
                   <span className="text-xs font-black text-white">
                     {compareList.length}
                   </span>
@@ -809,7 +809,7 @@ export default function TrainingCatalogue({
                 {compareList.map((c) => (
                   <div
                     key={c.id}
-                    className="flex items-center gap-1.5 bg-white/10 rounded-xl px-3 py-1.5"
+                    className="flex items-center gap-1.5 bg-card/10 rounded-xl px-3 py-1.5"
                   >
                     <span className="text-xs font-bold text-white/80 truncate max-w-24">
                       {c.title.split(" ").slice(0, 3).join(" ")}...
@@ -839,7 +839,7 @@ export default function TrainingCatalogue({
                 onClick={() => setShowCompare(true)}
                 disabled={compareList.length < 2}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold tracking-widest uppercase transition-all duration-200
-                  ${compareList.length >= 2 ? "bg-blue-600 hover:bg-blue-500 text-white hover:-translate-y-0.5" : "bg-white/10 text-white/40 cursor-not-allowed"}`}
+                  ${compareList.length >= 2 ? "bg-primary hover:bg-primary-hover text-white hover:-translate-y-0.5" : "bg-card/10 text-white/40 cursor-not-allowed"}`}
               >
                 Compare Now
                 <svg

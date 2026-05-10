@@ -19,7 +19,7 @@ export function PopularTrainingSection() {
     return (
       <div
         className={`
-    bg-white rounded-2xl overflow-hidden flex flex-col group cursor-pointer
+    bg-card rounded-2xl overflow-hidden flex flex-col group cursor-pointer
     transition-all duration-500 ease-out
     hover:-translate-y-3 hover:scale-[1.02] hover:shadow-2xl
     ${featured ? "scale-105 shadow-xl z-10" : "shadow-md"}
@@ -43,19 +43,19 @@ export function PopularTrainingSection() {
           </span>
 
           {/* Title — selalu berubah biru saat hover card */}
-          <h3 className="font-black text-base tracking-tight leading-tight mb-1 transition-colors duration-200 group-hover:text-blue-600">
+          <h3 className="font-black text-base tracking-tight leading-tight mb-1 transition-colors duration-200 group-hover:text-primary">
             {title}
           </h3>
 
-          <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-3">
+          <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-3">
             BY {author}
           </p>
 
-          <p className="text-gray-500 text-xs leading-relaxed mb-4 flex-1">
+          <p className="text-muted-foreground text-xs leading-relaxed mb-4 flex-1">
             {description}
           </p>
 
-          <div className="flex items-center gap-4 text-[11px] text-gray-500 mb-5">
+          <div className="flex items-center gap-4 text-[11px] text-muted-foreground mb-5">
             <span className="flex items-center gap-1">
               <svg
                 className="w-3.5 h-3.5"
@@ -94,7 +94,7 @@ export function PopularTrainingSection() {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-blue-600 font-black text-lg tracking-tight">
+            <span className="text-primary font-black text-lg tracking-tight">
               Rp {price}
             </span>
             <Link
@@ -120,9 +120,9 @@ export function PopularTrainingSection() {
   const courses = [
     {
       category: "Digital Construction",
-      categoryColor: "bg-blue-50 text-blue-500 border border-blue-100",
+      categoryColor: "bg-primary-soft text-primary border border-primary/20",
       title: "BIM MANAGEMENT PROFESSIONAL",
-      titleColor: "text-blue-600",
+      titleColor: "text-primary",
       author: "Ahmad Junaidi, M.Eng",
       description:
         "Master Building Information Modeling with industry-standard tools and workflows.",
@@ -136,7 +136,7 @@ export function PopularTrainingSection() {
       category: "Project Management",
       categoryColor: "bg-green-50 text-green-600 border border-green-100",
       title: "PROJECT MANAGEMENT EXCELLENCE",
-      titleColor: "text-gray-900",
+      titleColor: "text-foreground",
       author: "Siti Aminah, PMP",
       description:
         "Comprehensive PM methodology aligned with international standards.",
@@ -151,7 +151,7 @@ export function PopularTrainingSection() {
       category: "Digital Engineering",
       categoryColor: "bg-purple-50 text-purple-500 border border-purple-100",
       title: "GREEN BUILDING CERTIFICATION",
-      titleColor: "text-gray-900",
+      titleColor: "text-foreground",
       author: "Budi Setiawan, LEED AP",
       description:
         "Learn sustainable design principles and LEED certification process.",
@@ -164,14 +164,14 @@ export function PopularTrainingSection() {
   ];
 
   return (
-    <section className="bg-white py-20">
+    <section className="bg-card py-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         {/* Heading */}
         <div className="mb-10">
-          <h2 className="text-4xl font-black text-gray-900 tracking-tight mb-2">
+          <h2 className="text-4xl font-black text-foreground tracking-tight mb-2">
             POPULAR TRAINING PROGRAMS
           </h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             Explore industry-ready courses designed by certified professionals
           </p>
         </div>
@@ -187,7 +187,7 @@ export function PopularTrainingSection() {
         <div className="text-center mt-12">
           <Link
             href="/guest-training"
-            className="inline-flex items-center gap-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold tracking-widest uppercase px-8 py-4 rounded-lg transition-colors"
+            className="inline-flex items-center gap-3 bg-primary hover:bg-primary-hover text-white text-xs font-bold tracking-widest uppercase px-8 py-4 rounded-lg transition-colors"
           >
             VIEW ALL TRAINING PROGRAMS
             <svg

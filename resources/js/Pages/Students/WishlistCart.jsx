@@ -42,17 +42,17 @@ export default function WishlistCart() {
       <div className="p-8 flex flex-col gap-6">
         {/* ── Header ── */}
         <div className="text-center py-6">
-          <h2 className="text-3xl font-black text-gray-800 uppercase tracking-tight mb-2">
+          <h2 className="text-3xl font-black text-foreground uppercase tracking-tight mb-2">
             Course Catalogue
           </h2>
-          <p className="text-sm text-gray-400 max-w-lg mx-auto">
+          <p className="text-sm text-muted-foreground max-w-lg mx-auto">
             Browse and enroll in professional engineering courses.
           </p>
 
           {/* Search */}
-          <div className="flex items-center gap-3 max-w-xl mx-auto mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-3">
+          <div className="flex items-center gap-3 max-w-xl mx-auto mt-6 bg-card rounded-2xl border border-border shadow-sm px-5 py-3">
             <svg
-              className="w-5 h-5 text-gray-300 flex-shrink-0"
+              className="w-5 h-5 text-muted-foreground flex-shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -69,20 +69,20 @@ export default function WishlistCart() {
               placeholder="Search courses or instructors..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 text-sm text-gray-700 placeholder-gray-300 focus:outline-none bg-transparent"
+              className="flex-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none bg-transparent"
             />
           </div>
         </div>
 
         {/* ── Filters + Toggle ── */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+          <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
             {["All", "Beginner", "Intermediate", "Advanced"].map((f) => (
               <button
                 key={f}
                 onClick={() => setFilterLevel(f)}
                 className={`px-4 py-2 text-[10px] font-extrabold tracking-widest uppercase rounded-lg transition-all duration-200
-                  ${filterLevel === f ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
+                  ${filterLevel === f ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 {f}
               </button>
@@ -90,14 +90,14 @@ export default function WishlistCart() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+            {/* <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
               {filtered.length} results
             </p> */}
-            <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+            <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
               <button
                 onClick={() => setViewMode("grid")}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors
-                  ${viewMode === "grid" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
+                  ${viewMode === "grid" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <svg
                   className="w-4 h-4"
@@ -110,7 +110,7 @@ export default function WishlistCart() {
               <button
                 onClick={() => setViewMode("list")}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors
-                  ${viewMode === "list" ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
+                  ${viewMode === "list" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <svg
                   className="w-4 h-4"
@@ -160,8 +160,8 @@ export default function WishlistCart() {
             </div>
           )
         ) : (
-          <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
-            <p className="text-sm font-bold uppercase tracking-widest text-gray-300">
+          <div className="text-center py-20 bg-card rounded-2xl border border-border">
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
               No courses found
             </p>
           </div>
@@ -193,7 +193,7 @@ export default function WishlistCart() {
           My Cart
         </span>
         {cart.length > 0 && (
-          <span className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[10px] font-black text-white">
+          <span className="w-5 h-5 rounded-full bg-primary-soft0 flex items-center justify-center text-[10px] font-black text-white">
             {cart.length}
           </span>
         )}

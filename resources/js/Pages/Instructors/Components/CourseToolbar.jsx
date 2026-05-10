@@ -8,13 +8,13 @@ export default function CourseToolbar({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+      <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
         {["all", "published", "draft"].map((f) => (
           <button
             key={f}
             onClick={() => applyFilter("status", f)}
             className={`px-4 py-2 text-[10px] font-extrabold tracking-widest uppercase rounded-lg transition-all capitalize
-                  ${filterStatus === f ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
+                  ${filterStatus === f ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             {f}
           </button>
@@ -24,7 +24,7 @@ export default function CourseToolbar({
       <div className="flex items-center gap-3">
         <div className="relative">
           <svg
-            className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"
+            className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -44,15 +44,15 @@ export default function CourseToolbar({
             onKeyDown={(e) =>
               e.key === "Enter" && applyFilter("search", search)
             }
-            className="pl-9 pr-4 py-2.5 text-xs bg-white border border-gray-200 rounded-xl w-48 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-300"
+            className="pl-9 pr-4 py-2.5 text-xs bg-card border border-border rounded-xl w-48 focus:outline-none focus:ring-2 focus:ring-ring transition-all placeholder-muted-foreground"
           />
         </div>
-        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
           {["grid", "list"].map((v) => (
             <button
               key={v}
               onClick={() => setViewMode(v)}
-              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${viewMode === v ? "bg-white text-blue-600 shadow-sm" : "text-gray-400 hover:text-gray-600"}`}
+              className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${viewMode === v ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               {v === "grid" ? (
                 <svg

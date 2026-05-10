@@ -29,7 +29,7 @@ export default function CourseDetail({ course, categories = [] }) {
 
   const cfg = statusConfig[course.status] ?? statusConfig.draft;
   const levelCls =
-    levelColor[course.level?.toLowerCase()] ?? "bg-gray-100 text-gray-500";
+    levelColor[course.level?.toLowerCase()] ?? "bg-muted text-muted-foreground";
 
   const addSection = () => {
     router.post(
@@ -60,7 +60,7 @@ export default function CourseDetail({ course, categories = [] }) {
       <div className="p-8 space-y-6">
         <button
           onClick={() => router.visit(route("instructor.classes.index"))}
-          className="flex items-center gap-2 text-xs font-bold tracking-widest text-gray-400 uppercase hover:text-gray-600 transition-colors"
+          className="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase hover:text-foreground transition-colors"
         >
           <svg
             className="w-4 h-4"
@@ -78,8 +78,8 @@ export default function CourseDetail({ course, categories = [] }) {
           Back to Courses
         </button>
 
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="h-1.5 bg-gradient-to-r from-blue-600 to-indigo-500" />
+        <div className="bg-card rounded-3xl border border-border shadow-sm overflow-hidden">
+          <div className="h-1.5 bg-gradient-to-r from-primary to-indigo-500" />
           <div className="p-8 flex items-start gap-8">
             <div className="w-48 h-36 rounded-2xl overflow-hidden flex-shrink-0">
               <Avatar className="relative w-full h-auto border rounded-xl aspect-square group">
@@ -155,19 +155,19 @@ export default function CourseDetail({ course, categories = [] }) {
                 {course.categories?.map((category) => (
                   <span
                     key={category}
-                    className="text-[9px] font-black tracking-widest uppercase px-2.5 py-1 rounded-lg bg-gray-100 text-gray-500"
+                    className="text-[9px] font-black tracking-widest uppercase px-2.5 py-1 rounded-lg bg-muted text-muted-foreground"
                   >
                     {category}
                   </span>
                 ))}
               </div>
-              <h1 className="text-xl font-black text-gray-900 uppercase tracking-tight leading-tight mb-2">
+              <h1 className="text-xl font-black text-foreground uppercase tracking-tight leading-tight mb-2">
                 {course.title}
               </h1>
-              <p className="text-xs text-gray-500 leading-relaxed mb-4 max-w-xl">
+              <p className="text-xs text-muted-foreground leading-relaxed mb-4 max-w-xl">
                 {course.description}
               </p>
-              <div className="flex items-center gap-6 text-xs text-gray-400">
+              <div className="flex items-center gap-6 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <svg
                     className="w-3.5 h-3.5"
@@ -202,7 +202,7 @@ export default function CourseDetail({ course, categories = [] }) {
                     {course.certificate_type}
                   </span>
                 )}
-                <span className="font-black text-blue-600">
+                <span className="font-black text-primary">
                   {formatRp(course.price)}
                 </span>
               </div>
@@ -210,7 +210,7 @@ export default function CourseDetail({ course, categories = [] }) {
             <div className="flex flex-col gap-2 flex-shrink-0">
               <button
                 onClick={() => setShowEditModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                className="flex items-center gap-2 px-5 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
               >
                 <svg
                   className="w-3.5 h-3.5"
@@ -233,7 +233,7 @@ export default function CourseDetail({ course, categories = [] }) {
                     route("instructor.classes.togglePublish", course.id),
                   )
                 }
-                className={`flex items-center gap-2 px-5 py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all border-2 ${course.status === "published" ? "border-gray-200 text-gray-500 hover:bg-gray-50" : "border-green-200 text-green-600 hover:bg-green-50"}`}
+                className={`flex items-center gap-2 px-5 py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all border-2 ${course.status === "published" ? "border-border text-muted-foreground hover:bg-muted" : "border-green-200 text-green-600 hover:bg-green-50"}`}
               >
                 {course.status === "published" ? "Unpublish" : "Publish"}
               </button>
@@ -248,7 +248,7 @@ export default function CourseDetail({ course, categories = [] }) {
             accent="blue"
             icon={
               <svg
-                className="w-5 h-5 text-blue-600"
+                className="w-5 h-5 text-primary"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -304,14 +304,14 @@ export default function CourseDetail({ course, categories = [] }) {
           />
         </div>
 
-        <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+        <div className="bg-card rounded-3xl border border-border shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-xs font-black tracking-widest text-gray-900 uppercase">
+            <h3 className="text-xs font-black tracking-widest text-foreground uppercase">
               Sections & Content
             </h3>
             <button
               onClick={addSection}
-              className="flex items-center gap-2 px-4 py-2 text-[9px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+              className="flex items-center gap-2 px-4 py-2 text-[9px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
             >
               <svg
                 className="w-3 h-3"
@@ -356,7 +356,7 @@ export default function CourseDetail({ course, categories = [] }) {
             ) : (
               <div className="py-12 flex flex-col items-center gap-3">
                 <svg
-                  className="w-10 h-10 text-gray-200"
+                  className="w-10 h-10 text-muted-foreground"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -368,7 +368,7 @@ export default function CourseDetail({ course, categories = [] }) {
                     d="M4 6h16M4 10h16M4 14h16M4 18h16"
                   />
                 </svg>
-                <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                   Belum ada section - tambah di atas
                 </p>
               </div>

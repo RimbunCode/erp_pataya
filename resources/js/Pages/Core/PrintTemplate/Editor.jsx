@@ -174,7 +174,7 @@ function variableDropListener(editor) {
                       name: col.name,
                       titleTrans: col.titleTrans,
                       class:
-                        "border border-gray-400 px-2 py-1 text-left bg-gray-100",
+                        "border border-border px-2 py-1 text-left bg-muted",
                     },
                   })),
                 ],
@@ -228,7 +228,7 @@ function variableDropListener(editor) {
                     attributes: {
                       "data-id": genId("cell"),
                       name: col.name,
-                      class: "border border-gray-300 px-2 py-1",
+                      class: "border border-border px-2 py-1",
                     },
                   })),
                 ],
