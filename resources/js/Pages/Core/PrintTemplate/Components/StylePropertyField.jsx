@@ -178,7 +178,7 @@ export default function StylePropertyField({ prop }) {
                   </button>
                   <div
                     className={cn(
-                      "bg-white min-w-[17px] min-h-[17px] text-black text-sm flex justify-center",
+                      "bg-card min-w-[17px] min-h-[17px] text-black text-sm flex justify-center",
                     )}
                     style={layer.getStylePreview({
                       number: { min: -3, max: 3 },

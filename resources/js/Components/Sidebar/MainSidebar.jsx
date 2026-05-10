@@ -1,10 +1,7 @@
 // resources/js/Layouts/DashboardLayout/Sidebar.jsx
 
 import Link from "@/Components/Link";
-import { navConfig, roleLabel } from "@/Components/Navbar/NavConfig";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { useMemo } from "react";
-import { usePage } from "@inertiajs/react";
+import { navConfig } from "@/Components/Navbar/NavConfig";
 
 export default function MainSidebar({
   collapsed,
@@ -12,34 +9,20 @@ export default function MainSidebar({
   userRoles,
   isMultiRole,
   currentPath,
-  initials,
-  userName,
-  onLogout,
 }) {
-  const { auth } = usePage().props;
-  const user = auth.user;
-
-  const avatarSrc = useMemo(() => {
-    if (!user.image) return null;
-
-    return (
-      route("files.preview", user.image) +
-      `?v=${new Date(user.updated_at).getTime()}`
-    );
-  }, [user.image, user.updated_at]);
   return (
     <aside
-      className={`flex-shrink-0 bg-background border-r-[0.5px] border-secondary flex flex-col transition-all duration-300 ${
+      className={`flex-shrink-0 bg-sidebar border-r border-sidebar-border text-sidebar-foreground flex flex-col transition-all duration-300 ${
         collapsed ? "w-20" : "w-64"
       }`}
     >
-      {/* ── Logo ── */}
-      <div className="h-16 flex items-center justify-between px-5 border-b border-gray-100">
+      {/* Logo */}
+      <div className="h-16 flex items-center justify-between px-5 border-b border-border">
         {!collapsed && (
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0">
               <svg
-                className="w-5 h-5 text-white"
+                className="w-5 h-5"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -47,10 +30,10 @@ export default function MainSidebar({
               </svg>
             </div>
             <div>
-              <div className="text-sm font-extrabold tracking-widest text-gray-900 uppercase leading-tight">
+              <div className="text-sm font-extrabold tracking-widest text-foreground uppercase leading-tight">
                 INKINDO
               </div>
-              <div className="text-[9px] tracking-widest text-blue-600 uppercase font-semibold">
+              <div className="text-[9px] tracking-widest text-role-label uppercase font-semibold">
                 LMS Portal
               </div>
             </div>
@@ -58,9 +41,9 @@ export default function MainSidebar({
         )}
 
         {collapsed && (
-          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center mx-auto">
+          <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center mx-auto">
             <svg
-              className="w-5 h-5 text-white"
+              className="w-5 h-5"
               fill="currentColor"
               viewBox="0 0 24 24"
             >
@@ -72,7 +55,7 @@ export default function MainSidebar({
         {!collapsed && (
           <button
             onClick={() => onToggleCollapsed(true)}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-50 transition-colors flex-shrink-0"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex-shrink-0"
           >
             <svg
               className="w-4 h-4"
@@ -91,14 +74,16 @@ export default function MainSidebar({
         )}
       </div>
 
-      {/* ── Nav ── */}
+      {/* Nav */}
       <nav className="flex-1 px-3 py-5 flex flex-col gap-1 overflow-y-auto">
-        {userRoles.map((r) => {
-          const config = navConfig[r];
-          if (!config) return null;
+        {userRoles.map((roleKey) => {
+          const config = navConfig[roleKey];
+          if (!config) {
+            return null;
+          }
 
           return (
-            <div key={r}>
+            <div key={roleKey}>
               {/* Role group label */}
               {isMultiRole && !collapsed && (
                 <div className="flex items-center gap-2 px-3 py-2 mt-3">
@@ -107,7 +92,7 @@ export default function MainSidebar({
                   >
                     {config.groupLabel}
                   </span>
-                  <div className="flex-1 h-px bg-gray-100" />
+                  <div className="flex-1 h-px bg-border" />
                 </div>
               )}
 
@@ -115,7 +100,7 @@ export default function MainSidebar({
               {collapsed && (
                 <button
                   onClick={() => onToggleCollapsed(false)}
-                  className="w-full flex items-center justify-center py-2 mb-2 rounded-xl text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                  className="w-full flex items-center justify-center py-2 mb-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-primary-soft transition-colors"
                 >
                   <svg
                     className="w-4 h-4"
@@ -141,16 +126,18 @@ export default function MainSidebar({
                     key={item.key}
                     href={item.href}
                     title={collapsed ? item.label : undefined}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-xs font-bold tracking-widest uppercase transition-all duration-200
-                      ${collapsed ? "justify-center" : ""}
-                      ${
-                        isActive
-                          ? "bg-primary text-white shadow-md shadow-blue-200"
-                          : "text-gray-400 hover:text-gray-700 hover:bg-gray-50"
-                      }`}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-xl text-xs font-bold tracking-widest uppercase transition-all duration-200 ${
+                      collapsed ? "justify-center" : ""
+                    } ${
+                      isActive
+                        ? "bg-primary text-primary-foreground shadow-md shadow-primary/25"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                    }`}
                   >
                     <span
-                      className={`flex-shrink-0 ${isActive ? "text-white" : "text-gray-400"}`}
+                      className={`flex-shrink-0 ${
+                        isActive ? "text-primary-foreground" : "text-muted-foreground"
+                      }`}
                     >
                       {item.icon}
                     </span>
@@ -158,7 +145,7 @@ export default function MainSidebar({
                       <>
                         {item.label}
                         {isActive && (
-                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white opacity-80" />
+                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground opacity-80" />
                         )}
                       </>
                     )}

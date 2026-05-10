@@ -42,7 +42,7 @@ export default function CourseDetailContentBucket({
           >
             {cfg.label}
           </span>
-          <span className="text-xs text-gray-300 font-bold">
+          <span className="text-xs text-muted-foreground font-bold">
             ({contents.length})
           </span>
         </div>
@@ -107,12 +107,12 @@ export default function CourseDetailContentBucket({
                 }
               }}
               placeholder={`Judul ${cfg.label.toLowerCase()}... (Enter untuk simpan)`}
-              className="flex-1 bg-transparent text-sm font-bold text-gray-700 placeholder-gray-300 focus:outline-none"
+              className="flex-1 bg-transparent text-sm font-bold text-foreground placeholder-muted-foreground focus:outline-none"
             />
           </div>
           <button
             onClick={addContent}
-            className="w-8 h-8 flex items-center justify-center rounded-xl bg-blue-500 text-white hover:bg-blue-600 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-primary-soft0 text-white hover:bg-primary-hover transition-all"
           >
             <svg
               className="w-3.5 h-3.5"
@@ -133,7 +133,7 @@ export default function CourseDetailContentBucket({
               setAdding(false);
               setTitle("");
             }}
-            className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 text-gray-400 hover:bg-gray-200 transition-all"
+            className="w-8 h-8 flex items-center justify-center rounded-xl bg-muted text-muted-foreground hover:bg-muted transition-all"
           >
             <svg
               className="w-3.5 h-3.5"

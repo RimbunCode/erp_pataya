@@ -23,7 +23,7 @@ export default function CourseDetailSectionNotes({ notes = [], sectionId }) {
   };
 
   return (
-    <div className="border-t border-gray-100 mt-3 pt-3">
+    <div className="border-t border-border mt-3 pt-3">
       <button
         onClick={() => setOpen((currentOpenState) => !currentOpenState)}
         className="flex items-center gap-2 text-xs font-black tracking-widest uppercase text-amber-500 hover:text-amber-600 transition-colors"
@@ -63,16 +63,16 @@ export default function CourseDetailSectionNotes({ notes = [], sectionId }) {
               key={note.id}
               className="flex items-start gap-3 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5 group"
             >
-              <p className="text-sm text-gray-600 leading-relaxed flex-1">
+              <p className="text-sm text-foreground leading-relaxed flex-1">
                 {note.message}
               </p>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs text-gray-300 font-medium">
+                <span className="text-xs text-muted-foreground font-medium">
                   {note.created_at}
                 </span>
                 <button
                   onClick={() => deleteNote(note.id)}
-                  className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-300 hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
                 >
                   <svg
                     className="w-3 h-3"
@@ -103,7 +103,7 @@ export default function CourseDetailSectionNotes({ notes = [], sectionId }) {
                 onChange={(event) => setData("content", event.target.value)}
                 rows={3}
                 placeholder="Tulis note..."
-                className="w-full bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                className="w-full bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 text-sm text-foreground placeholder-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
               />
               <div className="flex gap-2">
                 <button
@@ -111,7 +111,7 @@ export default function CourseDetailSectionNotes({ notes = [], sectionId }) {
                     setAdding(false);
                     reset();
                   }}
-                  className="flex-1 py-2.5 text-xs font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-400 hover:bg-gray-50 transition-all"
+                  className="flex-1 py-2.5 text-xs font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:bg-muted transition-all"
                 >
                   Cancel
                 </button>

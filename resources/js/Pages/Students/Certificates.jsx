@@ -67,10 +67,10 @@ function AddCertificateModal({ onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-300 hover:text-gray-500 transition-colors"
+          className="absolute top-5 right-5 text-muted-foreground hover:text-muted-foreground transition-colors"
         >
           <svg
             className="w-5 h-5"
@@ -88,7 +88,7 @@ function AddCertificateModal({ onClose }) {
         </button>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
             <svg
               className="w-5 h-5 text-white"
               fill="none"
@@ -104,10 +104,10 @@ function AddCertificateModal({ onClose }) {
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-black text-gray-700 uppercase tracking-tight">
+            <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
               Add Certificate
             </h3>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Add an external certification to your profile.
             </p>
           </div>
@@ -115,7 +115,7 @@ function AddCertificateModal({ onClose }) {
 
         <div className="flex flex-col gap-4">
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Certificate Title
             </label>
             <input
@@ -125,12 +125,12 @@ function AddCertificateModal({ onClose }) {
               onChange={(e) =>
                 setForm((p) => ({ ...p, title: e.target.value }))
               }
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Issuing Organization
             </label>
             <input
@@ -140,12 +140,12 @@ function AddCertificateModal({ onClose }) {
               onChange={(e) =>
                 setForm((p) => ({ ...p, issuer: e.target.value }))
               }
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
             />
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
               Credential ID
             </label>
             <input
@@ -155,13 +155,13 @@ function AddCertificateModal({ onClose }) {
               onChange={(e) =>
                 setForm((p) => ({ ...p, credentialId: e.target.value }))
               }
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+              <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Issue Date
               </label>
               <input
@@ -170,13 +170,15 @@ function AddCertificateModal({ onClose }) {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, issuedDate: e.target.value }))
                 }
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+              <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Expiry Date{" "}
-                <span className="normal-case text-gray-300">(optional)</span>
+                <span className="normal-case text-muted-foreground">
+                  (optional)
+                </span>
               </label>
               <input
                 type="date"
@@ -184,7 +186,7 @@ function AddCertificateModal({ onClose }) {
                 onChange={(e) =>
                   setForm((p) => ({ ...p, expiryDate: e.target.value }))
                 }
-                className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
               />
             </div>
           </div>
@@ -193,7 +195,7 @@ function AddCertificateModal({ onClose }) {
         <div className="flex gap-3 mt-7">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
           >
             Cancel
           </button>
@@ -202,8 +204,8 @@ function AddCertificateModal({ onClose }) {
             className={`flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
               ${
                 isComplete
-                  ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5"
-                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                  ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
               }`}
           >
             Add Certificate
@@ -230,10 +232,10 @@ function VerifyModal({ cert, onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative">
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-md p-8 relative">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-300 hover:text-gray-500 transition-colors"
+          className="absolute top-5 right-5 text-muted-foreground hover:text-muted-foreground transition-colors"
         >
           <svg
             className="w-5 h-5"
@@ -251,7 +253,7 @@ function VerifyModal({ cert, onClose }) {
         </button>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
             <svg
               className="w-5 h-5 text-white"
               fill="none"
@@ -267,50 +269,50 @@ function VerifyModal({ cert, onClose }) {
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-black text-gray-700 uppercase tracking-tight">
+            <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
               Verify Certificate
             </h3>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Check the authenticity of this certificate.
             </p>
           </div>
         </div>
 
         {/* Cert Info */}
-        <div className="bg-gray-50 rounded-2xl p-5 mb-6 border border-gray-100">
-          <p className="text-xs font-extrabold text-gray-700 uppercase tracking-wide mb-3">
+        <div className="bg-muted rounded-2xl p-5 mb-6 border border-border">
+          <p className="text-xs font-extrabold text-foreground uppercase tracking-wide mb-3">
             {cert.title}
           </p>
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between">
-              <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
                 Issuer
               </span>
-              <span className="text-[10px] font-bold text-gray-600">
+              <span className="text-[10px] font-bold text-foreground">
                 {cert.issuer}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
                 Credential ID
               </span>
-              <span className="text-[10px] font-bold text-gray-600">
+              <span className="text-[10px] font-bold text-foreground">
                 {cert.credentialId}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
                 Issued
               </span>
-              <span className="text-[10px] font-bold text-gray-600">
+              <span className="text-[10px] font-bold text-foreground">
                 {cert.issuedDate}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+              <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
                 Expires
               </span>
-              <span className="text-[10px] font-bold text-gray-600">
+              <span className="text-[10px] font-bold text-foreground">
                 {cert.expiryDate}
               </span>
             </div>
@@ -362,14 +364,14 @@ function VerifyModal({ cert, onClose }) {
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
           >
             Close
           </button>
           {status === "idle" && (
             <button
               onClick={handleVerify}
-              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200"
+              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
             >
               Verify Now
             </button>
@@ -377,7 +379,7 @@ function VerifyModal({ cert, onClose }) {
           {status === "loading" && (
             <button
               disabled
-              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-blue-400 text-white cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-primary text-white cursor-not-allowed flex items-center justify-center gap-2"
             >
               <svg
                 className="w-4 h-4 animate-spin"
@@ -415,8 +417,8 @@ function CertRow({ cert, onVerify }) {
 
   return (
     <div
-      className={`bg-white rounded-2xl border-2 flex items-center gap-5 px-5 py-4 transition-all duration-200 cursor-pointer
-        ${hovered ? "border-blue-500 shadow-lg shadow-blue-100 -translate-y-0.5" : "border-gray-100 shadow-lg shadow-gray-100"}`}
+      className={`bg-card rounded-2xl border-2 flex items-center gap-5 px-5 py-4 transition-all duration-200 cursor-pointer
+        ${hovered ? "border-primary/50 shadow-lg shadow-primary/20 -translate-y-0.5" : "border-border"}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => {
         setHovered(false);
@@ -442,25 +444,25 @@ function CertRow({ cert, onVerify }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-black text-gray-700 uppercase tracking-wide leading-tight">
+        <h3 className="text-sm font-black text-foreground uppercase tracking-wide leading-tight">
           {cert.title}
         </h3>
-        <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mt-1">
+        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-1">
           {cert.issuer}
           <span className="mx-2">·</span>
           Issued {cert.issuedDate}
         </p>
-        <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mt-0.5">
+        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-0.5">
           ID: {cert.credentialId}
         </p>
       </div>
 
       {/* Expiry */}
       <div className="text-right flex-shrink-0">
-        <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
           Expires
         </p>
-        <p className="text-xs font-bold text-gray-600 mt-0.5">
+        <p className="text-xs font-bold text-foreground mt-0.5">
           {cert.expiryDate}
         </p>
       </div>
@@ -484,19 +486,19 @@ function CertRow({ cert, onVerify }) {
             e.stopPropagation();
             setMenuOpen((v) => !v);
           }}
-          className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-300 hover:text-gray-500 hover:bg-gray-50 transition-colors"
+          className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:text-muted-foreground hover:bg-muted transition-colors"
         >
           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
             <path d="M12 5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
           </svg>
         </button>
         {menuOpen && (
-          <div className="absolute right-0 top-9 bg-white border border-gray-100 rounded-xl shadow-lg py-1 z-10 w-36">
+          <div className="absolute right-0 top-9 bg-card border border-border rounded-xl shadow-lg py-1 z-10 w-36">
             {["Download PDF", "Share", "Remove"].map((item) => (
               <button
                 key={item}
-                className={`w-full text-left px-4 py-2 text-xs font-semibold transition-colors hover:bg-gray-50
-                  ${item === "Remove" ? "text-red-400 hover:text-red-500" : "text-gray-600"}`}
+                className={`w-full text-left px-4 py-2 text-xs font-semibold transition-colors hover:bg-muted
+                  ${item === "Remove" ? "text-red-400 hover:text-red-500" : "text-foreground"}`}
               >
                 {item}
               </button>
@@ -511,7 +513,7 @@ function CertRow({ cert, onVerify }) {
           e.stopPropagation();
           onVerify(cert);
         }}
-        className="flex-shrink-0 text-[10px] font-extrabold tracking-widest uppercase px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white transition-all duration-200"
+        className="flex-shrink-0 text-[10px] font-extrabold tracking-widest uppercase px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white transition-all duration-200"
       >
         Verify
       </button>
@@ -534,10 +536,10 @@ export default function Certificates() {
         {/* Header */}
         <div className="flex items-start justify-between">
           <div>
-            <h2 className="text-2xl font-black text-gray-700 uppercase tracking-tight">
+            <h2 className="text-2xl font-black text-foreground uppercase tracking-tight">
               My Certificates
             </h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Manage and verify your earned certifications.
             </p>
           </div>
@@ -549,7 +551,7 @@ export default function Certificates() {
                 placeholder="Search certificates..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-4 py-2.5 text-xs bg-white border border-gray-350 rounded-xl w-52 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all placeholder-gray-600"
+                className="pl-9 pr-4 py-2.5 text-xs bg-card border border-border rounded-xl w-52 focus:outline-none focus:ring-2 focus:ring-ring transition-all placeholder-muted-foreground"
               />
             </div>
           </div>
@@ -562,7 +564,7 @@ export default function Certificates() {
               <CertRow key={cert.id} cert={cert} onVerify={setVerifyTarget} />
             ))
           ) : (
-            <div className="text-center py-20 text-gray-300">
+            <div className="text-center py-20 text-muted-foreground">
               <p className="text-sm font-bold uppercase tracking-widest">
                 No certificates found
               </p>

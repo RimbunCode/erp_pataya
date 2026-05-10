@@ -39,14 +39,14 @@ export default function ManageClasses({
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-2xl font-black uppercase">Manage Classes</h2>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Create and manage your training courses.
             </p>
           </div>
 
           <button
             onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 px-5 py-3 text-xs font-extrabold tracking-widest uppercase bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all"
+            className="flex items-center gap-2 px-5 py-3 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
           >
             <svg
               className="w-4 h-4"

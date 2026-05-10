@@ -57,14 +57,14 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+        className="bg-card rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="bg-gray-900 px-6 pt-6 pb-8 relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-card/10 text-white/60 hover:bg-card/20 hover:text-white transition-all"
           >
             <svg
               className="w-4 h-4"
@@ -80,7 +80,7 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
               />
             </svg>
           </button>
-          <p className="text-[9px] font-black tracking-widest text-blue-400 uppercase mb-1">
+          <p className="text-[9px] font-black tracking-widest text-primary uppercase mb-1">
             Checkout — {items.length} Class
           </p>
           <p className="text-xl font-black text-white">{formatRp(total)}</p>
@@ -91,7 +91,7 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
               <div key={i} className="flex items-center gap-2">
                 <div
                   className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all
-                  ${step > i + 1 ? "bg-green-500 text-white" : step === i + 1 ? "bg-blue-500 text-white" : "bg-white/10 text-white/40"}`}
+                  ${step > i + 1 ? "bg-green-500 text-white" : step === i + 1 ? "bg-primary-soft0 text-white" : "bg-card/10 text-white/40"}`}
                 >
                   {step > i + 1 ? "✓" : i + 1}
                 </div>
@@ -102,7 +102,7 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
                 </span>
                 {i < 2 && (
                   <div
-                    className={`w-6 h-px ${step > i + 1 ? "bg-green-500" : "bg-white/10"}`}
+                    className={`w-6 h-px ${step > i + 1 ? "bg-green-500" : "bg-card/10"}`}
                   />
                 )}
               </div>
@@ -115,30 +115,30 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
           {step === 1 && (
             <>
               {/* Order mini summary */}
-              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-2">
+              <div className="bg-muted rounded-2xl border border-border p-4 space-y-2">
                 {items.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center justify-between"
                   >
-                    <span className="text-[10px] font-bold text-gray-700 truncate flex-1 pr-4">
+                    <span className="text-[10px] font-bold text-foreground truncate flex-1 pr-4">
                       {item.title}
                     </span>
-                    <span className="text-[10px] font-black text-gray-900 flex-shrink-0">
+                    <span className="text-[10px] font-black text-foreground flex-shrink-0">
                       {formatRp(item.price)}
                     </span>
                   </div>
                 ))}
-                <div className="border-t border-gray-200 pt-2 flex items-center justify-between">
-                  <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                <div className="border-t border-border pt-2 flex items-center justify-between">
+                  <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                     Total
                   </span>
-                  <span className="text-sm font-black text-blue-600">
+                  <span className="text-sm font-black text-primary">
                     {formatRp(total)}
                   </span>
                 </div>
               </div>
-              <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+              <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                 Choose Your Payment Method
               </p>
               <div className="space-y-2">
@@ -147,19 +147,19 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
                     key={m.id}
                     onClick={() => setMethod(m.id)}
                     className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl border-2 transition-all text-left
-                      ${method === m.id ? "border-blue-500 bg-blue-50" : "border-gray-100 hover:border-gray-200"}`}
+                      ${method === m.id ? "border-primary/50 bg-primary-soft" : "border-border hover:border-border"}`}
                   >
                     <span className="text-2xl">{m.icon}</span>
                     <div>
-                      <p className="text-xs font-black text-gray-800 uppercase tracking-wide">
+                      <p className="text-xs font-black text-foreground uppercase tracking-wide">
                         {m.label}
                       </p>
-                      <p className="text-[9px] text-gray-400 font-medium">
+                      <p className="text-[9px] text-muted-foreground font-medium">
                         {m.bank}
                       </p>
                     </div>
                     {method === m.id && (
-                      <div className="ml-auto w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                      <div className="ml-auto w-5 h-5 rounded-full bg-primary-soft0 flex items-center justify-center">
                         <svg
                           className="w-3 h-3 text-white"
                           fill="none"
@@ -181,7 +181,7 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
               <button
                 disabled={!method}
                 onClick={() => setStep(2)}
-                className="w-full py-3 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-3 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Continue
               </button>
@@ -191,25 +191,25 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
           {/* Step 2 */}
           {step === 2 && method && (
             <>
-              <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+              <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                 Payment Instruction
               </p>
-              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-2.5">
+              <div className="bg-muted rounded-2xl border border-border p-4 space-y-2.5">
                 {instructions[method].map((ins, i) => (
                   <div key={i} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-[9px] font-black text-blue-600">
+                    <div className="w-5 h-5 rounded-full bg-primary-soft flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-[9px] font-black text-primary">
                         {i + 1}
                       </span>
                     </div>
-                    <p className="text-xs font-medium text-gray-700">{ins}</p>
+                    <p className="text-xs font-medium text-foreground">{ins}</p>
                   </div>
                 ))}
               </div>
               {method === "qris" && (
                 <div className="flex justify-center">
-                  <div className="w-32 h-32 bg-gray-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300">
-                    <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-center">
+                  <div className="w-32 h-32 bg-muted rounded-2xl flex items-center justify-center border-2 border-dashed border-border">
+                    <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest text-center">
                       QR Code
                       <br />
                       Placeholder
@@ -220,13 +220,13 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
               <div className="flex gap-2">
                 <button
                   onClick={() => setStep(1)}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 hover:border-gray-300 transition-all"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border transition-all"
                 >
                   Back
                 </button>
                 <button
                   onClick={() => setStep(3)}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
                 >
                   Paid
                 </button>
@@ -237,13 +237,13 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
           {/* Step 3 */}
           {step === 3 && (
             <>
-              <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+              <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                 Upload Payment Proof
               </p>
               <div
                 onClick={() => fileRef.current?.click()}
                 className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center gap-3 cursor-pointer transition-all
-                  ${file ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"}`}
+                  ${file ? "border-primary/40 bg-primary-soft" : "border-border hover:border-primary/35 hover:bg-muted"}`}
               >
                 <input
                   ref={fileRef}
@@ -254,7 +254,7 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
                 />
                 {file ? (
                   <>
-                    <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-primary-soft0 flex items-center justify-center">
                       <svg
                         className="w-5 h-5 text-white"
                         fill="none"
@@ -269,18 +269,18 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
                         />
                       </svg>
                     </div>
-                    <p className="text-xs font-black text-blue-700 text-center">
+                    <p className="text-xs font-black text-primary text-center">
                       {file.name}
                     </p>
-                    <p className="text-[9px] text-blue-400 font-medium">
+                    <p className="text-[9px] text-primary font-medium">
                       Change File
                     </p>
                   </>
                 ) : (
                   <>
-                    <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
                       <svg
-                        className="w-5 h-5 text-gray-400"
+                        className="w-5 h-5 text-muted-foreground"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -293,17 +293,17 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
                         />
                       </svg>
                     </div>
-                    <p className="text-xs font-black text-gray-500 text-center">
+                    <p className="text-xs font-black text-muted-foreground text-center">
                       Upload Payment Proof
                     </p>
-                    <p className="text-[9px] text-gray-300 font-medium">
+                    <p className="text-[9px] text-muted-foreground font-medium">
                       JPG, PNG, or PDF • Max. 5MB
                     </p>
                   </>
                 )}
               </div>
               <div>
-                <label className="text-[9px] font-black tracking-widest text-gray-400 uppercase block mb-1.5">
+                <label className="text-[9px] font-black tracking-widest text-muted-foreground uppercase block mb-1.5">
                   Note (Optional)
                 </label>
                 <textarea
@@ -311,20 +311,20 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
                   onChange={(e) => setNote(e.target.value)}
                   rows={3}
                   placeholder="Tambahkan catatan jika diperlukan..."
-                  className="w-full text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder-gray-300"
+                  className="w-full text-xs text-foreground bg-muted border border-border rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all placeholder-muted-foreground"
                 />
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setStep(2)}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 hover:border-gray-300 transition-all"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border transition-all"
                 >
                   Back
                 </button>
                 <button
                   disabled={!file}
                   onClick={onSuccess}
-                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Send
                 </button>

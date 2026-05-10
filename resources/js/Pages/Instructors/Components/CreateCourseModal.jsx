@@ -58,9 +58,9 @@ export default function CreateCourseModal({ categories, onClose }) {
   };
 
   const inputClass =
-    "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all";
+    "w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all";
   const labelClass =
-    "block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2";
+    "block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2";
 
   // Section helpers
   const addSection = () =>
@@ -135,13 +135,13 @@ export default function CreateCourseModal({ categories, onClose }) {
         backdropFilter: "blur(6px)",
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl relative overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 to-indigo-500 flex-shrink-0" />
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-2xl relative overflow-hidden max-h-[90vh] flex flex-col">
+        <div className="h-1.5 w-full bg-gradient-to-r from-primary to-indigo-500 flex-shrink-0" />
 
         <div className="p-8 flex-shrink-0">
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 text-gray-300 hover:text-gray-500 transition-colors"
+            className="absolute top-6 right-6 text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -159,7 +159,7 @@ export default function CreateCourseModal({ categories, onClose }) {
           </button>
 
           <div className="flex items-center gap-3 mb-5">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
               <svg
                 className="w-5 h-5 text-white"
                 fill="none"
@@ -175,10 +175,10 @@ export default function CreateCourseModal({ categories, onClose }) {
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-700 uppercase tracking-tight">
+              <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
                 Create New Course
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 Step {step} of 2 —{" "}
                 {step === 1 ? "Course Information" : "Sections & Content"}
               </p>
@@ -191,7 +191,7 @@ export default function CreateCourseModal({ categories, onClose }) {
               <div key={s} className="flex items-center gap-2 flex-1">
                 <div
                   className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-black transition-all
-                  ${step === s ? "bg-blue-600 text-white shadow-md shadow-blue-200" : step > s ? "bg-green-500 text-white" : "bg-gray-100 text-gray-400"}`}
+                  ${step === s ? "bg-primary text-white shadow-md shadow-primary/20" : step > s ? "bg-green-500 text-white" : "bg-muted text-muted-foreground"}`}
                 >
                   {step > s ? (
                     <svg
@@ -213,7 +213,7 @@ export default function CreateCourseModal({ categories, onClose }) {
                 </div>
                 {s < 2 && (
                   <div
-                    className={`flex-1 h-0.5 rounded-full ${step > s ? "bg-green-400" : "bg-gray-100"}`}
+                    className={`flex-1 h-0.5 rounded-full ${step > s ? "bg-green-400" : "bg-muted"}`}
                   />
                 )}
               </div>
@@ -238,7 +238,7 @@ export default function CreateCourseModal({ categories, onClose }) {
                 />
                 <div className="flex items-center gap-4">
                   {/* Preview box */}
-                  <div className="w-28 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 border-gray-100 bg-gray-50 relative">
+                  <div className="w-28 h-20 rounded-xl overflow-hidden flex-shrink-0 border-2 border-border bg-muted relative">
                     <img
                       src={thumbnailPreview ?? DEFAULT_THUMBNAIL}
                       alt="Thumbnail preview"
@@ -261,7 +261,7 @@ export default function CreateCourseModal({ categories, onClose }) {
                     <button
                       type="button"
                       onClick={() => thumbnailRef.current?.click()}
-                      className="flex items-center gap-2 px-3 py-2 text-[10px] font-extrabold tracking-widest uppercase bg-blue-50 text-blue-600 border border-blue-200 rounded-xl hover:bg-blue-100 transition-all"
+                      className="flex items-center gap-2 px-3 py-2 text-[10px] font-extrabold tracking-widest uppercase bg-primary-soft text-primary border border-primary/30 rounded-xl hover:bg-primary-soft transition-all"
                     >
                       <svg
                         className="w-3 h-3"
@@ -300,7 +300,7 @@ export default function CreateCourseModal({ categories, onClose }) {
                         Hapus
                       </button>
                     )}
-                    <p className="text-[9px] text-gray-300 font-medium">
+                    <p className="text-[9px] text-muted-foreground font-medium">
                       JPG, PNG, WEBP • Maks. 2MB
                       {!thumbnailPreview && " • Logo default akan digunakan"}
                     </p>
@@ -439,12 +439,12 @@ export default function CreateCourseModal({ categories, onClose }) {
           {step === 2 && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-bold text-gray-500">
+                <p className="text-xs font-bold text-muted-foreground">
                   Add sections and content for your course.
                 </p>
                 <button
                   onClick={addSection}
-                  className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-widest uppercase text-blue-600 hover:text-blue-700 transition-colors"
+                  className="flex items-center gap-1.5 text-[10px] font-extrabold tracking-widest uppercase text-primary hover:text-primary transition-colors"
                 >
                   <svg
                     className="w-3 h-3"
@@ -466,10 +466,10 @@ export default function CreateCourseModal({ categories, onClose }) {
               {sections.map((section, si) => (
                 <div
                   key={section.id}
-                  className="border-2 border-gray-100 rounded-2xl overflow-hidden"
+                  className="border-2 border-border rounded-2xl overflow-hidden"
                 >
-                  <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 border-b border-gray-100">
-                    <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                  <div className="flex items-center gap-3 px-4 py-3 bg-muted border-b border-border">
+                    <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
                       <span className="text-[10px] font-black text-white">
                         {String(si + 1).padStart(2, "0")}
                       </span>
@@ -481,12 +481,12 @@ export default function CreateCourseModal({ categories, onClose }) {
                         updateSection(section.id, e.target.value)
                       }
                       placeholder="Section title..."
-                      className="flex-1 bg-transparent text-sm font-bold text-gray-700 placeholder-gray-300 focus:outline-none"
+                      className="flex-1 bg-transparent text-sm font-bold text-foreground placeholder-muted-foreground focus:outline-none"
                     />
                     {sections.length > 1 && (
                       <button
                         onClick={() => removeSection(section.id)}
-                        className="text-gray-300 hover:text-red-400 transition-colors"
+                        className="text-muted-foreground hover:text-red-400 transition-colors"
                       >
                         <svg
                           className="w-4 h-4"
@@ -517,7 +517,7 @@ export default function CreateCourseModal({ categories, onClose }) {
                               e.target.value,
                             )
                           }
-                          className="w-36 flex-shrink-0 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 text-xs font-bold text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          className="w-36 flex-shrink-0 bg-muted border border-border rounded-xl px-3 py-2.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                         >
                           <option value="pre_assessment">Pre Assessment</option>
                           <option value="material">Material</option>
@@ -535,11 +535,11 @@ export default function CreateCourseModal({ categories, onClose }) {
                             )
                           }
                           placeholder="Content title..."
-                          className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+                          className="flex-1 bg-muted border border-border rounded-xl px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                         />
                         <button
                           onClick={() => removeContent(section.id, content.id)}
-                          className="w-8 h-8 flex items-center justify-center rounded-xl border border-gray-200 text-gray-300 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
+                          className="w-8 h-8 flex items-center justify-center rounded-xl border border-border text-muted-foreground hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
                         >
                           <svg
                             className="w-3.5 h-3.5"
@@ -559,7 +559,7 @@ export default function CreateCourseModal({ categories, onClose }) {
                     ))}
                     <button
                       onClick={() => addContent(section.id)}
-                      className="flex items-center gap-2 px-3 py-2 text-[10px] font-extrabold tracking-widest uppercase text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"
+                      className="flex items-center gap-2 px-3 py-2 text-[10px] font-extrabold tracking-widest uppercase text-muted-foreground hover:text-primary hover:bg-primary-soft rounded-xl transition-all"
                     >
                       <svg
                         className="w-3 h-3"
@@ -587,14 +587,14 @@ export default function CreateCourseModal({ categories, onClose }) {
             {step === 1 ? (
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
               >
                 Cancel
               </button>
             ) : (
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-500 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
               >
                 <svg
                   className="w-3.5 h-3.5"
@@ -617,7 +617,7 @@ export default function CreateCourseModal({ categories, onClose }) {
                 disabled={!isStep1Complete}
                 onClick={goToStep2}
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all
-                    ${isStep1Complete ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5" : "bg-gray-100 text-gray-300 cursor-not-allowed"}`}
+                    ${isStep1Complete ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5" : "bg-muted text-muted-foreground cursor-not-allowed"}`}
               >
                 Next Step
                 <svg
@@ -638,7 +638,7 @@ export default function CreateCourseModal({ categories, onClose }) {
               <button
                 onClick={handleSubmitDirect}
                 disabled={processing}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {processing ? "Saving..." : "Create Course"}
                 <svg

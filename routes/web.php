@@ -88,6 +88,8 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/cart/{courseId}', [CartController::class, 'destroy'])->name('student.cart.destroy');
         Route::get('/profile', [StudentProfileController::class, 'index'])->name('student.profile');
         Route::put('/profile', [StudentProfileController::class, 'update'])->name('student.profile.update');
+        Route::post('/profile/avatar', [StudentProfileController::class, 'updateAvatar'])->name('student.avatar.update');
+        Route::delete('/profile/avatar', [StudentProfileController::class, 'destroyImage'])->name('student.image.delete');
         Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
         Route::get('/training/{id}', fn ($id) => inertia('Students/TrainingDetail', ['courseId' => $id]))->name('student.training.detail');
     });

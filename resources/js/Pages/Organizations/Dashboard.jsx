@@ -7,14 +7,14 @@ const assignedTrainers = [
     name: "Ahmad Junaidi",
     role: "Lead Instructor",
     initial: "A",
-    color: "bg-blue-600",
+    color: "bg-primary",
   },
   {
     id: 2,
     name: "Siti Aminah",
     role: "Co-Instructor",
     initial: "S",
-    color: "bg-blue-500",
+    color: "bg-primary-soft0",
   },
 ];
 
@@ -46,10 +46,10 @@ function SelectTrainersModal({ assigned, onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center px-4"
       style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative">
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-md p-8 relative">
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 text-gray-300 hover:text-gray-500 transition-colors"
+          className="absolute top-5 right-5 text-muted-foreground hover:text-muted-foreground transition-colors"
         >
           <svg
             className="w-5 h-5"
@@ -67,7 +67,7 @@ function SelectTrainersModal({ assigned, onClose }) {
         </button>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
             <svg
               className="w-5 h-5 text-white"
               fill="none"
@@ -83,10 +83,10 @@ function SelectTrainersModal({ assigned, onClose }) {
             </svg>
           </div>
           <div>
-            <h3 className="text-lg font-black text-gray-700 uppercase tracking-tight">
+            <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
               Select Trainers
             </h3>
-            <p className="text-xs text-gray-400">
+            <p className="text-xs text-muted-foreground">
               Assign trainers to BIM Expert Masterclass
             </p>
           </div>
@@ -94,7 +94,7 @@ function SelectTrainersModal({ assigned, onClose }) {
 
         <div className="relative mb-4">
           <svg
-            className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"
+            className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -111,7 +111,7 @@ function SelectTrainersModal({ assigned, onClose }) {
             placeholder="Name or Expertise..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+            className="w-full pl-9 pr-4 py-3 bg-muted border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
           />
         </div>
 
@@ -123,24 +123,24 @@ function SelectTrainersModal({ assigned, onClose }) {
                 key={t.id}
                 onClick={() => toggle(t.id)}
                 className={`flex items-center gap-4 px-4 py-3 rounded-xl border-2 transition-all duration-200 text-left
-                  ${isSelected ? "border-blue-500 bg-blue-50" : "border-gray-100 hover:border-gray-200 hover:bg-gray-50"}`}
+                  ${isSelected ? "border-primary/50 bg-primary-soft" : "border-border hover:border-border hover:bg-muted"}`}
               >
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black flex-shrink-0 ${isSelected ? "bg-blue-600" : "bg-gray-300"}`}
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-black flex-shrink-0 ${isSelected ? "bg-primary" : "bg-gray-300"}`}
                 >
                   {t.name.slice(0, 1)}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p
-                    className={`text-sm font-bold ${isSelected ? "text-blue-700" : "text-gray-700"}`}
+                    className={`text-sm font-bold ${isSelected ? "text-primary" : "text-foreground"}`}
                   >
                     {t.name}
                   </p>
-                  <p className="text-xs text-gray-400">{t.expertise}</p>
+                  <p className="text-xs text-muted-foreground">{t.expertise}</p>
                 </div>
                 {isSelected && (
                   <svg
-                    className="w-4 h-4 text-blue-600 flex-shrink-0"
+                    className="w-4 h-4 text-primary flex-shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -161,13 +161,13 @@ function SelectTrainersModal({ assigned, onClose }) {
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200"
+            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
           >
             Confirm Selection
           </button>
@@ -204,10 +204,10 @@ function CreateNewClassModal({ onClose }) {
     form.level.trim();
 
   const inputClass =
-    "w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all";
+    "w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all";
 
   const labelClass =
-    "block text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mb-2";
+    "block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2";
 
   return (
     <div
@@ -217,15 +217,15 @@ function CreateNewClassModal({ onClose }) {
         backdropFilter: "blur(6px)",
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg relative overflow-hidden">
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-lg relative overflow-hidden">
         {/* Top accent */}
-        <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 to-indigo-500" />
+        <div className="h-1.5 w-full bg-gradient-to-r from-primary to-indigo-500" />
 
         <div className="p-8">
           {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 text-gray-300 hover:text-gray-500 transition-colors"
+            className="absolute top-6 right-6 text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -244,7 +244,7 @@ function CreateNewClassModal({ onClose }) {
 
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
               <svg
                 className="w-5 h-5 text-white"
                 fill="none"
@@ -260,10 +260,10 @@ function CreateNewClassModal({ onClose }) {
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-700 uppercase tracking-tight">
+              <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
                 Create New Class
               </h3>
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-muted-foreground">
                 Step {step} of 2 —{" "}
                 {step === 1 ? "Basic Information" : "Schedule & Pricing"}
               </p>
@@ -278,10 +278,10 @@ function CreateNewClassModal({ onClose }) {
                   className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-black transition-all duration-300
                   ${
                     step === s
-                      ? "bg-blue-600 text-white shadow-md shadow-blue-200"
+                      ? "bg-primary text-white shadow-md shadow-primary/20"
                       : step > s
                         ? "bg-green-500 text-white"
-                        : "bg-gray-100 text-gray-400"
+                        : "bg-muted text-muted-foreground"
                   }`}
                 >
                   {step > s ? (
@@ -303,7 +303,7 @@ function CreateNewClassModal({ onClose }) {
                   )}
                 </div>
                 <div
-                  className={`flex-1 h-0.5 rounded-full transition-all duration-300 ${s === 1 ? (step > 1 ? "bg-green-400" : "bg-gray-100") : "bg-gray-100"}`}
+                  className={`flex-1 h-0.5 rounded-full transition-all duration-300 ${s === 1 ? (step > 1 ? "bg-green-400" : "bg-muted") : "bg-muted"}`}
                 />
               </div>
             ))}
@@ -311,8 +311,8 @@ function CreateNewClassModal({ onClose }) {
               className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-black transition-all duration-300
               ${
                 step === 2
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-200"
-                  : "bg-gray-100 text-gray-400"
+                  ? "bg-primary text-white shadow-md shadow-primary/20"
+                  : "bg-muted text-muted-foreground"
               }`}
             >
               2
@@ -428,8 +428,8 @@ function CreateNewClassModal({ onClose }) {
                       className={`py-3 rounded-xl text-xs font-extrabold tracking-widest uppercase border-2 transition-all duration-200
                         ${
                           form.level === lvl
-                            ? "border-blue-500 bg-blue-50 text-blue-600"
-                            : "border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50"
+                            ? "border-primary/50 bg-primary-soft text-primary"
+                            : "border-border text-muted-foreground hover:border-border hover:bg-muted"
                         }`}
                     >
                       {lvl}
@@ -440,32 +440,32 @@ function CreateNewClassModal({ onClose }) {
 
               {/* Summary */}
               {isStep2Complete && (
-                <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 mt-1">
-                  <p className="text-[10px] font-bold tracking-[2px] text-blue-400 uppercase mb-2">
+                <div className="bg-primary-soft border border-primary/20 rounded-2xl p-4 mt-1">
+                  <p className="text-[10px] font-bold tracking-[2px] text-primary uppercase mb-2">
                     Summary
                   </p>
                   <div className="flex flex-col gap-1.5">
                     <div className="flex justify-between">
-                      <span className="text-xs font-semibold text-gray-500">
+                      <span className="text-xs font-semibold text-muted-foreground">
                         Title
                       </span>
-                      <span className="text-xs font-bold text-gray-700">
+                      <span className="text-xs font-bold text-foreground">
                         {form.title}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs font-semibold text-gray-500">
+                      <span className="text-xs font-semibold text-muted-foreground">
                         Duration
                       </span>
-                      <span className="text-xs font-bold text-gray-700">
+                      <span className="text-xs font-bold text-foreground">
                         {form.startDate} → {form.endDate}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs font-semibold text-gray-500">
+                      <span className="text-xs font-semibold text-muted-foreground">
                         Price
                       </span>
-                      <span className="text-xs font-bold text-gray-700">
+                      <span className="text-xs font-bold text-foreground">
                         {new Intl.NumberFormat("id-ID", {
                           style: "currency",
                           currency: "IDR",
@@ -474,10 +474,10 @@ function CreateNewClassModal({ onClose }) {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-xs font-semibold text-gray-500">
+                      <span className="text-xs font-semibold text-muted-foreground">
                         Level
                       </span>
-                      <span className="text-xs font-bold text-gray-700">
+                      <span className="text-xs font-bold text-foreground">
                         {form.level}
                       </span>
                     </div>
@@ -492,14 +492,14 @@ function CreateNewClassModal({ onClose }) {
             {step === 1 ? (
               <button
                 onClick={onClose}
-                className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
               >
                 Cancel
               </button>
             ) : (
               <button
                 onClick={() => setStep(1)}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-500 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
               >
                 <svg
                   className="w-3.5 h-3.5"
@@ -525,8 +525,8 @@ function CreateNewClassModal({ onClose }) {
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
                   ${
                     isStep1Complete
-                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5"
-                      : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                      ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
                   }`}
               >
                 Next Step
@@ -550,8 +550,8 @@ function CreateNewClassModal({ onClose }) {
                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
                   ${
                     isStep2Complete
-                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5"
-                      : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                      ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
                   }`}
               >
                 Create Class
@@ -588,7 +588,7 @@ export default function OrganizationDashboard() {
         {/* ── Header ── */}
         <div className="flex items-center gap-5">
           {/* Icon */}
-          <div className="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-blue-200">
+          <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/20">
             <svg
               className="w-8 h-8 text-white"
               fill="none"
@@ -604,20 +604,20 @@ export default function OrganizationDashboard() {
             </svg>
           </div>
           <div className="flex-1">
-            <h2 className="text-3xl font-black text-gray-700 uppercase tracking-tight">
+            <h2 className="text-3xl font-black text-foreground uppercase tracking-tight">
               Affiliate Portal
             </h2>
-            <p className="text-base text-gray-400 mt-1">
+            <p className="text-base text-muted-foreground mt-1">
               Manage your partner ecosystem and shared trainings.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="px-5 py-3 text-sm font-extrabold tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+            <button className="px-5 py-3 text-sm font-extrabold tracking-widest uppercase border-2 border-border rounded-xl text-foreground hover:bg-muted transition-colors">
               Manage Profile
             </button>
             <button
               onClick={() => setShowCreateClass(true)}
-              className="flex items-center gap-2 px-5 py-3 text-sm font-extrabold tracking-widest uppercase bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all duration-200"
+              className="flex items-center gap-2 px-5 py-3 text-sm font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
             >
               <svg
                 className="w-4 h-4"
@@ -645,10 +645,10 @@ export default function OrganizationDashboard() {
               value: "Rp 2.45B",
               growth: "+8.4%",
               positive: true,
-              iconBg: "bg-blue-50",
+              iconBg: "bg-primary-soft",
               icon: (
                 <svg
-                  className="w-7 h-7 text-blue-500"
+                  className="w-7 h-7 text-primary"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -709,7 +709,7 @@ export default function OrganizationDashboard() {
           ].map((s) => (
             <div
               key={s.label}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-7"
+              className="bg-card rounded-2xl border border-border shadow-sm p-7"
             >
               <div className="flex items-start justify-between mb-5">
                 <div
@@ -717,11 +717,11 @@ export default function OrganizationDashboard() {
                 >
                   {s.icon}
                 </div>
-                <p className="text-xs font-bold tracking-[2px] text-gray-400 uppercase">
+                <p className="text-xs font-bold tracking-[2px] text-muted-foreground uppercase">
                   {s.label}
                 </p>
               </div>
-              <p className="text-4xl font-black text-gray-700">{s.value}</p>
+              <p className="text-4xl font-black text-foreground">{s.value}</p>
               <div className="flex items-center gap-1.5 mt-3">
                 <svg
                   className="w-4 h-4 text-green-500"
@@ -745,14 +745,14 @@ export default function OrganizationDashboard() {
         </div>
 
         {/* ── Trainer Assignment ── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-7">
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-7">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-black text-gray-700 uppercase tracking-widest">
+            <h3 className="text-lg font-black text-foreground uppercase tracking-widest">
               Trainer Assignment
             </h3>
             <button
               onClick={() => setShowSelectTrainers(true)}
-              className="flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase border-2 border-blue-200 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase border-2 border-primary/30 text-primary rounded-xl hover:bg-primary-soft transition-colors"
             >
               <svg
                 className="w-4 h-4"
@@ -773,14 +773,14 @@ export default function OrganizationDashboard() {
 
           {/* Selected Trainers */}
           <div className="mb-6">
-            <p className="text-xs font-bold tracking-[2px] text-gray-400 uppercase mb-4">
+            <p className="text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-4">
               Selected Trainers for {'"BIM Expert Masterclass"'}
             </p>
             <div className="flex items-center gap-3 flex-wrap">
               {assignedTrainers.map((t) => (
                 <div
                   key={t.id}
-                  className="flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl hover:border-blue-200 hover:bg-blue-50 transition-all duration-200 cursor-pointer"
+                  className="flex items-center gap-3 px-4 py-3 bg-muted border border-border rounded-2xl hover:border-primary/30 hover:bg-primary-soft transition-all duration-200 cursor-pointer"
                 >
                   <div
                     className={`w-10 h-10 rounded-xl ${t.color} flex items-center justify-center text-white font-black text-sm flex-shrink-0`}
@@ -788,8 +788,8 @@ export default function OrganizationDashboard() {
                     {t.initial}
                   </div>
                   <div>
-                    <p className="text-sm font-black text-gray-700">{t.name}</p>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <p className="text-sm font-black text-foreground">{t.name}</p>
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                       {t.role}
                     </p>
                   </div>
@@ -799,7 +799,7 @@ export default function OrganizationDashboard() {
               {/* Add slot */}
               <button
                 onClick={() => setShowSelectTrainers(true)}
-                className="flex items-center justify-center w-16 h-16 rounded-2xl border-2 border-dashed border-gray-200 text-gray-300 hover:border-blue-400 hover:text-blue-400 transition-all duration-200"
+                className="flex items-center justify-center w-16 h-16 rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all duration-200"
               >
                 <svg
                   className="w-6 h-6"
@@ -818,17 +818,17 @@ export default function OrganizationDashboard() {
             </div>
           </div>
 
-          <hr className="border-gray-100 mb-6" />
+          <hr className="border-border mb-6" />
 
           {/* Search + Affiliate Tier */}
           <div className="grid grid-cols-2 gap-5">
             <div>
-              <p className="text-xs font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+              <p className="text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Search Partner Instructors
               </p>
               <div className="relative">
                 <svg
-                  className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"
+                  className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -845,18 +845,18 @@ export default function OrganizationDashboard() {
                   placeholder="Name or Expertise..."
                   value={trainerSearch}
                   onChange={(e) => setTrainerSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white hover:border-gray-300 shadow-sm transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-muted border border-border rounded-xl text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
                 />
               </div>
             </div>
 
             <div>
-              <p className="text-xs font-bold tracking-[2px] text-gray-400 uppercase mb-2">
+              <p className="text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                 Affiliate Tier
               </p>
-              <div className="flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl">
+              <div className="flex items-center gap-3 px-4 py-3 bg-primary-soft border border-primary/30 rounded-xl">
                 <svg
-                  className="w-5 h-5 text-blue-600 flex-shrink-0"
+                  className="w-5 h-5 text-primary flex-shrink-0"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -868,7 +868,7 @@ export default function OrganizationDashboard() {
                     d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
                   />
                 </svg>
-                <span className="text-sm font-extrabold text-blue-600">
+                <span className="text-sm font-extrabold text-primary">
                   Platinum Partner (30% Profit Share)
                 </span>
               </div>

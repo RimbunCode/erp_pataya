@@ -14,15 +14,22 @@ export default function MainLayout({
 }) {
   const { auth } = usePage().props;
   const user = auth?.user;
-  const userRoles = user?.roles ?? [];
+  const userRoles = (user?.roles ?? [])
+    .map((roleItem) =>
+      typeof roleItem === "string" ? roleItem : roleItem?.name,
+    )
+    .filter(Boolean);
   const isMultiRole = userRoles.length > 1;
-  const role = userRoles[0]?.name;
 
   const initials = user?.nickname
     ? user.nickname.slice(0, 1).toUpperCase()
     : (user?.name?.slice(0, 1).toUpperCase() ?? "?");
 
   const currentPath = window.location.pathname;
+  const currentPathSegment = currentPath.split("/").filter(Boolean)[0];
+  const role = userRoles.includes(currentPathSegment)
+    ? currentPathSegment
+    : (userRoles[0] ?? "student");
 
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sidebar_collapsed") === "true",
@@ -46,11 +53,6 @@ export default function MainLayout({
           userRoles={userRoles}
           isMultiRole={isMultiRole}
           currentPath={currentPath}
-          initials={initials}
-          userName={user?.name ?? "User"}
-          role={role}
-          roleLabel={roleLabel[role]}
-          onLogout={handleLogout}
         />
 
         {/* ── Main ── */}
@@ -60,6 +62,8 @@ export default function MainLayout({
             breadcrumb={breadcrumb}
             initials={initials}
             userName={user?.name ?? "User"}
+            role={role}
+            roleLabel={roleLabel[role]}
             profileDropdown={profileDropdown}
             onToggleDropdown={() => setProfileDropdown((prev) => !prev)}
             onLogout={handleLogout}

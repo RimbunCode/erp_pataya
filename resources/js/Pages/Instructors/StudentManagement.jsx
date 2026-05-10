@@ -104,21 +104,21 @@ const courses = [
 
 const statusCfg = {
   ACTIVE: {
-    pill: "bg-blue-50 text-blue-600 border-blue-200",
-    dot: "bg-blue-500",
+    pill: "bg-primary-soft text-primary border-primary/30",
+    dot: "bg-primary-soft0",
   },
   COMPLETED: {
     pill: "bg-green-50 text-green-600 border-green-200",
     dot: "bg-green-500",
   },
   PENDING: {
-    pill: "bg-gray-100 text-gray-400 border-gray-200",
+    pill: "bg-muted text-muted-foreground border-border",
     dot: "bg-gray-300",
   },
 };
 
 const avatarColors = [
-  "bg-blue-500",
+  "bg-primary-soft0",
   "bg-violet-500",
   "bg-rose-500",
   "bg-amber-500",
@@ -175,8 +175,8 @@ function StatCard({
   return (
     <button
       onClick={onClick}
-      className={`flex-1 min-w-0 text-left bg-white rounded-2xl p-5 border-2 transition-all shadow-sm hover:shadow-md
-        ${active ? accentBorder : "border-gray-100 hover:border-gray-200"}`}
+      className={`flex-1 min-w-0 text-left bg-card rounded-2xl p-5 border-2 transition-all shadow-sm hover:shadow-md
+        ${active ? accentBorder : "border-border hover:border-border"}`}
     >
       <div className="flex items-start justify-between mb-3">
         <div
@@ -186,13 +186,13 @@ function StatCard({
         </div>
         {active && <span className={`w-2 h-2 rounded-full ${accentDot}`} />}
       </div>
-      <p className="text-2xl font-black text-gray-900 tracking-tight">
+      <p className="text-2xl font-black text-foreground tracking-tight">
         {value}
       </p>
-      <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase mt-0.5">
+      <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase mt-0.5">
         {label}
       </p>
-      <p className="text-[9px] font-semibold text-gray-300 mt-1">{sub}</p>
+      <p className="text-[9px] font-semibold text-muted-foreground mt-1">{sub}</p>
     </button>
   );
 }
@@ -217,7 +217,7 @@ function StudentModal({ student, index, onClose }) {
       ? "bg-green-500"
       : student.progress === 0
         ? "bg-gray-300"
-        : "bg-blue-600";
+        : "bg-primary";
 
   return (
     /* Backdrop — klik di luar untuk tutup */
@@ -231,7 +231,7 @@ function StudentModal({ student, index, onClose }) {
     >
       {/* Modal panel */}
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+        className="bg-card rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Dark banner ── */}
@@ -239,7 +239,7 @@ function StudentModal({ student, index, onClose }) {
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-card/10 text-white/60 hover:bg-card/20 hover:text-white transition-all"
           >
             <svg
               className="w-4 h-4"
@@ -267,7 +267,7 @@ function StudentModal({ student, index, onClose }) {
               <h3 className="text-base font-black text-white tracking-wide">
                 {student.name}
               </h3>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">
                 {student.email}
               </p>
               <span
@@ -291,12 +291,12 @@ function StudentModal({ student, index, onClose }) {
             ].map((item) => (
               <div
                 key={item.label}
-                className="bg-gray-50 rounded-2xl px-4 py-3 border border-gray-100"
+                className="bg-muted rounded-2xl px-4 py-3 border border-border"
               >
-                <p className="text-[9px] font-black tracking-widest text-gray-400 uppercase">
+                <p className="text-[9px] font-black tracking-widest text-muted-foreground uppercase">
                   {item.label}
                 </p>
-                <p className="text-sm font-black text-gray-800 mt-1">
+                <p className="text-sm font-black text-foreground mt-1">
                   {item.value}
                 </p>
               </div>
@@ -304,10 +304,10 @@ function StudentModal({ student, index, onClose }) {
           </div>
 
           {/* Enrolled course */}
-          <div className="bg-blue-50 rounded-2xl px-4 py-3 border border-blue-100 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
+          <div className="bg-primary-soft rounded-2xl px-4 py-3 border border-primary/20 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary-soft flex items-center justify-center flex-shrink-0">
               <svg
-                className="w-4 h-4 text-blue-500"
+                className="w-4 h-4 text-primary"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -321,10 +321,10 @@ function StudentModal({ student, index, onClose }) {
               </svg>
             </div>
             <div className="min-w-0">
-              <p className="text-[9px] font-black tracking-widest text-blue-400 uppercase">
+              <p className="text-[9px] font-black tracking-widest text-primary uppercase">
                 Enrolled Course
               </p>
-              <p className="text-xs font-black text-blue-700 uppercase tracking-wide truncate mt-0.5">
+              <p className="text-xs font-black text-primary uppercase tracking-wide truncate mt-0.5">
                 {student.course}
               </p>
             </div>
@@ -333,14 +333,14 @@ function StudentModal({ student, index, onClose }) {
           {/* Overall progress bar */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+              <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                 Overall Progress
               </p>
-              <p className="text-[10px] font-black text-gray-700">
+              <p className="text-[10px] font-black text-foreground">
                 {student.progress}%
               </p>
             </div>
-            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-700 ${barColor}`}
                 style={{ width: `${student.progress}%` }}
@@ -350,7 +350,7 @@ function StudentModal({ student, index, onClose }) {
 
           {/* Module checklist */}
           <div>
-            <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase mb-3">
+            <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase mb-3">
               Module Completion
             </p>
             <div className="space-y-2">
@@ -358,7 +358,7 @@ function StudentModal({ student, index, onClose }) {
                 <div
                   key={i}
                   className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all
-                    ${mod.done ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-100"}`}
+                    ${mod.done ? "bg-green-50 border-green-100" : "bg-muted border-border"}`}
                 >
                   <div
                     className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0
@@ -382,12 +382,12 @@ function StudentModal({ student, index, onClose }) {
                   </div>
                   <span
                     className={`text-[10px] font-bold uppercase tracking-wide
-                    ${mod.done ? "text-green-700" : "text-gray-400"}`}
+                    ${mod.done ? "text-green-700" : "text-muted-foreground"}`}
                   >
                     {mod.title}
                   </span>
                   {!mod.done && (
-                    <span className="ml-auto text-[9px] font-bold text-gray-300 uppercase tracking-widest">
+                    <span className="ml-auto text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
                       Locked
                     </span>
                   )}
@@ -398,10 +398,10 @@ function StudentModal({ student, index, onClose }) {
 
           {/* Action buttons */}
           <div className="flex gap-3 pt-1">
-            <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 hover:border-gray-300 hover:text-gray-700 transition-all">
+            <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border hover:text-foreground transition-all">
               Send Message
             </button>
-            <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200">
+            <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20">
               View Full Report
             </button>
           </div>
@@ -421,8 +421,8 @@ function StudentRow({ student, index, onOpen }) {
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className={`grid grid-cols-[2fr_2fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 border-b border-gray-50 transition-all cursor-pointer
-        ${hovered ? "bg-blue-50/40" : "bg-white"}`}
+      className={`grid grid-cols-[2fr_2fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 border-b border-border transition-all cursor-pointer
+        ${hovered ? "bg-primary-soft/40" : "bg-card"}`}
     >
       {/* Student */}
       <div className="flex items-center gap-3 min-w-0">
@@ -432,10 +432,10 @@ function StudentRow({ student, index, onOpen }) {
           {student.avatar}
         </div>
         <div className="min-w-0">
-          <p className="text-xs font-black text-gray-800 truncate">
+          <p className="text-xs font-black text-foreground truncate">
             {student.name}
           </p>
-          <p className="text-[10px] text-gray-400 font-medium truncate">
+          <p className="text-[10px] text-muted-foreground font-medium truncate">
             {student.email}
           </p>
         </div>
@@ -443,10 +443,10 @@ function StudentRow({ student, index, onOpen }) {
 
       {/* Course */}
       <div className="min-w-0">
-        <p className="text-[10px] font-bold text-gray-600 uppercase tracking-wide truncate">
+        <p className="text-[10px] font-bold text-foreground uppercase tracking-wide truncate">
           {student.course}
         </p>
-        <p className="text-[9px] text-gray-300 font-medium mt-0.5">
+        <p className="text-[9px] text-muted-foreground font-medium mt-0.5">
           Joined {student.joinDate}
         </p>
       </div>
@@ -454,7 +454,7 @@ function StudentRow({ student, index, onOpen }) {
       {/* Progress */}
       <div className="flex items-center gap-2">
         <ProgressRing pct={student.progress} />
-        <span className="text-xs font-black text-gray-700">
+        <span className="text-xs font-black text-foreground">
           {student.progress}%
         </span>
       </div>
@@ -467,7 +467,7 @@ function StudentRow({ student, index, onOpen }) {
           <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
           {student.status}
         </span>
-        <p className="text-[9px] text-gray-300 font-medium mt-1 pl-0.5">
+        <p className="text-[9px] text-muted-foreground font-medium mt-1 pl-0.5">
           Active {student.lastActive}
         </p>
       </div>
@@ -476,7 +476,7 @@ function StudentRow({ student, index, onOpen }) {
       <button
         onClick={() => onOpen(student, index)}
         className={`px-4 py-2 text-[9px] font-black tracking-widest uppercase rounded-xl transition-all whitespace-nowrap
-          ${hovered ? "bg-blue-600 text-white shadow-md shadow-blue-200" : "bg-gray-100 text-gray-400"}`}
+          ${hovered ? "bg-primary text-white shadow-md shadow-primary/20" : "bg-muted text-muted-foreground"}`}
       >
         View Detail
       </button>
@@ -519,12 +519,12 @@ export default function StudentManagement() {
       value: total,
       sub: "Across all classes",
       key: "ALL",
-      accentBorder: "border-gray-400",
-      accentDot: "bg-gray-500",
-      accentIcon: "bg-gray-50",
+      accentBorder: "border-border",
+      accentDot: "bg-muted0",
+      accentIcon: "bg-muted",
       icon: (
         <svg
-          className="w-5 h-5 text-gray-500"
+          className="w-5 h-5 text-muted-foreground"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -543,12 +543,12 @@ export default function StudentManagement() {
       value: active,
       sub: "Currently learning",
       key: "ACTIVE",
-      accentBorder: "border-blue-500",
-      accentDot: "bg-blue-500",
-      accentIcon: "bg-blue-50",
+      accentBorder: "border-primary/50",
+      accentDot: "bg-primary-soft0",
+      accentIcon: "bg-primary-soft",
       icon: (
         <svg
-          className="w-5 h-5 text-blue-500"
+          className="w-5 h-5 text-primary"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -619,14 +619,14 @@ export default function StudentManagement() {
           {/* Header */}
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
-              <h2 className="text-2xl font-black tracking-tight text-gray-900 uppercase">
+              <h2 className="text-2xl font-black tracking-tight text-foreground uppercase">
                 Student Management
               </h2>
-              <p className="text-xs text-gray-400 font-medium mt-0.5">
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">
                 Monitor and manage all your enrolled students.
               </p>
             </div>
-            <button className="px-5 py-2.5 text-xs font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all flex items-center gap-2 shadow-md shadow-blue-200">
+            <button className="px-5 py-2.5 text-xs font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all flex items-center gap-2 shadow-md shadow-primary/20">
               <svg
                 className="w-4 h-4"
                 fill="none"
@@ -667,14 +667,14 @@ export default function StudentManagement() {
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+          <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
             {/* Toolbar */}
-            <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-gray-100 flex-wrap">
+            <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-border flex-wrap">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-gray-800 uppercase tracking-widest">
+                <span className="text-xs font-black text-foreground uppercase tracking-widest">
                   All Students
                 </span>
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-lg border border-blue-100">
+                <span className="px-2 py-0.5 bg-primary-soft text-primary text-[10px] font-black rounded-lg border border-primary/20">
                   {filtered.length}
                 </span>
               </div>
@@ -682,7 +682,7 @@ export default function StudentManagement() {
                 <select
                   value={filterCourse}
                   onChange={(e) => setFilterCourse(e.target.value)}
-                  className="text-xs font-bold text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  className="text-xs font-bold text-muted-foreground bg-muted border border-border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
                 >
                   {courses.map((c) => (
                     <option key={c}>{c}</option>
@@ -690,7 +690,7 @@ export default function StudentManagement() {
                 </select>
                 <div className="relative">
                   <svg
-                    className="w-4 h-4 text-gray-300 absolute left-3 top-1/2 -translate-y-1/2"
+                    className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -707,18 +707,18 @@ export default function StudentManagement() {
                     placeholder="Search student..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 pr-4 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl w-48 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder-gray-300"
+                    className="pl-9 pr-4 py-2 text-xs bg-muted border border-border rounded-xl w-48 focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all placeholder-muted-foreground"
                   />
                 </div>
               </div>
             </div>
 
             {/* Table Head */}
-            <div className="grid grid-cols-[2fr_2fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-gray-50/60 border-b border-gray-100">
+            <div className="grid grid-cols-[2fr_2fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-muted/60 border-b border-border">
               {["Student", "Course", "Progress", "Status", ""].map((h, i) => (
                 <span
                   key={i}
-                  className="text-[10px] font-black tracking-widest text-gray-400 uppercase"
+                  className="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
                 >
                   {h}
                 </span>
@@ -738,7 +738,7 @@ export default function StudentManagement() {
             ) : (
               <div className="py-16 flex flex-col items-center gap-3">
                 <svg
-                  className="w-10 h-10 text-gray-200"
+                  className="w-10 h-10 text-muted-foreground"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -750,7 +750,7 @@ export default function StudentManagement() {
                     d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
                   />
                 </svg>
-                <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                   No students found
                 </p>
               </div>
@@ -758,15 +758,15 @@ export default function StudentManagement() {
 
             {/* Pagination footer */}
             {filtered.length > 0 && (
-              <div className="px-6 py-3 border-t border-gray-50 flex items-center justify-between">
-                <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest">
+              <div className="px-6 py-3 border-t border-border flex items-center justify-between">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                   Showing {filtered.length} of {total} students
                 </p>
                 <div className="flex items-center gap-1">
                   {["←", "1", "2", "→"].map((p) => (
                     <button
                       key={p}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-black text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-black text-muted-foreground hover:bg-primary-soft hover:text-primary transition-colors"
                     >
                       {p}
                     </button>

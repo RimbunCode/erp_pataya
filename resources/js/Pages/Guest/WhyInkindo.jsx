@@ -4,7 +4,7 @@ export function WhyInkindoSection() {
     {
       icon: (
         <svg
-          className="w-6 h-6 text-blue-600"
+          className="w-6 h-6 text-primary"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -17,7 +17,7 @@ export function WhyInkindoSection() {
           />
         </svg>
       ),
-      iconBg: "bg-blue-50",
+      iconBg: "bg-primary-soft",
       title: "OFFICIAL CERTIFICATION",
       desc: "Earn credentials that are recognized by all major construction companies and regulatory bodies in Indonesia.",
     },
@@ -64,14 +64,14 @@ export function WhyInkindoSection() {
   ];
 
   return (
-    <section className="bg-gray-50 py-20">
+    <section className="bg-muted py-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         {/* Heading */}
         <div className="text-center mb-14">
-          <h2 className="text-4xl lg:text-5xl font-black text-gray-900 tracking-tight mb-3">
+          <h2 className="text-4xl lg:text-5xl font-black text-foreground tracking-tight mb-3">
             WHY INKINDO LEARNING?
           </h2>
-          <p className="text-gray-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             We provide more than just courses. We provide a bridge to
             professional excellence.
           </p>
@@ -82,7 +82,7 @@ export function WhyInkindoSection() {
           {features.map((f) => (
             <div
               key={f.title}
-              className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-1 hover:border-blue-500 transition-all duration-300 flex flex-col"
+              className="bg-card rounded-2xl p-8 shadow-sm border border-border hover:shadow-md hover:-translate-y-1 hover:border-primary/50 transition-all duration-300 flex flex-col"
             >
               {/* Icon box */}
               <div
@@ -92,19 +92,19 @@ export function WhyInkindoSection() {
               </div>
 
               {/* Title */}
-              <h3 className="font-black text-gray-900 text-sm tracking-wide mb-3">
+              <h3 className="font-black text-foreground text-sm tracking-wide mb-3">
                 {f.title}
               </h3>
 
               {/* Description */}
-              <p className="text-gray-400 text-xs leading-relaxed flex-1 mb-6">
+              <p className="text-muted-foreground text-xs leading-relaxed flex-1 mb-6">
                 {f.desc}
               </p>
 
               {/* Learn More */}
               <a
                 href="/about"
-                className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase text-gray-500 hover:text-blue-600 transition-colors group"
+                className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors group"
               >
                 LEARN MORE
                 <svg

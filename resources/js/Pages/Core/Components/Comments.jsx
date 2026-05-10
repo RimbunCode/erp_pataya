@@ -283,7 +283,7 @@ export default memo(function Comments() {
                         </div>
                         {data_after && (
                           <Link
-                            className="hover:underline text-blue-400 text-sm"
+                            className="hover:underline text-primary text-sm"
                             href={route("logs.show", id)}
                           >
                             {t("core.form.show_diff")}

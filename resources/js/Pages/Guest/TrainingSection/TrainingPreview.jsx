@@ -18,7 +18,7 @@ function StarRating({ rating = 0, size = "w-4 h-4" }) {
       {[1, 2, 3, 4, 5].map((s) => (
         <svg
           key={s}
-          className={`${size} ${s <= Math.round(rating) ? "text-amber-400" : "text-gray-200"}`}
+          className={`${size} ${s <= Math.round(rating) ? "text-amber-400" : "text-muted-foreground"}`}
           fill="currentColor"
           viewBox="0 0 24 24"
         >
@@ -65,7 +65,7 @@ function ContentIcon({ type }) {
     );
   return (
     <svg
-      className="w-4 h-4 text-blue-400"
+      className="w-4 h-4 text-primary"
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"
@@ -156,14 +156,14 @@ function EnrollModal({ course, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+        className="bg-card rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="bg-gray-900 px-6 pt-6 pb-8 relative">
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-white/10 text-white/60 hover:bg-white/20 hover:text-white transition-all"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-card/10 text-white/60 hover:bg-card/20 hover:text-white transition-all"
           >
             <svg
               className="w-4 h-4"
@@ -179,13 +179,13 @@ function EnrollModal({ course, onClose }) {
               />
             </svg>
           </button>
-          <p className="text-[9px] font-black tracking-widest text-blue-400 uppercase mb-1">
+          <p className="text-[9px] font-black tracking-widest text-primary uppercase mb-1">
             Enroll Kelas
           </p>
           <h3 className="text-sm font-black text-white leading-snug pr-8">
             {course.title}
           </h3>
-          <p className="text-lg font-black text-blue-400 mt-2">
+          <p className="text-lg font-black text-primary mt-2">
             {formatRp(course.price)}
           </p>
           {/* Step indicator */}
@@ -195,7 +195,7 @@ function EnrollModal({ course, onClose }) {
                 <div key={i} className="flex items-center gap-2">
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all
-                    ${step > i + 1 ? "bg-green-500 text-white" : step === i + 1 ? "bg-blue-500 text-white" : "bg-white/10 text-white/40"}`}
+                    ${step > i + 1 ? "bg-green-500 text-white" : step === i + 1 ? "bg-primary-soft0 text-white" : "bg-card/10 text-white/40"}`}
                   >
                     {step > i + 1 ? "✓" : i + 1}
                   </div>
@@ -206,7 +206,7 @@ function EnrollModal({ course, onClose }) {
                   </span>
                   {i < 2 && (
                     <div
-                      className={`w-6 h-px ${step > i + 1 ? "bg-green-500" : "bg-white/10"}`}
+                      className={`w-6 h-px ${step > i + 1 ? "bg-green-500" : "bg-card/10"}`}
                     />
                   )}
                 </div>
@@ -234,10 +234,10 @@ function EnrollModal({ course, onClose }) {
                 </svg>
               </div>
               <div>
-                <p className="text-sm font-black text-gray-900 uppercase tracking-wide">
+                <p className="text-sm font-black text-foreground uppercase tracking-wide">
                   Bukti Terkirim!
                 </p>
-                <p className="text-xs text-gray-400 font-medium mt-1">
+                <p className="text-xs text-muted-foreground font-medium mt-1">
                   Pendaftaran sedang diverifikasi admin. Proses 1×24 jam kerja.
                 </p>
               </div>
@@ -248,7 +248,7 @@ function EnrollModal({ course, onClose }) {
               </div>
               <button
                 onClick={onClose}
-                className="w-full py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                className="w-full py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
               >
                 Tutup
               </button>
@@ -258,7 +258,7 @@ function EnrollModal({ course, onClose }) {
               {/* Step 1 */}
               {step === 1 && (
                 <>
-                  <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+                  <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                     Pilih Metode Pembayaran
                   </p>
                   <div className="space-y-2">
@@ -267,19 +267,19 @@ function EnrollModal({ course, onClose }) {
                         key={m.id}
                         onClick={() => setMethod(m.id)}
                         className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl border-2 transition-all text-left
-                          ${method === m.id ? "border-blue-500 bg-blue-50" : "border-gray-100 hover:border-gray-200"}`}
+                          ${method === m.id ? "border-primary/50 bg-primary-soft" : "border-border hover:border-border"}`}
                       >
                         <span className="text-2xl">{m.icon}</span>
                         <div>
-                          <p className="text-xs font-black text-gray-800 uppercase tracking-wide">
+                          <p className="text-xs font-black text-foreground uppercase tracking-wide">
                             {m.label}
                           </p>
-                          <p className="text-[9px] text-gray-400 font-medium">
+                          <p className="text-[9px] text-muted-foreground font-medium">
                             {m.bank}
                           </p>
                         </div>
                         {method === m.id && (
-                          <div className="ml-auto w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                          <div className="ml-auto w-5 h-5 rounded-full bg-primary-soft0 flex items-center justify-center">
                             <svg
                               className="w-3 h-3 text-white"
                               fill="none"
@@ -301,7 +301,7 @@ function EnrollModal({ course, onClose }) {
                   <button
                     disabled={!method}
                     onClick={() => setStep(2)}
-                    className="w-full py-3 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full py-3 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Lanjutkan →
                   </button>
@@ -311,18 +311,18 @@ function EnrollModal({ course, onClose }) {
               {/* Step 2 */}
               {step === 2 && method && (
                 <>
-                  <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+                  <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                     Instruksi Pembayaran
                   </p>
-                  <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 space-y-2.5">
+                  <div className="bg-muted rounded-2xl border border-border p-4 space-y-2.5">
                     {instructions[method].map((ins, i) => (
                       <div key={i} className="flex items-start gap-3">
-                        <div className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <span className="text-[9px] font-black text-blue-600">
+                        <div className="w-5 h-5 rounded-full bg-primary-soft flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-[9px] font-black text-primary">
                             {i + 1}
                           </span>
                         </div>
-                        <p className="text-xs font-medium text-gray-700">
+                        <p className="text-xs font-medium text-foreground">
                           {ins}
                         </p>
                       </div>
@@ -330,8 +330,8 @@ function EnrollModal({ course, onClose }) {
                   </div>
                   {method === "qris" && (
                     <div className="flex justify-center">
-                      <div className="w-32 h-32 bg-gray-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-gray-300">
-                        <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-center">
+                      <div className="w-32 h-32 bg-muted rounded-2xl flex items-center justify-center border-2 border-dashed border-border">
+                        <span className="text-[9px] text-muted-foreground font-bold uppercase tracking-widest text-center">
                           QR Code
                           <br />
                           Placeholder
@@ -342,13 +342,13 @@ function EnrollModal({ course, onClose }) {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setStep(1)}
-                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 transition-all"
+                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground transition-all"
                     >
                       ← Kembali
                     </button>
                     <button
                       onClick={() => setStep(3)}
-                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200"
+                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
                     >
                       Sudah Bayar →
                     </button>
@@ -359,13 +359,13 @@ function EnrollModal({ course, onClose }) {
               {/* Step 3 */}
               {step === 3 && (
                 <>
-                  <p className="text-[10px] font-black tracking-widest text-gray-500 uppercase">
+                  <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                     Upload Bukti Pembayaran
                   </p>
                   <div
                     onClick={() => fileRef.current?.click()}
                     className={`border-2 border-dashed rounded-2xl p-6 flex flex-col items-center gap-3 cursor-pointer transition-all
-                      ${file ? "border-blue-400 bg-blue-50" : "border-gray-200 hover:border-blue-300 hover:bg-gray-50"}`}
+                      ${file ? "border-primary/40 bg-primary-soft" : "border-border hover:border-primary/35 hover:bg-muted"}`}
                   >
                     <input
                       ref={fileRef}
@@ -376,7 +376,7 @@ function EnrollModal({ course, onClose }) {
                     />
                     {file ? (
                       <>
-                        <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-primary-soft0 flex items-center justify-center">
                           <svg
                             className="w-5 h-5 text-white"
                             fill="none"
@@ -391,18 +391,18 @@ function EnrollModal({ course, onClose }) {
                             />
                           </svg>
                         </div>
-                        <p className="text-xs font-black text-blue-700 text-center">
+                        <p className="text-xs font-black text-primary text-center">
                           {file.name}
                         </p>
-                        <p className="text-[9px] text-blue-400 font-medium">
+                        <p className="text-[9px] text-primary font-medium">
                           Klik untuk ganti file
                         </p>
                       </>
                     ) : (
                       <>
-                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
                           <svg
-                            className="w-5 h-5 text-gray-400"
+                            className="w-5 h-5 text-muted-foreground"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -415,17 +415,17 @@ function EnrollModal({ course, onClose }) {
                             />
                           </svg>
                         </div>
-                        <p className="text-xs font-black text-gray-500 text-center">
+                        <p className="text-xs font-black text-muted-foreground text-center">
                           Klik untuk upload bukti
                         </p>
-                        <p className="text-[9px] text-gray-300 font-medium">
+                        <p className="text-[9px] text-muted-foreground font-medium">
                           JPG, PNG, atau PDF • Maks. 5MB
                         </p>
                       </>
                     )}
                   </div>
                   <div>
-                    <label className="text-[9px] font-black tracking-widest text-gray-400 uppercase block mb-1.5">
+                    <label className="text-[9px] font-black tracking-widest text-muted-foreground uppercase block mb-1.5">
                       Catatan (opsional)
                     </label>
                     <textarea
@@ -433,20 +433,20 @@ function EnrollModal({ course, onClose }) {
                       onChange={(e) => setNote(e.target.value)}
                       rows={3}
                       placeholder="Tambahkan catatan jika diperlukan..."
-                      className="w-full text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all placeholder-gray-300"
+                      className="w-full text-xs text-foreground bg-muted border border-border rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all placeholder-muted-foreground"
                     />
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => setStep(2)}
-                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-gray-200 rounded-xl text-gray-500 transition-all"
+                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground transition-all"
                     >
                       ← Kembali
                     </button>
                     <button
                       disabled={!file}
                       onClick={submitPayment}
-                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all shadow-md shadow-blue-200 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Kirim →
                     </button>
@@ -477,9 +477,9 @@ function SectionAccordion({ section, index, isEnrolled }) {
     },
     material: {
       label: "Materi",
-      bg: "bg-blue-50",
-      border: "border-blue-100",
-      text: "text-blue-600",
+      bg: "bg-primary-soft",
+      border: "border-primary/20",
+      text: "text-primary",
     },
     assignment: {
       label: "Tugas",
@@ -495,11 +495,11 @@ function SectionAccordion({ section, index, isEnrolled }) {
     >
       <ContentIcon type={content.type} />
       <div className="flex-1 min-w-0">
-        <p className="text-xs font-bold text-gray-700 truncate">
+        <p className="text-xs font-bold text-foreground truncate">
           {content.title}
         </p>
         {content.description && (
-          <p className="text-[10px] text-gray-400 mt-0.5 truncate">
+          <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
             {content.description}
           </p>
         )}
@@ -515,7 +515,7 @@ function SectionAccordion({ section, index, isEnrolled }) {
           href={content.file_url ?? content.url}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black tracking-widest uppercase text-blue-600 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 transition-all flex-shrink-0"
+          className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black tracking-widest uppercase text-primary bg-card border border-primary/30 rounded-lg hover:bg-primary-soft transition-all flex-shrink-0"
         >
           <svg
             className="w-3 h-3"
@@ -535,7 +535,7 @@ function SectionAccordion({ section, index, isEnrolled }) {
       )}
       {/* Lock icon — belum enrolled dan ada file */}
       {!isEnrolled && (content.file_url || content.url) && (
-        <span className="flex items-center gap-1 text-[9px] font-black text-gray-300 uppercase tracking-widest flex-shrink-0">
+        <span className="flex items-center gap-1 text-[9px] font-black text-muted-foreground uppercase tracking-widest flex-shrink-0">
           <svg
             className="w-3 h-3"
             fill="none"
@@ -559,32 +559,32 @@ function SectionAccordion({ section, index, isEnrolled }) {
 
   return (
     <div
-      className={`border-2 rounded-2xl overflow-hidden transition-all ${open ? "border-blue-400" : "border-gray-100"}`}
+      className={`border-2 rounded-2xl overflow-hidden transition-all ${open ? "border-primary/40" : "border-border"}`}
     >
       <button
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-4 px-5 py-4 bg-white hover:bg-gray-50 transition-colors text-left"
+        className="w-full flex items-center gap-4 px-5 py-4 bg-card hover:bg-muted transition-colors text-left"
       >
         <div
-          className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${open ? "bg-blue-600" : "bg-gray-100"}`}
+          className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${open ? "bg-primary" : "bg-muted"}`}
         >
           <span
-            className={`text-xs font-black ${open ? "text-white" : "text-gray-500"}`}
+            className={`text-xs font-black ${open ? "text-white" : "text-muted-foreground"}`}
           >
             {String(index + 1).padStart(2, "0")}
           </span>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-black text-gray-800 uppercase tracking-wide truncate">
+          <p className="text-sm font-black text-foreground uppercase tracking-wide truncate">
             {section.title}
           </p>
-          <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+          <p className="text-[10px] text-muted-foreground font-medium mt-0.5">
             {(section.contents ?? []).length} item
             {(section.contents ?? []).length !== 1 ? "s" : ""}
           </p>
         </div>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`}
+          className={`w-4 h-4 text-muted-foreground transition-transform flex-shrink-0 ${open ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -599,9 +599,9 @@ function SectionAccordion({ section, index, isEnrolled }) {
       </button>
 
       {open && (
-        <div className="border-t border-gray-100 bg-gray-50/60 p-4 space-y-4">
+        <div className="border-t border-border bg-muted/60 p-4 space-y-4">
           {!hasContent ? (
-            <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest text-center py-4">
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest text-center py-4">
               Belum ada konten
             </p>
           ) : (
@@ -617,7 +617,7 @@ function SectionAccordion({ section, index, isEnrolled }) {
                     >
                       {cfg.label}
                     </span>
-                    <span className="text-[9px] text-gray-300 font-bold">
+                    <span className="text-[9px] text-muted-foreground font-bold">
                       ({items.length})
                     </span>
                   </div>
@@ -667,7 +667,7 @@ export default function TrainingPreview({
 
   return (
     <GuestLayout>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-card">
         {/* ── Hero ── */}
         <div className="relative">
           <div className="absolute inset-0">
@@ -718,14 +718,14 @@ export default function TrainingPreview({
               {course.categories?.map((cat) => (
                 <span
                   key={cat}
-                  className="px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase bg-blue-600 text-white"
+                  className="px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase bg-primary text-white"
                 >
                   {cat}
                 </span>
               ))}
               {course.level && (
                 <span
-                  className={`px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase capitalize ${levelColor[course.level] ?? "bg-gray-100 text-gray-600"}`}
+                  className={`px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase capitalize ${levelColor[course.level] ?? "bg-muted text-foreground"}`}
                 >
                   {course.level}
                 </span>
@@ -816,14 +816,14 @@ export default function TrainingPreview({
         </div>
 
         {/* ── Sticky Tabs ── */}
-        <div className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+        <div className="sticky top-0 z-30 bg-card border-b border-border shadow-sm">
           <div className="max-w-6xl mx-auto px-6 flex items-center gap-0">
             {tabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`px-6 py-4 text-xs font-extrabold tracking-widest uppercase border-b-2 transition-all duration-200 capitalize
-                  ${activeTab === tab ? "border-blue-600 text-blue-600" : "border-transparent text-gray-400 hover:text-gray-600"}`}
+                  ${activeTab === tab ? "border-primary/50 text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
               >
                 {tab}
               </button>
@@ -841,10 +841,10 @@ export default function TrainingPreview({
                 <div className="space-y-8">
                   {/* Deskripsi lengkap */}
                   <div>
-                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight mb-4">
+                    <h2 className="text-xl font-black text-foreground uppercase tracking-tight mb-4">
                       Tentang Kelas
                     </h2>
-                    <p className="text-sm text-gray-600 leading-relaxed">
+                    <p className="text-sm text-foreground leading-relaxed">
                       {course.description}
                     </p>
                   </div>
@@ -880,13 +880,13 @@ export default function TrainingPreview({
                     ].map((item) => (
                       <div
                         key={item.label}
-                        className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl"
+                        className="flex items-center gap-3 p-4 bg-muted rounded-xl"
                       >
                         <div className="min-w-0">
-                          <p className="text-[10px] font-black tracking-widest text-gray-400 uppercase">
+                          <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
                             {item.label}
                           </p>
-                          <p className="text-sm font-black text-gray-800 mt-0.5 capitalize">
+                          <p className="text-sm font-black text-foreground mt-0.5 capitalize">
                             {item.value}
                           </p>
                         </div>
@@ -895,8 +895,8 @@ export default function TrainingPreview({
                   </div>
 
                   {/* Konten kelas overview */}
-                  <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100">
-                    <h3 className="text-sm font-black text-gray-900 uppercase tracking-tight mb-4">
+                  <div className="bg-muted rounded-2xl p-6 border border-border">
+                    <h3 className="text-sm font-black text-foreground uppercase tracking-tight mb-4">
                       Kelas ini meliputi:
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
@@ -924,10 +924,10 @@ export default function TrainingPreview({
                           key={item.label}
                           className="flex items-center gap-3"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-primary-soft flex items-center justify-center flex-shrink-0">
                             {item.icon === "clock" && (
                               <svg
-                                className="w-4 h-4 text-blue-600"
+                                className="w-4 h-4 text-primary"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -942,7 +942,7 @@ export default function TrainingPreview({
                             )}
                             {item.icon === "session" && (
                               <svg
-                                className="w-4 h-4 text-blue-600"
+                                className="w-4 h-4 text-primary"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -957,7 +957,7 @@ export default function TrainingPreview({
                             )}
                             {item.icon === "cert" && (
                               <svg
-                                className="w-4 h-4 text-blue-600"
+                                className="w-4 h-4 text-primary"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -972,7 +972,7 @@ export default function TrainingPreview({
                             )}
                             {item.icon === "access" && (
                               <svg
-                                className="w-4 h-4 text-blue-600"
+                                className="w-4 h-4 text-primary"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -986,7 +986,7 @@ export default function TrainingPreview({
                               </svg>
                             )}
                           </div>
-                          <span className="text-sm font-semibold text-gray-700">
+                          <span className="text-sm font-semibold text-foreground">
                             {item.label}
                           </span>
                         </div>
@@ -1000,10 +1000,10 @@ export default function TrainingPreview({
               {activeTab === "curriculum" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                    <h2 className="text-xl font-black text-foreground uppercase tracking-tight">
                       Kurikulum
                     </h2>
-                    <div className="flex items-center gap-3 text-xs text-gray-400 font-bold uppercase tracking-widest">
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground font-bold uppercase tracking-widest">
                       <span>{course.sections?.length ?? 0} Sections</span>
                       <span>·</span>
                       <span>
@@ -1071,9 +1071,9 @@ export default function TrainingPreview({
                       />
                     ))
                   ) : (
-                    <div className="bg-gray-50 rounded-2xl border border-gray-100 py-16 flex flex-col items-center gap-3">
+                    <div className="bg-muted rounded-2xl border border-border py-16 flex flex-col items-center gap-3">
                       <svg
-                        className="w-10 h-10 text-gray-200"
+                        className="w-10 h-10 text-muted-foreground"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -1085,7 +1085,7 @@ export default function TrainingPreview({
                           d="M4 6h16M4 10h16M4 14h16M4 18h16"
                         />
                       </svg>
-                      <p className="text-xs font-bold text-gray-300 uppercase tracking-widest">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                         Belum ada konten
                       </p>
                     </div>
@@ -1096,18 +1096,18 @@ export default function TrainingPreview({
               {/* Instructor */}
               {activeTab === "instructor" && (
                 <div className="space-y-6">
-                  <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                  <h2 className="text-xl font-black text-foreground uppercase tracking-tight">
                     Instruktur
                   </h2>
                   <div className="flex items-start gap-5">
-                    <div className="w-20 h-20 rounded-2xl bg-blue-600 flex items-center justify-center text-white text-3xl font-black flex-shrink-0">
+                    <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center text-white text-3xl font-black flex-shrink-0">
                       {course.instructor?.slice(0, 1) ?? "I"}
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-gray-900">
+                      <h3 className="text-lg font-black text-foreground">
                         {course.instructor ?? "-"}
                       </h3>
-                      <p className="text-sm text-blue-600 font-semibold mt-0.5">
+                      <p className="text-sm text-primary font-semibold mt-0.5">
                         Instruktur INKINDO
                       </p>
                     </div>
@@ -1118,23 +1118,23 @@ export default function TrainingPreview({
               {/* Reviews */}
               {activeTab === "reviews" && (
                 <div className="space-y-6">
-                  <h2 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                  <h2 className="text-xl font-black text-foreground uppercase tracking-tight">
                     Ulasan
                   </h2>
                   {course.rating ? (
                     <div className="flex items-center gap-6">
                       <div className="text-center">
-                        <p className="text-6xl font-black text-gray-900">
+                        <p className="text-6xl font-black text-foreground">
                           {course.rating}
                         </p>
                         <StarRating rating={course.rating} size="w-5 h-5" />
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {course.reviews_count ?? 0} ulasan
                         </p>
                       </div>
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-400">
+                    <p className="text-sm text-muted-foreground">
                       Belum ada ulasan untuk kelas ini.
                     </p>
                   )}
@@ -1145,7 +1145,7 @@ export default function TrainingPreview({
             {/* ── Right — Sticky Card ── */}
             <div className="col-span-1">
               <div className="sticky top-20">
-                <div className="bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden">
+                <div className="bg-card rounded-2xl border border-border shadow-lg overflow-hidden">
                   <div className="p-6">
                     {isEnrolled ? (
                       <div className="flex flex-col gap-3">
@@ -1155,29 +1155,29 @@ export default function TrainingPreview({
                             Terdaftar
                           </span>
                         </div>
-                        <p className="text-xs text-gray-500 leading-relaxed">
+                        <p className="text-xs text-muted-foreground leading-relaxed">
                           Anda sudah terdaftar di kelas ini. Akses semua materi
                           di halaman My Learning.
                         </p>
                         <button
                           onClick={() => router.visit(route("student.classes"))}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all"
+                          className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
                         >
                           Buka My Learning
                         </button>
                       </div>
                     ) : (
                       <>
-                        <p className="text-3xl font-black text-gray-900">
+                        <p className="text-3xl font-black text-foreground">
                           {formatRp(course.price)}
                         </p>
-                        <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mt-1">
+                        <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mt-1">
                           One-Time Payment • Full Access
                         </p>
                         <div className="flex flex-col gap-3 mt-5">
                           <button
                             onClick={handleEnrollClick}
-                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-blue-200 hover:-translate-y-0.5 transition-all"
+                            className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
                           >
                             {isLoggedIn
                               ? "Enroll Sekarang"
@@ -1188,7 +1188,7 @@ export default function TrainingPreview({
                     )}
 
                     {/* Course details */}
-                    <div className="mt-5 flex flex-col gap-3 border-t border-gray-100 pt-5">
+                    <div className="mt-5 flex flex-col gap-3 border-t border-border pt-5">
                       {[
                         {
                           label: "Durasi",
@@ -1216,10 +1216,10 @@ export default function TrainingPreview({
                           key={item.label}
                           className="flex items-center justify-between"
                         >
-                          <span className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase">
+                          <span className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                             {item.label}
                           </span>
-                          <span className="text-sm font-black text-gray-700 capitalize">
+                          <span className="text-sm font-black text-foreground capitalize">
                             {item.value}
                           </span>
                         </div>

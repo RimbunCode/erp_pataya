@@ -76,7 +76,7 @@ function FileItem({
         <Button
           variant="ghost"
           size="icon"
-          className="hover:text-red-500 p-2! size-auto"
+          className="hover:text-destructive p-2! size-auto"
           onClick={() => removeFile(id)}
         >
           <Trash2 className="size-5!" />

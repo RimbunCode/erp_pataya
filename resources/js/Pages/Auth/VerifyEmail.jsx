@@ -20,7 +20,7 @@ export default function VerifyEmail({ status }) {
       <Head title="Email Verification" />
 
       <CardContent>
-        <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+        <div className="mb-4 text-sm text-foreground dark:text-muted-foreground">
           Thanks for signing up! Before getting started, could you verify your
           email address by clicking on the link we just emailed to you? If you
           {"didn't"} receive the email, we will gladly send you another.
@@ -41,7 +41,7 @@ export default function VerifyEmail({ status }) {
               href={route("logout")}
               method="post"
               as="button"
-              className="text-sm text-gray-600 underline rounded-md hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-gray-100 dark:focus:ring-offset-gray-800"
+              className="text-sm text-foreground underline rounded-md hover:text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 dark:text-muted-foreground dark:hover:text-foreground dark:focus:ring-offset-background"
             >
               Log Out
             </Link>

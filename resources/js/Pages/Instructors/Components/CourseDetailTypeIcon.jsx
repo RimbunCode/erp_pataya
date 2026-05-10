@@ -40,7 +40,7 @@ export default function CourseDetailTypeIcon({
 
   return (
     <svg
-      className={`${className} text-blue-500`}
+      className={`${className} text-primary`}
       fill="none"
       viewBox="0 0 24 24"
       stroke="currentColor"

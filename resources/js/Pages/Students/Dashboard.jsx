@@ -8,7 +8,7 @@ const stats = [
     value: "4",
     icon: (
       <svg
-        className="w-6 h-6 text-blue-500"
+        className="w-6 h-6 text-primary"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -21,7 +21,7 @@ const stats = [
         />
       </svg>
     ),
-    iconBg: "bg-blue-50",
+    iconBg: "bg-primary-soft",
   },
   {
     label: "Hours Learned",
@@ -92,7 +92,7 @@ const courses = [
     next: "Structural Analysis Tools",
     progress: 65,
     remaining: "12h 45m remaining",
-    thumb: "bg-blue-100",
+    thumb: "bg-primary-soft",
     image: "https://picsum.photos/seed/bim/200/150",
   },
   {
@@ -141,7 +141,7 @@ function CourseCard({ course }) {
 
   return (
     <div
-      className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-5 hover:shadow-md transition-all duration-200 cursor-pointer"
+      className="bg-card rounded-2xl border border-border shadow-sm p-5 flex items-center gap-5 hover:shadow-md transition-all duration-200 cursor-pointer"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -157,10 +157,10 @@ function CourseCard({ course }) {
           />
         )}
         {hovered && (
-          <div className="absolute inset-0 bg-blue-600/20 flex items-center justify-center transition-all duration-200">
-            <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-md">
+          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center transition-all duration-200">
+            <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center shadow-md">
               <svg
-                className="w-5 h-5 text-blue-600 ml-0.5"
+                className="w-5 h-5 text-primary ml-0.5"
                 fill="currentColor"
                 viewBox="0 0 24 24"
               >
@@ -173,23 +173,23 @@ function CourseCard({ course }) {
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-black text-gray-900 uppercase tracking-wide leading-tight mb-1">
+        <h3 className="text-sm font-black text-foreground uppercase tracking-wide leading-tight mb-1">
           {course.title}
         </h3>
-        <p className="text-xs text-gray-400 uppercase tracking-widest mb-3">
+        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">
           Next: {course.next}
         </p>
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-blue-600 rounded-full transition-all duration-500"
+              className="h-full bg-primary rounded-full transition-all duration-500"
               style={{ width: `${course.progress}%` }}
             />
           </div>
-          <span className="text-[10px] font-extrabold text-blue-600 tracking-widest whitespace-nowrap">
+          <span className="text-[10px] font-extrabold text-primary tracking-widest whitespace-nowrap">
             {course.progress}% Complete
           </span>
-          <span className="text-[10px] text-gray-300 tracking-wide whitespace-nowrap">
+          <span className="text-[10px] text-muted-foreground tracking-wide whitespace-nowrap">
             {course.remaining}
           </span>
         </div>
@@ -197,7 +197,7 @@ function CourseCard({ course }) {
 
       {/* Arrow */}
       <svg
-        className={`w-4 h-4 flex-shrink-0 transition-colors duration-200 ${hovered ? "text-blue-500" : "text-gray-200"}`}
+        className={`w-4 h-4 flex-shrink-0 transition-colors duration-200 ${hovered ? "text-primary" : "text-muted-foreground"}`}
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -220,29 +220,29 @@ function ScheduleItem({ item }) {
     >
       <div className="text-right min-w-[44px]">
         <p
-          className={`text-xs font-black transition-colors duration-200 ${hovered ? "text-blue-600" : "text-gray-900"}`}
+          className={`text-xs font-black transition-colors duration-200 ${hovered ? "text-primary" : "text-foreground"}`}
         >
           {item.time}
         </p>
         {item.label && (
-          <p className="text-[9px] font-bold tracking-widest text-blue-400 uppercase">
+          <p className="text-[9px] font-bold tracking-widest text-primary uppercase">
             {item.label}
           </p>
         )}
       </div>
       <div className="flex flex-col items-center gap-1 pt-1">
         <div
-          className={`w-2 h-2 rounded-full transition-all duration-200 ${hovered ? "bg-blue-600 scale-125" : "bg-gray-200"}`}
+          className={`w-2 h-2 rounded-full transition-all duration-200 ${hovered ? "bg-primary scale-125" : "bg-gray-200"}`}
         />
-        <div className="w-px flex-1 bg-gray-100 min-h-[24px]" />
+        <div className="w-px flex-1 bg-muted min-h-[24px]" />
       </div>
       <div className="pb-3">
         <p
-          className={`text-xs font-black uppercase tracking-wide transition-colors duration-200 ${hovered ? "text-blue-600" : "text-gray-800"}`}
+          className={`text-xs font-black uppercase tracking-wide transition-colors duration-200 ${hovered ? "text-primary" : "text-foreground"}`}
         >
           {item.title}
         </p>
-        <p className="text-[10px] text-gray-400 uppercase tracking-widest mt-0.5">
+        <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
           {item.type}
         </p>
       </div>
@@ -274,27 +274,27 @@ export default function Dashboard() {
               <br />
               Your Next Skill?
             </h2>
-            <p className="text-sm text-blue-200 leading-relaxed mb-6">
+            <p className="text-sm text-primary leading-relaxed mb-6">
               You have 2 pending assignments and 4 unfinished courses. Keep up
               the momentum!
             </p>
             <button
               onClick={() => router.visit("/student/classes")}
-              className="bg-white text-blue-600 text-xs font-extrabold tracking-widest uppercase px-6 py-3 rounded-xl hover:bg-blue-50 transition-colors duration-200"
+              className="bg-card text-primary text-xs font-extrabold tracking-widest uppercase px-6 py-3 rounded-xl hover:bg-primary-soft transition-colors duration-200"
             >
               Resume Learning
             </button>
           </div>
           <div className="relative z-10 flex gap-3 flex-shrink-0">
-            <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
+            <div className="bg-card/15 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
               <p className="text-3xl font-black text-white">82%</p>
-              <p className="text-[10px] font-bold tracking-widest text-blue-200 uppercase mt-1">
+              <p className="text-[10px] font-bold tracking-widest text-primary uppercase mt-1">
                 Avg Score
               </p>
             </div>
-            <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
+            <div className="bg-card/15 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
               <p className="text-3xl font-black text-white">4</p>
-              <p className="text-[10px] font-bold tracking-widest text-blue-200 uppercase mt-1">
+              <p className="text-[10px] font-bold tracking-widest text-primary uppercase mt-1">
                 Ongoing
               </p>
             </div>
@@ -306,7 +306,7 @@ export default function Dashboard() {
           {stats.map((s) => (
             <div
               key={s.label}
-              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col gap-4"
+              className="bg-card rounded-2xl border border-border shadow-sm p-6 flex flex-col gap-4"
             >
               <div
                 className={`w-12 h-12 rounded-xl ${s.iconBg} flex items-center justify-center`}
@@ -314,8 +314,8 @@ export default function Dashboard() {
                 {s.icon}
               </div>
               <div>
-                <p className="text-3xl font-black text-gray-900">{s.value}</p>
-                <p className="text-[10px] font-bold tracking-[2px] text-gray-400 uppercase mt-1">
+                <p className="text-3xl font-black text-foreground">{s.value}</p>
+                <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mt-1">
                   {s.label}
                 </p>
               </div>
@@ -328,10 +328,10 @@ export default function Dashboard() {
           {/* Courses — 2/3 width */}
           <div className="col-span-2 flex flex-col gap-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest">
+              <h2 className="text-sm font-black text-foreground uppercase tracking-widest">
                 Currently Learning
               </h2>
-              <button className="text-[10px] font-extrabold tracking-widest text-blue-600 hover:text-blue-700 uppercase transition-colors">
+              <button className="text-[10px] font-extrabold tracking-widest text-primary hover:text-primary uppercase transition-colors">
                 View All
               </button>
             </div>
@@ -345,11 +345,11 @@ export default function Dashboard() {
           {/* Schedule + Upgrade — 1/3 width */}
           <div className="flex flex-col gap-5">
             {/* Schedule */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-primary-soft flex items-center justify-center">
                   <svg
-                    className="w-5 h-5 text-blue-500"
+                    className="w-5 h-5 text-primary"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -362,7 +362,7 @@ export default function Dashboard() {
                     />
                   </svg>
                 </div>
-                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
+                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
                   Schedule
                 </h3>
               </div>
@@ -381,7 +381,7 @@ export default function Dashboard() {
                   "linear-gradient(135deg, #2563eb 60%, #4338ca 100%)",
               }}
             >
-              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center mb-4">
+              <div className="w-9 h-9 rounded-xl bg-card/20 flex items-center justify-center mb-4">
                 <svg
                   className="w-5 h-5 text-white"
                   fill="none"
@@ -399,11 +399,11 @@ export default function Dashboard() {
               <h3 className="text-sm font-black text-white uppercase tracking-wide leading-tight mb-2">
                 Upgrade for Pro Benefits
               </h3>
-              <p className="text-xs text-blue-200 leading-relaxed mb-5">
+              <p className="text-xs text-primary leading-relaxed mb-5">
                 Get lifetime access to materials, exclusive community, and
                 premium certifications.
               </p>
-              <button className="w-full bg-white text-blue-600 text-xs font-extrabold tracking-widest uppercase py-3 rounded-xl hover:bg-blue-50 transition-colors duration-200">
+              <button className="w-full bg-card text-primary text-xs font-extrabold tracking-widest uppercase py-3 rounded-xl hover:bg-primary-soft transition-colors duration-200">
                 Learn More
               </button>
             </div>

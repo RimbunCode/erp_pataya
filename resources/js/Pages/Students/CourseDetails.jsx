@@ -137,12 +137,12 @@ function UploadModal({ onClose, title }) {
         backdropFilter: "blur(6px)",
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden">
-        <div className="h-1.5 w-full bg-gradient-to-r from-blue-600 to-indigo-500" />
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-md relative overflow-hidden">
+        <div className="h-1.5 w-full bg-gradient-to-r from-primary to-indigo-500" />
         <div className="p-8">
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 text-gray-300 hover:text-gray-500 transition-colors"
+            className="absolute top-6 right-6 text-muted-foreground hover:text-muted-foreground transition-colors"
           >
             <svg
               className="w-5 h-5"
@@ -160,7 +160,7 @@ function UploadModal({ onClose, title }) {
           </button>
 
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
               <svg
                 className="w-5 h-5 text-white"
                 fill="none"
@@ -176,10 +176,10 @@ function UploadModal({ onClose, title }) {
               </svg>
             </div>
             <div>
-              <h3 className="text-lg font-black text-gray-700 uppercase tracking-tight">
+              <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
                 Submit Answer
               </h3>
-              <p className="text-xs text-gray-400">{title}</p>
+              <p className="text-xs text-muted-foreground">{title}</p>
             </div>
           </div>
 
@@ -197,7 +197,7 @@ function UploadModal({ onClose, title }) {
               if (dropped) setFile(dropped);
             }}
             className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 cursor-pointer
-              ${dragging ? "border-blue-500 bg-blue-50" : file ? "border-green-400 bg-green-50" : "border-gray-200 hover:border-blue-400 hover:bg-blue-50"}`}
+              ${dragging ? "border-primary/50 bg-primary-soft" : file ? "border-green-400 bg-green-50" : "border-border hover:border-primary/40 hover:bg-primary-soft"}`}
             onClick={() => document.getElementById("file-upload").click()}
           >
             <input
@@ -223,14 +223,14 @@ function UploadModal({ onClose, title }) {
                   />
                 </svg>
                 <p className="text-sm font-bold text-green-600">{file.name}</p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   {(file.size / 1024 / 1024).toFixed(2)} MB
                 </p>
               </>
             ) : (
               <>
                 <svg
-                  className="w-10 h-10 text-gray-300 mx-auto mb-3"
+                  className="w-10 h-10 text-muted-foreground mx-auto mb-3"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -242,10 +242,10 @@ function UploadModal({ onClose, title }) {
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
                   />
                 </svg>
-                <p className="text-sm font-bold text-gray-500">
+                <p className="text-sm font-bold text-muted-foreground">
                   Drop your file here or click to browse
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   PDF, DOC, DOCX, ZIP — Max 20MB
                 </p>
               </>
@@ -264,7 +264,7 @@ function UploadModal({ onClose, title }) {
           <div className="flex gap-3 mt-6">
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-gray-400 uppercase border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+              className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
             >
               Cancel
             </button>
@@ -273,8 +273,8 @@ function UploadModal({ onClose, title }) {
               className={`flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
                 ${
                   file
-                    ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5"
-                    : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                    ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
                 }`}
             >
               Submit
@@ -302,14 +302,14 @@ function ChapterCard({ chapter }) {
     },
     in_progress: {
       label: "In Progress",
-      color: "text-blue-600",
-      bg: "bg-blue-50",
-      dot: "bg-blue-500",
+      color: "text-primary",
+      bg: "bg-primary-soft",
+      dot: "bg-primary-soft0",
     },
     locked: {
       label: "Locked",
-      color: "text-gray-400",
-      bg: "bg-gray-100",
+      color: "text-muted-foreground",
+      bg: "bg-muted",
       dot: "bg-gray-300",
     },
   };
@@ -319,20 +319,20 @@ function ChapterCard({ chapter }) {
     <>
       <div
         className={`border-2 rounded-2xl overflow-hidden transition-all duration-200
-        ${open && !isLocked ? "border-blue-500 shadow-md shadow-blue-50" : "border-gray-100"}`}
+        ${open && !isLocked ? "border-primary/50 shadow-md shadow-blue-50" : "border-border"}`}
       >
         {/* Chapter header */}
         <button
           onClick={() => !isLocked && setOpen((v) => !v)}
           className={`w-full flex items-center gap-4 px-6 py-5 text-left transition-colors
-            ${isLocked ? "cursor-not-allowed opacity-60" : "hover:bg-gray-50"}`}
+            ${isLocked ? "cursor-not-allowed opacity-60" : "hover:bg-muted"}`}
         >
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${open ? "bg-blue-600" : "bg-gray-100"}`}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${open ? "bg-primary" : "bg-muted"}`}
           >
             {isLocked ? (
               <svg
-                className="w-5 h-5 text-gray-400"
+                className="w-5 h-5 text-muted-foreground"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -346,7 +346,7 @@ function ChapterCard({ chapter }) {
               </svg>
             ) : (
               <span
-                className={`text-xs font-black ${open ? "text-white" : "text-gray-500"}`}
+                className={`text-xs font-black ${open ? "text-white" : "text-muted-foreground"}`}
               >
                 {String(chapter.id).padStart(2, "0")}
               </span>
@@ -354,10 +354,10 @@ function ChapterCard({ chapter }) {
           </div>
 
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase">
+            <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
               Chapter {chapter.id}
             </p>
-            <p className="text-sm font-black text-gray-800 mt-0.5">
+            <p className="text-sm font-black text-foreground mt-0.5">
               {chapter.title}
             </p>
           </div>
@@ -371,7 +371,7 @@ function ChapterCard({ chapter }) {
 
           {!isLocked && (
             <svg
-              className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+              className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -388,17 +388,17 @@ function ChapterCard({ chapter }) {
 
         {/* Inner cards */}
         {open && !isLocked && (
-          <div className="border-t border-gray-100 bg-gray-50 p-4 flex flex-col gap-3">
+          <div className="border-t border-border bg-muted p-4 flex flex-col gap-3">
             {chapter.cards.map((card, i) => (
               <div
                 key={i}
-                className={`bg-white rounded-xl border-2 overflow-hidden transition-all duration-200
-                  ${openCard === i ? "border-blue-400" : "border-gray-100"}`}
+                className={`bg-card rounded-xl border-2 overflow-hidden transition-all duration-200
+                  ${openCard === i ? "border-primary/40" : "border-border"}`}
               >
                 {/* Card header */}
                 <button
                   onClick={() => setOpenCard(openCard === i ? null : i)}
-                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-muted transition-colors text-left"
                 >
                   {/* Card type icon */}
                   <div
@@ -407,7 +407,7 @@ function ChapterCard({ chapter }) {
                       card.type === "pre_assessment"
                         ? "bg-purple-100"
                         : card.type === "material"
-                          ? "bg-blue-100"
+                          ? "bg-primary-soft"
                           : "bg-amber-100"
                     }`}
                   >
@@ -428,7 +428,7 @@ function ChapterCard({ chapter }) {
                     )}
                     {card.type === "material" && (
                       <svg
-                        className="w-4 h-4 text-blue-600"
+                        className="w-4 h-4 text-primary"
                         fill="none"
                         viewBox="0 0 24 24"
                         stroke="currentColor"
@@ -460,7 +460,7 @@ function ChapterCard({ chapter }) {
 
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-black text-gray-800">
+                      <p className="text-sm font-black text-foreground">
                         {card.title}
                       </p>
                       {card.optional && (
@@ -477,7 +477,7 @@ function ChapterCard({ chapter }) {
                   </div>
 
                   <svg
-                    className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${openCard === i ? "rotate-180" : ""}`}
+                    className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${openCard === i ? "rotate-180" : ""}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -493,15 +493,15 @@ function ChapterCard({ chapter }) {
 
                 {/* Card content */}
                 {openCard === i && (
-                  <div className="border-t border-gray-100 px-5 py-4 flex flex-col gap-4">
-                    <p className="text-sm text-gray-600 leading-relaxed">
+                  <div className="border-t border-border px-5 py-4 flex flex-col gap-4">
+                    <p className="text-sm text-foreground leading-relaxed">
                       {card.description}
                     </p>
 
                     {/* Pre Assessment */}
                     {card.type === "pre_assessment" && (
                       <div className="flex items-center gap-3 flex-wrap">
-                        <button className="flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors">
+                        <button className="flex items-center gap-2 px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-muted hover:bg-muted text-foreground rounded-xl transition-colors">
                           <svg
                             className="w-4 h-4"
                             fill="none"
@@ -523,7 +523,7 @@ function ChapterCard({ chapter }) {
                             ${
                               card.submitted
                                 ? "bg-green-50 text-green-600 border border-green-200"
-                                : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5"
+                                : "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
                             }`}
                         >
                           <svg
@@ -552,10 +552,10 @@ function ChapterCard({ chapter }) {
                         {card.topics.map((topic, j) => (
                           <div
                             key={j}
-                            className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer"
+                            className="flex items-center gap-3 p-3 bg-primary-soft border border-primary/20 rounded-xl hover:bg-primary-soft transition-colors cursor-pointer"
                           >
                             <svg
-                              className="w-4 h-4 text-blue-500 flex-shrink-0"
+                              className="w-4 h-4 text-primary flex-shrink-0"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -567,11 +567,11 @@ function ChapterCard({ chapter }) {
                                 d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                               />
                             </svg>
-                            <span className="flex-1 text-sm font-semibold text-blue-700">
+                            <span className="flex-1 text-sm font-semibold text-primary">
                               {topic.title}
                             </span>
                             <svg
-                              className="w-4 h-4 text-blue-400 flex-shrink-0"
+                              className="w-4 h-4 text-primary flex-shrink-0"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -638,8 +638,8 @@ function ChapterCard({ chapter }) {
                           className={`flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200 w-fit
                             ${
                               card.submitted
-                                ? "bg-gray-100 hover:bg-gray-200 text-gray-600"
-                                : "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 hover:-translate-y-0.5"
+                                ? "bg-muted hover:bg-muted text-foreground"
+                                : "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
                             }`}
                         >
                           <svg
@@ -705,9 +705,9 @@ export default function CourseDetails() {
               <p className="text-3xl font-black text-white">
                 {course.progress}%
               </p>
-              <div className="w-32 h-1.5 bg-white/20 rounded-full mt-2 overflow-hidden">
+              <div className="w-32 h-1.5 bg-card/20 rounded-full mt-2 overflow-hidden">
                 <div
-                  className="h-full bg-blue-400 rounded-full"
+                  className="h-full bg-primary rounded-full"
                   style={{ width: `${course.progress}%` }}
                 />
               </div>
@@ -722,15 +722,15 @@ export default function CourseDetails() {
               <div
                 key={a.id}
                 className={`flex items-start gap-4 px-5 py-4 rounded-2xl border
-                  ${a.urgent ? "bg-amber-50 border-amber-200" : "bg-blue-50 border-blue-100"}`}
+                  ${a.urgent ? "bg-amber-50 border-amber-200" : "bg-primary-soft border-primary/20"}`}
               >
                 <div
                   className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0
-                  ${a.urgent ? "bg-amber-100" : "bg-blue-100"}`}
+                  ${a.urgent ? "bg-amber-100" : "bg-primary-soft"}`}
                 >
                   {a.type === "schedule" ? (
                     <svg
-                      className={`w-5 h-5 ${a.urgent ? "text-amber-600" : "text-blue-600"}`}
+                      className={`w-5 h-5 ${a.urgent ? "text-amber-600" : "text-primary"}`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -744,7 +744,7 @@ export default function CourseDetails() {
                     </svg>
                   ) : (
                     <svg
-                      className={`w-5 h-5 ${a.urgent ? "text-amber-600" : "text-blue-600"}`}
+                      className={`w-5 h-5 ${a.urgent ? "text-amber-600" : "text-primary"}`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -761,7 +761,7 @@ export default function CourseDetails() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <p
-                      className={`text-[10px] font-extrabold tracking-widest uppercase ${a.urgent ? "text-amber-600" : "text-blue-600"}`}
+                      className={`text-[10px] font-extrabold tracking-widest uppercase ${a.urgent ? "text-amber-600" : "text-primary"}`}
                     >
                       {a.type === "schedule"
                         ? "Schedule Update"
@@ -774,10 +774,10 @@ export default function CourseDetails() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">
+                  <p className="text-sm text-foreground leading-relaxed">
                     {a.message}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-1">{a.date}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{a.date}</p>
                 </div>
               </div>
             ))}
@@ -786,7 +786,7 @@ export default function CourseDetails() {
 
         {/* ── Chapters ── */}
         <div className="flex flex-col gap-4">
-          <h3 className="text-sm font-black text-gray-700 uppercase tracking-widest">
+          <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
             Course Content
           </h3>
           {course.chapters.map((chapter) => (

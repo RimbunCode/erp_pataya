@@ -65,15 +65,15 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
                     setTitle(content.title);
                   }
                 }}
-                className="w-full bg-white border border-blue-300 rounded-lg px-2.5 py-1.5 text-sm font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-card border border-primary/35 rounded-lg px-2.5 py-1.5 text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               />
             ) : (
               <div>
-                <p className="text-sm font-bold text-gray-700 truncate">
+                <p className="text-sm font-bold text-foreground truncate">
                   {content.title}
                 </p>
                 {content.description && (
-                  <p className="text-xs text-gray-400 mt-1 truncate">
+                  <p className="text-xs text-muted-foreground mt-1 truncate">
                     {content.description}
                   </p>
                 )}
@@ -82,7 +82,7 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
                     href={content.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs font-black text-blue-500 uppercase tracking-widest flex items-center gap-1.5 mt-1.5 hover:text-blue-700"
+                    className="text-xs font-black text-primary uppercase tracking-widest flex items-center gap-1.5 mt-1.5 hover:text-primary"
                   >
                     <svg
                       className="w-3 h-3"
@@ -107,7 +107,7 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
             <button
               onClick={() => uploadDialogRef.current?.open()}
               title="Upload / Link"
-              className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-all"
+              className="w-7 h-7 flex items-center justify-center rounded-lg bg-card border border-border text-muted-foreground hover:text-primary hover:border-primary/35 transition-all"
             >
               <svg
                 className="w-3.5 h-3.5"
@@ -127,7 +127,7 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
               <>
                 <button
                   onClick={saveTitle}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-all"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-primary-soft0 text-white hover:bg-primary-hover transition-all"
                 >
                   <svg
                     className="w-3.5 h-3.5"
@@ -148,7 +148,7 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
                     setEditing(false);
                     setTitle(content.title);
                   }}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-gray-100 text-gray-400 transition-all"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg bg-muted text-muted-foreground transition-all"
                 >
                   <svg
                     className="w-3.5 h-3.5"
@@ -168,7 +168,7 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
             ) : (
               <button
                 onClick={() => setEditing(true)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-400 hover:text-blue-500 hover:border-blue-300 transition-all"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-card border border-border text-muted-foreground hover:text-primary hover:border-primary/35 transition-all"
               >
                 <svg
                   className="w-3.5 h-3.5"
@@ -187,7 +187,7 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
             )}
             <button
               onClick={() => onDelete(content.id)}
-              className="w-7 h-7 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-300 hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
+              className="w-7 h-7 flex items-center justify-center rounded-lg bg-card border border-border text-muted-foreground hover:text-red-400 hover:border-red-200 hover:bg-red-50 transition-all"
             >
               <svg
                 className="w-3.5 h-3.5"
