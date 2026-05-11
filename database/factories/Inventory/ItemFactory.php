@@ -75,7 +75,8 @@ class ItemFactory extends Factory {
                 'item_id' => $item->id,
                 'unit_id' => $item->default_unit_id,
             ], [
-                'conversion_factor' => 1,
+                'conversion_factor' => $item->conversion_factor ?? 1,
+                'is_default'        => true,
             ]);
 
             $relatedUnitId = Unit::query()

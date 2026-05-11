@@ -3,6 +3,7 @@
 namespace Tests\Feature\Inventory;
 
 use App\Models\Inventory\Item;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Unit;
 use App\Services\Inventory\ItemServices;
 use Illuminate\Database\Schema\Blueprint;
@@ -168,6 +169,56 @@ class ItemUomBackendSyncTest extends TestCase {
         $this->assertTrue($defaultRow['readOnly']);
         $this->assertFalse($defaultRow['isManual']);
         $this->assertTrue($defaultRow['generatedByDefaultUnit']);
+    }
+
+    public function test_item_unit_query_can_filter_by_units_table_through_global_scope(): void {
+        $unit = $this->createUnit([
+            'name' => 'Joined Unit',
+        ]);
+
+        $item = Item::create([
+            'code'              => 'ITEM-TEST-2',
+            'name'              => 'Item Test 2',
+            'default_unit_id'   => $unit->id,
+            'conversion_factor' => null,
+            'type'              => 'stock',
+        ]);
+
+        $item->uom()->create([
+            'unit_id'                   => $unit->id,
+            'conversion_factor'         => 1,
+            'is_manual'                 => true,
+            'generated_by_default_unit' => false,
+        ]);
+
+        $itemUnit = ItemUnit::where('units.name', 'Joined Unit')->first();
+
+        $this->assertNotNull($itemUnit);
+        $this->assertSame($unit->id, $itemUnit->unit_id);
+        $this->assertSame($item->id, $itemUnit->item_id);
+    }
+
+    public function test_get_conversion_factor_works_with_units_join_global_scope(): void {
+        $unit = $this->createUnit();
+
+        $item = Item::create([
+            'code'              => 'ITEM-TEST-3',
+            'name'              => 'Item Test 3',
+            'default_unit_id'   => $unit->id,
+            'conversion_factor' => null,
+            'type'              => 'stock',
+        ]);
+
+        $item->uom()->create([
+            'unit_id'                   => $unit->id,
+            'conversion_factor'         => 2.5,
+            'is_manual'                 => true,
+            'generated_by_default_unit' => false,
+        ]);
+
+        $conversionFactor = ItemUnit::getConversionFactor($item->id, $unit->id);
+
+        $this->assertSame(2.5, $conversionFactor);
     }
 
     private function createUnit(array $attributes = []): Unit {

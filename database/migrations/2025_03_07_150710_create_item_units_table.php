@@ -16,6 +16,7 @@ return new class extends Migration
             $table->foreignUlid('unit_id')->references('id')->on('units')->cascadeOnDelete();
             $table->double('conversion_factor')->nullable()->default(1);
             $table->boolean('is_manual')->nullable();
+            $table->boolean('is_default')->default(false);
             $table->boolean('generated_by_default_unit')->nullable();
             $table->unsignedTinyInteger('order')->default(0);
             $table->timestamps();

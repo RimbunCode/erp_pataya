@@ -56,6 +56,7 @@ class CategoryController extends Controller {
     public function show(Category $category) {
         $this->setBreadcrumbs($category);
         $category->showDetail();
+        $category->loadRelations();
 
         return $this->renderShow(
             'Inventory/Categories/Form',

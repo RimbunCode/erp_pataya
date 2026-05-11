@@ -23,15 +23,13 @@ class StockEntryService {
     }
 
     private function fillItemRelations(array $data, StockEntry $stockEntry) {
-        $data['item_id'] = $data['item']['id'];
-        $data['unit_id'] = $data['unit']['id'];
-        // $data['conversion_factor'] = ItemUnit::getConversionFactor($data["item"]["item_id"], $data['unit_id']);
+        $data['item_id']             = $data['item']['id'];
+        $data['unit_id']             = $data['unit']['id'];
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? null;
 
-        $itemVariant                        = ItemVariant::find($data['item_id']);
-        $defaultConvertionFactor            = $itemVariant->conversion_factor;
-        $data['conversion_factor']          = ItemUnit::getConversionFactor($itemVariant->item_id, $data['unit_id']);
+        $defaultConvertionFactor            = $data['item']['conversion_factor'];
+        $data['conversion_factor']          = $data['unit']['conversion_factor'];
         $data['qty_needed_in_default_unit'] = $data['quantity'] * ($data['conversion_factor'] / $defaultConvertionFactor ?: 1);
         if ($stockEntry->type != 'item_receipt') {
             $stockSource = Stock::lockForUpdate()->firstOrCreate([
@@ -56,11 +54,11 @@ class StockEntryService {
                         'quantity' => $quantityRequest,
                     ];
                     // sisa batch dikembalikan ke antrean
-                    $q['quantity'] -= $quantityRequest;
-                    $quantityRequest = 0;
+                    $q['quantity']   -= $quantityRequest;
+                    $quantityRequest  = 0;
                 } else {
                     $quantityRequest -= $q['quantity'];
-                    $picked[] = $q;
+                    $picked[]         = $q;
                 }
             }
             $data['basic_amount'] = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked));
@@ -94,8 +92,8 @@ class StockEntryService {
 
         foreach ($data['items'] as &$item) {
             $additionalCost = $totalBasicAmountItem != 0
-              ? ($item['basic_amount'] / $totalBasicAmountItem) * $totalAdditionalCost
-              : 0;
+                ? ($item['basic_amount'] / $totalBasicAmountItem) * $totalAdditionalCost
+                : 0;
 
             $valuation_rate = $item['qty_needed_in_default_unit'] <= 0 ? 0 : ($additionalCost + $item['basic_amount']) / ($item['qty_needed_in_default_unit']);
 
@@ -141,8 +139,8 @@ class StockEntryService {
             ->update(['deleted_at' => now()]);
         foreach ($data['items'] as &$item) {
             $additionalCost = $totalBasicAmountItem != 0
-              ? ($item['basic_amount'] / $totalBasicAmountItem) * $totalAdditionalCost
-              : 0;
+                ? ($item['basic_amount'] / $totalBasicAmountItem) * $totalAdditionalCost
+                : 0;
 
             $valuation_rate = $item['qty_needed_in_default_unit'] <= 0 ? 0 : ($additionalCost + $item['basic_amount']) / ($item['qty_needed_in_default_unit']);
 
@@ -185,7 +183,7 @@ class StockEntryService {
                 'code' => FormatingSeries::generate(StockEntry::class, $stockEntry),
             ]);
 
-            $items = $stockEntry->items()
+            $items      = $stockEntry->items()
                 ->with(['item', 'item.item', 'item.sourceWarehouse'])
                 ->get();
             $errorItems = [];
@@ -355,8 +353,8 @@ class StockEntryService {
                     $basicAmount    = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked));
                     $basicRate      = $basicAmount / $qtyNeeded;
                     $additionalCost = $totalBasicAmount != 0
-                      ? ($basicAmount / $totalBasicAmount) * $totalAdditionalCost
-                      : 0;
+                        ? ($basicAmount / $totalBasicAmount) * $totalAdditionalCost
+                        : 0;
 
                     $valuation_rate = $additionalCost / $qtyNeeded + $basicRate;
 
@@ -368,8 +366,8 @@ class StockEntryService {
                     // update if item receipt
                     $basicAmount    = $item->basic_amount;
                     $additionalCost = $totalBasicAmount != 0
-                      ? ($basicAmount / $totalBasicAmount) * $totalAdditionalCost
-                      : 0;
+                        ? ($basicAmount / $totalBasicAmount) * $totalAdditionalCost
+                        : 0;
                     $valuation_rate = ($additionalCost + $basicAmount) / $qtyNeeded;
                     $queue[]        = [
                         'rate'     => $valuation_rate,
@@ -399,7 +397,7 @@ class StockEntryService {
             }
         }
 
-        $debitAccount = Account::lockForUpdate()
+        $debitAccount  = Account::lockForUpdate()
             ->where('root_type', 'asset')
             ->where('account_type', 'stock')
             ->latest()->first();

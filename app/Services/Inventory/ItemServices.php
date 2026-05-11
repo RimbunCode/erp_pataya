@@ -138,6 +138,7 @@ class ItemServices {
                 'unit_id' => $uom['id'],
             ], [
                 'order'                     => $order,
+                'is_default'                => $uom['id'] === $item->default_unit_id,
                 'conversion_factor'         => $this->normalizeConversionFactor($uom['conversion_factor'] ?? null),
                 'is_manual'                 => \array_key_exists('isManual', $uom) ? (bool) $uom['isManual'] : null,
                 'generated_by_default_unit' => \array_key_exists('generatedByDefaultUnit', $uom) ? (bool) $uom['generatedByDefaultUnit'] : null,

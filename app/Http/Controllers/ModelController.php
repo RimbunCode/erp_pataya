@@ -244,9 +244,15 @@ class ModelController extends Controller {
 
         if ($request->has('joins')) {
             foreach ($request->joins as $key => $join) {
-                $query->select("$key.*");
+                if (isset($join['columns'])) {
+                    foreach ($join['columns'] as $column) {
+                        $query->addSelect("$key.$column");
+                    }
+                } else {
+                    $query->addSelect("$key.*");
+                }
                 if (array_keys($join['on']) === range(0, count($join['on']) - 1)) {
-                    $query->join($key, $join['on'][0], $join['on'][1], $join['on'][2], $join['type']);
+                    $query->join($key, $join['on'][0], $join['on'][1], $join['on'][2], $join['type'] ?? 'inner');
                 } else {
                     $query->join($key, function (JoinClause $query) use ($join) {
                         $query->on(function ($query) use ($join) {
@@ -255,7 +261,7 @@ class ModelController extends Controller {
                     }, type: $join['type'] ?? 'inner');
                 }
             }
-            $query->select($model::getTableName() . '.*');
+            $query->addSelect($model::getTableName() . '.*');
         }
         if (! $isCache && $request->has('filters')) {
             $query->where(function (Builder $query) use ($request, &$with) {
