@@ -6,7 +6,6 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
@@ -31,8 +30,8 @@ class PurchaseOrderService {
 
     private function fillItemRelations(array $data, PurchaseOrder $purchaseOrder) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['id'];
-        $data['conversion_factor']   = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['unit_id']             = $data['unit']['unit_id'];
+        $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['exchange_rate']       = $purchaseOrder->exchange_rate;
         $data['tax_id']              = $data['tax']['id'];
         $data['tax_rate']            = $data['tax']['rate'] ?? 0;

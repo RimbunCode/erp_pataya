@@ -7,7 +7,6 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Inventory\DeliveryNote;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Utils;
@@ -31,9 +30,9 @@ class DeliveryNoteService {
 
     private function fillItemRelations(array $item) {
         $item['item_id']             = $item['item']['id'];
-        $item['unit_id']             = $item['unit']['id'];
+        $item['unit_id']             = $item['unit']['unit_id'];
         $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
-        $item['conversion_factor']   = ItemUnit::getConversionFactor($item['item']['item_id'], $item['unit_id']);
+        $item['conversion_factor']   = $item['unit']['conversion_factor'];
         $item['quantity'] ??= 0;
         $item['valuation_rates']        = [];
         $item['return_against_item_id'] = $item['return_against_item']['id'] ?? null;

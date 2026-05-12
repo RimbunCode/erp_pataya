@@ -1,8 +1,8 @@
 import FormBarcodes from "./FormBarcodes";
 import FormDetail from "./FormDetail";
 import FormStockLevels from "./FormStockLevels";
-import { useFormPage } from "@/Pages/Core/FormPage";
 import { useCallback } from "react";
+import { useFormPage } from "@/Pages/Core/FormPage";
 
 export default function FormVariant() {
   const { dataBefore, data, setData } = useFormPage();
@@ -24,6 +24,7 @@ export default function FormVariant() {
       <FormBarcodes
         isVariant
         item={data.item}
+        uoms={data.uoms ?? []}
         barcodes={data.barcodes ?? []}
         onBarcodesChange={handleBarcodesChange}
       />

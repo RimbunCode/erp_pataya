@@ -38,7 +38,7 @@ class DeliveryNoteRequest extends BaseFormRequest {
             'items.*.referenceable_type'     => ['required', 'string'],
             'items.*.description'            => ['nullable', 'string'],
             'items.*.quantity'               => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'                => ['required', 'exists:units,id'],
+            'items.*.unit.id'                => ['required', 'exists:item_units,id'],
             'items.*.unit.*'                 => ['nullable'],
             'items.*.return_against_item.id' => ['nullable', 'exists:delivery_note_items,id'],
         ];

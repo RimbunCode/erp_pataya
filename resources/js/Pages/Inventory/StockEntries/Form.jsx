@@ -12,7 +12,6 @@ import ItemUnitLinkModel from "../Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "../Items/ItemVariantLinkModel";
 import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
-import UnitLinkModel from "../Units/UnitLinkModel";
 import WarehouseLinkModel from "../Warehouses/WarehouseLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -125,7 +124,7 @@ export default function Form() {
                 const defaultUnit = val?.default_uom;
                 setData({
                   item: val,
-                  unit: val?.default_uom,
+                  unit: defaultUnit,
                   conversion_factor: defaultUnit.conversion_factor,
                   source_warehouse: data.default_source_warehouse ?? undefined,
                   target_warehouse: data.default_target_warehouse ?? undefined,

@@ -6,8 +6,6 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
-use App\Models\Inventory\ItemUnit;
-use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\StockLedgerEntry;
@@ -24,7 +22,7 @@ class StockEntryService {
 
     private function fillItemRelations(array $data, StockEntry $stockEntry) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['id'];
+        $data['unit_id']             = $data['unit']['unit_id'];
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? null;
 
@@ -54,11 +52,11 @@ class StockEntryService {
                         'quantity' => $quantityRequest,
                     ];
                     // sisa batch dikembalikan ke antrean
-                    $q['quantity']   -= $quantityRequest;
-                    $quantityRequest  = 0;
+                    $q['quantity'] -= $quantityRequest;
+                    $quantityRequest = 0;
                 } else {
                     $quantityRequest -= $q['quantity'];
-                    $picked[]         = $q;
+                    $picked[] = $q;
                 }
             }
             $data['basic_amount'] = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked));
@@ -183,7 +181,7 @@ class StockEntryService {
                 'code' => FormatingSeries::generate(StockEntry::class, $stockEntry),
             ]);
 
-            $items      = $stockEntry->items()
+            $items = $stockEntry->items()
                 ->with(['item', 'item.item', 'item.sourceWarehouse'])
                 ->get();
             $errorItems = [];
@@ -397,7 +395,7 @@ class StockEntryService {
             }
         }
 
-        $debitAccount  = Account::lockForUpdate()
+        $debitAccount = Account::lockForUpdate()
             ->where('root_type', 'asset')
             ->where('account_type', 'stock')
             ->latest()->first();

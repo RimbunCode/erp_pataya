@@ -43,7 +43,7 @@ class PurchaseOrderRequest extends BaseFormRequest {
             'items.*.referenceable_id'    => ['nullable', 'string'],
             'items.*.required_date'       => ['required', 'date', Rule::date()->afterOrEqual($this->date)],
             'items.*.quantity'            => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'             => ['required', 'exists:units,id'],
+            'items.*.unit.id'             => ['required', 'exists:item_units,id'],
             'items.*.unit.*'              => ['nullable'],
             'items.*.target_warehouse.id' => ['required', 'exists:warehouses,id'],
             'items.*.target_warehouse.*'  => ['nullable'],

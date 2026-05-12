@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Sales;
 
 use App\Http\Requests\BaseFormRequest;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
 class InternalOrderRequest extends BaseFormRequest {
@@ -28,7 +27,8 @@ class InternalOrderRequest extends BaseFormRequest {
             'items.*.id'         => ['required', 'string'],
             'items.*.item.id'    => ['required', 'exists:item_variants,id', 'distinct'],
             'items.*.quantity'   => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'    => ['required', 'exists:units,id'],
+            'items.*.unit.id'    => ['required', 'exists:item_units,id'],
+            'items.*.unit.*'     => ['nullable'],
             'external_note'      => ['nullable', 'string'],
             'customer.id'        => [
                 Rule::requiredIf($this->referenceable_type === 'App\\Models\\Sales\\SalesOrder'),

@@ -6,7 +6,6 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseOrder;
@@ -26,8 +25,8 @@ class PurchaseReceiptService {
 
     private function fillItemRelations(array $data) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['id'] ?? '';
-        $data['conversion_factor']   = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['unit_id']             = $data['unit']['unit_id'];
+        $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? '';
 
         return $data;

@@ -12,13 +12,12 @@ use Symfony\Component\Uid\Ulid;
 
 class InternalOrderService {
     private function fillRelations(array $data) {
-
         return $data;
     }
 
     private function fillItemRelations(array $data) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['id'];
+        $data['unit_id']             = $data['unit']['unit_id'];
         $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['source_warehouse_id'] = $data['source_warehouse']['id'];
 

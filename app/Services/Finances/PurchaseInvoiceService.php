@@ -7,7 +7,6 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\PurchaseInvoice;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrder;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -38,8 +37,8 @@ class PurchaseInvoiceService {
 
     private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice) {
         $data['item_id']           = $data['item']['id'];
-        $data['unit_id']           = $data['unit']['id'];
-        $data['conversion_factor'] = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['unit_id']           = $data['unit']['unit_id'];
+        $data['conversion_factor'] = $data['unit']['conversion_factor'];
         $data['exchange_rate']     = $purchaseInvoice->exchange_rate;
         $data['tax_id']            = $data['tax']['id'];
         $data['tax_rate']          = $data['tax']['rate'] ?? 0;

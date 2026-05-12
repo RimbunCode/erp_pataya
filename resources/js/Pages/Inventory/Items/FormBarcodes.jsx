@@ -1,19 +1,27 @@
-import { FormPageContent } from "@/Pages/Core/FormPage";
 import { memo, useMemo } from "react";
 
+import { FormPageContent } from "@/Pages/Core/FormPage";
 import FormTable from "@/Components/FormTable";
-import React from "react";
-import UnitLinkModel from "../Units/UnitLinkModel";
+import Select from "@/Components/Select";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function FormBarcodes({
   disabled,
-  isVariant = false,
   item = null,
   barcodes = [],
-  defaultUnitGroup = null,
+  uoms = [],
   onBarcodesChange,
 }) {
+  const { mappingUoms, selectItemUoms } = useMemo(() => {
+    const mappingUoms = Object.fromEntries(uoms.map((u) => [u.id, u]));
+    const selectItemUoms = uoms.map((u) => ({
+      label: convertTemplateLink(u),
+      value: u.id,
+    }));
+    return { mappingUoms, selectItemUoms };
+  }, [uoms]);
+
   const { t } = useLaravelReactI18n();
   const barcodeColumns = useMemo(
     () => [
@@ -28,25 +36,20 @@ export default memo(function FormBarcodes({
         required: true,
         cell({ dataRow, data: value, setData, attributes }) {
           return (
-            <UnitLinkModel
+            <Select
               {...attributes}
               readOnly={!dataRow.barcode}
-              value={value}
+              value={value?.id}
               onValueChange={(val) => {
-                setData("unit", val);
+                setData("unit", mappingUoms[val]);
               }}
-              filters={{
-                group: isVariant ? item?.default_unit?.group : defaultUnitGroup,
-              }}
-              defaultValueForm={{
-                group: isVariant ? item?.default_unit?.group : defaultUnitGroup,
-              }}
+              options={selectItemUoms}
             />
           );
         },
       },
     ],
-    [defaultUnitGroup, isVariant, item],
+    [mappingUoms, selectItemUoms],
   );
   return (
     <FormPageContent
@@ -58,9 +61,7 @@ export default memo(function FormBarcodes({
         disabled={disabled}
         columns={barcodeColumns}
         value={barcodes ?? []}
-        onValueChange={(val) => {
-          onBarcodesChange?.(val);
-        }}
+        onValueChange={onBarcodesChange}
       />
     </FormPageContent>
   );

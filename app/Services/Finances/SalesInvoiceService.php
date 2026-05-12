@@ -7,7 +7,6 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Sales\SalesOrder;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -37,8 +36,8 @@ class SalesInvoiceService {
 
     private function fillItemRelations(array $data, SalesInvoice $salesInvoice) {
         $data['item_id']            = $data['item']['id'];
-        $data['unit_id']            = $data['unit']['id'];
-        $data['conversion_factor']  = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['unit_id']            = $data['unit']['unit_id'];
+        $data['conversion_factor']  = $data['unit']['conversion_factor'];
         $data['tax_id']             = $data['tax']['id'];
         $data['tax_rate']           = $data['tax']['rate'];
         $data['currency_code']      = $salesInvoice->currency_code;

@@ -6,7 +6,6 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Sales\SalesOrder;
 use App\Utils;
@@ -32,10 +31,9 @@ class SalesOrderService {
     }
 
     private function fillItemRelations(array $data, SalesOrder $salesOrder) {
-        // dd($data);
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['id'];
-        $data['conversion_factor']   = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['unit_id']             = $data['unit']['unit_id'];
+        $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['tax_id']              = $data['tax']['id'];
         $data['tax_rate']            = $data['tax']['rate'];
         $data['currency_code']       = $salesOrder->currency_code;
@@ -70,7 +68,7 @@ class SalesOrderService {
 
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount   += $item->tax_amount;
+            $taxAmount += $item->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
         $salesOrder->update([
@@ -108,7 +106,7 @@ class SalesOrderService {
 
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount   += $item->tax_amount;
+            $taxAmount += $item->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
         $salesOrder->fill([

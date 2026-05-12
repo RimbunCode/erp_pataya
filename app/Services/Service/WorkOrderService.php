@@ -4,7 +4,6 @@ namespace App\Services\Service;
 
 use App\FormStatus;
 use App\Models\Core\FormatingSeries;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Service\WorkOrder;
 use App\Utils;
 use Symfony\Component\Uid\Ulid;
@@ -30,9 +29,9 @@ class WorkOrderService {
     private function fillItemRelations(array $data) {
         $data['item_variant_id']   = $data['item']['id'];
         $data['item_name']         = $data['item']['sku'];
-        $data['unit_id']           = $data['unit']['id'];
+        $data['unit_id']           = $data['unit']['unit_id'];
         $data['unit_name']         = $data['unit']['name'];
-        $data['conversion_factor'] = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['conversion_factor'] = $data['unit']['conversion_factor'];
 
         return $data;
     }

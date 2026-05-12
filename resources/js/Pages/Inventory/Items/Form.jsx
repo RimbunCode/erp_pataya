@@ -706,8 +706,8 @@ export default memo(function Form() {
       <FormBarcodes
         disabled={disabled}
         item={item}
+        uoms={data.uoms ?? []}
         barcodes={data.barcodes ?? []}
-        defaultUnitGroup={data?.default_unit?.group}
         onBarcodesChange={handleBarcodesChange}
       />
       {item &&

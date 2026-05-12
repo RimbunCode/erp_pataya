@@ -7,10 +7,10 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
+import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import SelectModel from "@/Components/SelectModel";
 import { Textarea } from "@/Components/ui/textarea";
-import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
@@ -91,9 +91,11 @@ function Form() {
               )}
               value={dataRow?.item}
               onValueChange={(val) => {
+                const defaultUnit = val?.default_uom;
                 setData({
                   item: val,
-                  unit: val?.default_unit,
+                  unit: defaultUnit,
+                  conversion_factor: defaultUnit.conversion_factor,
                   required_date: data.required_date,
                 });
               }}
@@ -168,16 +170,21 @@ function Form() {
         required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
-            <UnitLinkModel
+            <ItemUnitLinkModel
               disabled={!dataRow?.item}
               placeholder={t(
                 "purchase.purchaseRequest.columns.unit.placeholder",
               )}
               value={data}
-              onValueChange={(val) => setData("unit", val)}
+              onValueChange={(val) =>
+                setData({
+                  unit: val,
+                  conversion_factor: val?.conversion_factor,
+                })
+              }
               {...attributes}
               filters={{
-                group: dataRow?.item?.default_unit?.group,
+                item_id: dataRow?.item?.item_id,
               }}
             />
           );

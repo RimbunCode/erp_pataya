@@ -14,17 +14,18 @@ use Inertia\Inertia;
 
 class ItemVariant extends Model {
     use DataTable, HasUlids, SoftDeletes;
-    public        $keyBreadcrumb   = 'sku';
-    public        $aliasBreadcrumb = 'Variant';
-    public string $translateKey    = 'inventories.itemVariant';
-    protected     $guarded         = ['id'];
-    protected     $with            = ['item'];
-    protected     $casts           = [
+
+    public $keyBreadcrumb       = 'sku';
+    public $aliasBreadcrumb     = 'Variant';
+    public string $translateKey = 'inventories.itemVariant';
+    protected $guarded          = ['id'];
+    protected $with             = ['item'];
+    protected $casts            = [
         'is_disabled'            => 'boolean',
         'allow_alternative_item' => 'boolean',
         'is_stock_item'          => 'boolean',
     ];
-    protected     $appends         = ['sku'];
+    protected $appends = ['sku'];
 
     public function sku(): Attribute {
         return new Attribute(
@@ -41,32 +42,34 @@ class ItemVariant extends Model {
             'item',
             'defaultUnit',
             'barcodes',
+            'uoms',
         ];
     }
 
     protected function getImageAttribute() {
         return $this->image_id ?? $this->item?->image_id ?? null;
     }
-    protected     $configColumns = [
-        'image'         => [
+
+    protected $configColumns = [
+        'image' => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
             'width' => 'fit',
         ],
-        'code'          => [
+        'code' => [
             'show'  => true,
             'order' => 0,
         ],
-        'item_code'     => [
+        'item_code' => [
             'show'  => true,
             'order' => 1,
         ],
-        'item_name'     => [
+        'item_name' => [
             'show'  => true,
             'order' => 2,
         ],
-        'is_disabled'   => [
+        'is_disabled' => [
             'type'  => 'boolean',
             'show'  => true,
             'order' => 3,
@@ -76,13 +79,13 @@ class ItemVariant extends Model {
             'show'  => true,
             'order' => 4,
         ],
-        'image_id'      => [
+        'image_id' => [
             'ignore' => true,
         ],
         'values',
         'item',
         'stocks',
-        'uom',
+        'uoms',
         'defaultUnit',
         'category',
     ];
@@ -113,7 +116,7 @@ class ItemVariant extends Model {
         return $this->belongsTo(ItemUnit::class, 'default_unit_id', 'unit_id');
     }
 
-    public function uom() {
+    public function uoms() {
         return $this->hasMany(ItemUnit::class, 'item_id', 'item_id');
     }
 
