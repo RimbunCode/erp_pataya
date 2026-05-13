@@ -9,7 +9,6 @@ use App\Models\Enrollment;
 use App\Models\Payment;
 use DB;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Storage;
 
 class EnrollmentController extends Controller {
