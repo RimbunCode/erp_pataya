@@ -34,7 +34,7 @@ class CourseListController extends Controller {
                 $completedContentIds,
                 $submittedContentIds,
             ),
-            'sections' => $enrollment->course->sections->map(fn ($section) => [
+            'sections'       => $enrollment->course->sections->map(fn ($section) => [
                 'id'       => $section->id,
                 'title'    => $section->title,
                 'order'    => $section->order,
@@ -45,7 +45,7 @@ class CourseListController extends Controller {
                     'is_optional'  => $content->is_optional,
                     'deadline'     => $content->deadline?->format('d M Y'),
                     'is_completed' => match ($content->type) {
-                        'material' => $completedContentIds->contains($content->id),
+                        'material'   => $completedContentIds->contains($content->id),
                         'pre_assessment',
                         'assignment' => $submittedContentIds->contains($content->id),
                         default      => false,
@@ -70,7 +70,7 @@ class CourseListController extends Controller {
         }
 
         $completed = $allContents->filter(fn ($content) => match ($content->type) {
-            'material' => $completedContentIds->contains($content->id),
+            'material'   => $completedContentIds->contains($content->id),
             'pre_assessment',
             'assignment' => $submittedContentIds->contains($content->id),
             default      => false,

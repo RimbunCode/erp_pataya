@@ -23,7 +23,7 @@ use App\Http\Controllers\MockAuthController;
 use App\Http\Controllers\ModelController;
 use App\Http\Controllers\Student\CartController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
-use App\Http\Controllers\student\CourseListController;
+use App\Http\Controllers\Student\CourseListController;
 use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ProgressController;
