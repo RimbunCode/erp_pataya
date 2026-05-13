@@ -7,12 +7,13 @@ import useCart from "@/Hooks/useCart";
 import CartPanel from "./Components/CartPanel";
 import CheckoutModal from "./Components/CheckoutModal";
 import CourseCard from "./Components/CourseCard";
+import CourseCompare from "./Components/CourseCompare";
 
 // Logo default perusahaan — ganti path sesuai asset kamu
 const DEFAULT_THUMBNAIL = "/storage/images/logo-default.png";
 
 // ── Main Page ─────────────────────────────────────
-export default function WishlistCart() {
+export default function CourseCatalogue() {
   const { courses: initialCourses = [], cartCourses: initialCart = [] } =
     usePage().props;
   const { courses, cart, addToCart, removeFromCart, resetCart } = useCart(
@@ -22,12 +23,20 @@ export default function WishlistCart() {
   const [showCart, setShowCart] = useState(false);
   const [search, setSearch] = useState("");
   const [filterLevel, setFilterLevel] = useState("All");
-  const [viewMode, setViewMode] = useState("grid");
   const [showPayment, setShowPayment] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState([]);
+  const [compareList, setCompareList] = useState([]);
+  const [showCompare, setShowCompare] = useState(false);
+  const [viewMode, setViewMode] = useState(
+    sessionStorage.getItem("catalogViewMode") || "grid", // ← baca saat load
+  );
+
+  const handleViewMode = (mode) => {
+    setViewMode(mode);
+    sessionStorage.setItem("catalogViewMode", mode); // ← simpan saat berubah
+  };
 
   console.log(courses);
-  console.log(courses[0]);
   const filtered = courses.filter((c) => {
     const matchSearch =
       c.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -37,8 +46,26 @@ export default function WishlistCart() {
     return matchSearch && matchLevel;
   });
 
+  const toggleCompare = (course) => {
+    setCompareList((prev) => {
+      const exists = prev.find((c) => c.id === course.id);
+      if (exists) return prev.filter((c) => c.id !== course.id);
+      if (prev.length >= 3) return prev;
+      return [...prev, course];
+    });
+  };
+
+  if (showCompare) {
+    return (
+      <CourseCompare
+        selected={compareList}
+        onBack={() => setShowCompare(false)}
+      />
+    );
+  }
+
   return (
-    <Mainlayout title="Course Catalogue" breadcrumb="Enroll">
+    <Mainlayout title="Course Catalogue" breadcrumb="Course Catalogue">
       <div className="p-8 flex flex-col gap-6">
         {/* ── Header ── */}
         <div className="text-center py-6">
@@ -50,7 +77,7 @@ export default function WishlistCart() {
           </p>
 
           {/* Search */}
-          <div className="flex items-center gap-3 max-w-xl mx-auto mt-6 bg-card rounded-2xl border border-border shadow-sm px-5 py-3">
+          <div className="flex items-center gap-3 max-w-xl mx-auto mt-6 bg-card rounded-2xl border shadow-sm px-5 py-3">
             <svg
               className="w-5 h-5 text-muted-foreground flex-shrink-0"
               fill="none"
@@ -69,7 +96,7 @@ export default function WishlistCart() {
               placeholder="Search courses or instructors..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="flex-1 text-sm text-foreground placeholder-muted-foreground focus:outline-none bg-transparent"
+              className="flex-1 text-sm text-foreground placeholder-muted-foreground border-none focus:border-none bg-transparent"
             />
           </div>
         </div>
@@ -95,7 +122,7 @@ export default function WishlistCart() {
             </p> */}
             <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
               <button
-                onClick={() => setViewMode("grid")}
+                onClick={() => handleViewMode("grid")}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors
                   ${viewMode === "grid" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
@@ -108,7 +135,7 @@ export default function WishlistCart() {
                 </svg>
               </button>
               <button
-                onClick={() => setViewMode("list")}
+                onClick={() => handleViewMode("list")}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors
                   ${viewMode === "list" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
@@ -142,6 +169,13 @@ export default function WishlistCart() {
                   onAddToCart={addToCart}
                   onRemoveFromCart={removeFromCart}
                   viewMode="grid"
+                  isSelected={compareList.some((c) => c.id === course.id)}
+                  onToggleCompare={toggleCompare}
+                  compareCount={compareList.length}
+                  onCheckout={(items) => {
+                    setCheckoutItems(items);
+                    setShowPayment(true);
+                  }}
                 />
               ))}
             </div>
@@ -155,6 +189,13 @@ export default function WishlistCart() {
                   onAddToCart={addToCart}
                   onRemoveFromCart={removeFromCart}
                   viewMode="list"
+                  isSelected={compareList.some((c) => c.id === course.id)}
+                  onToggleCompare={toggleCompare}
+                  compareCount={compareList.length}
+                  onCheckout={(items) => {
+                    setCheckoutItems(items);
+                    setShowPayment(true);
+                  }}
                 />
               ))}
             </div>
@@ -225,6 +266,78 @@ export default function WishlistCart() {
             router.reload();
           }}
         />
+      )}
+      {compareList.length > 0 && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40">
+          <div
+            className="flex items-center gap-4 px-6 py-4 rounded-2xl shadow-2xl"
+            style={{
+              background: "linear-gradient(135deg, #0f172a 60%, #1e3a8a 100%)",
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-xl bg-primary flex items-center justify-center">
+                <span className="text-xs font-black text-white">
+                  {compareList.length}
+                </span>
+              </div>
+              <span className="text-sm font-extrabold tracking-widest text-white uppercase">
+                Compare Selected Trainings
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              {compareList.map((c) => (
+                <div
+                  key={c.id}
+                  className="flex items-center gap-1.5 bg-card/10 rounded-xl px-3 py-1.5"
+                >
+                  <span className="text-xs font-bold text-white/80 truncate max-w-24">
+                    {c.title.split(" ").slice(0, 3).join(" ")}...
+                  </span>
+                  <button
+                    onClick={() => toggleCompare(c)}
+                    className="text-white/50 hover:text-white transition-colors"
+                  >
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowCompare(true)}
+              disabled={compareList.length < 2}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold tracking-widest uppercase transition-all duration-200
+                  ${compareList.length >= 2 ? "bg-primary hover:bg-primary-hover text-white hover:-translate-y-0.5" : "bg-card/10 text-white/40 cursor-not-allowed"}`}
+            >
+              Compare Now
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M13 7l5 5m0 0l-5 5m5-5H6"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
       )}
     </Mainlayout>
   );

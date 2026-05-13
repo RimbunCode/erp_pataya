@@ -9,6 +9,7 @@ use App\Models\Course;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -41,7 +42,7 @@ class CourseController extends Controller {
         $course->load(['categories', 'sections.contents']);
 
         return Inertia::render('Instructors/CourseDetail', [
-            'course' => [
+            'course'     => [
                 ...$this->mapCourse($course),
                 'sections' => $course->sections
                     ->sortBy('order')
@@ -146,18 +147,14 @@ class CourseController extends Controller {
             'total_hours'      => 'nullable|numeric|min:0',
             'total_sessions'   => 'nullable|integer|min:0',
             'certificate_type' => 'nullable|in:professional,competency,attendance',
-            'thumbnail'        => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
+            'thumbnail'        => ['nullable', Rule::when(
+                request()->hasFile('thumbnail'),
+                ['image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+                ['string', 'max:255'] // bisa ganti jadi 'url' kalau harus URL
+            ),],
         ]);
 
-        $thumbnailFileId = null;
-
-        if ($request->hasFile('thumbnail')) {
-            File::uploadFile($validated['thumbnail'], 'ImageCourse', function ($file) use (&$thumbnailFileId) {
-                $thumbnailFileId = $file->id;
-            });
-        }
-
-        $course->update([
+        $updateData = [
             'title'            => $validated['title'],
             'description'      => $validated['description'],
             'price'            => $validated['price'],
@@ -165,8 +162,18 @@ class CourseController extends Controller {
             'total_hours'      => $validated['total_hours'] ?? $course->total_hours,
             'total_sessions'   => $validated['total_sessions'] ?? $course->total_sessions,
             'certificate_type' => $validated['certificate_type'] ?? $course->certificate_type,
-            'thumbnail'        => $thumbnailFileId,
-        ]);
+        ];
+
+        // Upload hanya kalau ada file baru, thumbnail lama tidak disentuh
+        if ($request->hasFile('thumbnail')) {
+            File::uploadFile($validated['thumbnail'], 'ImageCourse', function ($file) use (&$updateData) {
+                $updateData['thumbnail'] = $file->id;
+            });
+        } else if ($request->input('thumbnail') == "delete") {
+            $updateData['thumbnail'] = null;
+        }
+
+        $course->update($updateData);
 
         if (! empty($validated['category'])) {
             $category = Category::where('slug', $validated['category'])

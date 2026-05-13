@@ -165,7 +165,7 @@ export default function ProfileSettings({ user, profile }) {
                 name="name"
                 value={form.name}
                 onChange={handleChange}
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-gray-300 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
             <div>
@@ -177,7 +177,7 @@ export default function ProfileSettings({ user, profile }) {
                 name="email"
                 value={form.email}
                 onChange={handleChange}
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-gray-300 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
             <div>
@@ -189,8 +189,8 @@ export default function ProfileSettings({ user, profile }) {
                 name="institution"
                 value={form.institution}
                 onChange={handleChange}
-                placeholder="Senior Structural Engineer"
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
+                placeholder="XYZ University"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-gray-300 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
             <div>
@@ -202,8 +202,8 @@ export default function ProfileSettings({ user, profile }) {
                 name="student_id_number"
                 value={form.student_id_number}
                 onChange={handleChange}
-                placeholder="Structural Engineer"
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
+                placeholder="123456789xx"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-gray-300 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
           </div>
@@ -289,7 +289,7 @@ export default function ProfileSettings({ user, profile }) {
                           updateSocial(index, "url", e.target.value)
                         }
                         placeholder="https://..."
-                        className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
+                        className="flex-1 bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-gray-300 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
                       />
 
                       {/* Remove button */}
@@ -328,7 +328,7 @@ export default function ProfileSettings({ user, profile }) {
                 value={form.phone}
                 onChange={handleChange}
                 placeholder="+62 812 XXXX XXXX"
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-gray-300 dark:placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-md transition-all"
               />
             </div>
           </div>
@@ -344,7 +344,7 @@ export default function ProfileSettings({ user, profile }) {
               onChange={handleChange}
               rows={5}
               placeholder="Tell us about your engineering background..."
-              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground shadow-md focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border transition-all resize-none"
+              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-gray-300 dark:placeholder-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border transition-all resize-none"
             />
           </div>
         </div>

@@ -1,9 +1,12 @@
+import { router } from "@inertiajs/react";
 import { formatRp } from "../Utils/formatRp";
 import { useState, useRef } from "react";
 
 export default function CheckoutModal({ items, total, onClose, onSuccess }) {
   const [step, setStep] = useState(1);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [method, setMethod] = useState(null);
   const [file, setFile] = useState(null);
   const [note, setNote] = useState("");
@@ -11,40 +14,63 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
 
   const methods = [
     {
-      id: "va",
-      label: "Virtual Account",
-      bank: "BCA / Mandiri / BNI",
-      icon: "🏦",
-    },
-    {
       id: "tf",
       label: "Transfer Bank",
       bank: "BRI / BSI / Permata",
       icon: "💳",
     },
-    { id: "qris", label: "QRIS", bank: "Semua e-wallet", icon: "📱" },
+    // {
+    //   id: "va",
+    //   label: "Virtual Account",
+    //   bank: "BCA / Mandiri / BNI",
+    //   icon: "🏦",
+    // },
+    // { id: "qris", label: "QRIS", bank: "Semua e-wallet", icon: "📱" },
   ];
 
   const instructions = {
-    va: [
-      "Salin nomor VA: 8277-0812-3456-7890",
-      "Buka aplikasi mobile banking Anda",
-      "Pilih menu Pembayaran → Virtual Account",
-      "Masukkan nomor VA dan konfirmasi",
-      "Simpan bukti transfer",
-    ],
     tf: [
       `Transfer ke: BRI 0123-01-234567-56-8 a.n. INKINDO`,
       `Nominal tepat: ${formatRp(total)}`,
       "Berita: Nama Lengkap + INKINDO",
       "Simpan bukti transfer",
     ],
-    qris: [
-      `Scan QR Code di bawah ini`,
-      `Masukkan nominal: ${formatRp(total)}`,
-      "Konfirmasi pembayaran",
-      "Screenshot bukti pembayaran",
-    ],
+    // va: [
+    //   "Salin nomor VA: 8277-0812-3456-7890",
+    //   "Buka aplikasi mobile banking Anda",
+    //   "Pilih menu Pembayaran → Virtual Account",
+    //   "Masukkan nomor VA dan konfirmasi",
+    //   "Simpan bukti transfer",
+    // ],
+    // qris: [
+    //   `Scan QR Code di bawah ini`,
+    //   `Masukkan nominal: ${formatRp(total)}`,
+    //   "Konfirmasi pembayaran",
+    //   "Screenshot bukti pembayaran",
+    // ],
+  };
+
+  const handleSubmit = () => {
+    if (!file) return;
+
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("payment_proof", file);
+    formData.append("payment_method", method);
+    formData.append("notes", note);
+    items.forEach((item) => formData.append("course_ids[]", item.id));
+
+    router.post(route("student.enroll"), formData, {
+      forceFormData: true,
+      onSuccess: () => {
+        setLoading(false);
+        onSuccess();
+      },
+      onError: () => {
+        setLoading(false);
+      },
+    });
   };
 
   return (
@@ -250,25 +276,39 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png"
                   className="hidden"
-                  onChange={(e) => setFile(e.target.files[0])}
+                  onChange={(e) => {
+                    const f = e.target.files[0];
+                    if (!f) return;
+                    setFile(f);
+                    setPreview(URL.createObjectURL(f));
+                  }}
                 />
                 {file ? (
                   <>
-                    <div className="w-10 h-10 rounded-xl bg-primary-soft0 flex items-center justify-center">
-                      <svg
-                        className="w-5 h-5 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                        />
-                      </svg>
-                    </div>
+                    {/* Kalau image, tampilkan preview */}
+                    {preview && file.type.startsWith("image/") ? (
+                      <img
+                        src={preview}
+                        alt="preview"
+                        className="w-full h-32 object-cover rounded-xl"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-primary-soft0 flex items-center justify-center">
+                        <svg
+                          className="w-5 h-5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                      </div>
+                    )}
                     <p className="text-xs font-black text-primary text-center">
                       {file.name}
                     </p>
@@ -322,11 +362,11 @@ export default function CheckoutModal({ items, total, onClose, onSuccess }) {
                   Back
                 </button>
                 <button
-                  disabled={!file}
-                  onClick={onSuccess}
+                  disabled={!file || loading}
+                  onClick={handleSubmit}
                   className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Send
+                  {loading ? "Sending..." : "Send"}
                 </button>
               </div>
             </>

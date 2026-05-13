@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Course;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class TrainingController extends Controller {
     public function index(Request $request) {
-        $courses = Course::with(['categories', 'creator'])
+        $user = Auth::user();
+
+        // Ambil role user yang sedang login
+        $role = $user?->roles->pluck('name')->first();
+
+        $query = Course::with(['categories', 'creator'])
             ->where('is_published', true)
             ->when(
                 $request->search,
@@ -27,23 +33,32 @@ class TrainingController extends Controller {
                     'categories',
                     fn ($q) => $q->where('slug', $request->category),
                 ),
-            )
-            ->latest()
-            ->get()
-            ->map(fn ($course) => [
-                'id'               => $course->id,
-                'title'            => $course->title,
-                'description'      => $course->description,
-                'price'            => $course->price,
-                'level'            => $course->level,
-                'total_hours'      => $course->total_hours,
-                'total_sessions'   => $course->total_sessions,
-                'certificate_type' => $course->certificate_type,
-                'is_published'     => $course->is_published,
-                'instructor'       => $course->creator?->name,
-                'thumbnail'        => $course->thumbnail,
-                'categories'       => $course->categories->pluck('name'),
-            ]);
+            );
+
+        if ($role === 'student' && $user) {
+            // Sembunyikan course yang sudah di-enroll oleh student ini
+            $enrolledCourseIds = $user->enrollments()->pluck('course_id');
+            $query->whereNotIn('id', $enrolledCourseIds);
+
+        } elseif ($role === 'instructor' && $user) {
+            // Hanya tampilkan course milik instructor ini
+            $query->where('created_by', $user->id);
+        }
+
+        $courses = $query->latest()->get()->map(fn ($course) => [
+            'id'               => $course->id,
+            'title'            => $course->title,
+            'description'      => $course->description,
+            'price'            => $course->price,
+            'level'            => $course->level,
+            'total_hours'      => $course->total_hours,
+            'total_sessions'   => $course->total_sessions,
+            'certificate_type' => $course->certificate_type,
+            'is_published'     => $course->is_published,
+            'instructor'       => $course->creator?->name,
+            'thumbnail'        => $course->thumbnail,
+            'categories'       => $course->categories->pluck('name'),
+        ]);
 
         $categories = Category::orderBy('name')->get(['id', 'name', 'slug']);
 

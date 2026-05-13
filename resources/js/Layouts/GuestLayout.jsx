@@ -12,6 +12,7 @@ import NavbarGuest from "@/Components/Navbar/NavbarGuest";
 import { SiteFooter } from "@/Pages/Guest/Footer";
 import RolesSelectionModal from "@/Components/Modals/LoginModal";
 import RegisterModal from "@/Components/Modals/RegisterModal";
+import { router } from "@inertiajs/react";
 
 export const RolesSelectionModalContext = createContext(null);
 export const RegisterModalContext = createContext(null);
@@ -51,13 +52,17 @@ export default GuestLayout(
       document.addEventListener("keydown", down);
       return () => document.removeEventListener("keydown", down);
     }, []);
-
+    const handleLogout = () => router.post("/logout");
     return (
       <RolesSelectionModalContext.Provider value={() => setShowLogin(true)}>
         <RegisterModalContext.Provider value={() => setShowRegister(true)}>
           <MasterLayout>
             <div className="relative mx-auto max-w-full print:hidden dark:bg-gray-900">
-              <NavbarGuest actions={actions} setShowSearch={setShowSearch} />
+              <NavbarGuest
+                actions={actions}
+                setShowSearch={setShowSearch}
+                onLogout={handleLogout}
+              />
               <div
                 ref={ref}
                 {...props}

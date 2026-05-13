@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
@@ -14,6 +15,7 @@ return new class extends Migration
             $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->string('institution')->nullable();
             $table->string('student_id_number')->nullable();
+            $table->text('bio')->nullable();
             $table->json('socials')->nullable();
             $table->timestamps();
             $table->unique('user_id');

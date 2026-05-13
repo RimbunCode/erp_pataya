@@ -9,6 +9,7 @@ export default function MainSidebar({
   userRoles,
   isMultiRole,
   currentPath,
+  onLogout,
 }) {
   return (
     <aside
@@ -21,17 +22,13 @@ export default function MainSidebar({
         {!collapsed && (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0">
-              <svg
-                className="w-5 h-5"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
               </svg>
             </div>
             <div>
               <div className="text-sm font-extrabold tracking-widest text-foreground uppercase leading-tight">
-                INKINDO
+                INKINDO JATIM
               </div>
               <div className="text-[9px] tracking-widest text-role-label uppercase font-semibold">
                 LMS Portal
@@ -42,11 +39,7 @@ export default function MainSidebar({
 
         {collapsed && (
           <div className="w-9 h-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center mx-auto">
-            <svg
-              className="w-5 h-5"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
+            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
             </svg>
           </div>
@@ -136,7 +129,9 @@ export default function MainSidebar({
                   >
                     <span
                       className={`flex-shrink-0 ${
-                        isActive ? "text-primary-foreground" : "text-muted-foreground"
+                        isActive
+                          ? "text-primary-foreground"
+                          : "text-muted-foreground"
                       }`}
                     >
                       {item.icon}
@@ -156,6 +151,32 @@ export default function MainSidebar({
           );
         })}
       </nav>
+      {/* Logout Button */}
+      <div className="px-3 py-4 border-t border-sidebar-border">
+        <button
+          onClick={onLogout}
+          className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-xs font-bold tracking-widest uppercase transition-all duration-200 text-muted-foreground hover:text-destructive hover:bg-destructive/10 ${
+            collapsed ? "justify-center" : ""
+          }`}
+        >
+          <span className="flex-shrink-0">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h6a2 2 0 012 2v1"
+              />
+            </svg>
+          </span>
+          {!collapsed && "Logout"}
+        </button>
+      </div>
     </aside>
   );
 }

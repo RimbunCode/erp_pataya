@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 import { formatRp } from "./Utils/formatRp";
 import { statusConfig } from "./Utils/statusConfig";
 import { levelColor } from "./Components/CourseDetailConfig";
-import CourseDetailEditModal from "./Components/CourseDetailEditModal";
+import CourseModal from "./CourseModal/CourseModal";
 import CourseDetailSectionBlock from "./Components/CourseDetailSectionBlock";
 import CourseDetailStatCard from "./Components/CourseDetailStatCard";
 
@@ -40,10 +40,8 @@ export default function CourseDetail({ course, categories = [] }) {
   };
 
   const deleteSection = (sectionId) => {
-    if (!confirm("Hapus section ini beserta semua konten dan note-nya?")) {
+    if (!confirm("Hapus section ini beserta semua konten dan note-nya?"))
       return;
-    }
-
     router.delete(route("instructor.classes.sections.destroy", sectionId), {
       preserveScroll: true,
     });
@@ -58,6 +56,7 @@ export default function CourseDetail({ course, categories = [] }) {
   return (
     <MainLayout title="Course Detail" breadcrumb={course.title}>
       <div className="p-8 space-y-6">
+        {/* ── Back ── */}
         <button
           onClick={() => router.visit(route("instructor.classes.index"))}
           className="flex items-center gap-2 text-xs font-bold tracking-widest text-muted-foreground uppercase hover:text-foreground transition-colors"
@@ -78,35 +77,27 @@ export default function CourseDetail({ course, categories = [] }) {
           Back to Courses
         </button>
 
+        {/* ── Hero card ── */}
         <div className="bg-card rounded-3xl border border-border shadow-sm overflow-hidden">
           <div className="h-1.5 bg-gradient-to-r from-primary to-indigo-500" />
           <div className="p-8 flex items-start gap-8">
+            {/* Thumbnail */}
             <div className="w-48 h-36 rounded-2xl overflow-hidden flex-shrink-0">
               <Avatar className="relative w-full h-auto border rounded-xl aspect-square group">
                 {course.thumbnail && (
                   <AvatarImage
                     src={
                       route("files.preview", course.thumbnail) +
-                      `?v=${new Date(course.updated_at).getTime()}`
+                      (course.updated_at
+                        ? `?v=${new Date(course.updated_at).getTime()}`
+                        : "")
                     }
                     alt={course.name}
                     className={cn("transition-[filter] group-hover:blur-sm")}
                   />
                 )}
                 <AvatarFallback className="rounded-lg">
-                  <svg
-                    className="w-12 h-12 text-white/30"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={1.5}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                    />
-                  </svg>
+                  <img src="/storage/images/logo-default.png" alt="" />
                 </AvatarFallback>
                 <div className="absolute flex items-center justify-center w-full h-full transition-opacity border opacity-0 cursor-pointer group-hover:opacity-100 bg-background/25 rounded-xl gap-x-4">
                   <Tooltip>
@@ -139,6 +130,8 @@ export default function CourseDetail({ course, categories = [] }) {
                 </div>
               </Avatar>
             </div>
+
+            {/* Info */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-3 flex-wrap">
                 <span
@@ -207,6 +200,8 @@ export default function CourseDetail({ course, categories = [] }) {
                 </span>
               </div>
             </div>
+
+            {/* Actions */}
             <div className="flex flex-col gap-2 flex-shrink-0">
               <button
                 onClick={() => setShowEditModal(true)}
@@ -233,7 +228,11 @@ export default function CourseDetail({ course, categories = [] }) {
                     route("instructor.classes.togglePublish", course.id),
                   )
                 }
-                className={`flex items-center gap-2 px-5 py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all border-2 ${course.status === "published" ? "border-border text-muted-foreground hover:bg-muted" : "border-green-200 text-green-600 hover:bg-green-50"}`}
+                className={`flex items-center gap-2 px-5 py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all border-2 ${
+                  course.status === "published"
+                    ? "border-border text-muted-foreground hover:bg-muted"
+                    : "border-green-200 text-green-600 hover:bg-green-50"
+                }`}
               >
                 {course.status === "published" ? "Unpublish" : "Publish"}
               </button>
@@ -241,6 +240,7 @@ export default function CourseDetail({ course, categories = [] }) {
           </div>
         </div>
 
+        {/* ── Stat cards ── */}
         <div className="grid grid-cols-3 gap-3">
           <CourseDetailStatCard
             label="Total Students"
@@ -304,6 +304,7 @@ export default function CourseDetail({ course, categories = [] }) {
           />
         </div>
 
+        {/* ── Sections & Content ── */}
         <div className="bg-card rounded-3xl border border-border shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-xs font-black tracking-widest text-foreground uppercase">
@@ -340,7 +341,6 @@ export default function CourseDetail({ course, categories = [] }) {
               >
                 {course.sections.map((section, index) => {
                   const sectionValue = `section-${section.id}`;
-
                   return (
                     <CourseDetailSectionBlock
                       key={section.id}
@@ -377,8 +377,9 @@ export default function CourseDetail({ course, categories = [] }) {
         </div>
       </div>
 
+      {/* ── Edit modal — reuse CourseModal dengan prop course ── */}
       {showEditModal && (
-        <CourseDetailEditModal
+        <CourseModal
           course={course}
           categories={categories}
           onClose={() => setShowEditModal(false)}

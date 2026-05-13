@@ -31,6 +31,7 @@ class ProfileController extends Controller {
             'socials'            => ['nullable', 'array'],
             'socials.*.platform' => ['required', 'string'],
             'socials.*.url'      => ['required', 'url'],
+            'bio'                => ['nullable', 'string'],
         ]);
 
         $user = Auth::user();
@@ -49,6 +50,7 @@ class ProfileController extends Controller {
                 'institution'       => $request->institution,
                 'student_id_number' => $request->student_id_number,
                 'socials'           => $request->socials ?? [],
+                'bio'               => $request->bio,
             ],
         );
 
