@@ -1,14 +1,27 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { formatRp } from "../Utils/formatRp";
 import { useState } from "react";
+import CourseCompare from "./CourseCompare";
+import {
+  CreditCardIcon,
+  GitCompareArrowsIcon,
+  ShoppingCartIcon,
+  XIcon,
+} from "lucide-react";
+import { router } from "@inertiajs/react";
 export default function CourseCard({
   course,
   inCart,
   onAddToCart,
   onRemoveFromCart,
   viewMode,
+  isSelected,
+  onToggleCompare,
+  compareCount,
+  onCheckout,
 }) {
   const [hovered, setHovered] = useState(false);
+  const canAdd = !isSelected && compareCount < 3;
 
   if (viewMode === "list") {
     return (
@@ -18,7 +31,12 @@ export default function CourseCard({
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0">
+        <div
+          onClick={() =>
+            router.visit(route("student.course.preview", course.id))
+          }
+          className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0"
+        >
           <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
             {course.thumbnail && (
               <AvatarImage
@@ -38,7 +56,12 @@ export default function CourseCard({
             </AvatarFallback>
           </Avatar>
         </div>
-        <div className="flex-1 min-w-0">
+        <div
+          onClick={() =>
+            router.visit(route("student.course.preview", course.id))
+          }
+          className="flex-1 min-w-0"
+        >
           <h3 className="text-sm font-black text-foreground uppercase tracking-wide leading-tight">
             {course.title}
           </h3>
@@ -63,22 +86,48 @@ export default function CourseCard({
             </div>
           </div>
         </div>
-        <div className="text-right flex-shrink-0">
+        <div className="flex-shrink-0 flex flex-col items-end gap-2">
           <p className="text-base font-black text-foreground">
             {formatRp(course.price)}
           </p>
+
+          <div className="flex items-center gap-1.5 mr-4">
+            <button
+              onClick={() => onToggleCompare(course)}
+              disabled={!isSelected && !canAdd}
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200
+        ${isSelected ? "bg-primary text-white" : canAdd ? "border border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border border-border text-muted-foreground cursor-not-allowed"}`}
+            >
+              {!isSelected ? (
+                <GitCompareArrowsIcon className="w-3.5 h-3.5" />
+              ) : (
+                <XIcon className="w-3.5 h-3.5" />
+              )}
+            </button>
+
+            <button
+              onClick={() =>
+                inCart ? onRemoveFromCart(course.id) : onAddToCart(course)
+              }
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200
+        ${inCart ? "bg-primary text-white" : "border border-border text-muted-foreground hover:border-primary/40 hover:text-primary"}`}
+            >
+              {inCart ? (
+                <XIcon className="w-3.5 h-3.5" />
+              ) : (
+                <ShoppingCartIcon className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </div>
+
           <button
-            onClick={() =>
-              inCart ? onRemoveFromCart(course.id) : onAddToCart(course)
-            }
-            className={`mt-2 flex items-center gap-1.5 px-4 py-2 text-[10px] font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
-              ${
-                inCart
-                  ? "border-2 border-primary/30 text-primary hover:bg-primary-soft"
-                  : "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20"
-              }`}
+            onClick={() => onCheckout([course])}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
           >
-            {inCart ? "In Cart ✓" : "Add to Cart"}
+            <CreditCardIcon className="w-3.5 h-3.5" />
+            <span className="text-[10px] font-extrabold tracking-widest uppercase">
+              Checkout
+            </span>
           </button>
         </div>
       </div>
@@ -94,7 +143,12 @@ export default function CourseCard({
     >
       {/* Image */}
       <div className="relative h-100 overflow-hidden">
-        <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
+        <Avatar
+          onClick={() =>
+            router.visit(route("student.course.preview", course.id))
+          }
+          className="relative w-full h-auto border rounded-xl aspect-square  group"
+        >
           {course.thumbnail && (
             <AvatarImage
               src={
@@ -144,7 +198,12 @@ export default function CourseCard({
           {course.description}
         </p>
 
-        <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4">
+        <div
+          onClick={() =>
+            router.visit(route("student.course.preview", course.id))
+          }
+          className="flex items-center gap-3 text-xs text-muted-foreground mb-4"
+        >
           <span className="flex items-center gap-1">
             <svg
               className="w-3.5 h-3.5"
@@ -190,53 +249,47 @@ export default function CourseCard({
               {formatRp(course.price)}
             </p>
           </div>
-          <button
-            onClick={() =>
-              inCart ? onRemoveFromCart(course.id) : onAddToCart(course)
-            }
-            className={`flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
-              ${
-                inCart
-                  ? "border-2 border-primary/30 text-primary bg-primary-soft hover:bg-primary-soft"
-                  : "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
-              }`}
-          >
-            {inCart ? (
-              <>
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
-                In Cart
-              </>
-            ) : (
-              <>
-                <svg
-                  className="w-3.5 h-3.5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2.5}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                  />
-                </svg>
-                Add to Cart
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onToggleCompare(course)}
+              disabled={!isSelected && !canAdd}
+              className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200
+                ${isSelected ? "bg-primary text-white" : canAdd ? "border border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border border-border text-muted-foreground cursor-not-allowed"}`}
+            >
+              {!isSelected ? (
+                <GitCompareArrowsIcon className="w-4 h-4" />
+              ) : (
+                <XIcon className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              onClick={() =>
+                inCart ? onRemoveFromCart(course.id) : onAddToCart(course)
+              }
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200
+    ${
+      inCart
+        ? "bg-primary text-white"
+        : "border border-border text-muted-foreground hover:border-primary/40 hover:text-primary "
+    }`}
+            >
+              {inCart ? (
+                <XIcon className="w-4 h-4" />
+              ) : (
+                <ShoppingCartIcon className="w-4 h-4 " />
+              )}
+            </button>
+            <button
+              onClick={() => onCheckout([course])}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
+              title="Checkout now"
+            >
+              <CreditCardIcon className="w-4 h-4" />
+              <span className="text-[10px] font-extrabold tracking-widest uppercase">
+                Checkout
+              </span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

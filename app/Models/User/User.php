@@ -8,8 +8,11 @@ use App\Casts\FormStatusCast;
 use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
 use App\Models\Core\File;
+use App\Models\Enrollment;
 use App\Models\InstructorProfile;
 use App\Models\StudentProfile;
+use App\Models\Submission;
+use App\Models\UserProgress;
 use App\Traits\DataTable;
 use App\Traits\LinkModel;
 use Database\Factories\UserFactory;
@@ -87,6 +90,14 @@ class User extends Authenticatable {
 
     public function enrollments() {
         return $this->hasMany(Enrollment::class);
+    }
+
+    public function progress() {
+        return $this->hasMany(UserProgress::class);
+    }
+
+    public function submissions() {
+        return $this->hasMany(Submission::class);
     }
 
     public function defaultBranch() {

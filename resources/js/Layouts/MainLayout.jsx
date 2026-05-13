@@ -53,6 +53,7 @@ export default function MainLayout({
           userRoles={userRoles}
           isMultiRole={isMultiRole}
           currentPath={currentPath}
+          onLogout={handleLogout}
         />
 
         {/* ── Main ── */}

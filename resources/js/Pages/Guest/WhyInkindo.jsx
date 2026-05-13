@@ -37,7 +37,7 @@ export function WhyInkindoSection() {
           />
         </svg>
       ),
-      iconBg: "bg-indigo-50",
+      iconBg: "bg-primary-soft",
       title: "EXPERT INSTRUCTORS",
       desc: "Learn directly from industry veterans and certified BIM managers who are active in large-scale national projects.",
     },
@@ -57,7 +57,7 @@ export function WhyInkindoSection() {
           />
         </svg>
       ),
-      iconBg: "bg-green-50",
+      iconBg: "bg-primary-soft",
       title: "HYBRID EXPERIENCE",
       desc: "Flexible learning paths combining interactive online modules with hands-on offline workshops and site visits.",
     },

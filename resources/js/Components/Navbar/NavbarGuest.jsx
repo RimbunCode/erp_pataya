@@ -8,7 +8,7 @@ import ToggleTheme from "../ToggleTheme";
 import { router, usePage } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
-export default memo(function NavbarGuest() {
+export default memo(function NavbarGuest({ onLogout }) {
   const { auth } = usePage().props;
   const user = auth?.user;
   const isLoggedIn = !!user;
@@ -131,7 +131,7 @@ export default memo(function NavbarGuest() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden sm:block">
-                    <p className="text-xs font-bold text-gray-800 leading-tight">
+                    <p className="text-xs font-bold text-primary-foreground hover:text-black leading-tight">
                       {user.name}
                     </p>
                     <p className="text-[9px] font-extrabold tracking-widest text-blue-500 uppercase">
@@ -162,13 +162,13 @@ export default memo(function NavbarGuest() {
                       onClick={() => setDropdownOpen(false)}
                     />
 
-                    <div className="absolute right-0 top-12 z-50 bg-white border border-gray-100 rounded-2xl shadow-xl w-52 overflow-hidden">
+                    <div className="absolute right-0 top-12 z-50 bg-white dark:bg-gray-800 border border-gray-100 rounded-2xl shadow-xl w-52 overflow-hidden">
                       {/* User info */}
                       <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-0.5">
+                        <p className="text-[10px] font-bold tracking-widest text-gray-400 dark:text-primary-foreground uppercase mb-0.5">
                           Signed in as
                         </p>
-                        <p className="text-sm font-bold text-gray-800 truncate">
+                        <p className="text-sm font-bold text-gray-800 dark:text-primary-foreground truncate">
                           {user.email}
                         </p>
                       </div>
@@ -178,7 +178,7 @@ export default memo(function NavbarGuest() {
                         <Link
                           href={dashboardRoute}
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 hover:dark:bg-gray-700 transition-colors"
                         >
                           <svg
                             className="w-4 h-4 text-gray-400"
@@ -193,7 +193,7 @@ export default memo(function NavbarGuest() {
                               d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
                             />
                           </svg>
-                          <span className="text-xs font-extrabold tracking-widest text-gray-700 uppercase">
+                          <span className="text-xs font-extrabold tracking-widest text-gray-700 dark:text-primary-foreground hover:text-primary-600 transition-colors uppercase">
                             Dashboard
                           </span>
                         </Link>
@@ -201,7 +201,7 @@ export default memo(function NavbarGuest() {
                         <Link
                           href="/student/profile"
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 hover:dark:bg-gray-700 transition-colors"
                         >
                           <svg
                             className="w-4 h-4 text-gray-400"
@@ -216,10 +216,29 @@ export default memo(function NavbarGuest() {
                               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                             />
                           </svg>
-                          <span className="text-xs font-extrabold tracking-widest text-gray-700 uppercase">
+                          <span className="text-xs font-extrabold tracking-widest text-gray-700 dark:text-primary-foreground uppercase">
                             Profile Settings
                           </span>
                         </Link>
+                        <button
+                          onClick={onLogout}
+                          className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-red-500 hover:text-red-600 dark:hover:bg-gray-700 transition-all border-t border-border text-left"
+                        >
+                          <svg
+                            className="w-4 h-4 flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                            />
+                          </svg>
+                          Logout
+                        </button>
                       </div>
                     </div>
                   </>

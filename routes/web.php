@@ -13,6 +13,7 @@ use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
+use App\Http\Controllers\Guest\TrainingController;
 use App\Http\Controllers\Instructor\CourseContentController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\CourseSectionController;
@@ -22,7 +23,10 @@ use App\Http\Controllers\MockAuthController;
 use App\Http\Controllers\ModelController;
 use App\Http\Controllers\Student\CartController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
+use App\Http\Controllers\student\CourseListController;
+use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
+use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Foundation\Application;
@@ -82,8 +86,11 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('/student')->group(function () {
         Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
-        Route::get('/classes', fn () => inertia('Students/StudentCourseList'))->name('student.classes');
-        Route::get('/classEnrollment', [StudentCourseController::class, 'index'])->name('student.wishlistCart');
+        Route::get('/my-courses', [CourseListController::class, 'index'])->name('student.courses.index');
+        Route::post('/student/progress/{content}', [ProgressController::class, 'store'])->name('student.progress.store');
+        Route::get('/course-catalogue', [StudentCourseController::class, 'index'])->name('student.course-catalogue');
+        Route::get('/course-preview/{course}', [StudentCourseController::class, 'show'])->name('student.course.preview');
+        Route::post('/enroll', [EnrollmentController::class, 'store'])->name('student.enroll');
         Route::post('/cart', [CartController::class, 'store'])->name('student.cart.store');
         Route::delete('/cart/{courseId}', [CartController::class, 'destroy'])->name('student.cart.destroy');
         Route::get('/profile', [StudentProfileController::class, 'index'])->name('student.profile');
@@ -91,7 +98,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/profile/avatar', [StudentProfileController::class, 'updateAvatar'])->name('student.avatar.update');
         Route::delete('/profile/avatar', [StudentProfileController::class, 'destroyImage'])->name('student.image.delete');
         Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
-        Route::get('/training/{id}', fn ($id) => inertia('Students/TrainingDetail', ['courseId' => $id]))->name('student.training.detail');
     });
 
     Route::prefix('/instructor')->name('instructor.')->group(function () {
@@ -102,7 +108,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/', [InstructorCourseController::class, 'index'])->name('index');
             Route::post('/', [InstructorCourseController::class, 'store'])->name('store');
             Route::get('/{course}', [InstructorCourseController::class, 'show'])->name('show');
-            Route::put('/{course}', [InstructorCourseController::class, 'update'])->name('update');
+            Route::patch('/{course}', [InstructorCourseController::class, 'update'])->name('update');
             Route::post('/{course}/avatar', [InstructorCourseController::class, 'updateThumbnail'])->name('thumbnail.update');
             Route::delete('/{course}/avatar', [InstructorCourseController::class, 'destroyThumbnail'])->name('thumbnail.delete');
             Route::patch('/{course}/publish', [InstructorCourseController::class, 'togglePublish'])->name('togglePublish');

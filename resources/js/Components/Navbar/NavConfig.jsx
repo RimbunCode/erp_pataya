@@ -7,7 +7,7 @@ export const navConfig = {
     items: [
       {
         key: "my-learning",
-        label: "My Learning",
+        label: "Dashboard",
         href: "/student/dashboard",
         icon: (
           <svg
@@ -26,9 +26,9 @@ export const navConfig = {
         ),
       },
       {
-        key: "enrolled",
-        label: "Classes List",
-        href: "/student/classes",
+        key: "my-courses",
+        label: "My Courses",
+        href: "/student/my-courses",
         icon: (
           <svg
             className="w-5 h-5"
@@ -46,9 +46,9 @@ export const navConfig = {
         ),
       },
       {
-        key: "wishlist",
-        label: "Wishlist & Cart",
-        href: "/student/classEnrollment",
+        key: "courseCatalogue",
+        label: "Course Catalogue",
+        href: "/student/course-catalogue",
         icon: (
           <svg
             className="w-5 h-5"

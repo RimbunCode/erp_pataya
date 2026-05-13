@@ -16,7 +16,7 @@ export function CTABannerSection() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
             href="/register"
-            className="bg-card text-primary hover:bg-primary-soft text-xs font-black tracking-widest uppercase px-8 py-4 rounded-xl transition-colors min-w-[180px] text-center"
+            className="bg-card text-black dark:text-white hover:bg-primary-soft text-xs font-black tracking-widest uppercase px-8 py-4 rounded-xl transition-colors min-w-[180px] text-center"
           >
             GET STARTED NOW
           </Link>

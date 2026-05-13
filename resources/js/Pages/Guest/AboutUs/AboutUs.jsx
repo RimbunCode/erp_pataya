@@ -46,7 +46,7 @@ export default function AboutUs() {
               <br />
               Since 1970
             </h1>
-            <p className="mt-6 text-sm md:text-base text-primary-soft leading-relaxed max-w-xl mx-auto">
+            <p className="mt-6 text-sm md:text-base text-white leading-relaxed max-w-xl mx-auto">
               INKINDO (Ikatan Nasional Konsultan Indonesia) Learning Center is
               the premier hub for engineering excellence and professional
               development in Indonesia.
@@ -194,7 +194,7 @@ export default function AboutUs() {
               <h2 className="text-2xl font-black text-foreground uppercase tracking-wide mb-5">
                 Our Vision
               </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="text-sm text-black leading-relaxed">
                 Menjunjung tinggi kehormatan, kemuliaan dan nama baik profesi
                 konsultan dalam hubungan kerja dengan pemberi tugas, sesama
                 rekan konsultan dan masyarakat.

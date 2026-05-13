@@ -15,8 +15,9 @@ return new class extends Migration
             $table->foreignUlid('course_id')->references('id')->on('courses')->cascadeOnDelete();
             $table->decimal('amount', 12, 2);
             $table->string('payment_method')->nullable();
-            $table->string('status')->default('pending'); // pending, verified, rejected
+            $table->string('status')->default('pending');
             $table->string('proof_image')->nullable();
+            $table->string('notes')->nullable();
             $table->timestamp('paid_at')->nullable();
             $table->timestamp('verified_at')->nullable();
             $table->foreignUlid('verified_by')->nullable()->references('id')->on('users')->nullOnDelete();

@@ -23,7 +23,7 @@ export default function CourseCard({ course }) {
       }}
       onClick={() => router.visit(route("instructor.classes.show", course.id))}
     >
-      <div className="relative h-69 overflow-hidden bg-black">
+      <div className="relative h-69 overflow-hidden">
         <div className="relative h-auto overflow-hidden bg-muted">
           <img
             src={
@@ -33,7 +33,7 @@ export default function CourseCard({ course }) {
                 : "/storage/images/logo-default.png"
             }
             alt={course.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={(e) => {
               e.currentTarget.src = "/storage/images/logo-default.png";
             }}
