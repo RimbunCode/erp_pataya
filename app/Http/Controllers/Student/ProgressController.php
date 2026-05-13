@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Student;
 use App\Http\Controllers\Controller;
 use App\Models\CourseContent;
 use App\Models\UserProgress;
-use Illuminate\Http\Request;
 
 class ProgressController extends Controller {
     public function store(CourseContent $content) {

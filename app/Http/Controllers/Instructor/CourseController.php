@@ -42,7 +42,7 @@ class CourseController extends Controller {
         $course->load(['categories', 'sections.contents']);
 
         return Inertia::render('Instructors/CourseDetail', [
-            'course'     => [
+            'course' => [
                 ...$this->mapCourse($course),
                 'sections' => $course->sections
                     ->sortBy('order')
@@ -150,8 +150,8 @@ class CourseController extends Controller {
             'thumbnail'        => ['nullable', Rule::when(
                 request()->hasFile('thumbnail'),
                 ['image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
-                ['string', 'max:255'] // bisa ganti jadi 'url' kalau harus URL
-            ),],
+                ['string', 'max:255'], // bisa ganti jadi 'url' kalau harus URL
+            ), ],
         ]);
 
         $updateData = [
@@ -169,7 +169,7 @@ class CourseController extends Controller {
             File::uploadFile($validated['thumbnail'], 'ImageCourse', function ($file) use (&$updateData) {
                 $updateData['thumbnail'] = $file->id;
             });
-        } else if ($request->input('thumbnail') == "delete") {
+        } elseif ($request->input('thumbnail') == 'delete') {
             $updateData['thumbnail'] = null;
         }
 
