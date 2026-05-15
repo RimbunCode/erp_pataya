@@ -21,7 +21,7 @@ class ItemRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'code'                          => [
+            'code' => [
                 'required',
                 'string',
                 'min:3',
@@ -45,18 +45,18 @@ class ItemRequest extends BaseFormRequest {
             ...($this->input('attributes') && \count($this->input('attributes')) > 0 ?
                 ['format_variant' => ['required', 'string', 'min:3', new FormatVariantValidation($this->get('attributes'))]] :
                 []),
-            'attributes'                    => ['nullable', 'array'],
-            'attributes.*.attribute.id'     => ['required', 'string', 'exists:attributes,id'],
-            'attributes.*.attribute.name'   => [
+            'attributes'                  => ['nullable', 'array'],
+            'attributes.*.attribute.id'   => ['required', 'string', 'exists:attributes,id'],
+            'attributes.*.attribute.name' => [
                 'required',
                 'string',
                 'min:3',
                 'max:255',
             ],
-            'attributes.*.values'           => ['required', 'array', 'min:1'],
-            'barcodes'                      => ['nullable', 'array'],
-            'barcodes.*.barcode'            => ['required', 'string', 'min:3', 'max:255'],
-            'barcodes.*.basic_unit.id'      => ['required', 'string', 'exists:units,id'],
+            'attributes.*.values'      => ['required', 'array', 'min:1'],
+            'barcodes'                 => ['nullable', 'array'],
+            'barcodes.*.barcode'       => ['required', 'string', 'min:3', 'max:255'],
+            'barcodes.*.basic_unit.id' => ['required', 'string', 'exists:units,id'],
         ];
     }
 }

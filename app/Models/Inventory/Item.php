@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Item extends Model {
     use DataTable, HasUlids, SoftDeletes;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'is_disabled'            => 'boolean',
@@ -32,25 +33,26 @@ class Item extends Model {
             'barcodes',
         ];
     }
+
     public string $formComponent = 'Inventory/Items/Form';
     public string $translateKey  = 'inventory.item';
-    protected     $configColumns = [
-        'image_id'          => [
+    protected $configColumns     = [
+        'image_id' => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
             'width' => 'fit',
         ],
-        'code'              => [
+        'code' => [
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
         ],
-        'name'              => [
+        'name' => [
             'show'  => true,
             'order' => 1,
         ],
-        'category'          => [
+        'category' => [
             'type'  => 'relation',
             'show'  => true,
             'order' => 2,
@@ -60,7 +62,7 @@ class Item extends Model {
         ],
         'defaultUnit',
         'image',
-        'defaultUom'        => [
+        'defaultUom' => [
             'ignore' => true,
         ],
     ];

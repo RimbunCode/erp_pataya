@@ -12,11 +12,12 @@ use Inertia\Inertia;
 
 class ItemVariant extends Model {
     use DataTable, HasUlids, SoftDeletes;
-    public        $keyBreadcrumb   = 'code';
-    public        $aliasBreadcrumb = 'Variant';
-    public string $translateKey    = 'inventory.item';
-    protected     $guarded         = ['id'];
-    protected     $casts           = [
+
+    public $keyBreadcrumb       = 'code';
+    public $aliasBreadcrumb     = 'Variant';
+    public string $translateKey = 'inventory.item';
+    protected $guarded          = ['id'];
+    protected $casts            = [
         'is_disabled'            => 'boolean',
         'allow_alternative_item' => 'boolean',
         'is_stock_item'          => 'boolean',
@@ -46,26 +47,27 @@ class ItemVariant extends Model {
     protected function getImageAttribute() {
         return $this->image_id ?? null;
     }
-    protected     $configColumns = [
-        'image'         => [
+
+    protected $configColumns = [
+        'image' => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
             'width' => 'fit',
         ],
-        'code'          => [
+        'code' => [
             'show'  => true,
             'order' => 0,
         ],
-        'item_code'     => [
+        'item_code' => [
             'show'  => true,
             'order' => 1,
         ],
-        'item_name'     => [
+        'item_name' => [
             'show'  => true,
             'order' => 2,
         ],
-        'is_disabled'   => [
+        'is_disabled' => [
             'type'  => 'boolean',
             'show'  => true,
             'order' => 3,
@@ -75,7 +77,7 @@ class ItemVariant extends Model {
             'show'  => true,
             'order' => 4,
         ],
-        'image_id'      => [
+        'image_id' => [
             'ignore' => true,
         ],
         'values',
@@ -84,7 +86,7 @@ class ItemVariant extends Model {
         'uoms',
         'defaultUnit',
         'category',
-        'defaultUom'    => [
+        'defaultUom' => [
             'ignore' => true,
         ],
     ];

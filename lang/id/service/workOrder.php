@@ -21,7 +21,7 @@ return [
         'create_pr'         => 'Buat Purchase Request',
         'create_stockEntry' => 'Buat Konsumsi Item',
     ],
-    'columns'            => [
+    'columns' => [
         'code'                         => 'Kode',
         'customer'                     => 'Pelanggan',
         'customer_branch'              => 'Cabang Pelanggan',
@@ -46,7 +46,7 @@ return [
         'started_at'                   => 'Dimulai Pada',
         'completed_at'                 => 'Diselesaikan Pada',
     ],
-    'workOrderItem'      => [
+    'workOrderItem' => [
         'columns' => [
             'work_order' => 'Work Order',
             'item'       => 'Item',

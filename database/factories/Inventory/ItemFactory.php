@@ -47,17 +47,17 @@ class ItemFactory extends Factory {
         $defaultUnitId = $this->resolveDefaultUnitId();
 
         return [
-            'code'                   => fake()->unique()->bothify(($itemType === 'inventory' ? 'GDS' : 'SRV') . '-####'),
-            'name'                   => $baseName . ' ' . fake()->unique()->numerify('###'),
-            'description'            => $itemType === 'inventory'
+            'code'        => fake()->unique()->bothify(($itemType === 'inventory' ? 'GDS' : 'SRV') . '-####'),
+            'name'        => $baseName . ' ' . fake()->unique()->numerify('###'),
+            'description' => $itemType === 'inventory'
                 ? "Physical inventory item for {$category->name}."
                 : "Service item for {$category->name}.",
-            'category_id'            => $category->id,
-            'default_unit_id'        => $defaultUnitId,
-            'conversion_factor'      => $itemType === 'inventory'
+            'category_id'       => $category->id,
+            'default_unit_id'   => $defaultUnitId,
+            'conversion_factor' => $itemType === 'inventory'
                 ? fake()->randomFloat(2, 1, 10)
                 : 1,
-            'stock_minimum'          => $itemType === 'inventory'
+            'stock_minimum' => $itemType === 'inventory'
                 ? fake()->numberBetween(5, 50)
                 : 0,
             'image_id'               => File::query()->inRandomOrder()->value('id'),

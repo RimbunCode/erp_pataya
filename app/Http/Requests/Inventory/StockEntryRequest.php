@@ -20,10 +20,10 @@ class StockEntryRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'date'                                  => ['required', 'date'],
-            'type'                                  => ['required', 'string', 'in:item_transfer,item_issue,item_consumption,item_receipt'],
+            'date' => ['required', 'date'],
+            'type' => ['required', 'string', 'in:item_transfer,item_issue,item_consumption,item_receipt'],
             // 'in_transit' => ['nullable', 'required_if:type,item_transfer', 'boolean'],
-            'in_transit'                            => ['nullable', 'boolean'],
+            'in_transit' => ['nullable', 'boolean'],
             // 'received_date' => ['nullable', 'required_if:type,item_transfer', 'date'],
             'received_date'                         => ['nullable', 'date'],
             'notes'                                 => ['nullable', 'string'],

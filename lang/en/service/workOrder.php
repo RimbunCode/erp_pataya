@@ -21,7 +21,7 @@ return [
         'create_pr'         => 'Create Purchase Request',
         'create_stockEntry' => 'Create Item Consumption',
     ],
-    'columns'            => [
+    'columns' => [
         'code'                         => 'Code',
         'customer'                     => 'Customer',
         'customer_branch'              => 'Customer Branch',
@@ -46,7 +46,7 @@ return [
         'started_at'                   => 'Started At',
         'completed_at'                 => 'completed At',
     ],
-    'workOrderItem'      => [
+    'workOrderItem' => [
         'columns' => [
             'work_order' => 'Work Order',
             'item'       => 'Item',
