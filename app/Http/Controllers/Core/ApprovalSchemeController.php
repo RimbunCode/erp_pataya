@@ -102,12 +102,19 @@ class ApprovalSchemeController extends Controller {
         $approvalScheme->steps()
             ->whereNotIn('id', array_column($data['steps'], 'id'))
             ->delete();
+        $stepIds = collect($data['steps'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingSteps = $approvalScheme->steps()
+            ->whereIn('id', $stepIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['steps'] as $index => $step) {
             $step = $this->fillStepRelation($step, $index);
             if (Ulid::isValid($step['id'])) {
-                $approvalScheme->steps()
-                    ->find($step['id'])
-                    ->update($step);
+                $existingSteps->get($step['id'])?->update($step);
 
                 continue;
             }

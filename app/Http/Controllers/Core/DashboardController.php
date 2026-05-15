@@ -135,13 +135,16 @@ class DashboardController extends Controller {
 
         DB::beginTransaction();
 
+        $widgets = DashboardWidget::query()
+            ->where('dashboard_id', $dashboard->id)
+            ->whereIn('id', $orderedWidgetIds)
+            ->get()
+            ->keyBy('id');
+
         foreach ($orderedWidgetIds as $order => $widgetId) {
-            DashboardWidget::query()
-                ->where('dashboard_id', $dashboard->id)
-                ->where('id', $widgetId)
-                ->update([
-                    'order' => $order,
-                ]);
+            $widgets->get($widgetId)?->update([
+                'order' => $order,
+            ]);
         }
 
         DB::commit();
@@ -182,18 +185,30 @@ class DashboardController extends Controller {
         $dashboard->widgets()
             ->whereNotIn('id', array_column($data['widgets'], 'id'))
             ->delete();
+        $widgetIds = collect($data['widgets'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingWidgets = $dashboard->widgets()
+            ->whereIn('id', $widgetIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['widgets'] as $idx => $widget) {
             $widget['order'] = $idx;
             $widget          = $this->fillWidgetRelation($widget, $dashboard);
+            $dashboardWidget = null;
             if (Ulid::isValid($widget['id'])) {
-                $widget = $dashboard->widgets()
-                    ->find($widget['id'])->fill($widget);
-                $widget->save();
+                $dashboardWidget = $existingWidgets->get($widget['id']);
+                if ($dashboardWidget) {
+                    $dashboardWidget->fill($widget);
+                    $dashboardWidget->save();
+                }
             } else {
-                $widget = $dashboard->widgets()->create($widget);
+                $dashboardWidget = $dashboard->widgets()->create($widget);
             }
 
-            $widget->refresh();
+            $dashboardWidget?->refresh();
         }
         $dashboard->fillForUpdate($data);
         $dashboard->logForUpdated();

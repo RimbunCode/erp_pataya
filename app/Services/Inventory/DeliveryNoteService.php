@@ -60,12 +60,21 @@ class DeliveryNoteService {
         $deliveryNote->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $deliveryNote->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
 
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item);
 
             if (Ulid::isValid($item['id'])) {
-                $deliveryNote->items()->find($item['id'])->update($item);
+                $existingItems->get($item['id'])?->update($item);
 
                 continue;
             }
@@ -165,7 +174,7 @@ class DeliveryNoteService {
             }
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             if ($stock->actual_quantity < $quantity) {
-                $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->actual_quantity} but you need {$quantity}";
+                $errorItems[] = "Item {$item->item->name} in {$item->sourceWarehouse->name} stock is {$stock->actual_quantity} but you need {$quantity}";
 
                 continue;
             }

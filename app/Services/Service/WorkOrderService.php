@@ -55,6 +55,15 @@ class WorkOrderService {
         $workOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->update(['deleted_at' => now()]);
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $workOrder->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
 
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item);
@@ -62,9 +71,7 @@ class WorkOrderService {
             if (Ulid::isValid($item['id'])) {
                 unset($item['item']);
                 unset($item['unit']);
-                $workOrder->items()
-                    ->where('id', $item['id'])
-                    ->update(values: $item);
+                $existingItems->get($item['id'])?->update($item);
 
                 continue;
             }

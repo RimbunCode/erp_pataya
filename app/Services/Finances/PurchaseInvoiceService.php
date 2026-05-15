@@ -96,15 +96,29 @@ class PurchaseInvoiceService {
         $purchaseInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $purchaseInvoice->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
 
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $purchaseInvoice);
 
             if (Ulid::isValid($item['id'])) {
-                $itemModel = $purchaseInvoice->items()->find($item['id']);
-                $itemModel->fill($item);
-                $itemModel->save();
-                $itemModel->refresh();
+                $itemModel = $existingItems->get($item['id']);
+                if ($itemModel) {
+                    $itemModel->fill($item);
+                    $itemModel->save();
+                    $itemModel->refresh();
+                } else {
+                    $itemModel = $purchaseInvoice->items()->create($item);
+                    $itemModel->refresh();
+                }
             } else {
                 $itemModel = $purchaseInvoice->items()->create($item);
                 $itemModel->refresh();
@@ -123,10 +137,19 @@ class PurchaseInvoiceService {
         $purchaseInvoice->paymentSchedules()
             ->whereNotIn('id', array_column($paymentSchedules, 'id'))
             ->delete();
+        $paymentScheduleIds = collect($paymentSchedules)
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingPaymentSchedules = $purchaseInvoice->paymentSchedules()
+            ->whereIn('id', $paymentScheduleIds)
+            ->get()
+            ->keyBy('id');
         foreach ($paymentSchedules as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseInvoice);
             if (Ulid::isValid($payment_schedule['id'])) {
-                $purchaseInvoice->paymentSchedules()->find($payment_schedule['id'])->update($payment_schedule);
+                $existingPaymentSchedules->get($payment_schedule['id'])?->update($payment_schedule);
 
                 continue;
             }

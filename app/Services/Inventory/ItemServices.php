@@ -320,6 +320,9 @@ class ItemServices {
             ->whereIn('unit_id', $unitIds)
             ->get()
             ->mapWithKeys(fn ($uom) => [$uom->unit_id => $uom->id]);
+        $existingBarcodes = $variant->barcodes()->get();
+        $existingById     = $existingBarcodes->keyBy('id');
+        $existingByCode   = $existingBarcodes->keyBy('barcode');
 
         foreach ($barcodes as $barcode) {
             $unitId  = $barcode['basic_unit']['id'];
@@ -330,16 +333,21 @@ class ItemServices {
             ];
 
             if (! empty($barcode['id'])) {
-                $variant->barcodes()->whereKey($barcode['id'])->update($payload);
-                $keptIds[] = $barcode['id'];
+                $barcodeModel = $existingById->get($barcode['id']);
+                if ($barcodeModel) {
+                    $barcodeModel->update($payload);
+                    $keptIds[] = $barcodeModel->id;
+                }
 
                 continue;
             }
 
-            $model     = $variant->barcodes()->updateOrCreate(
-                ['barcode' => $barcode['barcode']],
-                $payload,
-            );
+            $model = $existingByCode->get($barcode['barcode']);
+            if ($model) {
+                $model->update($payload);
+            } else {
+                $model = $variant->barcodes()->create($payload);
+            }
             $keptIds[] = $model->id;
         }
 

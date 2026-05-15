@@ -24,6 +24,15 @@ class CustomerService {
             ],
             ...$branches,
         ];
+        $branchIds = collect($branches)
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingBranches = Branch::query()
+            ->whereIn('id', $branchIds)
+            ->get()
+            ->keyBy('id');
         foreach ($branches as $branch) {
             $branch['branchable_type'] = Customer::class;
             $branch['branchable_id']   = $customer->id;
@@ -45,9 +54,7 @@ class CustomerService {
                     break;
             }
             if (isset($branch['id']) && Ulid::isValid($branch['id'])) {
-                Branch::where('id', $branch['id'])
-                    ->first()
-                    ?->update($branch);
+                $existingBranches->get($branch['id'])?->update($branch);
             } else {
                 Branch::create($branch);
             }

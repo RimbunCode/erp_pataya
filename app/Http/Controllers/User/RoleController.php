@@ -124,6 +124,15 @@ class RoleController extends Controller {
         $permissions = array_map(fn ($permission) => $permission['permission_id'], $rules);
         $permissions = Permission::whereIn('id', $permissions)->get()
             ->mapWithKeys(fn ($permission) => [$permission->id => $permission]);
+        $ruleIds = collect($rules)
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingRules = $role->rules()
+            ->whereIn('id', $ruleIds)
+            ->get()
+            ->keyBy('id');
 
         $role->rules()
             ->whereNotIn('id', array_column($rules, 'id'))
@@ -139,9 +148,7 @@ class RoleController extends Controller {
                     ->mapWithKeys(fn ($permission) => [$permission => $rule['permissions'][$permission] ?? false]),
             ];
             if (Ulid::isValid($rule['id'])) {
-                $rule = $role->rules()
-                    ->find($rule['id'])
-                    ->update($payload);
+                $existingRules->get($rule['id'])?->update($payload);
             } else {
                 $role->rules()->create([
                     'role_id'       => $role->id,
