@@ -92,14 +92,28 @@ class PurchaseOrderService {
         $purchaseOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $purchaseOrder->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $purchaseOrder);
 
             if (Ulid::isValid($item['id'])) {
-                $itemModel = $purchaseOrder->items()->find($item['id']);
-                $itemModel->fill($item);
-                $itemModel->save();
-                $itemModel->refresh();
+                $itemModel = $existingItems->get($item['id']);
+                if ($itemModel) {
+                    $itemModel->fill($item);
+                    $itemModel->save();
+                    $itemModel->refresh();
+                } else {
+                    $itemModel = $purchaseOrder->items()->create($item);
+                    $itemModel->refresh();
+                }
             } else {
                 $itemModel = $purchaseOrder->items()->create($item);
                 $itemModel->refresh();
@@ -120,10 +134,19 @@ class PurchaseOrderService {
             $purchaseOrder->paymentSchedules()
                 ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
                 ->delete();
+            $paymentScheduleIds = collect($data['payment_schedules'])
+                ->pluck('id')
+                ->filter(fn ($id) => Ulid::isValid((string) $id))
+                ->values()
+                ->all();
+            $existingPaymentSchedules = $purchaseOrder->paymentSchedules()
+                ->whereIn('id', $paymentScheduleIds)
+                ->get()
+                ->keyBy('id');
             foreach ($data['payment_schedules'] as $payment_schedule) {
                 $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseOrder);
                 if (Ulid::isValid($payment_schedule['id'])) {
-                    $purchaseOrder->paymentSchedules()->find($payment_schedule['id'])->update([
+                    $existingPaymentSchedules->get($payment_schedule['id'])?->update([
                         ...$payment_schedule,
                     ]);
 
@@ -229,12 +252,17 @@ class PurchaseOrderService {
     private function rolllbackItems(PurchaseOrder $purchaseOrder) {
         $items = $purchaseOrder->items()
             ->get();
+        $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+            ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
+            ->lockForUpdate()
+            ->get()
+            ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
         foreach ($items as $item) {
-            $stock = Stock::lockForUpdate()
-                ->where('item_variant_id', $item->item_id)
-                ->where('warehouse_id', $item->target_warehouse_id)
-                ->lockForUpdate()
-                ->first();
+            $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
+            $stock    = $stocks->get($stockKey);
+            if (! $stock) {
+                continue;
+            }
 
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
