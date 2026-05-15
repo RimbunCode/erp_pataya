@@ -35,6 +35,15 @@ class InternalOrder extends Model {
         return $this->belongsTo(Branch::class);
     }
 
+    protected static function loadRelationsOnShow() {
+        return [
+            'items',
+            'items.item',
+            'items.unit',
+            'items.sourceWarehouse',
+        ];
+    }
+
     public function items() {
         return $this->hasMany(InternalOrderItem::class);
     }

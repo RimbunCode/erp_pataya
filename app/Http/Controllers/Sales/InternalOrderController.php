@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Sales;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\InternalOrderRequest;
-use App\Models\Core\Branch;
 use App\Models\Sales\InternalOrder;
 use App\Services\Sales\InternalOrderService;
 use Illuminate\Http\Request;
@@ -64,7 +63,7 @@ class InternalOrderController extends Controller {
 
         return Inertia::render('Sales/InternalOrders/Show', [
             'internalOrder' => function () use ($internalOrder) {
-                $internalOrder->load(['items', 'items.item', 'items.unit', 'items.sourceWarehouse']);
+                $internalOrder->loadRelations();
 
                 return $internalOrder;
             },
