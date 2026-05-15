@@ -313,10 +313,20 @@ class ItemServices {
 
         $keptIds = [];
 
+        $unitIds = \array_filter(\array_map(fn ($barcode) => $barcode['basic_unit']['id'] ?? null, $barcodes), fn ($barcode) => $barcode != null);
+
+        $uomIds = $variant
+            ->uoms()
+            ->whereIn('unit_id', $unitIds)
+            ->get()
+            ->mapWithKeys(fn ($uom) => [$uom->unit_id => $uom->id]);
+
         foreach ($barcodes as $barcode) {
+            $unitId  = $barcode['basic_unit']['id'];
             $payload = [
-                'barcode' => $barcode['barcode'],
-                'unit_id' => $barcode['unit']['id'],
+                'barcode'      => $barcode['barcode'],
+                'unit_id'      => $unitId,
+                'item_unit_id' => $uomIds[$unitId] ?? null,
             ];
 
             if (! empty($barcode['id'])) {

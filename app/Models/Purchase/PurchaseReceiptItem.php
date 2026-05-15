@@ -2,8 +2,8 @@
 
 namespace App\Models\Purchase;
 
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -28,7 +28,7 @@ class PurchaseReceiptItem extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 
     public function targetWarehouse() {

@@ -30,7 +30,7 @@ class DeliveryNoteService {
 
     private function fillItemRelations(array $item) {
         $item['item_id']             = $item['item']['id'];
-        $item['unit_id']             = $item['unit']['unit_id'];
+        $item['item_unit_id']        = $item['unit']['id'];
         $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
         $item['conversion_factor']   = $item['unit']['conversion_factor'];
         $item['quantity'] ??= 0;
@@ -192,7 +192,7 @@ class DeliveryNoteService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->source_warehouse_id,
-                    'unit_id'                    => $stock->unit_id,
+                    'item_unit_id'               => $stock->item_unit_id,
                     'conversion_factor'          => $stock->conversion_factor,
                     'quantity_change'            => $returnAgainst ? $quantity : -$quantity,
                     'quantity_after_transaction' => $stock->actual_quantity,
@@ -237,7 +237,7 @@ class DeliveryNoteService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->source_warehouse_id,
-                    'unit_id'                    => $stock->unit_id,
+                    'item_unit_id'               => $stock->item_unit_id,
                     'conversion_factor'          => $stock->conversion_factor,
                     'quantity_change'            => $quantity,
                     'quantity_after_transaction' => $stock->actual_quantity,
@@ -304,7 +304,7 @@ class DeliveryNoteService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->source_warehouse_id,
-                    'unit_id'                    => $stock->unit_id,
+                    'item_unit_id'               => $stock->item_unit_id,
                     'conversion_factor'          => $stock->conversion_factor,
                     'quantity_change'            => -$quantity,
                     'quantity_after_transaction' => $stock->actual_quantity,

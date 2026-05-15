@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -15,7 +14,7 @@ return new class extends Migration
             $table->UlidMorphs('referenceable');
             $table->foreignUlid('item_id')->references('id')->on('item_variants');
             $table->foreignUlid('warehouse_id')->references('id')->on('warehouses');
-            $table->foreignUlid('unit_id')->references('id')->on('units');
+            $table->foreignUlid('item_unit_id')->references('id')->on('item_units');
             $table->double('conversion_factor')->default(1);
             $table->double('quantity_change')->default(0);
             $table->double('quantity_after_transaction')->default(0);

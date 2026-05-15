@@ -96,7 +96,7 @@ class Item extends Model {
             ->whereNull('format_variant')
             ->first();
         if ($variant) {
-            return $variant->barcodes()->with(['unit'])->get();
+            return $variant->barcodes()->get();
         }
     }
 

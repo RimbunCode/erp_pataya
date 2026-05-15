@@ -4,7 +4,6 @@ namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
 use App\Rules\FormatVariantValidation;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
 class ItemRequest extends BaseFormRequest {
@@ -22,7 +21,7 @@ class ItemRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'code' => [
+            'code'                          => [
                 'required',
                 'string',
                 'min:3',
@@ -43,21 +42,21 @@ class ItemRequest extends BaseFormRequest {
             'uoms.*.readOnly'               => ['nullable', 'boolean'],
             'uoms.*.isManual'               => ['nullable', 'boolean'],
             'uoms.*.generatedByDefaultUnit' => ['nullable', 'boolean'],
-            ...($this->get('attributes') && count($this->get('attributes')) > 0 ?
-              ['format_variant' => ['required', 'string', 'min:3', new FormatVariantValidation($this->get('attributes'))]] :
-              []),
-            'attributes'                  => ['nullable', 'array'],
-            'attributes.*.attribute.id'   => ['required', 'string', 'exists:attributes,id'],
-            'attributes.*.attribute.name' => [
+            ...($this->input('attributes') && \count($this->input('attributes')) > 0 ?
+                ['format_variant' => ['required', 'string', 'min:3', new FormatVariantValidation($this->get('attributes'))]] :
+                []),
+            'attributes'                    => ['nullable', 'array'],
+            'attributes.*.attribute.id'     => ['required', 'string', 'exists:attributes,id'],
+            'attributes.*.attribute.name'   => [
                 'required',
                 'string',
                 'min:3',
                 'max:255',
             ],
-            'attributes.*.values' => ['required', 'array', 'min:1'],
-            'barcodes'            => ['nullable', 'array'],
-            'barcodes.*.barcode'  => ['required', 'string', 'min:3', 'max:255'],
-            'barcodes.*.unit.id'  => ['required', 'string', 'exists:units,id'],
+            'attributes.*.values'           => ['required', 'array', 'min:1'],
+            'barcodes'                      => ['nullable', 'array'],
+            'barcodes.*.barcode'            => ['required', 'string', 'min:3', 'max:255'],
+            'barcodes.*.basic_unit.id'      => ['required', 'string', 'exists:units,id'],
         ];
     }
 }

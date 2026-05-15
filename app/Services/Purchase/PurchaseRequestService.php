@@ -18,7 +18,7 @@ class PurchaseRequestService {
     private function fillItemRelations(array $data) {
         $data['item_variant_id']   = $data['item']['id'];
         $data['item_name']         = $data['item']['code'];
-        $data['unit_id']           = $data['unit']['unit_id'];
+        $data['item_unit_id']      = $data['unit']['id'];
         $data['unit_name']         = $data['unit']['name'];
         $data['conversion_factor'] = $data['unit']['conversion_factor'];
 

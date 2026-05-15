@@ -25,7 +25,7 @@ class PurchaseReceiptService {
 
     private function fillItemRelations(array $data) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['unit_id'];
+        $data['item_unit_id']        = $data['unit']['id'];
         $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? '';
 
@@ -100,6 +100,7 @@ class PurchaseReceiptService {
             ->with([
                 'item',
                 'item.item',
+                'item.defaultUom',
                 'purchaseOrderItem',
                 'targetWarehouse',
                 'returnAgainstItem',
@@ -107,20 +108,20 @@ class PurchaseReceiptService {
 
         $totalRates = 0;
         foreach ($items as $item) {
-            $defaultUnit             = $item->item->defaultUnit;
-            $defaultConvertionFactor = $item->item->conversion_factor;
+            $defaultUom              = $item->item->defaultUom;
+            $defaultConvertionFactor = $defaultUom->conversion_factor;
             $stock                   = Stock::lockForUpdate()->firstOrCreate([
                 'item_variant_id' => $item->item_id,
                 'warehouse_id'    => $item->target_warehouse_id,
             ], [
                 'conversion_factor' => $defaultConvertionFactor,
-                'unit_id'           => $defaultUnit->id,
+                'item_unit_id'      => $defaultUom->id,
                 'stock_queue'       => [],
             ]);
-            $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
-            $queue    = $stock->stock_queue;
+            $quantity                = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
+            $queue                   = $stock->stock_queue;
 
-            $totalRate = $item->purchaseOrderItem->rate * $quantity;
+            $totalRate   = $item->purchaseOrderItem->rate * $quantity;
             $totalRates += $totalRate;
 
             if ($returnAgainst) {
@@ -144,7 +145,7 @@ class PurchaseReceiptService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->target_warehouse_id,
-                    'unit_id'                    => $defaultUnit->id,
+                    'item_unit_id'               => $defaultUom->id,
                     'conversion_factor'          => $defaultConvertionFactor,
                     'quantity_change'            => -$quantity,
                     'quantity_after_transaction' => $stock->actual_quantity,
@@ -174,7 +175,7 @@ class PurchaseReceiptService {
             StockLedgerEntry::create([
                 'item_id'                    => $item->item_id,
                 'warehouse_id'               => $item->target_warehouse_id,
-                'unit_id'                    => $defaultUnit->id,
+                'item_unit_id'               => $defaultUom->id,
                 'conversion_factor'          => $defaultConvertionFactor,
                 'quantity_change'            => $quantity,
                 'quantity_after_transaction' => $stock->actual_quantity,

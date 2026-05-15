@@ -30,7 +30,7 @@ class PurchaseOrderService {
 
     private function fillItemRelations(array $data, PurchaseOrder $purchaseOrder) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['unit_id'];
+        $data['item_unit_id']        = $data['unit']['id'];
         $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['exchange_rate']       = $purchaseOrder->exchange_rate;
         $data['tax_id']              = $data['tax']['id'];

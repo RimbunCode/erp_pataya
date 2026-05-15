@@ -31,7 +31,7 @@ export default memo(function FormBarcodes({
         required: true,
       },
       {
-        name: "unit",
+        name: "basic_unit",
         titleTrans: "inventory.item.columns.barcodes.columns.unit",
         required: true,
         cell({ dataRow, data: value, setData, attributes }) {
@@ -41,7 +41,7 @@ export default memo(function FormBarcodes({
               readOnly={!dataRow.barcode}
               value={value?.id}
               onValueChange={(val) => {
-                setData("unit", mappingUoms[val]);
+                setData("basic_unit", mappingUoms[val]);
               }}
               options={selectItemUoms}
             />

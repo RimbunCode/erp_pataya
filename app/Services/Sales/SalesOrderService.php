@@ -32,7 +32,7 @@ class SalesOrderService {
 
     private function fillItemRelations(array $data, SalesOrder $salesOrder) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['unit_id'];
+        $data['item_unit_id']        = $data['unit']['id'];
         $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['tax_id']              = $data['tax']['id'];
         $data['tax_rate']            = $data['tax']['rate'];

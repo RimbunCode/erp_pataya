@@ -156,7 +156,6 @@ class ItemVariant extends Model {
     }
 
     public function barcodes() {
-        return $this->hasMany(ItemBarcode::class, 'item_variant_id', 'id')
-            ->with(['unit']);
+        return $this->hasMany(ItemBarcode::class, 'item_variant_id', 'id');
     }
 }

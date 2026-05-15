@@ -77,7 +77,7 @@ class StockLedgerEntry extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class, 'unit_id');
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 
     public function warehouse() {

@@ -22,7 +22,7 @@ class StockEntryService {
 
     private function fillItemRelations(array $data, StockEntry $stockEntry) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['unit_id'];
+        $data['item_unit_id']        = $data['unit']['id'];
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? null;
 
@@ -35,7 +35,7 @@ class StockEntryService {
                 'warehouse_id'    => $data['source_warehouse_id'],
             ], [
                 'conversion_factor' => $defaultConvertionFactor,
-                'unit_id'           => $data['unit_id'],
+                'unit_id'           => $data['unit']['unit_id'],
                 'stock_queue'       => [],
             ]);
             // update queue fifo in source warehouse
@@ -228,7 +228,7 @@ class StockEntryService {
             'status' => FormStatus::COMPLETED,
         ]);
 
-        $items           = $stockEntry->items()->with('item', 'item.item', 'item.defaultUnit', 'unit', 'sourceWarehouse', 'targetWarehouse')->get();
+        $items           = $stockEntry->items()->with('item', 'item.item', 'item.defaultUom', 'unit', 'sourceWarehouse', 'targetWarehouse')->get();
         $additionalCosts = $stockEntry->additionalCosts()
             ->with([
                 'expenseAccount' => function ($q) {
@@ -242,8 +242,8 @@ class StockEntryService {
 
         foreach ($items as $item) {
             unset($picked);
-            $defaultUnit             = $item->item->defaultUnit;
-            $defaultConvertionFactor = $item->item->conversion_factor;
+            $defaultUom              = $item->item->defaultUom;
+            $defaultConvertionFactor = $defaultUom->conversion_factor;
             $qtyNeeded               = $item->quantity * ($item->conversion_factor / $defaultConvertionFactor);
 
             if (\in_array($stockEntry->type, ['item_issue', 'item_transfer', 'item_consumption'])) {
@@ -253,7 +253,7 @@ class StockEntryService {
                     'warehouse_id'    => $item->source_warehouse_id,
                 ], [
                     'conversion_factor' => $defaultConvertionFactor,
-                    'unit_id'           => $defaultUnit->id,
+                    'item_unit_id'      => $defaultUom->id,
                     'stock_queue'       => [],
                 ]);
 
@@ -320,7 +320,7 @@ class StockEntryService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->source_warehouse_id,
-                    'unit_id'                    => $defaultUnit->id,
+                    'item_unit_id'               => $defaultUom->id,
                     'conversion_factor'          => $defaultConvertionFactor,
                     'quantity_change'            => -$qtyNeeded,
                     'quantity_after_transaction' => $stockSource->actual_quantity,
@@ -339,7 +339,7 @@ class StockEntryService {
                     'item_variant_id' => $item->item_id,
                     'warehouse_id'    => $item->target_warehouse_id,
                 ], [
-                    'unit_id'           => $defaultUnit->id,
+                    'item_unit_id'      => $defaultUom->id,
                     'conversion_factor' => $defaultConvertionFactor,
                     'stock_queue'       => [],
                 ]);
@@ -381,7 +381,7 @@ class StockEntryService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->target_warehouse_id,
-                    'unit_id'                    => $defaultUnit->id,
+                    'item_unit_id'               => $defaultUom->id,
                     'conversion_factor'          => $defaultConvertionFactor,
                     'quantity_change'            => $qtyNeeded,
                     'quantity_after_transaction' => $stockTarget->actual_quantity,

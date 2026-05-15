@@ -2,8 +2,8 @@
 
 namespace App\Models\Service;
 
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\Unit;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -39,10 +39,10 @@ class WorkOrderItem extends Model {
 
     public function item(): mixed {
         return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')
-            ->with(['defaultUnit']);
+            ->with(['defaultUom']);
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class, 'unit_id', 'id');
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 }

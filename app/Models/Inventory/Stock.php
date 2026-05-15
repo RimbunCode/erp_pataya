@@ -140,6 +140,6 @@ class Stock extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 }
