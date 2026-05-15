@@ -43,7 +43,7 @@ export default function Form() {
                 setData({
                   item: val,
                   unit: defaultUnit,
-                  conversion_factor: defaultUnit.conversion_factor,
+                  conversion_factor: defaultUnit?.conversion_factor,
                   alternative: null,
                 });
               }}
@@ -53,7 +53,7 @@ export default function Form() {
                   not: "vehicle",
                 },
               }}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },
@@ -315,7 +315,7 @@ export default function Form() {
               filters={{
                 type: "vehicle",
               }}
-              with={["defaultUnit", "category"]}
+              with={["defaultUom", "category"]}
             />
           </FormInput>
           {defaultData?.started_at && (

@@ -26,14 +26,7 @@ class ItemController extends Controller {
      */
     public function index(Request $request) {
         $this->setBreadcrumbs();
-        Item::with(['variants'])
-            ->leftJoin('categories', 'categories.id', '=', 'items.category_id')
-            ->leftJoin('units', 'units.id', '=', 'items.default_unit_id')
-            ->select([
-                'categories.name as category_name',
-                'units.name as default_unit_name',
-            ])
-            ->dataTable($request);
+        Item::dataTable($request);
 
         return Inertia::render('Inventory/Items/Index');
     }
@@ -107,16 +100,15 @@ class ItemController extends Controller {
                 return $itemArray;
             },
             'variants' => Inertia::defer(function () use ($item) {
-                return ItemVariant::with(['values', 'stocks'])
+                return ItemVariant::with(['stocks'])
                     ->where('item_id', $item->id)
                     ->orderBy('format_variant', 'asc')
                     ->get()
-                    ->map(function ($variant) {
+                    ->map(function (ItemVariant $variant) {
                         $totalStock = $variant->stocks->sum('quantity');
 
                         return [
-                            'id'          => $variant->id,
-                            'sku'         => $variant->sku,
+                            ...$variant->toArray(),
                             'total_stock' => $totalStock,
                         ];
                     });

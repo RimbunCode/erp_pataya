@@ -45,11 +45,11 @@ function Form() {
                 setData({
                   item: val,
                   unit: defaultUnit,
-                  conversion_factor: defaultUnit.conversion_factor,
+                  conversion_factor: defaultUnit?.conversion_factor,
                 });
               }}
               {...attributes}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },

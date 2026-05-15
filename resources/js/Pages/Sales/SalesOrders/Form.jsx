@@ -170,12 +170,12 @@ export default memo(function Form() {
               setData({
                 item: val,
                 unit: defaultUnit,
-                conversion_factor: defaultUnit.conversion_factor,
+                conversion_factor: defaultUnit?.conversion_factor,
                 source_warehouse: data.source_warehouse,
               });
             }}
             {...attributes}
-            with={["defaultUnit", "item"]}
+            with={["defaultUom", "item"]}
           />
         );
       },

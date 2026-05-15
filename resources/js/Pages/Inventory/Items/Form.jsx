@@ -61,14 +61,14 @@ const VariantsSummary = memo(function VariantsSummary({
           key={variant.id}
           className="grid py-2 border-b last:rounded-b-md border-muted-foreground/25 grid-cols-subgrid col-span-full"
         >
-          {variant.sku ? (
+          {variant.code ? (
             <Link
               className="hover:underline"
               href={route("itemVariants.show", {
                 itemVariant: variant.id,
               })}
             >
-              {variant.sku || itemCode}
+              {variant.code || itemCode}
             </Link>
           ) : (
             <span className="flex items-center justify-start">{itemCode}</span>
@@ -669,6 +669,7 @@ export default memo(function Form() {
               autoComplete="off"
             >
               <Mention
+                markup="@[__display__](__id__)"
                 trigger={/(\{([^{]*))$/}
                 data={listFormatVariant}
                 displayTransform={(_x, display) => "{" + display + "}"}

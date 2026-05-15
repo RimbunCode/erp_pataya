@@ -100,7 +100,7 @@ export default function Form() {
                 setData({
                   item: val,
                   unit: defaultUnit,
-                  conversion_factor: defaultUnit.conversion_factor,
+                  conversion_factor: defaultUnit?.conversion_factor,
                   source_warehouse: data.source_warehouse,
                 });
               }}
@@ -112,7 +112,7 @@ export default function Form() {
                   },
                 },
               }}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },

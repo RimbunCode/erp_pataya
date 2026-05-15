@@ -4,9 +4,7 @@ namespace App\Models\Inventory;
 
 use App\Models\Core\Branch;
 use App\Models\Model;
-use App\Services\Inventory\ItemServices;
 use App\Traits\DataTable;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Session;
@@ -14,26 +12,26 @@ use Inertia\Inertia;
 
 class ItemVariant extends Model {
     use DataTable, HasUlids, SoftDeletes;
-
-    public $keyBreadcrumb       = 'sku';
-    public $aliasBreadcrumb     = 'Variant';
-    public string $translateKey = 'inventories.itemVariant';
-    protected $guarded          = ['id'];
-    protected $with             = ['item'];
-    protected $casts            = [
+    public        $keyBreadcrumb   = 'code';
+    public        $aliasBreadcrumb = 'Variant';
+    public string $translateKey    = 'inventory.item';
+    protected     $guarded         = ['id'];
+    protected     $with            = ['item'];
+    protected     $casts           = [
         'is_disabled'            => 'boolean',
         'allow_alternative_item' => 'boolean',
         'is_stock_item'          => 'boolean',
     ];
-    protected $appends = ['sku'];
 
-    public function sku(): Attribute {
-        return new Attribute(
-            get: function () {
-                return ItemServices::getSku($this);
-            },
-        );
-    }
+    // protected $appends = ['sku'];
+
+    // public function sku(): Attribute {
+    //     return new Attribute(
+    //         get: function () {
+    //             return ItemServices::getSku($this);
+    //         },
+    //     );
+    // }
 
     protected static function loadRelationsOnShow() {
         return [
@@ -49,27 +47,26 @@ class ItemVariant extends Model {
     protected function getImageAttribute() {
         return $this->image_id ?? $this->item?->image_id ?? null;
     }
-
-    protected $configColumns = [
-        'image' => [
+    protected     $configColumns = [
+        'image'         => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
             'width' => 'fit',
         ],
-        'code' => [
+        'code'          => [
             'show'  => true,
             'order' => 0,
         ],
-        'item_code' => [
+        'item_code'     => [
             'show'  => true,
             'order' => 1,
         ],
-        'item_name' => [
+        'item_name'     => [
             'show'  => true,
             'order' => 2,
         ],
-        'is_disabled' => [
+        'is_disabled'   => [
             'type'  => 'boolean',
             'show'  => true,
             'order' => 3,
@@ -79,7 +76,7 @@ class ItemVariant extends Model {
             'show'  => true,
             'order' => 4,
         ],
-        'image_id' => [
+        'image_id'      => [
             'ignore' => true,
         ],
         'values',
@@ -88,6 +85,9 @@ class ItemVariant extends Model {
         'uoms',
         'defaultUnit',
         'category',
+        'defaultUom'    => [
+            'ignore' => true,
+        ],
     ];
     public string $formComponent = 'Inventory/Items/FormVariant';
 
@@ -113,7 +113,13 @@ class ItemVariant extends Model {
     }
 
     public function defaultUom() {
-        return $this->belongsTo(ItemUnit::class, 'default_unit_id', 'unit_id');
+        $itemUnitTable    = (new ItemUnit)->getTable();
+        $itemVariantTable = $this->getTable();
+
+        return $this->hasOne(ItemUnit::class, 'item_id', 'item_id')
+            ->join("{$itemVariantTable} as default_uom_item_variants", 'default_uom_item_variants.item_id', '=', "{$itemUnitTable}.item_id")
+            ->whereColumn("{$itemUnitTable}.unit_id", 'default_uom_item_variants.default_unit_id')
+            ->select("{$itemUnitTable}.*");
     }
 
     public function uoms() {
@@ -127,28 +133,23 @@ class ItemVariant extends Model {
     public function showStocks() {
         Inertia::share([
             'stocks' => Inertia::defer(function () {
-                $warehouses = Warehouse::select([
-                    'warehouses.*',
-                    'stocks.id as stock_id',
-                    'stocks.quantity',
-                    'stocks.actual_quantity',
-                    'stocks.rented_quantity',
-                    'stocks.reserved_quantity',
-                    'stocks.incoming_quantity',
-                    'stocks.projected_quantity',
-                    'stocks.ready_quantity',
-                    'stocks.ready_quantity',
-                    'stocks.valuation_rate',
-                ])
-                    ->leftJoin('stocks', 'stocks.warehouse_id', '=', 'warehouses.id')
-                    ->where('item_variant_id', $this->id);
+                $warehouses = Warehouse::with([
+                    'stocks' => fn ($query) => $query->where('item_variant_id', $this->id),
+                    'stocks.unit',
+                    'branch',
+                ]);
                 if (Session::has('currentBranch')) {
                     $branch = Branch::find(Session::get('currentBranch'));
                     if (! $branch->is_main_branch) {
                         $warehouses->where('warehouses.branch_id', $branch->id);
                     }
                 }
-                $warehouses = $warehouses->get();
+                $warehouses = $warehouses->get()
+                    ->map(fn (Warehouse $warehouse) => [
+                        ...$warehouse->toArray(),
+                        'actual_stock'   => $warehouse->stocks->sum('quantity'),
+                        'reserved_stock' => 0,
+                    ]);
 
                 return $warehouses;
             }),

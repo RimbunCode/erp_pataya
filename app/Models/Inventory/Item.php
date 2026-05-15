@@ -28,7 +28,7 @@ class Item extends Model {
             'defaultUnit',
             // 'uom',
             'uoms',
-            'variants',
+            // 'variants',
             'barcodes',
         ];
     }
@@ -60,7 +60,9 @@ class Item extends Model {
         ],
         'defaultUnit',
         'image',
-
+        'defaultUom'        => [
+            'ignore' => true,
+        ],
     ];
 
     public function attributes() {
@@ -73,6 +75,16 @@ class Item extends Model {
 
     public function defaultUnit() {
         return $this->belongsTo(Unit::class, 'default_unit_id');
+    }
+
+    public function defaultUom() {
+        $itemUnitTable = (new ItemUnit)->getTable();
+        $itemTable     = $this->getTable();
+
+        return $this->hasOne(ItemUnit::class, 'item_id', 'id')
+            ->join("{$itemTable} as default_uom_items", 'default_uom_items.id', '=', "{$itemUnitTable}.item_id")
+            ->whereColumn("{$itemUnitTable}.unit_id", 'default_uom_items.default_unit_id')
+            ->select("{$itemUnitTable}.*");
     }
 
     public function uom() {

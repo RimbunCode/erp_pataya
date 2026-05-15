@@ -157,13 +157,13 @@ function Form() {
                 setData({
                   item: val,
                   unit: defaultUnit,
-                  conversion_factor: defaultUnit.conversion_factor,
+                  conversion_factor: defaultUnit?.conversion_factor,
                   required_date: data.required_date,
                   target_warehouse: data.target_warehouse,
                 });
               }}
               {...attributes}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },

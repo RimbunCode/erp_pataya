@@ -1,9 +1,10 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
+
 import CategoryLinkModel from "../Categories/CategoryLinkModel";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { FormPageContent } from "@/Pages/Core/FormPage";
 import { Input } from "@/Components/ui/input";
-import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Textarea } from "@/Components/ui/textarea";
 import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -17,7 +18,7 @@ export default function FormDetail({
 }) {
   const { t } = useLaravelReactI18n();
   const commitTimersRef = useRef({});
-  const [codeValue, setCodeValue] = useState(isVariant ? data.sku : data.code);
+  const [codeValue, setCodeValue] = useState(data.code);
   const [nameValue, setNameValue] = useState(
     isVariant ? item?.name : data?.name,
   );
@@ -26,8 +27,8 @@ export default function FormDetail({
   );
 
   useEffect(() => {
-    setCodeValue(isVariant ? data.sku : data.code);
-  }, [data.code, data.sku, isVariant]);
+    setCodeValue(data.code);
+  }, [data.code, isVariant]);
   useEffect(() => {
     setNameValue(isVariant ? item?.name : data?.name);
   }, [data?.name, isVariant, item?.name]);

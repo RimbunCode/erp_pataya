@@ -125,7 +125,7 @@ export default function Form() {
                 setData({
                   item: val,
                   unit: defaultUnit,
-                  conversion_factor: defaultUnit.conversion_factor,
+                  conversion_factor: defaultUnit?.conversion_factor,
                   source_warehouse: data.default_source_warehouse ?? undefined,
                   target_warehouse: data.default_target_warehouse ?? undefined,
                 });
