@@ -21,14 +21,14 @@ class WorkOrderService {
         $data['customer_branch_name'] = $data['customer_branch']['name'];
         $data['address']              = [];
         $data['item_service_id']      = $data['item_service']['id'];
-        $data['item_service_name']    = $data['item_service']['sku'];
+        $data['item_service_name']    = $data['item_service']['code'];
 
         return $data;
     }
 
     private function fillItemRelations(array $data) {
         $data['item_variant_id']   = $data['item']['id'];
-        $data['item_name']         = $data['item']['sku'];
+        $data['item_name']         = $data['item']['code'];
         $data['unit_id']           = $data['unit']['unit_id'];
         $data['unit_name']         = $data['unit']['name'];
         $data['conversion_factor'] = $data['unit']['conversion_factor'];

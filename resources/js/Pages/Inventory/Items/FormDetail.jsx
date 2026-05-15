@@ -156,8 +156,11 @@ export default function FormDetail({
             onValueChange={(val) =>
               setData((prev) => {
                 const updated = { ...prev, category: val };
-                if (val && prev.default_unit === prev.category?.default_unit) {
-                  updated.default_unit = val;
+                if (
+                  val?.default_unit &&
+                  prev.default_unit !== val?.default_unit
+                ) {
+                  updated.default_unit = val?.default_unit;
                 }
                 return updated;
               })
