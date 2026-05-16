@@ -17,8 +17,13 @@ class CourseListController extends Controller {
             ->where('is_completed', true)
             ->pluck('content_id');
 
-        $submittedContentIds = $user->submissions()
+        $submissions          = $user->submissions()
+            ->with('files')
+            ->get();
+        $submittedContentIds  = $submissions
+            ->filter(fn ($submission) => $submission->files->isNotEmpty())
             ->pluck('content_id');
+        $submissionsByContent = $submissions->keyBy('content_id');
 
         $courses = $enrollments->map(fn ($enrollment) => [
             'id'             => $enrollment->course->id,
@@ -34,24 +39,43 @@ class CourseListController extends Controller {
                 $completedContentIds,
                 $submittedContentIds,
             ),
-            'sections'       => $enrollment->course->sections->map(fn ($section) => [
-                'id'       => $section->id,
-                'title'    => $section->title,
-                'order'    => $section->order,
-                'contents' => $section->contents->map(fn ($content) => [
-                    'id'           => $content->id,
-                    'title'        => $content->title,
-                    'type'         => $content->type,
-                    'is_optional'  => $content->is_optional,
-                    'deadline'     => $content->deadline?->format('d M Y'),
-                    'is_completed' => match ($content->type) {
-                        'material'   => $completedContentIds->contains($content->id),
-                        'pre_assessment',
-                        'assignment' => $submittedContentIds->contains($content->id),
-                        default      => false,
-                    },
-                ])->values()->toArray(),
-            ])->values()->toArray(),
+            'sections'       => $enrollment->course->sections->map(function ($section) use ($completedContentIds, $submittedContentIds, $submissionsByContent) {
+                return [
+                    'id'       => $section->id,
+                    'title'    => $section->title,
+                    'order'    => $section->order,
+                    'contents' => $section->contents->map(function ($content) use ($completedContentIds, $submittedContentIds, $submissionsByContent) {
+                        $submission = $submissionsByContent->get($content->id);
+
+                        return [
+                            'id'                    => $content->id,
+                            'title'                 => $content->title,
+                            'type'                  => $content->type,
+                            'is_optional'           => $content->is_optional,
+                            'deadline_label'        => $content->deadlineLabel(),
+                            'can_manage_submission' => $content->isSubmissionType() && ! $content->hasDeadlinePassed(),
+                            'is_completed'          => match ($content->type) {
+                                'material'   => $completedContentIds->contains($content->id),
+                                'pre_assessment',
+                                'assignment' => $submittedContentIds->contains($content->id),
+                                default      => false,
+                            },
+                            'submission'            => $submission ? [
+                                'status'       => $submission->status,
+                                'submitted_at' => $submission->submitted_at?->format('d M Y H:i'),
+                                'notes'        => $submission->notes,
+                                'files'        => $submission->files->map(fn ($file) => [
+                                    'id'        => $file->id,
+                                    'name'      => $file->name,
+                                    'extension' => $file->extension,
+                                    'fullname'  => $file->fullname,
+                                    'mime_type' => $file->mime_type,
+                                ])->values()->toArray(),
+                            ] : null,
+                        ];
+                    })->values()->toArray(),
+                ];
+            })->values()->toArray(),
         ]);
 
         // dd($courses->first());

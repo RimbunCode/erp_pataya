@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
@@ -15,7 +16,7 @@ return new class extends Migration
             $table->string('title');
             $table->string('type');
             $table->text('description')->nullable();
-            $table->date('deadline')->nullable();          // untuk assignment
+            $table->dateTime('deadline')->nullable(); // untuk assignment
             $table->boolean('is_optional')->default(false); // untuk pre_assessment
             $table->boolean('is_required')->default(true);
             $table->integer('order')->default(0);

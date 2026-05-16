@@ -37,6 +37,7 @@ return Application::configure(dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             HandleInertiaRequests::class,
         ]);
+        $middleware->redirectGuestsTo('/guest');
         $middleware->alias([
             'app'       => AppMiddleware::class,
             'role'      => RoleMiddleware::class,

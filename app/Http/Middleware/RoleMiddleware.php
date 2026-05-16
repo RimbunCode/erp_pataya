@@ -22,7 +22,7 @@ class RoleMiddleware {
 
         // cek apakah user punya salah satu dari role yang dibutuhkan
         $userRoles = $user->roles->pluck('name')->toArray();
-        $hasRole   = count(array_intersect($roles, $userRoles)) > 0;
+        $hasRole   = \count(array_intersect($roles, $userRoles)) > 0;
 
         if (! $hasRole) {
             abort(403, 'Unauthorized.');

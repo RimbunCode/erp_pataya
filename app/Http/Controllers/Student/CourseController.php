@@ -93,7 +93,7 @@ class CourseController extends Controller {
                         'type'        => $content->type,
                         'description' => $content->description,
                         'is_optional' => $content->is_optional,
-                        'deadline'    => $content->deadline?->format('d M Y'),
+                        'deadline'    => $content->deadlineLabel(),
                         'order'       => $content->order,
                     ]),
                 ]),

@@ -10,6 +10,7 @@ use App\Models\Core\Dashboard;
 use App\Models\Core\File;
 use App\Models\Enrollment;
 use App\Models\InstructorProfile;
+use App\Models\Payment;
 use App\Models\StudentProfile;
 use App\Models\Submission;
 use App\Models\UserProgress;

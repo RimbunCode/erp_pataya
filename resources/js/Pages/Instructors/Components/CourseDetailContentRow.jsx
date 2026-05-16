@@ -14,6 +14,7 @@ import CourseDetailTypeIcon from "./CourseDetailTypeIcon";
 
 export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
   const [editing, setEditing] = useState(false);
+  const [deadline, setDeadline] = useState(content.deadline ?? "");
   const uploadDialogRef = useRef();
   const [title, setTitle] = useState(content.title);
 
@@ -22,6 +23,14 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
       route("instructor.classes.sections.contents.update", content.id),
       { title },
       { onSuccess: () => setEditing(false), preserveScroll: true },
+    );
+  };
+
+  const saveDeadline = () => {
+    router.patch(
+      route("instructor.classes.sections.contents.update", content.id),
+      { deadline: deadline || null },
+      { preserveScroll: true },
     );
   };
 
@@ -76,6 +85,29 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
                   <p className="text-xs text-muted-foreground mt-1 truncate">
                     {content.description}
                   </p>
+                )}
+                {(content.type === "pre_assessment" ||
+                  content.type === "assignment") && (
+                  <div className="mt-1.5 flex items-center gap-2">
+                    <input
+                      type="datetime-local"
+                      value={deadline}
+                      onChange={(event) => setDeadline(event.target.value)}
+                      className="bg-card border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveDeadline}
+                      className="text-[10px] font-black tracking-widest uppercase px-2 py-1 rounded-md border border-primary/30 text-primary hover:bg-primary hover:text-white transition-all"
+                    >
+                      Simpan
+                    </button>
+                    {content.deadline_label && (
+                      <span className="text-[10px] text-muted-foreground">
+                        {content.deadline_label}
+                      </span>
+                    )}
+                  </div>
                 )}
                 {content.url && (
                   <a

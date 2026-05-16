@@ -27,6 +27,7 @@ use App\Http\Controllers\Student\CourseListController;
 use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ProgressController;
+use App\Http\Controllers\Student\SubmissionController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
 use Illuminate\Foundation\Application;
@@ -79,15 +80,17 @@ Route::get('/', function () {
     return redirect('/guest');
 });
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth',])->group(function () {
 
     //     // Files
     Route::resourceDetail('file', FileController::class);
 
-    Route::prefix('/student')->group(function () {
+    Route::middleware(['role:student'])->prefix('/student')->group(function () {
         Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
         Route::get('/my-courses', [CourseListController::class, 'index'])->name('student.courses.index');
-        Route::post('/student/progress/{content}', [ProgressController::class, 'store'])->name('student.progress.store');
+        Route::post('/submissions/{content}', [SubmissionController::class, 'store'])->name('student.submissions.store');
+        Route::delete('/submissions/{content}/files/{file}', [SubmissionController::class, 'destroyFile'])->name('student.submissions.files.destroy');
+        Route::post('/progress/{content}', [ProgressController::class, 'store'])->name('student.progress.store');
         Route::get('/course-catalogue', [StudentCourseController::class, 'index'])->name('student.course-catalogue');
         Route::get('/course-preview/{course}', [StudentCourseController::class, 'show'])->name('student.course.preview');
         Route::post('/enroll', [EnrollmentController::class, 'store'])->name('student.enroll');
@@ -100,7 +103,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
     });
 
-    Route::prefix('/instructor')->name('instructor.')->group(function () {
+    Route::middleware(['role:instructor'])->prefix('/instructor')->name('instructor.')->group(function () {
 
         Route::get('/dashboard', fn () => inertia('Instructors/Dashboard'))->name('dashboard');
         Route::prefix('classes')->name('classes.')->group(function () {
@@ -136,7 +139,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/profile/avatar', [InstructorProfileController::class, 'destroyImage'])->name('image.delete');
     });
 
-    Route::prefix('/organization')->group(function () {
+    Route::middleware(['role:organization'])->prefix('/organization')->group(function () {
         Route::get('/dashboard', fn () => inertia('Organizations/Dashboard'))->name('organization.dashboard');
         Route::get('/partner', fn () => inertia('Organizations/PartnerTrainers'))->name('organization.partner');
         Route::get('/profile', fn () => inertia('Organizations/ProfileSettings'))->name('organization.profile');

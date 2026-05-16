@@ -8,6 +8,7 @@ use App\Models\Core\Fileable;
 use App\Models\CourseContent;
 use App\Models\CourseSection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -38,6 +39,12 @@ class CourseContentController extends Controller {
             'deadline'    => 'sometimes|nullable|date',
             'is_optional' => 'sometimes|boolean',
         ]);
+
+        if (array_key_exists('deadline', $validated)) {
+            $validated['deadline'] = $validated['deadline']
+                ? Carbon::parse($validated['deadline'])->seconds(0)
+                : null;
+        }
 
         $content->update($validated);
 
@@ -70,7 +77,9 @@ class CourseContentController extends Controller {
         Fileable::where('fileable_id', $content)
             ->where('fileable_type', CourseContent::class)
             ->where('file_id', $file->id)
-            ->delete();
+            ->forceDelete();
+
+        return back()->with('success', 'File removed.');
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
