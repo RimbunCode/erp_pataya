@@ -80,7 +80,7 @@ Route::get('/', function () {
     return redirect('/guest');
 });
 
-Route::middleware(['auth',])->group(function () {
+Route::middleware(['auth'])->group(function () {
 
     //     // Files
     Route::resourceDetail('file', FileController::class);

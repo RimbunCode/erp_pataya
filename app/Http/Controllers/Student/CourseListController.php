@@ -17,10 +17,10 @@ class CourseListController extends Controller {
             ->where('is_completed', true)
             ->pluck('content_id');
 
-        $submissions          = $user->submissions()
+        $submissions = $user->submissions()
             ->with('files')
             ->get();
-        $submittedContentIds  = $submissions
+        $submittedContentIds = $submissions
             ->filter(fn ($submission) => $submission->files->isNotEmpty())
             ->pluck('content_id');
         $submissionsByContent = $submissions->keyBy('content_id');
@@ -39,7 +39,7 @@ class CourseListController extends Controller {
                 $completedContentIds,
                 $submittedContentIds,
             ),
-            'sections'       => $enrollment->course->sections->map(function ($section) use ($completedContentIds, $submittedContentIds, $submissionsByContent) {
+            'sections' => $enrollment->course->sections->map(function ($section) use ($completedContentIds, $submittedContentIds, $submissionsByContent) {
                 return [
                     'id'       => $section->id,
                     'title'    => $section->title,
@@ -55,12 +55,12 @@ class CourseListController extends Controller {
                             'deadline_label'        => $content->deadlineLabel(),
                             'can_manage_submission' => $content->isSubmissionType() && ! $content->hasDeadlinePassed(),
                             'is_completed'          => match ($content->type) {
-                                'material'   => $completedContentIds->contains($content->id),
+                                'material' => $completedContentIds->contains($content->id),
                                 'pre_assessment',
                                 'assignment' => $submittedContentIds->contains($content->id),
                                 default      => false,
                             },
-                            'submission'            => $submission ? [
+                            'submission' => $submission ? [
                                 'status'       => $submission->status,
                                 'submitted_at' => $submission->submitted_at?->format('d M Y H:i'),
                                 'notes'        => $submission->notes,
@@ -94,7 +94,7 @@ class CourseListController extends Controller {
         }
 
         $completed = $allContents->filter(fn ($content) => match ($content->type) {
-            'material'   => $completedContentIds->contains($content->id),
+            'material' => $completedContentIds->contains($content->id),
             'pre_assessment',
             'assignment' => $submittedContentIds->contains($content->id),
             default      => false,

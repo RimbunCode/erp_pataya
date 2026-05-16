@@ -53,15 +53,15 @@ class CourseController extends Controller {
                         'contents' => $section->contents
                             ->sortBy('order')
                             ->map(fn ($content) => [
-                                'id'          => $content->id,
-                                'title'       => $content->title,
-                                'type'        => $content->type,
-                                'description' => $content->description,
-                                'deadline'    => $content->deadline?->format('Y-m-d\TH:i'),
+                                'id'             => $content->id,
+                                'title'          => $content->title,
+                                'type'           => $content->type,
+                                'description'    => $content->description,
+                                'deadline'       => $content->deadline?->format('Y-m-d\TH:i'),
                                 'deadline_label' => $content->deadlineLabel(),
-                                'is_optional' => $content->is_optional,
-                                'order'       => $content->order,
-                                'files'       => $content->files,
+                                'is_optional'    => $content->is_optional,
+                                'order'          => $content->order,
+                                'files'          => $content->files,
                             ])
                             ->values(),
                     ])

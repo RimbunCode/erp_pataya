@@ -68,10 +68,10 @@ class StudentSubmissionFlowTest extends TestCase {
         $file    = $this->createFile($student);
 
         $submission = Submission::create([
-            'user_id'    => $student->id,
-            'content_id' => $content->id,
-            'notes'      => 'test',
-            'status'     => 'submitted',
+            'user_id'      => $student->id,
+            'content_id'   => $content->id,
+            'notes'        => 'test',
+            'status'       => 'submitted',
             'submitted_at' => now(),
         ]);
 
@@ -104,9 +104,9 @@ class StudentSubmissionFlowTest extends TestCase {
         $file    = $this->createFile($student);
 
         $submission = Submission::create([
-            'user_id'    => $student->id,
-            'content_id' => $content->id,
-            'status'     => 'submitted',
+            'user_id'      => $student->id,
+            'content_id'   => $content->id,
+            'status'       => 'submitted',
             'submitted_at' => now(),
         ]);
 
@@ -169,13 +169,13 @@ class StudentSubmissionFlowTest extends TestCase {
         ]);
 
         return CourseContent::create([
-            'section_id'   => $section->id,
-            'title'        => 'Content A',
-            'type'         => $type,
-            'deadline'     => $deadline,
-            'is_optional'  => false,
-            'is_required'  => true,
-            'order'        => 1,
+            'section_id'  => $section->id,
+            'title'       => 'Content A',
+            'type'        => $type,
+            'deadline'    => $deadline,
+            'is_optional' => false,
+            'is_required' => true,
+            'order'       => 1,
         ]);
     }
 
