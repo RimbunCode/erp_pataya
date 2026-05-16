@@ -251,8 +251,6 @@ class StockEntryService {
                 ->keyBy(fn ($stock) => $this->getStockKey($stock->item_variant_id, $stock->warehouse_id));
             $errorItems = [];
             foreach ($items as $item) {
-                $item->item->updateHaveTransactions();
-                $item->item->item->updateHaveTransactions();
                 $stockKey = $this->getStockKey($item->item_id, $item->source_warehouse_id);
                 $stock    = $stocks->get($stockKey);
                 if (! $stock) {

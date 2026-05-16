@@ -7,7 +7,6 @@ use App\Http\Requests\Inventory\ItemRequest;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\Unit;
 use App\Services\Inventory\ItemServices;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -57,7 +56,6 @@ class ItemController extends Controller {
         $data['is_stock_item'] = $category->type != 'service';
         $data['type']          = $category->type;
         $item                  = Item::create($data);
-        Unit::find($item->default_unit_id)->updateHaveTransactions();
         $this->service->updateUom($item, $data['uoms']);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
         $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
@@ -134,7 +132,6 @@ class ItemController extends Controller {
         );
 
         DB::beginTransaction();
-        Unit::find($item->default_unit_id)->updateHaveTransactions();
         $category              = Category::find($data['category_id']);
         $data['is_stock_item'] = $category->type != 'service';
         $data['type']          = $category->type;
