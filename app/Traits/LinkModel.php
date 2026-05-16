@@ -8,21 +8,53 @@ use App\Casts\Json;
 use App\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
+use App\Services\Core\HaveTransactionsSyncService;
 use App\Utils;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 trait LinkModel {
     protected $defaultConfigColumns = [];
 
     protected static function bootLinkModel() {
         static::addGlobalScope(new DataTableScope);
+
+        static::saved(function (EloquentModel $model): void {
+            app(HaveTransactionsSyncService::class)->syncFromModel($model);
+        });
+
+        static::deleted(function (EloquentModel $model): void {
+            app(HaveTransactionsSyncService::class)->syncFromModel($model);
+        });
+
+        if (\in_array(SoftDeletes::class, \class_uses_recursive(static::class), true)) {
+            static::restored(function (EloquentModel $model): void {
+                app(HaveTransactionsSyncService::class)->syncFromModel($model);
+            });
+        }
+
+        static::deleting(function (EloquentModel $model): void {
+            if (! config('have_transactions.enforce_delete_guard', true)) {
+                return;
+            }
+
+            if (($model->canDelete ?? true) === true) {
+                return;
+            }
+
+            throw ValidationException::withMessages([
+                'delete' => 'Data tidak dapat dihapus karena sudah memiliki transaksi atau status tidak mengizinkan.',
+            ]);
+        });
     }
 
     public function initializeLinkModel() {
@@ -326,12 +358,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -365,14 +397,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
