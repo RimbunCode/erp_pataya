@@ -30,7 +30,9 @@ use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
+use App\Services\Auth\RoleResolver;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -147,15 +149,24 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
-});
 
-Route::prefix('home')->group(function () {
-    Route::get('/', fn () => inertia('Guest/Index'));
-    Route::get('/training', [TrainingController::class, 'index']);
-    Route::get('/training/{id}', [TrainingController::class, 'show'])->name('home.training.preview');
-    Route::get('/verify', fn () => inertia('Guest/VerifyCTA/VerifyCTA'));
-    Route::get('/about', fn () => inertia('Guest/AboutUs/AboutUs'));
-    Route::get('/contact', fn () => inertia('Guest/Contact/ContactInfo'));
+    Route::get('/{role}/{path?}', function (Request $request, string $role, RoleResolver $roleResolver) {
+        $user = $request->user();
+        if (! $user) {
+            return redirect('/guest');
+        }
+
+        $userRoles = $roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
+        if (! $roleResolver->isRoleOwned($role, $userRoles)) {
+            abort(403, 'Unauthorized.');
+        }
+
+        return redirect($roleResolver->dashboardPath($role))
+            ->withCookie($roleResolver->makeLastActiveRoleCookie($role));
+    })
+        ->where('role', 'student|instructor|organization|admin')
+        ->where('path', '.*')
+        ->name('role.prefix.fallback');
 });
 
 // Languages

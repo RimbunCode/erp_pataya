@@ -12,24 +12,26 @@ export default function MainLayout({
   title = "Dashboard",
   breadcrumb = "Dashboard",
 }) {
-  const { auth } = usePage().props;
+  const page = usePage();
+  const { auth } = page.props;
   const user = auth?.user;
   const userRoles = (user?.roles ?? [])
     .map((roleItem) =>
       typeof roleItem === "string" ? roleItem : roleItem?.name,
     )
     .filter(Boolean);
-  const isMultiRole = userRoles.length > 1;
 
   const initials = user?.nickname
     ? user.nickname.slice(0, 1).toUpperCase()
     : (user?.name?.slice(0, 1).toUpperCase() ?? "?");
 
-  const currentPath = window.location.pathname;
+  const currentPath = (page.url ?? "/").split("?")[0];
   const currentPathSegment = currentPath.split("/").filter(Boolean)[0];
-  const role = userRoles.includes(currentPathSegment)
-    ? currentPathSegment
-    : (userRoles[0] ?? "student");
+  const activeRole = userRoles.includes(auth?.active_role)
+    ? auth.active_role
+    : userRoles.includes(currentPathSegment)
+      ? currentPathSegment
+      : (userRoles[0] ?? "student");
 
   const [collapsed, setCollapsed] = useState(
     () => localStorage.getItem("sidebar_collapsed") === "true",
@@ -50,8 +52,7 @@ export default function MainLayout({
         <Sidebar
           collapsed={collapsed}
           onToggleCollapsed={handleToggleCollapsed}
-          userRoles={userRoles}
-          isMultiRole={isMultiRole}
+          activeRole={activeRole}
           currentPath={currentPath}
           onLogout={handleLogout}
         />
@@ -63,8 +64,10 @@ export default function MainLayout({
             breadcrumb={breadcrumb}
             initials={initials}
             userName={user?.name ?? "User"}
-            role={role}
-            roleLabel={roleLabel[role]}
+            role={activeRole}
+            roleLabel={roleLabel[activeRole]}
+            userRoles={userRoles}
+            currentUrl={page.url ?? "/"}
             profileDropdown={profileDropdown}
             onToggleDropdown={() => setProfileDropdown((prev) => !prev)}
             onLogout={handleLogout}

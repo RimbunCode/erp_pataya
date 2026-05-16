@@ -29,6 +29,7 @@ class LoginRequest extends BaseFormRequest {
         return [
             'usernameOrEmail' => ['required', 'string'],
             'password'        => ['required', 'string'],
+            'preferred_role'  => ['nullable', 'string'],
         ];
     }
 

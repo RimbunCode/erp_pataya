@@ -128,24 +128,25 @@ const MasterLayout = memo(({ children }) => {
           )
           .filter(Boolean)
       : [];
+    const sharedActiveRole =
+      typeof auth?.active_role === "string" ? auth.active_role : null;
 
     const pathRole = currentUrl
       ?.split("?")[0]
       ?.split("/")
       ?.filter(Boolean)?.[0]
       ?.toLowerCase();
-    const validRoles = ["student", "instructor", "organization", "admin"];
+
+    if (sharedActiveRole && normalizedRoles.includes(sharedActiveRole)) {
+      return sharedActiveRole;
+    }
 
     if (pathRole && normalizedRoles.includes(pathRole)) {
       return pathRole;
     }
 
-    if (pathRole && validRoles.includes(pathRole)) {
-      return pathRole;
-    }
-
     return normalizedRoles[0] ?? "student";
-  }, [auth?.user?.roles, currentUrl]);
+  }, [auth?.active_role, auth?.user?.roles, currentUrl]);
 
   useEffect(() => {
     if (isDebug) return;
