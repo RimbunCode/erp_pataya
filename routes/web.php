@@ -13,7 +13,6 @@ use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
-use App\Http\Controllers\Guest\TrainingController;
 use App\Http\Controllers\Instructor\CourseContentController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\CourseSectionController;
