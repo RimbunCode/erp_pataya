@@ -30,6 +30,8 @@ export default forwardRef(function UploadDialog2(
     onClose,
     single = false,
     imageOnly = false,
+    allowNotes = false,
+    notesPlaceholder = "Tambahkan catatan...",
     options: { route: routeProp, ...optionsProp } = {},
   },
   ref,
@@ -41,6 +43,7 @@ export default forwardRef(function UploadDialog2(
   const [hover, setHover] = useState(false);
   const [progress, setProgress] = useState(false);
   const [checklistFile, setChecklistFile] = useState(new Set());
+  const [notes, setNotes] = useState("");
   const libraryRef = useRef();
   const id = useId();
 
@@ -48,9 +51,13 @@ export default forwardRef(function UploadDialog2(
     ref,
     () => ({
       open: () => setOpen(true),
-      close: () => setOpen(false),
+      close: () => {
+        setOpen(false);
+        setNotes("");
+        onClose?.();
+      },
     }),
-    [],
+    [onClose],
   );
 
   const addFile = useCallback(
@@ -85,57 +92,67 @@ export default forwardRef(function UploadDialog2(
     setFiles((prev) => prev.filter((file) => file.id !== id));
   }, []);
 
-  const onDrop = useCallback((e) => {
-    e.preventDefault();
-    setHover(false);
-    if (e.dataTransfer.items) {
-      [...e.dataTransfer.items].forEach((item) => {
-        if (item.kind != "file") return;
-        const file = item.getAsFile();
-        // if (!typeValidation(file.type)) return;
-        addFile(file);
-      });
-    } else {
-      [...e.dataTransfer.files].forEach((file) => {
-        // if (!typeValidation(file.type)) return;
-        addFile(file);
-      });
-    }
-  }, []);
+  const onDrop = useCallback(
+    (e) => {
+      e.preventDefault();
+      setHover(false);
+      if (e.dataTransfer.items) {
+        [...e.dataTransfer.items].forEach((item) => {
+          if (item.kind != "file") return;
+          const file = item.getAsFile();
+          // if (!typeValidation(file.type)) return;
+          addFile(file);
+        });
+      } else {
+        [...e.dataTransfer.files].forEach((file) => {
+          // if (!typeValidation(file.type)) return;
+          addFile(file);
+        });
+      }
+    },
+    [addFile],
+  );
 
-  const onAttach = useCallback((menu, files) => {
-    const formData = new FormData();
-    if (menu == "library") {
-      files.forEach((id) => {
-        formData.append(`filesId[]`, id);
+  const onAttach = useCallback(
+    (menu, files) => {
+      const formData = new FormData();
+      if (menu == "library") {
+        files.forEach((id) => {
+          formData.append(`filesId[]`, id);
+        });
+      } else {
+        files.forEach((file, index) => {
+          formData.append(`files[${index}]`, file.file);
+          formData.append(`isPublic[${index}]`, file.isPublic ?? false);
+          formData.append(`name[${index}]`, file.name || file.file.name);
+        });
+      }
+      if (allowNotes && notes.trim()) {
+        formData.append("notes", notes.trim());
+      }
+      const currentPath = window.location.pathname.replace(/\/$/, "");
+      const currentQueryString = window.location.search;
+      const basePath = `${currentPath}/file`;
+      router.post(routeProp ?? `${basePath}${currentQueryString}`, formData, {
+        forceFormData: true,
+        replace: true,
+        preserveScroll: true,
+        showProgress: true,
+        ...optionsProp,
+        onProgress: (e) => {
+          setProgress(e);
+        },
+        onSuccess: () => {
+          setFiles([]);
+          setNotes("");
+          onClose?.();
+          setProgress(false);
+          setOpen(false);
+        },
       });
-    } else {
-      files.forEach((file, index) => {
-        formData.append(`files[${index}]`, file.file);
-        formData.append(`isPublic[${index}]`, file.isPublic ?? false);
-        formData.append(`name[${index}]`, file.name || file.file.name);
-      });
-    }
-    const currentPath = window.location.pathname.replace(/\/$/, "");
-    const currentQueryString = window.location.search;
-    const basePath = `${currentPath}/file`;
-    router.post(routeProp ?? `${basePath}${currentQueryString}`, formData, {
-      forceFormData: true,
-      replace: true,
-      preserveScroll: true,
-      showProgress: true,
-      ...optionsProp,
-      onProgress: (e) => {
-        setProgress(e);
-      },
-      onSuccess: () => {
-        setFiles([]);
-        onClose?.();
-        setProgress(false);
-        setOpen(false);
-      },
-    });
-  }, []);
+    },
+    [onClose, optionsProp, routeProp],
+  );
 
   const getMenu = () => {
     switch (menu) {
@@ -294,13 +311,33 @@ export default forwardRef(function UploadDialog2(
     }
   };
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        onClose?.();
+      }}
+    >
       <DialogContent className="max-w-xl overflow-hidden!">
         <DialogHeader className="pb-2 border-b">
           <DialogTitle>Upload</DialogTitle>
           <DialogDescription className="sr-only"></DialogDescription>
         </DialogHeader>
         {getMenu()}
+        {allowNotes && (
+          <div className="space-y-1">
+            <label className="text-sm font-semibold text-foreground">
+              Catatan
+            </label>
+            <textarea
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              rows={3}
+              placeholder={notesPlaceholder}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+        )}
         {progress && (
           <div className="flex items-center w-full text-xs text-muted-foreground">
             <Progress value={progress.progress * 100} className="h-2!" />

@@ -13,7 +13,6 @@ use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
-use App\Http\Controllers\Guest\TrainingController;
 use App\Http\Controllers\Instructor\CourseContentController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\CourseSectionController;
@@ -27,9 +26,12 @@ use App\Http\Controllers\Student\CourseListController;
 use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ProgressController;
+use App\Http\Controllers\Student\SubmissionController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
+use App\Services\Auth\RoleResolver;
 use Illuminate\Foundation\Application;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -84,10 +86,12 @@ Route::middleware(['auth'])->group(function () {
     //     // Files
     Route::resourceDetail('file', FileController::class);
 
-    Route::prefix('/student')->group(function () {
+    Route::middleware(['role:student'])->prefix('/student')->group(function () {
         Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
         Route::get('/my-courses', [CourseListController::class, 'index'])->name('student.courses.index');
-        Route::post('/student/progress/{content}', [ProgressController::class, 'store'])->name('student.progress.store');
+        Route::post('/submissions/{content}', [SubmissionController::class, 'store'])->name('student.submissions.store');
+        Route::delete('/submissions/{content}/files/{file}', [SubmissionController::class, 'destroyFile'])->name('student.submissions.files.destroy');
+        Route::post('/progress/{content}', [ProgressController::class, 'store'])->name('student.progress.store');
         Route::get('/course-catalogue', [StudentCourseController::class, 'index'])->name('student.course-catalogue');
         Route::get('/course-preview/{course}', [StudentCourseController::class, 'show'])->name('student.course.preview');
         Route::post('/enroll', [EnrollmentController::class, 'store'])->name('student.enroll');
@@ -100,7 +104,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
     });
 
-    Route::prefix('/instructor')->name('instructor.')->group(function () {
+    Route::middleware(['role:instructor'])->prefix('/instructor')->name('instructor.')->group(function () {
 
         Route::get('/dashboard', fn () => inertia('Instructors/Dashboard'))->name('dashboard');
         Route::prefix('classes')->name('classes.')->group(function () {
@@ -136,7 +140,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/profile/avatar', [InstructorProfileController::class, 'destroyImage'])->name('image.delete');
     });
 
-    Route::prefix('/organization')->group(function () {
+    Route::middleware(['role:organization'])->prefix('/organization')->group(function () {
         Route::get('/dashboard', fn () => inertia('Organizations/Dashboard'))->name('organization.dashboard');
         Route::get('/partner', fn () => inertia('Organizations/PartnerTrainers'))->name('organization.partner');
         Route::get('/profile', fn () => inertia('Organizations/ProfileSettings'))->name('organization.profile');
@@ -144,15 +148,24 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
-});
 
-Route::prefix('home')->group(function () {
-    Route::get('/', fn () => inertia('Guest/Index'));
-    Route::get('/training', [TrainingController::class, 'index']);
-    Route::get('/training/{id}', [TrainingController::class, 'show'])->name('home.training.preview');
-    Route::get('/verify', fn () => inertia('Guest/VerifyCTA/VerifyCTA'));
-    Route::get('/about', fn () => inertia('Guest/AboutUs/AboutUs'));
-    Route::get('/contact', fn () => inertia('Guest/Contact/ContactInfo'));
+    Route::get('/{role}/{path?}', function (Request $request, string $role, RoleResolver $roleResolver) {
+        $user = $request->user();
+        if (! $user) {
+            return redirect('/guest');
+        }
+
+        $userRoles = $roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
+        if (! $roleResolver->isRoleOwned($role, $userRoles)) {
+            abort(403, 'Unauthorized.');
+        }
+
+        return redirect($roleResolver->dashboardPath($role))
+            ->withCookie($roleResolver->makeLastActiveRoleCookie($role));
+    })
+        ->where('role', 'student|instructor|organization|admin')
+        ->where('path', '.*')
+        ->name('role.prefix.fallback');
 });
 
 // Languages

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Core\File;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,7 +17,7 @@ class CourseContent extends Model {
     protected $casts   = [
         'is_optional' => 'boolean',
         'is_required' => 'boolean',
-        'deadline'    => 'date',
+        'deadline'    => 'datetime',
     ];
 
     public function section(): BelongsTo {
@@ -34,5 +35,21 @@ class CourseContent extends Model {
 
     public function progress(): HasMany {
         return $this->hasMany(UserProgress::class, 'content_id');
+    }
+
+    public function isSubmissionType(): bool {
+        return in_array($this->type, ['pre_assessment', 'assignment'], true);
+    }
+
+    public function deadlineLabel(): ?string {
+        return $this->deadline?->format('d M Y, H:i T');
+    }
+
+    public function hasDeadlinePassed(?CarbonInterface $at = null): bool {
+        if (! $this->deadline) {
+            return false;
+        }
+
+        return $this->deadline->lte($at ?? now());
     }
 }

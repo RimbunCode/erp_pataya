@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Core\File;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -26,7 +27,7 @@ class Submission extends Model {
 
     public function files(): MorphToMany {
         return $this->morphToMany(File::class, 'fileable', 'fileables', 'fileable_id', 'file_id')
-            ->using(Fileable::class)
+            ->wherePivotNull('deleted_at')
             ->withTimestamps();
     }
 }

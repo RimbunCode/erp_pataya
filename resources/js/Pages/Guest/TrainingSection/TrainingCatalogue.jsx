@@ -697,8 +697,8 @@ export default function TrainingCatalogue({
               {/* Results bar */}
               <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-3.5 flex items-center justify-between mb-5">
                 <p className="text-xs font-extrabold tracking-[2px] text-muted-foreground uppercase">
-                  <span className="text-primary">{courses.length}</span>{" "}
-                  Results Found
+                  <span className="text-primary">{courses.length}</span> Results
+                  Found
                 </p>
                 <div className="flex items-center gap-2">
                   <button

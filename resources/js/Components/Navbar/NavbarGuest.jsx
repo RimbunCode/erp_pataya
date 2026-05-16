@@ -5,7 +5,7 @@ import {
   useRegisterModal,
 } from "@/Layouts/GuestLayout";
 import ToggleTheme from "../ToggleTheme";
-import { router, usePage } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export default memo(function NavbarGuest({ onLogout }) {
@@ -21,7 +21,8 @@ export default memo(function NavbarGuest({ onLogout }) {
     ? user.nickname.slice(0, 1).toUpperCase()
     : (user?.name?.slice(0, 1).toUpperCase() ?? "?");
 
-  const primaryRole = user?.roles?.[0] ?? user?.role ?? "student";
+  const primaryRole =
+    auth?.active_role ?? user?.roles?.[0] ?? user?.role ?? "student";
 
   const dashboardRoute =
     {
@@ -30,11 +31,6 @@ export default memo(function NavbarGuest({ onLogout }) {
       organization: "/organization/dashboard",
       admin: "/admin/dashboard",
     }[primaryRole] ?? "/student/dashboard";
-
-  const handleLogout = () => {
-    setDropdownOpen(false);
-    router.post("/logout");
-  };
 
   const avatarSrc = useMemo(() => {
     if (!user?.image) return null;
@@ -49,7 +45,10 @@ export default memo(function NavbarGuest({ onLogout }) {
     <header className="print:hidden sticky top-0 z-50 w-full bg-background border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
-        <Link href="/guest" className="flex items-center gap-2 shrink-0">
+        <Link
+          href={route("guest.home")}
+          className="flex items-center gap-2 shrink-0"
+        >
           <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -73,11 +72,11 @@ export default memo(function NavbarGuest({ onLogout }) {
         {/* Nav Links */}
         <nav className="hidden md:flex items-center gap-6">
           {[
-            { label: "HOME", href: `${baseUrl}` },
-            { label: "TRAINING CATALOGUE", href: `${baseUrl}/training` },
-            { label: "CERTIFICATE VERIFICATION", href: `${baseUrl}/verify` },
-            { label: "ABOUT US", href: `${baseUrl}/about` },
-            { label: "CONTACT US", href: `${baseUrl}/contact` },
+            { label: "HOME", href: route("guest.home") },
+            { label: "TRAINING CATALOGUE", href: route("guest.training") },
+            { label: "CERTIFICATE VERIFICATION", href: route("guest.verify") },
+            { label: "ABOUT US", href: route("guest.about") },
+            { label: "CONTACT US", href: route("guest.contact") },
           ].map((item) => (
             <Link
               key={item.href}

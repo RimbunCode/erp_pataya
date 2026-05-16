@@ -13,6 +13,8 @@ export default function MainNavbar({
   userName,
   role,
   roleLabel,
+  userRoles = [],
+  currentUrl = "/",
   profileDropdown,
   onToggleDropdown,
   onLogout,
@@ -21,6 +23,10 @@ export default function MainNavbar({
   const user = auth.user;
 
   const normalizedRoles = useMemo(() => {
+    if (Array.isArray(userRoles) && userRoles.length > 0) {
+      return userRoles.filter(Boolean);
+    }
+
     if (!Array.isArray(user?.roles)) {
       return [];
     }
@@ -30,10 +36,34 @@ export default function MainNavbar({
         typeof roleItem === "string" ? roleItem : roleItem?.name,
       )
       .filter(Boolean);
-  }, [user?.roles]);
+  }, [user?.roles, userRoles]);
 
   const activeRole = role ?? normalizedRoles[0] ?? "student";
   const displayRole = roleLabel ?? normalizedRoles.join(", ");
+  const switchableRoles = normalizedRoles.filter(
+    (roleKey) => roleKey !== activeRole,
+  );
+  const validRoles = ["student", "instructor", "organization", "admin"];
+
+  const getRoleLabel = (roleKey) =>
+    roleKey.charAt(0).toUpperCase() + roleKey.slice(1);
+
+  const buildRoleSwitchUrl = (targetRole) => {
+    const [pathWithoutQuery, queryString = ""] = String(currentUrl).split("?");
+    const segments = pathWithoutQuery.split("/").filter(Boolean);
+
+    if (segments.length === 0) {
+      return `/${targetRole}/dashboard${queryString ? `?${queryString}` : ""}`;
+    }
+
+    if (validRoles.includes(segments[0])) {
+      segments[0] = targetRole;
+    } else {
+      segments.unshift(targetRole);
+    }
+
+    return `/${segments.join("/")}${queryString ? `?${queryString}` : ""}`;
+  };
 
   const avatarSrc = useMemo(() => {
     if (!user.image) {
@@ -89,9 +119,9 @@ export default function MainNavbar({
 
           {/* Dropdown */}
           {profileDropdown && (
-            <div className="absolute top-full right-0 mt-2 w-44 bg-card rounded-2xl border border-border shadow-xl overflow-hidden z-50">
+            <div className="absolute top-full right-0 mt-2 w-56 bg-card rounded-2xl border border-border shadow-xl overflow-hidden z-50">
               <Link
-                href="/home"
+                href={route("guest.home")}
                 className="flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
               >
                 <svg
@@ -129,6 +159,36 @@ export default function MainNavbar({
                 </svg>
                 Edit Profile
               </Link>
+
+              {switchableRoles.length > 0 && (
+                <div className="border-t border-border px-2 py-2">
+                  <p className="px-2 pb-1 text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+                    Switch Role
+                  </p>
+                  {switchableRoles.map((roleKey) => (
+                    <Link
+                      key={roleKey}
+                      href={buildRoleSwitchUrl(roleKey)}
+                      className="flex items-center justify-between rounded-xl px-2 py-2 text-xs font-bold tracking-widest uppercase text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                    >
+                      <span>{getRoleLabel(roleKey)}</span>
+                      <svg
+                        className="w-3.5 h-3.5 flex-shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </Link>
+                  ))}
+                </div>
+              )}
 
               <button
                 onClick={onLogout}

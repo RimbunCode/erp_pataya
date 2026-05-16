@@ -7,18 +7,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\User\User;
 use App\Models\User\UserProvider;
+use App\Services\Auth\RoleResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthenticatedSessionController extends Controller {
+    public function __construct(private RoleResolver $roleResolver) {}
+
     /**
      * Display the login view.
      */
@@ -38,26 +39,15 @@ class AuthenticatedSessionController extends Controller {
         $request->session()->regenerate();
 
         $user = Auth::user();
+        if (! $user) {
+            return redirect('/guest');
+        }
 
-        // Load roles
-        $roles = $user->roles->pluck('name')->toArray();
-
-        // Simpan roles ke session supaya bisa diakses di frontend
-        $request->session()->put('user_roles', $roles);
-
-        $primaryRole = $roles[0] ?? null;
-
-        return redirect()->intended($this->redirectByRole($primaryRole));
-    }
-
-    private function redirectByRole(?string $role): string {
-        return match ($role) {
-            'student'      => route('student.dashboard', absolute: false),
-            'instructor'   => route('instructor.dashboard', absolute: false),
-            'organization' => route('organization.dashboard', absolute: false),
-            'admin'        => route('admin.dashboard', absolute: false),
-            default        => '/guest',
-        };
+        return $this->redirectAfterAuthentication(
+            $request,
+            $user,
+            $request->string('preferred_role')->toString(),
+        );
     }
 
     public function redirectToProvider(string $driver) {
@@ -167,9 +157,41 @@ class AuthenticatedSessionController extends Controller {
                 return redirect()->route('setup.show');
             }
 
-            return redirect()->intended(route('dashboard', absolute: false));
+            return $this->redirectAfterAuthentication($request, $authUser);
         }
         // return $this->storeProviderUser($user, $driver);
+    }
+
+    private function redirectAfterAuthentication(Request $request, User $user, ?string $preferredRole = null): RedirectResponse {
+        $roles = $this->roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
+        $request->session()->put('user_roles', $roles);
+
+        $resolvedRole = $this->roleResolver->resolvePreferredOwnedRole(
+            $roles,
+            $preferredRole,
+            $request->cookie(RoleResolver::LAST_ACTIVE_ROLE_COOKIE),
+        );
+
+        if ($resolvedRole === null) {
+            return redirect('/guest');
+        }
+
+        $cookieRole  = $resolvedRole;
+        $intendedUrl = redirect()->getIntendedUrl();
+        if (\is_string($intendedUrl)) {
+            $intendedRole = $this->roleResolver->roleFromPath($intendedUrl);
+            if ($intendedRole !== null) {
+                if (! $this->roleResolver->isRoleOwned($intendedRole, $roles)) {
+                    redirect()->setIntendedUrl($this->roleResolver->dashboardPath($resolvedRole));
+                } else {
+                    $cookieRole = $intendedRole;
+                }
+            }
+        }
+
+        return redirect()
+            ->intended($this->roleResolver->dashboardPath($resolvedRole))
+            ->withCookie($this->roleResolver->makeLastActiveRoleCookie($cookieRole));
     }
 
     /**

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "@/Components/Link";
 import { useForm } from "@inertiajs/react";
 
@@ -193,7 +193,12 @@ function StepLogin({ role, onSwitchToRegister }) {
     usernameOrEmail: "", // ← sesuai LoginRequest
     password: "",
     remember: false,
+    preferred_role: role?.key ?? null,
   });
+
+  useEffect(() => {
+    setData("preferred_role", role?.key ?? null);
+  }, [role?.key, setData]);
 
   const handleLogin = () => {
     post(route("login"));
