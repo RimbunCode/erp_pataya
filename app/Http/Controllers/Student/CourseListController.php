@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
+use App\Services\CourseProgressService;
 use Inertia\Inertia;
 
 class CourseListController extends Controller {
+    public function __construct(private CourseProgressService $courseProgressService) {}
+
     public function index() {
         $user = auth()->user();
 
@@ -23,7 +26,9 @@ class CourseListController extends Controller {
         $submittedContentIds = $submissions
             ->filter(fn ($submission) => $submission->files->isNotEmpty())
             ->pluck('content_id');
-        $submissionsByContent = $submissions->keyBy('content_id');
+        $submissionsByContent   = $submissions->keyBy('content_id');
+        $completedContentLookup = $this->courseProgressService->toLookup($completedContentIds);
+        $submittedContentLookup = $this->courseProgressService->toLookup($submittedContentIds);
 
         $courses = $enrollments->map(fn ($enrollment) => [
             'id'             => $enrollment->course->id,
@@ -34,17 +39,17 @@ class CourseListController extends Controller {
             'total_hours'    => $enrollment->course->total_hours,
             'total_sessions' => $enrollment->course->total_sessions,
             'enrolled_at'    => $enrollment->enrolled_at->format('d M Y'),
-            'progress'       => $this->calculateProgress(
-                $enrollment->course->sections,
-                $completedContentIds,
-                $submittedContentIds,
+            'progress'       => $this->courseProgressService->calculateProgress(
+                $enrollment->course->sections->flatMap->contents,
+                $completedContentLookup,
+                $submittedContentLookup,
             ),
-            'sections' => $enrollment->course->sections->map(function ($section) use ($completedContentIds, $submittedContentIds, $submissionsByContent) {
+            'sections' => $enrollment->course->sections->map(function ($section) use ($completedContentLookup, $submittedContentLookup, $submissionsByContent) {
                 return [
                     'id'       => $section->id,
                     'title'    => $section->title,
                     'order'    => $section->order,
-                    'contents' => $section->contents->map(function ($content) use ($completedContentIds, $submittedContentIds, $submissionsByContent) {
+                    'contents' => $section->contents->map(function ($content) use ($completedContentLookup, $submittedContentLookup, $submissionsByContent) {
                         $submission = $submissionsByContent->get($content->id);
 
                         return [
@@ -54,12 +59,12 @@ class CourseListController extends Controller {
                             'is_optional'           => $content->is_optional,
                             'deadline_label'        => $content->deadlineLabel(),
                             'can_manage_submission' => $content->isSubmissionType() && ! $content->hasDeadlinePassed(),
-                            'is_completed'          => match ($content->type) {
-                                'material' => $completedContentIds->contains($content->id),
-                                'pre_assessment',
-                                'assignment' => $submittedContentIds->contains($content->id),
-                                default      => false,
-                            },
+                            'is_completed'          => $this->courseProgressService->isContentCompleted(
+                                (string) $content->type,
+                                (string) $content->id,
+                                $completedContentLookup,
+                                $submittedContentLookup,
+                            ),
                             'submission' => $submission ? [
                                 'status'       => $submission->status,
                                 'submitted_at' => $submission->submitted_at?->format('d M Y H:i'),
@@ -83,23 +88,5 @@ class CourseListController extends Controller {
         return Inertia::render('Students/MyCourses', [
             'courses' => $courses,
         ]);
-    }
-
-    private function calculateProgress($sections, $completedContentIds, $submittedContentIds): int {
-        $allContents = $sections->flatMap->contents;
-        $total       = $allContents->count();
-
-        if ($total === 0) {
-            return 0;
-        }
-
-        $completed = $allContents->filter(fn ($content) => match ($content->type) {
-            'material' => $completedContentIds->contains($content->id),
-            'pre_assessment',
-            'assignment' => $submittedContentIds->contains($content->id),
-            default      => false,
-        })->count();
-
-        return (int) round(($completed / $total) * 100);
     }
 }

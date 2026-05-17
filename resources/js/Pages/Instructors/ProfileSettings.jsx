@@ -148,14 +148,6 @@ export default function ProfileSettings({ user, profile }) {
             <p className="text-sm pl-4 font-extrabold tracking-widest text-primary uppercase mt-1">
               {accountRoleLabel} Account
             </p>
-            <div className="flex items-center gap-4 mt-3">
-              <button
-                onClick={() => uploadDialogRef.current?.open()}
-                className="text-sm font-extrabold tracking-widest text-primary uppercase hover:text-primary-hover transition-colors"
-              >
-                Update Photo
-              </button>
-            </div>
           </div>
         </div>
 

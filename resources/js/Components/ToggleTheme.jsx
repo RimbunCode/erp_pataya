@@ -8,11 +8,9 @@ import {
 } from "./ui/dropdown-menu";
 
 import { memo } from "react";
-import { useLaravelReactI18n } from "laravel-react-i18n";
 import useTheme from "@/Hooks/useTheme";
 
 const ToggleTheme = memo(({ className = "size-5" }) => {
-  const { t } = useLaravelReactI18n();
   const { currentTheme, theme, setTheme } = useTheme();
 
   return (
@@ -67,7 +65,7 @@ const ToggleTheme = memo(({ className = "size-5" }) => {
                 clipRule="evenodd"
               />
             </svg>
-            {t("theme.light")}
+            Light
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             value="dark"
@@ -86,7 +84,7 @@ const ToggleTheme = memo(({ className = "size-5" }) => {
                 clipRule="evenodd"
               />
             </svg>
-            {t("theme.dark")}
+            Dark
           </DropdownMenuRadioItem>
           <DropdownMenuSeparator />
           <DropdownMenuRadioItem
@@ -104,7 +102,7 @@ const ToggleTheme = memo(({ className = "size-5" }) => {
                 d="M10.85 12.65h2.3L12 9zM20 8.69V4h-4.69L12 .69L8.69 4H4v4.69L.69 12L4 15.31V20h4.69L12 23.31L15.31 20H20v-4.69L23.31 12zM14.3 16l-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9z"
               />
             </svg>
-            {t("theme.system")}
+            System
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>

@@ -1,24 +1,13 @@
 <?php
-use App\FormStatus;
-use App\Http\Controllers\Core\ApprovalInstanceController;
-use App\Http\Controllers\Core\ApprovalSchemeController;
-use App\Http\Controllers\Core\BranchController;
-use App\Http\Controllers\Core\CompanyController;
 use App\Http\Controllers\Core\CompanyLogoController;
-use App\Http\Controllers\Core\DashboardController;
 use App\Http\Controllers\Core\FileController;
-use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\LanguageController;
-use App\Http\Controllers\Core\LogController;
-use App\Http\Controllers\Core\PrintTemplateController;
-use App\Http\Controllers\Core\TagController;
-use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\Instructor\CourseContentController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\CourseSectionController;
 use App\Http\Controllers\Instructor\CourseSectionNoteController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
-use App\Http\Controllers\MockAuthController;
+use App\Http\Controllers\Instructor\StudentManagementController;
 use App\Http\Controllers\ModelController;
 use App\Http\Controllers\Student\CartController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
@@ -27,14 +16,10 @@ use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\SubmissionController;
-use App\Http\Controllers\User\RoleController;
-use App\Http\Controllers\User\UserController;
 use App\Services\Auth\RoleResolver;
-use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
-use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -78,7 +63,7 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
 });
 
 Route::get('/', function () {
-    return redirect('/guest');
+    return redirect('/');
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -130,7 +115,7 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/contents/{content}/upload', [CourseContentController::class, 'upload'])->name('sections.contents.upload');
             Route::delete('/contents/{content}/files/{file}', [CourseContentController::class, 'destroyFile'])->name('sections.contents.files.destroy');
         });
-        Route::get('/students', fn () => inertia('Instructors/StudentManagement'))->name('students');
+        Route::get('/students', [StudentManagementController::class, 'index'])->name('students');
         Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('growth');
         Route::get('/financial', fn () => inertia('Instructors/Financials'))->name('financial');
 
@@ -253,7 +238,6 @@ Route::get('/model/{model}', [ModelController::class, 'columns'])
 //     Route::post('approvals/{approvalInstanceStep}/decision', [ApprovalInstanceController::class, 'decision'])->name('approvalInstances.decision');
 
 // });
-Route::post('/mock-login', [MockAuthController::class, 'login'])->name('mock.login');
 
 Route::get('/health', fn () => response()->json(['status' => 'ok']));
 require __DIR__ . '/auth.php';

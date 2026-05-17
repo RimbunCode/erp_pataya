@@ -136,27 +136,6 @@ export default function InstructorDashboard() {
               Empower the next generation of engineers.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button className="px-5 py-2.5 text-xs font-black tracking-widest uppercase border-2 border-border rounded-xl text-foreground hover:border-border hover:text-foreground transition-all">
-              View Public Profile
-            </button>
-            <button className="px-5 py-2.5 text-xs font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all flex items-center gap-2 shadow-md shadow-primary/20">
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Create New Course
-            </button>
-          </div>
         </div>
 
         {/* Stat Cards */}

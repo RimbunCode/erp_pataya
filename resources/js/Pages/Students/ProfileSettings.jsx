@@ -74,11 +74,13 @@ export default function ProfileSettings({ user, profile }) {
   const handleSubmit = () => {
     router.put(route("student.profile.update"), form);
   };
+
   const alias = user.name
     .split(" ")
     .slice(0, 2)
     .map((n) => n.charAt(0))
     .join("");
+
   const avatar = useMemo(() => {
     if (!user.image) return null;
     return (
@@ -92,6 +94,7 @@ export default function ProfileSettings({ user, profile }) {
       />
     );
   }, [user.image]);
+
   return (
     <MainLayout title="Profile Settings" breadcrumb="Profile">
       <div className="p-8 flex flex-col gap-8">
@@ -141,14 +144,6 @@ export default function ProfileSettings({ user, profile }) {
             <p className="text-sm pl-4 font-extrabold tracking-widest text-primary uppercase mt-1">
               Student Account
             </p>
-            <div className="flex items-center gap-4 mt-3">
-              <button
-                onClick={() => uploadDialogRef.current?.open()}
-                className="text-sm font-extrabold tracking-widest text-primary uppercase hover:text-primary-hover transition-colors"
-              >
-                Update Photo
-              </button>
-            </div>
           </div>
         </div>
 
