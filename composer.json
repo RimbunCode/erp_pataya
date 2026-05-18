@@ -69,7 +69,7 @@
       "npx concurrently -c \"#93c5fd,#fdba74\" \"npx cross-env XDEBUG_MODE=debug XDEBUG_TRIGGER=1 php artisan serve --no-reload\"  \"npm run dev\" --names=server,vite"
     ],
     "pint": [
-      "./vendor/bin/pint -p"
+      "./vendor/bin/pint -p --dirty"
     ],
     "test": [
       "@php artisan config:clear --ansi",
