@@ -381,6 +381,11 @@ trait DataTable {
                     $table->json('additional_data')->nullable();
                 });
             }
+            if (! Schema::hasColumn($tableName, 'submitted_format')) {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->string('submitted_format')->nullable();
+                });
+            }
 
             if (Schema::hasColumn($tableName, 'have_transactions')) {
                 Schema::table($tableName, function (Blueprint $table) {
@@ -417,6 +422,11 @@ trait DataTable {
             if (Schema::hasColumn($tableName, 'additional_data')) {
                 Schema::table($tableName, function (Blueprint $table) {
                     $table->dropColumn('additional_data');
+                });
+            }
+            if (Schema::hasColumn($tableName, 'submitted_format')) {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->dropColumn('submitted_format');
                 });
             }
 

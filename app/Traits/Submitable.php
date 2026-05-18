@@ -8,6 +8,7 @@ use App\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\StockLedgerEntry;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 trait Submitable {
     use DataTable;
@@ -57,6 +59,16 @@ trait Submitable {
 
             if ($model->status == null) {
                 $model->status = FormStatus::DRAFT;
+            }
+
+            static $submittedFormatColumnCache = [];
+            $tableName                         = $model->getTable();
+            $hasSubmittedFormatColumn          = $submittedFormatColumnCache[$tableName] ??= Schema::hasColumn($tableName, 'submitted_format');
+            if ($hasSubmittedFormatColumn && $model->isDirty('code')) {
+                $latestFormat = FormatingSeries::where('model', $model::class)->value('format');
+                if (is_string($latestFormat) && trim($latestFormat) !== '') {
+                    $model->submitted_format = $latestFormat;
+                }
             }
 
             if (! \in_array(FormStatus::DRAFT, $model->status)) {
@@ -121,6 +133,7 @@ trait Submitable {
             'revision_number',
             'created_by_id',
             'code',
+            'submitted_format',
         ]);
         $newData->code            = $newCode;
         $newData->amended_from_id = $amendedFromId;

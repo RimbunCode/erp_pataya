@@ -235,11 +235,12 @@ class StockEntryService {
     }
 
     public function submit(StockEntry $stockEntry) {
+        DB::beginTransaction();
+
+        $stockEntry->update([
+            'code' => FormatingSeries::generate(StockEntry::class, $stockEntry),
+        ]);
         if (\in_array($stockEntry->type, ['item_issue', 'item_transfer', 'item_consumption'])) {
-            DB::beginTransaction();
-            $stockEntry->update([
-                'code' => FormatingSeries::generate(StockEntry::class, $stockEntry),
-            ]);
 
             $items = $stockEntry->items()
                 ->with(['item', 'item.item', 'item.sourceWarehouse'])
@@ -274,8 +275,8 @@ class StockEntryService {
                     'items' => $errorItems,
                 ]);
             }
-            DB::commit();
         }
+        DB::commit();
 
         $stockEntry->checkApproval();
 
