@@ -35,7 +35,7 @@ class PaymentEntry extends Model {
         ];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'code' => [
             'order'  => 0,
             'show'   => true,

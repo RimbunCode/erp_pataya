@@ -20,7 +20,7 @@ class File extends Model {
     protected $appends                = ['fullname'];
     public $translateKey              = 'core.file';
     public static $allow_only_creator = true;
-    protected $configColumns          = [
+    protected array $configColumns    = [
         'name' => [
             'show'  => true,
             'order' => 0,

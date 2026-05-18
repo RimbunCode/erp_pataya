@@ -19,7 +19,7 @@ class PurchaseInvoiceItem extends Model {
         'required_date' => 'datetime',
     ];
 
-    // protected $configColumns =[
+    // protected array $configColumns =[
 
     // ]
 

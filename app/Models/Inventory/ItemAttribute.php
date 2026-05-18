@@ -15,8 +15,8 @@ class ItemAttribute extends Model {
     protected $casts   = [
         'values' => Json::class,
     ];
-    public string $translateKey = 'inventories.itemAttributes';
-    protected $configColumns    = [
+    public string $translateKey    = 'inventories.itemAttributes';
+    protected array $configColumns = [
         'item',
         'attribute',
         'barcodes',

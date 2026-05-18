@@ -34,9 +34,9 @@ class Item extends Model {
         ];
     }
 
-    public string $formComponent = 'Inventory/Items/Form';
-    public string $translateKey  = 'inventory.item';
-    protected $configColumns     = [
+    public string $formComponent   = 'Inventory/Items/Form';
+    public string $translateKey    = 'inventory.item';
+    protected array $configColumns = [
         'image_id' => [
             'show'  => true,
             'order' => 0,

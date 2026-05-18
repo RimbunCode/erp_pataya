@@ -6,6 +6,7 @@ use App\Models\Core\Command;
 use App\Models\Core\FormatingSeries;
 use App\Models\User\Permission;
 use App\Utils;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
@@ -33,6 +34,9 @@ class CommandSearchIndexService {
             ->orderBy('name')
             ->get();
 
+        /**
+         * @var Permission $permission
+         */
         foreach ($permissions as $permission) {
             $navigationPayload = $this->makeNavigationPayload($permission);
             if ($navigationPayload !== null) {
@@ -389,7 +393,7 @@ class CommandSearchIndexService {
             $title = $targetId;
         }
 
-        $subtitle = trim((string) $permission->name);
+        $subtitle = Str::singular(trim((string) $permission->name));
         $sourceId = (string) $source->getKey();
 
         $searchText = $this->buildSearchText(
@@ -659,7 +663,7 @@ class CommandSearchIndexService {
     /**
      * @param  string[]  $searchTokens
      */
-    private function applySearchConstraint($builder, string $query, array $searchTokens = []): void {
+    private function applySearchConstraint(Builder $builder, string $query, array $searchTokens = []): void {
         $driver    = DB::getDriverName();
         $queryLike = '%' . $query . '%';
         $terms     = collect([$query, ...$searchTokens])
@@ -740,7 +744,7 @@ class CommandSearchIndexService {
             }
         }
 
-        $hasDoctype = is_string($doctypeModel) && $doctypeModel !== '';
+        $hasDoctype = \is_string($doctypeModel) && $doctypeModel !== '';
         $isScoped   = $hasDoctype && $codeTokens !== [];
 
         $intent['is_scoped']            = $isScoped;

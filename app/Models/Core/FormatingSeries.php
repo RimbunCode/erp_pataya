@@ -66,7 +66,7 @@ class FormatingSeries extends Model {
         return $codeFormats;
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'name' => [
             'isLink' => true,
             'show'   => true,
@@ -87,7 +87,7 @@ class FormatingSeries extends Model {
         $objectModel   = new $model;
         $codeRelations = collect(
             \method_exists($objectModel, 'codeRelations') ?
-            $objectModel->codeRelations() : [],
+      $objectModel->codeRelations() : [],
         )->mapWithKeys(function ($value) {
             preg_replace_callback('/^([^:]+):([^\.]+)\.([^\.]+)$/', function ($matches) use (&$code, &$relation, &$key) {
                 $code     = $matches[1];

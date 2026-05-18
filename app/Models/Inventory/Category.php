@@ -16,9 +16,9 @@ class Category extends Model {
         return ':name';
     }
 
-    public string $formComponent = 'Inventory/Categories/Form';
-    public string $translateKey  = 'inventory.category';
-    protected $configColumns     = [
+    public string $formComponent   = 'Inventory/Categories/Form';
+    public string $translateKey    = 'inventory.category';
+    protected array $configColumns = [
         'name' => [
             'isLink' => true,
             'show'   => true,

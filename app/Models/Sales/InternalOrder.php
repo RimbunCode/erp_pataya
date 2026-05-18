@@ -48,8 +48,8 @@ class InternalOrder extends Model {
         return $this->hasMany(InternalOrderItem::class);
     }
 
-    public string $translateKey = 'sales.internalOrder';
-    protected $configColumns    = [
+    public string $translateKey    = 'sales.internalOrder';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

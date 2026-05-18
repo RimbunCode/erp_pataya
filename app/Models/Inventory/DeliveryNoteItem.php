@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class DeliveryNoteItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation = 'deliveryNote';
-    protected $guarded            = ['id'];
-    public string $translateKey   = 'finances.deliveryNoteItem';
-    protected $configColumns      = [
+    public static $parentRelation  = 'deliveryNote';
+    protected $guarded             = ['id'];
+    public string $translateKey    = 'finances.deliveryNoteItem';
+    protected array $configColumns = [
         'quantity' => [
             'type'  => 'numeric',
             'show'  => true,

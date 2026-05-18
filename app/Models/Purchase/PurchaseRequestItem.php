@@ -11,9 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseRequestItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation = 'purchaseRequest';
-    protected $guarded            = ['id'];
-    protected $configColumns      = [
+    public static $parentRelation  = 'purchaseRequest';
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
         'purchaseRequest',
     ];
     protected $casts = [

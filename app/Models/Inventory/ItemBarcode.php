@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ItemBarcode extends Model {
     use HasUlids, SoftDeletes;
 
-    public string $translateKey = 'inventories.itemBarcode';
-    protected $guarded          = ['id'];
-    protected $with             = ['basicUnit', 'unit'];
-    protected $configColumns    = [
+    public string $translateKey    = 'inventories.itemBarcode';
+    protected $guarded             = ['id'];
+    protected $with                = ['basicUnit', 'unit'];
+    protected array $configColumns = [
         'barcode',
         'item',
         'unit',

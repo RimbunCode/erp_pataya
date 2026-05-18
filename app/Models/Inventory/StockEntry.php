@@ -21,7 +21,7 @@ class StockEntry extends Model {
         'using_transit' => 'boolean',
     ];
     public string $keyBreadcrumb               = 'code';
-    protected static string $defaultFormatCode = 'StockEntry-@[iiii]/@[yy]';
+    protected static string $defaultFormatCode = '@[branch_code]/StockEntry-@[iiii]/@[yy]';
 
     public function codeRelations() {
         return [
@@ -41,8 +41,8 @@ class StockEntry extends Model {
     // protected function appendStatus(): array {
     //   return [FormStatus::OVERDUE];
     // }
-    public string $translateKey = 'inventory.stockEntry';
-    protected $configColumns    = [
+    public string $translateKey    = 'inventory.stockEntry';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

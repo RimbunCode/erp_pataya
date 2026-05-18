@@ -29,7 +29,7 @@ class PaymentSchedule extends Model {
         return ':referenceTo';
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'referenceTo' => [
             'type'               => 'relation',
             'order'              => 0,

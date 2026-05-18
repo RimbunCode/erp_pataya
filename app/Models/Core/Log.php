@@ -33,8 +33,8 @@ class Log extends Model {
         );
     }
 
-    public $translateKey     = 'core.log';
-    protected $configColumns = [
+    public $translateKey           = 'core.log';
+    protected array $configColumns = [
         'activity' => [
             'show'  => true,
             'order' => 1,

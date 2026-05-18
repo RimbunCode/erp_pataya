@@ -30,10 +30,10 @@ class PurchaseRequest extends Model {
         return ':code';
     }
 
-    public $keyBreadcrumb        = 'code';
-    public string $formComponent = 'Purchase/PurchaseRequests/Form';
-    public string $translateKey  = 'purchase.purchaseRequest';
-    protected $configColumns     = [
+    public $keyBreadcrumb          = 'code';
+    public string $formComponent   = 'Purchase/PurchaseRequests/Form';
+    public string $translateKey    = 'purchase.purchaseRequest';
+    protected array $configColumns = [
         'code' => [
             'show'   => true,
             'isLink' => true,

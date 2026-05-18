@@ -19,9 +19,9 @@ class ApprovalInstanceStep extends Model {
         'acted_at' => 'datetime',
         'config'   => Json::class,
     ];
-    protected $with             = ['approver', 'actedBy'];
-    public string $translateKey = 'core.approvalInstance.steps';
-    public $configColumns       = [
+    protected $with                = ['approver', 'actedBy'];
+    public string $translateKey    = 'core.approvalInstance.steps';
+    protected array $configColumns = [
         'approvalInstance' => [
             'show'            => true,
             'order'           => 0,

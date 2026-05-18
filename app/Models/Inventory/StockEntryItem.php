@@ -10,10 +10,10 @@ class StockEntryItem extends Model {
     use HasUlids;
     use SoftDeletes;
 
-    public static $parentRelation = 'stockEntry';
-    protected $guarded            = ['id'];
-    public $translateKey          = 'inventory.stockEntry.item_columns';
-    protected $configColumns      = [
+    public static $parentRelation  = 'stockEntry';
+    protected $guarded             = ['id'];
+    public $translateKey           = 'inventory.stockEntry.item_columns';
+    protected array $configColumns = [
         'sourceWarehouse' => [
             'type'  => 'relation',
             'show'  => true,

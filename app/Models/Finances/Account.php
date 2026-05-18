@@ -41,8 +41,8 @@ class Account extends Model {
         return ':account_number - :account_name';
     }
 
-    public $translateKey     = 'finances.account';
-    protected $configColumns = [
+    public $translateKey           = 'finances.account';
+    protected array $configColumns = [
         'code' => [
             'show'   => true,
             'order'  => 0,

@@ -21,7 +21,7 @@ class ItemAlternative extends Model {
         return ':item.code';
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'item' => [
             'show'   => true,
             'order'  => 0,

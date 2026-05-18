@@ -16,8 +16,8 @@ class ItemUnit extends Model {
         'is_manual'                 => 'boolean',
         'generated_by_default_unit' => 'boolean',
     ];
-    public string $translateKey = 'inventories.itemUnit';
-    protected $configColumns    = [
+    public string $translateKey    = 'inventories.itemUnit';
+    protected array $configColumns = [
         'item',
         'unit',
         'is_default' => [

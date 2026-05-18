@@ -33,8 +33,8 @@ class DeliveryNote extends Model {
         return ':code';
     }
 
-    public $translateKey     = 'inventory.deliveryNote';
-    protected $configColumns = [
+    public $translateKey           = 'inventory.deliveryNote';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

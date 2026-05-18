@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PaymentTermTemplateItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation = 'paymentTermTemplate';
-    protected $guarded            = ['id'];
-    public string $translateKey   = 'finances.paymentTerm';
-    protected $configColumns      = [
+    public static $parentRelation  = 'paymentTermTemplate';
+    protected $guarded             = ['id'];
+    public string $translateKey    = 'finances.paymentTerm';
+    protected array $configColumns = [
         'due_date_based_on' => [
             'order'      => 1,
             'show'       => true,

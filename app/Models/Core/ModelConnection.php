@@ -18,8 +18,8 @@ class ModelConnection extends Model {
     protected $guarded = [
         'id',
     ];
-    public $translateKey     = 'core.modelConnection';
-    protected $configColumns = [
+    public $translateKey           = 'core.modelConnection';
+    protected array $configColumns = [
         'model',
         'reference',
     ];

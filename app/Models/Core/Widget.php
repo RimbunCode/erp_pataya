@@ -37,7 +37,7 @@ class Widget extends Model {
         return ['dashboards', 'createdBy', 'model'];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'title' => [
             'show'   => true,
             'order'  => 0,

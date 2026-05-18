@@ -14,7 +14,7 @@ class Role extends Model {
     protected $casts   = [
         'is_disabled' => 'boolean',
     ];
-    public $configColumns = [
+    protected array $configColumns = [
         'name' => [
             'show'   => true,
             'order'  => 0,

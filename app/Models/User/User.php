@@ -50,7 +50,7 @@ class User extends Authenticatable {
         return ':name';
     }
 
-    public $configColumns = [
+    protected array $configColumns = [
         'image' => [
             'show'  => true,
             'order' => 0,

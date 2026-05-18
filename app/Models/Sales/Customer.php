@@ -21,8 +21,8 @@ class Customer extends Model {
         return ':name';
     }
 
-    public $translateKey     = 'sales.customer';
-    protected $configColumns = [
+    public $translateKey           = 'sales.customer';
+    protected array $configColumns = [
         'name' => [
             'isLink' => true,
             'show'   => true,

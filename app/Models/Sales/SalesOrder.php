@@ -55,7 +55,7 @@ class SalesOrder extends Model {
         ];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

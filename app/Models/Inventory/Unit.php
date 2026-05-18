@@ -27,9 +27,9 @@ class Unit extends Model {
         $this->attributes['group'] = $value === 'Others' ? null : $value;
     }
 
-    public string $formComponent = 'Inventory/Units/Form';
-    public string $translateKey  = 'inventory.unit';
-    protected $configColumns     = [
+    public string $formComponent   = 'Inventory/Units/Form';
+    public string $translateKey    = 'inventory.unit';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

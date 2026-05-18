@@ -42,8 +42,8 @@ class Preference extends Model {
     protected $casts      = [
         'value' => Json::class,
     ];
-    public $translateKey     = 'core.preference';
-    protected $configColumns = [
+    public $translateKey           = 'core.preference';
+    protected array $configColumns = [
         'value' => [
             'show' => true,
         ],

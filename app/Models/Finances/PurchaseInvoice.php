@@ -34,8 +34,8 @@ class PurchaseInvoice extends Model {
         return ':code';
     }
 
-    public $translateKey     = 'finances.purchaseInvoice';
-    protected $configColumns = [
+    public $translateKey           = 'finances.purchaseInvoice';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

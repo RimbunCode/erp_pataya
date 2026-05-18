@@ -48,7 +48,7 @@ class ItemVariant extends Model {
         return $this->image_id ?? null;
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'image' => [
             'show'  => true,
             'order' => 0,

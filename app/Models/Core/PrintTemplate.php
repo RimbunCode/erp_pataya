@@ -69,7 +69,7 @@ class PrintTemplate extends Model {
         );
     }
 
-    public $configColumns = [
+    protected array $configColumns = [
         'name' => [
             'show'   => true,
             'order'  => 0,

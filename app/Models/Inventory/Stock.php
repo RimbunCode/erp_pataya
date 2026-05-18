@@ -46,8 +46,8 @@ class Stock extends Model {
         });
     }
 
-    public string $translateKey = 'inventories.stock';
-    protected $configColumns    = [
+    public string $translateKey    = 'inventories.stock';
+    protected array $configColumns = [
         'actual_quantity' => [
             'type'  => 'numeric',
             'show'  => true,
