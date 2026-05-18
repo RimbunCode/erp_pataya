@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('have-transactions:sync')
     ->dailyAt('01:00')
     ->withoutOverlapping();
+
+Schedule::command('commands:index --rebuild')
+    ->dailyAt('01:20')
+    ->withoutOverlapping();

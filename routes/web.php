@@ -3,6 +3,7 @@ use App\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;
+use App\Http\Controllers\Core\CommandSearchController;
 use App\Http\Controllers\Core\CompanyController;
 use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\DashboardController;
@@ -42,6 +43,7 @@ use App\Http\Controllers\Sales\SalesOrderController;
 use App\Http\Controllers\Service\WorkOrderController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -113,6 +115,18 @@ Route::get('/model/{model}', [ModelController::class, 'columns'])
     ->where('model', '.*')
     ->middleware(middleware: ['auth'])
     ->name('model.columns');
+Route::get('/commands/search', [CommandSearchController::class, 'index'])
+    ->middleware(middleware: ['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->name('commands.search');
+Route::post('/commands/recent', [CommandSearchController::class, 'track'])
+    ->middleware(middleware: ['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->name('commands.recent.track');
+Route::delete('/commands/recent', [CommandSearchController::class, 'remove'])
+    ->middleware(middleware: ['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->name('commands.recent.remove');
 
 Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     if (config('app.debug')) {
@@ -233,8 +247,6 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('generalLedger', GeneralLedgerController::class);
     // Payment Methods
     Route::resourceDetail('paymentMethod', PaymentMethodController::class);
-    // Payment Terms
-    // Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
     // Payment Term Template
     Route::resourceDetail('paymentTermTemplate', PaymentTermTemplateController::class);
     // Payment Entries

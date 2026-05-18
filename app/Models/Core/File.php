@@ -40,6 +40,17 @@ class File extends Model {
         return "{$this->name}.{$this->extension}";
     }
 
+    public static function templateLink() {
+        return ':fullname';
+    }
+
+    protected static function loadRelationsOnShow() {
+        return [
+            'user',
+            'folder',
+        ];
+    }
+
     public function user() {
         return $this->belongsTo(User::class);
     }

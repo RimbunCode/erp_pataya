@@ -8,6 +8,7 @@ use App\Casts\Json;
 use App\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
+use App\Services\Core\CommandSearchIndexService;
 use App\Services\Core\HaveTransactionsSyncService;
 use App\Utils;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
@@ -30,15 +31,18 @@ trait LinkModel {
 
         static::saved(function (EloquentModel $model): void {
             app(HaveTransactionsSyncService::class)->syncFromModel($model);
+            app(CommandSearchIndexService::class)->syncFromModel($model);
         });
 
         static::deleted(function (EloquentModel $model): void {
             app(HaveTransactionsSyncService::class)->syncFromModel($model);
+            app(CommandSearchIndexService::class)->syncFromModel($model);
         });
 
         if (\in_array(SoftDeletes::class, \class_uses_recursive(static::class), true)) {
             static::restored(function (EloquentModel $model): void {
                 app(HaveTransactionsSyncService::class)->syncFromModel($model);
+                app(CommandSearchIndexService::class)->syncFromModel($model);
             });
         }
 
@@ -87,6 +91,9 @@ trait LinkModel {
                 'titleTrans' => 'core.form.files',
             ],
             'have_transactions' => [
+                'ignore' => true,
+            ],
+            'submitted_format' => [
                 'ignore' => true,
             ],
             'createdBy' => [

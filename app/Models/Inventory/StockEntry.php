@@ -30,6 +30,10 @@ class StockEntry extends Model {
         ];
     }
 
+    public static function templateLink() {
+        return ':code';
+    }
+
     // EXAMPLE appendStatus
     /**
      * @return FormStatus[]

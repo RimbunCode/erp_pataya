@@ -79,6 +79,10 @@ class FormatingSeries extends Model {
     ];
     public string $translateKey = 'core.formatingSeries';
 
+    public static function templateLink() {
+        return 'Formating: :name';
+    }
+
     private static function getCodeRelations(string $model) {
         $objectModel   = new $model;
         $codeRelations = collect(

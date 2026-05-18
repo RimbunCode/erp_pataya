@@ -71,6 +71,10 @@ class GeneralLedger extends Model {
         return false;
     }
 
+    public static function templateLink() {
+        return ':code';
+    }
+
     public static function loadRelationsOnShow() {
         return ['account', 'againstAccount', 'branch'];
     }

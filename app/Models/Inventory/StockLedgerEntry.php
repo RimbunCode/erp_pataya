@@ -58,6 +58,19 @@ class StockLedgerEntry extends Model {
         'stock_queue' => 'array',
     ];
 
+    public static function templateLink() {
+        return ':referenceable';
+    }
+
+    protected static function loadRelationsOnShow() {
+        return [
+            'item',
+            'unit',
+            'warehouse',
+            'referenceable',
+        ];
+    }
+
     public function canDelete() {
         return false;
     }

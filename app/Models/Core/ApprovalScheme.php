@@ -77,6 +77,10 @@ class ApprovalScheme extends Model {
         return ['permission', 'steps', 'steps.approver'];
     }
 
+    public static function templateLink() {
+        return ':name';
+    }
+
     public function permission() {
         return $this->belongsTo(Permission::class);
     }
