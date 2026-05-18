@@ -28,7 +28,7 @@ return [
         'currency_code'              => 'Mata Uang',
         'exchange_rate'              => 'Nilai Tukar',
         'for_internal'               => 'Untuk Internal',
-        'is_submitted'               => 'Terkirim',
+        'is_submitted'               => 'Diajukan',
         'description'                => 'Deskripsi',
         'discount_type'              => 'Tipe Diskon',
         'discount_type.placeholder'  => 'Pilih tipe diskon',

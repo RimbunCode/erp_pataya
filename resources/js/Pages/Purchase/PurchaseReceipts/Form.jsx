@@ -6,6 +6,7 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
+import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import LinkModel from "@/Components/LinkModel";
 import PurchaseOrderLinkModel from "../PurchaseOrders/PurchaseOrderLinkModel";
@@ -13,7 +14,6 @@ import PurchaseReceiptLinkModel from "./PurchaseReceiptLinkModel";
 import React from "react";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
-import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -41,13 +41,15 @@ function Form() {
               )}
               value={dataRow?.item}
               onValueChange={(val) => {
+                const defaultUnit = val?.default_uom;
                 setData({
                   item: val,
-                  unit: val?.default_unit,
+                  unit: defaultUnit,
+                  conversion_factor: defaultUnit?.conversion_factor,
                 });
               }}
               {...attributes}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },
@@ -98,16 +100,21 @@ function Form() {
         required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
-            <UnitLinkModel
+            <ItemUnitLinkModel
               disabled={!dataRow?.item}
               placeholder={t(
                 "purchase.purchaseReceipt.columns.unit.placeholder",
               )}
               value={data}
-              onValueChange={(val) => setData("unit", val)}
+              onValueChange={(val) =>
+                setData({
+                  unit: val,
+                  conversion_factor: val?.conversion_factor,
+                })
+              }
               {...attributes}
               filters={{
-                group: dataRow?.item?.default_unit?.group,
+                item_id: dataRow?.item?.item_id,
               }}
             />
           );

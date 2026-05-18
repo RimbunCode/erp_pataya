@@ -3,6 +3,7 @@ use App\Console\Commands\Feature;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\HandleTheme;
 use App\Http\Middleware\LanguageMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -32,7 +33,10 @@ return Application::configure(dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->encryptCookies(except: ['theme']);
+
         $middleware->web(append: [
+            HandleTheme::class,
             AddLinkHeadersForPreloadedAssets::class,
             HandleInertiaRequests::class,
         ]);

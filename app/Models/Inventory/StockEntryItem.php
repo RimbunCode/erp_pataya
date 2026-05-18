@@ -10,9 +10,10 @@ class StockEntryItem extends Model {
     use HasUlids;
     use SoftDeletes;
 
-    protected $guarded       = ['id'];
-    public $translateKey     = 'inventory.stockEntry.item_columns';
-    protected $configColumns = [
+    public static $parentRelation  = 'stockEntry';
+    protected $guarded             = ['id'];
+    public $translateKey           = 'inventory.stockEntry.item_columns';
+    protected array $configColumns = [
         'sourceWarehouse' => [
             'type'  => 'relation',
             'show'  => true,
@@ -49,7 +50,7 @@ class StockEntryItem extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class, 'unit_id', 'id');
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 
     public function stockEntry() {

@@ -6,7 +6,6 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseOrder;
@@ -26,8 +25,8 @@ class PurchaseReceiptService {
 
     private function fillItemRelations(array $data) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['id'] ?? '';
-        $data['conversion_factor']   = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['item_unit_id']        = $data['unit']['id'];
+        $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? '';
 
         return $data;
@@ -51,13 +50,20 @@ class PurchaseReceiptService {
         $purchaseReceipt->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $purchaseReceipt->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item);
 
             if (Ulid::isValid($item['id'])) {
-                $purchaseReceipt->items()
-                    ->find($item['id'])
-                    ->update($item);
+                $existingItems->get($item['id'])?->update($item);
 
                 continue;
             }
@@ -101,23 +107,55 @@ class PurchaseReceiptService {
             ->with([
                 'item',
                 'item.item',
+                'item.defaultUom',
                 'purchaseOrderItem',
                 'targetWarehouse',
                 'returnAgainstItem',
             ])->get();
+        $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+            ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
+            ->lockForUpdate()
+            ->get()
+            ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
+        $missingStocks = [];
+        foreach ($items as $item) {
+            $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
+            if ($stocks->has($stockKey) || isset($missingStocks[$stockKey])) {
+                continue;
+            }
+
+            $defaultUom               = $item->item->defaultUom;
+            $missingStocks[$stockKey] = [
+                'item_variant_id'   => $item->item_id,
+                'warehouse_id'      => $item->target_warehouse_id,
+                'conversion_factor' => $defaultUom->conversion_factor,
+                'item_unit_id'      => $defaultUom->id,
+                'stock_queue'       => [],
+            ];
+        }
+
+        foreach ($missingStocks as $stockKey => $missingStock) {
+            $stock = Stock::lockForUpdate()->firstOrCreate([
+                'item_variant_id' => $missingStock['item_variant_id'],
+                'warehouse_id'    => $missingStock['warehouse_id'],
+            ], [
+                'conversion_factor' => $missingStock['conversion_factor'],
+                'item_unit_id'      => $missingStock['item_unit_id'],
+                'stock_queue'       => $missingStock['stock_queue'],
+            ]);
+
+            $stocks->put($stockKey, $stock);
+        }
 
         $totalRates = 0;
         foreach ($items as $item) {
-            $defaultUnit             = $item->item->defaultUnit;
-            $defaultConvertionFactor = $item->item->conversion_factor;
-            $stock                   = Stock::lockForUpdate()->firstOrCreate([
-                'item_variant_id' => $item->item_id,
-                'warehouse_id'    => $item->target_warehouse_id,
-            ], [
-                'conversion_factor' => $defaultConvertionFactor,
-                'unit_id'           => $defaultUnit->id,
-                'stock_queue'       => [],
-            ]);
+            $defaultUom              = $item->item->defaultUom;
+            $defaultConvertionFactor = $defaultUom->conversion_factor;
+            $stockKey                = "{$item->item_id}-{$item->target_warehouse_id}";
+            $stock                   = $stocks->get($stockKey);
+            if (! $stock) {
+                continue;
+            }
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             $queue    = $stock->stock_queue;
 
@@ -145,7 +183,7 @@ class PurchaseReceiptService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->target_warehouse_id,
-                    'unit_id'                    => $defaultUnit->id,
+                    'item_unit_id'               => $defaultUom->id,
                     'conversion_factor'          => $defaultConvertionFactor,
                     'quantity_change'            => -$quantity,
                     'quantity_after_transaction' => $stock->actual_quantity,
@@ -175,7 +213,7 @@ class PurchaseReceiptService {
             StockLedgerEntry::create([
                 'item_id'                    => $item->item_id,
                 'warehouse_id'               => $item->target_warehouse_id,
-                'unit_id'                    => $defaultUnit->id,
+                'item_unit_id'               => $defaultUom->id,
                 'conversion_factor'          => $defaultConvertionFactor,
                 'quantity_change'            => $quantity,
                 'quantity_after_transaction' => $stock->actual_quantity,

@@ -6,7 +6,6 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Sales\SalesOrder;
 use App\Utils;
@@ -32,16 +31,15 @@ class SalesOrderService {
     }
 
     private function fillItemRelations(array $data, SalesOrder $salesOrder) {
-        // dd($data);
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['id'];
-        $data['conversion_factor']   = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['item_unit_id']        = $data['unit']['id'];
+        $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['tax_id']              = $data['tax']['id'];
         $data['tax_rate']            = $data['tax']['rate'];
         $data['currency_code']       = $salesOrder->currency_code;
         $data['base_currency_code']  = $salesOrder->base_currency_code;
         $data['exchange_rate']       = $salesOrder->exchange_rate;
-        $data['source_warehouse_id'] = $data['source_warehouse']['id'];
+        $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
 
         return $data;
     }
@@ -53,7 +51,6 @@ class SalesOrderService {
         $data['exchange_rate']      = $salesOrder->exchange_rate;
         $data['for_internal']       = false;
 
-        $data['payment_term_id']   = $data['payment_term']['id'] ?? null;
         $data['payment_method_id'] = $data['payment_method']['id'] ?? null;
 
         return $data;
@@ -93,22 +90,35 @@ class SalesOrderService {
         $salesOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $salesOrder->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
         $basicAmount = 0;
         $taxAmount   = 0;
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $salesOrder);
 
             if (Ulid::isValid($item['id'])) {
-                $item = $salesOrder->items()
-                    ->find($item['id'])->fill($item);
-                $item->save();
+                $itemModel = $existingItems->get($item['id']);
+                if ($itemModel) {
+                    $itemModel->fill($item);
+                    $itemModel->save();
+                } else {
+                    $itemModel = $salesOrder->items()->create($item);
+                }
             } else {
-                $item = $salesOrder->items()->create($item);
+                $itemModel = $salesOrder->items()->create($item);
             }
 
-            $item->refresh();
-            $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $itemModel->refresh();
+            $basicAmount += $itemModel->basic_amount;
+            $taxAmount += $itemModel->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
         $salesOrder->fill([
@@ -119,10 +129,19 @@ class SalesOrderService {
         $salesOrder->paymentSchedules()
             ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
             ->delete();
+        $paymentScheduleIds = collect($data['payment_schedules'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingPaymentSchedules = $salesOrder->paymentSchedules()
+            ->whereIn('id', $paymentScheduleIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['payment_schedules'] as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesOrder);
             if (Ulid::isValid($payment_schedule['id'])) {
-                $salesOrder->paymentSchedules()->find($payment_schedule['id'])->update($payment_schedule);
+                $existingPaymentSchedules->get($payment_schedule['id'])?->update($payment_schedule);
 
                 continue;
             }
@@ -195,7 +214,7 @@ class SalesOrderService {
             }
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             if ($stock->ready_quantity < $quantity) {
-                $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
+                $errorItems[] = "Item {$item->item->name} in {$item->sourceWarehouse->name} stock is {$stock->ready_quantity} but you need {$quantity}";
 
                 continue;
             }
@@ -236,12 +255,17 @@ class SalesOrderService {
         }
         $items = $salesOrder->items()
             ->get();
+        $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+            ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
+            ->lockForUpdate()
+            ->get()
+            ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
         foreach ($items as $item) {
-            $stock = Stock::lockForUpdate()
-                ->where('item_variant_id', $item->item_id)
-                ->where('warehouse_id', $item->source_warehouse_id)
-                ->lockForUpdate()
-                ->first();
+            $stockKey = "{$item->item_id}-{$item->source_warehouse_id}";
+            $stock    = $stocks->get($stockKey);
+            if (! $stock) {
+                continue;
+            }
 
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
 

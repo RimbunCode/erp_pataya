@@ -3,8 +3,8 @@
 namespace App\Models\Sales;
 
 use App\Models\Finances\Tax;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -13,7 +13,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class SalesOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
-    protected $guarded = [
+    public static $parentRelation = 'salesOrder';
+    protected $guarded            = [
         'id',
         'remaining_quantity',
         'basic_amount',
@@ -29,7 +30,7 @@ class SalesOrderItem extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 
     public function tax() {

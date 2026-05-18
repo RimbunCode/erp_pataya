@@ -37,9 +37,9 @@ class Attribute extends Model {
         return ':name';
     }
 
-    public string $formComponent = 'Inventory/Attributes/Form';
-    public string $translateKey  = 'inventory.attribute';
-    protected $configColumns     = [
+    public string $formComponent   = 'Inventory/Attributes/Form';
+    public string $translateKey    = 'inventory.attribute';
+    protected array $configColumns = [
         'name' => [
             'isLink' => true,
             'show'   => true,

@@ -2,8 +2,8 @@
 
 namespace App\Models\Finances;
 
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\Unit;
 use App\Models\Model;
 use App\Models\Sales\SalesOrderItem;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -12,7 +12,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class SalesInvoiceItem extends Model {
     use HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
+    public static $parentRelation = 'salesInvoice';
+    protected $guarded            = ['id'];
 
     public static function templateLink() {
         return ':item';
@@ -31,7 +32,7 @@ class SalesInvoiceItem extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 
     public function tax() {

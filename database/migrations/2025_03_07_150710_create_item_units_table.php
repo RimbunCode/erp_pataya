@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -15,6 +14,10 @@ return new class extends Migration
             $table->foreignUlid('item_id')->references('id')->on('items')->cascadeOnDelete();
             $table->foreignUlid('unit_id')->references('id')->on('units')->cascadeOnDelete();
             $table->double('conversion_factor')->nullable()->default(1);
+            $table->boolean('is_manual')->nullable();
+            $table->boolean('is_default')->default(false);
+            $table->boolean('generated_by_default_unit')->nullable();
+            $table->unsignedTinyInteger('order')->default(0);
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['item_id', 'unit_id', 'deleted_at'], 'item_unit_unique');

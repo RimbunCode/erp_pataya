@@ -33,7 +33,7 @@ class StockEntryRequest extends BaseFormRequest {
             'items.*.item.id'                       => ['required', 'exists:item_variants,id'],
             'items.*.item.*'                        => ['nullable'],
             'items.*.quantity'                      => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'                       => ['required', 'exists:units,id'],
+            'items.*.unit.id'                       => ['required', 'exists:item_units,id'],
             'items.*.unit.*'                        => ['nullable'],
             'items.*.source_warehouse.id'           => ['nullable', 'exists:warehouses,id'],
             'items.*.source_warehouse.*'            => ['nullable'],

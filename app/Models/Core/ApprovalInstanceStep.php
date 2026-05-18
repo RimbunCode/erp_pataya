@@ -19,9 +19,9 @@ class ApprovalInstanceStep extends Model {
         'acted_at' => 'datetime',
         'config'   => Json::class,
     ];
-    protected $with             = ['approver', 'actedBy'];
-    public string $translateKey = 'core.approvalInstance.steps';
-    public $configColumns       = [
+    protected $with                = ['approver', 'actedBy'];
+    public string $translateKey    = 'core.approvalInstance.steps';
+    protected array $configColumns = [
         'approvalInstance' => [
             'show'            => true,
             'order'           => 0,
@@ -55,6 +55,19 @@ class ApprovalInstanceStep extends Model {
 
     public function approvalInstance() {
         return $this->belongsTo(ApprovalInstance::class);
+    }
+
+    public static function templateLink() {
+        return ':approvalInstance.document';
+    }
+
+    protected static function loadRelationsOnShow() {
+        return [
+            'approvalInstance',
+            'approvalInstance.document',
+            'approver',
+            'actedBy',
+        ];
     }
 
     public function approver() {

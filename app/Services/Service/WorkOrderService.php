@@ -4,7 +4,6 @@ namespace App\Services\Service;
 
 use App\FormStatus;
 use App\Models\Core\FormatingSeries;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Service\WorkOrder;
 use App\Utils;
 use Symfony\Component\Uid\Ulid;
@@ -22,17 +21,17 @@ class WorkOrderService {
         $data['customer_branch_name'] = $data['customer_branch']['name'];
         $data['address']              = [];
         $data['item_service_id']      = $data['item_service']['id'];
-        $data['item_service_name']    = $data['item_service']['sku'];
+        $data['item_service_name']    = $data['item_service']['code'];
 
         return $data;
     }
 
     private function fillItemRelations(array $data) {
         $data['item_variant_id']   = $data['item']['id'];
-        $data['item_name']         = $data['item']['sku'];
-        $data['unit_id']           = $data['unit']['id'];
+        $data['item_name']         = $data['item']['code'];
+        $data['item_unit_id']      = $data['unit']['id'];
         $data['unit_name']         = $data['unit']['name'];
-        $data['conversion_factor'] = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['conversion_factor'] = $data['unit']['conversion_factor'];
 
         return $data;
     }
@@ -56,6 +55,15 @@ class WorkOrderService {
         $workOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->update(['deleted_at' => now()]);
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $workOrder->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
 
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item);
@@ -63,9 +71,7 @@ class WorkOrderService {
             if (Ulid::isValid($item['id'])) {
                 unset($item['item']);
                 unset($item['unit']);
-                $workOrder->items()
-                    ->where('id', $item['id'])
-                    ->update(values: $item);
+                $existingItems->get($item['id'])?->update($item);
 
                 continue;
             }

@@ -27,10 +27,10 @@ class PurchaseOrder extends Model {
         ];
     }
 
-    public $keyBreadcrumb        = 'code';
-    public string $formComponent = 'Purchase/PurchaseOrders/Form';
-    public string $translateKey  = 'purchase.purchaseOrder';
-    protected $configColumns     = [
+    public $keyBreadcrumb          = 'code';
+    public string $formComponent   = 'Purchase/PurchaseOrders/Form';
+    public string $translateKey    = 'purchase.purchaseOrder';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

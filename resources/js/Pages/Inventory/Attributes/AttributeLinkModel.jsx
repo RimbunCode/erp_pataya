@@ -3,7 +3,7 @@ import LinkModel from "@/Components/LinkModel";
 import { forwardRef } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default forwardRef(function UnitLinkModel(
+export default forwardRef(function AttributeLinkModel(
   { value, onValueChange, placeholder, ...props },
   ref,
 ) {

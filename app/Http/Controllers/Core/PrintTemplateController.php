@@ -14,6 +14,12 @@ class PrintTemplateController extends Controller {
         parent::__construct($request, PrintTemplate::class);
     }
 
+    protected function enforcePermission($method) {
+        if ($method == 'editor') {
+            return ['write', 'create'];
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -95,7 +101,11 @@ class PrintTemplateController extends Controller {
 
         $data['letter_head_id'] = isset($data['letter_head']) ? $data['letter_head']['id'] : null;
 
-        $printTemplates->fillForUpdate($data);
+        $printTemplates->fillForUpdate($data['is_letter_head'] ? [
+            'is_letter_head' => $data['is_letter_head'],
+            'name'           => $data['name'],
+            'is_default'     => $data['is_default'],
+        ] : $data);
         $printTemplates->logForUpdated();
         DB::commit();
 

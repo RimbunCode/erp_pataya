@@ -42,9 +42,9 @@ class Supplier extends Model {
         return $this->hasMany(Supplier::class, 'parent_id');
     }
 
-    public string $formComponent = 'Purchase/Suppliers/Form';
-    public string $translateKey  = 'purchase.supplier';
-    protected $configColumns     = [
+    public string $formComponent   = 'Purchase/Suppliers/Form';
+    public string $translateKey    = 'purchase.supplier';
+    protected array $configColumns = [
         'name' => [
             'isLink' => true,
             'show'   => true,

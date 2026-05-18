@@ -6,9 +6,9 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderItem;
 use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -30,8 +30,8 @@ class PurchaseOrderService {
 
     private function fillItemRelations(array $data, PurchaseOrder $purchaseOrder) {
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['id'];
-        $data['conversion_factor']   = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['item_unit_id']        = $data['unit']['id'];
+        $data['conversion_factor']   = $data['unit']['conversion_factor'];
         $data['exchange_rate']       = $purchaseOrder->exchange_rate;
         $data['tax_id']              = $data['tax']['id'];
         $data['tax_rate']            = $data['tax']['rate'] ?? 0;
@@ -46,7 +46,6 @@ class PurchaseOrderService {
         $data['base_currency_code'] = $purchaseOrder->base_currency_code;
         $data['exchange_rate']      = $purchaseOrder->exchange_rate;
         $data['for_internal']       = true;
-        $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
         $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
 
         return $data;
@@ -92,14 +91,28 @@ class PurchaseOrderService {
         $purchaseOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $purchaseOrder->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $purchaseOrder);
 
             if (Ulid::isValid($item['id'])) {
-                $itemModel = $purchaseOrder->items()->find($item['id']);
-                $itemModel->fill($item);
-                $itemModel->save();
-                $itemModel->refresh();
+                $itemModel = $existingItems->get($item['id']);
+                if ($itemModel) {
+                    $itemModel->fill($item);
+                    $itemModel->save();
+                    $itemModel->refresh();
+                } else {
+                    $itemModel = $purchaseOrder->items()->create($item);
+                    $itemModel->refresh();
+                }
             } else {
                 $itemModel = $purchaseOrder->items()->create($item);
                 $itemModel->refresh();
@@ -120,10 +133,19 @@ class PurchaseOrderService {
             $purchaseOrder->paymentSchedules()
                 ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
                 ->delete();
+            $paymentScheduleIds = collect($data['payment_schedules'])
+                ->pluck('id')
+                ->filter(fn ($id) => Ulid::isValid((string) $id))
+                ->values()
+                ->all();
+            $existingPaymentSchedules = $purchaseOrder->paymentSchedules()
+                ->whereIn('id', $paymentScheduleIds)
+                ->get()
+                ->keyBy('id');
             foreach ($data['payment_schedules'] as $payment_schedule) {
                 $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseOrder);
                 if (Ulid::isValid($payment_schedule['id'])) {
-                    $purchaseOrder->paymentSchedules()->find($payment_schedule['id'])->update([
+                    $existingPaymentSchedules->get($payment_schedule['id'])?->update([
                         ...$payment_schedule,
                     ]);
 
@@ -202,36 +224,24 @@ class PurchaseOrderService {
             ->whereNotNull('referenceable_id')
             ->with([
                 'referenceable',
+                'referenceable.parentRelation',
+                'referenceable.referenceable',
+                'referenceable.referenceable.parentRelation',
             ])
             ->get();
 
-        $modelConnections = [];
         foreach ($items as $item) {
-            // Update ordered_quantity from source item
-            $sourceItem = $item->referenceable;
-            $orderedQty = $sourceItem->ordered_quantity + $item->quantity;
-            $sourceItem->update([
-                'ordered_quantity' => $orderedQty > $sourceItem->quantity ? $sourceItem->quantity : $orderedQty,
-            ]);
-
-            $parentRelation     = $sourceItem->parentRelation();
-            $parentRelationKey  = $parentRelation->getForeignKeyName();
-            $modelConnections[] = [
-                'model_type' => \get_class($parentRelation->getRelated()),
-                'model_id'   => $sourceItem->$parentRelationKey,
-            ];
-        }
-        $modelConnections = \collect($modelConnections)->unique('model_id')->toArray();
-
-        // Create ModelConnection for each item
-        foreach ($modelConnections as $modelConnection) {
-            ModelConnection::create([
-                'model_type'     => $modelConnection['model_type'],
-                'model_id'       => $modelConnection['model_id'],
-                'reference_type' => PurchaseOrder::class,
-                'reference_id'   => $purchaseOrder->id,
+            $purchaseOrder->attachConnections($item, [
+                'ordered_quantity' => $item->quantity,
             ]);
         }
+
+        ModelConnection::getReferenceAttributes(PurchaseOrderItem::class, $items->pluck('id')->toArray(), function ($connections, $reference) {
+            $sumOrderedQty = $connections->sum('data.ordered_quantity');
+            $reference->update([
+                'ordered_quantity' => $sumOrderedQty,
+            ]);
+        });
 
         DB::commit();
 
@@ -241,12 +251,17 @@ class PurchaseOrderService {
     private function rolllbackItems(PurchaseOrder $purchaseOrder) {
         $items = $purchaseOrder->items()
             ->get();
+        $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+            ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
+            ->lockForUpdate()
+            ->get()
+            ->keyBy(fn ($stock) => "{$stock->item_variant_id}-{$stock->warehouse_id}");
         foreach ($items as $item) {
-            $stock = Stock::lockForUpdate()
-                ->where('item_variant_id', $item->item_id)
-                ->where('warehouse_id', $item->target_warehouse_id)
-                ->lockForUpdate()
-                ->first();
+            $stockKey = "{$item->item_id}-{$item->target_warehouse_id}";
+            $stock    = $stocks->get($stockKey);
+            if (! $stock) {
+                continue;
+            }
 
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);

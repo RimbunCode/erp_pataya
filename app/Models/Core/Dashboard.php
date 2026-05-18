@@ -25,7 +25,7 @@ class Dashboard extends Model {
         return ['widgets', 'widgets.widget', 'createdBy'];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'title' => [
             'show'   => true,
             'order'  => 0,

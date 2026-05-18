@@ -37,7 +37,7 @@ return [
         'import' => 'Impor',
         'export' => 'Ekspor',
         'share'  => 'Bagikan',
-        'submit' => 'Kirim',
+        'submit' => 'Ajukan',
         'cancel' => 'Batal',
         'amend'  => 'Revisi',
     ],

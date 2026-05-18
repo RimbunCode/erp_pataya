@@ -27,7 +27,7 @@ import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
-export default memo(function Navbar({ actions, setShowSearch }) {
+export default memo(function Navbar({ actions, onOpenSearch }) {
   const { t, loading } = useLaravelReactI18n();
   const breadcrumbs = usePage().props.breadcrumbs;
   const isMobile = useIsMobile();
@@ -118,7 +118,7 @@ export default memo(function Navbar({ actions, setShowSearch }) {
       <div className="flex flex-1 items-center gap-2 px-4 justify-end">
         {actions}
         <Button
-          onClick={() => setShowSearch((open) => !open)}
+          onClick={() => onOpenSearch?.()}
           variant="outline"
           className={cn(
             "relative h-9 w-fit px-2! md:px-4!  justify-start rounded-[0.5rem] lg:bg-muted/50 text-sm font-normal text-muted-foreground shadow-none lg:w-56 xl:w-64",

@@ -1,13 +1,13 @@
 <?php
 
 return [
-    'title'                => 'Pesanan Penjualan (Sales Orders)',
-    'add'                  => 'Pesanan Penjualan Baru',
+    'title'                => 'Sales Orders',
+    'add'                  => 'Sales Order Baru',
     'customer'             => 'Pelanggan',
     'for_rent'             => 'Untuk Disewa?',
     'rent_date'            => 'Tanggal Sewa',
     'branch'               => 'Cabang Pelanggan',
-    'new'                  => 'Pesanan Penjualan Baru',
+    'new'                  => 'Sales Order Baru',
     'items'                => 'Item',
     'detail'               => 'Detail',
     'status'               => 'Status',
@@ -18,8 +18,8 @@ return [
     'currency.placeholder' => 'Pilih Mata Uang',
     'rent'                 => 'Sewa',
     'actions'              => [
-        'create_sales_invoice' => 'Buat Faktur Penjualan',
-        'create_delivery_note' => 'Buat Surat Jalan',
+        'create_sales_invoice' => 'Buat Sales Invoice',
+        'create_delivery_note' => 'Buat Delivery Note',
     ],
     'columns' => [
         'reference_to'                 => 'Referensi Ke',
@@ -29,7 +29,7 @@ return [
         'tax_amount'                   => 'Jumlah Pajak',
         'total'                        => 'Total',
         'basic_amount'                 => 'Jumlah Dasar',
-        'so'                           => 'Nomor Pesanan Penjualan',
+        'so'                           => 'Nomor Sales Order',
         'customer'                     => 'Pelanggan',
         'customer_branch'              => 'Cabang Pelanggan',
         'item'                         => 'Item',
@@ -45,7 +45,7 @@ return [
         'tax'                          => 'Pajak',
         'tax.placeholder'              => 'Pilih Pajak',
         'created_at'                   => 'Dibuat pada',
-        'reference_so'                 => 'Referensi Pesanan Penjualan',
+        'reference_so'                 => 'Referensi Sales Order',
         'reference_so.placeholder'     => 'Pilih Referensi',
         'external_note'                => 'Catatan Eksternal',
         'terms'                        => 'Syarat Pembayaran',

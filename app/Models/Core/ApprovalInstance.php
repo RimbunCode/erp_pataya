@@ -27,9 +27,9 @@ class ApprovalInstance extends Model {
     //     ]);
     // }
 
-    protected $with             = ['steps', 'document'];
-    public string $translateKey = 'core.approvalInstance';
-    public $configColumns       = [
+    protected $with                = ['steps', 'document'];
+    public string $translateKey    = 'core.approvalInstance';
+    protected array $configColumns = [
         'document' => [
             'isLink' => true,
             'show'   => true,

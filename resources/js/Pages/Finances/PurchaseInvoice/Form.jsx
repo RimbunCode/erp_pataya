@@ -15,6 +15,7 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
+import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import PaymentSchedule from "../Components/PaymentSchedule";
 import PurchaseInvoiceLinkModel from "../PurchaseInvoice/PurchaseInvoiceLinkModel";
@@ -22,7 +23,6 @@ import PurchaseOrderLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrde
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
-import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -80,9 +80,11 @@ export default function Form() {
               )}
               value={dataRow.item}
               onValueChange={(val) => {
+                const defaultUnit = val?.default_uom;
                 setData({
                   item: val,
-                  unit: val?.default_unit,
+                  unit: defaultUnit,
+                  conversion_factor: defaultUnit?.conversion_factor,
                   source_warehouse: data.source_warehouse,
                 });
               }}
@@ -94,7 +96,7 @@ export default function Form() {
                   },
                 },
               }}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },
@@ -145,16 +147,21 @@ export default function Form() {
         required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
-            <UnitLinkModel
+            <ItemUnitLinkModel
               disabled={!dataRow?.item}
               placeholder={t(
                 "finances.purchaseInvoice.columns.unit.placeholder",
               )}
               value={data}
-              onValueChange={(val) => setData("unit", val)}
+              onValueChange={(val) =>
+                setData({
+                  unit: val,
+                  conversion_factor: val?.conversion_factor,
+                })
+              }
               {...attributes}
               filters={{
-                group: dataRow?.item?.default_unit?.group,
+                item_id: dataRow?.item?.item_id,
               }}
             />
           );
@@ -250,7 +257,6 @@ export default function Form() {
                   "items.tax",
                   "items.unit",
                   "paymentSchedules",
-                  "paymentSchedules.paymentTerm",
                   "paymentSchedules.paymentMethod",
                 ]}
                 value={data.purchase_order}

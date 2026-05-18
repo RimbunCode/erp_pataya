@@ -11,6 +11,8 @@ import { create } from "zustand";
 import useDidMountEffect from "./useDidMountEffect";
 import { useIsDirtyForm } from "./useIsDirtyForm";
 
+const DRAFT_AUTOSAVE_DEBOUNCE_MS = 600;
+
 export const useAlertDraftForm = create((set) => ({
   showAlert: false,
   setShowAlert: (value) => set({ showAlert: value }),
@@ -56,6 +58,8 @@ export const useDraftForm = (
   const skipSaveRef = useRef(false);
   const skipRemovalRef = useRef(false);
   const checkedDraftKeyRef = useRef(null);
+  const autosaveTimeoutRef = useRef(null);
+  const lastSavedFingerprintRef = useRef(null);
   const user = usePage().props.auth.user;
   let key = user ? `${name}_${user.id}` : null;
   key = isCreate
@@ -96,8 +100,47 @@ export const useDraftForm = (
     };
   }, [key, isDialog]);
   const keepDraftFlag = key ? keepDraftOnClean?.[key] : false;
+  const clearAutosaveTimer = useCallback(() => {
+    if (!autosaveTimeoutRef.current) {
+      return;
+    }
+    clearTimeout(autosaveTimeoutRef.current);
+    autosaveTimeoutRef.current = null;
+  }, []);
+  const flushDraftSave = useCallback(() => {
+    if (!key || !form.isDirty || skipSaveRef.current) {
+      return;
+    }
+
+    const payload = dataRef.current ?? {};
+    const fingerprint = JSON.stringify(payload);
+    if (lastSavedFingerprintRef.current === fingerprint) {
+      return;
+    }
+
+    saveToLocalStorage(key, payload, expiredDays);
+    lastSavedFingerprintRef.current = fingerprint;
+  }, [expiredDays, form.isDirty, key]);
+  const scheduleDraftSave = useCallback(() => {
+    if (!key || !form.isDirty || skipSaveRef.current) {
+      return;
+    }
+
+    clearAutosaveTimer();
+    autosaveTimeoutRef.current = setTimeout(() => {
+      autosaveTimeoutRef.current = null;
+      flushDraftSave();
+    }, DRAFT_AUTOSAVE_DEBOUNCE_MS);
+  }, [clearAutosaveTimer, flushDraftSave, form.isDirty, key]);
+  useEffect(() => {
+    lastSavedFingerprintRef.current = null;
+  }, [key]);
+
   useDidMountEffect(() => {
     setIsDirty(form.isDirty);
+    if (form.isDirty) {
+      skipSaveRef.current = false;
+    }
     if (!form.isDirty && key) {
       if (keepDraftFlag) {
         setKeepDraftOnClean(key, false);
@@ -108,10 +151,13 @@ export const useDraftForm = (
         skipRemovalRef.current = false;
         return;
       } else {
+        clearAutosaveTimer();
+        lastSavedFingerprintRef.current = null;
         removeFromLocalStorage(key);
       }
     }
   }, [
+    clearAutosaveTimer,
     form.isDirty,
     keepDraftFlag,
     key,
@@ -122,7 +168,8 @@ export const useDraftForm = (
   useEffect(() => {
     if (!key || !form.isDirty) return;
     const handleBeforeUnload = (event) => {
-      saveToLocalStorage(key, dataRef.current, expiredDays);
+      clearAutosaveTimer();
+      flushDraftSave();
       event.preventDefault();
       event.returnValue = "";
     };
@@ -130,7 +177,7 @@ export const useDraftForm = (
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [key, expiredDays, form.isDirty]);
+  }, [clearAutosaveTimer, flushDraftSave, form.isDirty, key]);
   useDidMountEffect(() => {
     setProcessing(form.processing);
   }, [form.processing]);
@@ -144,18 +191,21 @@ export const useDraftForm = (
     }
   }, [form.recentlySuccessful]);
   useDidMountEffect(() => {
-    if (key && form.isDirty && !skipSaveRef.current) {
-      saveToLocalStorage(key, form.data, expiredDays);
-    }
+    scheduleDraftSave();
   }, [
-    expiredDays,
     form.data,
     form.isDirty,
     keepDraftFlag,
     key,
+    scheduleDraftSave,
     setKeepDraftOnClean,
     skipSaveRef,
   ]);
+  useEffect(() => {
+    return () => {
+      clearAutosaveTimer();
+    };
+  }, [clearAutosaveTimer]);
 
   const loadDraft = useCallback(() => {
     if (!key) return;
@@ -210,11 +260,15 @@ export const useDraftForm = (
           }
           setIsDirty(false);
           skipSaveRef.current = true; // jangan tulis ulang draft sesaat setelah sukses
+          clearAutosaveTimer();
+          lastSavedFingerprintRef.current = null;
           if (options?.onSuccess) options.onSuccess(e);
         },
         onBefore: (e) => {
           setShowAlert(false);
           skipSaveRef.current = true; // hentikan autosave selama submit
+          clearAutosaveTimer();
+          lastSavedFingerprintRef.current = null;
           if (key) {
             removeFromLocalStorage(key);
           }
@@ -225,13 +279,22 @@ export const useDraftForm = (
           setShowAlert(false);
           skipSaveRef.current = false; // aktifkan kembali autosave jika gagal
           if (!options?.isSubmit && key) {
-            saveToLocalStorage(key, form.data, expiredDays);
+            flushDraftSave();
           }
           if (options?.onError) options.onError(errors);
         },
       };
     },
-    [expiredDays, form, isCreate, isDialog, key, name, setIsDirty],
+    [
+      clearAutosaveTimer,
+      flushDraftSave,
+      form,
+      isCreate,
+      isDialog,
+      key,
+      name,
+      setIsDirty,
+    ],
   );
 
   return {

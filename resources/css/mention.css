@@ -10,7 +10,7 @@
       }
     }
     .mentions__suggestions {
-      @apply rounded-md border border-muted bg-popover! p-1 text-popover-foreground shadow-md outline-hidden;
+      @apply rounded-md border border-muted bg-popover! p-1 text-popover-foreground shadow-md outline-hidden z-10! mt-4!;
     }
     .mentions__suggestions__item {
       @apply relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden transition-colors;

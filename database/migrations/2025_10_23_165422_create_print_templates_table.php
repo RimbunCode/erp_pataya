@@ -38,6 +38,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['name', 'deleted_at']);
+            $table->index(['model', 'is_default']);
         });
     }
 

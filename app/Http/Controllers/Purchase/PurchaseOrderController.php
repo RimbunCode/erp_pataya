@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Purchase;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Purchase\PurchaseOrderRequest;
-use App\Models\Core\Branch;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseRequest;
 use App\Models\Purchase\PurchaseRequestItem;
@@ -51,7 +50,7 @@ class PurchaseOrderController extends Controller {
                                 'items' => $wo->items->map(fn ($item) => [
                                     ...$item,
                                     'id'                 => Utils::generateRandom(5),
-                                    'quantity'           => $item->remaining_quantity,
+                                    'quantity'           => $item->required_quantity,
                                     'unit'               => $item->unit,
                                     'referenceable_type' => WorkOrderItem::class,
                                     'referenceable_id'   => $item->id,
@@ -70,7 +69,7 @@ class PurchaseOrderController extends Controller {
                                     return [
                                         ...$item->toArray(),
                                         'id'                 => Utils::generateRandom(5),
-                                        'quantity'           => $item->remaining_quantity,
+                                        'quantity'           => $item->unordered_quantity,
                                         'required_date'      => $item->required_date,
                                         'unit'               => $item->unit,
                                         'referenceable_type' => PurchaseRequestItem::class,

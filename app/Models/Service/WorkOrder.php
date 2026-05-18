@@ -53,9 +53,9 @@ class WorkOrder extends Model {
         return ':code';
     }
 
-    public string $formComponent = 'Services/WorkOrders/Form';
-    public string $translateKey  = 'service.workOrder';
-    protected $configColumns     = [
+    public string $formComponent   = 'Services/WorkOrders/Form';
+    public string $translateKey    = 'service.workOrder';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,

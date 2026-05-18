@@ -7,7 +7,6 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\PurchaseInvoice;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Purchase\PurchaseOrder;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -38,8 +37,8 @@ class PurchaseInvoiceService {
 
     private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice) {
         $data['item_id']           = $data['item']['id'];
-        $data['unit_id']           = $data['unit']['id'];
-        $data['conversion_factor'] = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['item_unit_id']      = $data['unit']['id'];
+        $data['conversion_factor'] = $data['unit']['conversion_factor'];
         $data['exchange_rate']     = $purchaseInvoice->exchange_rate;
         $data['tax_id']            = $data['tax']['id'];
         $data['tax_rate']          = $data['tax']['rate'] ?? 0;
@@ -53,7 +52,6 @@ class PurchaseInvoiceService {
         $data['base_currency_code'] = $purchaseInvoice->base_currency_code;
         $data['exchange_rate']      = $purchaseInvoice->exchange_rate;
         $data['for_internal']       = $purchaseInvoice->return_against_id === null ? false : true;
-        $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
         $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
 
         return $data;
@@ -97,15 +95,29 @@ class PurchaseInvoiceService {
         $purchaseInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $purchaseInvoice->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
 
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $purchaseInvoice);
 
             if (Ulid::isValid($item['id'])) {
-                $itemModel = $purchaseInvoice->items()->find($item['id']);
-                $itemModel->fill($item);
-                $itemModel->save();
-                $itemModel->refresh();
+                $itemModel = $existingItems->get($item['id']);
+                if ($itemModel) {
+                    $itemModel->fill($item);
+                    $itemModel->save();
+                    $itemModel->refresh();
+                } else {
+                    $itemModel = $purchaseInvoice->items()->create($item);
+                    $itemModel->refresh();
+                }
             } else {
                 $itemModel = $purchaseInvoice->items()->create($item);
                 $itemModel->refresh();
@@ -124,10 +136,19 @@ class PurchaseInvoiceService {
         $purchaseInvoice->paymentSchedules()
             ->whereNotIn('id', array_column($paymentSchedules, 'id'))
             ->delete();
+        $paymentScheduleIds = collect($paymentSchedules)
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingPaymentSchedules = $purchaseInvoice->paymentSchedules()
+            ->whereIn('id', $paymentScheduleIds)
+            ->get()
+            ->keyBy('id');
         foreach ($paymentSchedules as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $purchaseInvoice);
             if (Ulid::isValid($payment_schedule['id'])) {
-                $purchaseInvoice->paymentSchedules()->find($payment_schedule['id'])->update($payment_schedule);
+                $existingPaymentSchedules->get($payment_schedule['id'])?->update($payment_schedule);
 
                 continue;
             }

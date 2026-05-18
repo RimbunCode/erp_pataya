@@ -39,7 +39,11 @@ class CategoryController extends Controller {
     public function store(CategoryRequest $request) {
         $data = $request->validated();
         DB::beginTransaction();
-        $category = Category::create($data);
+        $category = Category::create([
+            'name'            => $data['name'],
+            'type'            => $data['type'],
+            'default_unit_id' => $data['default_unit']['id'] ?? null,
+        ]);
         $category->logForCreated();
         DB::commit();
 
@@ -52,6 +56,7 @@ class CategoryController extends Controller {
     public function show(Category $category) {
         $this->setBreadcrumbs($category);
         $category->showDetail();
+        $category->loadRelations();
 
         return $this->renderShow(
             'Inventory/Categories/Form',
@@ -67,11 +72,14 @@ class CategoryController extends Controller {
     public function update(CategoryRequest $request, Category $category) {
         $data = $request->validated();
         DB::beginTransaction();
-        $category->fillForUpdate($data);
+        $category->fill([
+            'name'            => $data['name'],
+            'type'            => $data['type'],
+            'default_unit_id' => $data['default_unit']['id'] ?? null,
+        ]);
         $category->logForUpdated();
         DB::commit();
 
-        // dd($request->all());
         return back();
     }
 

@@ -7,9 +7,6 @@
       "command": "npm run lint",
       "problemMatcher": ["$eslint-stylish"],
       "group": "build",
-      "runOptions": {
-        "runOn": "folderOpen"
-      },
       "presentation": {
         "reveal": "never",
         "panel": "dedicated",

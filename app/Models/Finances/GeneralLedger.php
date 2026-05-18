@@ -13,9 +13,9 @@ class GeneralLedger extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
     protected $guarded                         = ['id'];
-    protected static string $defaultFormatCode = 'GL-@[iiii]/@[yy]';
-    protected static $generateCodeSeries       = true;
     public string $translateKey                = 'finances.generalLedger';
+    protected static $generateCodeSeries       = true;
+    protected static string $defaultFormatCode = 'GL-@[iiii]/@[yy]';
 
     public static function boot() {
         parent::boot();
@@ -24,7 +24,7 @@ class GeneralLedger extends Model {
         });
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'code' => [
             'order'  => 0,
             'show'   => true,
@@ -69,6 +69,10 @@ class GeneralLedger extends Model {
 
     public function canDelete() {
         return false;
+    }
+
+    public static function templateLink() {
+        return ':code';
     }
 
     public static function loadRelationsOnShow() {

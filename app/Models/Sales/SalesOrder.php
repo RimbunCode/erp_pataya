@@ -55,7 +55,7 @@ class SalesOrder extends Model {
         ];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,
@@ -127,7 +127,6 @@ class SalesOrder extends Model {
             'items.unit',
             'items.sourceWarehouse',
             'paymentSchedules',
-            'paymentSchedules.paymentTerm',
             'paymentSchedules.paymentMethod',
         ];
     }

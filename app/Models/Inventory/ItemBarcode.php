@@ -9,9 +9,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ItemBarcode extends Model {
     use HasUlids, SoftDeletes;
 
-    public string $translateKey = 'inventories.itemBarcode';
-    protected $guarded          = ['id'];
-    protected $configColumns    = [
+    public string $translateKey    = 'inventories.itemBarcode';
+    protected $guarded             = ['id'];
+    protected $with                = ['basicUnit', 'unit'];
+    protected array $configColumns = [
         'barcode',
         'item',
         'unit',
@@ -26,6 +27,10 @@ class ItemBarcode extends Model {
     }
 
     public function unit() {
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
+    }
+
+    public function basicUnit() {
         return $this->belongsTo(Unit::class, 'unit_id', 'id');
     }
 }

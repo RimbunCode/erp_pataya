@@ -2,8 +2,6 @@
 
 namespace App\Http\Middleware;
 
-use App\Models\Core\Country;
-use App\Models\Core\Preference;
 use App\Models\User\RolePermission;
 use Closure;
 use Illuminate\Http\Request;
@@ -48,22 +46,6 @@ class AppMiddleware extends Middleware {
         }
 
         return parent::handle($request, $next);
-    }
-
-    public function share(Request $request): array {
-        $preferences = Preference::query()->pluck('value', 'key');
-        $countryId   = $preferences->get('country_id');
-        $countryName = $countryId !== null
-            ? Country::query()->whereKey($countryId)->value('name')
-            : null;
-
-        return [
-            ...parent::share($request),
-            'preferences' => [
-                ...$preferences->all(),
-                'country_name' => $countryName,
-            ],
-        ];
     }
 
     private function resolvePermissions(string $userId): array {

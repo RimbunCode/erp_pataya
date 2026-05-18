@@ -60,7 +60,7 @@ function FormInput({
         ? children({
             id,
             required: _required,
-            readOnly: props.readOnly || form?.disabled,
+            readOnly: ignoreDisabled ? false : props.readOnly || form?.disabled,
             ...props,
           })
         : React.Children.map(children, (child) => {
@@ -68,8 +68,9 @@ function FormInput({
               id,
               ...props,
               required: _required && (child.props?.required ?? true),
-              readOnly:
-                child.props?.readOnly || props.readOnly || form?.disabled,
+              readOnly: ignoreDisabled
+                ? false
+                : child.props?.readOnly || props.readOnly || form?.disabled,
             });
           })}
       {description &&

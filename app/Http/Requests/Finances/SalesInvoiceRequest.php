@@ -42,7 +42,7 @@ class SalesInvoiceRequest extends BaseFormRequest {
             'items.*.item.*'                 => ['nullable'],
             'items.*.description'            => ['nullable', 'string'],
             'items.*.quantity'               => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'                => ['required', 'exists:units,id'],
+            'items.*.unit.id'                => ['required', 'exists:item_units,id'],
             'items.*.unit.*'                 => ['nullable'],
             'items.*.tax.id'                 => ['required', 'exists:taxes,id'],
             'items.*.tax.*'                  => ['nullable'],

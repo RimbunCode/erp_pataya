@@ -13,12 +13,19 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class CompanyController extends Controller {
+    protected function enforcePermission($method) {
+        if ($method == 'image') {
+            return ['write'];
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index() {
-        $oriPreferences = Preference::get(['key', 'value']);
-        $preferences    = $oriPreferences->mapWithKeys(fn ($pref) => [$pref->key => $pref->value]);
+        $oriPreferences = Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
+            ->get(['key', 'value']);
+        $preferences = $oriPreferences->mapWithKeys(fn ($pref) => [$pref->key => $pref->value]);
 
         return Inertia::render('Settings/Company', [
             'company'    => $preferences->toArray(),
@@ -39,7 +46,8 @@ class CompanyController extends Controller {
         $preferences = $request->all();
         DB::beginTransaction();
         foreach ($preferences as $key => $value) {
-            Preference::updateOrCreate(['key' => $key], ['value' => $value]);
+            Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
+                ->updateOrCreate(['key' => $key], ['value' => $value]);
         }
         Branch::updateOrCreate(
             [
@@ -71,7 +79,8 @@ class CompanyController extends Controller {
     public function image(Request $request) {
         DB::beginTransaction();
         File::uploadFile($request, 'Company', function ($file) {
-            Preference::updateOrCreate(['key' => 'company_image'], ['value' => $file->id]);
+            Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
+                ->updateOrCreate(['key' => 'company_image'], ['value' => $file->id]);
         });
         DB::commit();
 

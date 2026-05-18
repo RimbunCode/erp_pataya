@@ -423,7 +423,7 @@ export default function Company({ company }) {
             : "")
         }
         alt={company.name}
-        className=" transition-[filter] duration-300 group-hover:blur-sm"
+        className=" transition-[filter] duration-300 group-hover:blur-sm object-contain"
       />
     );
   }, [company.company_image]);

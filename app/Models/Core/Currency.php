@@ -5,12 +5,12 @@ namespace App\Models\Core;
 use App\Models\Model;
 
 class Currency extends Model {
-    protected $primaryKey    = 'code';
-    public $incrementing     = false;
-    protected $keyType       = 'string';
-    protected $guarded       = [];
-    public $translateKey     = 'core.currency';
-    protected $configColumns = [
+    protected $primaryKey          = 'code';
+    public $incrementing           = false;
+    protected $keyType             = 'string';
+    protected $guarded             = [];
+    public $translateKey           = 'core.currency';
+    protected array $configColumns = [
         'code' => [
             'show'  => true,
             'order' => 0,

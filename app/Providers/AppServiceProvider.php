@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Channels\DatabaseChannel;
 use App\Notifications\BaseNotification;
+use App\Services\Core\HaveTransactionsSyncService;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Notifications\Channels\DatabaseChannel as IlluminateDatabaseChannel;
 use Illuminate\Notifications\Notification as IlluminateNotification;
@@ -15,7 +16,7 @@ class AppServiceProvider extends ServiceProvider {
      * Register any application services.
      */
     public function register(): void {
-        //
+        $this->app->singleton(HaveTransactionsSyncService::class);
     }
 
     /**

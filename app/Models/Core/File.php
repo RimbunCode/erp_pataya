@@ -20,7 +20,7 @@ class File extends Model {
     protected $appends                = ['fullname'];
     public $translateKey              = 'core.file';
     public static $allow_only_creator = true;
-    protected $configColumns          = [
+    protected array $configColumns    = [
         'name' => [
             'show'  => true,
             'order' => 0,
@@ -38,6 +38,17 @@ class File extends Model {
 
     protected function getFullnameAttribute() {
         return "{$this->name}.{$this->extension}";
+    }
+
+    public static function templateLink() {
+        return ':fullname';
+    }
+
+    protected static function loadRelationsOnShow() {
+        return [
+            'user',
+            'folder',
+        ];
     }
 
     public function user() {

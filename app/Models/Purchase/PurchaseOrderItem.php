@@ -3,8 +3,8 @@
 namespace App\Models\Purchase;
 
 use App\Models\Finances\Tax;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -13,21 +13,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public static $parentRelation = 'purchaseOrder';
+    protected $guarded            = ['id'];
+    protected $casts              = [
         'required_date' => 'datetime',
     ];
-
-    // protected $configColumns =[
-
-    // ]
 
     public function purchaseOrder() {
         return $this->belongsTo(PurchaseOrder::class);
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 
     public function tax() {

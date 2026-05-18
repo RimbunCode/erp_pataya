@@ -579,18 +579,6 @@ export const PaymentTermTemplateRequest = z.object({
     }),
   ),
 });
-export const PaymentTermRequest = z.object({
-  name: z.string().min(3).max(255),
-  due_date_based_on: z.string(),
-  credit_period: z.string().numeric().min(),
-  invoice_portion: z.string().numeric().min().max(100),
-  discount_type: z.string().nullable().optional(),
-  discount: z.string().numeric().nullable().optional(),
-  description: z.string().nullable().optional(),
-  payment_method: z.object({
-    id: z.string().nullable().optional(),
-  }),
-});
 export const PaymentMethodRequest = z.object({
   name: z.string().min(3).max(255),
   description: z.string().nullable().optional(),

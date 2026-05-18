@@ -13,6 +13,7 @@ return new class extends Migration
         Schema::create('item_variants', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->string('code');
+            $table->foreignUlid('image_id')->nullable()->references('id')->on('files')->nullOnDelete();
             $table->foreignUlid('item_id')->references('id')->on('items')->cascadeOnDelete();
             $table->foreignUlid('category_id')->nullable()->references('id')->on('categories')->nullOnDelete();
             $table->foreignUlid('default_unit_id')->nullable()->references('id')->on('units')->nullOnDelete();

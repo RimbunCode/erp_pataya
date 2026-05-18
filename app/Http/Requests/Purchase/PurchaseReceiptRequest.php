@@ -32,7 +32,7 @@ class PurchaseReceiptRequest extends BaseFormRequest {
             'items.*.item.id'                => ['required', 'exists:item_variants,id'],
             'items.*.item.*'                 => ['nullable'],
             'items.*.quantity'               => ['required', 'numeric', 'min:0'],
-            'items.*.unit.id'                => ['nullable', 'exists:units,id'],
+            'items.*.unit.id'                => ['required', 'exists:item_units,id'],
             'items.*.unit.*'                 => ['nullable'],
             'items.*.target_warehouse.id'    => ['nullable', 'exists:warehouses,id'],
             'items.*.description'            => ['nullable', 'string'],

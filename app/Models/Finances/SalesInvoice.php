@@ -42,8 +42,8 @@ class SalesInvoice extends Model {
         return $this->return_against_id != null;
     }
 
-    public $translateKey     = 'finances.salesInvoice';
-    protected $configColumns = [
+    public $translateKey           = 'finances.salesInvoice';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,
@@ -108,7 +108,6 @@ class SalesInvoice extends Model {
             'items.tax',
             'items.unit',
             'paymentSchedules',
-            'paymentSchedules.paymentTerm',
             'paymentSchedules.paymentMethod',
             'incomeAccount',
             'debitAccount',

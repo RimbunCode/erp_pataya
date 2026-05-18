@@ -1,10 +1,10 @@
 <?php
 
 return [
-    'title'   => 'Pesanan Internal',
-    'add'     => 'Tambah Pesanan Internal Baru',
+    'title'   => 'Internal Orders',
+    'add'     => 'Tambah Internal Order Baru',
     'branch'  => 'Cabang Pelanggan',
-    'new'     => 'Pesanan Internal Baru',
+    'new'     => 'Internal Order Baru',
     'items'   => 'Item',
     'detail'  => 'Detail',
     'status'  => 'Status',
@@ -26,6 +26,6 @@ return [
         'external_note'                => 'Catatan Eksternal',
     ],
     'actions' => [
-        'create_delivery_note' => 'Buat Surat Jalan',
+        'create_delivery_note' => 'Buat Delivery Note',
     ],
 ];

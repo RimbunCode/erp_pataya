@@ -29,14 +29,13 @@ class PaymentEntry extends Model {
             'partyable',
             'paymentable',
             'paymentable.paymentSchedules',
-            'paymentable.paymentSchedules.paymentTerm',
             'paymentable.paymentSchedules.paymentMethod',
             'accountPaidTo',
             'accountPaidFrom',
         ];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'code' => [
             'order'  => 0,
             'show'   => true,

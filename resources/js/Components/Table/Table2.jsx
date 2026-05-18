@@ -109,7 +109,7 @@ const Cell = memo(
     const { lang } = usePage().props;
     const { t } = useLaravelReactI18n();
     const value = row[name];
-    const { can, canGlobal } = usePermission(row.thisModel);
+    const { can, canGlobal } = usePermission(row?.thisModel);
     let valueCell = "";
     switch (type) {
       case "image": {
@@ -125,7 +125,7 @@ const Cell = memo(
               <AvatarImage
                 src={
                   window.route("files.preview", value) +
-                  `?v=${new Date(row.updated_at).getTime()}`
+                  `?v=${new Date(row?.updated_at).getTime()}`
                 }
                 alt={name}
                 className=" transition-[filter]"
@@ -147,7 +147,7 @@ const Cell = memo(
         );
       case "formStatus":
       case "formStatuses": {
-        const newValue = row.appendStatus;
+        const newValue = row?.appendStatus;
         return (
           <div
             className={cn(
@@ -192,11 +192,13 @@ const Cell = memo(
         if (!value) {
           valueCell = null;
         }
-        valueCell = valueTrans
-          ? t(`${valueTrans}.${value?.toString()}`)
-          : parse
-            ? (parse[value?.toString()] ?? "")
-            : value;
+        valueCell = value
+          ? valueTrans
+            ? t(`${valueTrans}.${value?.toString()}`)
+            : parse
+              ? (parse[value?.toString()] ?? "")
+              : value
+          : "";
         break;
       default:
         valueCell = value;
@@ -213,8 +215,7 @@ const Cell = memo(
         });
       }
     }
-    console.log(colProps);
-    if (isLink && can("read", { user_id: row.created_by_id })) {
+    if (isLink && can("read", { user_id: row?.created_by_id })) {
       return (
         <Link
           className="text-blue-800 dark:text-blue-200 hover:underline"
@@ -229,8 +230,8 @@ const Cell = memo(
       !colProps?.disabledNavigation &&
       (colProps.signedRouteKey ||
         colProps.forceNavigation ||
-        canGlobal(value.thisModel, "read", {
-          user_id: value.created_by_id,
+        canGlobal(value?.thisModel, "read", {
+          user_id: value?.created_by_id,
         }))
     ) {
       return (

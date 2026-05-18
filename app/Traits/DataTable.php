@@ -227,7 +227,7 @@ trait DataTable {
         return array_values(array_diff($keys, $except));
     }
 
-    protected function logableFields() {
+    public function logableFields() {
         return $this->getDefaultLogableField();
     }
 
@@ -381,6 +381,11 @@ trait DataTable {
                     $table->json('additional_data')->nullable();
                 });
             }
+            if (! Schema::hasColumn($tableName, 'submitted_format')) {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->string('submitted_format')->nullable();
+                });
+            }
 
             if (Schema::hasColumn($tableName, 'have_transactions')) {
                 Schema::table($tableName, function (Blueprint $table) {
@@ -417,6 +422,11 @@ trait DataTable {
             if (Schema::hasColumn($tableName, 'additional_data')) {
                 Schema::table($tableName, function (Blueprint $table) {
                     $table->dropColumn('additional_data');
+                });
+            }
+            if (Schema::hasColumn($tableName, 'submitted_format')) {
+                Schema::table($tableName, function (Blueprint $table) {
+                    $table->dropColumn('submitted_format');
                 });
             }
 
@@ -609,11 +619,23 @@ trait DataTable {
         }
     }
 
-    public function checkPermission(string $action, int $level = 0) {
+    /**
+     * Summary of checkPermission
+     *
+     * @param  string|string[]  $action
+     * @return bool
+     */
+    public function checkPermission($action, int $level = 0) {
         return static::_checkPermission($action, $level);
     }
 
-    public static function _checkPermission(string $action, int $level = 0) {
+    /**
+     * Summary of _checkPermission
+     *
+     * @param  string|string[]  $action
+     * @return bool
+     */
+    public static function _checkPermission(array|string $action, int $level = 0) {
         $permissions      = Session::get('permissions');
         $modelPermissions = $permissions[static::class] ?? null;
         $levelPermissions = $modelPermissions[$level] ?? null;
@@ -624,10 +646,14 @@ trait DataTable {
         $allowed     = false;
         $onlyCreator = false;
         foreach ($levelPermissions as $levelPermission) {
-            if ($levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
+            $check = \is_array($action)
+                ? \array_any($action, fn ($value) => $levelPermission['permissions'][$value] ?? false)
+                : ($levelPermission['permissions'][$action] ?? false);
+
+            if ($levelPermission['only_creator'] && $check) {
                 $allowed     = true;
                 $onlyCreator = true;
-            } elseif (! $levelPermission['only_creator'] && $levelPermission['permissions'][$action]) {
+            } elseif (! $levelPermission['only_creator'] && $check) {
                 $allowed     = true;
                 $onlyCreator = false;
             }

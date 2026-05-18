@@ -7,7 +7,6 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Inventory\DeliveryNote;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Utils;
@@ -31,9 +30,9 @@ class DeliveryNoteService {
 
     private function fillItemRelations(array $item) {
         $item['item_id']             = $item['item']['id'];
-        $item['unit_id']             = $item['unit']['id'];
+        $item['item_unit_id']        = $item['unit']['id'];
         $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
-        $item['conversion_factor']   = ItemUnit::getConversionFactor($item['item']['item_id'], $item['unit_id']);
+        $item['conversion_factor']   = $item['unit']['conversion_factor'];
         $item['quantity'] ??= 0;
         $item['valuation_rates']        = [];
         $item['return_against_item_id'] = $item['return_against_item']['id'] ?? null;
@@ -61,12 +60,21 @@ class DeliveryNoteService {
         $deliveryNote->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $deliveryNote->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
 
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item);
 
             if (Ulid::isValid($item['id'])) {
-                $deliveryNote->items()->find($item['id'])->update($item);
+                $existingItems->get($item['id'])?->update($item);
 
                 continue;
             }
@@ -166,7 +174,7 @@ class DeliveryNoteService {
             }
             $quantity = $item->quantity * $item->conversion_factor / $stock->conversion_factor;
             if ($stock->actual_quantity < $quantity) {
-                $errorItems[] = "Item {$item->item->name} in {$stock->warehouse->name} stock is {$stock->actual_quantity} but you need {$quantity}";
+                $errorItems[] = "Item {$item->item->name} in {$item->sourceWarehouse->name} stock is {$stock->actual_quantity} but you need {$quantity}";
 
                 continue;
             }
@@ -193,7 +201,7 @@ class DeliveryNoteService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->source_warehouse_id,
-                    'unit_id'                    => $stock->unit_id,
+                    'item_unit_id'               => $stock->item_unit_id,
                     'conversion_factor'          => $stock->conversion_factor,
                     'quantity_change'            => $returnAgainst ? $quantity : -$quantity,
                     'quantity_after_transaction' => $stock->actual_quantity,
@@ -238,7 +246,7 @@ class DeliveryNoteService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->source_warehouse_id,
-                    'unit_id'                    => $stock->unit_id,
+                    'item_unit_id'               => $stock->item_unit_id,
                     'conversion_factor'          => $stock->conversion_factor,
                     'quantity_change'            => $quantity,
                     'quantity_after_transaction' => $stock->actual_quantity,
@@ -305,7 +313,7 @@ class DeliveryNoteService {
                 StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->source_warehouse_id,
-                    'unit_id'                    => $stock->unit_id,
+                    'item_unit_id'               => $stock->item_unit_id,
                     'conversion_factor'          => $stock->conversion_factor,
                     'quantity_change'            => -$quantity,
                     'quantity_after_transaction' => $stock->actual_quantity,

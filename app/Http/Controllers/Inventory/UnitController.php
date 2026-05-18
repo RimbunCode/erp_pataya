@@ -14,14 +14,27 @@ class UnitController extends Controller {
         parent::__construct($request, Unit::class);
     }
 
+    protected function enforcePermission(string $method) {
+        if ($method === 'getGroups') {
+            return true;
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request) {
         if (! $this->isInertiaRequest($request)) {
             if ($request->has('group')) {
-                $units = Unit::where('group', $request->group)
+                $group = $request->query('group');
+                $units = Unit::query()
                     ->whereNotNull('conversion_factor');
+
+                if ($group === null || $group === '' || $group === 'Others') {
+                    $units->whereNull('group');
+                } else {
+                    $units->where('group', $group);
+                }
                 if ($request->except) {
                     $units->whereNot('id', $request->except);
                 }
@@ -40,12 +53,13 @@ class UnitController extends Controller {
     public function getGroups(Request $request, ?string $search = null) {
         if (! $this->isInertiaRequest($request)) {
             $groups = Unit::select('group')
-                ->distinct();
+                ->distinct()
+                ->whereNotNull('group');
             if ($search) {
                 $groups->where('group', 'like', "%{$search}%");
             }
             $groups = $groups->get()
-                ->pluck('group');
+                ->pluck('group')->push('Others');
             if (
                 $groups->filter(function ($group) use ($search) {
                     return strtolower($group) == strtolower($search);
@@ -54,7 +68,7 @@ class UnitController extends Controller {
                 return response()->json($groups ?? []);
             }
 
-            return response()->json([...($groups ?? []), $search ?? '']);
+            return response()->json([...($groups ?? []), (\strlen($search ?? '') > 3) ? ($search ?? '') : null]);
         }
         abort(404);
     }
@@ -64,8 +78,9 @@ class UnitController extends Controller {
      */
     public function store(UnitRequest $request) {
         $data = $request->validated();
+        dd($data);
         DB::beginTransaction();
-        if (($data['customable'] ?? false) == true) {
+        if (($data['customable'] ?? false) == true || $data['group'] == 'Others') {
             $data['conversion_factor'] = null;
         }
         $unit = Unit::create($data);
@@ -102,7 +117,7 @@ class UnitController extends Controller {
     public function update(UnitRequest $request, Unit $unit) {
         $data = $request->validated();
         DB::beginTransaction();
-        if (($data['customable'] ?? false) == true) {
+        if (($data['customable'] ?? false) == true || $data['group'] == 'Others') {
             $data['conversion_factor'] = null;
         }
         $unit->fillForUpdate($data);

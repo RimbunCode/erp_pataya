@@ -100,6 +100,9 @@ class UnitSeeder extends Seeder {
                     'code'              => 'l',
                     'conversion_factor' => 1,
                 ],
+                'PAIL' => [
+                    'code' => 'pail',
+                ],
                 'CUBIC_METER' => [
                     'code'              => 'm3',
                     'conversion_factor' => 1000,
@@ -145,6 +148,10 @@ class UnitSeeder extends Seeder {
                     'code'              => 'pcs',
                     'conversion_factor' => 1,
                 ],
+                'UNIT' => [
+                    'code'              => 'unit',
+                    'conversion_factor' => 1,
+                ],
                 'LUSIN' => [
                     'code'              => 'lusin',
                     'conversion_factor' => 12,
@@ -162,17 +169,61 @@ class UnitSeeder extends Seeder {
                     'conversion_factor' => 500,
                 ],
             ],
+            'Time' => [
+                'SECOND' => [
+                    'code'              => 'second',
+                    'conversion_factor' => 1 / 24 * 60 * 60,
+                ],
+                'MINUTE' => [
+                    'code'              => 'minute',
+                    'conversion_factor' => 1 / 24 * 60,
+                ],
+                'HOUR' => [
+                    'code'              => 'hour',
+                    'conversion_factor' => 1 / 24,
+                ],
+                'DAY' => [
+                    'code'              => 'day',
+                    'conversion_factor' => 1,
+                ],
+                'WEEK' => [
+                    'code'              => 'week',
+                    'conversion_factor' => 7,
+                ],
+                'MONTH' => [
+                    'code'              => 'month',
+                    'conversion_factor' => 30,
+                ],
+                'YEAR' => [
+                    'code'              => 'year',
+                    'conversion_factor' => 365,
+                ],
+            ],
+            'Others' => [
+                'SET' => [
+                    'code' => 'set',
+                ],
+                'KIT' => [
+                    'code' => 'kit',
+                ],
+                'LUMPSUM' => [
+                    'code' => 'ls',
+                ],
+                'DRUM' => [
+                    'code' => 'drum',
+                ],
+            ],
         ];
 
         foreach ($units as $group => $unit) {
             foreach ($unit as $name => $dataUnit) {
                 Unit::updateOrCreate([
                     'code'  => $dataUnit['code'],
-                    'group' => $group,
+                    'group' => $group == 'Others' ? null : $group,
                 ], [
                     'name'              => \ucwords(\strtolower(\str_replace('_', ' ', $name))),
-                    'conversion_factor' => $dataUnit['conversion_factor'],
-                    'is_default'        => true,
+                    'conversion_factor' => $dataUnit['conversion_factor'] ?? null,
+                    'is_default'        => $dataUnit['is_default'] ?? true,
                 ]);
             }
         }

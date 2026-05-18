@@ -61,9 +61,9 @@ class Branch extends Model {
         return ['shippingCountry', 'billingCountry'];
     }
 
-    public string $formComponent = 'Settings/Branches/Form';
-    public string $translateKey  = 'core.branch';
-    protected $configColumns     = [
+    public string $formComponent   = 'Settings/Branches/Form';
+    public string $translateKey    = 'core.branch';
+    protected array $configColumns = [
         'title' => [
             'isLink' => true,
             'show'   => true,

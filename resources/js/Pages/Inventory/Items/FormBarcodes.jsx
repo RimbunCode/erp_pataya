@@ -1,15 +1,27 @@
-import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { memo, useMemo } from "react";
 
+import { FormPageContent } from "@/Pages/Core/FormPage";
 import FormTable from "@/Components/FormTable";
-import React from "react";
-import UnitLinkModel from "../Units/UnitLinkModel";
+import Select from "@/Components/Select";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
-export default memo(function FormBarcodes({ disabled, isVariant = false }) {
-  const { data, setData } = useFormPage();
-  const item = usePage().props.item;
+export default memo(function FormBarcodes({
+  disabled,
+  item = null,
+  barcodes = [],
+  uoms = [],
+  onBarcodesChange,
+}) {
+  const { mappingUoms, selectItemUoms } = useMemo(() => {
+    const mappingUoms = Object.fromEntries(uoms.map((u) => [u.id, u]));
+    const selectItemUoms = uoms.map((u) => ({
+      label: convertTemplateLink(u),
+      value: u.id,
+    }));
+    return { mappingUoms, selectItemUoms };
+  }, [uoms]);
+
   const { t } = useLaravelReactI18n();
   const barcodeColumns = useMemo(
     () => [
@@ -19,34 +31,25 @@ export default memo(function FormBarcodes({ disabled, isVariant = false }) {
         required: true,
       },
       {
-        name: "unit",
+        name: "basic_unit",
         titleTrans: "inventory.item.columns.barcodes.columns.unit",
         required: true,
         cell({ dataRow, data: value, setData, attributes }) {
           return (
-            <UnitLinkModel
+            <Select
               {...attributes}
               readOnly={!dataRow.barcode}
-              value={value}
+              value={value?.id}
               onValueChange={(val) => {
-                setData("unit", val);
+                setData("basic_unit", mappingUoms[val]);
               }}
-              filters={{
-                group: isVariant
-                  ? item?.default_unit?.group
-                  : data?.default_unit?.group,
-              }}
-              defaultValueForm={{
-                group: isVariant
-                  ? item?.default_unit?.group
-                  : data?.default_unit?.group,
-              }}
+              options={selectItemUoms}
             />
           );
         },
       },
     ],
-    [isVariant, data, item],
+    [mappingUoms, selectItemUoms],
   );
   return (
     <FormPageContent
@@ -57,10 +60,8 @@ export default memo(function FormBarcodes({ disabled, isVariant = false }) {
       <FormTable
         disabled={disabled}
         columns={barcodeColumns}
-        value={data.barcodes ?? []}
-        onValueChange={(val) => {
-          setData("barcodes", val);
-        }}
+        value={barcodes ?? []}
+        onValueChange={onBarcodesChange}
       />
     </FormPageContent>
   );

@@ -12,7 +12,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class InternalOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
+    public static $parentRelation = 'internalOrder';
+    protected $guarded            = ['id'];
 
     public static function templateLink() {
         return ':item';

@@ -16,7 +16,7 @@ class PaymentMethod extends Model {
         return ':name';
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'name' => [
             'order'  => 0,
             'show'   => true,
