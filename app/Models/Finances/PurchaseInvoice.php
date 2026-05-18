@@ -96,7 +96,6 @@ class PurchaseInvoice extends Model {
             'supplier',
             'purchaseOrder',
             'paymentSchedules',
-            'paymentSchedules.paymentTerm',
             'paymentSchedules.paymentMethod',
             'expenseHeadAccount',
             'creditAccount',

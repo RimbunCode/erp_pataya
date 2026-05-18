@@ -108,7 +108,6 @@ class SalesInvoice extends Model {
             'items.tax',
             'items.unit',
             'paymentSchedules',
-            'paymentSchedules.paymentTerm',
             'paymentSchedules.paymentMethod',
             'incomeAccount',
             'debitAccount',

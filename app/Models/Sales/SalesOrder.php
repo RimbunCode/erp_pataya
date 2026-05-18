@@ -127,7 +127,6 @@ class SalesOrder extends Model {
             'items.unit',
             'items.sourceWarehouse',
             'paymentSchedules',
-            'paymentSchedules.paymentTerm',
             'paymentSchedules.paymentMethod',
         ];
     }

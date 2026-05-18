@@ -12,7 +12,6 @@ use Database\Factories\Core\DashboardFactory;
 use Database\Factories\Core\TagFactory;
 use Database\Factories\Core\WidgetFactory;
 use Database\Factories\Finances\PaymentMethodFactory;
-use Database\Factories\Finances\PaymentTermFactory;
 use Database\Factories\Finances\PaymentTermTemplateFactory;
 use Database\Factories\Finances\TaxFactory;
 use Database\Factories\Inventory\AttributeFactory;
@@ -45,7 +44,6 @@ class DataTableNonSubmitableSeeder extends Seeder {
         SupplierFactory::new()->count(self::SEED_COUNT)->create();
 
         PaymentMethodFactory::new()->count(self::SEED_COUNT)->create();
-        PaymentTermFactory::new()->count(self::SEED_COUNT)->create();
         PaymentTermTemplateFactory::new()->count(self::SEED_COUNT)->create();
         ItemFactory::new()->count(self::SEED_COUNT)->create();
         ItemVariantFactory::new()->count(self::SEED_COUNT)->create();

@@ -380,7 +380,6 @@ export default function Form() {
                   with={[
                     "currency",
                     "paymentSchedules",
-                    "paymentSchedules.paymentTerm",
                     "paymentSchedules.paymentMethod",
                     "paymentSchedules.paymentMethod.defaultAccount",
                     ...(data.party_type === "customer"

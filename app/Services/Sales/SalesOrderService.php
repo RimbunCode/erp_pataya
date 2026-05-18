@@ -51,7 +51,6 @@ class SalesOrderService {
         $data['exchange_rate']      = $salesOrder->exchange_rate;
         $data['for_internal']       = false;
 
-        $data['payment_term_id']   = $data['payment_term']['id'] ?? null;
         $data['payment_method_id'] = $data['payment_method']['id'] ?? null;
 
         return $data;

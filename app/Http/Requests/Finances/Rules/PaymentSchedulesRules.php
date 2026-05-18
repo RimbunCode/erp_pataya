@@ -14,8 +14,6 @@ class PaymentSchedulesRules {
         return [
             'payment_schedules'                     => ['nullable', 'array'],
             'payment_schedules.*.id'                => ['required', 'string'],
-            'payment_schedules.*.payment_term.id'   => ['nullable', 'exists:payment_terms,id'],
-            'payment_schedules.*.payment_term.*'    => ['nullable'],
             'payment_schedules.*.payment_method.id' => ['nullable', 'exists:payment_methods,id'],
             'payment_schedules.*.payment_method.*'  => ['nullable'],
             'payment_schedules.*.due_date'          => ['required', 'date'],

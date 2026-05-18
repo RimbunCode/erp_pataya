@@ -46,7 +46,6 @@ class PurchaseOrderService {
         $data['base_currency_code'] = $purchaseOrder->base_currency_code;
         $data['exchange_rate']      = $purchaseOrder->exchange_rate;
         $data['for_internal']       = true;
-        $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
         $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
 
         return $data;

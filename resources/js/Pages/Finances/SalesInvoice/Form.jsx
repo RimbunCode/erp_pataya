@@ -267,7 +267,6 @@ export default function Form() {
                   "items.tax",
                   "items.unit",
                   "paymentSchedules",
-                  "paymentSchedules.paymentTerm",
                   "paymentSchedules.paymentMethod",
                 ]}
                 value={data.sales_order}

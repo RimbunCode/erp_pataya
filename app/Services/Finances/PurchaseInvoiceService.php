@@ -52,7 +52,6 @@ class PurchaseInvoiceService {
         $data['base_currency_code'] = $purchaseInvoice->base_currency_code;
         $data['exchange_rate']      = $purchaseInvoice->exchange_rate;
         $data['for_internal']       = $purchaseInvoice->return_against_id === null ? false : true;
-        $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
         $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
 
         return $data;

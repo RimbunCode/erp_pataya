@@ -55,7 +55,6 @@ class SalesInvoiceService {
         $data['base_currency_code'] = $salesInvoice->base_currency_code;
         $data['exchange_rate']      = $salesInvoice->exchange_rate;
         $data['for_internal']       = $salesInvoice->return_against_id === null ? true : false;
-        $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
         $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
 
         return $data;
