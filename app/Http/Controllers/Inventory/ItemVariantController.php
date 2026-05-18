@@ -31,7 +31,7 @@ class ItemVariantController extends Controller {
     public function info(Request $request) {
         $data           = $request->data ?? [];
         $idChanges      = array_flip($request->idChanges ?? []);
-        $totalIdChanges = count($idChanges);
+        $totalIdChanges = \count($idChanges);
 
         $result = [];
 
