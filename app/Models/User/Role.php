@@ -35,6 +35,10 @@ class Role extends Model {
         return ':name';
     }
 
+    protected static function loadRelationsOnShow() {
+        return ['rules', 'rules.permission'];
+    }
+
     public function users() {
         return $this->belongsToMany(User::class, 'user_roles', 'role_id', 'user_id');
     }

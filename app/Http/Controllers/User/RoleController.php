@@ -67,7 +67,7 @@ class RoleController extends Controller {
      */
     public function show(Request $request, Role $role) {
         if (! $this->isInertiaRequest($request)) {
-            $role->load('rules');
+            $role->loadRelations();
 
             return response()->json($role);
         }
@@ -77,7 +77,7 @@ class RoleController extends Controller {
 
         return Inertia::render('Users/Roles/Show', [
             'role' => function () use ($role) {
-                $role->load('rules');
+                $role->loadRelations();
 
                 return $role;
             },

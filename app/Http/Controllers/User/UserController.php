@@ -102,15 +102,18 @@ class UserController extends Controller {
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
-            'user' => function () use ($user) {
-                $user->roles    = $user->roles()->pluck('id');
-                $user->branches = $user->branches()->pluck('id');
+            'user' => function () use ($user, $request) {
+                if ($request->user()->id != $user->id) {
+                    $user->roles    = $user->roles()->pluck('id');
+                    $user->branches = $user->branches()->pluck('id');
+                }
 
                 return $user;
             },
-            'roles'    => Inertia::defer(Role::with('rules')->get(...)),
-            'branches' => Inertia::defer(Branch::whereNull('branchable_type')
-                ->whereNull('branchable_id')->get(...), ),
+            ...($request->user()->id != $user->id ? [
+                'roles'    => Inertia::defer(Role::with(['rules', 'rules.permission'])->get(...)),
+                'branches' => Inertia::defer(Branch::whereNull('branchable_type')->whereNull('branchable_id')->get(...)),
+            ] : []),
         ]);
     }
 
