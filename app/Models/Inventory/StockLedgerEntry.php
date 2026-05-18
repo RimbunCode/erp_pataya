@@ -11,9 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class StockLedgerEntry extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded       = ['id'];
-    public $translateKey     = 'inventory.stockLedger';
-    protected $configColumns = [
+    protected $guarded             = ['id'];
+    public $translateKey           = 'inventory.stockLedger';
+    protected array $configColumns = [
         'item' => [
             'show'  => true,
             'order' => 0,
@@ -75,13 +75,13 @@ class StockLedgerEntry extends Model {
         return false;
     }
 
-    protected static string $defaultFormatCode = 'StockLedger-@[iiii]/@[yy]';
+    protected static string $defaultFormatCode = 'SLE-@[iiii]/@[yy]';
     protected static $generateCodeSeries       = true;
 
     public static function boot() {
         parent::boot();
         self::creating(function ($model) {
-            $model->code = FormatingSeries::generate(StockEntry::class, $model->toArray());
+            $model->code = FormatingSeries::generate(StockLedgerEntry::class, $model->toArray());
         });
     }
 
