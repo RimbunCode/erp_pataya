@@ -24,9 +24,9 @@ return new class extends Migration
             $table->boolean('is_default')->default(false);
             $table->string('default_languange')->nullable();
             $table->string('font_family')->nullable();
-            $table->string('page')->nullable();
+            $table->string('paper')->nullable();
             $table->string('page_number')->nullable();
-            $table->string('orientation')->default('potrait');
+            $table->string('orientation')->default('portrait');
             $table->double('width')->nullable();
             $table->double('height')->nullable();
             $table->double('margin_top')->nullable();
@@ -46,6 +46,6 @@ return new class extends Migration
      * Reverse the migrations.
      */
     public function down(): void {
-        Schema::dropIfExists('prints');
+        Schema::dropIfExists('print_templates');
     }
 };

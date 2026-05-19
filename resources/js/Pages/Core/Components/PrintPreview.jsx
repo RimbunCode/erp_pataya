@@ -4,7 +4,7 @@ import Handlebars from "handlebars";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { formatValue } from "@/Components/CurrencyInput";
-import { getLocaleDate } from "@/lib/utils";
+import { getLocaleDate, getSafePrintFontFamily } from "@/lib/utils";
 import { initHandlebar } from "@/lib/initHandlebar";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -159,12 +159,13 @@ export default forwardRef(function PrintPreview({ template }, ref) {
     const style =
       ref.current.contentDocument.head.getElementsByTagName("style")[0] ??
       ref.current.contentDocument.createElement("style");
-    const unitCode = template.unit;
+    const unitCode = template.unit ?? "cm";
+    const fontFamily = getSafePrintFontFamily(template.font_family);
     style.innerHTML =
       css +
       `
       body{
-        font-family: ${template.font_family};
+        font-family: ${fontFamily};
         margin: ${template.margin_top ?? 0}${unitCode} ${template.margin_right ?? 0}${unitCode} ${template.margin_bottom ?? 0}${unitCode} ${template.margin_left ?? 0}${unitCode};
       }
       @media print {

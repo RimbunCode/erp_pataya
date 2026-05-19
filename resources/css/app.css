@@ -773,7 +773,7 @@ html {
 
 @media print {
   @page {
-    size: a4 potrait;
+    size: a4 portrait;
     margin-top: 2cm;
     margin-bottom: 2cm;
     margin-right: 2cm;

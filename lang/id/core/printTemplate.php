@@ -21,7 +21,7 @@ return [
             'en' => 'English',
             'id' => 'Indonesia',
         ],
-        'is_letter_head'    => 'Gunakan Kop Surat',
+        'is_letter_head'    => 'Template ini digunakan sebagai Kop Surat',
         'letter_head'       => 'Kop Surat',
         'font_family'       => 'Font',
         'unit'              => 'Unit',

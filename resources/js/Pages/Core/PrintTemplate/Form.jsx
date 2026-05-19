@@ -1,6 +1,11 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useEffect, useState } from "react";
-import { generateRandom, getFonts } from "@/lib/utils";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  DEFAULT_PRINT_FONTS,
+  generateRandom,
+  getDataModel,
+  getFonts,
+} from "@/lib/utils";
 
 import CurrencyInput from "@/Components/CurrencyInput";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -58,9 +63,51 @@ const units = {
 };
 
 export default function Form() {
-  const [fonts, setFonts] = useState([]);
-  const { data, setData } = useFormPage();
+  const defaultValue = useCallback(async () => {
+    const defaultPaper = "A4";
+    const defaultUnit = "cm";
+    const conversionFactor = units[defaultUnit].conversion_factor;
+    const letterHead = await getDataModel(
+      "App\\Models\\Core\\PrintTemplate",
+      {
+        is_default: true,
+        is_letter_head: true,
+      },
+      {
+        limit: 1,
+      },
+    );
+    return {
+      letter_head: letterHead,
+      paper: defaultPaper,
+      unit: defaultUnit,
+      orientation: "portrait",
+      page_number: "bottom_right",
+      font_family: "Times New Roman",
+      width: paperSize[defaultPaper].width / conversionFactor,
+      height: paperSize[defaultPaper].height / conversionFactor,
+      last_conversion_factor: conversionFactor,
+    };
+  }, []);
+
+  const { data, setData } = useFormPage(defaultValue);
+  const [fonts, setFonts] = useState([...DEFAULT_PRINT_FONTS]);
   const { t } = useLaravelReactI18n();
+
+  const fontOptions = useMemo(() => {
+    const options = [data?.font_family, ...fonts].filter(
+      (font) => typeof font === "string" && font.trim(),
+    );
+    const map = new Map();
+    options.forEach((font) => {
+      const normalized = font.trim();
+      const key = normalized.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, normalized);
+      }
+    });
+    return Array.from(map.values());
+  }, [data?.font_family, fonts]);
 
   useEffect(() => {
     const fn = async () => {
@@ -131,9 +178,6 @@ export default function Form() {
                   value={data?.letter_head ?? ""}
                   onValueChange={(e) => setData("letter_head", e)}
                   disabledAddButton={true}
-                  defaultValue={{
-                    is_default: true,
-                  }}
                   filters={{
                     id: {
                       not: data?.id,
@@ -159,7 +203,6 @@ export default function Form() {
           <div className="grid grid-cols-2 gap-4">
             <FormInput label={t("core.printTemplate.columns.paper")} required>
               <Select
-                defaultValue="A4"
                 value={data?.paper ?? ""}
                 onValueChange={(paper) => {
                   setData((prev) => {
@@ -217,7 +260,6 @@ export default function Form() {
               label={t("core.printTemplate.columns.orientation")}
             >
               <Select
-                defaultValue="portrait"
                 value={data?.orientation ?? ""}
                 onValueChange={(val) => {
                   setData((prev) => ({
@@ -236,15 +278,13 @@ export default function Form() {
               label={t("core.printTemplate.columns.font_family")}
             >
               <Select
-                defaultValue="Times New Roman"
                 value={data?.font_family ?? ""}
                 onValueChange={(e) => setData("font_family", e)}
-                options={fonts}
+                options={fontOptions}
               />
             </FormInput>
             <FormInput required label={t("core.printTemplate.columns.unit")}>
               <Select
-                defaultValue="cm"
                 value={data?.unit ?? ""}
                 options={Object.values(units)}
                 onValueChange={(unit) => {
@@ -304,7 +344,6 @@ export default function Form() {
               label={t("core.printTemplate.columns.page_number")}
             >
               <Select
-                defaultValue="bottom_right"
                 value={data?.page_number ?? ""}
                 onValueChange={(e) => setData("page_number", e)}
                 options={[
@@ -350,11 +389,11 @@ export default function Form() {
                             ? "custom"
                             : prev.paper,
                         orientation:
-                          val > prev.height ? "landscape" : "potrait",
+                          val > prev.height ? "landscape" : "portrait",
                       };
                     });
                   }}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
               <FormInput
@@ -380,7 +419,7 @@ export default function Form() {
                       };
                     });
                   }}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
             </div>
@@ -396,7 +435,7 @@ export default function Form() {
                   className="text-left"
                   value={data?.margin_top ?? ""}
                   onValueChange={(e) => setData("margin_top", e)}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
               <FormInput
@@ -409,7 +448,7 @@ export default function Form() {
                   className="text-left"
                   value={data?.margin_bottom ?? ""}
                   onValueChange={(e) => setData("margin_bottom", e)}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
               <FormInput
@@ -423,7 +462,7 @@ export default function Form() {
                   className="text-left"
                   value={data?.margin_left ?? ""}
                   onValueChange={(e) => setData("margin_left", e)}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
               <FormInput
@@ -436,7 +475,7 @@ export default function Form() {
                   className="text-left"
                   value={data?.margin_right ?? ""}
                   onValueChange={(e) => setData("margin_right", e)}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
             </div>
