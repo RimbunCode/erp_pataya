@@ -5,6 +5,8 @@
 /lang/php_*.json
 #----------------------
 
+.github/skills
+.kiro/skills
 *_translations.json
 /.phpunit.cache
 /node_modules

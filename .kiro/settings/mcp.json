@@ -2,7 +2,14 @@
   "mcpServers": {
     "laravel-boost": {
       "command": "php",
-      "args": ["artisan", "boost:mcp"]
+      "args": [
+        "artisan",
+        "boost:mcp"
+      ],
+      "autoApprove": [
+        "database-schema",
+        "database-query"
+      ]
     },
     "herd": {
       "command": "php",
@@ -16,7 +23,10 @@
     },
     "shadcn": {
       "command": "npx",
-      "args": ["shadcn@latest", "mcp"]
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ]
     }
   }
 }
