@@ -13,6 +13,7 @@ use App\Models\Core\Taggable;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Core\PrintTemplate\RelationTrackerService;
 use App\Utils;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -58,8 +59,8 @@ abstract class Controller {
                     $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? '') . '.title', 'link' => route("{$model->route}.index")];
                     $name          = Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
                     $breadcrumbs[] = ($key == (count($models) - 1)) ?
-                        ['name' => $name] :
-                        ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
+                      ['name' => $name] :
+                      ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
 
                     continue;
                 }
@@ -67,8 +68,8 @@ abstract class Controller {
                 $alias         = $model->aliasBreadcrumb ?? $className[1];
                 $value         = Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
                 $breadcrumbs[] = ($key == (count($models) - 1)) ?
-                    ['name' => "{$alias}: {$value}"] :
-                    ['name' => "{$alias}: {$value}", 'link' => route("{$model->route}.show", $model->id)];
+                  ['name' => "{$alias}: {$value}"] :
+                  ['name' => "{$alias}: {$value}", 'link' => route("{$model->route}.show", $model->id)];
             }
         }
         Inertia::share([
@@ -290,10 +291,25 @@ abstract class Controller {
     public function print(Request $request, mixed $id, ?PrintTemplate $printTemplate = null) {
         $data = $this->model::find($id);
         $this->setBreadcrumbs($data, __('core/form.print_preview'));
-        $data->loadRelations();
+
+        // Resolve the print template first so we can use its used_relations
         $printTemplate ??= PrintTemplate::where('model', $this->model)
             ->where('is_default', true)
             ->first();
+
+        // Use template's used_relations for optimized eager loading when available
+        $usedRelations = $printTemplate?->getUsedRelations() ?? [];
+
+        if (! empty($usedRelations)) {
+            // Validate and load only the relations used in the template
+            $relationTracker = app(RelationTrackerService::class);
+            $validRelations  = $relationTracker->validateRelations($this->model, $usedRelations);
+            $data->load($validRelations);
+        } else {
+            // Fallback: load all relations when template has no used_relations tracked
+            $data->loadRelations();
+        }
+
         $printTemplate->loadRelations();
 
         return Inertia::render('Core/Print', [

@@ -9,6 +9,7 @@ use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\DashboardController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\FormatingSeriesController;
+use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\PrintTemplateController;
@@ -115,6 +116,10 @@ Route::get('/model/{model}', [ModelController::class, 'columns'])
     ->where('model', '.*')
     ->middleware(middleware: ['auth'])
     ->name('model.columns');
+Route::post('/api/html/sanitize', HtmlSanitizeController::class)
+    ->middleware(middleware: ['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->name('api.html.sanitize');
 Route::get('/commands/search', [CommandSearchController::class, 'index'])
     ->middleware(middleware: ['auth'])
     ->withoutMiddleware([HandleInertiaRequests::class])
@@ -172,6 +177,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
 
         Route::resourceDetail('printTemplates', PrintTemplateController::class);
         Route::get('/printTemplates/{printTemplates}/editor', [PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
+        Route::post('/printTemplates/{printTemplates}/preview', [PrintTemplateController::class, 'preview'])->name('printTemplates.preview');
+        Route::post('/printTemplates/{printTemplates}/generate-example-data', [PrintTemplateController::class, 'generateExampleData'])->name('printTemplates.generate-example-data');
         Route::resourceDetail('widget', WidgetController::class);
     });
     // Tags
