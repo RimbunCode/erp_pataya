@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder {
 
         if (config('app.debug')) {
             $this->call(DataTableNonSubmitableSeeder::class);
+            $this->call(ExampleDataSeeder::class);
         }
     }
 }

@@ -82,6 +82,10 @@ class PurchaseInvoice extends Model {
         'expenseHeadAccount',
         'creditAccount',
         'returnAgainst',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {

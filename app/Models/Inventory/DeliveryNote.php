@@ -64,6 +64,10 @@ class DeliveryNote extends Model {
             'order' => 5,
         ],
         'returnAgainst',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {

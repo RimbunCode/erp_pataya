@@ -42,6 +42,11 @@ class StockEntryItem extends Model {
         'basic_rate' => [
             'type'         => 'currency',
             'decimalScale' => 2,
+            'show'         => true,
+            'order'        => 5,
+        ],
+        'stockEntry' => [
+            'ignore' => true,
         ],
     ];
 

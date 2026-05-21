@@ -75,7 +75,10 @@ class WorkOrder extends Model {
             'width' => 'fit',
             'order' => 3,
         ],
-        'items',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
         'customer' => [
             'show'  => true,
             'order' => 4,

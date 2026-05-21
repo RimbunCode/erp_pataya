@@ -94,6 +94,10 @@ class SalesInvoice extends Model {
         'incomeAccount',
         'debitAccount',
         'returnAgainst',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {

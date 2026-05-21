@@ -64,7 +64,10 @@ class StockEntry extends Model {
         'branch' => [
             'ignore' => true,
         ],
-        'items',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
         'additionalCosts',
         'differenceAccount',
         'referenceable',

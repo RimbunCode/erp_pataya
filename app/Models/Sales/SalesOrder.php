@@ -111,7 +111,10 @@ class SalesOrder extends Model {
         'rent_date' => [
             'type' => 'datetime',
         ],
-        'items',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {
