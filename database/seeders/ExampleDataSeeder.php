@@ -68,29 +68,29 @@ class ExampleDataSeeder extends Seeder {
     private function cleanExistingExampleData(): void {
         // Clean in reverse dependency order
         // Item models (non-DataTable) are cleaned via their parent's cascade or by parent ID
-        $workOrderIds = WorkOrder::query()->where('is_example', true)->pluck('id');
+        $workOrderIds = WorkOrder::exampleData()->pluck('id');
         WorkOrderItem::query()->whereIn('work_order_id', $workOrderIds)->forceDelete();
-        WorkOrder::query()->where('is_example', true)->forceDelete();
+        WorkOrder::exampleData()->forceDelete();
 
-        $deliveryNoteIds = DeliveryNote::query()->where('is_example', true)->pluck('id');
+        $deliveryNoteIds = DeliveryNote::exampleData()->pluck('id');
         DeliveryNoteItem::query()->whereIn('delivery_note_id', $deliveryNoteIds)->forceDelete();
-        DeliveryNote::query()->where('is_example', true)->forceDelete();
+        DeliveryNote::exampleData()->forceDelete();
 
-        $purchaseInvoiceIds = PurchaseInvoice::query()->where('is_example', true)->pluck('id');
+        $purchaseInvoiceIds = PurchaseInvoice::exampleData()->pluck('id');
         PurchaseInvoiceItem::query()->whereIn('purchase_invoice_id', $purchaseInvoiceIds)->forceDelete();
-        PurchaseInvoice::query()->where('is_example', true)->forceDelete();
+        PurchaseInvoice::exampleData()->forceDelete();
 
-        $purchaseOrderIds = PurchaseOrder::query()->where('is_example', true)->pluck('id');
+        $purchaseOrderIds = PurchaseOrder::exampleData()->pluck('id');
         PurchaseOrderItem::query()->whereIn('purchase_order_id', $purchaseOrderIds)->forceDelete();
-        PurchaseOrder::query()->where('is_example', true)->forceDelete();
+        PurchaseOrder::exampleData()->forceDelete();
 
-        $salesInvoiceIds = SalesInvoice::query()->where('is_example', true)->pluck('id');
+        $salesInvoiceIds = SalesInvoice::exampleData()->pluck('id');
         SalesInvoiceItem::query()->whereIn('sales_invoice_id', $salesInvoiceIds)->forceDelete();
-        SalesInvoice::query()->where('is_example', true)->forceDelete();
+        SalesInvoice::exampleData()->forceDelete();
 
-        $salesOrderIds = SalesOrder::query()->where('is_example', true)->pluck('id');
+        $salesOrderIds = SalesOrder::exampleData()->pluck('id');
         SalesOrderItem::query()->whereIn('sales_order_id', $salesOrderIds)->forceDelete();
-        SalesOrder::query()->where('is_example', true)->forceDelete();
+        SalesOrder::exampleData()->forceDelete();
     }
 
     private function getOrCreateBranch(): Branch {
@@ -122,7 +122,7 @@ class ExampleDataSeeder extends Seeder {
     }
 
     private function getOrCreateTax(): Tax {
-        return Tax::query()->where('is_example', true)->first()
+        return Tax::exampleData()->first()
             ?? Tax::query()->create([
                 'name'       => 'PPN 11%',
                 'rate'       => 11,
@@ -143,7 +143,7 @@ class ExampleDataSeeder extends Seeder {
     }
 
     private function getOrCreatePaymentMethod(): PaymentMethod {
-        return PaymentMethod::query()->where('is_example', true)->first()
+        return PaymentMethod::exampleData()->first()
             ?? PaymentMethod::query()->first()
             ?? PaymentMethod::query()->create([
                 'name'        => 'Bank Transfer',
@@ -833,7 +833,7 @@ class ExampleDataSeeder extends Seeder {
                 'reference_to_id'    => Permission::query()->where('model', 'LIKE', '%SalesOrder%')->value('id')
                     ?? Permission::query()->value('id'),
                 'referenceable_type' => SalesOrder::class,
-                'referenceable_id'   => SalesOrder::query()->where('is_example', true)->value('id') ?? $customer->id,
+                'referenceable_id'   => SalesOrder::exampleData()->value('id') ?? $customer->id,
                 'customer_id'        => $customer->id,
                 'customer_branch_id' => $customerBranch?->id,
                 'branch_id'          => $branch->id,
