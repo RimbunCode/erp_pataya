@@ -78,8 +78,8 @@ export default function LayerItem({
   };
 
   const wrapperCls = cn(
-    "layer-item flex flex-col",
-    selected && "bg-sky-900",
+    "layer-item flex flex-col text-foreground",
+    selected && "bg-accent/40",
     (!visible || isDragging) && "opacity-50",
   );
 
@@ -95,10 +95,10 @@ export default function LayerItem({
       >
         <div
           className={cn(
-            "flex items-center p-1 pr-2 border-b gap-1",
-            level === 0 && "border-t",
-            isHovered && "bg-sky-700",
-            selected && "bg-sky-500",
+            "flex items-center gap-1 border-b border-border p-1.5 pr-2 transition-colors",
+            level === 0 && "border-t border-border",
+            isHovered && "bg-muted/70",
+            selected && "bg-accent text-accent-foreground",
           )}
         >
           <div
@@ -116,7 +116,7 @@ export default function LayerItem({
           </div>
           <div
             className={cn(
-              "group-hover:opacity-100 cursor-pointer",
+              "cursor-pointer text-muted-foreground transition-colors hover:text-foreground group-hover:opacity-100",
               visible ? "opacity-0" : "opacity-100",
             )}
             onClick={toggleVisibility}

@@ -35,6 +35,7 @@ import { useForm, usePage } from "@inertiajs/react";
 import { Button } from "@/Components/ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { FormCheckbox } from "@/Components/ui/checkbox";
+import { buildExampleDataTable } from "@/lib/gjsRelationsTable";
 import { useEditor } from "@grapesjs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -174,6 +175,7 @@ const ColumnItem = memo(function ColumnItem({ column, onRemove }) {
 });
 const ComponentItem = memo(function ComponentItem({ component, data }) {
   const { t } = useLaravelReactI18n();
+  const { exampleData } = usePage().props ?? {};
   const {
     data: _data,
     setData: _setData,
@@ -250,128 +252,32 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
     tbody.remove();
 
     const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
-    component.append([
-      {
-        type: "tableHead",
-        tagName: "thead",
-        toolbars: [],
-        selectable: false,
-        droppable: false,
-        layerable: false,
-        editable: false,
-        draggable: false,
-        components: [
-          {
-            type: "html-comment",
-            attributes: {
-              text: `{{#infoColumns @root.dataTableColumns key="${attributes["data-relations"]}" }}`,
-            },
-          },
-          {
-            tagName: "tr",
-            toolbars: [],
-            selectable: false,
-            droppable: false,
-            layerable: false,
-            editable: false,
-            draggable: false,
-            components: [
-              {
-                tagName: "th",
-                selectable: false,
-                droppable: false,
-                layerable: false,
-                editable: false,
-                draggable: false,
-                content: "#",
-                attributes: {
-                  "data-id": genId("cell"),
-                },
-              },
-              ...columns.map((col) => ({
-                tagName: "th",
-                content: `{{trans ${col.name}}}`,
-                selectable: false,
-                droppable: false,
-                layerable: false,
-                editable: false,
-                draggable: false,
-                attributes: {
-                  "data-id": genId("cell"),
-                  name: col.name,
-                  class:
-                    "border border-gray-400 px-2 py-1 text-left bg-gray-100",
-                },
-                toolbars: [],
-              })),
-            ],
-          },
-          {
-            type: "html-comment",
-            attributes: { text: `{{/infoColumns}}` },
-          },
-        ],
-      },
-      {
-        tagName: "tbody",
-        toolbars: [],
-        selectable: false,
-        droppable: false,
-        layerable: false,
-        editable: false,
-        draggable: false,
-        components: [
-          {
-            type: "html-comment",
-            attributes: { text: `{{#each ${attributes["data-relations"]}}}` },
-          },
-          {
-            tagName: "tr",
-            toolbars: [],
-            selectable: false,
-            droppable: false,
-            layerable: false,
-            editable: false,
-            draggable: false,
-            components: [
-              {
-                tagName: "td",
-                toolbars: [],
-                selectable: false,
-                droppable: false,
-                layerable: false,
-                editable: false,
-                draggable: false,
-                content: "{{idx}}",
-                attributes: {
-                  "data-id": genId("cell"),
-                },
-              },
-              ...columns.map((col) => ({
-                tagName: "td",
-                content: `{{${col.type == "relation" ? "relation " : ""}${col.name}}}`,
-                toolbars: [],
-                selectable: false,
-                droppable: false,
-                layerable: false,
-                editable: false,
-                draggable: false,
-                attributes: {
-                  "data-id": genId("cell"),
-                  name: col.name,
-                  class: "border border-gray-300 px-2 py-1",
-                },
-              })),
-            ],
-          },
-          {
-            type: "html-comment",
-            attributes: { text: `{{/each}}` },
-          },
-        ],
-      },
-    ]);
-  }, [_data]);
+    const relationName = attributes["data-relations"];
+
+    // Get example data for canvas preview
+    const relationExampleData = exampleData
+      ? Array.isArray(exampleData[relationName])
+        ? exampleData[relationName]
+        : exampleData[relationName]
+          ? [exampleData[relationName]]
+          : []
+      : [];
+
+    // Build canvas preview with example data (not Handlebar tokens)
+    // Requirements: 3.1, 3.2, 3.4
+    const tableComponents = buildExampleDataTable({
+      columns,
+      relationName,
+      exampleData: relationExampleData,
+      t,
+      genId,
+    });
+
+    // Store columns config on the component for toHTML() token generation
+    component.set("columnsConfig", columns);
+
+    component.append(tableComponents);
+  }, [_data, exampleData]);
   const onReset = useCallback(() => {
     setColumns(data.columns);
   }, []);
@@ -500,11 +406,16 @@ export default function RelationsInspector() {
 
         if (!dataCol) return;
         dataCol.columns = dataCol.columns
-          ?.map((col) => {
+          ?.map((col, idx) => {
             const config = getConfig(col.name);
             return {
               ...col,
-              ...config,
+              // Use order from table headers if present, otherwise
+              // fall back to the order property from DataTableColumns config,
+              // and finally use the array index as last resort.
+              // Requirements: 3.12
+              order: config.order ?? col.order ?? idx,
+              show: config.show ?? col.show ?? true,
             };
           })
           .sort((a, b) => {

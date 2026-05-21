@@ -11,13 +11,12 @@ import StylePropertyField from "./StylePropertyField";
 
 export default function CustomStyleManager({ sectors }) {
   return (
-    <div className=" text-left">
-      <Accordion type="single" collapsible>
+    <div className="text-left">
+      <Accordion type="single" collapsible className="w-full">
         {sectors.map((sector) => {
-          console.log(sector, sector.getProperties());
           return (
             <AccordionItem key={sector.getId()} value={sector.getId()}>
-              <AccordionTrigger className=" px-4">
+              <AccordionTrigger className="px-4 text-sm hover:bg-muted/50">
                 {sector.getName()}
               </AccordionTrigger>
               <AccordionContent className={`grid grid-cols-2 gap-2 px-4`}>

@@ -73,6 +73,27 @@ function validateHandlebarTemplate(template = "") {
   }
 }
 
+function buildVariableToken({
+  variableType,
+  parentType,
+  variablePath,
+  keyName,
+}) {
+  if (parentType === "preferences" || variableType === "preferences") {
+    return `{{company.${keyName}}}`;
+  }
+
+  const normalizedPath = variablePath.startsWith("doc.")
+    ? variablePath
+    : `doc.${variablePath}`;
+
+  if (variableType === "relation") {
+    return `{{relation ${normalizedPath}}}`;
+  }
+
+  return `{{${normalizedPath}}}`;
+}
+
 function mountLetterheadPreview(editor, { html, css }) {
   const addPreview = () => {
     const frame = editor.Canvas.getFrameEl();
@@ -185,9 +206,12 @@ function variableDropListener(editor, { t, exampleData }) {
         const labelKey = labelAttributes["data-label-key"] || fallbackLabel;
         const token =
           tokenAttributes["data-token"] ||
-          (variableType === "preferences"
-            ? `{{companyDetail "${labelKey}"}}`
-            : `{{${variablePath}}}`);
+          buildVariableToken({
+            variableType,
+            parentType: variableType,
+            variablePath,
+            keyName: labelKey,
+          });
 
         const labelTypeArg =
           variableType === "preferences" ? ' type="companyDetail"' : "";
@@ -307,10 +331,20 @@ function variableDropListener(editor, { t, exampleData }) {
             attributes: {
               "data-token":
                 payload.formattedToken ||
-                `{{${payload.parentType === "preferences" ? `companyDetail "${payload.name}"` : varPath}}}`,
+                buildVariableToken({
+                  variableType: payload.type,
+                  parentType: payload.parentType,
+                  variablePath: varPath,
+                  keyName: payload.name,
+                }),
               title:
                 payload.formattedToken ||
-                `{{${payload.parentType === "preferences" ? `companyDetail "${payload.name}"` : varPath}}}`,
+                buildVariableToken({
+                  variableType: payload.type,
+                  parentType: payload.parentType,
+                  variablePath: varPath,
+                  keyName: payload.name,
+                }),
             },
           },
         ],
@@ -624,7 +658,22 @@ function PrintTemplate({
     );
     editor.on("preview:open", openPreview);
     editor.on("storage:error:load", () => {
-      toast.error("Gagal memuat template. Silakan muat ulang halaman.");
+      toast.error("Gagal memuat template. Menggunakan template kosong.", {
+        action: {
+          label: "Muat Ulang",
+          onClick: () => window.location.reload(),
+        },
+      });
+
+      editor.loadProjectData({
+        pages: [
+          {
+            name: "Page 1",
+            component: "<div></div>",
+            styles: "",
+          },
+        ],
+      });
     });
     editor.on("storage:error:store", () => {
       toast.error("Gagal menyimpan template karena masalah jaringan.");
@@ -679,8 +728,10 @@ function PrintTemplate({
                   Accept: "application/json",
                   "Content-Type": "application/json",
                 }, // Custom headers for the remote storage request
-                urlStore: `https://erp.test/settings/printTemplates/`, // Endpoint URL where to store data project
-                urlLoad: `https://erp.test/settings/printTemplates/${printTemplate.id}`, // Endpoint URL where to load data project
+                urlLoad: window.route("printTemplates.show", {
+                  printTemplates: printTemplate.id,
+                }), // Endpoint URL where to load data project
+                urlStore: window.route("printTemplates.store"),
               },
             },
             onStore: (data, editor) => {
@@ -737,9 +788,9 @@ function PrintTemplate({
                   <TopBar />
                 </WithEditor>
               </div>
-              <div className="flex h-full min-h-0 grow touch-pan-y flex-col overflow-auto rounded-xl border border-border bg-muted/20 p-2 text-center md:max-xl:min-h-[60vh]">
+              <div className="flex h-full min-h-0 grow touch-pan-y flex-col overflow-auto rounded-xl border border-border bg-muted/20 p-2 text-center md:max-xl:min-h-[60vh] md:max-xl:p-1.5">
                 <Canvas
-                  className="h-full w-full max-w-4xl rounded-md bg-background shadow-sm"
+                  className="h-full w-full max-w-4xl rounded-md bg-background shadow-sm md:max-xl:max-w-full"
                   style={canvasStyle}
                 />
               </div>
