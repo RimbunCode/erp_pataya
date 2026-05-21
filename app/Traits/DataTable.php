@@ -310,6 +310,14 @@ trait DataTable {
 
             return;
         }
+
+        // Add is_example column for example data system (Requirement 8.1)
+        if (! Schema::hasColumn($tableName, 'is_example')) {
+            Schema::table($tableName, function (Blueprint $table) {
+                $table->boolean('is_example')->default(false);
+                $table->index('is_example');
+            });
+        }
         if ((static::$is_submitable ?? false) || (static::$generateCodeSeries ?? false)) {
             $formatingSeries = FormatingSeries::where('model', static::class)->first();
             if (! $formatingSeries) {
