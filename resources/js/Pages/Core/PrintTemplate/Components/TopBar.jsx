@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
 import { useEditor } from "@grapesjs/react";
+import SaveStatusBadge from "./SaveStatusBadge";
 
 const TopBar = memo(function TopBar() {
   const editor = useEditor();
@@ -165,6 +166,7 @@ const TopBar = memo(function TopBar() {
             </Tooltip>
           ),
         )}
+        <SaveStatusBadge />
       </div>
     </TooltipProvider>
   );

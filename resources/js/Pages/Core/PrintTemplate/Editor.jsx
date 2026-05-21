@@ -25,6 +25,10 @@ import grapesjs from "grapesjs";
 import { initHandlebar } from "@/lib/initHandlebar";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { toast } from "sonner";
+import { simplifyTokenDisplay } from "./Components/tokenConfigHelpers";
+
+const BOOTSTRAP_CSS_CDN =
+  "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css";
 
 function resolveTemplateUnitCode(printTemplate) {
   const rawUnit =
@@ -44,12 +48,67 @@ function parseNumericValue(value, fallbackValue) {
   return Number.isFinite(numeric) ? numeric : fallbackValue;
 }
 
+function decodeTokenFromBase64(base64Token = "") {
+  if (!base64Token || typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    const binary = window.atob(base64Token);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return "";
+  }
+}
+
+function normalizeInlineVariableTokenSpans(template = "") {
+  if (typeof template !== "string" || !template.trim()) {
+    return "";
+  }
+
+  if (typeof DOMParser === "undefined") {
+    return template;
+  }
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(
+      `<div id="inline-token-root">${template}</div>`,
+      "text/html",
+    );
+    const root = doc.getElementById("inline-token-root");
+
+    if (!root) {
+      return template;
+    }
+
+    const inlineTokens = Array.from(
+      root.querySelectorAll("[data-variable-inline]"),
+    );
+
+    inlineTokens.forEach((tokenNode) => {
+      const token =
+        tokenNode.getAttribute("data-token") ||
+        decodeTokenFromBase64(tokenNode.getAttribute("data-token-b64") || "") ||
+        tokenNode.textContent ||
+        "";
+
+      tokenNode.replaceWith(doc.createTextNode(token));
+    });
+
+    return root.innerHTML;
+  } catch {
+    return template;
+  }
+}
+
 function formatHandlebarTemplate(template = "") {
   if (typeof template !== "string" || !template.trim()) {
     return "";
   }
 
-  const normalized = template
+  const normalized = normalizeInlineVariableTokenSpans(template)
     .replace(/\{\{#(each|if|unless)([^}]*)\}\}/g, "\n$&\n")
     .replace(/\{\{\/(each|if|unless)\}\}/g, "\n$&\n")
     .replace(/\n{2,}/g, "\n");
@@ -146,8 +205,22 @@ function mountLetterheadPreview(editor, { html, css }) {
   addPreview();
 }
 
-function variableDropListener(editor, { t, exampleData }) {
+function variableDropListener(editor, { t, exampleData, locale }) {
   const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
+  const getSimplifiedTokenDisplay = (token, variablePath = "") => {
+    if (!token) {
+      return variablePath ? `{{${variablePath.replace(/^doc\./, "")}}}` : "";
+    }
+
+    const formattedTokenMatch = token.match(
+      /\{\{\s*format(?:Currency|Number)\s+doc\.([^\s}]+)/,
+    );
+    if (formattedTokenMatch?.[1]) {
+      return `{{${formattedTokenMatch[1]}}}`;
+    }
+
+    return simplifyTokenDisplay(token);
+  };
   editor.DomComponents.addType("grid", {
     model: {
       defaults: {
@@ -225,6 +298,86 @@ function variableDropListener(editor, { t, exampleData }) {
       },
     },
   });
+
+  const syncVariableComponentDisplay = (component) => {
+    if (!component || component.getType?.() !== "subGrid") {
+      return;
+    }
+
+    const attributes = component.getAttributes?.() || {};
+    const variablePath = attributes["data-variable"] || "";
+    const labelComponent = Array.from(
+      component.find?.("[data-label-key]") || [],
+    )[0];
+    const tokenComponent = Array.from(
+      component.find?.("[data-token]") || [],
+    )[0];
+
+    if (labelComponent) {
+      const labelKey =
+        labelComponent.getAttributes?.()?.["data-label-key"] || "";
+      const translatedLabel = labelKey ? t(`fields.${labelKey}`) : "";
+      const fallbackLabel =
+        labelKey.split(".").pop() || labelKey || variablePath;
+      const displayLabel =
+        translatedLabel && translatedLabel !== `fields.${labelKey}`
+          ? translatedLabel
+          : fallbackLabel;
+
+      labelComponent.set("content", displayLabel || fallbackLabel || "-");
+    }
+
+    if (!tokenComponent) {
+      return;
+    }
+
+    const tokenValue = tokenComponent.getAttributes?.()?.["data-token"] || "";
+    const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, variablePath);
+
+    if (String(tokenComponent.get("tagName") || "").toLowerCase() === "p") {
+      tokenComponent.set("editable", false);
+      tokenComponent.components([
+        {
+          type: "textnode",
+          content: ": ",
+        },
+        {
+          type: "text",
+          tagName: "span",
+          selectable: true,
+          editable: false,
+          draggable: false,
+          attributes: {
+            "data-token": tokenValue,
+            title: tokenValue,
+            contenteditable: "false",
+          },
+          content: simplifiedToken,
+        },
+      ]);
+
+      return;
+    }
+
+    tokenComponent.set("content", simplifiedToken);
+  };
+
+  const syncAllVariableComponents = () => {
+    const wrapper = editor.getWrapper?.();
+    if (!wrapper) {
+      return;
+    }
+
+    const variableComponents = Array.from(
+      wrapper.find?.("[data-variable]") || [],
+    );
+    variableComponents.forEach((component) =>
+      syncVariableComponentDisplay(component),
+    );
+  };
+
+  editor.on("load", syncAllVariableComponents);
+  editor.on("component:add", syncVariableComponentDisplay);
   // 1. Intersep data drop dari luar
   editor.on("canvas:dragdata", (dataTransfer, result) => {
     const json = dataTransfer.getData("variable/json");
@@ -261,6 +414,7 @@ function variableDropListener(editor, { t, exampleData }) {
         exampleData: relationExampleData,
         t,
         genId,
+        locale,
       });
 
       // 👉 Beritahu GrapesJS: konten yang harus dibuat saat drop
@@ -278,36 +432,6 @@ function variableDropListener(editor, { t, exampleData }) {
       // Resolve example value for this variable from exampleData
       // Requirements: 1.1, 1.2, 1.5, 1.6 - Display example data in canvas with grid layout
       const varPath = payload.fullKey || payload.name;
-      let exampleValue = payload.exampleValue || null;
-
-      // Try to resolve from exampleData if not already provided
-      if (!exampleValue && exampleData) {
-        const parts = varPath.split(".");
-        let current = exampleData;
-        for (const part of parts) {
-          if (current == null || typeof current !== "object") {
-            current = null;
-            break;
-          }
-          current = current[part];
-        }
-        if (current != null && typeof current !== "object") {
-          exampleValue = String(current);
-        }
-      }
-
-      // For preferences, resolve from preferences in exampleData
-      if (
-        !exampleValue &&
-        payload.parentType === "preferences" &&
-        exampleData?.preferences
-      ) {
-        const prefValue = exampleData.preferences[payload.name];
-        if (prefValue != null) {
-          exampleValue = String(prefValue);
-        }
-      }
-
       result.content = {
         type: "subGrid",
         attributes: {
@@ -318,7 +442,7 @@ function variableDropListener(editor, { t, exampleData }) {
           {
             type: "text",
             tagName: "p",
-            content: `{{label "${payload.name}" ${payload.parentType === "preferences" ? `type="companyDetail"` : ""}}}`,
+            content: payload.displayLabel || payload.name,
             attributes: {
               "data-label-key": payload.name,
               title: `{{label "${payload.name}"}}`,
@@ -327,25 +451,49 @@ function variableDropListener(editor, { t, exampleData }) {
           {
             type: "text",
             tagName: "p",
-            content: `: ${exampleValue || `{{${payload.parentType === "preferences" ? `companyDetail "${payload.name}"` : varPath}}}`}`,
-            attributes: {
-              "data-token":
-                payload.formattedToken ||
-                buildVariableToken({
-                  variableType: payload.type,
-                  parentType: payload.parentType,
-                  variablePath: varPath,
-                  keyName: payload.name,
-                }),
-              title:
-                payload.formattedToken ||
-                buildVariableToken({
-                  variableType: payload.type,
-                  parentType: payload.parentType,
-                  variablePath: varPath,
-                  keyName: payload.name,
-                }),
-            },
+            editable: false,
+            components: [
+              {
+                type: "textnode",
+                content: ": ",
+              },
+              {
+                type: "text",
+                tagName: "span",
+                selectable: true,
+                editable: false,
+                draggable: false,
+                attributes: {
+                  "data-token":
+                    payload.formattedToken ||
+                    buildVariableToken({
+                      variableType: payload.type,
+                      parentType: payload.parentType,
+                      variablePath: varPath,
+                      keyName: payload.name,
+                    }),
+                  title:
+                    payload.formattedToken ||
+                    buildVariableToken({
+                      variableType: payload.type,
+                      parentType: payload.parentType,
+                      variablePath: varPath,
+                      keyName: payload.name,
+                    }),
+                  contenteditable: "false",
+                },
+                content: getSimplifiedTokenDisplay(
+                  payload.formattedToken ||
+                    buildVariableToken({
+                      variableType: payload.type,
+                      parentType: payload.parentType,
+                      variablePath: varPath,
+                      keyName: payload.name,
+                    }),
+                  varPath,
+                ),
+              },
+            ],
           },
         ],
       };
@@ -370,7 +518,10 @@ function variableDropListener(editor, { t, exampleData }) {
     if (!parent) return;
     if (parent.getType() === "subGrid") {
       model.remove();
-      toast.error("Invalid drop target for variable component.");
+      toast.error(
+        t("core/printTemplate.editor.invalid_drop_target") ||
+          "Invalid drop target for variable component.",
+      );
       return;
     }
     if (parent.getType() !== "grid") {
@@ -389,6 +540,32 @@ function variableDropListener(editor, { t, exampleData }) {
   });
 }
 
+/**
+ * Strip editor-only styles for .gjs-static-html-wrapper from exported CSS.
+ * Removes the border/outline rule and the ::before pseudo-element rule
+ * that are only meant for the canvas editing experience.
+ * (Requirements: 24.3)
+ */
+function stripEditorOnlyWrapperStyles(css) {
+  if (typeof css !== "string" || !css.trim()) {
+    return css;
+  }
+
+  // Remove .gjs-static-html-wrapper rule block (border, border-radius, padding, min-height, position)
+  let cleaned = css.replace(
+    /\.gjs-static-html-wrapper\s*\{[^}]*border:\s*2px\s+dashed\s+#6366f1[^}]*\}/gi,
+    "",
+  );
+
+  // Remove .gjs-static-html-wrapper::before rule block
+  cleaned = cleaned.replace(
+    /\.gjs-static-html-wrapper::before\s*\{[^}]*\}/gi,
+    "",
+  );
+
+  return cleaned;
+}
+
 function getCurrentTemplateFromEditor(editor, fallbackTemplate = {}) {
   if (!editor) {
     return {
@@ -401,11 +578,13 @@ function getCurrentTemplateFromEditor(editor, fallbackTemplate = {}) {
     const page = editor.Pages.getSelected() || editor.Pages.getAll()[0];
     const component = page?.getMainComponent?.();
 
+    const rawCss = component ? editor.getCss({ component }) : editor.getCss();
+
     return {
       html: formatHandlebarTemplate(
         component ? editor.getHtml({ component }) : editor.getHtml(),
       ),
-      css: component ? editor.getCss({ component }) : editor.getCss(),
+      css: stripEditorOnlyWrapperStyles(rawCss),
     };
   } catch (error) {
     console.error("Failed to extract current template", error);
@@ -422,6 +601,7 @@ function PrintTemplate({
   dataTableColumns,
   preferences,
   exampleData,
+  docInfo,
 }) {
   const { t } = useLaravelReactI18n();
   const isMobile = useIsMobile();
@@ -516,6 +696,14 @@ function PrintTemplate({
       );
       body.style.color = "#111827";
 
+      if (!doc.getElementById("print-template-bootstrap-css")) {
+        const bootstrapLink = doc.createElement("link");
+        bootstrapLink.id = "print-template-bootstrap-css";
+        bootstrapLink.rel = "stylesheet";
+        bootstrapLink.href = BOOTSTRAP_CSS_CDN;
+        doc.head.appendChild(bootstrapLink);
+      }
+
       let styleEl = doc.getElementById("print-template-editor-style");
       if (!styleEl) {
         styleEl = doc.createElement("style");
@@ -531,10 +719,63 @@ function PrintTemplate({
           margin-top: 2px;
           margin-bottom: 2px;
         }
+        [data-gjs-type]:not([data-gjs-type=""]) {
+          outline: 1px dashed transparent;
+          padding: 2px;
+          margin: 1px 0;
+          min-height: 8px;
+          transition: outline-color 0.15s ease-in-out;
+        }
+        [data-gjs-type]:hover {
+          outline-color: rgba(59, 130, 246, 0.35);
+        }
+        .gjs-selected {
+          outline-color: rgba(59, 130, 246, 0.7) !important;
+        }
       `;
     };
     editor.on("load", applyBodyStyle);
-    variableDropListener(editor, { t, exampleData });
+    variableDropListener(editor, {
+      t,
+      exampleData,
+      locale: printTemplate?.default_language,
+    });
+
+    // Register multi-function container component type (Requirements: 17.2, 17.3, 17.4, 17.5)
+    editor.DomComponents.addType("multiContainer", {
+      model: {
+        defaults: {
+          tagName: "div",
+          droppable: true,
+          traits: [
+            {
+              type: "select",
+              name: "tagName",
+              label: t("core/printTemplate.editor.html_tag"),
+              options: [
+                { value: "div", name: "div" },
+                { value: "section", name: "section" },
+                { value: "article", name: "article" },
+                { value: "aside", name: "aside" },
+                { value: "header", name: "header" },
+                { value: "footer", name: "footer" },
+                { value: "main", name: "main" },
+                { value: "nav", name: "nav" },
+                { value: "span", name: "span" },
+              ],
+              changeProp: true,
+            },
+          ],
+        },
+      },
+    });
+
+    // Register multi-function container block (Requirements: 17.1, 17.5)
+    editor.BlockManager.add("multiContainer", {
+      label: t("core/printTemplate.editor.multi_container"),
+      category: "Basic",
+      content: { type: "multiContainer" },
+    });
 
     editor.on("load", () => {
       isBootstrapping = false;
@@ -542,7 +783,8 @@ function PrintTemplate({
 
     if (isMobile) {
       toast.info(
-        "Mode mobile: drag & drop dan perubahan struktur layout hanya tersedia di desktop.",
+        t("core/printTemplate.editor.mobile_mode_info") ||
+          "Mode mobile: drag & drop dan perubahan struktur layout hanya tersedia di desktop.",
       );
       editor.getWrapper()?.set({
         droppable: false,
@@ -550,7 +792,10 @@ function PrintTemplate({
 
       editor.Commands.add("core:mobile-structural-block", {
         run() {
-          toast.info("Fitur perubahan struktur hanya tersedia di desktop.");
+          toast.info(
+            t("core/printTemplate.editor.desktop_only_structure") ||
+              "Fitur perubahan struktur hanya tersedia di desktop.",
+          );
         },
       });
 
@@ -568,20 +813,27 @@ function PrintTemplate({
           return;
         }
         component.remove();
-        toast.info("Menambah komponen baru hanya tersedia di desktop.");
+        toast.info(
+          t("core/printTemplate.editor.desktop_only_add") ||
+            "Menambah komponen baru hanya tersedia di desktop.",
+        );
       });
 
       editor.on("component:remove", () => {
         if (isBootstrapping) {
           return;
         }
-        toast.info("Menghapus komponen hanya tersedia di desktop.");
+        toast.info(
+          t("core/printTemplate.editor.desktop_only_remove") ||
+            "Menghapus komponen hanya tersedia di desktop.",
+        );
       });
     }
 
     if (!exampleData || Object.keys(exampleData || {}).length === 0) {
       toast.info(
-        "Data contoh belum tersedia untuk model ini. Preview dapat menampilkan placeholder.",
+        t("core/printTemplate.editor.no_example_data") ||
+          "Data contoh belum tersedia untuk model ini. Preview dapat menampilkan placeholder.",
       );
     }
 
@@ -612,7 +864,9 @@ function PrintTemplate({
         });
         const validation = validateHandlebarTemplate(currentTemplate.html);
         if (!validation.valid) {
-          toast.error(`Template tidak valid: ${validation.message}`);
+          toast.error(
+            `${t("core/printTemplate.editor.template_invalid") || "Template tidak valid"}: ${validation.message}`,
+          );
           editor.trigger("template:save-error", validation.message);
           return;
         }
@@ -658,12 +912,16 @@ function PrintTemplate({
     );
     editor.on("preview:open", openPreview);
     editor.on("storage:error:load", () => {
-      toast.error("Gagal memuat template. Menggunakan template kosong.", {
-        action: {
-          label: "Muat Ulang",
-          onClick: () => window.location.reload(),
+      toast.error(
+        t("core/printTemplate.editor.load_error") ||
+          "Gagal memuat template. Menggunakan template kosong.",
+        {
+          action: {
+            label: t("core/printTemplate.editor.reload") || "Muat Ulang",
+            onClick: () => window.location.reload(),
+          },
         },
-      });
+      );
 
       editor.loadProjectData({
         pages: [
@@ -676,7 +934,10 @@ function PrintTemplate({
       });
     });
     editor.on("storage:error:store", () => {
-      toast.error("Gagal menyimpan template karena masalah jaringan.");
+      toast.error(
+        t("core/printTemplate.editor.save_error") ||
+          "Gagal menyimpan template karena masalah jaringan.",
+      );
     });
 
     if (!printTemplate.is_letter_head && printTemplate.letter_head) {
@@ -739,7 +1000,9 @@ function PrintTemplate({
                 const component = page.getMainComponent();
                 return {
                   html: formatHandlebarTemplate(editor.getHtml({ component })),
-                  css: editor.getCss({ component }),
+                  css: stripEditorOnlyWrapperStyles(
+                    editor.getCss({ component }),
+                  ),
                 };
               });
               return {
@@ -756,16 +1019,7 @@ function PrintTemplate({
           gjsDocHeader,
           (editor) =>
             gjsBlockBasic(editor, {
-              blocks: [
-                "column1",
-                "column2",
-                "column3",
-                "column3-7",
-                "text",
-                "link",
-                "image",
-                "map",
-              ],
+              blocks: ["text", "link", "image", "map"],
             }),
           (editor) => gjsRelationsTable(editor),
           gjsStaticHTML,
@@ -820,6 +1074,7 @@ function PrintTemplate({
         template={previewTemplate}
         dataTableColumns={dataTableColumns}
         preferences={preferences}
+        docInfo={docInfo}
       />
     </AppLayout>
   );

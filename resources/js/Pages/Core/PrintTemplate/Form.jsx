@@ -163,13 +163,13 @@ export default function Form() {
           {!data.is_letter_head && (
             <>
               <FormInput
-                label={t("core.printTemplate.columns.default_languange")}
+                label={t("core.printTemplate.columns.default_language")}
               >
                 <Select
-                  value={data?.default_languange ?? ""}
-                  onValueChange={(e) => setData("default_languange", e)}
+                  value={data?.default_language ?? ""}
+                  onValueChange={(e) => setData("default_language", e)}
                   options={["en", "id"]}
-                  optionTrans="core.printTemplate.columns.default_languange.options"
+                  optionTrans="core.printTemplate.columns.default_language.options"
                 />
               </FormInput>
               <FormInput label={t("core.printTemplate.columns.letter_head")}>

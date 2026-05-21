@@ -21,7 +21,7 @@ class PrintTemplateRequestTest extends TestCase {
             $table->boolean('is_letter_head')->default(false);
             $table->string('model')->nullable();
             $table->boolean('is_default')->default(false);
-            $table->string('default_languange')->nullable();
+            $table->string('default_language')->nullable();
             $table->string('font_family')->nullable();
             $table->string('paper')->nullable();
             $table->string('page_number')->nullable();
@@ -137,18 +137,18 @@ class PrintTemplateRequestTest extends TestCase {
             'permission'     => [
                 'model' => 'App\\Models\\Sales\\SalesOrder',
             ],
-            'paper'             => 'A4',
-            'orientation'       => 'portrait',
-            'width'             => 21,
-            'height'            => 29.7,
-            'margin_top'        => 2,
-            'margin_bottom'     => 2,
-            'margin_left'       => 2,
-            'margin_right'      => 2,
-            'page_number'       => 'bottom_right',
-            'unit'              => 'cm',
-            'font_family'       => 'Times New Roman',
-            'default_languange' => 'en',
+            'paper'            => 'A4',
+            'orientation'      => 'portrait',
+            'width'            => 21,
+            'height'           => 29.7,
+            'margin_top'       => 2,
+            'margin_bottom'    => 2,
+            'margin_left'      => 2,
+            'margin_right'     => 2,
+            'page_number'      => 'bottom_right',
+            'unit'             => 'cm',
+            'font_family'      => 'Times New Roman',
+            'default_language' => 'en',
         ], $overrides);
     }
 }

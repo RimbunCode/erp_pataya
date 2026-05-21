@@ -88,6 +88,22 @@ function formatData(data, columns, opts = {}) {
   }
   return newData;
 }
+/**
+ * CSS overrides to hide editor-only styles on the static HTML wrapper
+ * in print preview/export mode (Requirements: 24.1, 24.2).
+ */
+const PRINT_WRAPPER_OVERRIDES = `
+.gjs-static-html-wrapper {
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.gjs-static-html-wrapper::before {
+  content: none !important;
+  display: none !important;
+}
+`;
+
 export default forwardRef(function PrintPreview({ template }, ref) {
   const {
     data: _data,
@@ -100,8 +116,8 @@ export default forwardRef(function PrintPreview({ template }, ref) {
   const { default_currency_id } = usePage().props.preferences;
 
   useEffect(() => {
-    setLocale(template.default_languange ?? "en");
-  }, [template.default_languange]);
+    setLocale(template.default_language ?? "en");
+  }, [template.default_language]);
 
   const data = useMemo(() => {
     return formatData(
@@ -109,7 +125,7 @@ export default forwardRef(function PrintPreview({ template }, ref) {
       template?.columns?.find((x) => x.type == "data")?.columns ?? [],
       {
         t,
-        lang: template.default_languange ?? "en",
+        lang: template.default_language ?? "en",
         defaultCurrencyCode: default_currency_id,
         absoluteNumber: template?.show_absolute_values ?? false,
       },
@@ -162,6 +178,7 @@ export default forwardRef(function PrintPreview({ template }, ref) {
     const unitCode = template.unit ?? "cm";
     const fontFamily = getSafePrintFontFamily(template.font_family);
     style.innerHTML =
+      PRINT_WRAPPER_OVERRIDES +
       css +
       `
       body{

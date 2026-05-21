@@ -1,9 +1,5 @@
 import React from "react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/Components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/Components/ui/collapsible";
 import {
   Tooltip,
   TooltipContent,
@@ -16,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { formatValue } from "@/Components/CurrencyInput";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import axios from "axios";
+import { simplifyTokenDisplay } from "./tokenConfigHelpers";
 
 /**
  * Format a value based on the column type and format options from DataTableColumns.
@@ -25,7 +22,6 @@ import axios from "axios";
  * - "numeric" / "number" type: formats with decimal places using Intl.NumberFormat
  *
  * Requirements: 1.9 - Apply formatting settings from DataTableColumns configuration
- *
  * @param {number|string|null} value - The value to format
  * @param {object} column - The column definition from DataTableColumns
  * @returns {string} The formatted value or original string
@@ -80,7 +76,6 @@ function formatColumnValue(value, column) {
  * when the column type is currency or numeric/number.
  *
  * Requirements: 1.9 - Apply formatting when rendering on canvas
- *
  * @param {object} variable - The variable/column definition
  * @param {string} fullKey - The full dot-notation key for the variable
  * @returns {string} The Handlebar token string (with outer {{ }})
@@ -93,6 +88,10 @@ function getFormattedHandlebarToken(variable, fullKey) {
 
   if (variable.parentType === "preferences") {
     return `{{company.${variable.name}}}`;
+  }
+
+  if (variable.parentType === "docInfo" || type === "docInfo") {
+    return `{{docInfo.${variable.name}}}`;
   }
 
   if (type === "relation") {
@@ -116,7 +115,6 @@ function getFormattedHandlebarToken(variable, fullKey) {
 
 /**
  * Check if a column type requires formatting.
- *
  * @param {string} type - The column type from DataTableColumns
  * @returns {boolean} True if the type requires formatting
  */
@@ -126,7 +124,6 @@ function isFormattableType(type) {
 
 /**
  * Resolve a value from example data using a dot-notation path.
- *
  * @param {object} exampleData - The example data object from the backend
  * @param {string} path - Dot-notation path (e.g., "customer_name", "customer.name")
  * @param {string} type - Variable type ("data", "preferences", "relation", etc.)
@@ -160,6 +157,7 @@ function resolveExampleValue(exampleData, path, type) {
 
 /**
  * Get the Handlebar token string for a variable.
+ * @param variable
  */
 function getHandlebarToken(variable) {
   const normalizedDocPath = variable.name.startsWith("doc.")
@@ -169,6 +167,9 @@ function getHandlebarToken(variable) {
   if (variable.parentType === "preferences") {
     return `{{company.${variable.name}}}`;
   }
+  if (variable.parentType === "docInfo" || variable.type === "docInfo") {
+    return `{{docInfo.${variable.name}}}`;
+  }
   if (variable.type === "relation") {
     return `{{relation ${normalizedDocPath}}}`;
   }
@@ -177,6 +178,8 @@ function getHandlebarToken(variable) {
 
 /**
  * Get the display label for a variable using translation or title.
+ * @param variable
+ * @param t
  */
 function getDisplayLabel(variable, t) {
   return (
@@ -184,6 +187,72 @@ function getDisplayLabel(variable, t) {
     (variable.titleTrans ? t(variable.titleTrans) : null) ||
     variable.name
   );
+}
+
+function encodeTokenToBase64(token) {
+  if (!token || typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    const bytes = new TextEncoder().encode(token);
+    const binary = String.fromCharCode(...bytes);
+    return window.btoa(binary);
+  } catch {
+    return "";
+  }
+}
+
+function escapeAttributeValue(value = "") {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function simplifyInlineDisplayToken(fullKey = "", token = "") {
+  // If we have the full token, use the canonical simplifyTokenDisplay
+  if (token) {
+    return simplifyTokenDisplay(token);
+  }
+  return `{{${fullKey.replace(/^doc\./, "")}}}`;
+}
+
+function tryInsertInlineVariableToken(
+  editor,
+  selectedComponent,
+  token,
+  fullKey,
+) {
+  if (!editor || !selectedComponent || !token) {
+    return false;
+  }
+
+  const isTextComponent = selectedComponent.is?.("text");
+  const isTextEditingActive = editor.Commands?.isActive?.(
+    "core:component-text",
+  );
+
+  if (!isTextComponent || !isTextEditingActive) {
+    return false;
+  }
+
+  const iframeDocument = editor.Canvas.getDocument?.();
+  if (!iframeDocument?.execCommand) {
+    return false;
+  }
+
+  const inlinePath = fullKey.replace(/^doc\./, "");
+  const displayToken = simplifyInlineDisplayToken(fullKey, token);
+  const encodedToken = encodeTokenToBase64(token);
+  const inlineHtml = `<span data-variable-inline="${escapeAttributeValue(inlinePath)}" data-variable-path="${escapeAttributeValue(inlinePath)}" data-token="${escapeAttributeValue(token)}" data-token-b64="${escapeAttributeValue(encodedToken)}" contenteditable="false" class="inline-variable-token">${escapeAttributeValue(displayToken)}</span>`;
+
+  iframeDocument.execCommand("insertHTML", false, inlineHtml);
+  selectedComponent.trigger("change:content");
+  editor.trigger("update");
+
+  return true;
 }
 
 /**
@@ -198,9 +267,12 @@ function getDisplayLabel(variable, t) {
  * - relationsTable structure for many relations
  *
  * Requirements: 1.1, 1.2, 1.4, 1.5, 1.6, 1.7
+ * @param root0
+ * @param root0.path
+ * @param root0.exampleData
  */
 function VariableItem({ path = "", exampleData = null, ...variable }) {
-  const { editor } = useEditor();
+  const editor = useEditor();
   const { t } = useLaravelReactI18n();
   const fullKey = path ? `${path}.${variable.name}` : variable.name;
   const hasInlineColumns =
@@ -221,6 +293,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
   const [hasFetchedColumns, setHasFetchedColumns] =
     React.useState(hasInlineColumns);
   const [columnsError, setColumnsError] = React.useState(null);
+  const [isOpen, setIsOpen] = React.useState(false);
 
   // Resolve example value for this variable
   const exampleValue = React.useMemo(() => {
@@ -276,6 +349,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
 
   const handleOpenChange = React.useCallback(
     async (open) => {
+      setIsOpen(open);
+
       if (!open) {
         return;
       }
@@ -286,6 +361,12 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     },
     [fetchColumns, hasInlineColumns],
   );
+
+  const toggleOpenState = async (event) => {
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+    await handleOpenChange(!isOpen);
+  };
 
   /**
    * Insert variable into the canvas.
@@ -301,6 +382,10 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     const selected = editor.getSelected();
     // Use formatted token for currency/number types (Requirement 1.9)
     const token = getFormattedHandlebarToken(variable, fullKey);
+
+    if (tryInsertInlineVariableToken(editor, selected, token, fullKey)) {
+      return;
+    }
 
     if (selected && selected.is("text")) {
       const current = selected.get("content") || "";
@@ -329,6 +414,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
    * while the template stores Handlebar tokens with formatting helpers.
    *
    * Requirements: 1.1, 1.2, 1.9 - Display formatted example data in canvas
+   * @param e
    */
   const handleDragStart = (e) => {
     if (!canDrag) {
@@ -412,26 +498,69 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     );
   }
 
+  // Requirement 13.1, 13.2, 13.3: Hide nested columns for "relations" type,
+  // keep collapsible for "relation", "data", and "preferences" types.
+  // "relations" items remain draggable to create relation tables.
+  const isRelationsMany = variable.type === "relations";
+
   // Relation item with collapsible nested columns
   return (
-    <Collapsible className="mt-1" onOpenChange={handleOpenChange}>
+    <Collapsible className="mt-1" open={isOpen} onOpenChange={handleOpenChange}>
       <TooltipProvider delayDuration={300}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <CollapsibleTrigger
-              draggable={canDrag}
-              onDragStart={handleDragStart}
+            <div
               className={cn(
-                "flex items-center gap-1 w-full px-2 py-1 border rounded-md hover:bg-muted transition-colors [&[data-state=open]_svg]:rotate-90",
+                "flex w-full items-stretch rounded-md border transition-colors",
+                "hover:bg-muted",
               )}
             >
-              <ChevronRight className="h-4 w-4 transition-transform duration-200" />
-              <div className="flex flex-col text-left">
-                <span className="text-sm font-medium">{displayLabel}</span>
+              {/* Hide chevron for "relations" (many) type - Requirement 13.1 */}
+              {!isRelationsMany && (
+                <button
+                  type="button"
+                  onClick={toggleOpenState}
+                  className={cn(
+                    "flex h-10 w-9 items-center justify-center rounded-l-md border-r border-border/60",
+                    "text-muted-foreground transition-colors hover:text-foreground",
+                  )}
+                >
+                  <ChevronRight
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200",
+                      isOpen && "rotate-90",
+                    )}
+                  />
+                </button>
+              )}
+
+              <button
+                type="button"
+                draggable={canDrag}
+                onDragStart={handleDragStart}
+                onClick={() => {
+                  if (
+                    variable.type === "relations" ||
+                    variable.type === "data" ||
+                    variable.type === "preferences"
+                  ) {
+                    return;
+                  }
+
+                  handleInsert();
+                }}
+                className={cn(
+                  "flex min-w-0 flex-1 flex-col justify-center px-2 py-1 text-left",
+                  isRelationsMany && "rounded-l-md",
+                )}
+              >
+                <span className="truncate text-sm font-medium">
+                  {displayLabel}
+                </span>
                 {!(
                   variable.type === "data" || variable.type === "preferences"
                 ) && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="truncate text-xs text-muted-foreground">
                     {variable.type === "relations" ? (
                       <code>{"{{#each " + variable.name + "}}"}</code>
                     ) : (
@@ -439,8 +568,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                     )}
                   </span>
                 )}
-              </div>
-            </CollapsibleTrigger>
+              </button>
+            </div>
           </TooltipTrigger>
           {/* Requirement 1.7: Tooltip with token info for relations */}
           {!(variable.type === "data" || variable.type === "preferences") && (
@@ -463,38 +592,42 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
         </Tooltip>
       </TooltipProvider>
 
-      <CollapsibleContent className="pl-4 mt-1 border-l border-muted-foreground/25">
-        {isLoadingColumns && (
-          <p className="px-2 py-1 text-xs text-muted-foreground">
-            Memuat kolom...
-          </p>
-        )}
+      {/* Hide CollapsibleContent for "relations" (many) type - Requirement 13.1 */}
+      {/* Keep collapsible for "relation", "data", "preferences" - Requirement 13.2 */}
+      {!isRelationsMany && (
+        <CollapsibleContent className="pl-4 mt-1 border-l border-muted-foreground/25">
+          {isLoadingColumns && (
+            <p className="px-2 py-1 text-xs text-muted-foreground">
+              Memuat kolom...
+            </p>
+          )}
 
-        {columnsError && (
-          <p className="px-2 py-1 text-xs text-destructive">{columnsError}</p>
-        )}
+          {columnsError && (
+            <p className="px-2 py-1 text-xs text-destructive">{columnsError}</p>
+          )}
 
-        {nestedColumns.map((sub) => {
-          const parentType =
-            variable.type === "data" || variable.type === "preferences"
-              ? variable.type
-              : variable.parentType;
+          {nestedColumns.map((sub) => {
+            const parentType =
+              variable.type === "data" || variable.type === "preferences"
+                ? variable.type
+                : variable.parentType;
 
-          return (
-            <VariableItem
-              key={`${fullKey}.${sub.name}`}
-              path={
-                variable.type === "data" || variable.type === "preferences"
-                  ? ""
-                  : fullKey
-              }
-              parentType={parentType}
-              exampleData={exampleData}
-              {...sub}
-            />
-          );
-        })}
-      </CollapsibleContent>
+            return (
+              <VariableItem
+                key={`${fullKey}.${sub.name}`}
+                path={
+                  variable.type === "data" || variable.type === "preferences"
+                    ? ""
+                    : fullKey
+                }
+                parentType={parentType}
+                exampleData={exampleData}
+                {...sub}
+              />
+            );
+          })}
+        </CollapsibleContent>
+      )}
     </Collapsible>
   );
 }

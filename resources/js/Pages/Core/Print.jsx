@@ -192,10 +192,10 @@ function Print({ data: _data, printTemplate }) {
             <div className="grid col-span-full grid-cols-subgrid gap-y-4 border-b py-4">
               <FormInput label={t("core.printTemplate.columns.languange")}>
                 <Select
-                  value={template?.default_languange ?? ""}
-                  onValueChange={(e) => setTemplate("default_languange", e)}
+                  value={template?.default_language ?? ""}
+                  onValueChange={(e) => setTemplate("default_language", e)}
                   options={["en", "id"]}
-                  optionTrans="core.printTemplate.columns.default_languange.options"
+                  optionTrans="core.printTemplate.columns.default_language.options"
                 />
               </FormInput>
               <FormInput label={t("core.printTemplate.columns.letter_head")}>
@@ -510,7 +510,7 @@ function Print({ data: _data, printTemplate }) {
         <div className="h-full overflow-auto w-full shrink">
           <div className="bg-muted p-8 h-fit! w-fit! rounded-lg mx-auto">
             <LaravelReactI18nProvider
-              locale={template.default_languange}
+              locale={template.default_language}
               fallbackLocale={"en"}
               files={import.meta.glob("/lang/*.json")}
             >

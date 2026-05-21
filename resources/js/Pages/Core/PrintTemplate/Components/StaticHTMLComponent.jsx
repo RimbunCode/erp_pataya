@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,7 @@ import { Button } from "@/Components/ui/button";
 import { sanitizeHTML } from "@/lib/htmlSanitizer";
 import { AlertTriangle, Code2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import MonacoHTMLEditor from "./MonacoHTMLEditor";
 
 /**
  * StaticHTMLComponent - Code editor modal for custom HTML input
@@ -22,11 +23,16 @@ import { cn } from "@/lib/utils";
  * - On save/confirm, applies sanitized HTML to the GrapeJS component
  *
  * Requirements: 6.1, 6.2, 6.7, 6.8
+ * @param {object} root0
+ * @param {boolean} root0.open
+ * @param {(open: boolean) => void} root0.onOpenChange
+ * @param {string} root0.initialHTML
+ * @param {(rawHTML: string, sanitizedHTML: string, warnings: string[]) => void} root0.onSave
+ * @returns {React.JSX.Element}
  */
 function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
   const [rawHTML, setRawHTML] = useState(initialHTML);
   const [sanitizationResult, setSanitizationResult] = useState(null);
-  const textareaRef = useRef(null);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -75,7 +81,10 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl" align="center">
+      <DialogContent
+        className="max-w-xl max-h-[92svh] overflow-y-auto"
+        align="center"
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Code2 className="h-5 w-5" />
@@ -91,19 +100,32 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
           {/* Code Editor (textarea) */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">Input HTML</label>
-            <textarea
-              ref={textareaRef}
-              value={rawHTML}
-              onChange={handleHTMLChange}
-              placeholder="<div class='my-block'>&#10;  <p>Custom content here...</p>&#10;</div>"
+            <div
               className={cn(
-                "w-full h-64 p-3 font-mono text-sm border rounded-md resize-none",
-                "bg-muted/30 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+                "overflow-hidden rounded-md border min-h-[400px]",
+                "bg-muted/30 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1",
                 "dark:bg-zinc-900 dark:text-zinc-100",
               )}
-              spellCheck={false}
-              autoComplete="off"
-            />
+              onKeyDown={(e) => {
+                // Prevent "/" from propagating to GrapesJS global command palette
+                // while still allowing the character to be inserted normally
+                if (e.key === "/") {
+                  e.stopPropagation();
+                }
+              }}
+            >
+              <MonacoHTMLEditor
+                value={rawHTML}
+                onChange={(nextValue) =>
+                  handleHTMLChange({
+                    target: {
+                      value: nextValue ?? "",
+                    },
+                  })
+                }
+                height="400px"
+              />
+            </div>
           </div>
 
           {/* Sanitization Preview (Requirement 6.7 - real-time preview) */}
@@ -111,7 +133,7 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
             <label className="text-sm font-medium">Preview (Sanitized)</label>
             <div
               className={cn(
-                "w-full h-64 p-3 border rounded-md overflow-auto",
+                "w-full min-h-[400px] p-3 border rounded-md overflow-auto",
                 "bg-white dark:bg-zinc-950",
               )}
             >

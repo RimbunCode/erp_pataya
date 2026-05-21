@@ -660,7 +660,7 @@ export const PrintTemplateRequest = z.object({
     "*": z.string().nullable().optional(),
   }),
   is_default: z.boolean().nullable().optional(),
-  default_languange: z.string().nullable().optional(),
+  default_language: z.string().nullable().optional(),
   letter_head: z.object({
     id: z.string().nullable().optional(),
   }),

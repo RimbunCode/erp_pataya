@@ -22,7 +22,55 @@ const PLACEHOLDER_HTML = `<div class="gjs-static-html-placeholder">
   <small>Double-click to edit</small>
 </div>`;
 
+/**
+ * Editor-only styles for the static HTML wrapper.
+ * These are injected directly into the canvas iframe and are NOT included
+ * in CSS export or print preview output (Requirements: 24.1, 24.2, 24.3, 24.4).
+ */
+const EDITOR_ONLY_STYLES = `
+  .gjs-static-html-wrapper {
+    position: relative;
+    border: 2px dashed #6366f1;
+    border-radius: 4px;
+    padding: 12px;
+    min-height: 48px;
+  }
+  .gjs-static-html-wrapper::before {
+    content: "HTML";
+    position: absolute;
+    top: -1px;
+    left: 8px;
+    background: #6366f1;
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 0 0 4px 4px;
+    letter-spacing: 0.5px;
+    z-index: 1;
+  }
+`;
+
 export default function gjsStaticHTML(editor) {
+  // Inject editor-only styles into the canvas iframe (not exported via getCss)
+  const injectEditorStyles = () => {
+    const frame = editor.Canvas.getFrameEl();
+    if (!frame) return;
+
+    const doc = frame.contentDocument || frame.contentWindow.document;
+    if (!doc) return;
+
+    let styleEl = doc.getElementById("gjs-static-html-editor-styles");
+    if (!styleEl) {
+      styleEl = doc.createElement("style");
+      styleEl.id = "gjs-static-html-editor-styles";
+      doc.head.appendChild(styleEl);
+    }
+    styleEl.innerHTML = EDITOR_ONLY_STYLES;
+  };
+
+  editor.on("load", injectEditorStyles);
+
   // 1. Register the "staticHTML" component type with proper defaults
   editor.Components.addType("staticHTML", {
     model: {
@@ -38,29 +86,10 @@ export default function gjsStaticHTML(editor) {
         customHTML: "",
         sanitizedHTML: "",
         sanitizationWarnings: [],
-        // Visual styles for the canvas indicator (Requirement 6.8)
+        // Only placeholder styles are exported (harmless in print).
+        // Editor-only border/::before styles are injected into the canvas
+        // iframe directly and excluded from CSS export (Requirements: 24.3, 24.4).
         styles: `
-          .gjs-static-html-wrapper {
-            position: relative;
-            border: 2px dashed #6366f1;
-            border-radius: 4px;
-            padding: 12px;
-            min-height: 48px;
-          }
-          .gjs-static-html-wrapper::before {
-            content: "HTML";
-            position: absolute;
-            top: -1px;
-            left: 8px;
-            background: #6366f1;
-            color: white;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 1px 6px;
-            border-radius: 0 0 4px 4px;
-            letter-spacing: 0.5px;
-            z-index: 1;
-          }
           .gjs-static-html-placeholder {
             display: flex;
             flex-direction: column;

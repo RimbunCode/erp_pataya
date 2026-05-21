@@ -15,6 +15,25 @@ import {
 import { Button } from "@/Components/ui/button";
 import { initHandlebar } from "@/lib/initHandlebar";
 
+const BOOTSTRAP_CSS_CDN =
+  "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css";
+
+/**
+ * CSS overrides to hide editor-only styles on the static HTML wrapper
+ * in print preview mode (Requirements: 24.1, 24.2).
+ */
+const PRINT_PREVIEW_OVERRIDES = `
+.gjs-static-html-wrapper {
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.gjs-static-html-wrapper::before {
+  content: none !important;
+  display: none !important;
+}
+`;
+
 function normalizePreviewWarnings(warnings) {
   if (!Array.isArray(warnings)) {
     return [];
@@ -47,7 +66,8 @@ function buildPrintableDocument({ title, html, css }) {
   <head>
     <meta charset="utf-8" />
     <title>${title || "Preview Template"}</title>
-    <style>${css || ""}</style>
+    <link rel="stylesheet" href="${BOOTSTRAP_CSS_CDN}" />
+    <style>${PRINT_PREVIEW_OVERRIDES}\n${css || ""}</style>
   </head>
   <body>
     ${html || ""}
@@ -73,6 +93,36 @@ function extractProblematicToken(errorMessage = "") {
   return "";
 }
 
+function resolveTemplateUnitCode(printTemplate) {
+  const rawUnit =
+    typeof printTemplate?.unit === "string"
+      ? printTemplate.unit
+      : printTemplate?.unit?.code;
+
+  if (typeof rawUnit !== "string" || !rawUnit.trim()) {
+    return "mm";
+  }
+
+  return rawUnit.trim();
+}
+
+function parseNumericValue(value, fallbackValue) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? numericValue : fallbackValue;
+}
+
+function unitToMillimeter(value, unitCode) {
+  if (unitCode === "cm") {
+    return value * 10;
+  }
+
+  if (unitCode === "in") {
+    return value * 25.4;
+  }
+
+  return value;
+}
+
 function PreviewModal({
   open,
   onOpenChange,
@@ -80,6 +130,7 @@ function PreviewModal({
   template,
   dataTableColumns = [],
   preferences = {},
+  docInfo = {},
 }) {
   const { t } = useLaravelReactI18n();
   const [loading, setLoading] = useState(false);
@@ -91,17 +142,54 @@ function PreviewModal({
   const [relationRowSummary, setRelationRowSummary] = useState([]);
   const [isGeneratingExampleData, setIsGeneratingExampleData] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1280,
+  );
 
-  const pageWidth = useMemo(() => {
-    const width = printTemplate?.width;
-    const unit = printTemplate?.unit?.code || "mm";
-
-    if (typeof width !== "number") {
-      return "210mm";
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
     }
 
-    return `${width}${unit}`;
-  }, [printTemplate?.unit?.code, printTemplate?.width]);
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const unitCode = useMemo(
+    () => resolveTemplateUnitCode(printTemplate),
+    [printTemplate],
+  );
+
+  const isLetterHead = Boolean(printTemplate?.is_letter_head);
+  const paperWidthValue = useMemo(
+    () => (isLetterHead ? 210 : parseNumericValue(printTemplate?.width, 210)),
+    [isLetterHead, printTemplate?.width],
+  );
+  const paperHeightValue = useMemo(
+    () => parseNumericValue(printTemplate?.height, 297),
+    [printTemplate?.height],
+  );
+  const pageWidth = useMemo(
+    () => `${paperWidthValue}${unitCode}`,
+    [paperWidthValue, unitCode],
+  );
+  const pageMinHeight = useMemo(
+    () => (isLetterHead ? "auto" : `${paperHeightValue}${unitCode}`),
+    [isLetterHead, paperHeightValue, unitCode],
+  );
+  const previewScale = useMemo(() => {
+    const paperWidthInMillimeter = unitToMillimeter(paperWidthValue, unitCode);
+    const paperWidthInPixel = paperWidthInMillimeter * 3.779527559;
+    const maxWidth = Math.max(320, viewportWidth - 120);
+
+    if (!paperWidthInPixel || !Number.isFinite(paperWidthInPixel)) {
+      return 1;
+    }
+
+    return Math.min(1, maxWidth / paperWidthInPixel);
+  }, [paperWidthValue, unitCode, viewportWidth]);
 
   const openPrintWindow = useCallback(
     ({ autoPrint = false } = {}) => {
@@ -255,6 +343,7 @@ function PreviewModal({
           doc: normalizedExampleData || {},
           preferences: preferences || {},
           company: preferences || {},
+          docInfo: docInfo || {},
           dataTableColumns: mergedColumns,
         };
 
@@ -322,6 +411,7 @@ function PreviewModal({
     template,
     dataTableColumns,
     preferences,
+    docInfo,
     t,
     refreshKey,
   ]);
@@ -405,12 +495,19 @@ function PreviewModal({
           )}
 
           {!loading && !renderError && (
-            <div
-              className="mx-auto bg-white text-black shadow-sm border border-black/10"
-              style={{ width: pageWidth, minHeight: "297mm" }}
-            >
-              {previewCSS ? <style>{previewCSS}</style> : null}
-              <div dangerouslySetInnerHTML={{ __html: previewHTML }} />
+            <div className="mx-auto w-full overflow-x-hidden">
+              <div
+                className="mx-auto origin-top border border-black/10 bg-white text-black shadow-sm"
+                style={{
+                  width: pageWidth,
+                  minHeight: pageMinHeight,
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: "top center",
+                }}
+              >
+                <style>{`@import url('${BOOTSTRAP_CSS_CDN}');\n${PRINT_PREVIEW_OVERRIDES}\n${previewCSS || ""}`}</style>
+                <div dangerouslySetInnerHTML={{ __html: previewHTML }} />
+              </div>
             </div>
           )}
         </div>

@@ -125,20 +125,50 @@ function formatCellValue(value, column) {
 }
 
 /**
- * Gets the label for a column using the unified label helper approach.
- * Resolves from dataTableColumns configuration based on the relation path.
+ * Gets the label for a column using a locale-aware fallback chain.
+ *
+ * Resolution order:
+ * 1. `titleTrans` — resolved via the translation function `t` with the given locale.
+ *    If the translation returns a non-empty string different from the key itself,
+ *    it is used.
+ * 2. `title` — used as-is when available and non-empty.
+ * 3. `name` — final fallback, always present on valid column definitions.
+ *
+ * Guarantees: never returns undefined or empty string when at least one of
+ * `titleTrans`, `title`, or `name` is present on the column object.
  *
  * @param {object} col - Column definition with name, title, titleTrans
- * @param {Function} t - Translation function
+ * @param {Function} t - Translation function (e.g., `t` from useLaravelReactI18n)
+ * @param {string} [locale] - Optional locale code (e.g., "en", "id") for translation resolution
  * @returns {string} The resolved label
  */
-function getColumnLabel(col, t) {
-  if (col.title) return col.title;
-  if (col.titleTrans) {
-    const translated = t(col.titleTrans);
-    if (translated && translated !== col.titleTrans) return translated;
+function getColumnLabel(col, t, locale) {
+  if (!col || typeof col !== "object") {
+    return "";
   }
-  return col.name;
+
+  // 1. Try titleTrans with locale-aware translation
+  if (col.titleTrans && typeof t === "function") {
+    const translated = locale
+      ? t(col.titleTrans, {}, locale)
+      : t(col.titleTrans);
+    if (translated && translated !== col.titleTrans) {
+      return translated;
+    }
+  }
+
+  // 2. Fallback to title
+  if (col.title && typeof col.title === "string" && col.title.trim()) {
+    return col.title;
+  }
+
+  // 3. Final fallback to name
+  if (col.name && typeof col.name === "string" && col.name.trim()) {
+    return col.name;
+  }
+
+  // Safety: return empty string only if column has no usable fields
+  return col.titleTrans || col.title || col.name || "";
 }
 
 /**
@@ -150,9 +180,10 @@ function getColumnLabel(col, t) {
  * @param {Array|null} options.exampleData - Array of example data rows for this relation
  * @param {Function} options.t - Translation function
  * @param {Function} options.genId - ID generator function
+ * @param {string} [options.locale] - Optional locale code (e.g., "en", "id") for header translation
  * @returns {Array} GrapeJS component definitions for thead and tbody
  */
-function buildExampleDataTable({ columns, exampleData, t, genId }) {
+function buildExampleDataTable({ columns, exampleData, t, genId, locale }) {
   // Build thead with labels from unified label helper
   const theadComponents = [
     {
@@ -170,7 +201,7 @@ function buildExampleDataTable({ columns, exampleData, t, genId }) {
     },
     ...columns.map((col) => ({
       tagName: "th",
-      content: getColumnLabel(col, t),
+      content: getColumnLabel(col, t, locale),
       selectable: false,
       droppable: false,
       layerable: false,
@@ -506,37 +537,7 @@ export default function gjsRelationsTable(editor) {
     model: {
       defaults: {
         tagName: "table",
-        attributes: { class: "gjs-relations-table" },
-        styles: `
-          .gjs-relations-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-family: Arial, sans-serif;
-            font-size: 12px;
-            border: 1px solid #d1d5db;
-          }
-          .gjs-relations-table th,
-          .gjs-relations-table td {
-            border: 1px solid #d1d5db;
-            padding: 6px 10px;
-            line-height: 1.4;
-          }
-          .gjs-relations-table thead th {
-            background-color: #f3f4f6;
-            font-weight: 700;
-            text-align: left;
-            border-bottom: 2px solid #9ca3af;
-          }
-          .gjs-relations-table tbody tr:nth-child(even) {
-            background-color: #f9fafb;
-          }
-          .gjs-relations-table tbody tr:hover {
-            background-color: #f3f4f6;
-          }
-          .gjs-relations-table tbody td {
-            vertical-align: top;
-          }
-        `,
+        attributes: { class: "table table-bordered w-100" },
         droppable: false,
         traits: [],
       },
@@ -597,7 +598,7 @@ export default function gjsRelationsTable(editor) {
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
         // Generate the Handlebar token table HTML using unified label helper
-        let html = `<table class="gjs-relations-table" data-relations="${relationName}">`;
+        let html = `<table class="table table-bordered w-100" data-relations="${relationName}">`;
 
         // Header row uses {{label "fieldPath"}} for consistent translated labels
         html += `<thead>`;

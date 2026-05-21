@@ -37,7 +37,7 @@ class PrintTemplateStoreRelationsTest extends TestCase {
                 $table->json('template')->nullable();
                 $table->json('used_relations')->nullable();
                 $table->boolean('is_default')->default(false);
-                $table->string('default_languange')->nullable();
+                $table->string('default_language')->nullable();
                 $table->string('font_family')->nullable();
                 $table->string('paper')->nullable();
                 $table->string('page_number')->nullable();

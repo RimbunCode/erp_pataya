@@ -22,6 +22,8 @@ use Symfony\Component\Uid\Ulid;
  * @method void dataTable(\Illuminate\Http\Request $request)
  */
 trait DataTable {
+    use HasExampleData;
+
     public function initializeDataTable() {
         $this->mergeCasts([
             'have_transactions' => 'boolean',

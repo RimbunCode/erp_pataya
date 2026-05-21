@@ -7,6 +7,7 @@ use App\Http\Requests\Core\TagRequest;
 use App\Models\Core\File;
 use App\Models\Core\Fileable;
 use App\Models\Core\Log;
+use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
@@ -312,9 +313,22 @@ abstract class Controller {
 
         $printTemplate->loadRelations();
 
+        $preferences = [];
+        try {
+            $preferences = Preference::pluck('value', 'key')->toArray();
+        } catch (Exception $e) {
+            $preferences = [];
+        }
+
+        $docInfo = [
+            'name' => $data->{$data->keyBreadcrumb ?? 'name'} ?? '',
+        ];
+
         return Inertia::render('Core/Print', [
-            'data'     => $data,
-            'document' => [
+            'doc'         => $data,
+            'preferences' => $preferences,
+            'docInfo'     => $docInfo,
+            'document'    => [
                 [
                     'name'       => 'name',
                     'titleTrans' => $data->translateKey . '.name',

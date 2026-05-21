@@ -175,7 +175,7 @@ const ColumnItem = memo(function ColumnItem({ column, onRemove }) {
 });
 const ComponentItem = memo(function ComponentItem({ component, data }) {
   const { t } = useLaravelReactI18n();
-  const { exampleData } = usePage().props ?? {};
+  const { exampleData, printTemplate } = usePage().props ?? {};
   const {
     data: _data,
     setData: _setData,
@@ -271,6 +271,7 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
       exampleData: relationExampleData,
       t,
       genId,
+      locale: printTemplate?.default_language,
     });
 
     // Store columns config on the component for toHTML() token generation

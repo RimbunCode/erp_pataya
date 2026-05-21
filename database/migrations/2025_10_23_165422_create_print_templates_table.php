@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -22,7 +21,7 @@ return new class extends Migration
             $table->longText('css')->nullable();
             $table->json('template')->nullable();
             $table->boolean('is_default')->default(false);
-            $table->string('default_languange')->nullable();
+            $table->string('default_language')->nullable();
             $table->string('font_family')->nullable();
             $table->string('paper')->nullable();
             $table->string('page_number')->nullable();
@@ -35,6 +34,7 @@ return new class extends Migration
             $table->double('margin_right')->nullable();
             $table->boolean('show_absolute_values')->default(false);
             $table->string('unit')->nullable();
+            $table->json('used_relations')->nullable();
             $table->timestamps();
             $table->softDeletes();
             $table->unique(['name', 'deleted_at']);

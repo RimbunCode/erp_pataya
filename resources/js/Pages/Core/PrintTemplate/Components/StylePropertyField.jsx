@@ -15,7 +15,7 @@ import Select from "@/Components/Select";
 import { cn } from "@/lib/utils";
 import { useEditor } from "@grapesjs/react";
 
-export default function StylePropertyField({ prop }) {
+export default function StylePropertyField({ prop, hideLabel = false }) {
   const editor = useEditor();
   const handleChange = (value) => {
     prop.upValue(value);
@@ -206,6 +206,19 @@ export default function StylePropertyField({ prop }) {
       break;
   }
 
+  const fieldInput = hideLabel ? (
+    <div className="space-y-1">{inputToRender}</div>
+  ) : (
+    <FormInput
+      label={prop.getLabel()}
+      className={cn(
+        type == "composite" && "col-span-full grid grid-cols-subgrid",
+      )}
+    >
+      {inputToRender}
+    </FormInput>
+  );
+
   return (
     <div
       className={cn(
@@ -213,14 +226,7 @@ export default function StylePropertyField({ prop }) {
         (type == "stack" || type == "slider") && "col-span-full ",
       )}
     >
-      <FormInput
-        label={prop.getLabel()}
-        className={cn(
-          type == "composite" && "col-span-full grid grid-cols-subgrid",
-        )}
-      >
-        {inputToRender}
-      </FormInput>
+      {fieldInput}
 
       {type === "stack" && (
         <Button
