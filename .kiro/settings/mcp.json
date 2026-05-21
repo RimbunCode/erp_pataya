@@ -2,14 +2,19 @@
   "mcpServers": {
     "laravel-boost": {
       "command": "php",
-      "args": [
-        "artisan",
-        "boost:mcp"
-      ],
+      "args": ["artisan", "boost:mcp"],
       "autoApprove": [
+        "application-info",
+        "browser-logs",
+        "database-connections",
+        "database-query",
         "database-schema",
-        "database-query"
-      ]
+        "get-absolute-url",
+        "last-error",
+        "read-log-entries",
+        "search-docs"
+      ],
+      "disabledTools": []
     },
     "herd": {
       "command": "php",
@@ -19,13 +24,24 @@
       ],
       "env": {
         "SITE_PATH": "${workspaceFolder}"
-      }
+      },
+      "autoApprove": [
+        "get_all_php_versions",
+        "get_all_sites",
+        "install_php_version"
+      ]
     },
     "shadcn": {
       "command": "npx",
-      "args": [
-        "shadcn@latest",
-        "mcp"
+      "args": ["shadcn@latest", "mcp"],
+      "autoApprove": [
+        "get_project_registries",
+        "list_items_in_registries",
+        "search_items_in_registries",
+        "view_items_in_registries",
+        "get_item_examples_from_registries",
+        "get_add_command_for_items",
+        "get_audit_checklist"
       ]
     }
   }

@@ -1,0 +1,29 @@
+{
+  "name": "API Postman Testing",
+  "version": "1.0.0",
+  "description": "Monitors API source code changes and automatically runs Postman collection tests to validate functionality",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "app/Http/Controllers/**/*.php",
+      "app/Http/Requests/**/*.php",
+      "app/Http/Resources/**/*.php",
+      "app/Http/Middleware/**/*.php",
+      "routes/api.php",
+      "routes/web.php",
+      "config/*.php",
+      "composer.json",
+      "openapi.yaml",
+      "openapi.yml",
+      "swagger.yaml",
+      "swagger.yml"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "API source code or configuration has been modified. Please retrieve the contents of the .postman.json file. If the file does not exist or is empty, create a Postman collection for the API. If it exists, get the collection ID and run the collection, showing me the results and propose fixes for any errors found."
+  },
+  "enabled": false,
+  "workspaceFolderName": "erp",
+  "shortName": "postman-api-testing"
+}

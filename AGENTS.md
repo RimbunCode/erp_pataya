@@ -13,11 +13,36 @@ Use design.md as the source of truth for architecture and implementation decisio
 Use tasks.md as the implementation checklist.
 
 Do not implement features outside the active task unless required by the design.
+
+[ ] : Task
+[~] : Queue Task
+[-] : In Progress Task
+[x] : Completed Task
+
 After completing a task:
 
 1. Run relevant tests/lint/build commands.
 2. Summarize changed files.
 3. Mark the completed task in tasks.md only if the implementation and validation pass.
+
+## Terminal Shell
+
+All terminal commands must be Bash-compatible.
+Do not generate or execute PowerShell/cmd commands.
+If a command is Windows-specific, ask before running it.
+
+When writing commands:
+
+- Use `ls`, not `dir`
+- Use `cp`, not `Copy-Item`
+- Use `mv`, not `Move-Item`
+- Use `rm`, not `Remove-Item`
+- Use `export VAR=value`, not `$env:VAR="value"`
+- Use `VAR=value command`, not `$env:VAR="value"; command`
+- Use forward slashes in paths where possible
+- Prefer commands compatible with Git Bash
+
+Before running terminal commands, assume the shell is Bash.
 
 <laravel-boost-guidelines>
 === foundation rules ===
