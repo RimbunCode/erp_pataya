@@ -67,17 +67,29 @@ class ExampleDataSeeder extends Seeder {
 
     private function cleanExistingExampleData(): void {
         // Clean in reverse dependency order
-        WorkOrderItem::query()->where('is_example', true)->forceDelete();
+        // Item models (non-DataTable) are cleaned via their parent's cascade or by parent ID
+        $workOrderIds = WorkOrder::query()->where('is_example', true)->pluck('id');
+        WorkOrderItem::query()->whereIn('work_order_id', $workOrderIds)->forceDelete();
         WorkOrder::query()->where('is_example', true)->forceDelete();
-        DeliveryNoteItem::query()->where('is_example', true)->forceDelete();
+
+        $deliveryNoteIds = DeliveryNote::query()->where('is_example', true)->pluck('id');
+        DeliveryNoteItem::query()->whereIn('delivery_note_id', $deliveryNoteIds)->forceDelete();
         DeliveryNote::query()->where('is_example', true)->forceDelete();
-        PurchaseInvoiceItem::query()->where('is_example', true)->forceDelete();
+
+        $purchaseInvoiceIds = PurchaseInvoice::query()->where('is_example', true)->pluck('id');
+        PurchaseInvoiceItem::query()->whereIn('purchase_invoice_id', $purchaseInvoiceIds)->forceDelete();
         PurchaseInvoice::query()->where('is_example', true)->forceDelete();
-        PurchaseOrderItem::query()->where('is_example', true)->forceDelete();
+
+        $purchaseOrderIds = PurchaseOrder::query()->where('is_example', true)->pluck('id');
+        PurchaseOrderItem::query()->whereIn('purchase_order_id', $purchaseOrderIds)->forceDelete();
         PurchaseOrder::query()->where('is_example', true)->forceDelete();
-        SalesInvoiceItem::query()->where('is_example', true)->forceDelete();
+
+        $salesInvoiceIds = SalesInvoice::query()->where('is_example', true)->pluck('id');
+        SalesInvoiceItem::query()->whereIn('sales_invoice_id', $salesInvoiceIds)->forceDelete();
         SalesInvoice::query()->where('is_example', true)->forceDelete();
-        SalesOrderItem::query()->where('is_example', true)->forceDelete();
+
+        $salesOrderIds = SalesOrder::query()->where('is_example', true)->pluck('id');
+        SalesOrderItem::query()->whereIn('sales_order_id', $salesOrderIds)->forceDelete();
         SalesOrder::query()->where('is_example', true)->forceDelete();
     }
 
@@ -86,58 +98,58 @@ class ExampleDataSeeder extends Seeder {
             ->whereNull('branchable_type')
             ->whereNull('branchable_id')
             ->first()
-          ?? Branch::query()->create([
-              'code'                => 'HQ',
-              'name'                => 'Head Office',
-              'is_main_branch'      => true,
-              'is_disabled'         => false,
-              'is_example'          => true,
-              'billing_address'     => 'same_shipping',
-              'shipping_street'     => 'Jl. Sudirman No. 1',
-              'shipping_city'       => 'Jakarta Selatan',
-              'shipping_state'      => 'DKI Jakarta',
-              'shipping_zip_code'   => '12190',
-              'shipping_country_id' => 'IDN',
-          ]);
+            ?? Branch::query()->create([
+                'code'                => 'HQ',
+                'name'                => 'Head Office',
+                'is_main_branch'      => true,
+                'is_disabled'         => false,
+                'is_example'          => true,
+                'billing_address'     => 'same_shipping',
+                'shipping_street'     => 'Jl. Sudirman No. 1',
+                'shipping_city'       => 'Jakarta Selatan',
+                'shipping_state'      => 'DKI Jakarta',
+                'shipping_zip_code'   => '12190',
+                'shipping_country_id' => 'IDN',
+            ]);
     }
 
     private function getOrCreateCurrency(): Currency {
         return Currency::query()->where('code', 'IDR')->first()
-          ?? Currency::query()->create([
-              'code' => 'IDR',
-              'name' => 'Indonesian Rupiah',
-          ]);
+            ?? Currency::query()->create([
+                'code' => 'IDR',
+                'name' => 'Indonesian Rupiah',
+            ]);
     }
 
     private function getOrCreateTax(): Tax {
         return Tax::query()->where('is_example', true)->first()
-          ?? Tax::query()->create([
-              'name'       => 'PPN 11%',
-              'rate'       => 11,
-              'is_example' => true,
-          ]);
+            ?? Tax::query()->create([
+                'name'       => 'PPN 11%',
+                'rate'       => 11,
+                'is_example' => true,
+            ]);
     }
 
     private function getOrCreateUser(): User {
         return User::query()->where('username', 'admin')->first()
-          ?? User::query()->first()
-          ?? User::query()->create([
-              'name'       => 'Administrator',
-              'username'   => 'admin',
-              'email'      => 'admin@example.com',
-              'password'   => bcrypt('password'),
-              'is_example' => true,
-          ]);
+            ?? User::query()->first()
+            ?? User::query()->create([
+                'name'       => 'Administrator',
+                'username'   => 'admin',
+                'email'      => 'admin@example.com',
+                'password'   => bcrypt('password'),
+                'is_example' => true,
+            ]);
     }
 
     private function getOrCreatePaymentMethod(): PaymentMethod {
         return PaymentMethod::query()->where('is_example', true)->first()
-          ?? PaymentMethod::query()->first()
-          ?? PaymentMethod::query()->create([
-              'name'        => 'Bank Transfer',
-              'description' => 'Transfer via bank',
-              'is_example'  => true,
-          ]);
+            ?? PaymentMethod::query()->first()
+            ?? PaymentMethod::query()->create([
+                'name'        => 'Bank Transfer',
+                'description' => 'Transfer via bank',
+                'is_example'  => true,
+            ]);
     }
 
     /**
@@ -210,10 +222,10 @@ class ExampleDataSeeder extends Seeder {
 
         $suppliersData = [
             [
-                'name'  => 'PT Sumber Material Utama',
-                'email' => 'sales@sumbermaterial.co.id',
-                'phone' => '021-6671234',
-                'banks' => [
+                'name'       => 'PT Sumber Material Utama',
+                'email'      => 'sales@sumbermaterial.co.id',
+                'phone'      => '021-6671234',
+                'banks'      => [
                     ['bank' => 'Bank Mandiri', 'no_acc' => '1234567890', 'account' => 'PT Sumber Material Utama'],
                 ],
                 'street'     => 'Jl. Industri Raya No. 12',
@@ -223,10 +235,10 @@ class ExampleDataSeeder extends Seeder {
                 'country_id' => $countryCode,
             ],
             [
-                'name'  => 'CV Teknik Mandiri',
-                'email' => 'info@teknikmandiri.com',
-                'phone' => '022-4456789',
-                'banks' => [
+                'name'       => 'CV Teknik Mandiri',
+                'email'      => 'info@teknikmandiri.com',
+                'phone'      => '022-4456789',
+                'banks'      => [
                     ['bank' => 'Bank BCA', 'no_acc' => '9876543210', 'account' => 'CV Teknik Mandiri'],
                 ],
                 'street'     => 'Jl. Soekarno Hatta No. 200',
@@ -279,22 +291,22 @@ class ExampleDataSeeder extends Seeder {
      */
     private function createItems(): array {
         $unit = Unit::query()->where('is_default', true)->first()
-          ?? Unit::query()->first()
-          ?? Unit::query()->create([
-              'code'              => 'PCS',
-              'name'              => 'Pieces',
-              'group'             => 'Quantity',
-              'conversion_factor' => 1,
-              'is_default'        => true,
-              'is_example'        => true,
-          ]);
+            ?? Unit::query()->first()
+            ?? Unit::query()->create([
+                'code'              => 'PCS',
+                'name'              => 'Pieces',
+                'group'             => 'Quantity',
+                'conversion_factor' => 1,
+                'is_default'        => true,
+                'is_example'        => true,
+            ]);
 
         $category = Category::query()->where('type', 'inventory')->first()
-          ?? Category::query()->create([
-              'name'       => 'General Goods',
-              'type'       => 'inventory',
-              'is_example' => true,
-          ]);
+            ?? Category::query()->create([
+                'name'       => 'General Goods',
+                'type'       => 'inventory',
+                'is_example' => true,
+            ]);
 
         $itemsData = [
             ['code' => 'ITM-EX-001', 'name' => 'Pipa Baja 2 Inch', 'price' => 250000],
@@ -330,7 +342,6 @@ class ExampleDataSeeder extends Seeder {
                     'is_default'                => true,
                     'is_manual'                 => false,
                     'generated_by_default_unit' => true,
-                    'is_example'                => true,
                 ],
             );
 
@@ -403,12 +414,12 @@ class ExampleDataSeeder extends Seeder {
             $orderItems  = [];
 
             foreach ($scenario['items'] as $i => $itemIndex) {
-                $item        = $items[$itemIndex];
-                $qty         = $scenario['quantities'][$i];
-                $price       = $item->getAttribute('example_price');
-                $basicAmount = $price * $qty;
-                $taxAmount   = $basicAmount * ($tax->rate / 100);
-                $amount      = $basicAmount + $taxAmount;
+                $item         = $items[$itemIndex];
+                $qty          = $scenario['quantities'][$i];
+                $price        = $item->getAttribute('example_price');
+                $basicAmount  = $price * $qty;
+                $taxAmount    = $basicAmount * ($tax->rate / 100);
+                $amount       = $basicAmount + $taxAmount;
                 $totalAmount += $amount;
 
                 $orderItems[] = [
@@ -461,7 +472,6 @@ class ExampleDataSeeder extends Seeder {
                     'base_currency_code'  => $currency->code,
                     'exchange_rate'       => 1,
                     'price'               => $orderItem['price'],
-                    'is_example'          => true,
                 ]);
             }
         }
@@ -511,12 +521,12 @@ class ExampleDataSeeder extends Seeder {
             $invoiceItems = [];
 
             foreach ($scenario['items'] as $i => $itemIndex) {
-                $item        = $items[$itemIndex];
-                $qty         = $scenario['quantities'][$i];
-                $price       = $item->getAttribute('example_price');
-                $basicAmount = $price * $qty;
-                $taxAmount   = $basicAmount * ($tax->rate / 100);
-                $subtotal += $basicAmount;
+                $item         = $items[$itemIndex];
+                $qty          = $scenario['quantities'][$i];
+                $price        = $item->getAttribute('example_price');
+                $basicAmount  = $price * $qty;
+                $taxAmount    = $basicAmount * ($tax->rate / 100);
+                $subtotal    += $basicAmount;
 
                 $invoiceItems[] = [
                     'item'         => $item,
@@ -571,7 +581,6 @@ class ExampleDataSeeder extends Seeder {
                     'currency_code'       => $currency->code,
                     'base_currency_code'  => $currency->code,
                     'exchange_rate'       => 1,
-                    'is_example'          => true,
                 ]);
             }
         }
@@ -616,12 +625,12 @@ class ExampleDataSeeder extends Seeder {
             $orderItems  = [];
 
             foreach ($scenario['items'] as $i => $itemIndex) {
-                $item        = $items[$itemIndex];
-                $qty         = $scenario['quantities'][$i];
-                $rate        = $scenario['rates'][$i];
-                $basicAmount = $rate * $qty;
-                $taxAmount   = $basicAmount * ($tax->rate / 100);
-                $amount      = $basicAmount + $taxAmount;
+                $item         = $items[$itemIndex];
+                $qty          = $scenario['quantities'][$i];
+                $rate         = $scenario['rates'][$i];
+                $basicAmount  = $rate * $qty;
+                $taxAmount    = $basicAmount * ($tax->rate / 100);
+                $amount       = $basicAmount + $taxAmount;
                 $totalAmount += $amount;
 
                 $orderItems[] = [
@@ -672,7 +681,6 @@ class ExampleDataSeeder extends Seeder {
                     'tax_id'              => $tax->id,
                     'tax_rate'            => $tax->rate,
                     'rate'                => $orderItem['rate'],
-                    'is_example'          => true,
                 ]);
             }
         }
@@ -720,13 +728,13 @@ class ExampleDataSeeder extends Seeder {
             $invoiceItems = [];
 
             foreach ($scenario['items'] as $i => $itemIndex) {
-                $item        = $items[$itemIndex];
-                $qty         = $scenario['quantities'][$i];
-                $rate        = $scenario['rates'][$i];
-                $basicAmount = $rate * $qty;
-                $taxAmount   = $basicAmount * ($tax->rate / 100);
-                $amount      = $basicAmount + $taxAmount;
-                $subtotal += $basicAmount;
+                $item         = $items[$itemIndex];
+                $qty          = $scenario['quantities'][$i];
+                $rate         = $scenario['rates'][$i];
+                $basicAmount  = $rate * $qty;
+                $taxAmount    = $basicAmount * ($tax->rate / 100);
+                $amount       = $basicAmount + $taxAmount;
+                $subtotal    += $basicAmount;
 
                 $invoiceItems[] = [
                     'item'         => $item,
@@ -779,7 +787,6 @@ class ExampleDataSeeder extends Seeder {
                     'tax_id'              => $tax->id,
                     'tax_rate'            => $tax->rate,
                     'rate'                => $invoiceItem['rate'],
-                    'is_example'          => true,
                 ]);
             }
         }
@@ -821,10 +828,10 @@ class ExampleDataSeeder extends Seeder {
                 ->first();
 
             $deliveryNote = DeliveryNote::query()->create([
-                'code'            => 'HQ/DN-' . str_pad($index + 1, 4, '0', STR_PAD_LEFT) . '/EX',
-                'delivery_date'   => $scenario['date'],
-                'reference_to_id' => Permission::query()->where('model', 'LIKE', '%SalesOrder%')->value('id')
-                  ?? Permission::query()->value('id'),
+                'code'               => 'HQ/DN-' . str_pad($index + 1, 4, '0', STR_PAD_LEFT) . '/EX',
+                'delivery_date'      => $scenario['date'],
+                'reference_to_id'    => Permission::query()->where('model', 'LIKE', '%SalesOrder%')->value('id')
+                    ?? Permission::query()->value('id'),
                 'referenceable_type' => SalesOrder::class,
                 'referenceable_id'   => SalesOrder::query()->where('is_example', true)->value('id') ?? $customer->id,
                 'customer_id'        => $customer->id,
@@ -851,7 +858,6 @@ class ExampleDataSeeder extends Seeder {
                     'valuation_rates'     => json_encode([]),
                     'quantity'            => $scenario['quantities'][$i],
                     'returned_quantity'   => 0,
-                    'is_example'          => true,
                 ]);
             }
         }
@@ -919,7 +925,6 @@ class ExampleDataSeeder extends Seeder {
                     'item_unit_id'         => $item->getAttribute('example_item_unit_id'),
                     'unit_name'            => 'PCS',
                     'conversion_factor'    => 1,
-                    'is_example'           => true,
                 ]);
             }
         }
