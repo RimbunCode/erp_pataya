@@ -191,7 +191,7 @@ export default function TabRoleRequests({ requests, setRequests }) {
                   Reason
                 </p>
                 <p className="text-xs text-[var(--foreground)] mt-0.5 leading-relaxed italic">
-                  "{selectedLive.reason}"
+                  {"{selectedLive.reason}"}
                 </p>
               </div>
             </div>

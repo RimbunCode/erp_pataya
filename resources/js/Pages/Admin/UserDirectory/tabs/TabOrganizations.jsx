@@ -64,7 +64,7 @@ export default function TabOrganizations({ orgs, setOrgs }) {
                 Invite an Organization
               </p>
               <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
-                Send an invite link to an organization's email — they'll
+                Send an invite link to an{" organization's"} email — {"they'll"}
                 register themselves.
               </p>
             </div>
