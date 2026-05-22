@@ -21,6 +21,8 @@ Route::middleware(['guest'])->group(function () {
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('login/roles', [AuthenticatedSessionController::class, 'roles'])
+        ->name('login.roles');
 
     Route::get('/auth/{driver}/redirect', [AuthenticatedSessionController::class, 'redirectToProvider'])->name('auth.login-provider');
 
@@ -58,6 +60,10 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('setup', [SetupUserController::class, 'show'])->name('setup.show');
     Route::put('setup', [SetupUserController::class, 'update'])->name('setup.update');
+    Route::get('select-role', [AuthenticatedSessionController::class, 'showRoleSelection'])
+        ->name('login.select-role');
+    Route::post('select-role', [AuthenticatedSessionController::class, 'selectRole'])
+        ->name('login.select-role.store');
 
     Route::put('password', [PasswordController::class, 'update'])->name('password.update');
 

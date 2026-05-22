@@ -13,12 +13,14 @@ return [
     |
     */
 
-    'failed'        => 'These credentials do not match our records.',
-    'disabled'      => 'Your account has been disabled!',
-    'password'      => 'The provided password is incorrect.',
-    'throttle'      => 'Too many login attempts. Please try again in :seconds seconds.',
-    'your_password' => 'Your Password',
-    'login'         => [
+    'failed'         => 'These credentials do not match our records.',
+    'disabled'       => 'Your account has been disabled!',
+    'no_role_access' => 'Your account does not have an active role. Please contact an administrator.',
+    'invalid_role'   => 'The selected role is invalid for this account.',
+    'password'       => 'The provided password is incorrect.',
+    'throttle'       => 'Too many login attempts. Please try again in :seconds seconds.',
+    'your_password'  => 'Your Password',
+    'login'          => [
         'title'           => 'Welcome Back',
         'description'     => 'Login with your credential or Google account',
         'usernameOrEmail' => 'Username or Email',

@@ -6,7 +6,6 @@ use Symfony\Component\HttpFoundation\Cookie;
 
 class RoleResolver {
     public const LAST_ACTIVE_ROLE_COOKIE = 'last_active_role';
-
     /**
      * @var array<int, string>
      */

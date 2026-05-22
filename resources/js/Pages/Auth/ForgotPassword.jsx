@@ -4,20 +4,16 @@ import { Button } from "@/Components/ui/button";
 import { CardContent } from "@/Components/ui/card";
 import AuthLayout from "@/Layouts/AuthLayout";
 import InputError from "@/Components/InputError";
-import { Skeleton } from "@/Components/ui/skeleton";
 import TextInput from "@/Components/TextInput";
-import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function ForgotPassword({ status }) {
-  const { t, loading } = useLaravelReactI18n();
   const route = window.route;
   const { data, setData, post, processing, errors } = useForm({
     email: "",
   });
 
-  const submit = (e) => {
-    e.preventDefault();
-
+  const submit = (event) => {
+    event.preventDefault();
     post(route("password.email"));
   };
 
@@ -26,11 +22,8 @@ export default function ForgotPassword({ status }) {
       <Head title="Forgot Password" />
       <CardContent>
         <div className="mb-4 text-sm text-foreground dark:text-muted-foreground">
-          {loading ? (
-            <Skeleton className="w-full h-16" />
-          ) : (
-            t("auth.forgotPassword.description")
-          )}
+          Forgot your password? No problem. Enter your email address and we will
+          send you a password reset link.
         </div>
 
         {status && (
@@ -47,19 +40,15 @@ export default function ForgotPassword({ status }) {
             value={data.email}
             className="block w-full mt-1"
             isFocused={true}
-            onChange={(e) => setData("email", e.target.value)}
+            onChange={(event) => setData("email", event.target.value)}
           />
 
           <InputError message={errors.email} className="mt-2" />
 
           <div className="flex items-center justify-end mt-4">
-            {loading ? (
-              <Skeleton className="w-64 h-6" />
-            ) : (
-              <Button className="ms-4" disabled={processing}>
-                {t("auth.forgotPassword.button")}
-              </Button>
-            )}
+            <Button className="ms-4" disabled={processing}>
+              Send Password Reset Link
+            </Button>
           </div>
         </form>
       </CardContent>

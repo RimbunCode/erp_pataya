@@ -27,9 +27,7 @@ class SetupUserRequest extends BaseFormRequest {
             'name'             => ['required', 'string', 'min:3', 'max:255'],
             'email'            => ['required', 'string', 'email:rfc'],
             'username'         => ['required', 'string', 'regex:/^[\w\-\.]*$/'],
-            'gender'           => ['nullable', 'string', 'in:male,female'],
-            'birthdate'        => ['nullable', 'date'],
-            'phone'            => ['nullable', 'string'],
+            'wants_instructor' => ['nullable', 'boolean'],
             'current_password' => ['nullable', 'current_password'],
             'password'         => ['nullable', Rule::requiredIf($this->current_password || ! $hasPassword), 'confirmed', Password::min(8)],
         ];

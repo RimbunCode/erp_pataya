@@ -4,191 +4,229 @@ import {
   CardHeader,
   CardTitle,
 } from "@/Components/ui/card";
-import { Head, useForm } from "@inertiajs/react";
-
-import { Button } from "@/Components/ui/button";
-import { FormCheckbox } from "@/Components/ui/checkbox";
+import { Head, Link, router, useForm } from "@inertiajs/react";
+import { useMemo, useState } from "react";
 import AuthLayout from "@/Layouts/AuthLayout";
-import { Input } from "@/Components/ui/input";
-import { Label } from "@/Components/ui/label";
-import Link from "@/Components/Link";
-import React from "react";
-import { RiErrorWarningFill } from "@remixicon/react";
-import { Skeleton } from "@/Components/ui/skeleton";
-import ToggleTheme from "@/Components/ToggleTheme";
-import { useLaravelReactI18n } from "laravel-react-i18n";
+import RoleSelectionCards from "@/Components/Auth/RoleSelectionCards";
+import { pickAuthRoles } from "@/lib/authRoles";
 
-export default function Login({ errors }) {
-  const { t, loading } = useLaravelReactI18n();
+function getErrorMessage(value) {
+  if (Array.isArray(value)) {
+    return value[0] ?? null;
+  }
+
+  return value ?? null;
+}
+
+export default function Login() {
   const route = window.route;
-  // const { addToast } = useToasts();
-  const { data, setData, post, processing, reset } = useForm({
+  const [step, setStep] = useState("credentials");
+  const [showPassword, setShowPassword] = useState(false);
+  const [availableRoles, setAvailableRoles] = useState([]);
+  const [precheckProcessing, setPrecheckProcessing] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [errors, setErrors] = useState({});
+  const { data, setData } = useForm({
     usernameOrEmail: "",
     password: "",
     remember: false,
   });
 
-  const submit = (e) => {
-    e.preventDefault();
+  const canSubmit =
+    Boolean(data.usernameOrEmail) &&
+    Boolean(data.password) &&
+    !precheckProcessing &&
+    !processing;
 
-    post(route("login"), {
-      onFinish: () => reset("password"),
-    });
+  const contactAdminUrl = useMemo(
+    () => getErrorMessage(errors.contact_admin_url) ?? "/contact",
+    [errors],
+  );
+
+  const handleFinalLogin = (preferredRole = null) => {
+    setErrors({});
+    setProcessing(true);
+
+    router.post(
+      route("login"),
+      {
+        usernameOrEmail: data.usernameOrEmail,
+        password: data.password,
+        remember: data.remember,
+        preferred_role: preferredRole,
+      },
+      {
+        onError: (formErrors) => {
+          setErrors(formErrors);
+
+          if (formErrors.preferred_role) {
+            setStep("select-role");
+            return;
+          }
+
+          setStep("credentials");
+        },
+        onFinish: () => {
+          setProcessing(false);
+        },
+      },
+    );
+  };
+
+  const handlePrecheck = async () => {
+    setErrors({});
+    setPrecheckProcessing(true);
+
+    try {
+      const response = await window.axios.post(route("login.roles"), {
+        usernameOrEmail: data.usernameOrEmail,
+        password: data.password,
+      });
+
+      const roles = pickAuthRoles(response.data?.roles ?? []);
+      if (response.data?.requires_selection) {
+        setAvailableRoles(roles);
+        setStep("select-role");
+        return;
+      }
+
+      handleFinalLogin(response.data?.auto_role ?? null);
+    } catch (error) {
+      setErrors(error?.response?.data?.errors ?? {});
+      setStep("credentials");
+    } finally {
+      setPrecheckProcessing(false);
+    }
   };
 
   return (
-    <AuthLayout>
+    <AuthLayout className="max-w-xl">
       <Head title="Login" />
       <CardHeader>
-        <div className="flex items-center justify-between gap-x-4">
-          <div className="flex flex-col gap-y-2">
-            <CardTitle className="text-xl">
-              {loading ? (
-                <Skeleton className="w-52 h-7" />
-              ) : (
-                t("auth.login.title")
-              )}
-            </CardTitle>
-            <CardDescription>
-              {loading ? (
-                <Skeleton className="w-full h-7" />
-              ) : (
-                t("auth.login.description")
-              )}
-            </CardDescription>
-          </div>
-          <ToggleTheme className="size-4" />
-        </div>
+        <CardTitle className="text-xl">Welcome Back</CardTitle>
+        <CardDescription>
+          Login with your credential or Google account
+        </CardDescription>
       </CardHeader>
       <CardContent className="pt-2!">
-        {errors && Object.keys(errors).length > 0 && (
-          <div className="flex-col w-full mb-4 alert error">
-            <div className="flex gap-x-2">
-              <RiErrorWarningFill />
-              <div className="flex items-center">
-                <ul className="block">
-                  {Object.entries(errors).map(([key, value]) => (
-                    <li key={key}>{value}</li>
-                  ))}
-                </ul>
-              </div>
+        {step === "credentials" ? (
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Username or Email</label>
+              <input
+                type="text"
+                value={data.usernameOrEmail}
+                onChange={(event) => {
+                  setData("usernameOrEmail", event.target.value);
+                  setErrors({});
+                }}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2"
+              />
+              {getErrorMessage(errors.usernameOrEmail) && (
+                <p className="text-sm text-destructive">
+                  {getErrorMessage(errors.usernameOrEmail)}
+                </p>
+              )}
             </div>
-          </div>
-        )}
-        <form onSubmit={submit}>
-          <div className="grid gap-6">
-            <div className="grid gap-6">
-              <div className="grid gap-2">
-                <Label htmlFor="usernameOrEmail">
-                  {loading ? (
-                    <Skeleton className="w-52 h-7" />
-                  ) : (
-                    t("auth.login.usernameOrEmail")
-                  )}
-                </Label>
-                <Input
-                  isFocused={true}
-                  id="usernameOrEmail"
-                  type="text"
-                  name="usernameOrEmail"
-                  autoComplete="usernameOrEmail"
-                  value={data.email}
-                  onChange={(e) => setData("usernameOrEmail", e.target.value)}
-                  required
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="password">
-                  {loading ? (
-                    <Skeleton className="w-52 h-7" />
-                  ) : (
-                    t("auth.login.password")
-                  )}
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  name="password"
-                  autoComplete="password"
-                  value={data.password}
-                  onChange={(e) => setData("password", e.target.value)}
-                  required
-                />
-                <div className="flex items-center">
-                  <FormCheckbox
-                    checked={data.remember}
-                    onCheckedChange={(v) => setData("remember", v)}
-                    label={
-                      <>
-                        {loading ? (
-                          <Skeleton className="w-32 h-7" />
-                        ) : (
-                          t("auth.login.remember")
-                        )}
-                      </>
-                    }
-                  />
-                  <Link
-                    href={route("password.request")}
-                    className="ml-auto text-sm underline-offset-4 hover:underline"
-                  >
-                    {loading ? (
-                      <Skeleton className="w-40 h-7" />
-                    ) : (
-                      t("auth.login.forgotPassword")
-                    )}
-                  </Link>
-                </div>
-              </div>
-              <Button type="submit" className="w-full" disabled={processing}>
-                {loading ? (
-                  <Skeleton className="w-32 h-7" />
-                ) : (
-                  t("auth.login.button")
-                )}
-              </Button>
-            </div>
-            <div className="relative flex justify-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
-              <span className="relative z-10 px-2 bg-background text-muted-foreground">
-                {loading ? (
-                  <Skeleton className="w-32 h-7" />
-                ) : (
-                  t("auth.login.or")
-                )}
-              </span>
-            </div>
-            <div className="flex flex-col gap-4">
-              <Button variant="outline" className="w-full" asChild>
-                <a href={route("auth.login-provider", "google")}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path
-                      d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"
-                      fill="currentColor"
-                    />
-                  </svg>
-                  {loading ? (
-                    <Skeleton className="w-32 h-7" />
-                  ) : (
-                    t("auth.login.google")
-                  )}
-                </a>
-              </Button>
-            </div>
-            {loading ? (
-              <Skeleton className="mx-auto w-44 h-7" />
-            ) : (
-              <div className="text-sm text-center">
-                {t("auth.login.register")}{" "}
+
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Password</label>
                 <Link
-                  href={route("register")}
-                  className="underline underline-offset-4"
+                  href={route("password.request")}
+                  className="text-sm text-primary hover:underline"
                 >
-                  {t("auth.login.registerLink")}
+                  Forgot your password?
                 </Link>
               </div>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  value={data.password}
+                  onChange={(event) => {
+                    setData("password", event.target.value);
+                    setErrors({});
+                  }}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground"
+                >
+                  {showPassword ? "Hide" : "Show"}
+                </button>
+              </div>
+              {getErrorMessage(errors.password) && (
+                <p className="text-sm text-destructive">
+                  {getErrorMessage(errors.password)}
+                </p>
+              )}
+            </div>
+
+            <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={data.remember}
+                onChange={(event) => setData("remember", event.target.checked)}
+              />
+              Remember me
+            </label>
+
+            {getErrorMessage(errors.status) && (
+              <p className="text-sm text-destructive">
+                {getErrorMessage(errors.status)}
+              </p>
             )}
+
+            {getErrorMessage(errors.contact_admin_url) && (
+              <a
+                href={contactAdminUrl}
+                className="text-sm font-semibold text-primary hover:underline"
+              >
+                Contact Admin
+              </a>
+            )}
+
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={handlePrecheck}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold ${
+                canSubmit
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {precheckProcessing || processing ? "Checking..." : "Continue"}
+            </button>
+
+            <a
+              href={route("auth.login-provider", "google")}
+              className="inline-flex items-center justify-center rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              Login with Google
+            </a>
           </div>
-        </form>
+        ) : (
+          <div className="grid gap-4">
+            <p className="text-sm text-muted-foreground">
+              Select a role to continue.
+            </p>
+            <RoleSelectionCards
+              roles={availableRoles}
+              compact={true}
+              onSelect={(role) => handleFinalLogin(role.key)}
+            />
+            <button
+              type="button"
+              onClick={() => setStep("credentials")}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Back to credentials
+            </button>
+          </div>
+        )}
       </CardContent>
     </AuthLayout>
   );

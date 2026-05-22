@@ -14,6 +14,7 @@ use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\CourseListController;
 use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Services\Auth\RoleResolver;
@@ -132,12 +133,21 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/financial', fn () => inertia('Organizations/Financials'))->name('organization.financial');
     });
 
-    Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
+    Route::middleware(['role:admin'])->prefix('/admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', fn () => inertia('Admin/Dashboard'))->name('dashboard');
+        Route::get('/approvals', fn () => inertia('Admin/Approvals'))->name('approval');
+        Route::get('/finance', fn () => inertia('Admin/SystemFinance'))->name('finance');
+        Route::get('/user', fn () => inertia('Admin/UserDirectory/index'))->name('user');
+        Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile');
+        Route::put('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/avatar', [AdminProfileController::class, 'updateAvatar'])->name('avatar.update');
+        Route::delete('/profile/avatar', [AdminProfileController::class, 'destroyImage'])->name('image.delete');
+    });
 
     Route::get('/{role}/{path?}', function (Request $request, string $role, RoleResolver $roleResolver) {
         $user = $request->user();
         if (! $user) {
-            return redirect('/guest');
+            return redirect('/');
         }
 
         $userRoles = $roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());

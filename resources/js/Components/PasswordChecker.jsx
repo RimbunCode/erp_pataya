@@ -3,29 +3,67 @@ import { CheckIcon, XIcon } from "lucide-react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 
-function PasswordChecker({ password }) {
+const ENGLISH_PASSWORD_LABELS = {
+  status: {
+    weak: "Weak Security",
+    medium: "Medium Security",
+    good: "Good Security",
+    strong: "Strong Security",
+  },
+  requirements: {
+    length: "At least 8 characters (Required)",
+    num: "At least 1 number",
+    lowercase: "At least 1 lowercase letter",
+    uppercase: "At least 1 uppercase letter",
+    special: "At least 1 special character",
+  },
+};
+
+function PasswordChecker({ password, forceEnglish = false }) {
   const { t } = useLaravelReactI18n();
+  const labels = useMemo(() => {
+    if (forceEnglish) {
+      return ENGLISH_PASSWORD_LABELS;
+    }
+
+    return {
+      status: {
+        weak: t("auth.register.password.strengths.status.weak"),
+        medium: t("auth.register.password.strengths.status.medium"),
+        good: t("auth.register.password.strengths.status.good"),
+        strong: t("auth.register.password.strengths.status.strong"),
+      },
+      requirements: {
+        length: t("auth.register.password.strengths.requirements.length"),
+        num: t("auth.register.password.strengths.requirements.num"),
+        lowercase: t("auth.register.password.strengths.requirements.lowercase"),
+        uppercase: t("auth.register.password.strengths.requirements.uppercase"),
+        special: t("auth.register.password.strengths.requirements.special"),
+      },
+    };
+  }, [forceEnglish, t]);
+
   const checkStrength = (pass) => {
     const requirements = [
       {
         regex: /.{8,}/,
-        text: t("auth.register.password.strengths.requirements.length"),
+        text: labels.requirements.length,
       },
       {
         regex: /[0-9]/,
-        text: t("auth.register.password.strengths.requirements.num"),
+        text: labels.requirements.num,
       },
       {
         regex: /[a-z]/,
-        text: t("auth.register.password.strengths.requirements.lowercase"),
+        text: labels.requirements.lowercase,
       },
       {
         regex: /[A-Z]/,
-        text: t("auth.register.password.strengths.requirements.uppercase"),
+        text: labels.requirements.uppercase,
       },
       {
         regex: /[!@#$%^&*(),.?":{}|<>]/,
-        text: t("auth.register.password.strengths.requirements.special"),
+        text: labels.requirements.special,
       },
     ];
     return requirements.map((req) => ({
@@ -47,10 +85,10 @@ function PasswordChecker({ password }) {
   };
   const getStrengthText = (score) => {
     if (score === 0) return "";
-    if (score <= 2) return t("auth.register.password.strengths.status.weak");
-    if (score <= 3) return t("auth.register.password.strengths.status.medium");
-    if (score <= 4) return t("auth.register.password.strengths.status.good");
-    return t("auth.register.password.strengths.status.strong");
+    if (score <= 2) return labels.status.weak;
+    if (score <= 3) return labels.status.medium;
+    if (score <= 4) return labels.status.good;
+    return labels.status.strong;
   };
   return (
     <>

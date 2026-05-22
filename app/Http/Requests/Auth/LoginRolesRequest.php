@@ -5,7 +5,7 @@ namespace App\Http\Requests\Auth;
 use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
 
-class LoginRequest extends BaseFormRequest {
+class LoginRolesRequest extends BaseFormRequest {
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -22,8 +22,6 @@ class LoginRequest extends BaseFormRequest {
         return [
             'usernameOrEmail' => ['required', 'string'],
             'password'        => ['required', 'string'],
-            'remember'        => ['nullable', 'boolean'],
-            'preferred_role'  => ['nullable', 'string'],
         ];
     }
 }
