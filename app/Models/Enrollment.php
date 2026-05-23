@@ -13,7 +13,6 @@ class Enrollment extends Model {
     protected $guarded = ['id'];
     protected $casts   = [
         'enrolled_at' => 'datetime',
-        'status'      => FormStatus::class,
     ];
 
     public function user(): BelongsTo {

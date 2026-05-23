@@ -1,24 +1,51 @@
-import { useState } from "react";
-import {
-  MOCK_USERS,
-  MOCK_ROLE_REQUESTS,
-  MOCK_ORGANIZATIONS,
-  MOCK_ADMINS,
-} from "../data/mockData";
+import { useEffect, useMemo, useState } from "react";
+import { usePage } from "@inertiajs/react";
 
 export function useUserDirectory() {
-  const [users, setUsers] = useState(MOCK_USERS);
-  const [requests, setRequests] = useState(MOCK_ROLE_REQUESTS);
-  const [orgs, setOrgs] = useState(MOCK_ORGANIZATIONS);
-  const [admins, setAdmins] = useState(MOCK_ADMINS);
+  const {
+    users: initialUsers = [],
+    requests: initialRequests = [],
+    orgs: initialOrgs = [],
+    admins: initialAdmins = [],
+    orgsMeta = null,
+  } = usePage().props;
 
-  const pendingRequests = requests.filter((r) => r.status === "pending").length;
+  const [users, setUsers] = useState(initialUsers);
+  const [requests, setRequests] = useState(initialRequests);
+  const [orgs, setOrgs] = useState(initialOrgs);
+  const [admins, setAdmins] = useState(initialAdmins);
+
+  useEffect(() => {
+    setUsers(initialUsers);
+  }, [initialUsers]);
+
+  useEffect(() => {
+    setRequests(initialRequests);
+  }, [initialRequests]);
+
+  useEffect(() => {
+    setOrgs(initialOrgs);
+  }, [initialOrgs]);
+
+  useEffect(() => {
+    setAdmins(initialAdmins);
+  }, [initialAdmins]);
+
+  const pendingRequests = useMemo(
+    () => requests.filter((request) => request.status === "pending").length,
+    [requests],
+  );
 
   return {
-    users, setUsers,
-    requests, setRequests,
-    orgs, setOrgs,
-    admins, setAdmins,
+    users,
+    setUsers,
+    requests,
+    setRequests,
+    orgs,
+    setOrgs,
+    admins,
+    setAdmins,
+    orgsMeta,
     pendingRequests,
   };
 }

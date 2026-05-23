@@ -1,4 +1,7 @@
 <?php
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
+use App\Http\Controllers\Admin\SystemFinanceController;
+use App\Http\Controllers\Admin\UserDirectoryController;
 use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\LanguageController;
@@ -13,8 +16,8 @@ use App\Http\Controllers\Student\CartController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\CourseListController;
 use App\Http\Controllers\Student\EnrollmentController;
+use App\Http\Controllers\Student\InstructorRoleRequestController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
-use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Services\Auth\RoleResolver;
@@ -85,6 +88,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/cart/{courseId}', [CartController::class, 'destroy'])->name('student.cart.destroy');
         Route::get('/profile', [StudentProfileController::class, 'index'])->name('student.profile');
         Route::put('/profile', [StudentProfileController::class, 'update'])->name('student.profile.update');
+        Route::post('/instructor-requests', [InstructorRoleRequestController::class, 'store'])->name('student.instructor-requests.store');
         Route::post('/profile/avatar', [StudentProfileController::class, 'updateAvatar'])->name('student.avatar.update');
         Route::delete('/profile/avatar', [StudentProfileController::class, 'destroyImage'])->name('student.image.delete');
         Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
@@ -136,8 +140,14 @@ Route::middleware(['auth'])->group(function () {
     Route::middleware(['role:admin'])->prefix('/admin')->name('admin.')->group(function () {
         Route::get('/dashboard', fn () => inertia('Admin/Dashboard'))->name('dashboard');
         Route::get('/approvals', fn () => inertia('Admin/Approvals'))->name('approval');
-        Route::get('/finance', fn () => inertia('Admin/SystemFinance'))->name('finance');
-        Route::get('/user', fn () => inertia('Admin/UserDirectory/index'))->name('user');
+        Route::get('/finance', [SystemFinanceController::class, 'index'])->name('finance');
+        Route::patch('/finance/{payment}/approve', [SystemFinanceController::class, 'approve'])->name('finance.approve');
+        Route::patch('/finance/{payment}/reject', [SystemFinanceController::class, 'reject'])->name('finance.reject');
+        Route::get('/finance/{payment}/proof', [SystemFinanceController::class, 'proof'])->name('finance.proof');
+        Route::get('/user', [UserDirectoryController::class, 'index'])->name('user');
+        Route::patch('/user/requests/{roleRequest}/approve', [UserDirectoryController::class, 'approveRequest'])->name('user.requests.approve');
+        Route::patch('/user/requests/{roleRequest}/reject', [UserDirectoryController::class, 'rejectRequest'])->name('user.requests.reject');
+        Route::patch('/user/users/{user}/status', [UserDirectoryController::class, 'updateUserStatus'])->name('user.users.status');
         Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile');
         Route::put('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/avatar', [AdminProfileController::class, 'updateAvatar'])->name('avatar.update');

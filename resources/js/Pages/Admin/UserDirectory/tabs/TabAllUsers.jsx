@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
+import { router } from "@inertiajs/react";
 import Icon from "@/Components/ui/Icon";
 import { Avatar } from "@/Components/ui/avatar";
 import RoleBadge from "@/Components/ui/RoleBadge";
@@ -8,17 +9,24 @@ import EmptyState from "../components/EmptyState";
 import UserDrawer from "../components/UserDrawer";
 import { fmtDate } from "../utils/format";
 
-export default function TabAllUsers({ users, setUsers }) {
+export default function TabAllUsers({ users }) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [selected, setSelected] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [statusProcessing, setStatusProcessing] = useState(false);
 
   const filtered = useMemo(() => {
     let list = users;
-    if (roleFilter !== "all") list = list.filter((u) => u.role === roleFilter);
-    if (statusFilter !== "all")
+
+    if (roleFilter !== "all") {
+      list = list.filter((u) => u.role === roleFilter);
+    }
+
+    if (statusFilter !== "all") {
       list = list.filter((u) => u.status === statusFilter);
+    }
+
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -31,22 +39,30 @@ export default function TabAllUsers({ users, setUsers }) {
     return list;
   }, [users, roleFilter, statusFilter, search]);
 
-  const selectedLive = selected
-    ? (users.find((u) => u.id === selected.id) ?? selected)
+  const selectedLive = selectedId
+    ? (users.find((userItem) => userItem.id === selectedId) ?? null)
     : null;
 
-  const handleSuspend = (id) => {
-    setUsers((p) =>
-      p.map((u) => (u.id === id ? { ...u, status: "suspended" } : u)),
-    );
-    setSelected((p) => (p?.id === id ? { ...p, status: "suspended" } : p));
-  };
+  const updateUserStatus = (userId, status, reason = null) => {
+    if (statusProcessing) {
+      return;
+    }
 
-  const handleActivate = (id) => {
-    setUsers((p) =>
-      p.map((u) => (u.id === id ? { ...u, status: "active" } : u)),
+    setStatusProcessing(true);
+    router.patch(
+      route("admin.user.users.status", { user: userId }),
+      {
+        status,
+        reason,
+      },
+      {
+        preserveScroll: true,
+        only: ["users", "admins"],
+        onFinish: () => {
+          setStatusProcessing(false);
+        },
+      },
     );
-    setSelected((p) => (p?.id === id ? { ...p, status: "active" } : p));
   };
 
   return (
@@ -71,16 +87,14 @@ export default function TabAllUsers({ users, setUsers }) {
             <option value="student">Student</option>
             <option value="instructor">Instructor</option>
             <option value="organization">Organization</option>
+            <option value="admin">Admin</option>
           </Select>
           <Select value={statusFilter} onChange={setStatusFilter}>
             <option value="all">All Status</option>
             <option value="active">Active</option>
-            <option value="suspended">Suspended</option>
+            <option value="inactive">Inactive</option>
             <option value="pending">Pending</option>
           </Select>
-          <button className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] transition-colors ml-auto">
-            <Icon d="M12 4v16m8-8H4" cls="w-3.5 h-3.5" /> Add User
-          </button>
         </div>
 
         {/* Table */}
@@ -117,11 +131,11 @@ export default function TabAllUsers({ users, setUsers }) {
                 </tr>
               ) : (
                 filtered.map((u) => {
-                  const active = selectedLive?.id === u.id;
+                  const active = selectedId === u.id;
                   return (
                     <tr
                       key={u.id}
-                      onClick={() => setSelected(u)}
+                      onClick={() => setSelectedId(u.id)}
                       className={`cursor-pointer transition-colors ${active ? "bg-[var(--primary-soft)]" : "hover:bg-[var(--background-accent)]"}`}
                     >
                       <td className="px-4 py-3">
@@ -154,7 +168,7 @@ export default function TabAllUsers({ users, setUsers }) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelected(u);
+                            setSelectedId(u.id);
                           }}
                           className="text-xs text-[var(--primary)] font-medium hover:underline"
                         >
@@ -187,9 +201,12 @@ export default function TabAllUsers({ users, setUsers }) {
       {selectedLive && (
         <UserDrawer
           user={selectedLive}
-          onClose={() => setSelected(null)}
-          onSuspend={handleSuspend}
-          onActivate={handleActivate}
+          onClose={() => setSelectedId(null)}
+          onDeactivate={(userId, reason) =>
+            updateUserStatus(userId, "inactive", reason)
+          }
+          onActivate={(userId) => updateUserStatus(userId, "active")}
+          statusProcessing={statusProcessing}
         />
       )}
     </div>

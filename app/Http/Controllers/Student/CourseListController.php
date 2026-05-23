@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Services\CourseProgressService;
 use Inertia\Inertia;
@@ -13,8 +14,22 @@ class CourseListController extends Controller {
         $user = auth()->user();
 
         $enrollments = $user->enrollments()
-            ->with(['course.categories', 'course.creator', 'course.sections.contents'])
+            ->with(['payment', 'course.categories', 'course.creator', 'course.sections.contents'])
             ->get();
+
+        $activeEnrollments = $enrollments->filter(function ($enrollment) {
+            $status = (string) $enrollment->status;
+
+            return $status === '' || $status === FormStatus::ACTIVE->value;
+        })->values();
+
+        $pendingEnrollments = $enrollments->filter(function ($enrollment) {
+            return \in_array(
+                (string) $enrollment->status,
+                [FormStatus::PENDING->value, FormStatus::REJECTED->value],
+                true,
+            );
+        })->values();
 
         $completedContentIds = $user->progress()
             ->where('is_completed', true)
@@ -30,7 +45,7 @@ class CourseListController extends Controller {
         $completedContentLookup = $this->courseProgressService->toLookup($completedContentIds);
         $submittedContentLookup = $this->courseProgressService->toLookup($submittedContentIds);
 
-        $courses = $enrollments->map(fn ($enrollment) => [
+        $courses = $activeEnrollments->map(fn ($enrollment) => [
             'id'             => $enrollment->course->id,
             'title'          => $enrollment->course->title,
             'instructor'     => $enrollment->course->creator?->name,
@@ -83,10 +98,21 @@ class CourseListController extends Controller {
             })->values()->toArray(),
         ]);
 
-        // dd($courses->first());
+        $pendingCourses = $pendingEnrollments->map(fn ($enrollment) => [
+            'id'               => $enrollment->course->id,
+            'title'            => $enrollment->course->title,
+            'instructor'       => $enrollment->course->creator?->name,
+            'category'         => $enrollment->course->categories->first()?->name ?? '-',
+            'thumbnail'        => $enrollment->course->thumbnail,
+            'price'            => (float) $enrollment->course->price,
+            'status'           => (string) $enrollment->status,
+            'rejection_reason' => $enrollment->payment?->rejection_reason,
+            'submitted_at'     => $enrollment->payment?->paid_at?->format('d M Y H:i'),
+        ])->values();
 
         return Inertia::render('Students/MyCourses', [
-            'courses' => $courses,
+            'courses'        => $courses,
+            'pendingCourses' => $pendingCourses,
         ]);
     }
 }

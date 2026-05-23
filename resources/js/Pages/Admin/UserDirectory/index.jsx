@@ -35,13 +35,10 @@ export default function UserDirectory() {
   const [activeTab, setActiveTab] = useState("users");
   const {
     users,
-    setUsers,
     requests,
-    setRequests,
     orgs,
-    setOrgs,
+    orgsMeta,
     admins,
-    setAdmins,
     pendingRequests,
   } = useUserDirectory();
 
@@ -133,20 +130,13 @@ export default function UserDirectory() {
             {/* Tab content */}
             <div className="flex-1 overflow-hidden">
               {activeTab === "users" && (
-                <TabAllUsers users={users} setUsers={setUsers} />
+                <TabAllUsers users={users} />
               )}
-              {activeTab === "requests" && (
-                <TabRoleRequests
-                  requests={requests}
-                  setRequests={setRequests}
-                />
-              )}
+              {activeTab === "requests" && <TabRoleRequests requests={requests} />}
               {activeTab === "orgs" && (
-                <TabOrganizations orgs={orgs} setOrgs={setOrgs} />
+                <TabOrganizations orgs={orgs} orgsMeta={orgsMeta} />
               )}
-              {activeTab === "admins" && (
-                <TabAdmins admins={admins} setAdmins={setAdmins} />
-              )}
+              {activeTab === "admins" && <TabAdmins admins={admins} />}
             </div>
           </div>
         </div>

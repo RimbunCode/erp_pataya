@@ -11,6 +11,7 @@ use App\Models\Core\File;
 use App\Models\Enrollment;
 use App\Models\InstructorProfile;
 use App\Models\Payment;
+use App\Models\RoleRequest;
 use App\Models\StudentProfile;
 use App\Models\Submission;
 use App\Models\UserProgress;
@@ -126,6 +127,18 @@ class User extends Authenticatable {
 
     public function providers() {
         return $this->hasMany(UserProvider::class, 'user_id');
+    }
+
+    public function roleRequests() {
+        return $this->hasMany(RoleRequest::class, 'user_id');
+    }
+
+    public function reviewedRoleRequests() {
+        return $this->hasMany(RoleRequest::class, 'reviewed_by');
+    }
+
+    public function inactiveByUser() {
+        return $this->belongsTo(User::class, 'inactive_by');
     }
 
     public function studentProfile(): HasOne {

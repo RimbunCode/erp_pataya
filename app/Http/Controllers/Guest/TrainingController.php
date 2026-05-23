@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Guest;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Course;
+use App\Models\Enrollment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -70,7 +72,28 @@ class TrainingController extends Controller {
     }
 
     public function show(Course $course) {
+        $user      = Auth::user();
+        $isStudent = $user !== null && $user->roles->pluck('name')->contains('student');
+
         $course->load(['categories', 'creator', 'sections.contents']);
+
+        $enrollmentStatus = '';
+        $rejectionReason  = null;
+        $isEnrolled       = false;
+
+        if ($isStudent) {
+            $enrollment = Enrollment::query()
+                ->with('payment')
+                ->where('user_id', $user->id)
+                ->where('course_id', $course->id)
+                ->first();
+
+            if ($enrollment !== null) {
+                $enrollmentStatus = (string) $enrollment->status;
+                $isEnrolled       = $enrollmentStatus === '' || $enrollmentStatus === FormStatus::ACTIVE->value;
+                $rejectionReason  = $enrollment->payment?->rejection_reason;
+            }
+        }
 
         return Inertia::render('Guest/TrainingSection/TrainingPreview', [
             'course' => [
@@ -101,6 +124,10 @@ class TrainingController extends Controller {
                     ]),
                 ]),
             ],
+            'isLoggedIn'       => $isStudent,
+            'isEnrolled'       => $isEnrolled,
+            'enrollmentStatus' => $enrollmentStatus,
+            'rejectionReason'  => $rejectionReason,
         ]);
     }
 }

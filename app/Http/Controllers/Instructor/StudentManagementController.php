@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Instructor;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Enrollment;
 use App\Models\Submission;
@@ -19,6 +20,11 @@ class StudentManagementController extends Controller {
         $instructorId = (string) auth()->id();
 
         $enrollments = Enrollment::query()
+            ->where(function ($query) {
+                $query
+                    ->where('status', FormStatus::ACTIVE->value)
+                    ->orWhereNull('status');
+            })
             ->whereHas('course', function ($query) use ($instructorId) {
                 $query->where('created_by', $instructorId);
             })

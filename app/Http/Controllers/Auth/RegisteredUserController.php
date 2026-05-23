@@ -38,13 +38,14 @@ class RegisteredUserController extends Controller {
      */
     public function store(Request $request): RedirectResponse {
         $request->validate([
-            'name'             => ['required', 'string', 'max:255'],
-            'username'         => ['required', 'string', 'max:255'],
-            'email'            => ['required', 'string', 'lowercase', 'email', 'max:255'],
-            'password'         => ['required', 'confirmed', Rules\Password::min(8)],
-            'dob'              => ['nullable', 'date', 'before:today'],
-            'wants_instructor' => ['nullable', 'boolean'],
-            'role'             => ['nullable', 'string'],
+            'name'      => ['required', 'string', 'max:255'],
+            'username'  => ['nullable', 'string', 'max:255', 'alpha_dash'],
+            'email'     => ['required', 'string', 'lowercase', 'email', 'max:255'],
+            'phone'     => ['nullable', 'string', 'max:20'],
+            'password'  => ['required', 'confirmed', Rules\Password::min(8)],
+            'gender'    => ['nullable', 'in:male,female'],
+            'birthdate' => ['nullable', 'date', 'before:today'],
+            'role'      => ['nullable', 'string'],
         ]);
 
         DB::beginTransaction();
@@ -59,26 +60,30 @@ class RegisteredUserController extends Controller {
             }
             $findUser->update([
                 'name'      => $request->name,
-                'username'  => $request->username,
+                'username'  => $request->username ?? null,
                 'email'     => $request->email,
+                'phone'     => $request->phone ?? null,
                 'password'  => Hash::make($request->password),
-                'birthdate' => $request->dob,
+                'gender'    => $request->gender ?? null,
+                'birthdate' => $request->birthdate ?? null,
                 'status'    => FormStatus::ACTIVE,
             ]);
             $user = $findUser->refresh();
         } else {
             $user = User::create([
                 'name'      => $request->name,
-                'username'  => $request->username,
+                'username'  => $request->username ?? null,
                 'email'     => $request->email,
+                'phone'     => $request->phone ?? null,
                 'password'  => Hash::make($request->password),
-                'birthdate' => $request->dob,
+                'gender'    => $request->gender ?? null,
+                'birthdate' => $request->birthdate ?? null,
                 'status'    => FormStatus::ACTIVE,
             ]);
         }
 
         $wantsInstructor = $this->userRoleManager->resolveWantsInstructor(
-            $request->input('wants_instructor'),
+            null,
             $request->string('role')->toString(),
         );
 

@@ -1,10 +1,25 @@
+import { useEffect, useState } from "react";
 import Icon from "@/Components/ui/Icon";
 import { Avatar } from "@/Components/ui/avatar";
 import RoleBadge from "@/Components/ui/RoleBadge";
 import StatusBadge from "@/Components/ui/StatusBadge";
-import { fmt, fmtDate } from "../utils/format";
+import { fmt, fmtDate, fmtTime } from "../utils/format";
 
-export default function UserDrawer({ user, onClose, onSuspend, onActivate }) {
+export default function UserDrawer({
+  user,
+  onClose,
+  onDeactivate,
+  onActivate,
+  statusProcessing = false,
+}) {
+  const [deactivateMode, setDeactivateMode] = useState(false);
+  const [deactivateReason, setDeactivateReason] = useState("");
+
+  useEffect(() => {
+    setDeactivateMode(false);
+    setDeactivateReason("");
+  }, [user?.id, user?.status]);
+
   if (!user) return null;
 
   const isStudent = user.role === "student";
@@ -56,6 +71,27 @@ export default function UserDrawer({ user, onClose, onSuspend, onActivate }) {
             </span>
           </div>
         </div>
+
+        {user.status === "inactive" && (
+          <div className="px-5 py-4 border-b border-[var(--border)]">
+            <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold mb-2">
+              Inactive Detail
+            </p>
+            <p className="text-xs text-[var(--foreground)] leading-relaxed">
+              {user.inactiveReason ?? "-"}
+            </p>
+            {user.inactiveByName && (
+              <p className="text-[10px] text-[var(--muted-foreground)] mt-2">
+                By {user.inactiveByName}
+              </p>
+            )}
+            {user.inactiveAt && (
+              <p className="text-[10px] text-[var(--muted-foreground)] mt-2">
+                Set at {fmtDate(user.inactiveAt)} {fmtTime(user.inactiveAt)}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Role-specific stats */}
         <div className="px-5 py-4 border-b border-[var(--border)]">
@@ -151,20 +187,62 @@ export default function UserDrawer({ user, onClose, onSuspend, onActivate }) {
               />
               Reset Password
             </button>
-            {user.status === "active" ? (
+            {user.status === "active" && !deactivateMode && (
               <button
-                onClick={() => onSuspend(user.id)}
+                onClick={() => setDeactivateMode(true)}
+                disabled={statusProcessing}
                 className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium border border-red-200 text-red-600 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/30 transition-colors"
               >
                 <Icon
                   d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
                   cls="w-3.5 h-3.5"
                 />
-                Suspend Account
+                Deactivate Account
               </button>
-            ) : (
+            )}
+            {user.status === "active" && deactivateMode && (
+              <div className="rounded-lg border border-red-200 p-2.5 bg-red-50/70 dark:border-red-900 dark:bg-red-950/20">
+                <p className="text-[10px] text-red-600 dark:text-red-300 font-semibold uppercase tracking-wider mb-1.5">
+                  Reason (required)
+                </p>
+                <textarea
+                  value={deactivateReason}
+                  onChange={(event) => setDeactivateReason(event.target.value)}
+                  rows={3}
+                  placeholder="Explain why this account is inactive..."
+                  className="w-full text-xs p-2.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={() => {
+                      setDeactivateMode(false);
+                      setDeactivateReason("");
+                    }}
+                    disabled={statusProcessing}
+                    className="flex-1 py-2 text-xs font-medium border border-[var(--border)] rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--secondary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!deactivateReason.trim()) {
+                        return;
+                      }
+
+                      onDeactivate(user.id, deactivateReason.trim());
+                    }}
+                    disabled={!deactivateReason.trim() || statusProcessing}
+                    className="flex-1 py-2 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              </div>
+            )}
+            {user.status !== "active" && (
               <button
                 onClick={() => onActivate(user.id)}
+                disabled={statusProcessing}
                 className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium border border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-900 dark:hover:bg-emerald-950/30 transition-colors"
               >
                 <Icon

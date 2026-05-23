@@ -22,7 +22,7 @@ class UserSeeder extends Seeder {
         $student = User::create([
             'id'                => Str::ulid(),
             'name'              => 'Ahmad Faisal',
-            'username'          => 'ahmad.faisal',
+            'username'          => 'faisal',
             'email'             => 'student@inkindo.test',
             'password'          => Hash::make('password'),
             'status'            => FormStatus::ACTIVE, // ← ganti
@@ -32,7 +32,7 @@ class UserSeeder extends Seeder {
         $instructor = User::create([
             'id'                => Str::ulid(),
             'name'              => 'Ir. Ahmad Sudirman',
-            'username'          => 'ahmad.sudirman',
+            'username'          => 'sudirman',
             'email'             => 'instructor@inkindo.test',
             'password'          => Hash::make('password'),
             'status'            => FormStatus::ACTIVE, // ← ganti

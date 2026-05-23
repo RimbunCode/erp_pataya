@@ -367,7 +367,7 @@ export const navConfig = {
       },
       {
         key: "approval",
-        label: "Approvals",
+        label: "Course Approvals",
         href: "/admin/approvals",
         icon: (
           <svg

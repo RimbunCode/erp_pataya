@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { router } from "@inertiajs/react";
-
+import { format, setMonth, setYear } from "date-fns";
+import DatetimePicker from "../DatetimePicker";
+import { Input } from "../ui/input";
+const CURRENT_YEAR = new Date().getFullYear();
 const roles = [
   {
     key: "student",
@@ -57,87 +60,75 @@ const roles = [
       </svg>
     ),
   },
-  // {
-  //   key: "organization",
-  //   label: "Organization",
-  //   desc: "Manage affiliate trainers and corporate training.",
-  //   note: "Please use your official organization or corporate email address for account verification.",
-  //   iconBg: "bg-green-100",
-  //   iconColor: "text-green-600",
-  //   borderColor: "border-green-500",
-  //   activeBg: "bg-green-50",
-  //   icon: (
-  //     <svg
-  //       className="w-6 h-6"
-  //       fill="none"
-  //       viewBox="0 0 24 24"
-  //       stroke="currentColor"
-  //       strokeWidth={2}
-  //     >
-  //       <path
-  //         strokeLinecap="round"
-  //         strokeLinejoin="round"
-  //         d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-  //       />
-  //     </svg>
-  //   ),
-  // },
 ];
 
 export default function RegisterModal({ onClose, onSwitchToLogin }) {
   const route = window.route;
   const [errors, setErrors] = useState({});
   const [form, setForm] = useState({
-    fullName: "",
+    name: "",
+    username: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
-    dobDay: "",
-    dobMonth: "",
-    dobYear: "",
+    gender: "",
+    birthdate: null,
   });
   const [selectedRole, setSelectedRole] = useState(null);
-
-  const handleSubmit = () => {
-    const dob =
-      form.dobYear && form.dobMonth && form.dobDay
-        ? `${form.dobYear}-${String(form.dobMonth).padStart(2, "0")}-${String(form.dobDay).padStart(2, "0")}`
-        : "";
-    router.post(
-      "/register",
-      {
-        name: form.fullName,
-        email: form.email,
-        password: form.password,
-        password_confirmation: form.confirmPassword,
-        role: selectedRole.key,
-        dob: dob,
-      },
-      {
-        onError: (errors) => {
-          setErrors(errors);
-        },
-      },
-    );
-  };
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const isFormComplete =
-    form.fullName.trim() &&
+    form.name.trim() &&
     form.email.trim() &&
-    form.dobDay &&
-    form.dobMonth &&
-    form.dobYear &&
     form.password.trim() &&
     form.confirmPassword.trim() &&
     form.password === form.confirmPassword;
 
+  const isReadyToSubmit = isFormComplete && selectedRole;
+
+  const handleSubmit = useCallback(() => {
+    if (!isReadyToSubmit) return;
+    router.post(
+      "/register",
+      {
+        name: form.name,
+        username: form.username || undefined,
+        email: form.email,
+        phone: form.phone ? `+62${form.phone}` : undefined,
+        password: form.password,
+        password_confirmation: form.confirmPassword,
+        role: selectedRole.key,
+        gender: form.gender || undefined,
+        birthdate: form.birthdate
+          ? format(form.birthdate, "yyyy-MM-dd")
+          : undefined,
+      },
+      { onError: (errors) => setErrors(errors) },
+    );
+  }, [form, selectedRole, isReadyToSubmit]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Enter") handleSubmit();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleSubmit]);
+
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    // reset role jika form diubah lagi
     setSelectedRole(null);
   };
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+
+  const handleBirthdate = (date) => {
+    setForm((prev) => ({ ...prev, birthdate: date ?? null }));
+    setSelectedRole(null);
+  };
+
+  const inputClass =
+    "w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-background/70 backdrop-blur-sm">
@@ -178,6 +169,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
           </span>
         </div>
 
+        {/* Google OAuth */}
         <div className="mb-6">
           <a
             href={route("auth.login-provider", "google")}
@@ -196,7 +188,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             </svg>
             Login with Google
           </a>
-
           <div className="relative mt-4 flex justify-center text-xs font-bold tracking-widest text-muted-foreground uppercase after:absolute after:inset-0 after:top-1/2 after:border-t after:border-border">
             <span className="relative z-10 px-2 bg-card">
               or continue with email
@@ -206,33 +197,60 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
 
         {/* Form Fields */}
         <div className="flex flex-col gap-4 mb-7">
-          {/* Nama Lengkap */}
+          {/* Full Name */}
           <div>
             <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-              Full Name
+              Full Name <span className="text-destructive">*</span>
             </label>
-            <input
+            <Input
               type="text"
-              name="fullName"
-              value={form.fullName}
+              name="name"
+              value={form.name}
               onChange={handleChange}
               placeholder="e.g. Budi Santoso"
-              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+              className={inputClass}
             />
+            {errors.name && (
+              <p className="mt-1.5 text-sm font-semibold text-destructive">
+                {errors.name}
+              </p>
+            )}
+          </div>
+
+          {/* Username */}
+          <div>
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+              Username
+            </label>
+            <div className="relative">
+              <Input
+                type="text"
+                name="username"
+                value={form.username}
+                onChange={handleChange}
+                placeholder="budisantoso"
+                className={`${inputClass}`}
+              />
+            </div>
+            {errors.username && (
+              <p className="mt-1.5 text-sm font-semibold text-destructive">
+                {errors.username}
+              </p>
+            )}
           </div>
 
           {/* Email */}
           <div>
             <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-              Email Address
+              Email Address <span className="text-destructive">*</span>
             </label>
-            <input
+            <Input
               type="email"
               name="email"
               value={form.email}
               onChange={handleChange}
               placeholder="john@example.com"
-              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+              className={inputClass}
             />
             {errors.email && (
               <p className="mt-1.5 text-sm font-semibold text-destructive">
@@ -241,19 +259,62 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             )}
           </div>
 
+          {/* Phone */}
+          <div>
+            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+              Phone Number{" "}
+              <span className="text-muted-foreground/50 font-semibold normal-case tracking-normal">
+                (optional)
+              </span>
+            </label>
+            <div className="flex rounded-xl overflow-hidden border border-border focus-within:ring-2 focus-within:ring-ring focus-within:bg-card transition-all">
+              <span className="flex items-center px-4 bg-muted border-r border-border text-base font-semibold text-foreground select-none shrink-0">
+                +62
+              </span>
+              <Input
+                type="tel"
+                name="phone"
+                value={form.phone}
+                onChange={(e) => {
+                  let val = e.target.value
+                    .replace(/^\+62/, "")
+                    .replace(/^0/, "")
+                    .replace(/\D/g, "")
+                    .slice(0, 12);
+                  setForm((prev) => ({ ...prev, phone: val }));
+                  setSelectedRole(null);
+                }}
+                placeholder="812 3456 7890"
+                maxLength={12}
+                inputMode="numeric"
+                className="flex-1 rounded-xl border-none bg-muted px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-0"
+              />
+              {form.phone.length > 0 && (
+                <span className="flex items-center pr-4 text-xs font-semibold tabular-nums text-muted-foreground/60 shrink-0 select-none">
+                  {form.phone.length}/12
+                </span>
+              )}
+            </div>
+            {errors.phone && (
+              <p className="mt-1.5 text-sm font-semibold text-destructive">
+                {errors.phone}
+              </p>
+            )}
+          </div>
+
           {/* Password */}
           <div>
             <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-              Password
+              Password <span className="text-destructive">*</span>
             </label>
             <div className="relative">
-              <input
+              <Input
                 type={showPassword ? "text" : "password"}
                 name="password"
                 value={form.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+                className={`${inputClass} pr-11`}
               />
               <button
                 type="button"
@@ -301,21 +362,16 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
           {/* Confirm Password */}
           <div>
             <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-              Confirm Password
+              Confirm Password <span className="text-destructive">*</span>
             </label>
             <div className="relative">
-              <input
+              <Input
                 type={showConfirm ? "text" : "password"}
                 name="confirmPassword"
                 value={form.confirmPassword}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className={`w-full bg-muted border rounded-xl px-4 py-3 pr-11 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:bg-card transition-all
-        ${
-          form.confirmPassword && form.password !== form.confirmPassword
-            ? "border-destructive/60 focus:ring-destructive"
-            : "border-border focus:ring-ring"
-        }`}
+                className={`${inputClass} pr-11 ${form.confirmPassword && form.password !== form.confirmPassword ? "border-destructive/60 focus:ring-destructive" : ""}`}
               />
               <button
                 type="button"
@@ -358,7 +414,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 )}
               </button>
             </div>
-            {/* Error message */}
             {form.confirmPassword && form.password !== form.confirmPassword && (
               <p className="mt-1.5 text-sm font-semibold text-destructive">
                 Passwords do not match.
@@ -366,69 +421,53 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             )}
           </div>
 
-          {/* Tanggal Lahir */}
-          <div>
-            <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-              Date of Birth
-            </label>
-            <div className="grid grid-cols-3 gap-2">
+          {/* Gender & Birthdate */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Gender */}
+            <div>
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                Gender{" "}
+                <span className="text-muted-foreground/50 font-semibold normal-case tracking-normal">
+                  (optional)
+                </span>
+              </label>
               <select
-                name="dobDay"
-                value={form.dobDay}
+                name="gender"
+                value={form.gender}
                 onChange={handleChange}
-                className="bg-muted border border-border rounded-xl px-3 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
               >
-                <option value="">Day</option>
-                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={d}>
-                    {d}
-                  </option>
-                ))}
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
               </select>
+              {errors.gender && (
+                <p className="mt-1.5 text-sm font-semibold text-destructive">
+                  {errors.gender}
+                </p>
+              )}
+            </div>
 
-              <select
-                name="dobMonth"
-                value={form.dobMonth}
-                onChange={handleChange}
-                className="bg-muted border border-border rounded-xl px-3 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
-              >
-                <option value="">Month</option>
-                {[
-                  "Jan",
-                  "Feb",
-                  "Mar",
-                  "Apr",
-                  "May",
-                  "Jun",
-                  "Jul",
-                  "Aug",
-                  "Sep",
-                  "Oct",
-                  "Nov",
-                  "Dec",
-                ].map((m, i) => (
-                  <option key={m} value={i + 1}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                name="dobYear"
-                value={form.dobYear}
-                onChange={handleChange}
-                className="bg-muted border border-border rounded-xl px-3 py-3 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
-              >
-                <option value="">Year</option>
-                {Array.from(
-                  { length: 60 },
-                  (_, i) => new Date().getFullYear() - i,
-                ).map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
+            {/* Birthdate — shadcn Popover + Calendar with custom Caption */}
+            <div>
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                Date of Birth{" "}
+                <span className="text-muted-foreground/50 font-semibold normal-case tracking-normal">
+                  (optional)
+                </span>
+              </label>
+              <DatetimePicker
+                placeholder="Select date of birth"
+                type="date"
+                value={form.birthdate}
+                onValueChange={handleBirthdate}
+                className="w-full bg-muted border border-border rounded-xl h-12 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+              />
+              {errors.birthdate && (
+                <p className="mt-1.5 text-sm font-semibold text-destructive">
+                  {errors.birthdate}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -441,7 +480,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             </label>
             {!isFormComplete && (
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                Please complete fields above to unlock
+                Complete fields above to unlock
               </span>
             )}
           </div>
@@ -450,24 +489,20 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             {roles.map((role) => {
               const isActive = selectedRole?.key === role.key;
               const isDisabled = !isFormComplete;
-
               return (
                 <button
                   key={role.key}
                   onClick={() => !isDisabled && setSelectedRole(role)}
                   disabled={isDisabled}
-                  className={`
-                    relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 text-center transition-all duration-200
+                  className={`relative flex flex-col items-center gap-2 p-4 rounded-2xl border-2 text-center transition-all duration-200
                     ${
                       isDisabled
                         ? "border-border bg-muted/50 opacity-50 cursor-not-allowed"
                         : isActive
                           ? `${role.borderColor} ${role.activeBg} shadow-sm`
                           : "border-border bg-card hover:border-primary/40 hover:bg-muted cursor-pointer"
-                    }
-                  `}
+                    }`}
                 >
-                  {/* Checkmark */}
                   {isActive && (
                     <div
                       className={`absolute top-2 right-2 w-4 h-4 rounded-full flex items-center justify-center ${role.iconBg}`}
@@ -487,7 +522,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                       </svg>
                     </div>
                   )}
-
                   <div
                     className={`w-12 h-12 rounded-2xl flex items-center justify-center ${role.iconBg} ${role.iconColor}`}
                   >
@@ -503,7 +537,6 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
             })}
           </div>
 
-          {/* Role Note */}
           {selectedRole && (
             <div
               className={`mt-3 flex items-start gap-2 px-4 py-3 rounded-xl ${selectedRole.iconBg}`}
@@ -533,10 +566,10 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
         {/* Submit */}
         <button
           onClick={handleSubmit}
-          disabled={!isFormComplete || !selectedRole}
+          disabled={!isReadyToSubmit}
           className={`w-full font-extrabold tracking-widest uppercase text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300
             ${
-              isFormComplete && selectedRole
+              isReadyToSubmit
                 ? "bg-primary hover:bg-primary-hover text-primary-foreground hover:-translate-y-0.5 shadow-md shadow-primary/25 cursor-pointer"
                 : "bg-muted text-muted-foreground/70 cursor-not-allowed"
             }`}

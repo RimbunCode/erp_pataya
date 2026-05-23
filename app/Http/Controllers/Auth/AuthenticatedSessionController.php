@@ -83,7 +83,7 @@ class AuthenticatedSessionController extends Controller {
     public function showRoleSelection(Request $request): RedirectResponse|Response {
         $user = $request->user();
         if (! $user) {
-            return redirect('/guest');
+            return redirect('/');
         }
 
         $roles = $this->roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
@@ -104,7 +104,7 @@ class AuthenticatedSessionController extends Controller {
     public function selectRole(SelectRoleRequest $request): RedirectResponse {
         $user = $request->user();
         if (! $user) {
-            return redirect('/guest');
+            return redirect('/');
         }
 
         return $this->redirectAfterAuthentication(

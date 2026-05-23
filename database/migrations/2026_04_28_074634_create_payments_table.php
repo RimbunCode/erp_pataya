@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
@@ -18,6 +19,7 @@ return new class extends Migration
             $table->string('status')->default('pending');
             $table->string('proof_image')->nullable();
             $table->string('notes')->nullable();
+            $table->text('rejection_reason')->nullable();
             $table->timestamp('paid_at')->nullable();
             $table->timestamp('verified_at')->nullable();
             $table->foreignUlid('verified_by')->nullable()->references('id')->on('users')->nullOnDelete();

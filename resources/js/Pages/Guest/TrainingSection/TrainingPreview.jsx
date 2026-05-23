@@ -136,11 +136,11 @@ function EnrollModal({ course, onClose }) {
   const submitPayment = () => {
     if (!file) return;
     const formData = new FormData();
-    formData.append("course_id", course.id);
+    formData.append("course_ids[]", course.id);
     formData.append("payment_method", method);
     formData.append("payment_proof", file);
-    formData.append("note", note);
-    router.post(route("student.enrollment.store"), formData, {
+    formData.append("notes", note);
+    router.post(route("student.enroll"), formData, {
       forceFormData: true,
       onSuccess: () => setDone(true),
     });
@@ -644,10 +644,14 @@ export default function TrainingPreview({
   course,
   isEnrolled = false,
   isLoggedIn = false,
+  enrollmentStatus = "",
+  rejectionReason = null,
 }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [openChapter, setOpenChapter] = useState(null);
   const [showEnroll, setShowEnroll] = useState(false);
+  const isPending = enrollmentStatus === "pending";
+  const isRejected = enrollmentStatus === "rejected";
 
   const tabs = ["overview", "curriculum", "instructor", "reviews"];
 
@@ -659,9 +663,14 @@ export default function TrainingPreview({
 
   const handleEnrollClick = () => {
     if (!isLoggedIn) {
-      router.visit(route("guest.index") + "?login=1");
+      router.visit(route("guest.home") + "?login=1");
       return;
     }
+
+    if (isPending) {
+      return;
+    }
+
     setShowEnroll(true);
   };
 
@@ -746,6 +755,16 @@ export default function TrainingPreview({
                     />
                   </svg>
                   Terdaftar
+                </span>
+              )}
+              {isPending && (
+                <span className="px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase bg-amber-500 text-white">
+                  Menunggu Verifikasi
+                </span>
+              )}
+              {isRejected && (
+                <span className="px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase bg-red-500 text-white">
+                  Ditolak
                 </span>
               )}
             </div>
@@ -1038,8 +1057,41 @@ export default function TrainingPreview({
                     </div>
                   )}
 
-                  {/* Lock banner */}
-                  {!isEnrolled && (
+                  {isPending && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-center gap-3">
+                      <svg
+                        className="w-5 h-5 text-amber-500 flex-shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <p className="text-xs font-bold text-amber-700">
+                        Bukti pembayaran Anda sedang diverifikasi admin.
+                      </p>
+                    </div>
+                  )}
+
+                  {isRejected && (
+                    <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-3">
+                      <p className="text-xs font-black text-red-700 uppercase tracking-widest">
+                        Pembayaran ditolak
+                      </p>
+                      {rejectionReason && (
+                        <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                          Alasan: {rejectionReason}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {!isEnrolled && !isPending && !isRejected && (
                     <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-center gap-3">
                       <svg
                         className="w-5 h-5 text-amber-500 flex-shrink-0"
@@ -1160,10 +1212,45 @@ export default function TrainingPreview({
                           di halaman My Learning.
                         </p>
                         <button
-                          onClick={() => router.visit(route("student.classes"))}
+                          onClick={() =>
+                            router.visit(route("student.courses.index"))
+                          }
                           className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
                         >
                           Buka My Learning
+                        </button>
+                      </div>
+                    ) : isPending ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                          <span className="text-xs font-black text-amber-600 uppercase tracking-widest">
+                            Pending
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          Bukti pembayaran sudah dikirim dan sedang menunggu
+                          verifikasi admin.
+                        </p>
+                      </div>
+                    ) : isRejected ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                          <span className="text-xs font-black text-red-600 uppercase tracking-widest">
+                            Rejected
+                          </span>
+                        </div>
+                        {rejectionReason && (
+                          <p className="text-xs text-red-600 leading-relaxed">
+                            Alasan: {rejectionReason}
+                          </p>
+                        )}
+                        <button
+                          onClick={handleEnrollClick}
+                          className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
+                        >
+                          Upload Ulang Bukti
                         </button>
                       </div>
                     ) : (

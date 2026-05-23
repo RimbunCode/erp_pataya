@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import MainLayout from "@/Layouts/MainLayout";
 import UploadDialog from "../Core/Components/UploadDialog";
+import UploadDialog2 from "../Core/Components/UploadDialog2";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { cn } from "@/lib/utils";
 import {
@@ -13,9 +14,40 @@ import { Trash2Icon, UploadIcon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import Link from "@/Components/Link";
 
-export default function ProfileSettings({ user, profile }) {
+const REQUEST_STATUS_CFG = {
+  pending: {
+    label: "Pending Review",
+    pill: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  },
+  approved: {
+    label: "Approved",
+    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  },
+  rejected: {
+    label: "Rejected",
+    pill: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+  },
+};
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return "—";
+  }
+
+  return new Date(value).toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+export default function ProfileSettings({ user, profile, latestInstructorRequest }) {
+  const { errors } = usePage().props;
   const [preview, setPreview] = useState(null);
   const uploadDialogRef = useRef();
+  const instructorRequestUploadDialogRef = useRef();
 
   useEffect(() => {
     return () => {
@@ -74,6 +106,23 @@ export default function ProfileSettings({ user, profile }) {
   const handleSubmit = () => {
     router.put(route("student.profile.update"), form);
   };
+
+  const roleNames = (user?.roles ?? [])
+    .map((roleItem) =>
+      typeof roleItem === "string" ? roleItem : roleItem?.name,
+    )
+    .filter(Boolean)
+    .map((roleName) => roleName.toLowerCase());
+
+  const hasInstructorRole = roleNames.includes("instructor");
+  const currentRequestStatus = latestInstructorRequest?.status ?? null;
+  const requestStatusConfig =
+    REQUEST_STATUS_CFG[currentRequestStatus] ?? REQUEST_STATUS_CFG.pending;
+
+  const isRequestLocked =
+    hasInstructorRole ||
+    currentRequestStatus === "pending" ||
+    currentRequestStatus === "approved";
 
   const alias = user.name
     .split(" ")
@@ -342,6 +391,126 @@ export default function ProfileSettings({ user, profile }) {
               className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-gray-300 dark:placeholder-gray-300 shadow-md focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border transition-all resize-none"
             />
           </div>
+
+          <div className="rounded-2xl border border-border bg-muted/30 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold tracking-[2px] text-muted-foreground uppercase">
+                  Instructor Role Request
+                </p>
+                <h3 className="mt-1 text-base font-extrabold text-foreground uppercase tracking-wide">
+                  Become an Instructor
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Upload one supporting document and explain why you should get
+                  instructor access.
+                </p>
+              </div>
+              {latestInstructorRequest && (
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-widest ${requestStatusConfig.pill}`}
+                >
+                  {requestStatusConfig.label}
+                </span>
+              )}
+            </div>
+
+            {latestInstructorRequest && (
+              <div className="mt-4 space-y-3 rounded-xl border border-border bg-card p-4">
+                <div>
+                  <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
+                    Latest Reason
+                  </p>
+                  <p className="mt-1 text-sm text-foreground leading-relaxed">
+                    {latestInstructorRequest.reason}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
+                      Submitted At
+                    </p>
+                    <p className="mt-1 text-xs text-foreground">
+                      {formatDateTime(latestInstructorRequest.submittedAt)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
+                      Reviewed At
+                    </p>
+                    <p className="mt-1 text-xs text-foreground">
+                      {formatDateTime(latestInstructorRequest.reviewedAt)}
+                    </p>
+                  </div>
+                </div>
+
+                {latestInstructorRequest.proofUrl && (
+                  <div>
+                    <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
+                      Proof File
+                    </p>
+                    <a
+                      href={latestInstructorRequest.proofUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1 inline-block text-xs font-semibold text-primary hover:text-primary-hover underline"
+                    >
+                      {latestInstructorRequest.proofFileName ?? "Open proof file"}
+                    </a>
+                  </div>
+                )}
+
+                {latestInstructorRequest.status === "rejected" &&
+                  latestInstructorRequest.rejectReason && (
+                    <div>
+                      <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">
+                        Rejection Note
+                      </p>
+                      <p className="mt-1 rounded-lg bg-red-50 p-3 text-xs text-red-600 dark:bg-red-950/40 dark:text-red-300">
+                        {latestInstructorRequest.rejectReason}
+                      </p>
+                    </div>
+                  )}
+              </div>
+            )}
+
+            {errors?.notes && (
+              <p className="mt-3 text-sm font-semibold text-destructive">
+                {errors.notes}
+              </p>
+            )}
+            {errors?.files && (
+              <p className="mt-2 text-sm font-semibold text-destructive">
+                {errors.files}
+              </p>
+            )}
+
+            <div className="mt-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => instructorRequestUploadDialogRef.current?.open()}
+                disabled={isRequestLocked}
+                className={`px-5 py-2.5 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200 ${
+                  isRequestLocked
+                    ? "bg-muted text-muted-foreground/70 cursor-not-allowed"
+                    : "bg-primary text-primary-foreground hover:bg-primary-hover"
+                }`}
+              >
+                Submit Instructor Request
+              </button>
+              {hasInstructorRole && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-300 font-semibold">
+                  Instructor role already active on your account.
+                </p>
+              )}
+              {!hasInstructorRole && currentRequestStatus === "pending" && (
+                <p className="text-xs text-amber-600 dark:text-amber-300 font-semibold">
+                  Your request is currently under review.
+                </p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Actions */}
@@ -366,6 +535,16 @@ export default function ProfileSettings({ user, profile }) {
         imageOnly
         options={{
           route: route("student.avatar.update"),
+        }}
+      />
+      <UploadDialog2
+        ref={instructorRequestUploadDialogRef}
+        single
+        allowNotes
+        notesRequired
+        notesPlaceholder="Jelaskan alasan Anda ingin menjadi instructor."
+        options={{
+          route: route("student.instructor-requests.store"),
         }}
       />
     </MainLayout>

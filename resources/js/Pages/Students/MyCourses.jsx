@@ -5,7 +5,7 @@ import MyCourseCard from "./Components/MyCourseCard";
 import UploadDialog2 from "@/Pages/Core/Components/UploadDialog2";
 
 export default function MyCourses() {
-  const { courses } = usePage().props;
+  const { courses, pendingCourses = [] } = usePage().props;
   const [openId, setOpenId] = useState(null);
   const [activeContent, setActiveContent] = useState(null);
   const [search, setSearch] = useState("");
@@ -118,6 +118,57 @@ export default function MyCourses() {
           </div>
 
           <div className="flex flex-col gap-4">
+            {pendingCourses.length > 0 && (
+              <div className="bg-card rounded-2xl border border-border p-5">
+                <h3 className="text-xs font-black tracking-widest text-foreground uppercase mb-4">
+                  Enrollment Verification
+                </h3>
+                <div className="space-y-3">
+                  {pendingCourses.map((course) => {
+                    const isRejected = course.status === "rejected";
+
+                    return (
+                      <div
+                        key={course.id}
+                        className="border border-border rounded-xl px-4 py-3 flex items-start justify-between gap-3"
+                      >
+                        <div>
+                          <p className="text-sm font-black text-foreground uppercase tracking-wide">
+                            {course.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {course.instructor} · {course.category}
+                          </p>
+                          <p
+                            className={`text-[10px] font-black tracking-widest uppercase mt-2 ${isRejected ? "text-red-600" : "text-amber-600"}`}
+                          >
+                            {isRejected
+                              ? "Rejected - Perlu Upload Ulang"
+                              : "Pending Verification"}
+                          </p>
+                          {isRejected && course.rejection_reason && (
+                            <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                              Alasan: {course.rejection_reason}
+                            </p>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.visit(route("student.course.preview", course.id))
+                          }
+                          className="text-[10px] font-black tracking-widest uppercase px-3 py-2 rounded-lg bg-primary text-white hover:bg-primary-hover transition-all"
+                        >
+                          {isRejected ? "Upload Ulang" : "Lihat Status"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {filtered.length > 0 ? (
               filtered.map((course) => (
                 <MyCourseCard
