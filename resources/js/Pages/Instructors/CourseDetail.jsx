@@ -12,7 +12,7 @@ import { Button } from "@/Components/ui/button";
 import { Trash2Icon, UploadIcon } from "lucide-react";
 import Link from "@/Components/Link";
 import { cn } from "@/lib/utils";
-import { formatRp } from "./Utils/formatRp";
+import { formatRp } from "@/lib/utils";
 import { statusConfig } from "./Utils/statusConfig";
 import { levelColor } from "./Components/CourseDetailConfig";
 import CourseModal from "./CourseModal/CourseModal";
@@ -195,9 +195,24 @@ export default function CourseDetail({ course, categories = [] }) {
                     {course.certificate_type}
                   </span>
                 )}
-                <span className="font-black text-primary">
+                <span
+                  className={cn(
+                    "font-black text-primary",
+                    course.discount > 0 &&
+                      "line-through text-muted-foreground text-sm",
+                  )}
+                >
                   {formatRp(course.price)}
                 </span>
+                {course.discount > 0 && (
+                  <span className="font-black text-primary">
+                    {course.discount_type === "percentage"
+                      ? formatRp(
+                          course.price - (course.price * course.discount) / 100,
+                        )
+                      : formatRp(course.price - course.discount)}
+                  </span>
+                )}
               </div>
             </div>
 

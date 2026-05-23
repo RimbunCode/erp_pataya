@@ -18,6 +18,10 @@ import ModalActions from "./ModalActions";
  *
  *   // Edit
  *   <CourseModal course={course} categories={categories} onClose={() => setShowEdit(false)} />
+ * @param root0
+ * @param root0.categories
+ * @param root0.onClose
+ * @param root0.course
  */
 export default function CourseModal({
   categories = [],
@@ -39,6 +43,9 @@ export default function CourseModal({
     thumbnailPreview,
     handleThumbnailChange,
     removeThumbnail,
+    discountType,
+    onDiscountTypeChange,
+    discountPrefix,
     sections,
     addSection,
     removeSection,
@@ -81,6 +88,9 @@ export default function CourseModal({
                 thumbnailPreview !== null ||
                 (isEdit && !!course.thumbnail && data.thumbnail !== "delete")
               }
+              discountType={discountType}
+              onDiscountTypeChange={onDiscountTypeChange}
+              discountPrefix={discountPrefix}
               DEFAULT_THUMBNAIL={DEFAULT_THUMBNAIL}
               onThumbnailChange={handleThumbnailChange}
               onRemoveThumbnail={removeThumbnail}

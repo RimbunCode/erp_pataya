@@ -17,6 +17,7 @@ class Course extends Model {
     protected $casts   = [
         'is_published' => 'boolean',
         'price'        => 'decimal:2',
+        'discount'     => 'decimal:2',
     ];
 
     public function creator(): BelongsTo {

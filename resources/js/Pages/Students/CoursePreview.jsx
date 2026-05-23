@@ -3,15 +3,7 @@ import { router, useForm } from "@inertiajs/react";
 import MainLayout from "@/Layouts/MainLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import CheckoutModal from "./Components/CheckoutModal";
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-function formatRp(amount) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
+import { cn, formatRp } from "@/lib/utils";
 
 function StarRating({ rating = 0, size = "w-4 h-4" }) {
   return (

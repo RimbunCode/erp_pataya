@@ -2,15 +2,7 @@ import { useState, useRef } from "react";
 import { router, useForm } from "@inertiajs/react";
 import GuestLayout from "@/Layouts/GuestLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-function formatRp(amount) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
+import { cn, formatRp } from "@/lib/utils";
 
 function StarRating({ rating = 0, size = "w-4 h-4" }) {
   return (
@@ -185,9 +177,26 @@ function EnrollModal({ course, onClose }) {
           <h3 className="text-sm font-black text-white leading-snug pr-8">
             {course.title}
           </h3>
-          <p className="text-lg font-black text-primary mt-2">
-            {formatRp(course.price)}
-          </p>
+          <div className="flex flex-col text-lg font-black text-primary mt-2">
+            <span
+              className={cn(
+                "font-black text-primary",
+                course.discount > 0 &&
+                  "line-through text-muted-foreground text-sm",
+              )}
+            >
+              {formatRp(course.price)}
+            </span>
+            {course.discount > 0 && (
+              <span className="font-black text-primary">
+                {course.discount_type === "percentage"
+                  ? formatRp(
+                      course.price - (course.price * course.discount) / 100,
+                    )
+                  : formatRp(course.price - course.discount)}
+              </span>
+            )}
+          </div>
           {/* Step indicator */}
           {!done && (
             <div className="flex items-center gap-2 mt-4">
@@ -1255,9 +1264,27 @@ export default function TrainingPreview({
                       </div>
                     ) : (
                       <>
-                        <p className="text-3xl font-black text-foreground">
-                          {formatRp(course.price)}
-                        </p>
+                        <div className="flex flex-col text-3xl font-black text-foreground">
+                          <span
+                            className={cn(
+                              "font-black text-primary",
+                              course.discount > 0 &&
+                                "line-through text-muted-foreground text-sm",
+                            )}
+                          >
+                            {formatRp(course.price)}
+                          </span>
+                          {course.discount > 0 && (
+                            <span className="font-black text-primary">
+                              {course.discount_type === "percentage"
+                                ? formatRp(
+                                    course.price -
+                                      (course.price * course.discount) / 100,
+                                  )
+                                : formatRp(course.price - course.discount)}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mt-1">
                           One-Time Payment • Full Access
                         </p>

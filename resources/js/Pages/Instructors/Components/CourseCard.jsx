@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { router } from "@inertiajs/react";
-import { formatRp } from "../Utils/formatRp";
+import { cn, formatRp } from "@/lib/utils";
 import { statusConfig } from "../Utils/statusConfig";
-import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { Trash2Icon } from "lucide-react";
 import Link from "@/Components/Link";
 import { Button } from "@/Components/ui/button";
@@ -127,7 +126,24 @@ export default function CourseCard({ course }) {
               Price
             </p>
             <p className="text-sm font-black text-primary">
-              {formatRp(course.price)}
+              <span
+                className={cn(
+                  "font-black text-primary",
+                  course.discount > 0 &&
+                    "line-through text-muted-foreground text-sm",
+                )}
+              >
+                {formatRp(course.price)}
+              </span>
+              {course.discount > 0 && (
+                <span className="font-black ml-2 text-primary">
+                  {course.discount_type === "percentage"
+                    ? formatRp(
+                        course.price - (course.price * course.discount) / 100,
+                      )
+                    : formatRp(course.price - course.discount)}
+                </span>
+              )}
             </p>
           </div>
         </div>

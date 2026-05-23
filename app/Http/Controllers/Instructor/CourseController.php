@@ -42,7 +42,7 @@ class CourseController extends Controller {
         $course->load(['categories', 'sections.contents']);
 
         return Inertia::render('Instructors/CourseDetail', [
-            'course' => [
+            'course'     => [
                 ...$this->mapCourse($course),
                 'sections' => $course->sections
                     ->sortBy('order')
@@ -76,6 +76,12 @@ class CourseController extends Controller {
             'title'                       => 'required|string|max:255',
             'description'                 => 'required|string',
             'price'                       => 'required|numeric|min:0',
+            'discount_type'               => 'required|in:percentage,amount',
+            'discount'                    => ['nullable', 'numeric', 'min:0', Rule::when(
+                $request->input('discount_type') === 'percentage',
+                ['max:100'],
+                ['lte:price'],
+            )],
             'level'                       => 'required|in:beginner,intermediate,advanced',
             'category'                    => 'required|string',
             'total_hours'                 => 'nullable|numeric|min:0',
@@ -94,16 +100,18 @@ class CourseController extends Controller {
         if ($request->hasFile('thumbnail')) {
             File::uploadFile($validated['thumbnail'], 'ImageCourse', function ($file) use (&$thumbnailFileId) {
                 $thumbnailFileId = $file->id;
-            });
+            }, ['is_public' => true]);
         }
 
         $course = Course::create([
             'title'            => $validated['title'],
             'description'      => $validated['description'],
             'price'            => $validated['price'],
+            'discount_type'    => $validated['discount_type'],
+            'discount'         => $validated['discount'] ?? 0,
             'level'            => $validated['level'],
-            'total_hours'      => $validated['total_hours'] ?? null,
-            'total_sessions'   => $validated['total_sessions'] ?? null,
+            'total_hours'      => $validated['total_hours'] ?? 0,
+            'total_sessions'   => $validated['total_sessions'] ?? 0,
             'certificate_type' => $validated['certificate_type'] ?? null,
             'thumbnail'        => $thumbnailFileId,
             'is_published'     => false,
@@ -143,6 +151,12 @@ class CourseController extends Controller {
             'title'            => 'required|string|max:255',
             'description'      => 'required|string',
             'price'            => 'required|numeric|min:0',
+            'discount_type'    => 'required|in:percentage,amount',
+            'discount'         => ['nullable', 'numeric', 'min:0', Rule::when(
+                $request->input('discount_type') === 'percentage',
+                ['max:100'],
+                ['lte:price'],
+            )],
             'level'            => 'required|in:beginner,intermediate,advanced',
             'category'         => 'nullable|string',
             'total_hours'      => 'nullable|numeric|min:0',
@@ -152,13 +166,15 @@ class CourseController extends Controller {
                 request()->hasFile('thumbnail'),
                 ['image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
                 ['string', 'max:255'], // bisa ganti jadi 'url' kalau harus URL
-            ), ],
+            ),],
         ]);
 
         $updateData = [
             'title'            => $validated['title'],
             'description'      => $validated['description'],
             'price'            => $validated['price'],
+            'discount_type'    => $validated['discount_type'],
+            'discount'         => $validated['discount'] ?? 0,
             'level'            => $validated['level'],
             'total_hours'      => $validated['total_hours'] ?? $course->total_hours,
             'total_sessions'   => $validated['total_sessions'] ?? $course->total_sessions,
@@ -169,7 +185,7 @@ class CourseController extends Controller {
         if ($request->hasFile('thumbnail')) {
             File::uploadFile($validated['thumbnail'], 'ImageCourse', function ($file) use (&$updateData) {
                 $updateData['thumbnail'] = $file->id;
-            });
+            }, ['is_public' => true]);
         } elseif ($request->input('thumbnail') == 'delete') {
             $updateData['thumbnail'] = null;
         }
@@ -232,6 +248,8 @@ class CourseController extends Controller {
             'title'            => $course->title,
             'description'      => $course->description,
             'price'            => $course->price,
+            'discount_type'    => $course->discount_type,
+            'discount'         => $course->discount,
             'level'            => $course->level,
             'total_hours'      => $course->total_hours,
             'total_sessions'   => $course->total_sessions,

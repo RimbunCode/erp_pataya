@@ -26,7 +26,6 @@ export default forwardRef(function CurrencyInput(
   ref,
 ) {
   const { t, loading } = useLaravelReactI18n();
-  const { default_currency_id } = usePage().props.preferences;
   const prevValueRef = useRef(value);
   const [data, setData] = useState({
     value: Number.isNaN(value) ? "" : (value?.toString() ?? ""),
@@ -35,12 +34,7 @@ export default forwardRef(function CurrencyInput(
   const [intlConfig, decimalScale] = useMemo(() => {
     const config = {
       locale: loading ? undefined : t("lang.locale"),
-      currency:
-        currencyCode == "default"
-          ? default_currency_id
-          : !currencyCode
-            ? undefined
-            : currencyCode,
+      currency: !currencyCode ? undefined : currencyCode,
     };
     try {
       const numberFormatter = config.locale

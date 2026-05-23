@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
 import { router, useForm } from "@inertiajs/react";
-import { formatRp } from "../Utils/formatRp";
 import { statusConfig } from "../Utils/statusConfig";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
+import { cn, formatRp } from "@/lib/utils";
 
 export default function CourseRow({ course }) {
   const [hovered, setHovered] = useState(false);
@@ -59,9 +59,26 @@ export default function CourseRow({ course }) {
         </p>
       </div>
       <div className="flex-shrink-0 w-32 text-right">
-        <p className="text-sm font-black text-primary">
-          {formatRp(course.price)}
-        </p>
+        <div className="flex flex-col text-sm font-black text-primary">
+          <span
+            className={cn(
+              "font-black text-primary",
+              course.discount > 0 &&
+                "line-through text-muted-foreground text-sm",
+            )}
+          >
+            {formatRp(course.price)}
+          </span>
+          {course.discount > 0 && (
+            <span className="font-black text-primary">
+              {course.discount_type === "percentage"
+                ? formatRp(
+                    course.price - (course.price * course.discount) / 100,
+                  )
+                : formatRp(course.price - course.discount)}
+            </span>
+          )}
+        </div>
       </div>
       <span
         className={`flex items-center gap-1.5 text-[10px] font-extrabold tracking-widest uppercase px-3 py-1.5 rounded-xl flex-shrink-0 ${config.bg} ${config.color}`}

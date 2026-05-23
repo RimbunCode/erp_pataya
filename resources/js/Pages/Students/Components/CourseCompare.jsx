@@ -1,6 +1,6 @@
 import MainLayout from "@/Layouts/MainLayout";
 import { Link, router } from "@inertiajs/react";
-import { formatRp } from "../Utils/formatRp";
+import { cn, formatRp } from "@/lib/utils";
 
 export default function CourseCompare({ selected, onBack }) {
   const threeCol = selected.length === 3;

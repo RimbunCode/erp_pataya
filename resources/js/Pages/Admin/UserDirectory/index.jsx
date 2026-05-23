@@ -19,11 +19,11 @@ const TABS = [
     d: "M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z",
     urgent: true,
   },
-  {
-    key: "orgs",
-    label: "Organizations",
-    d: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
-  },
+  // {
+  //   key: "orgs",
+  //   label: "Organizations",
+  //   d: "M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4",
+  // },
   {
     key: "admins",
     label: "Admins",
@@ -33,14 +33,8 @@ const TABS = [
 
 export default function UserDirectory() {
   const [activeTab, setActiveTab] = useState("users");
-  const {
-    users,
-    requests,
-    orgs,
-    orgsMeta,
-    admins,
-    pendingRequests,
-  } = useUserDirectory();
+  const { users, requests, orgs, orgsMeta, admins, pendingRequests } =
+    useUserDirectory();
 
   return (
     <MainLayout>
@@ -129,10 +123,10 @@ export default function UserDirectory() {
 
             {/* Tab content */}
             <div className="flex-1 overflow-hidden">
-              {activeTab === "users" && (
-                <TabAllUsers users={users} />
+              {activeTab === "users" && <TabAllUsers users={users} />}
+              {activeTab === "requests" && (
+                <TabRoleRequests requests={requests} />
               )}
-              {activeTab === "requests" && <TabRoleRequests requests={requests} />}
               {activeTab === "orgs" && (
                 <TabOrganizations orgs={orgs} orgsMeta={orgsMeta} />
               )}

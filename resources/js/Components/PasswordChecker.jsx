@@ -1,6 +1,5 @@
 import { CheckIcon, XIcon } from "lucide-react";
 
-import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
 
 const ENGLISH_PASSWORD_LABELS = {
@@ -20,7 +19,6 @@ const ENGLISH_PASSWORD_LABELS = {
 };
 
 function PasswordChecker({ password, forceEnglish = false }) {
-  const { t } = useLaravelReactI18n();
   const labels = useMemo(() => {
     if (forceEnglish) {
       return ENGLISH_PASSWORD_LABELS;
@@ -28,20 +26,20 @@ function PasswordChecker({ password, forceEnglish = false }) {
 
     return {
       status: {
-        weak: t("auth.register.password.strengths.status.weak"),
-        medium: t("auth.register.password.strengths.status.medium"),
-        good: t("auth.register.password.strengths.status.good"),
-        strong: t("auth.register.password.strengths.status.strong"),
+        weak: "Weak Security",
+        medium: "Medium Security",
+        good: "Good Security",
+        strong: "Strong Security",
       },
       requirements: {
-        length: t("auth.register.password.strengths.requirements.length"),
-        num: t("auth.register.password.strengths.requirements.num"),
-        lowercase: t("auth.register.password.strengths.requirements.lowercase"),
-        uppercase: t("auth.register.password.strengths.requirements.uppercase"),
-        special: t("auth.register.password.strengths.requirements.special"),
+        length: "At least 8 characters (Required)",
+        lowercase: "At least 1 lowercase letter",
+        uppercase: "At least 1 uppercase letter",
+        num: "At least 1 number",
+        special: "At least 1 special character",
       },
     };
-  }, [forceEnglish, t]);
+  }, [forceEnglish]);
 
   const checkStrength = (pass) => {
     const requirements = [

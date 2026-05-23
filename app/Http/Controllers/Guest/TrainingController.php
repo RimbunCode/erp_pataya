@@ -51,6 +51,8 @@ class TrainingController extends Controller {
             'id'               => $course->id,
             'title'            => $course->title,
             'description'      => $course->description,
+            'discount_type'    => $course->discount_type,
+            'discount'         => $course->discount,
             'price'            => $course->price,
             'level'            => $course->level,
             'total_hours'      => $course->total_hours,
@@ -96,10 +98,12 @@ class TrainingController extends Controller {
         }
 
         return Inertia::render('Guest/TrainingSection/TrainingPreview', [
-            'course' => [
+            'course'           => [
                 'id'               => $course->id,
                 'title'            => $course->title,
                 'description'      => $course->description,
+                'discount_type'    => $course->discount_type,
+                'discount'         => $course->discount,
                 'price'            => $course->price,
                 'level'            => $course->level,
                 'language'         => $course->language,

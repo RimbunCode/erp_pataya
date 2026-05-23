@@ -1,3 +1,5 @@
+import CurrencyInput from "@/Components/CurrencyInput";
+
 const inputClass =
   "w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all";
 const labelClass =
@@ -16,6 +18,20 @@ const labelClass =
  *   DEFAULT_THUMBNAIL
  *   onThumbnailChange
  *   onRemoveThumbnail
+ * @param root0
+ * @param root0.data
+ * @param root0.setData
+ * @param root0.errors
+ * @param root0.categories
+ * @param root0.thumbnailRef
+ * @param root0.thumbnailPreview
+ * @param root0.hasThumbnail
+ * @param root0.discountType
+ * @param root0.onDiscountTypeChange
+ * @param root0.discountPrefix
+ * @param root0.DEFAULT_THUMBNAIL
+ * @param root0.onThumbnailChange
+ * @param root0.onRemoveThumbnail
  */
 export default function Step1Form({
   data,
@@ -25,6 +41,9 @@ export default function Step1Form({
   thumbnailRef,
   thumbnailPreview,
   hasThumbnail,
+  discountType,
+  onDiscountTypeChange,
+  discountPrefix,
   DEFAULT_THUMBNAIL,
   onThumbnailChange,
   onRemoveThumbnail,
@@ -209,6 +228,32 @@ export default function Step1Form({
             <option value="attendance">Attendance</option>
           </select>
         </div>
+      </div>
+
+      <div>
+        <label className={labelClass}>Discount</label>
+        <div className="grid grid-cols-2 gap-4">
+          <select
+            value={discountType}
+            onChange={(e) => onDiscountTypeChange(e.target.value)}
+            className={`${inputClass} w-36`}
+          >
+            <option value="amount">Amount</option>
+            <option value="percentage">Percentage</option>
+          </select>
+          <CurrencyInput
+            currencyCode={discountType === "amount" ? "IDR" : null}
+            suffix={discountType === "percentage" ? "%" : ""}
+            value={data.discount}
+            onValueChange={(val) => setData("discount", val)}
+            min={0}
+            max={discountType === "percentage" ? 100 : data.price}
+            className={`${inputClass} h-12 text-left`}
+          />
+        </div>
+        {errors.discount && (
+          <p className="text-[10px] text-red-500 mt-1">{errors.discount}</p>
+        )}
       </div>
 
       {/* ── Total Hours & Sessions ── */}

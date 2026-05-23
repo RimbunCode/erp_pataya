@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import MainLayout from "@/Layouts/MainLayout";
+import { cn, formatRp } from "@/lib/utils";
 
 const transactions = [
   {
@@ -46,14 +47,6 @@ const statusConfig = {
   pending: { label: "Pending", color: "text-amber-500", bg: "bg-amber-50" },
   failed: { label: "Failed", color: "text-red-400", bg: "bg-red-50" },
 };
-
-function formatRp(amount) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
 
 function RequestPayoutModal({ onClose }) {
   const [amount, setAmount] = useState("");
@@ -279,7 +272,9 @@ export default function Financials() {
               <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-3">
                 {card.label}
               </p>
-              <p className="text-3xl font-black text-foreground">{card.value}</p>
+              <p className="text-3xl font-black text-foreground">
+                {card.value}
+              </p>
               <p className="text-[10px] font-semibold text-muted-foreground mt-2">
                 {card.sub}
               </p>

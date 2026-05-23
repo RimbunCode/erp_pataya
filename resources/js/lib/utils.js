@@ -397,3 +397,11 @@ export function checkPermission(permissions, model, action, level = 0) {
 
   return { allowed, onlyCreator };
 }
+
+export function formatRp(amount) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(amount);
+}

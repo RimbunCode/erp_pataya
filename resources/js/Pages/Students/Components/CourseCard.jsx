@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { formatRp } from "../Utils/formatRp";
+import { cn, formatRp } from "@/lib/utils";
+
 import { useState } from "react";
 import CourseCompare from "./CourseCompare";
 import {
