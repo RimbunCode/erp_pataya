@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ApprovalScheme extends Model {
     use DataTable, HasUlids, SoftDeletes;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'is_active' => 'boolean',
@@ -48,18 +49,19 @@ class ApprovalScheme extends Model {
             $data->saveQuietly();
         });
     }
-    public string $translateKey  = 'core.approvalScheme';
-    public array  $configColumns = [
-        'name'          => [
+
+    public string $translateKey = 'core.approvalScheme';
+    public array $configColumns = [
+        'name' => [
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
         ],
-        'name_model'    => [
+        'name_model' => [
             'show'  => true,
             'order' => 1,
         ],
-        'status'        => [
+        'status' => [
             'type'  => 'formStatus',
             'show'  => true,
             'order' => 2,
@@ -67,7 +69,7 @@ class ApprovalScheme extends Model {
         'permission_id' => [
             'ignore' => true,
         ],
-        'model'         => [
+        'model' => [
             'ignore' => true,
         ],
     ];

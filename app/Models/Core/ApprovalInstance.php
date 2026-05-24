@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\URL;
 
 class ApprovalInstance extends Model {
     use HasUlids, SoftDeletes;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'status'  => FormStatusCast::class,
@@ -26,8 +27,8 @@ class ApprovalInstance extends Model {
     //     ]);
     // }
 
-    protected       $with          = ['steps', 'document'];
-    public string   $translateKey  = 'core.approvalInstance';
+    protected $with                = ['steps', 'document'];
+    public string $translateKey    = 'core.approvalInstance';
     protected array $configColumns = [
         'document' => [
             'isLink' => true,
@@ -56,7 +57,7 @@ class ApprovalInstance extends Model {
         return $this->hasOne(ApprovalInstanceStep::class, 'approval_instance_id')->where('sequence', $this->current_sequence);
     }
 
-    public static function makeInstance(Model $data, array $options = [], string $triggerOn = "submit") {
+    public static function makeInstance(Model $data, array $options = [], string $triggerOn = 'submit') {
         DB::beginTransaction();
         $model  = \get_class($data);
         $scheme = ApprovalScheme::where('model', $model)

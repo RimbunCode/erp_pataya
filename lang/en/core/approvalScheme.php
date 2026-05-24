@@ -28,7 +28,7 @@ return [
             'cancel',
         ],
     ],
-    'steps'              => [
+    'steps' => [
         'columns' => [
             'sequence'              => 'Sequence',
             'approval_scheme'       => 'Approval Scheme',
@@ -37,13 +37,13 @@ return [
                 'user' => 'User',
                 'role' => 'Role',
             ],
-            'approver'              => 'Approver',
-            'config'                => 'Config',
-            'acted_at'              => 'Acted At',
-            'acted_by'              => 'Acted By',
-            'status'                => 'Status',
-            'approval_instance'     => 'Approval Instance',
-            'notes'                 => 'Notes',
+            'approver'          => 'Approver',
+            'config'            => 'Config',
+            'acted_at'          => 'Acted At',
+            'acted_by'          => 'Acted By',
+            'status'            => 'Status',
+            'approval_instance' => 'Approval Instance',
+            'notes'             => 'Notes',
         ],
     ],
 ];

@@ -9,9 +9,10 @@ use Illuminate\Database\Eloquent\Builder;
 
 class Preference extends Model {
     use DataTable;
+
     public const string HIDE_PRIVATE_KEYS_SCOPE = 'hide_private_keys';
-    protected const array HIDDEN_KEYS             = [];
-    protected const array HIDDEN_KEY_PATTERNS     = [
+    protected const array HIDDEN_KEYS           = [];
+    protected const array HIDDEN_KEY_PATTERNS   = [
         '%password%',
         '%token%',
         '%secret%',
@@ -33,14 +34,15 @@ class Preference extends Model {
             }
         });
     }
-    protected       $primaryKey    = 'key';
-    public          $incrementing  = false;
-    protected       $keyType       = 'string';
-    protected       $guarded       = [];
-    protected       $casts         = [
+
+    protected $primaryKey = 'key';
+    public $incrementing  = false;
+    protected $keyType    = 'string';
+    protected $guarded    = [];
+    protected $casts      = [
         'value' => Json::class,
     ];
-    public          $translateKey  = 'core.preference';
+    public $translateKey           = 'core.preference';
     protected array $configColumns = [
         'value' => [
             'show' => true,

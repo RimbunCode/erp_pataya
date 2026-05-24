@@ -23,7 +23,7 @@ return [
         'current_sequence'  => 'Urutan Saat Ini',
         'approval_scheme'   => 'Skema Persetujuan',
     ],
-    'steps'              => [
+    'steps' => [
         'columns' => [
             'sequence'              => 'Urutan',
             'approval_scheme'       => 'Skema Persetujuan',
@@ -32,13 +32,13 @@ return [
                 'user' => 'Pengguna',
                 'role' => 'Peran',
             ],
-            'approver'              => 'Penyetuju',
-            'config'                => 'Konfigurasi',
-            'acted_at'              => 'Tindakan Pada',
-            'acted_by'              => 'Tindakan Oleh',
-            'status'                => 'Status',
-            'approval_instance'     => 'Instansi Persetujuan',
-            'notes'                 => 'Catatan',
+            'approver'          => 'Penyetuju',
+            'config'            => 'Konfigurasi',
+            'acted_at'          => 'Tindakan Pada',
+            'acted_by'          => 'Tindakan Oleh',
+            'status'            => 'Status',
+            'approval_instance' => 'Instansi Persetujuan',
+            'notes'             => 'Catatan',
         ],
     ],
 ];
