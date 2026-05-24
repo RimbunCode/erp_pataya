@@ -98,7 +98,7 @@ class TrainingController extends Controller {
         }
 
         return Inertia::render('Guest/TrainingSection/TrainingPreview', [
-            'course'           => [
+            'course' => [
                 'id'               => $course->id,
                 'title'            => $course->title,
                 'description'      => $course->description,

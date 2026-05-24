@@ -62,6 +62,7 @@ class AdminPermissionSeeder extends Seeder {
 
             if ($existing) {
                 $this->command->warn("Permission [{$perm['name']}] already exists, skipping.");
+
                 continue;
             }
 
