@@ -86,8 +86,8 @@ trait DataTable {
                 'en' => ':user created this',
                 'id' => ':user telah membuat ini',
             ],
-            'data_before' => $this->dataBefore ?? null,
-            'data_after'  => $this->dataAfter,
+            'data_before'   => $this->dataBefore ?? null,
+            'data_after'    => $this->dataAfter,
         ]);
     }
 
@@ -99,8 +99,8 @@ trait DataTable {
             return;
         }
         $this->loadRelations();
-        $keys            = $this->logableFields();
-        $this->dataAfter = \array_replace(
+        $keys             = $this->logableFields();
+        $this->dataAfter  = \array_replace(
             \array_fill_keys($keys, null),
             \array_intersect_key($this->toArray(), array_flip($keys)),
         );
@@ -117,8 +117,8 @@ trait DataTable {
                 'en' => ':user updated this',
                 'id' => ':user memperbarui ini',
             ],
-            'data_before' => $this->dataBefore,
-            'data_after'  => $this->dataAfter,
+            'data_before'   => $this->dataBefore,
+            'data_after'    => $this->dataAfter,
         ]);
     }
 
@@ -197,7 +197,6 @@ trait DataTable {
             ],
         ]);
     }
-
     private array $dataBefore = [];
 
     private function recordLogs(): void {
@@ -306,7 +305,7 @@ trait DataTable {
         $nameModel = Str::afterLast(static::class, '\\');
         $alias     = static::$alias ??
             \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
-        $module = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), '\\');
+        $module    = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), '\\');
         if (! $module) {
             \print_r("\e[39m" . static::class . " \e[91m(Module name not found) \e[39m" . \PHP_EOL);
 
@@ -321,7 +320,9 @@ trait DataTable {
             });
         }
         if ((static::$is_submitable ?? false) || (static::$generateCodeSeries ?? false)) {
-            $formatingSeries = FormatingSeries::where('model', static::class)->first();
+            $formatingSeries = FormatingSeries::where('model', static::class)
+                ->withoutGlobalScope('exclude_example_data')
+                ->first();
             if (! $formatingSeries) {
                 FormatingSeries::create([
                     'model'  => static::class,
@@ -482,16 +483,17 @@ trait DataTable {
             }
         }
 
-        Permission::updateOrCreate([
-            'model' => static::class,
-        ], [
-            'module'             => $module,
-            'name'               => Str::plural($alias),
-            'route'              => Str::plural(Str::camel($nameModel)),
-            'permissions'        => (static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions(),
-            'is_submitable'      => (static::$is_submitable ?? false),
-            'allow_only_creator' => (static::$allow_only_creator ?? static::$is_submitable ?? false),
-        ]);
+        Permission::withoutGlobalScope('exclude_example_data')
+            ->updateOrCreate([
+                'model' => static::class,
+            ], [
+                'module'             => $module,
+                'name'               => Str::plural($alias),
+                'route'              => Str::plural(Str::camel($nameModel)),
+                'permissions'        => (static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions(),
+                'is_submitable'      => (static::$is_submitable ?? false),
+                'allow_only_creator' => (static::$allow_only_creator ?? static::$is_submitable ?? false),
+            ]);
         print_r("\e[39m" . static::class . " \e[92m(SUCCESS) \e[39m" . \PHP_EOL);
     }
 
@@ -550,7 +552,7 @@ trait DataTable {
                     //   });
                 },
             ),
-            'logs' => Inertia::defer(
+            'logs'         => Inertia::defer(
                 fn () => Log::with('user')
                     ->where('loggable_type', static::class)
                     ->where('loggable_id', operator: $this->id)
@@ -558,11 +560,11 @@ trait DataTable {
                     ->get(),
                 'logs',
             ),
-            'tags' => Inertia::defer(
+            'tags'         => Inertia::defer(
                 fn () => $this->tags()->get(['id', 'name']),
                 'tags',
             ),
-            'attachments' => Inertia::defer(
+            'attachments'  => Inertia::defer(
                 fn () => $this->files()->get(['id', 'name']),
                 'attachments',
             ),
