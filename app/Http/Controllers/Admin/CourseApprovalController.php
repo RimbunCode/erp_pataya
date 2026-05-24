@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RejectCoursePublishRequestRequest;
 use App\Models\CoursePublishRequest;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -23,8 +24,14 @@ class CourseApprovalController extends Controller {
                 'reviewer:id,name',
             ])
             ->latest('created_at')
-            ->get()
-            ->map(function (CoursePublishRequest $request): array {
+            ->get();
+
+        $requestsByCourse = $requests->groupBy(
+            fn (CoursePublishRequest $request) => $this->courseHistoryKey($request),
+        );
+
+        $requests = $requests
+            ->map(function (CoursePublishRequest $request) use ($requestsByCourse): array {
                 $course              = $request->course;
                 $submittedPrice      = (float) $request->submitted_price;
                 $submittedDiscount   = (float) $request->submitted_discount;
@@ -32,6 +39,10 @@ class CourseApprovalController extends Controller {
                 $submittedFinalPrice = $discountType === 'percentage'
                     ? max(0, $submittedPrice - (($submittedPrice * $submittedDiscount) / 100))
                     : max(0, $submittedPrice - $submittedDiscount);
+                $history = $this->mapCourseRejectionHistory(
+                    $request,
+                    $requestsByCourse->get($this->courseHistoryKey($request), collect()),
+                );
 
                 return [
                     'id'                    => (string) $request->id,
@@ -54,6 +65,8 @@ class CourseApprovalController extends Controller {
                     'submittedDiscount'     => $submittedDiscount,
                     'submittedDiscountType' => $discountType,
                     'submittedFinalPrice'   => $submittedFinalPrice,
+                    'rejectionHistory'      => $history,
+                    'rejectionHistoryCount' => $history->count(),
                 ];
             })
             ->values();
@@ -102,6 +115,39 @@ class CourseApprovalController extends Controller {
         });
 
         return back()->with('success', 'Permintaan publish course ditolak.');
+    }
+
+    private function courseHistoryKey(CoursePublishRequest $coursePublishRequest): string {
+        return (string) ($coursePublishRequest->course_id ?? '');
+    }
+
+    /**
+     * @param  Collection<int, CoursePublishRequest>  $courseRequests
+     * @return Collection<int, array{id: string, reason: string, reviewedBy: string, reviewedAt: ?string, submittedAt: ?string}>
+     */
+    private function mapCourseRejectionHistory(
+        CoursePublishRequest $coursePublishRequest,
+        Collection $courseRequests,
+    ): Collection {
+        return $courseRequests
+            ->filter(function (CoursePublishRequest $historyRequest) use ($coursePublishRequest): bool {
+                return (string) $historyRequest->id !== (string) $coursePublishRequest->id
+                    && (string) $historyRequest->status === FormStatus::REJECTED->value
+                    && filled($historyRequest->rejection_reason);
+            })
+            ->sortByDesc(fn (CoursePublishRequest $historyRequest) => $historyRequest->reviewed_at ?? $historyRequest->updated_at ?? $historyRequest->created_at)
+            ->map(function (CoursePublishRequest $historyRequest): array {
+                $reviewedAt = $historyRequest->reviewed_at ?? $historyRequest->updated_at ?? $historyRequest->created_at;
+
+                return [
+                    'id'          => (string) $historyRequest->id,
+                    'reason'      => (string) $historyRequest->rejection_reason,
+                    'reviewedBy'  => (string) ($historyRequest->reviewer?->name ?? '-'),
+                    'reviewedAt'  => $reviewedAt?->toIso8601String(),
+                    'submittedAt' => $historyRequest->created_at?->toIso8601String(),
+                ];
+            })
+            ->values();
     }
 
     private function ensurePendingRequest(CoursePublishRequest $coursePublishRequest): void {

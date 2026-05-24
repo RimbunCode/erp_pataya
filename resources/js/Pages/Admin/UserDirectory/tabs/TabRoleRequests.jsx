@@ -49,6 +49,9 @@ export default function TabRoleRequests({ requests }) {
       requests.find((requestItem) => requestItem.id === selectedId) ?? null
     );
   }, [requests, selectedId]);
+  const rejectionHistory = Array.isArray(selectedRequest?.rejectionHistory)
+    ? selectedRequest.rejectionHistory
+    : [];
 
   const closeRejectMode = () => {
     setRejectMode(false);
@@ -279,6 +282,33 @@ export default function TabRoleRequests({ requests }) {
                   Rejected by {selectedRequest.rejectedBy ?? "-"} on{" "}
                   {fmtDate(selectedRequest.rejectedAt)}
                 </p>
+              </div>
+            )}
+
+            {rejectionHistory.length > 0 && (
+              <div className="px-5 py-4 border-b border-[var(--border)] space-y-2.5">
+                <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold">
+                  Rejection History
+                </p>
+                {rejectionHistory.map((historyItem, index) => (
+                  <div
+                    key={
+                      historyItem.id ??
+                      `${selectedRequest.id}-rejection-${index}`
+                    }
+                    className="rounded-lg border border-red-500/20 bg-red-500/5 p-3"
+                  >
+                    <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+                      {historyItem.reason ?? "-"}
+                    </p>
+                    <p className="text-[11px] text-[var(--muted-foreground)] mt-2">
+                      Rejected by {historyItem.reviewedBy ?? "-"} on{" "}
+                      {fmtDate(
+                        historyItem.reviewedAt ?? historyItem.submittedAt,
+                      )}
+                    </p>
+                  </div>
+                ))}
               </div>
             )}
           </div>

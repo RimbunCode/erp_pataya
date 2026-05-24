@@ -35,18 +35,28 @@ const fmt = (n) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-const fmtDate = (iso) =>
-  new Date(iso).toLocaleDateString("id-ID", {
+const fmtDate = (iso) => {
+  if (!iso) {
+    return "-";
+  }
+
+  return new Date(iso).toLocaleDateString("id-ID", {
     day: "2-digit",
     month: "short",
     year: "numeric",
   });
+};
 
-const fmtTime = (iso) =>
-  new Date(iso).toLocaleTimeString("id-ID", {
+const fmtTime = (iso) => {
+  if (!iso) {
+    return "-";
+  }
+
+  return new Date(iso).toLocaleTimeString("id-ID", {
     hour: "2-digit",
     minute: "2-digit",
   });
+};
 
 function Icon({ d, cls = "w-4 h-4" }) {
   return (
@@ -97,6 +107,10 @@ function DetailDrawer({ item, onClose, onApprove, onReject }) {
   const [rejectReason, setRejectReason] = useState("");
 
   if (!item) return null;
+
+  const rejectionHistory = Array.isArray(item.rejectionHistory)
+    ? item.rejectionHistory
+    : [];
 
   return (
     <div className="w-80 shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
@@ -226,6 +240,28 @@ function DetailDrawer({ item, onClose, onApprove, onReject }) {
             <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed bg-red-500/10 rounded-lg p-3">
               {item.rejectReason}
             </p>
+          </div>
+        )}
+
+        {rejectionHistory.length > 0 && (
+          <div className="px-5 py-4 border-b border-[var(--border)] space-y-2.5">
+            <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold">
+              Rejection History
+            </p>
+            {rejectionHistory.map((historyItem, index) => (
+              <div
+                key={historyItem.id ?? `${item.id}-rejection-${index}`}
+                className="rounded-lg border border-red-500/20 bg-red-500/5 p-3"
+              >
+                <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+                  {historyItem.reason ?? "-"}
+                </p>
+                <p className="text-[11px] text-[var(--muted-foreground)] mt-2">
+                  Rejected by {historyItem.reviewedBy ?? "-"} on{" "}
+                  {fmtDate(historyItem.reviewedAt ?? historyItem.submittedAt)}
+                </p>
+              </div>
+            ))}
           </div>
         )}
       </div>

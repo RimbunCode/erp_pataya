@@ -127,6 +127,69 @@ class EnrollmentVerificationFlowTest extends TestCase {
                 ->where('payments.0.studentNote', 'Mohon dicek, transfer dari rekening BCA atas nama A.'));
     }
 
+    public function test_admin_finance_page_exposes_rejection_history_after_student_reupload(): void {
+        $admin      = User::factory()->create();
+        $instructor = User::factory()->create();
+        $student    = User::factory()->create();
+
+        $this->assignRole($admin, 'admin');
+        $this->assignRole($instructor, 'instructor');
+        $this->assignRole($student, 'student');
+
+        $course = $this->createCourse($instructor, 'Flow Course Reupload');
+
+        $rejectedPayment = Payment::query()->create([
+            'user_id'          => $student->id,
+            'course_id'        => $course->id,
+            'amount'           => $course->price,
+            'status'           => FormStatus::REJECTED->value,
+            'payment_method'   => 'tf',
+            'notes'            => 'Bukti pertama',
+            'rejection_reason' => 'Bukti transfer tidak jelas.',
+            'proof_image'      => 'payment-proofs/proof-rejected.jpg',
+            'paid_at'          => now()->subDays(2),
+            'verified_by'      => $admin->id,
+            'verified_at'      => now()->subDays(2),
+        ]);
+
+        $pendingPayment = Payment::query()->create([
+            'user_id'        => $student->id,
+            'course_id'      => $course->id,
+            'amount'         => $course->price,
+            'status'         => FormStatus::PENDING->value,
+            'payment_method' => 'tf',
+            'notes'          => 'Bukti upload ulang',
+            'proof_image'    => 'payment-proofs/proof-pending.jpg',
+            'paid_at'        => now(),
+        ]);
+
+        Enrollment::query()->create([
+            'user_id'    => $student->id,
+            'course_id'  => $course->id,
+            'payment_id' => $pendingPayment->id,
+            'status'     => FormStatus::PENDING->value,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.finance'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/SystemFinance')
+                ->where('payments', function ($payments) use ($pendingPayment, $rejectedPayment): bool {
+                    $paymentCollection = collect($payments);
+
+                    $pendingPayload = $paymentCollection->firstWhere('id', (string) $pendingPayment->id);
+                    if ($pendingPayload === null) {
+                        return false;
+                    }
+
+                    return $paymentCollection->firstWhere('id', (string) $rejectedPayment->id) !== null
+                        && ($pendingPayload['rejectionHistoryCount'] ?? 0) === 1
+                        && ($pendingPayload['rejectionHistory'][0]['id'] ?? null) === (string) $rejectedPayment->id
+                        && ($pendingPayload['rejectionHistory'][0]['reason'] ?? null) === 'Bukti transfer tidak jelas.';
+                }));
+    }
+
     public function test_admin_can_reject_and_student_can_reupload_for_same_course(): void {
         Storage::fake('local');
 
@@ -236,8 +299,6 @@ class EnrollmentVerificationFlowTest extends TestCase {
             'database/migrations/2026_04_28_074544_create_course_category_table.php',
             'database/migrations/2026_04_28_074634_create_payments_table.php',
             'database/migrations/2026_04_28_074652_create_enrollments_table.php',
-            'database/migrations/2026_05_22_134117_add_status_to_enrollments_table.php',
-            'database/migrations/2026_05_22_134117_add_rejection_reason_to_payments_table.php',
         ];
     }
 }

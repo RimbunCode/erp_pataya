@@ -2,12 +2,15 @@ import MainLayout from "@/Layouts/MainLayout";
 import { usePage, useForm, router } from "@inertiajs/react";
 import { useState, useRef, useEffect } from "react";
 import MyCourseCard from "./Components/MyCourseCard";
+import CheckoutModal from "./Components/CheckoutModal";
 import UploadDialog2 from "@/Pages/Core/Components/UploadDialog2";
 
 export default function MyCourses() {
   const { courses, pendingCourses = [] } = usePage().props;
   const [openId, setOpenId] = useState(null);
   const [activeContent, setActiveContent] = useState(null);
+  const [showEnroll, setShowEnroll] = useState(false);
+  const [checkoutItems, setCheckoutItems] = useState([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("ALL");
   const uploadDialogRef = useRef();
@@ -35,6 +38,16 @@ export default function MyCourses() {
         preserveScroll: true,
       },
     );
+  };
+
+  const handlePendingCourseAction = (course, isRejected) => {
+    if (isRejected) {
+      setCheckoutItems([course]);
+      setShowEnroll(true);
+      return;
+    }
+
+    router.visit(route("student.course.preview", course.id));
   };
 
   useEffect(() => {
@@ -156,7 +169,7 @@ export default function MyCourses() {
                         <button
                           type="button"
                           onClick={() =>
-                            router.visit(route("student.course.preview", course.id))
+                            handlePendingCourseAction(course, isRejected)
                           }
                           className="text-[10px] font-black tracking-widest uppercase px-3 py-2 rounded-lg bg-primary text-white hover:bg-primary-hover transition-all"
                         >
@@ -204,6 +217,21 @@ export default function MyCourses() {
         }}
         onClose={() => setActiveContent(null)}
       />
+
+      {showEnroll && (
+        <CheckoutModal
+          items={checkoutItems}
+          total={checkoutItems.reduce(
+            (sum, item) => sum + Number(item.price || 0),
+            0,
+          )}
+          onClose={() => setShowEnroll(false)}
+          onSuccess={() => {
+            setShowEnroll(false);
+            router.reload({ only: ["courses", "pendingCourses"] });
+          }}
+        />
+      )}
     </>
   );
 }

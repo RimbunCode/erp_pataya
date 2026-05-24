@@ -128,6 +128,9 @@ export default function Approvals() {
     () => requests.find((item) => item.id === selectedId) ?? null,
     [requests, selectedId],
   );
+  const rejectionHistory = Array.isArray(selectedItem?.rejectionHistory)
+    ? selectedItem.rejectionHistory
+    : [];
 
   const closeRejectMode = () => {
     setRejectMode(false);
@@ -398,6 +401,34 @@ export default function Approvals() {
                               "No rejection reason."}
                           </p>
                         )}
+                      </div>
+                    )}
+
+                    {rejectionHistory.length > 0 && (
+                      <div className="px-5 py-4 border-b border-[var(--border)] space-y-2.5">
+                        <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold">
+                          Rejection History
+                        </p>
+                        {rejectionHistory.map((historyItem, index) => (
+                          <div
+                            key={
+                              historyItem.id ??
+                              `${selectedItem.id}-rejection-${index}`
+                            }
+                            className="rounded-lg border border-red-500/20 bg-red-500/5 p-2.5"
+                          >
+                            <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed">
+                              {historyItem.reason ?? "-"}
+                            </p>
+                            <p className="text-[11px] text-[var(--muted-foreground)] mt-2">
+                              Rejected by {historyItem.reviewedBy ?? "-"} on{" "}
+                              {fmtDateTime(
+                                historyItem.reviewedAt ??
+                                  historyItem.submittedAt,
+                              )}
+                            </p>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

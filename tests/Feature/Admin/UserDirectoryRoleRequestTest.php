@@ -155,6 +155,45 @@ class UserDirectoryRoleRequestTest extends TestCase {
                 ->etc()));
     }
 
+    public function test_admin_user_directory_page_exposes_rejection_history_for_reapplied_role_request(): void {
+        $admin   = User::factory()->create();
+        $student = User::factory()->create();
+
+        $this->assignRole($admin, 'admin');
+        $this->assignRole($student, 'student');
+
+        $rejectedRequest = RoleRequest::query()->create([
+            'user_id'          => $student->id,
+            'requested_role'   => 'instructor',
+            'reason'           => 'Pengajuan pertama',
+            'proof_file_id'    => $this->createProofFile($student, 'proof-rejected')->id,
+            'status'           => FormStatus::REJECTED->value,
+            'reviewed_by'      => $admin->id,
+            'reviewed_at'      => now()->subDay(),
+            'rejection_reason' => 'Dokumen bukti tidak terbaca.',
+        ]);
+
+        $pendingRequest = $this->createPendingInstructorRequest($student);
+
+        $this->actingAs($admin)
+            ->get(route('admin.user'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/UserDirectory/index')
+                ->where('requests', function ($requests) use ($pendingRequest, $rejectedRequest): bool {
+                    $requestCollection = collect($requests);
+                    $pendingPayload    = $requestCollection->firstWhere('id', (string) $pendingRequest->id);
+
+                    if ($pendingPayload === null) {
+                        return false;
+                    }
+
+                    return ($pendingPayload['rejectionHistoryCount'] ?? 0) === 1
+                        && ($pendingPayload['rejectionHistory'][0]['id'] ?? null) === (string) $rejectedRequest->id
+                        && ($pendingPayload['rejectionHistory'][0]['reason'] ?? null) === 'Dokumen bukti tidak terbaca.';
+                }));
+    }
+
     protected function setUp(): void {
         parent::setUp();
 
@@ -224,7 +263,6 @@ class UserDirectoryRoleRequestTest extends TestCase {
             'database/migrations/2025_01_31_153311_create_role_permissions_table.php',
             'database/migrations/2025_01_30_134342_create_files_table.php',
             'database/migrations/2026_05_23_004628_create_role_requests_table.php',
-            'database/migrations/2026_05_23_004628_add_inactive_fields_to_users_table.php',
         ];
     }
 }

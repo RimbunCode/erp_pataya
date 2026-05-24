@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -23,29 +24,45 @@ class SystemFinanceController extends Controller {
                 'course:id,title,created_by',
                 'course.creator:id,name',
                 'course.categories:id,name',
+                'verifier:id,name',
             ])
-            ->whereHas('enrollment')
+            ->whereNotNull('course_id')
             ->latest('created_at')
-            ->get()
-            ->map(fn (Payment $payment) => [
-                'id'             => (string) $payment->id,
-                'studentName'    => (string) ($payment->user?->name ?? '-'),
-                'studentEmail'   => (string) ($payment->user?->email ?? '-'),
-                'avatar'         => $this->initials((string) ($payment->user?->name ?? 'NA')),
-                'courseName'     => (string) ($payment->course?->title ?? '-'),
-                'courseCategory' => (string) ($payment->course?->categories?->first()?->name ?? '-'),
-                'instructor'     => (string) ($payment->course?->creator?->name ?? '-'),
-                'amount'         => (float) $payment->amount,
-                'method'         => $this->mapMethod((string) $payment->payment_method),
-                'bank'           => null,
-                'refCode'        => strtoupper(substr((string) preg_replace('/[^A-Za-z0-9]/', '', (string) $payment->id), 0, 10)),
-                'submittedAt'    => $payment->paid_at?->toIso8601String() ?? $payment->created_at->toIso8601String(),
-                'status'         => $this->resolveStatus((string) $payment->status),
-                'proofUrl'       => route('admin.finance.proof', ['payment' => $payment->id]),
-                'proofFileName'  => $payment->proof_image ? basename($payment->proof_image) : null,
-                'studentNote'    => $payment->notes,
-                'rejectReason'   => $payment->rejection_reason,
-            ])
+            ->get();
+
+        $paymentsByContext = $payments->groupBy(
+            fn (Payment $payment) => $this->paymentHistoryKey($payment),
+        );
+
+        $payments = $payments
+            ->map(function (Payment $payment) use ($paymentsByContext): array {
+                $history = $this->mapPaymentRejectionHistory(
+                    $payment,
+                    $paymentsByContext->get($this->paymentHistoryKey($payment), collect()),
+                );
+
+                return [
+                    'id'                    => (string) $payment->id,
+                    'studentName'           => (string) ($payment->user?->name ?? '-'),
+                    'studentEmail'          => (string) ($payment->user?->email ?? '-'),
+                    'avatar'                => $this->initials((string) ($payment->user?->name ?? 'NA')),
+                    'courseName'            => (string) ($payment->course?->title ?? '-'),
+                    'courseCategory'        => (string) ($payment->course?->categories?->first()?->name ?? '-'),
+                    'instructor'            => (string) ($payment->course?->creator?->name ?? '-'),
+                    'amount'                => (float) $payment->amount,
+                    'method'                => $this->mapMethod((string) $payment->payment_method),
+                    'bank'                  => null,
+                    'refCode'               => strtoupper(substr((string) preg_replace('/[^A-Za-z0-9]/', '', (string) $payment->id), 0, 10)),
+                    'submittedAt'           => $payment->paid_at?->toIso8601String() ?? $payment->created_at->toIso8601String(),
+                    'status'                => $this->resolveStatus((string) $payment->status),
+                    'proofUrl'              => route('admin.finance.proof', ['payment' => $payment->id]),
+                    'proofFileName'         => $payment->proof_image ? basename($payment->proof_image) : null,
+                    'studentNote'           => $payment->notes,
+                    'rejectReason'          => $payment->rejection_reason,
+                    'rejectionHistory'      => $history,
+                    'rejectionHistoryCount' => $history->count(),
+                ];
+            })
             ->values();
 
         return Inertia::render('Admin/SystemFinance', [
@@ -124,6 +141,37 @@ class SystemFinanceController extends Controller {
         }
 
         return Storage::disk('local')->response($payment->proof_image, basename($payment->proof_image));
+    }
+
+    private function paymentHistoryKey(Payment $payment): string {
+        return "{$payment->user_id}|{$payment->course_id}";
+    }
+
+    /**
+     * @param  Collection<int, Payment>  $relatedPayments
+     * @return Collection<int, array{id: string, reason: string, reviewedBy: string, reviewedAt: ?string, submittedAt: ?string}>
+     */
+    private function mapPaymentRejectionHistory(Payment $payment, Collection $relatedPayments): Collection {
+        return $relatedPayments
+            ->filter(function (Payment $historyPayment) use ($payment): bool {
+                return (string) $historyPayment->id !== (string) $payment->id
+                    && $this->resolveStatus((string) $historyPayment->status) === FormStatus::REJECTED->value
+                    && filled($historyPayment->rejection_reason);
+            })
+            ->sortByDesc(fn (Payment $historyPayment) => $historyPayment->verified_at ?? $historyPayment->updated_at ?? $historyPayment->created_at)
+            ->map(function (Payment $historyPayment): array {
+                $reviewedAt = $historyPayment->verified_at ?? $historyPayment->updated_at ?? $historyPayment->created_at;
+
+                return [
+                    'id'          => (string) $historyPayment->id,
+                    'reason'      => (string) $historyPayment->rejection_reason,
+                    'reviewedBy'  => (string) ($historyPayment->verifier?->name ?? '-'),
+                    'reviewedAt'  => $reviewedAt?->toIso8601String(),
+                    'submittedAt' => $historyPayment->paid_at?->toIso8601String()
+                        ?? $historyPayment->created_at?->toIso8601String(),
+                ];
+            })
+            ->values();
     }
 
     private function resolveStatus(string $status): string {

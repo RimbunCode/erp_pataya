@@ -10,6 +10,7 @@ use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Support\Facades\Artisan;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\AssertionFailedError;
 use Tests\TestCase;
 
 class CourseApprovalFlowTest extends TestCase {
@@ -168,6 +169,69 @@ class CourseApprovalFlowTest extends TestCase {
                 ->where('instructor', 'Instruktur A')
                 ->where('status', FormStatus::PENDING->value)
                 ->etc()));
+    }
+
+    public function test_admin_approvals_page_exposes_rejection_history_for_resubmitted_course_request(): void {
+        $admin      = User::factory()->create();
+        $instructor = User::factory()->create();
+
+        $this->assignRole($admin, 'admin');
+        $this->assignRole($instructor, 'instructor');
+
+        $course = $this->createCourse($instructor);
+
+        $rejectedRequest = CoursePublishRequest::query()->create([
+            'course_id'               => $course->id,
+            'requested_by'            => $instructor->id,
+            'status'                  => FormStatus::REJECTED->value,
+            'reviewed_by'             => $admin->id,
+            'reviewed_at'             => now()->subDay(),
+            'rejection_reason'        => 'Silabus belum lengkap.',
+            'submitted_price'         => $course->price,
+            'submitted_discount'      => $course->discount,
+            'submitted_discount_type' => $course->discount_type,
+        ]);
+
+        $pendingRequest = CoursePublishRequest::query()->create([
+            'course_id'               => $course->id,
+            'requested_by'            => $instructor->id,
+            'status'                  => FormStatus::PENDING->value,
+            'submitted_price'         => $course->price,
+            'submitted_discount'      => $course->discount,
+            'submitted_discount_type' => $course->discount_type,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.approval'));
+        $response->assertOk();
+
+        if ($response->headers->has('X-Inertia')) {
+            $page = $response->json();
+        } else {
+            try {
+                $page = $response->viewData('page');
+            } catch (AssertionFailedError) {
+                $content = (string) $response->getContent();
+
+                preg_match('/data-page="([^"]+)"/', $content, $matches);
+
+                $encodedPage = $matches[1] ?? null;
+                $page        = $encodedPage !== null
+                    ? json_decode(html_entity_decode($encodedPage, ENT_QUOTES, 'UTF-8'), true)
+                    : null;
+            }
+        }
+
+        $this->assertIsArray($page);
+        $this->assertSame('Admin/Approvals', $page['component'] ?? null);
+
+        $requestCollection = collect($page['props']['requests'] ?? []);
+        $pendingPayload    = $requestCollection->firstWhere('id', (string) $pendingRequest->id);
+
+        $this->assertNotNull($pendingPayload);
+        $this->assertSame(1, $pendingPayload['rejectionHistoryCount']);
+        $this->assertCount(1, $pendingPayload['rejectionHistory']);
+        $this->assertSame((string) $rejectedRequest->id, $pendingPayload['rejectionHistory'][0]['id']);
+        $this->assertSame('Silabus belum lengkap.', $pendingPayload['rejectionHistory'][0]['reason']);
     }
 
     protected function setUp(): void {
