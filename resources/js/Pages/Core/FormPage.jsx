@@ -1557,7 +1557,6 @@ const FormPageDialog = memo(
     },
     ref,
   ) {
-    const { t } = useLaravelReactI18n();
     const route = window.route;
     const [open, setOpen] = useState(false);
     useImperativeHandle(
@@ -1699,9 +1698,7 @@ const FormPageDialog = memo(
                 <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
                   {title}
                   {isDirty && (
-                    <span className="text-sm badge warning">
-                      {t("core.form.not_saved")}
-                    </span>
+                    <span className="text-sm badge warning">not_saved</span>
                   )}
                   {badge}
                 </AlertDialogTitle>
@@ -1710,15 +1707,11 @@ const FormPageDialog = memo(
               <div className="overflow-y-auto">
                 {errors && Object.keys(errors).length > 0 && (
                   <div className="flex-col w-full mt-4 alert error">
-                    <h3 className="text-base font-semibold">
-                      {t("core.form.errors.title")}
-                    </h3>
+                    <h3 className="text-base font-semibold">Fix Errors!!!</h3>
                     <ul className="block pl-5">
                       {Object.entries(errors).map(([key, value]) => (
                         <li key={key} className="list-disc">
-                          {fieldNameTrans
-                            ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                            : value}
+                          {value}
                         </li>
                       ))}
                     </ul>
@@ -1744,14 +1737,14 @@ const FormPageDialog = memo(
                   className="h-8"
                   onClick={() => onClose(false)}
                 >
-                  {t("core.form.cancel")}
+                  Cancel
                 </AlertDialogCancel>
                 <AlertDialogAction
                   className="h-8"
                   type="submit"
                   onClick={() => {}}
                 >
-                  {t("core.form.save")}
+                  Save
                 </AlertDialogAction>
               </AlertDialogFooter>
             </form>
@@ -1781,7 +1774,6 @@ const FormPageLinkModelDialog = memo(
     },
     ref,
   ) {
-    const { t } = useLaravelReactI18n();
     const route = window.route;
     const {
       setLeave,
@@ -1950,9 +1942,7 @@ const FormPageLinkModelDialog = memo(
                 <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
                   {title}
                   {isDirty && (
-                    <span className="text-sm badge warning">
-                      {t("core.form.not_saved")}
-                    </span>
+                    <span className="text-sm badge warning">Not Saved</span>
                   )}
                   {badge}
                 </AlertDialogTitle>
@@ -1961,15 +1951,11 @@ const FormPageLinkModelDialog = memo(
               <div className="overflow-y-auto">
                 {errors && Object.keys(errors).length > 0 && (
                   <div className="flex-col w-full mt-4 alert error">
-                    <h3 className="text-base font-semibold">
-                      {t("core.form.errors.title")}
-                    </h3>
+                    <h3 className="text-base font-semibold">Fix Errors!!!</h3>
                     <ul className="block pl-5">
                       {Object.entries(errors).map(([key, value]) => (
                         <li key={key} className="list-disc">
-                          {fieldNameTrans
-                            ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                            : value}
+                          {value}
                         </li>
                       ))}
                     </ul>
@@ -1996,14 +1982,14 @@ const FormPageLinkModelDialog = memo(
                   className="h-8"
                   onClick={() => onClose(false)}
                 >
-                  {t("core.form.cancel")}
+                  Cancel
                 </AlertDialogCancel>
                 <AlertDialogAction
                   className="h-8"
                   type="submit"
                   onClick={() => {}}
                 >
-                  {t("core.form.save")}
+                  Save
                 </AlertDialogAction>
               </AlertDialogFooter>
             </form>

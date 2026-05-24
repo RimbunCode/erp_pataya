@@ -11,6 +11,7 @@ import Link from "@/Components/Link";
 import { cn } from "@/lib/utils";
 import UploadDialog2 from "../../Core/Components/UploadDialog2";
 import CourseDetailTypeIcon from "./CourseDetailTypeIcon";
+import DatetimePicker from "@/Components/DatetimePicker";
 
 export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
   const [editing, setEditing] = useState(false);
@@ -89,10 +90,9 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
                 {(content.type === "pre_assessment" ||
                   content.type === "assignment") && (
                   <div className="mt-1.5 flex items-center gap-2">
-                    <input
-                      type="datetime-local"
+                    <DatetimePicker
                       value={deadline}
-                      onChange={(event) => setDeadline(event.target.value)}
+                      onValueChange={(event) => setDeadline(event.target.value)}
                       className="bg-card border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <button

@@ -1,393 +1,254 @@
-import {
-  Alert,
-  AlertContent,
-  AlertDescription,
-  AlertIcon,
-  AlertTitle,
-} from "@/Components/ui/alert";
-import {
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/Components/ui/card";
 import { Head, Link, useForm } from "@inertiajs/react";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@/Components/ui/input-group";
-import { LogOutIcon, MailCheckIcon, ShieldCheckIcon } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/Components/ui/tooltip";
-
-import { Button } from "@/Components/ui/button";
-import DatetimePicker from "@/Components/DatetimePicker";
+import { useMemo, useState } from "react";
 import AuthLayout from "@/Layouts/AuthLayout";
-import { Input } from "@/Components/ui/input";
 import InputError from "@/Components/InputError";
-import { Label } from "@/Components/ui/label";
 import PasswordChecker from "@/Components/PasswordChecker";
 import PasswordInput from "@/Components/PasswordInput";
-import { RiErrorWarningFill } from "@remixicon/react";
-import Select from "@/Components/Select";
-import { Skeleton } from "@/Components/ui/skeleton";
 import ToggleTheme from "@/Components/ToggleTheme";
-import { useLaravelReactI18n } from "laravel-react-i18n";
-import { useState } from "react";
+import { LogOutIcon } from "lucide-react";
 
-function SetupUser({ user, hasPassword, isWaiting }) {
+function normalizeRoles(roles) {
+  if (!Array.isArray(roles)) {
+    return [];
+  }
+
+  return roles
+    .map((role) => (typeof role === "string" ? role : role?.name))
+    .filter((role) => typeof role === "string")
+    .map((role) => role.toLowerCase());
+}
+
+export default function SetupUser({ user, hasPassword, isWaiting }) {
   const route = window.route;
-  const { t, loading } = useLaravelReactI18n();
   const [isVisible, setIsVisible] = useState(false);
+  const initialHasInstructorRole = useMemo(() => {
+    return normalizeRoles(user?.roles).includes("instructor");
+  }, [user?.roles]);
+
   const { data, setData, put, processing, errors } = useForm({
     name: user?.name ?? "",
     username: user?.username ?? "",
-    gender: user?.gender ?? "",
-    birthdate: user?.birthdate ?? "",
-    phone: user?.phone ?? "",
     email: user?.email ?? "",
+    wants_instructor: initialHasInstructorRole,
     current_password: "",
     password: "",
     password_confirmation: "",
   });
 
-  const onSubmit = (e) => {
-    e.preventDefault();
+  const onSubmit = (event) => {
+    event.preventDefault();
     put(route("setup.update"));
   };
 
+  const shouldShowNewPasswordFields = data.current_password || !hasPassword;
+
   return (
-    <AuthLayout className="max-w-xl">
-      <Head title={t("auth.setupUser.title")} />
-      <CardHeader>
-        <div className="flex items-center justify-between gap-x-4">
-          <div className="flex flex-col gap-y-2">
-            <CardTitle className="text-xl">
-              {loading ? (
-                <Skeleton className="w-52 h-7" />
-              ) : (
-                t("auth.setupUser.title")
-              )}
-            </CardTitle>
-            <CardDescription>
-              {loading ? (
-                <Skeleton className="w-full h-7" />
-              ) : (
-                t("auth.setupUser.description")
-              )}
-            </CardDescription>
+    <AuthLayout className="max-w-lg border-none bg-transparent shadow-none mt-6">
+      <Head title="Setup Account" />
+      <div className="bg-card text-card-foreground rounded-3xl border border-border shadow-2xl w-full p-8">
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-black text-foreground uppercase tracking-tight mb-1">
+              Setup Account
+            </h1>
+            <p className="text-base text-muted-foreground">
+              Complete your account details before continuing.
+            </p>
           </div>
-          <div className="flex gap-x-2 self-start">
+          <div className="flex items-center gap-2">
             <ToggleTheme className="size-4" />
-            <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="[&_svg]:size-4 p-2.5 h-fit w-fit"
-              asChild
+            <Link
+              href={route("logout")}
+              method="post"
+              as="button"
+              className="inline-flex items-center justify-center rounded-lg border border-border p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             >
-              <Link href={route("logout")} method="post" as="button">
-                <LogOutIcon />
-              </Link>
-            </Button>
+              <LogOutIcon className="size-4" />
+            </Link>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
+
         {isWaiting && (
-          <Alert variant="warning" appearance="light" className="mb-4">
-            <AlertIcon>
-              <RiErrorWarningFill />
-            </AlertIcon>
-            <AlertContent>
-              <AlertTitle>{t("auth.setupUser.waiting.title")}</AlertTitle>
-              <AlertDescription>
-                {t("auth.setupUser.waiting.description")}
-              </AlertDescription>
-            </AlertContent>
-          </Alert>
+          <div className="mb-6 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-400/40 dark:bg-amber-950/40 dark:text-amber-200">
+            <p className="text-sm font-bold uppercase tracking-wide">
+              Waiting for Admin Approval
+            </p>
+            <p className="text-sm mt-1">
+              Your account is still pending approval. You can update your data
+              while waiting.
+            </p>
+          </div>
         )}
+
         <form onSubmit={onSubmit}>
-          <div className="grid gap-y-4">
-            <div className="border-b-0">
-              <div className="w-full pb-1 mb-2 border-b border-muted-foreground/25 [&[data-state=open]_svg]:rotate-180">
-                <div className="font-bold text-lg flex items-center justify-between gap-x-4">
-                  {t("auth.setupUser.profile")}
-                </div>
-              </div>
-              <div className="pt-2 columns-1 md:columns-2 space-x-3 space-y-4 [&>div]:break-inside-avoid">
-                <div className="grid gap-2">
-                  <Label htmlFor="name">
-                    {loading ? (
-                      <Skeleton className="w-52 h-7" />
-                    ) : (
-                      <>
-                        {t("user.user.columns.name")}{" "}
-                        {<span className="text-red-500">*</span>}
-                      </>
-                    )}
-                  </Label>
-                  <Input
-                    isFocused={true}
-                    id="name"
-                    type="text"
-                    name="name"
-                    autoComplete="name"
-                    value={data.name}
-                    onChange={(e) => setData("name", e.target.value)}
-                    required
-                  />
-                  <InputError message={errors.name} className="mt-2" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="gender">
-                    {loading ? (
-                      <Skeleton className="w-52 h-7" />
-                    ) : (
-                      t("user.user.columns.gender")
-                    )}
-                  </Label>
-                  <Select
-                    id="gender"
-                    name="gender"
-                    autoComplete="gender"
-                    value={data.gender}
-                    onValueChange={(val) => setData("gender", val)}
-                    optionTrans="user.user.columns.gender.options"
-                    options={["male", "female"]}
-                  />
-                  <InputError message={errors.gender} className="mt-2" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="birthdate">
-                    {loading ? (
-                      <Skeleton className="w-52 h-7" />
-                    ) : (
-                      t("user.user.columns.birthdate")
-                    )}
-                  </Label>
-                  <DatetimePicker
-                    name="birthdate"
-                    id="birthdate"
-                    autoComplete="birthdate"
-                    type="date"
-                    value={data.birthdate}
-                    onValueChange={(val) => setData("birthdate", val)}
-                  />
-                  <InputError message={errors.birthdate} className="mt-2" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">
-                    {loading ? (
-                      <Skeleton className="w-52 h-7" />
-                    ) : (
-                      t("user.user.columns.phone")
-                    )}
-                  </Label>
-                  <Input
-                    isFocused={true}
-                    id="phone"
-                    type="text"
-                    name="phone"
-                    autoComplete="phone"
-                    value={data.phone}
-                    onChange={(e) => setData("phone", e.target.value)}
-                  />
-                  <InputError message={errors.phone} className="mt-2" />
-                </div>
-              </div>
-            </div>
-            <div className="border-b-0">
-              <div className="w-full pb-1 mb-2 border-b border-muted-foreground/25 [&[data-state=open]_svg]:rotate-180">
-                <div className="font-bold text-lg flex items-center justify-between gap-x-4">
-                  {t("auth.setupUser.credential")}
-                </div>
-              </div>
-              <div className="pt-2 space-y-4 [&>div]:break-inside-avoid">
-                <div className="grid gap-2">
-                  <Label htmlFor="username">
-                    {loading ? (
-                      <Skeleton className="w-52 h-7" />
-                    ) : (
-                      <>
-                        {t("user.user.columns.username")}{" "}
-                        {<span className="text-red-500">*</span>}
-                      </>
-                    )}
-                  </Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    name="username"
-                    autoComplete="username"
-                    value={data.username}
-                    onChange={(e) => setData("username", e.target.value)}
-                    required
-                  />
-                  <InputError message={errors.username} className="mt-2" />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">
-                    {loading ? (
-                      <Skeleton className="w-52 h-7" />
-                    ) : (
-                      <>
-                        {t("user.user.columns.email")}{" "}
-                        {<span className="text-red-500">*</span>}
-                      </>
-                    )}
-                  </Label>
-
-                  <InputGroup>
-                    <InputGroupInput
-                      id="email"
-                      type="email"
-                      name="email"
-                      autoComplete="email"
-                      required
-                      value={data.email}
-                      onChange={(e) => setData("email", e.target.value)}
-                    />
-                    {user.email_verified_at ? (
-                      <InputGroupAddon align="inline-start">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <ShieldCheckIcon className="text-green-500 size-5" />
-                          </TooltipTrigger>
-                          <TooltipContent align="center" side="bottom">
-                            {t("user.user.columns.email.verified")}
-                          </TooltipContent>
-                        </Tooltip>
-                      </InputGroupAddon>
-                    ) : (
-                      <InputGroupAddon align="inline-end">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button type="button" variant="ghost" size="icon">
-                              <MailCheckIcon />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent align="center" side="bottom">
-                            {t("user.user.columns.email.verify")}
-                          </TooltipContent>
-                        </Tooltip>
-                      </InputGroupAddon>
-                    )}
-                  </InputGroup>
-                  <InputError message={errors.email} className="mt-2" />
-                </div>
-                {hasPassword && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="current_password">
-                      {loading ? (
-                        <Skeleton className="w-52 h-7" />
-                      ) : (
-                        t("user.user.manage_password.columns.current_password")
-                      )}
-                    </Label>
-                    <PasswordInput
-                      id="current_password"
-                      name="current_password"
-                      autoComplete="off"
-                      value={data.current_password}
-                      onChange={(e) =>
-                        setData("current_password", e.target.value)
-                      }
-                    />
-                    <p className="text-sm mt-0.5 font-normal text-muted-foreground">
-                      {t(
-                        "user.user.manage_password.columns.current_password.description",
-                      )}
-                    </p>
-                    <InputError
-                      message={errors.current_password}
-                      className=""
-                    />
-                  </div>
-                )}
-                {(data.current_password || !hasPassword) && (
-                  <>
-                    <div className="grid gap-2">
-                      <Label htmlFor="password">
-                        {loading ? (
-                          <Skeleton className="w-52 h-7" />
-                        ) : (
-                          <>
-                            {t(
-                              data.current_password
-                                ? "user.user.manage_password.columns.password"
-                                : "user.user.columns.password",
-                            )}{" "}
-                            {<span className="text-red-500">*</span>}
-                          </>
-                        )}
-                      </Label>
-                      <PasswordInput
-                        id="password"
-                        name="password"
-                        autoComplete="password"
-                        value={data.password}
-                        onChange={(e) => setData("password", e.target.value)}
-                        required
-                        visible={isVisible}
-                        onVisibleChange={setIsVisible}
-                      />
-                      <InputError message={errors.password} className="" />
-                      <PasswordChecker password={data.password} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="password_confirmation">
-                        {loading ? (
-                          <Skeleton className="w-52 h-7" />
-                        ) : (
-                          <>
-                            {t(
-                              data.current_password
-                                ? "user.user.manage_password.columns.password_confirmation"
-                                : "user.user.columns.confirm_password",
-                            )}{" "}
-                            {<span className="text-red-500">*</span>}
-                          </>
-                        )}
-                      </Label>
-                      <PasswordInput
-                        id="password_confirmation"
-                        name="password_confirmation"
-                        autoComplete="password_confirmation"
-                        value={data.password_confirmation}
-                        onChange={(e) =>
-                          setData("password_confirmation", e.target.value)
-                        }
-                        required
-                        visible={isVisible}
-                        onVisibleChange={setIsVisible}
-                      />
-                      <InputError
-                        message={errors.password_confirmation}
-                        className="mt-2"
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
+          <div className="flex flex-col gap-4">
+            <div>
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                Full Name
+              </label>
+              <input
+                id="name"
+                type="text"
+                name="name"
+                autoComplete="name"
+                value={data.name}
+                onChange={(event) => setData("name", event.target.value)}
+                required
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
+              />
+              <InputError message={errors.name} className="mt-2" />
             </div>
 
-            <Button type="submit" className="w-full" disabled={processing}>
-              {loading ? (
-                <Skeleton className="w-52 h-7" />
-              ) : (
-                t("auth.setupUser.button.save")
-              )}
-            </Button>
+            <div>
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                Username
+              </label>
+              <input
+                id="username"
+                type="text"
+                name="username"
+                autoComplete="username"
+                value={data.username}
+                onChange={(event) => setData("username", event.target.value)}
+                required
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
+              />
+              <InputError message={errors.username} className="mt-2" />
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase">
+                  Email
+                </label>
+                <span
+                  className={`text-xs font-bold uppercase tracking-wider ${
+                    user?.email_verified_at
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-amber-600 dark:text-amber-400"
+                  }`}
+                >
+                  {user?.email_verified_at ? "Verified" : "Not Verified"}
+                </span>
+              </div>
+              <input
+                id="email"
+                type="email"
+                name="email"
+                autoComplete="email"
+                value={data.email}
+                onChange={(event) => setData("email", event.target.value)}
+                required
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-base text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
+              />
+              <InputError message={errors.email} className="mt-2" />
+            </div>
+
+            <label className="flex items-start gap-2 cursor-pointer select-none rounded-xl border border-border bg-muted/40 px-3 py-3">
+              <input
+                type="checkbox"
+                checked={data.wants_instructor}
+                onChange={(event) =>
+                  setData("wants_instructor", event.target.checked)
+                }
+                className="mt-0.5 w-4 h-4 rounded border-border text-primary focus:ring-ring"
+              />
+              <span className="text-sm text-muted-foreground">
+                Also enable <span className="font-semibold">Instructor</span>{" "}
+                access for this account.
+              </span>
+            </label>
+            <InputError message={errors.wants_instructor} className="mt-0.5" />
+
+            {hasPassword && (
+              <div>
+                <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                  Current Password
+                </label>
+                <PasswordInput
+                  id="current_password"
+                  name="current_password"
+                  autoComplete="current-password"
+                  value={data.current_password}
+                  onChange={(event) =>
+                    setData("current_password", event.target.value)
+                  }
+                  visible={isVisible}
+                  onVisibleChange={setIsVisible}
+                />
+                <p className="text-xs text-muted-foreground mt-1.5">
+                  Fill this if you want to update your password.
+                </p>
+                <InputError
+                  message={errors.current_password}
+                  className="mt-2"
+                />
+              </div>
+            )}
+
+            {shouldShowNewPasswordFields && (
+              <>
+                <div>
+                  <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                    New Password
+                  </label>
+                  <PasswordInput
+                    id="password"
+                    name="password"
+                    autoComplete="new-password"
+                    value={data.password}
+                    onChange={(event) =>
+                      setData("password", event.target.value)
+                    }
+                    required
+                    visible={isVisible}
+                    onVisibleChange={setIsVisible}
+                  />
+                  <InputError message={errors.password} className="mt-2" />
+                  <PasswordChecker
+                    password={data.password}
+                    forceEnglish={true}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                    Confirm New Password
+                  </label>
+                  <PasswordInput
+                    id="password_confirmation"
+                    name="password_confirmation"
+                    autoComplete="new-password"
+                    value={data.password_confirmation}
+                    onChange={(event) =>
+                      setData("password_confirmation", event.target.value)
+                    }
+                    required
+                    visible={isVisible}
+                    onVisibleChange={setIsVisible}
+                  />
+                  <InputError
+                    message={errors.password_confirmation}
+                    className="mt-2"
+                  />
+                </div>
+              </>
+            )}
+
+            <button
+              type="submit"
+              disabled={processing}
+              className={`w-full font-extrabold tracking-widest uppercase text-sm py-4 rounded-xl flex items-center justify-center gap-2 transition-all duration-300 mt-2 ${
+                processing
+                  ? "bg-muted text-muted-foreground/70 cursor-not-allowed"
+                  : "bg-primary hover:bg-primary-hover text-primary-foreground hover:-translate-y-0.5 shadow-md shadow-primary/25"
+              }`}
+            >
+              {processing ? "Saving..." : "Save Changes"}
+            </button>
           </div>
         </form>
-      </CardContent>
+      </div>
     </AuthLayout>
   );
 }
-
-export default SetupUser;

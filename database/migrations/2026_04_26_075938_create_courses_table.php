@@ -14,6 +14,8 @@ return new class extends Migration
             $table->string('title');
             $table->text('description')->nullable();
             $table->decimal('price', 12, 2)->default(0);
+            $table->string('discount_type')->default('percentage');
+            $table->decimal('discount', 12, 2)->default(0);
             $table->string('thumbnail')->nullable();
             $table->boolean('is_published')->default(false);
             $table->string('level')->nullable();

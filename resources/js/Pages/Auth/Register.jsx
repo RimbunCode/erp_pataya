@@ -1,8 +1,12 @@
-import { CardContent, CardHeader, CardTitle } from "@/Components/ui/card";
+import {
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/Components/ui/card";
 import { Head, useForm } from "@inertiajs/react";
 
 import { Button } from "@/Components/ui/button";
-import { CardDescription } from "@/Components/ui/card";
 import AuthLayout from "@/Layouts/AuthLayout";
 import { Input } from "@/Components/ui/input";
 import InputError from "@/Components/InputError";
@@ -10,13 +14,10 @@ import { Label } from "@/Components/ui/label";
 import Link from "@/Components/Link";
 import PasswordChecker from "@/Components/PasswordChecker";
 import PasswordInput from "@/Components/PasswordInput";
-import { Skeleton } from "@/Components/ui/skeleton";
 import ToggleTheme from "@/Components/ToggleTheme";
-import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useState } from "react";
 
 export default function Register() {
-  const { t, loading } = useLaravelReactI18n();
   const route = window.route;
   const { data, setData, post, processing, errors, reset } = useForm({
     name: "",
@@ -26,33 +27,25 @@ export default function Register() {
     password_confirmation: "",
   });
 
-  const submit = (e) => {
-    e.preventDefault();
+  const submit = (event) => {
+    event.preventDefault();
 
     post(route("register"), {
       onFinish: () => reset("password", "password_confirmation"),
     });
   };
+
   const [isVisible, setIsVisible] = useState(false);
+
   return (
     <AuthLayout>
       <Head title="Register" />
       <CardHeader>
         <div className="flex items-center justify-between gap-x-4">
           <div className="flex flex-col gap-y-2">
-            <CardTitle className="text-xl">
-              {loading ? (
-                <Skeleton className="w-52 h-7" />
-              ) : (
-                t("auth.register.title")
-              )}
-            </CardTitle>
+            <CardTitle className="text-xl">Create your account</CardTitle>
             <CardDescription>
-              {loading ? (
-                <Skeleton className="w-full h-7" />
-              ) : (
-                t("auth.register.description")
-              )}
+              Register with your credentials or Google account
             </CardDescription>
           </div>
           <ToggleTheme className="size-4" />
@@ -63,13 +56,7 @@ export default function Register() {
           <div className="grid gap-6">
             <div className="grid gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="username">
-                  {loading ? (
-                    <Skeleton className="w-52 h-7" />
-                  ) : (
-                    t("auth.register.name")
-                  )}
-                </Label>
+                <Label htmlFor="name">Full Name</Label>
                 <Input
                   isFocused={true}
                   id="name"
@@ -77,87 +64,67 @@ export default function Register() {
                   name="name"
                   autoComplete="name"
                   value={data.name}
-                  onChange={(e) => setData("name", e.target.value)}
+                  onChange={(event) => setData("name", event.target.value)}
                   required
                 />
                 <InputError message={errors.name} className="mt-2" />
               </div>
+
               <div className="grid gap-2">
-                <Label htmlFor="username">
-                  {loading ? (
-                    <Skeleton className="w-52 h-7" />
-                  ) : (
-                    t("auth.register.username")
-                  )}
-                </Label>
+                <Label htmlFor="username">Username</Label>
                 <Input
                   id="username"
                   type="text"
                   name="username"
                   autoComplete="username"
                   value={data.username}
-                  onChange={(e) => setData("username", e.target.value)}
+                  onChange={(event) => setData("username", event.target.value)}
                   required
                 />
                 <InputError message={errors.username} className="mt-2" />
               </div>
+
               <div className="grid gap-2">
-                <Label htmlFor="email">
-                  {loading ? (
-                    <Skeleton className="w-52 h-7" />
-                  ) : (
-                    t("auth.register.email")
-                  )}
-                </Label>
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   name="email"
                   autoComplete="email"
                   value={data.email}
-                  onChange={(e) => setData("email", e.target.value)}
+                  onChange={(event) => setData("email", event.target.value)}
                   required
                 />
                 <InputError message={errors.email} className="mt-2" />
               </div>
+
               <div className="grid gap-2">
-                <Label htmlFor="password">
-                  {loading ? (
-                    <Skeleton className="w-52 h-7" />
-                  ) : (
-                    t("auth.register.password")
-                  )}
-                </Label>
+                <Label htmlFor="password">Password</Label>
                 <PasswordInput
                   id="password"
                   type={isVisible ? "text" : "password"}
                   name="password"
                   autoComplete="password"
                   value={data.password}
-                  onChange={(e) => setData("password", e.target.value)}
+                  onChange={(event) => setData("password", event.target.value)}
                   required
                   visible={isVisible}
                   onVisibleChange={setIsVisible}
                 />
                 <InputError message={errors.password} className="" />
-                <PasswordChecker password={data.password} />
+                <PasswordChecker password={data.password} forceEnglish={true} />
               </div>
+
               <div className="grid gap-2">
-                <Label htmlFor="password_confirmation">
-                  {loading ? (
-                    <Skeleton className="w-52 h-7" />
-                  ) : (
-                    t("auth.register.confirm_password")
-                  )}
-                </Label>
+                <Label htmlFor="password_confirmation">Confirm Password</Label>
                 <PasswordInput
                   id="password_confirmation"
                   type="password"
                   name="password_confirmation"
                   autoComplete="password_confirmation"
                   value={data.password_confirmation}
-                  onChange={(e) =>
-                    setData("password_confirmation", e.target.value)
+                  onChange={(event) =>
+                    setData("password_confirmation", event.target.value)
                   }
                   required
                   visible={isVisible}
@@ -168,23 +135,18 @@ export default function Register() {
                   className="mt-2"
                 />
               </div>
+
               <Button type="submit" className="w-full" disabled={processing}>
-                {loading ? (
-                  <Skeleton className="w-52 h-7" />
-                ) : (
-                  t("auth.register.button")
-                )}
+                Register
               </Button>
             </div>
+
             <div className="relative flex justify-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
               <span className="relative z-10 px-2 bg-background text-muted-foreground">
-                {loading ? (
-                  <Skeleton className="w-32 h-7" />
-                ) : (
-                  t("auth.register.or")
-                )}
+                Or continue with
               </span>
             </div>
+
             <div className="flex flex-col gap-4">
               <Button variant="outline" className="w-full" asChild>
                 <a href={route("auth.login-provider", "google")}>
@@ -194,27 +156,20 @@ export default function Register() {
                       fill="currentColor"
                     />
                   </svg>
-                  {loading ? (
-                    <Skeleton className="w-32 h-7" />
-                  ) : (
-                    t("auth.register.google")
-                  )}
+                  Register with Google
                 </a>
               </Button>
             </div>
-            {loading ? (
-              <Skeleton className="mx-auto w-44 h-7" />
-            ) : (
-              <div className="text-sm text-center">
-                {t("auth.register.login")}{" "}
-                <Link
-                  href={route("login")}
-                  className="underline underline-offset-4"
-                >
-                  {t("auth.register.loginLink")}
-                </Link>
-              </div>
-            )}
+
+            <div className="text-sm text-center">
+              Already have an account?{" "}
+              <Link
+                href={route("login")}
+                className="underline underline-offset-4"
+              >
+                Login Now
+              </Link>
+            </div>
           </div>
         </form>
       </CardContent>

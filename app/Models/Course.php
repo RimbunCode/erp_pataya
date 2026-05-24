@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Course extends Model {
@@ -17,6 +18,7 @@ class Course extends Model {
     protected $casts   = [
         'is_published' => 'boolean',
         'price'        => 'decimal:2',
+        'discount'     => 'decimal:2',
     ];
 
     public function creator(): BelongsTo {
@@ -41,5 +43,13 @@ class Course extends Model {
 
     public function payments(): HasMany {
         return $this->hasMany(Payment::class);
+    }
+
+    public function publishRequests(): HasMany {
+        return $this->hasMany(CoursePublishRequest::class);
+    }
+
+    public function latestPublishRequest(): HasOne {
+        return $this->hasOne(CoursePublishRequest::class)->latestOfMany('created_at');
     }
 }

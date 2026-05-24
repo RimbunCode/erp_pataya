@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { router } from "@inertiajs/react";
-import { formatRp } from "../Utils/formatRp";
+import { cn, formatRp } from "@/lib/utils";
 import { statusConfig } from "../Utils/statusConfig";
-import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { Trash2Icon } from "lucide-react";
 import Link from "@/Components/Link";
 import { Button } from "@/Components/ui/button";
@@ -11,6 +10,7 @@ export default function CourseCard({ course }) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const config = statusConfig[course.status] ?? statusConfig.draft;
+  const isPendingApproval = course.status === "pending";
 
   return (
     <div
@@ -48,13 +48,18 @@ export default function CourseCard({ course }) {
             </div>
           )}
         </div>
-        <div className="absolute top-3 left-3">
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           <span
             className={`flex items-center gap-1.5 text-[10px] font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-lg ${config.bg} ${config.color}`}
           >
             <span className={`w-1.5 h-1.5 rounded-full ${config.dot}`} />
             {config.label}
           </span>
+          {course.has_pending_price_change_approval && (
+            <span className="inline-flex items-center text-[9px] font-extrabold tracking-widest uppercase px-2.5 py-1 rounded-lg bg-amber-100 text-amber-700 border border-amber-200">
+              Pending Price Approval
+            </span>
+          )}
         </div>
         {/* Menu button */}
         <div
@@ -88,14 +93,23 @@ export default function CourseCard({ course }) {
                 Edit Course
               </button>
               <button
-                onClick={() =>
+                onClick={() => {
+                  if (isPendingApproval) {
+                    return;
+                  }
+
                   router.patch(
                     route("instructor.classes.togglePublish", course.id),
-                  )
-                }
-                className="w-full text-left px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+                  );
+                }}
+                disabled={isPendingApproval}
+                className="w-full text-left px-4 py-2 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {course.status === "published" ? "Unpublish" : "Publish"}
+                {isPendingApproval
+                  ? "Pending Approval"
+                  : course.status === "published"
+                    ? "Unpublish"
+                    : "Publish"}
               </button>
             </div>
           )}
@@ -127,7 +141,24 @@ export default function CourseCard({ course }) {
               Price
             </p>
             <p className="text-sm font-black text-primary">
-              {formatRp(course.price)}
+              <span
+                className={cn(
+                  "font-black text-primary",
+                  course.discount > 0 &&
+                    "line-through text-muted-foreground text-sm",
+                )}
+              >
+                {formatRp(course.price)}
+              </span>
+              {course.discount > 0 && (
+                <span className="font-black ml-2 text-primary">
+                  {course.discount_type === "percentage"
+                    ? formatRp(
+                        course.price - (course.price * course.discount) / 100,
+                      )
+                    : formatRp(course.price - course.discount)}
+                </span>
+              )}
             </p>
           </div>
         </div>

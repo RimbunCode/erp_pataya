@@ -14,6 +14,7 @@ return new class extends Migration
             $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
             $table->foreignUlid('course_id')->references('id')->on('courses')->cascadeOnDelete();
             $table->foreignUlid('payment_id')->nullable()->references('id')->on('payments')->nullOnDelete();
+            $table->string('status')->default('active');
             $table->timestamp('enrolled_at')->useCurrent();
             $table->timestamps();
             $table->unique(['user_id', 'course_id']);

@@ -6,15 +6,7 @@ import Link from "@/Components/Link";
 import { router } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { GitCompareArrowsIcon, PlusIcon, XIcon } from "lucide-react";
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-function formatRp(amount) {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    minimumFractionDigits: 0,
-  }).format(amount);
-}
+import { cn, formatRp } from "@/lib/utils";
 
 function StarRating({ rating = 0, size = "w-4 h-4" }) {
   return (
@@ -203,9 +195,27 @@ function TrainingCompare({ selected, onBack }) {
                   <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase">
                     Total Price
                   </p>
-                  <p className="text-2xl font-black text-primary">
-                    {formatRp(course.price)}
-                  </p>
+                  <div className="flex flex-col text-2xl font-black text-primary">
+                    <span
+                      className={cn(
+                        "font-black text-primary",
+                        course.discount > 0 &&
+                          "line-through text-muted-foreground text-sm",
+                      )}
+                    >
+                      {formatRp(course.price)}
+                    </span>
+                    {course.discount > 0 && (
+                      <span className="font-black text-primary">
+                        {course.discount_type === "percentage"
+                          ? formatRp(
+                              course.price -
+                                (course.price * course.discount) / 100,
+                            )
+                          : formatRp(course.price - course.discount)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -296,9 +306,26 @@ function CourseCard({
         </div>
 
         <div className="text-right flex-shrink-0">
-          <p className="text-base font-black text-foreground">
-            {formatRp(course.price)}
-          </p>
+          <div className="flex flex-col text-base font-black text-foreground">
+            <span
+              className={cn(
+                "font-black text-primary",
+                course.discount > 0 &&
+                  "line-through text-muted-foreground text-sm",
+              )}
+            >
+              {formatRp(course.price)}
+            </span>
+            {course.discount > 0 && (
+              <span className="font-black text-primary">
+                {course.discount_type === "percentage"
+                  ? formatRp(
+                      course.price - (course.price * course.discount) / 100,
+                    )
+                  : formatRp(course.price - course.discount)}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-2">
             <button
               onClick={() => onToggleCompare(course)}
@@ -327,7 +354,7 @@ function CourseCard({
   // Grid view
   return (
     <div
-      className={`bg-card rounded-2xl overflow-hidden border-2 transition-all duration-200
+      className={`flex flex-col bg-card rounded-2xl overflow-hidden border-2 transition-all duration-200
         ${hovered ? "border-primary/50 shadow-xl shadow-primary/20 -translate-y-1" : "border-border shadow-md"}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -376,35 +403,21 @@ function CourseCard({
       </div>
 
       {/* Content */}
-      <div className="p-5">
-        <h3 className="text-base font-black text-foreground uppercase tracking-tight leading-tight mb-1">
-          {course.title}
-        </h3>
-        <p className="text-[10px] font-bold tracking-widest text-primary uppercase mb-2">
-          By {course.instructor}
-        </p>
-        <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2">
-          {course.description}
-        </p>
+      <div className="grid grid-col-1 content-between p-5 h-full">
+        <div>
+          <h3 className="text-base font-black text-foreground uppercase tracking-tight leading-tight mb-1">
+            {course.title}
+          </h3>
+          <p className="text-[10px] font-bold tracking-widest text-primary uppercase mb-2">
+            By {course.instructor}
+          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed mb-4 line-clamp-2">
+            {course.description}
+          </p>
+        </div>
 
-        <div className="flex items-center gap-4 text-xs text-muted-foreground mb-5">
-          <span className="flex items-center gap-1.5">
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {course.total_hours} Hours ({course.total_sessions} Sessions)
-          </span>
-          {course.certificate_type && (
+        <div>
+          <div className="flex items-center gap-4 text-xs text-muted-foreground mb-5">
             <span className="flex items-center gap-1.5">
               <svg
                 className="w-3.5 h-3.5"
@@ -416,49 +429,80 @@ function CourseCard({
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              {course.certificate_type}
+              {course.total_hours} Hours ({course.total_sessions} Sessions)
             </span>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-[9px] font-bold tracking-[2px] text-muted-foreground uppercase">
-              Investment
-            </p>
-            <p className="text-lg font-black text-foreground">
-              {formatRp(course.price)}
-            </p>
+            {course.certificate_type && (
+              <span className="flex items-center gap-1.5">
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                  />
+                </svg>
+                {course.certificate_type}
+              </span>
+            )}
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onToggleCompare(course)}
-              disabled={!isSelected && !canAdd}
-              title={
-                isSelected
-                  ? "Remove from compare"
-                  : canAdd
-                    ? "Add to compare"
-                    : "Maximum 3 courses"
-              }
-              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex flex-col text-lg font-black text-foreground">
+                <span
+                  className={cn(
+                    "font-black text-primary",
+                    course.discount > 0 &&
+                      "line-through text-muted-foreground text-sm",
+                  )}
+                >
+                  {formatRp(course.price)}
+                </span>
+                {course.discount > 0 && (
+                  <span className="font-black text-primary">
+                    {course.discount_type === "percentage"
+                      ? formatRp(
+                          course.price - (course.price * course.discount) / 100,
+                        )
+                      : formatRp(course.price - course.discount)}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onToggleCompare(course)}
+                disabled={!isSelected && !canAdd}
+                title={
+                  isSelected
+                    ? "Remove from compare"
+                    : canAdd
+                      ? "Add to compare"
+                      : "Maximum 3 courses"
+                }
+                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200
                 ${isSelected ? "bg-primary text-white shadow-md shadow-primary/20" : canAdd ? "border-2 border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border-2 border-border text-muted-foreground cursor-not-allowed"}`}
-            >
-              {!isSelected ? (
-                <GitCompareArrowsIcon className="w-4 h-4" />
-              ) : (
-                <XIcon className="w-4 h-4" />
-              )}
-            </button>
-            <button
-              onClick={goToDetail}
-              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
-            >
-              View Details
-            </button>
+              >
+                {!isSelected ? (
+                  <GitCompareArrowsIcon className="w-4 h-4" />
+                ) : (
+                  <XIcon className="w-4 h-4" />
+                )}
+              </button>
+              <button
+                onClick={goToDetail}
+                className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
+              >
+                View Details
+              </button>
+            </div>
           </div>
         </div>
       </div>

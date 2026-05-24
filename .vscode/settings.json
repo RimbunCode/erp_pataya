@@ -1,6 +1,5 @@
 {
   "php.version": "8.4",
-  "php.validate.executablePath": "C:\\Users\\RHD\\.config\\herd\\bin\\php84\\php.exe",
   "Laravel.phpEnvironment": "herd",
   "Laravel.pint.runOnSave": false,
   "[php]": {

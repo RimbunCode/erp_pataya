@@ -130,7 +130,7 @@ export default memo(function NavbarGuest({ onLogout }) {
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden sm:block">
-                    <p className="text-xs font-bold text-primary-foreground hover:text-black leading-tight">
+                    <p className="text-xs font-bold text-black dark:text-white leading-tight">
                       {user.name}
                     </p>
                     <p className="text-[9px] font-extrabold tracking-widest text-blue-500 uppercase">

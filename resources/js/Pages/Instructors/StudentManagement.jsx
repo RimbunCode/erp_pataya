@@ -1,519 +1,12 @@
-// resources/js/Pages/Instructor/StudentManagement.jsx
-
 import MainLayout from "@/Layouts/MainLayout";
+import { usePage } from "@inertiajs/react";
 import { useState } from "react";
+import StudentManagementModal from "./Components/StudentManagementModal";
+import StudentManagementRow from "./Components/StudentManagementRow";
+import StudentManagementStatCard from "./Components/StudentManagementStatCard";
 
-// ── Mock Data ──────────────────────────────────────────────────────────────────
-const students = [
-  {
-    id: 1,
-    name: "Budi Santoso",
-    avatar: "BS",
-    email: "budi.s@gmail.com",
-    course: "BIM Mastery for Structural Engineers",
-    progress: 65,
-    status: "ACTIVE",
-    joinDate: "12 Jan 2024",
-    lastActive: "2h ago",
-  },
-  {
-    id: 2,
-    name: "Sari Dewi",
-    avatar: "SD",
-    email: "sari.dewi@email.com",
-    course: "Advanced Project Planning & Control",
-    progress: 100,
-    status: "COMPLETED",
-    joinDate: "5 Dec 2023",
-    lastActive: "3d ago",
-  },
-  {
-    id: 3,
-    name: "Ahmad Fauzi",
-    avatar: "AF",
-    email: "a.fauzi@work.id",
-    course: "BIM Mastery for Structural Engineers",
-    progress: 42,
-    status: "ACTIVE",
-    joinDate: "20 Jan 2024",
-    lastActive: "1h ago",
-  },
-  {
-    id: 4,
-    name: "Rina Marlina",
-    avatar: "RM",
-    email: "rina.m@email.com",
-    course: "Ethics and Professionalism",
-    progress: 0,
-    status: "PENDING",
-    joinDate: "18 Feb 2024",
-    lastActive: "Never",
-  },
-  {
-    id: 5,
-    name: "Doni Prakoso",
-    avatar: "DP",
-    email: "doni.p@email.com",
-    course: "Advanced Project Planning & Control",
-    progress: 100,
-    status: "COMPLETED",
-    joinDate: "1 Nov 2023",
-    lastActive: "1w ago",
-  },
-  {
-    id: 6,
-    name: "Mega Putri",
-    avatar: "MP",
-    email: "mega.p@email.com",
-    course: "Ethics and Professionalism",
-    progress: 18,
-    status: "ACTIVE",
-    joinDate: "22 Feb 2024",
-    lastActive: "5h ago",
-  },
-  {
-    id: 7,
-    name: "Rizky Hamdani",
-    avatar: "RH",
-    email: "rizky.h@email.com",
-    course: "BIM Mastery for Structural Engineers",
-    progress: 88,
-    status: "ACTIVE",
-    joinDate: "8 Jan 2024",
-    lastActive: "30m ago",
-  },
-  {
-    id: 8,
-    name: "Lestari Wulan",
-    avatar: "LW",
-    email: "lestari@email.com",
-    course: "Ethics and Professionalism",
-    progress: 0,
-    status: "PENDING",
-    joinDate: "25 Feb 2024",
-    lastActive: "Never",
-  },
-];
-
-const courses = [
-  "All Courses",
-  "BIM Mastery for Structural Engineers",
-  "Advanced Project Planning & Control",
-  "Ethics and Professionalism",
-];
-
-const statusCfg = {
-  ACTIVE: {
-    pill: "bg-primary-soft text-primary border-primary/30",
-    dot: "bg-primary-soft0",
-  },
-  COMPLETED: {
-    pill: "bg-green-50 text-green-600 border-green-200",
-    dot: "bg-green-500",
-  },
-  PENDING: {
-    pill: "bg-muted text-muted-foreground border-border",
-    dot: "bg-gray-300",
-  },
-};
-
-const avatarColors = [
-  "bg-primary-soft0",
-  "bg-violet-500",
-  "bg-rose-500",
-  "bg-amber-500",
-  "bg-teal-500",
-  "bg-pink-500",
-  "bg-indigo-500",
-  "bg-orange-500",
-];
-
-// ── ProgressRing ───────────────────────────────────────────────────────────────
-function ProgressRing({ pct, size = 36, stroke = 3 }) {
-  const r = (size - stroke * 2) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (pct / 100) * circ;
-  const color = pct === 100 ? "#22c55e" : pct === 0 ? "#d1d5db" : "#2563eb";
-  return (
-    <svg width={size} height={size} className="-rotate-90">
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke="#f3f4f6"
-        strokeWidth={stroke}
-      />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth={stroke}
-        strokeDasharray={circ}
-        strokeDashoffset={offset}
-        strokeLinecap="round"
-        style={{ transition: "stroke-dashoffset 0.6s ease" }}
-      />
-    </svg>
-  );
-}
-
-// ── StatCard ───────────────────────────────────────────────────────────────────
-function StatCard({
-  label,
-  value,
-  sub,
-  icon,
-  accentBorder,
-  accentDot,
-  accentIcon,
-  onClick,
-  active,
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex-1 min-w-0 text-left bg-card rounded-2xl p-5 border-2 transition-all shadow-sm hover:shadow-md
-        ${active ? accentBorder : "border-border hover:border-border"}`}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center ${accentIcon}`}
-        >
-          {icon}
-        </div>
-        {active && <span className={`w-2 h-2 rounded-full ${accentDot}`} />}
-      </div>
-      <p className="text-2xl font-black text-foreground tracking-tight">
-        {value}
-      </p>
-      <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase mt-0.5">
-        {label}
-      </p>
-      <p className="text-[9px] font-semibold text-muted-foreground mt-1">{sub}</p>
-    </button>
-  );
-}
-
-// ── StudentModal ───────────────────────────────────────────────────────────────
-function StudentModal({ student, index, onClose }) {
-  if (!student) return null;
-
-  const cfg = statusCfg[student.status];
-  const color = avatarColors[index % avatarColors.length];
-
-  const modules = [
-    { title: "Introduction & Overview", done: true },
-    { title: "Core Fundamentals", done: student.progress >= 30 },
-    { title: "Practical Application", done: student.progress >= 60 },
-    { title: "Advanced Techniques", done: student.progress >= 80 },
-    { title: "Final Assessment", done: student.progress === 100 },
-  ];
-
-  const barColor =
-    student.progress === 100
-      ? "bg-green-500"
-      : student.progress === 0
-        ? "bg-gray-300"
-        : "bg-primary";
-
-  return (
-    /* Backdrop — klik di luar untuk tutup */
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
-      style={{
-        backdropFilter: "blur(6px)",
-        backgroundColor: "rgba(15,23,42,0.45)",
-      }}
-      onClick={onClose}
-    >
-      {/* Modal panel */}
-      <div
-        className="bg-card rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* ── Dark banner ── */}
-        <div className="bg-gray-900 px-7 pt-7 pb-10 relative">
-          {/* Close button */}
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-card/10 text-white/60 hover:bg-card/20 hover:text-white transition-all"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-
-          {/* Avatar + name */}
-          <div className="flex items-center gap-4">
-            <div
-              className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center text-white text-lg font-black flex-shrink-0`}
-            >
-              {student.avatar}
-            </div>
-            <div>
-              <h3 className="text-base font-black text-white tracking-wide">
-                {student.name}
-              </h3>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">
-                {student.email}
-              </p>
-              <span
-                className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg border text-[9px] font-black tracking-widest uppercase ${cfg.pill}`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                {student.status}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Body ── */}
-        <div className="px-7 -mt-5 pb-7 space-y-5">
-          {/* Quick info cards */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { label: "Joined", value: student.joinDate },
-              { label: "Last Active", value: student.lastActive },
-              { label: "Progress", value: `${student.progress}%` },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="bg-muted rounded-2xl px-4 py-3 border border-border"
-              >
-                <p className="text-[9px] font-black tracking-widest text-muted-foreground uppercase">
-                  {item.label}
-                </p>
-                <p className="text-sm font-black text-foreground mt-1">
-                  {item.value}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* Enrolled course */}
-          <div className="bg-primary-soft rounded-2xl px-4 py-3 border border-primary/20 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary-soft flex items-center justify-center flex-shrink-0">
-              <svg
-                className="w-4 h-4 text-primary"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[9px] font-black tracking-widest text-primary uppercase">
-                Enrolled Course
-              </p>
-              <p className="text-xs font-black text-primary uppercase tracking-wide truncate mt-0.5">
-                {student.course}
-              </p>
-            </div>
-          </div>
-
-          {/* Overall progress bar */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase">
-                Overall Progress
-              </p>
-              <p className="text-[10px] font-black text-foreground">
-                {student.progress}%
-              </p>
-            </div>
-            <div className="h-2 bg-muted rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-700 ${barColor}`}
-                style={{ width: `${student.progress}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Module checklist */}
-          <div>
-            <p className="text-[10px] font-black tracking-widest text-muted-foreground uppercase mb-3">
-              Module Completion
-            </p>
-            <div className="space-y-2">
-              {modules.map((mod, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all
-                    ${mod.done ? "bg-green-50 border-green-100" : "bg-muted border-border"}`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0
-                    ${mod.done ? "bg-green-500" : "bg-gray-200"}`}
-                  >
-                    {mod.done && (
-                      <svg
-                        className="w-3 h-3 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={3}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                  <span
-                    className={`text-[10px] font-bold uppercase tracking-wide
-                    ${mod.done ? "text-green-700" : "text-muted-foreground"}`}
-                  >
-                    {mod.title}
-                  </span>
-                  {!mod.done && (
-                    <span className="ml-auto text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
-                      Locked
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Action buttons */}
-          <div className="flex gap-3 pt-1">
-            <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border hover:text-foreground transition-all">
-              Send Message
-            </button>
-            <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20">
-              View Full Report
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── StudentRow ─────────────────────────────────────────────────────────────────
-function StudentRow({ student, index, onOpen }) {
-  const [hovered, setHovered] = useState(false);
-  const cfg = statusCfg[student.status];
-  const color = avatarColors[index % avatarColors.length];
-
-  return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      className={`grid grid-cols-[2fr_2fr_1fr_1fr_auto] items-center gap-4 px-6 py-4 border-b border-border transition-all cursor-pointer
-        ${hovered ? "bg-primary-soft/40" : "bg-card"}`}
-    >
-      {/* Student */}
-      <div className="flex items-center gap-3 min-w-0">
-        <div
-          className={`w-9 h-9 rounded-full ${color} flex items-center justify-center text-white text-xs font-black flex-shrink-0`}
-        >
-          {student.avatar}
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-black text-foreground truncate">
-            {student.name}
-          </p>
-          <p className="text-[10px] text-muted-foreground font-medium truncate">
-            {student.email}
-          </p>
-        </div>
-      </div>
-
-      {/* Course */}
-      <div className="min-w-0">
-        <p className="text-[10px] font-bold text-foreground uppercase tracking-wide truncate">
-          {student.course}
-        </p>
-        <p className="text-[9px] text-muted-foreground font-medium mt-0.5">
-          Joined {student.joinDate}
-        </p>
-      </div>
-
-      {/* Progress */}
-      <div className="flex items-center gap-2">
-        <ProgressRing pct={student.progress} />
-        <span className="text-xs font-black text-foreground">
-          {student.progress}%
-        </span>
-      </div>
-
-      {/* Status */}
-      <div>
-        <span
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[9px] font-black tracking-widest uppercase ${cfg.pill}`}
-        >
-          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-          {student.status}
-        </span>
-        <p className="text-[9px] text-muted-foreground font-medium mt-1 pl-0.5">
-          Active {student.lastActive}
-        </p>
-      </div>
-
-      {/* Action */}
-      <button
-        onClick={() => onOpen(student, index)}
-        className={`px-4 py-2 text-[9px] font-black tracking-widest uppercase rounded-xl transition-all whitespace-nowrap
-          ${hovered ? "bg-primary text-white shadow-md shadow-primary/20" : "bg-muted text-muted-foreground"}`}
-      >
-        View Detail
-      </button>
-    </div>
-  );
-}
-
-// ── Main Page ──────────────────────────────────────────────────────────────────
-export default function StudentManagement() {
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("ALL");
-  const [filterCourse, setFilterCourse] = useState("All Courses");
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-
-  const handleOpen = (student, index) => {
-    setSelectedStudent(student);
-    setSelectedIndex(index);
-  };
-  const handleClose = () => setSelectedStudent(null);
-
-  const total = students.length;
-  const active = students.filter((s) => s.status === "ACTIVE").length;
-  const completed = students.filter((s) => s.status === "COMPLETED").length;
-  const pending = students.filter((s) => s.status === "PENDING").length;
-
-  const filtered = students.filter((s) => {
-    const matchSearch =
-      s.name.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = filterStatus === "ALL" || s.status === filterStatus;
-    const matchCourse =
-      filterCourse === "All Courses" || s.course === filterCourse;
-    return matchSearch && matchStatus && matchCourse;
-  });
-
-  const statCards = [
+function buildStatCards({ total, active, completed, pending }) {
+  return [
     {
       label: "Total Students",
       value: total,
@@ -611,12 +104,55 @@ export default function StudentManagement() {
       ),
     },
   ];
+}
+
+export default function StudentManagement() {
+  const { students = [], courses = ["All Courses"] } = usePage().props;
+
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("ALL");
+  const [filterCourse, setFilterCourse] = useState("All Courses");
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const handleOpen = (student, index) => {
+    setSelectedStudent(student);
+    setSelectedIndex(index);
+  };
+
+  const handleClose = () => {
+    setSelectedStudent(null);
+  };
+
+  const total = students.length;
+  const active = students.filter(
+    (student) => student.status === "ACTIVE",
+  ).length;
+  const completed = students.filter(
+    (student) => student.status === "COMPLETED",
+  ).length;
+  const pending = students.filter(
+    (student) => student.status === "PENDING",
+  ).length;
+
+  const filtered = students.filter((student) => {
+    const matchSearch =
+      student.name.toLowerCase().includes(search.toLowerCase()) ||
+      student.email.toLowerCase().includes(search.toLowerCase());
+    const matchStatus =
+      filterStatus === "ALL" || student.status === filterStatus;
+    const matchCourse =
+      filterCourse === "All Courses" || student.course === filterCourse;
+
+    return matchSearch && matchStatus && matchCourse;
+  });
+
+  const statCards = buildStatCards({ total, active, completed, pending });
 
   return (
     <>
       <MainLayout title="Student Management">
         <div className="p-8 space-y-6">
-          {/* Header */}
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <h2 className="text-2xl font-black tracking-tight text-foreground uppercase">
@@ -644,31 +180,30 @@ export default function StudentManagement() {
             </button>
           </div>
 
-          {/* Stat Cards */}
           <div className="flex gap-4 flex-wrap">
-            {statCards.map((c) => (
-              <StatCard
-                key={c.key}
-                label={c.label}
-                value={c.value}
-                sub={c.sub}
-                icon={c.icon}
-                accentBorder={c.accentBorder}
-                accentDot={c.accentDot}
-                accentIcon={c.accentIcon}
-                active={filterStatus === c.key}
+            {statCards.map((card) => (
+              <StudentManagementStatCard
+                key={card.key}
+                label={card.label}
+                value={card.value}
+                sub={card.sub}
+                icon={card.icon}
+                accentBorder={card.accentBorder}
+                accentDot={card.accentDot}
+                accentIcon={card.accentIcon}
+                active={filterStatus === card.key}
                 onClick={() =>
                   setFilterStatus(
-                    filterStatus === c.key && c.key !== "ALL" ? "ALL" : c.key,
+                    filterStatus === card.key && card.key !== "ALL"
+                      ? "ALL"
+                      : card.key,
                   )
                 }
               />
             ))}
           </div>
 
-          {/* Table */}
           <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-            {/* Toolbar */}
             <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-border flex-wrap">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black text-foreground uppercase tracking-widest">
@@ -684,8 +219,8 @@ export default function StudentManagement() {
                   onChange={(e) => setFilterCourse(e.target.value)}
                   className="text-xs font-bold text-muted-foreground bg-muted border border-border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
                 >
-                  {courses.map((c) => (
-                    <option key={c}>{c}</option>
+                  {courses.map((course) => (
+                    <option key={course}>{course}</option>
                   ))}
                 </select>
                 <div className="relative">
@@ -713,25 +248,25 @@ export default function StudentManagement() {
               </div>
             </div>
 
-            {/* Table Head */}
             <div className="grid grid-cols-[2fr_2fr_1fr_1fr_auto] gap-4 px-6 py-3 bg-muted/60 border-b border-border">
-              {["Student", "Course", "Progress", "Status", ""].map((h, i) => (
-                <span
-                  key={i}
-                  className="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-                >
-                  {h}
-                </span>
-              ))}
+              {["Student", "Course", "Progress", "Status", ""].map(
+                (header, index) => (
+                  <span
+                    key={`${header}-${index}`}
+                    className="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
+                  >
+                    {header}
+                  </span>
+                ),
+              )}
             </div>
 
-            {/* Rows */}
             {filtered.length > 0 ? (
-              filtered.map((s, i) => (
-                <StudentRow
-                  key={s.id}
-                  student={s}
-                  index={i}
+              filtered.map((student, index) => (
+                <StudentManagementRow
+                  key={student.id}
+                  student={student}
+                  index={index}
                   onOpen={handleOpen}
                 />
               ))
@@ -756,19 +291,18 @@ export default function StudentManagement() {
               </div>
             )}
 
-            {/* Pagination footer */}
             {filtered.length > 0 && (
               <div className="px-6 py-3 border-t border-border flex items-center justify-between">
                 <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                   Showing {filtered.length} of {total} students
                 </p>
                 <div className="flex items-center gap-1">
-                  {["←", "1", "2", "→"].map((p) => (
+                  {["Prev", "1", "2", "Next"].map((paginationItem) => (
                     <button
-                      key={p}
+                      key={paginationItem}
                       className="w-7 h-7 flex items-center justify-center rounded-lg text-[10px] font-black text-muted-foreground hover:bg-primary-soft hover:text-primary transition-colors"
                     >
-                      {p}
+                      {paginationItem}
                     </button>
                   ))}
                 </div>
@@ -777,8 +311,8 @@ export default function StudentManagement() {
           </div>
         </div>
       </MainLayout>
-      {/* Modal — rendered outside scroll container */}
-      <StudentModal
+
+      <StudentManagementModal
         student={selectedStudent}
         index={selectedIndex}
         onClose={handleClose}

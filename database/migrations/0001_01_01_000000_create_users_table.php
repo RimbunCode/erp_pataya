@@ -19,6 +19,9 @@ return new class extends Migration
             $table->string('image')->nullable();
             $table->string('avatar_url')->nullable();
             $table->string('status')->default('pending');
+            $table->text('inactive_reason')->nullable();
+            $table->foreignUlid('inactive_by')->nullable()->references('id')->on('users')->nullOnDelete();
+            $table->timestamp('inactive_at')->nullable();
             $table->enum('gender', ['male', 'female'])->nullable();
             $table->date('birthdate')->nullable();
             $table->string('phone')->nullable();

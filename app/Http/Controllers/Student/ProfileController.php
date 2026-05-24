@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Models\Core\File;
+use App\Models\RoleRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -11,12 +12,33 @@ use Inertia\Inertia;
 
 class ProfileController extends Controller {
     public function index() {
-        $user    = Auth::user();
-        $profile = $user->studentProfile;
+        $user                    = Auth::user();
+        $profile                 = $user->studentProfile;
+        $latestInstructorRequest = RoleRequest::query()
+            ->with(['reviewer:id,name', 'proofFile:id,name,extension'])
+            ->where('user_id', $user->id)
+            ->where('requested_role', 'instructor')
+            ->latest('created_at')
+            ->first();
 
         return Inertia::render('Students/ProfileSettings', [
-            'user'    => $user,
-            'profile' => $profile,
+            'user'                    => $user,
+            'profile'                 => $profile,
+            'latestInstructorRequest' => $latestInstructorRequest
+                ? [
+                    'id'            => (string) $latestInstructorRequest->id,
+                    'status'        => (string) $latestInstructorRequest->status,
+                    'reason'        => (string) $latestInstructorRequest->reason,
+                    'submittedAt'   => $latestInstructorRequest->created_at?->toIso8601String(),
+                    'rejectReason'  => $latestInstructorRequest->rejection_reason,
+                    'reviewedAt'    => $latestInstructorRequest->reviewed_at?->toIso8601String(),
+                    'reviewedBy'    => $latestInstructorRequest->reviewer?->name,
+                    'proofUrl'      => route('files.preview', $latestInstructorRequest->proof_file_id),
+                    'proofFileName' => $latestInstructorRequest->proofFile
+                        ? trim("{$latestInstructorRequest->proofFile->name}.{$latestInstructorRequest->proofFile->extension}", '.')
+                        : null,
+                ]
+                : null,
         ]);
     }
 

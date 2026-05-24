@@ -1,40 +1,31 @@
 <?php
-use App\FormStatus;
-use App\Http\Controllers\Core\ApprovalInstanceController;
-use App\Http\Controllers\Core\ApprovalSchemeController;
-use App\Http\Controllers\Core\BranchController;
-use App\Http\Controllers\Core\CompanyController;
+use App\Http\Controllers\Admin\CourseApprovalController;
+use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
+use App\Http\Controllers\Admin\SystemFinanceController;
+use App\Http\Controllers\Admin\UserDirectoryController;
 use App\Http\Controllers\Core\CompanyLogoController;
-use App\Http\Controllers\Core\DashboardController;
 use App\Http\Controllers\Core\FileController;
-use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\LanguageController;
-use App\Http\Controllers\Core\LogController;
-use App\Http\Controllers\Core\PrintTemplateController;
-use App\Http\Controllers\Core\TagController;
-use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\Instructor\CourseContentController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\CourseSectionController;
 use App\Http\Controllers\Instructor\CourseSectionNoteController;
+use App\Http\Controllers\Instructor\FinancialController as InstructorFinancialController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
-use App\Http\Controllers\MockAuthController;
+use App\Http\Controllers\Instructor\StudentManagementController;
 use App\Http\Controllers\ModelController;
 use App\Http\Controllers\Student\CartController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\CourseListController;
 use App\Http\Controllers\Student\EnrollmentController;
+use App\Http\Controllers\Student\InstructorRoleRequestController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\SubmissionController;
-use App\Http\Controllers\User\RoleController;
-use App\Http\Controllers\User\UserController;
 use App\Services\Auth\RoleResolver;
-use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
-use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -78,7 +69,7 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
 });
 
 Route::get('/', function () {
-    return redirect('/guest');
+    return redirect('/');
 });
 
 Route::middleware(['auth'])->group(function () {
@@ -99,6 +90,7 @@ Route::middleware(['auth'])->group(function () {
         Route::delete('/cart/{courseId}', [CartController::class, 'destroy'])->name('student.cart.destroy');
         Route::get('/profile', [StudentProfileController::class, 'index'])->name('student.profile');
         Route::put('/profile', [StudentProfileController::class, 'update'])->name('student.profile.update');
+        Route::post('/instructor-requests', [InstructorRoleRequestController::class, 'store'])->name('student.instructor-requests.store');
         Route::post('/profile/avatar', [StudentProfileController::class, 'updateAvatar'])->name('student.avatar.update');
         Route::delete('/profile/avatar', [StudentProfileController::class, 'destroyImage'])->name('student.image.delete');
         Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
@@ -130,9 +122,10 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/contents/{content}/upload', [CourseContentController::class, 'upload'])->name('sections.contents.upload');
             Route::delete('/contents/{content}/files/{file}', [CourseContentController::class, 'destroyFile'])->name('sections.contents.files.destroy');
         });
-        Route::get('/students', fn () => inertia('Instructors/StudentManagement'))->name('students');
+        Route::get('/students', [StudentManagementController::class, 'index'])->name('students');
         Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('growth');
-        Route::get('/financial', fn () => inertia('Instructors/Financials'))->name('financial');
+        Route::get('/financial', [InstructorFinancialController::class, 'index'])->name('financial');
+        Route::post('/financial/payout-requests', [InstructorFinancialController::class, 'storePayoutRequest'])->name('financial.payout-requests.store');
 
         Route::get('/profile', [InstructorProfileController::class, 'index'])->name('profile');
         Route::put('/profile', [InstructorProfileController::class, 'update'])->name('profile.update');
@@ -147,12 +140,50 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/financial', fn () => inertia('Organizations/Financials'))->name('organization.financial');
     });
 
-    Route::get('/admin/dashboard', fn () => inertia('Admin/Dashboard'))->name('admin.dashboard');
+    Route::middleware(['role:admin'])->prefix('/admin')->name('admin.')->group(function () {
+        Route::get('/dashboard', fn () => inertia('Admin/Dashboard'))->name('dashboard');
+
+        Route::middleware(['admin.permission:course_admin,super_admin'])->group(function () {
+            Route::get('/approvals', [CourseApprovalController::class, 'index'])->name('approval');
+            Route::patch('/approvals/{coursePublishRequest}/approve', [CourseApprovalController::class, 'approve'])->name('approval.approve');
+            Route::patch('/approvals/{coursePublishRequest}/reject', [CourseApprovalController::class, 'reject'])->name('approval.reject');
+        });
+
+        Route::middleware(['admin.permission:finance_admin,super_admin'])->group(function () {
+            Route::get('/finance', [SystemFinanceController::class, 'index'])->name('finance');
+            Route::patch('/finance/{payment}/approve', [SystemFinanceController::class, 'approve'])->name('finance.approve');
+            Route::patch('/finance/{payment}/reject', [SystemFinanceController::class, 'reject'])->name('finance.reject');
+            Route::get('/finance/{payment}/proof', [SystemFinanceController::class, 'proof'])->name('finance.proof');
+            Route::post('/finance/payouts/batch', [SystemFinanceController::class, 'runPayoutBatch'])->name('finance.payouts.batch');
+            Route::patch('/finance/payouts/{payoutRequest}/approve', [SystemFinanceController::class, 'approvePayoutRequest'])->name('finance.payouts.approve');
+            Route::patch('/finance/payouts/{payoutRequest}/reject', [SystemFinanceController::class, 'rejectPayoutRequest'])->name('finance.payouts.reject');
+            Route::patch('/finance/payouts/{payoutRequest}/paid', [SystemFinanceController::class, 'markPayoutRequestAsPaid'])->name('finance.payouts.paid');
+            Route::get('/finance/payouts/{payoutRequest}/proof', [SystemFinanceController::class, 'payoutProof'])->name('finance.payouts.proof');
+            Route::patch('/finance/settings/payout-delay', [SystemFinanceController::class, 'updatePayoutDelay'])->name('finance.settings.payout-delay');
+            Route::patch('/finance/settings/company-fee', [SystemFinanceController::class, 'updateCompanyFee'])->name('finance.settings.company-fee');
+        });
+
+        Route::middleware(['admin.permission:user_admin,super_admin'])->group(function () {
+            Route::get('/user', [UserDirectoryController::class, 'index'])->name('user');
+            Route::patch('/user/requests/{roleRequest}/approve', [UserDirectoryController::class, 'approveRequest'])->name('user.requests.approve');
+            Route::patch('/user/requests/{roleRequest}/reject', [UserDirectoryController::class, 'rejectRequest'])->name('user.requests.reject');
+            Route::patch('/user/users/{user}/status', [UserDirectoryController::class, 'updateUserStatus'])->name('user.users.status');
+        });
+
+        Route::middleware(['admin.permission:super_admin'])->group(function () {
+            Route::patch('/user/admins/{user}/permissions', [UserDirectoryController::class, 'updateAdminPermissions'])->name('user.admins.permissions');
+        });
+
+        Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile');
+        Route::put('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/avatar', [AdminProfileController::class, 'updateAvatar'])->name('avatar.update');
+        Route::delete('/profile/avatar', [AdminProfileController::class, 'destroyImage'])->name('image.delete');
+    });
 
     Route::get('/{role}/{path?}', function (Request $request, string $role, RoleResolver $roleResolver) {
         $user = $request->user();
         if (! $user) {
-            return redirect('/guest');
+            return redirect('/');
         }
 
         $userRoles = $roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
@@ -253,7 +284,6 @@ Route::get('/model/{model}', [ModelController::class, 'columns'])
 //     Route::post('approvals/{approvalInstanceStep}/decision', [ApprovalInstanceController::class, 'decision'])->name('approvalInstances.decision');
 
 // });
-Route::post('/mock-login', [MockAuthController::class, 'login'])->name('mock.login');
 
 Route::get('/health', fn () => response()->json(['status' => 'ok']));
 require __DIR__ . '/auth.php';

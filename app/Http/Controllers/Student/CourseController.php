@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Student;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Cart;
 use App\Models\Course;
@@ -67,7 +68,22 @@ class CourseController extends Controller {
     }
 
     public function show(Course $course) {
+        $user = Auth::user();
+
         $course->load(['categories', 'creator', 'sections.contents']);
+
+        $enrollment = null;
+        if ($user !== null) {
+            $enrollment = Enrollment::query()
+                ->with('payment')
+                ->where('user_id', $user->id)
+                ->where('course_id', $course->id)
+                ->first();
+        }
+
+        $enrollmentStatus = (string) ($enrollment?->status ?? '');
+        $isEnrolled       = $enrollment !== null
+            && ($enrollmentStatus === '' || $enrollmentStatus === FormStatus::ACTIVE->value);
 
         return Inertia::render('Students/CoursePreview', [
             'course' => [
@@ -98,6 +114,10 @@ class CourseController extends Controller {
                     ]),
                 ]),
             ],
+            'isLoggedIn'       => $user !== null,
+            'isEnrolled'       => $isEnrolled,
+            'enrollmentStatus' => $enrollmentStatus,
+            'rejectionReason'  => $enrollment?->payment?->rejection_reason,
         ]);
     }
 }

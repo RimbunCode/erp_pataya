@@ -2,10 +2,13 @@
 import { useForm } from "@inertiajs/react";
 
 const DEFAULT_THUMBNAIL = "/storage/images/logo-default.png";
+const DISCOUNT_TYPES = {
+  amount: "amount",
+  percentage: "percentage",
+};
 
 /**
  * useCourseForm
- *
  * @param {object|null} course  - Data course yang ada (mode edit), atau null (mode create)
  * @param {function}    onClose - Callback setelah modal ditutup / berhasil submit
  */
@@ -24,6 +27,9 @@ export function useCourseForm(course = null, onClose) {
 
   const [thumbnailPreview, setThumbnailPreview] =
     useState(existingThumbnailUrl);
+  const [discountType, setDiscountType] = useState(
+    course?.discount_type ?? DISCOUNT_TYPES.amount,
+  );
 
   // "thumbnail" di form state:
   //   - null          â†’ tidak ada perubahan (mode edit: backend skip field ini)
@@ -33,6 +39,8 @@ export function useCourseForm(course = null, onClose) {
     title: course?.title ?? "",
     description: course?.description ?? "",
     price: course?.price ?? "",
+    discount_type: course?.discount_type ?? DISCOUNT_TYPES.amount,
+    discount: course?.discount ?? "",
     level: course?.level ?? "",
     category: course?.categories?.[0] ?? "",
     total_hours: course?.total_hours ?? "",
@@ -48,6 +56,11 @@ export function useCourseForm(course = null, onClose) {
     setThumbnailPreview(URL.createObjectURL(file));
   };
 
+  const handleDiscountTypeChange = (value) => {
+    setDiscountType(value);
+    setData("discount_type", value);
+  };
+
   const removeThumbnail = () => {
     // Mode edit: kirim signal "delete" ke backend agar thumbnail lama dihapus.
     // Mode create: cukup null saja.
@@ -60,12 +73,17 @@ export function useCourseForm(course = null, onClose) {
   const [step, setStep] = useState(1);
 
   // â”€â”€ Sections (hanya dipakai mode create) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [sections, setSections] = useState([
-    { id: 1, title: "", contents: [] },
-  ]);
+  const [sections, setSections] = useState([]);
 
   const goToStep2 = () => {
-    const count = parseInt(data.total_sessions) || 1;
+    const count = Number.parseInt(data.total_sessions, 10);
+
+    if (!Number.isFinite(count) || count <= 0) {
+      setSections([]);
+      setStep(2);
+      return;
+    }
+
     setSections(
       Array.from({ length: count }, (_, i) => ({
         id: Date.now() + i,
@@ -126,7 +144,6 @@ export function useCourseForm(course = null, onClose) {
       ),
     );
 
-  // â”€â”€ Submit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleSubmit = () => {
     if (isEdit) {
       // Submit via useForm agar errors & processing tersinkron otomatis.
@@ -192,6 +209,9 @@ export function useCourseForm(course = null, onClose) {
     thumbnailPreview,
     handleThumbnailChange,
     removeThumbnail,
+    discountType,
+    onDiscountTypeChange: handleDiscountTypeChange,
+    discountPrefix: discountType === DISCOUNT_TYPES.percentage ? "%" : "Rp",
     // sections
     sections,
     addSection,
@@ -204,4 +224,3 @@ export function useCourseForm(course = null, onClose) {
     handleSubmit,
   };
 }
-

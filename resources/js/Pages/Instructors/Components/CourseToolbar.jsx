@@ -9,7 +9,7 @@ export default function CourseToolbar({
   return (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
-        {["all", "published", "draft"].map((f) => (
+        {["all", "published", "pending", "rejected", "draft"].map((f) => (
           <button
             key={f}
             onClick={() => applyFilter("status", f)}

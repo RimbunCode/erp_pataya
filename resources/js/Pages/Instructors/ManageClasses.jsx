@@ -2,7 +2,7 @@ import MainLayout from "@/Layouts/MainLayout";
 import { useState } from "react";
 import { router } from "@inertiajs/react";
 
-import CreateCourseModal from "./Components/CreateCourseModal";
+import CourseModal from "./CourseModal";
 import CourseCard from "./Components/CourseCard";
 import CourseRow from "./Components/CourseRow";
 import CourseStats from "./Components/CourseStats";
@@ -96,7 +96,7 @@ export default function ManageClasses({
       </div>
 
       {showCreate && (
-        <CreateCourseModal
+        <CourseModal
           categories={categories}
           onClose={() => setShowCreate(false)}
         />

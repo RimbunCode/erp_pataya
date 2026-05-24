@@ -5,9 +5,14 @@ namespace App\Http\Controllers\Auth;
 use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Http\Requests\Auth\LoginRolesRequest;
+use App\Http\Requests\Auth\SelectRoleRequest;
 use App\Models\User\User;
 use App\Models\User\UserProvider;
+use App\Services\Auth\LoginCredentialVerifier;
 use App\Services\Auth\RoleResolver;
+use App\Services\Auth\UserRoleManager;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +23,11 @@ use Inertia\Response;
 use Laravel\Socialite\Facades\Socialite;
 
 class AuthenticatedSessionController extends Controller {
-    public function __construct(private RoleResolver $roleResolver) {}
+    public function __construct(
+        private RoleResolver $roleResolver,
+        private LoginCredentialVerifier $loginCredentialVerifier,
+        private UserRoleManager $userRoleManager,
+    ) {}
 
     /**
      * Display the login view.
@@ -30,17 +39,72 @@ class AuthenticatedSessionController extends Controller {
         ]);
     }
 
+    public function roles(LoginRolesRequest $request): JsonResponse {
+        $user = $this->loginCredentialVerifier->verifyCredentials(
+            $request->string('usernameOrEmail')->toString(),
+            $request->string('password')->toString(),
+            (string) $request->ip(),
+            $request,
+        );
+
+        $roles = $this->roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
+        if (\count($roles) === 0) {
+            $this->throwNoRoleAccess($request);
+        }
+
+        return response()->json([
+            'roles'              => $roles,
+            'requires_selection' => \count($roles) > 1,
+            'auto_role'          => \count($roles) === 1 ? $roles[0] : null,
+        ]);
+    }
+
     /**
      * Handle an incoming authentication request.
      */
     public function store(LoginRequest $request): RedirectResponse {
-        $request->authenticate();
+        $user = $this->loginCredentialVerifier->verifyCredentials(
+            $request->string('usernameOrEmail')->toString(),
+            $request->string('password')->toString(),
+            (string) $request->ip(),
+            $request,
+        );
 
+        Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        $user = Auth::user();
+        return $this->redirectAfterAuthentication(
+            $request,
+            $user,
+            $request->string('preferred_role')->toString(),
+        );
+    }
+
+    public function showRoleSelection(Request $request): RedirectResponse|Response {
+        $user = $request->user();
         if (! $user) {
-            return redirect('/guest');
+            return redirect('/');
+        }
+
+        $roles = $this->roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
+        if (\count($roles) === 0) {
+            $this->throwNoRoleAccess($request);
+        }
+
+        if (\count($roles) === 1) {
+            return $this->redirectToRoleDashboard($roles[0], $roles);
+        }
+
+        return Inertia::render('Auth/SelectRole', [
+            'roles'             => $roles,
+            'contact_admin_url' => route('guest.contact', absolute: false),
+        ]);
+    }
+
+    public function selectRole(SelectRoleRequest $request): RedirectResponse {
+        $user = $request->user();
+        if (! $user) {
+            return redirect('/');
         }
 
         return $this->redirectAfterAuthentication(
@@ -52,132 +116,153 @@ class AuthenticatedSessionController extends Controller {
 
     public function redirectToProvider(string $driver) {
         return Socialite::driver($driver)
-            // ->scopes([
-            //     'https://www.googleapis.com/auth/documents',
-            //     'https://www.googleapis.com/auth/spreadsheets',
-            // ])
-            // ->with([
-            //     'access_type' => 'offline',
-            //     'prompt'      => 'consent',
-            // ])
             ->redirect();
     }
 
-    public function handleProviderCallback(Request $request, string $driver) {
-        $user = Socialite::driver($driver)->user();
+    public function handleProviderCallback(Request $request, string $driver): RedirectResponse {
+        $providerUser = Socialite::driver($driver)->user();
 
         $authUser = $request->user();
 
         $payload = match ($driver) {
             'google' => [
-                'avatar_url'       => $user->getAvatar(),
-                'token'            => $user->token,
-                'refresh_token'    => $user->refreshToken,
-                'token_expired_at' => now()->addSeconds($user->expiresIn - 10),
+                'avatar_url'       => $providerUser->getAvatar(),
+                'token'            => $providerUser->token,
+                'refresh_token'    => $providerUser->refreshToken,
+                'token_expired_at' => now()->addSeconds($providerUser->expiresIn - 10),
             ],
         };
 
-        DB::beginTransaction();
         if ($authUser) {
-            $alreadyConnected = UserProvider::where('provider', $driver)
-                ->where('provider_id', $user->getId())
-                ->exists();
+            DB::transaction(function () use ($authUser, $driver, $providerUser, $payload): void {
+                $alreadyConnected = UserProvider::where('provider', $driver)
+                    ->where('provider_id', $providerUser->getId())
+                    ->exists();
 
-            if ($alreadyConnected) {
-                throw ValidationException::withMessages([
-                    'provider_account' => 'This provider account is already connected to your account.',
-                ]);
-            }
-            $authUser->providers()->updateOrCreate([
-                'provider'    => $driver,
-                'provider_id' => $user->getId(),
-                'user_id'     => $authUser->id,
-            ], $payload);
+                if ($alreadyConnected) {
+                    throw ValidationException::withMessages([
+                        'provider_account' => 'This provider account is already connected to your account.',
+                    ]);
+                }
 
-            $selectedProvider = $authUser->providers()->whereNotNull('avatar_url')->latest()->first();
+                $authUser->providers()->updateOrCreate([
+                    'provider'    => $driver,
+                    'provider_id' => $providerUser->getId(),
+                    'user_id'     => $authUser->id,
+                ], $payload);
 
-            if ($selectedProvider) {
-                $authUser->update([
-                    'avatar_url' => $selectedProvider->avatar_url,
-                ]);
-            }
+                $selectedProvider = $authUser->providers()->whereNotNull('avatar_url')->latest()->first();
 
-            DB::commit();
+                if ($selectedProvider) {
+                    $authUser->update([
+                        'avatar_url' => $selectedProvider->avatar_url,
+                    ]);
+                }
+            });
 
             return redirect()->route('users.show', $authUser->id);
-        } else {
+        }
+
+        $authUser = DB::transaction(function () use ($driver, $providerUser, $payload): User {
             $provider = UserProvider::where('provider', $driver)
-                ->where('provider_id', $user->getId())->first();
+                ->where('provider_id', $providerUser->getId())
+                ->first();
 
             if (! $provider) {
-                $authUser = User::where('email', $user->getEmail())->first();
-                if (! $authUser) {
-                    $authUser = User::create([
-                        'name'              => $user->getName(),
-                        'email'             => $user->getEmail(),
+                $linkedUser = User::where('email', $providerUser->getEmail())->first();
+                if (! $linkedUser) {
+                    $linkedUser = User::create([
+                        'name'              => $providerUser->getName() ?? $providerUser->getNickname() ?? 'User',
+                        'email'             => $providerUser->getEmail(),
                         'email_verified_at' => now(),
                         'status'            => FormStatus::PRE_REGISTERED,
                     ]);
                 }
+
                 $provider = UserProvider::create([
                     'provider'    => $driver,
-                    'provider_id' => $user->getId(),
-                    'user_id'     => $authUser->id,
+                    'provider_id' => $providerUser->getId(),
+                    'user_id'     => $linkedUser->id,
                     ...$payload,
                 ]);
             } else {
                 $provider->update($payload);
-                $authUser = $provider->user;
             }
 
-            $authUser         = $provider->user;
-            $selectedProvider = $authUser->providers()->whereNotNull('avatar_url')->latest()->first();
+            $resolvedUser = $provider->user;
+            $this->userRoleManager->ensureStudentRole($resolvedUser);
 
+            $selectedProvider = $resolvedUser->providers()->whereNotNull('avatar_url')->latest()->first();
             if ($selectedProvider) {
-                $authUser->update([
+                $resolvedUser->update([
                     'avatar_url' => $selectedProvider->avatar_url,
                 ]);
             }
 
-            DB::commit();
+            return $resolvedUser->fresh('roles');
+        });
 
-            if (! $authUser->password) {
-                throw ValidationException::withMessages([
-                    'status' => trans('auth.failed'),
-                ])->redirectTo(route('login'));
-            } elseif ($authUser?->status == FormStatus::INACTIVE) {
-                throw ValidationException::withMessages([
-                    'status' => trans('auth.disabled'),
-                ])->redirectTo(route('login'));
-            }
-
-            Auth::login($authUser);
-
-            if (\in_array($authUser->status, [FormStatus::PRE_REGISTERED, FormStatus::INVITED])) {
-                return redirect()->route('setup.show');
-            }
-
-            return $this->redirectAfterAuthentication($request, $authUser);
+        if ($authUser->status == FormStatus::INACTIVE) {
+            throw ValidationException::withMessages([
+                'status' => trans('auth.disabled'),
+            ])->redirectTo(route('login'));
         }
-        // return $this->storeProviderUser($user, $driver);
+
+        Auth::login($authUser);
+        $request->session()->regenerate();
+
+        if (\in_array($authUser->status, [FormStatus::PRE_REGISTERED, FormStatus::INVITED], true)) {
+            return redirect()->route('setup.show');
+        }
+
+        return $this->redirectAfterAuthentication($request, $authUser);
     }
 
-    private function redirectAfterAuthentication(Request $request, User $user, ?string $preferredRole = null): RedirectResponse {
+    private function redirectAfterAuthentication(
+        Request $request,
+        User $user,
+        ?string $preferredRole = null,
+    ): RedirectResponse {
         $roles = $this->roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
         $request->session()->put('user_roles', $roles);
 
-        $resolvedRole = $this->roleResolver->resolvePreferredOwnedRole(
-            $roles,
-            $preferredRole,
-            $request->cookie(RoleResolver::LAST_ACTIVE_ROLE_COOKIE),
-        );
-
-        if ($resolvedRole === null) {
-            return redirect('/guest');
+        if (\count($roles) === 0) {
+            $this->throwNoRoleAccess($request);
         }
 
+        $normalizedPreferredRole = $this->roleResolver->normalizeRole($preferredRole);
+
+        if (\count($roles) > 1 && $normalizedPreferredRole === null) {
+            return redirect()->route('login.select-role');
+        }
+
+        if (
+            $normalizedPreferredRole !== null
+            && ! \in_array($normalizedPreferredRole, $roles, true)
+        ) {
+            throw ValidationException::withMessages([
+                'preferred_role' => trans('auth.invalid_role'),
+            ]);
+        }
+
+        $resolvedRole = \count($roles) === 1
+            ? $roles[0]
+            : $normalizedPreferredRole;
+
+        if (! \is_string($resolvedRole)) {
+            return redirect()->route('login.select-role');
+        }
+
+        return $this->redirectToRoleDashboard($resolvedRole, $roles);
+    }
+
+    /**
+     * @param  array<int, string>  $roles
+     */
+    private function redirectToRoleDashboard(string $resolvedRole, array $roles): RedirectResponse {
         $cookieRole  = $resolvedRole;
         $intendedUrl = redirect()->getIntendedUrl();
+
         if (\is_string($intendedUrl)) {
             $intendedRole = $this->roleResolver->roleFromPath($intendedUrl);
             if ($intendedRole !== null) {
@@ -192,6 +277,17 @@ class AuthenticatedSessionController extends Controller {
         return redirect()
             ->intended($this->roleResolver->dashboardPath($resolvedRole))
             ->withCookie($this->roleResolver->makeLastActiveRoleCookie($cookieRole));
+    }
+
+    private function throwNoRoleAccess(Request $request): never {
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        throw ValidationException::withMessages([
+            'status'            => trans('auth.no_role_access'),
+            'contact_admin_url' => route('guest.contact', absolute: false),
+        ])->redirectTo(route('login'));
     }
 
     /**

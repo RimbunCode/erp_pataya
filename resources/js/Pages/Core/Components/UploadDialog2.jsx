@@ -31,6 +31,7 @@ export default forwardRef(function UploadDialog2(
     single = false,
     imageOnly = false,
     allowNotes = false,
+    notesRequired = false,
     notesPlaceholder = "Tambahkan catatan...",
     options: { route: routeProp, ...optionsProp } = {},
   },
@@ -151,7 +152,7 @@ export default forwardRef(function UploadDialog2(
         },
       });
     },
-    [onClose, optionsProp, routeProp],
+    [allowNotes, notes, onClose, optionsProp, routeProp],
   );
 
   const getMenu = () => {
@@ -327,7 +328,7 @@ export default forwardRef(function UploadDialog2(
         {allowNotes && (
           <div className="space-y-1">
             <label className="text-sm font-semibold text-foreground">
-              Catatan
+              Catatan{notesRequired ? " *" : ""}
             </label>
             <textarea
               value={notes}
@@ -393,7 +394,8 @@ export default forwardRef(function UploadDialog2(
           )}
           <Button
             disabled={
-              menu == "home" ? files.length <= 0 : checklistFile.size <= 0
+              (menu == "home" ? files.length <= 0 : checklistFile.size <= 0) ||
+              (allowNotes && notesRequired && !notes.trim())
             }
             size="sm"
             onClick={() =>

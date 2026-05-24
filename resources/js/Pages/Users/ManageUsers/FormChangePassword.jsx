@@ -3,11 +3,9 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import FormInput from "@/Components/FormInput";
 import PasswordChecker from "@/Components/PasswordChecker";
 import PasswordInput from "@/Components/PasswordInput";
-import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useState } from "react";
 
 function FormChangePassword() {
-  const { t } = useLaravelReactI18n();
   const { data, setData } = useFormPage({
     current_password: "",
     password: "",
@@ -17,11 +15,7 @@ function FormChangePassword() {
   return (
     <FormPageContent value="change-password">
       <div className="grid grid-cols-1 gap-y-4">
-        <FormInput
-          name="password"
-          required={true}
-          label={t("user.user.manage_password.columns.current_password")}
-        >
+        <FormInput name="password" required={true} label="Current Password">
           <PasswordInput
             autoComplete="off"
             value={data.current_password}
@@ -29,11 +23,7 @@ function FormChangePassword() {
           />
         </FormInput>
         <div>
-          <FormInput
-            name="new_password"
-            required={true}
-            label={t("user.user.manage_password.columns.password")}
-          >
+          <FormInput name="new_password" required={true} label="New Password">
             <PasswordInput
               autoComplete="off"
               visible={isVisible}
@@ -48,7 +38,7 @@ function FormChangePassword() {
           name="password_confirmation"
           autoComplete="off"
           required={true}
-          label={t("user.user.manage_password.columns.password_confirmation")}
+          label="Password Confirmation"
         >
           <PasswordInput
             autoComplete="off"

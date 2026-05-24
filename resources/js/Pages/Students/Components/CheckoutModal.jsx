@@ -1,5 +1,6 @@
 import { router } from "@inertiajs/react";
-import { formatRp } from "../Utils/formatRp";
+import { cn, formatRp } from "@/lib/utils";
+
 import { useState, useRef } from "react";
 
 export default function CheckoutModal({ items, total, onClose, onSuccess }) {
