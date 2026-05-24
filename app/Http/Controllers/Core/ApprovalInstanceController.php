@@ -96,8 +96,8 @@ class ApprovalInstanceController extends Controller {
             ->exists();
     }
 
-    public function checkApproval(Model $data, array $options = []) {
-        return DB::transaction(function () use ($data, $options) {
+    public function checkApproval(Model $data, array $options = [], string $triggerOn = "submit") {
+        return DB::transaction(function () use ($data, $options, $triggerOn) {
             $currentRoute     = Route::getCurrentRoute();
             $controller       = $currentRoute->getControllerClass();
             $parameters       = $currentRoute->originalParameters();
@@ -105,7 +105,7 @@ class ApprovalInstanceController extends Controller {
                 'controller' => $controller,
                 'parameters' => $parameters,
                 'options'    => $options,
-            ]);
+            ], $triggerOn);
 
             if (! $instanceApproval || $instanceApproval->status == FormStatus::APPROVED) {
                 $result = app()->call(\implode([$controller, '@', 'onApproved']), [
@@ -217,7 +217,7 @@ class ApprovalInstanceController extends Controller {
             'notes'       => $notes,
         ]);
 
-        $isRejected = false;
+        $isRejected                  = false;
         $approval->current_sequence += 1;
         foreach ($approval->steps()->get() as $step) {
             if ($isRejected) {

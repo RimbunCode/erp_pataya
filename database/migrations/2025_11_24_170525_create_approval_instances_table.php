@@ -1,11 +1,11 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
@@ -14,6 +14,7 @@ return new class extends Migration
             $table->ulid('id')->primary();
             $table->foreignUlid('approval_scheme_id')->references('id')->on('approval_schemes')->cascadeOnDelete();
             $table->ulidMorphs('document');
+            $table->string('trigger_on')->default('submit');
             $table->string('status')->default('draft');
             $table->json('options')->nullable();
             $table->tinyInteger('current_sequence')->default(0);

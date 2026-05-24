@@ -23,7 +23,6 @@ use Illuminate\Support\Facades\Schema;
 
 trait Submitable {
     use DataTable;
-
     protected static bool $is_submitable = true;
 
     public function initializeSubmitable() {
@@ -62,8 +61,8 @@ trait Submitable {
             }
 
             static $submittedFormatColumnCache = [];
-            $tableName                         = $model->getTable();
-            $hasSubmittedFormatColumn          = $submittedFormatColumnCache[$tableName] ??= Schema::hasColumn($tableName, 'submitted_format');
+            $tableName                = $model->getTable();
+            $hasSubmittedFormatColumn = $submittedFormatColumnCache[$tableName] ??= Schema::hasColumn($tableName, 'submitted_format');
             if ($hasSubmittedFormatColumn && $model->isDirty('code')) {
                 $latestFormat = FormatingSeries::where('model', $model::class)->value('format');
                 if (is_string($latestFormat) && trim($latestFormat) !== '') {
@@ -102,10 +101,11 @@ trait Submitable {
         return $this->belongsTo(\get_class($this), 'amended_from_id');
     }
 
-    public function checkApproval(array $options = []) {
+    public function checkApproval(array $options = [], string $triggerOn = "submit") {
         return app()->call(\implode([ApprovalInstanceController::class, '@', 'checkApproval']), [
             'data'    => $this,
             'options' => $options,
+            'trigger' => $triggerOn,
         ]);
     }
 
@@ -122,7 +122,7 @@ trait Submitable {
             $newCode       = $dataOri->code . "-{$dataOri->revision_number}";
             $amendedFromId = $dataOri->id;
         }
-        $newData = $this->replicate([
+        $newData                  = $this->replicate([
             'id',
             'created_at',
             'updated_at',
@@ -144,7 +144,7 @@ trait Submitable {
                 if ($value instanceof Collection) {
                     $foreignKey = $newData->$key()->getForeignKeyName();
                     foreach ($value as $item) {
-                        $item = $item->replicate([
+                        $item              = $item->replicate([
                             'id',
                             'created_at',
                             'updated_at',
