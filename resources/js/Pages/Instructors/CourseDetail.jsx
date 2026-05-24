@@ -30,6 +30,18 @@ export default function CourseDetail({ course, categories = [] }) {
   const cfg = statusConfig[course.status] ?? statusConfig.draft;
   const levelCls =
     levelColor[course.level?.toLowerCase()] ?? "bg-muted text-muted-foreground";
+  const isPendingApproval = course.status === "pending";
+  const hasPendingPriceChangeApproval =
+    course.has_pending_price_change_approval === true;
+  const pendingPriceChange = course.pending_price_change;
+  const proposedPrice =
+    pendingPriceChange?.submitted_discount_type === "percentage"
+      ? Number(pendingPriceChange.submitted_price) -
+        (Number(pendingPriceChange.submitted_price) *
+          Number(pendingPriceChange.submitted_discount)) /
+          100
+      : Number(pendingPriceChange?.submitted_price) -
+        Number(pendingPriceChange?.submitted_discount);
 
   const addSection = () => {
     router.post(
@@ -238,22 +250,81 @@ export default function CourseDetail({ course, categories = [] }) {
                 Edit Info
               </button>
               <button
-                onClick={() =>
+                onClick={() => {
+                  if (isPendingApproval) {
+                    return;
+                  }
+
                   router.patch(
                     route("instructor.classes.togglePublish", course.id),
-                  )
-                }
+                  );
+                }}
+                disabled={isPendingApproval}
                 className={`flex items-center gap-2 px-5 py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all border-2 ${
-                  course.status === "published"
-                    ? "border-border text-muted-foreground hover:bg-muted"
-                    : "border-green-200 text-green-600 hover:bg-green-50"
+                  isPendingApproval
+                    ? "border-amber-200 text-amber-600 bg-amber-50 cursor-not-allowed"
+                    : course.status === "published"
+                      ? "border-border text-muted-foreground hover:bg-muted"
+                      : "border-green-200 text-green-600 hover:bg-green-50"
                 }`}
               >
-                {course.status === "published" ? "Unpublish" : "Publish"}
+                {isPendingApproval
+                  ? "Pending Approval"
+                  : course.status === "published"
+                    ? "Unpublish"
+                    : "Publish"}
               </button>
             </div>
           </div>
         </div>
+
+        {course.status === "rejected" && course.rejection_reason && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4">
+            <p className="text-[10px] font-black tracking-widest uppercase text-red-700">
+              Rejection Reason
+            </p>
+            <p className="mt-1 text-xs text-red-700 leading-relaxed">
+              {course.rejection_reason}
+            </p>
+          </div>
+        )}
+
+        {hasPendingPriceChangeApproval && pendingPriceChange && (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+            <p className="text-[10px] font-black tracking-widest uppercase text-amber-700">
+              Pending Price Approval
+            </p>
+            <p className="mt-1 text-xs text-amber-700 leading-relaxed">
+              Perubahan harga/diskon masih menunggu approval admin. Harga yang
+              tampil ke user saat ini tetap harga lama.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+              <div className="rounded-lg border border-amber-200 bg-white/70 p-2.5">
+                <p className="font-black text-amber-700 uppercase tracking-wider text-[10px]">
+                  Active Price
+                </p>
+                <p className="mt-1 font-bold text-foreground">
+                  {formatRp(course.price)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-white/70 p-2.5">
+                <p className="font-black text-amber-700 uppercase tracking-wider text-[10px]">
+                  Proposed Price
+                </p>
+                <p className="mt-1 font-bold text-foreground">
+                  {formatRp(Number(pendingPriceChange.submitted_price))}
+                </p>
+                {Number(pendingPriceChange.submitted_discount) > 0 && (
+                  <p className="mt-0.5 text-muted-foreground">
+                    {pendingPriceChange.submitted_discount_type === "percentage"
+                      ? `${pendingPriceChange.submitted_discount}% off → ${formatRp(proposedPrice)}`
+                      : `${formatRp(Number(pendingPriceChange.submitted_discount))} off → ${formatRp(proposedPrice)}`}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Stat cards ── */}
         <div className="grid grid-cols-3 gap-3">

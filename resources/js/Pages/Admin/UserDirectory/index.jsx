@@ -60,22 +60,22 @@ export default function UserDirectory() {
                   [
                     "Students",
                     users.filter((u) => u.role === "student").length,
-                    "text-blue-600 bg-blue-50 dark:bg-blue-950/40",
+                    "text-blue-700 bg-blue-100 dark:bg-blue-500/15 dark:text-blue-300",
                   ],
                   [
                     "Instructors",
                     users.filter((u) => u.role === "instructor").length,
-                    "text-violet-600 bg-violet-50 dark:bg-violet-950/40",
+                    "text-violet-700 bg-violet-100 dark:bg-violet-500/15 dark:text-violet-300",
                   ],
                   [
                     "Organizations",
                     orgs.length,
-                    "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40",
+                    "text-emerald-700 bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-300",
                   ],
                   [
                     "Admins",
                     admins.length,
-                    "text-amber-600 bg-amber-50 dark:bg-amber-950/40",
+                    "text-amber-700 bg-amber-100 dark:bg-amber-500/15 dark:text-amber-300",
                   ],
                 ].map(([l, v, c]) => (
                   <div
@@ -103,7 +103,7 @@ export default function UserDirectory() {
                     className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
                       tab.urgent &&
                       (tab.key === "requests" ? pendingRequests : 0) > 0
-                        ? "bg-amber-500 text-white"
+                        ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
                         : activeTab === tab.key
                           ? "bg-[var(--primary-soft)] text-[var(--primary)]"
                           : "bg-[var(--secondary)] text-[var(--muted-foreground)]"

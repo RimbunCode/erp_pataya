@@ -1,16 +1,16 @@
-import { useState } from "react";
 import {
-  AreaChart,
   Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
 import MainLayout from "@/Layouts/MainLayout";
 
-// ── Mock data ──────────────────────────────────────────────────────────────────
+const CHART_COLOR = "var(--primary)";
+
 const growthData = [
   { day: "Mon", Students: 100 },
   { day: "Tue", Students: 123 },
@@ -53,14 +53,12 @@ const trainings = [
   },
 ];
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-function StatCard({ icon, label, value, trend, trendLabel, iconBg }) {
+function StatCard({ icon, label, value, trendLabel, iconClassName = "" }) {
   return (
     <div className="bg-card rounded-2xl p-6 flex flex-col gap-3 shadow-sm border border-border flex-1 min-w-0">
       <div className="flex items-start justify-between">
         <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconBg}`}
+          className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconClassName}`}
         >
           {icon}
         </div>
@@ -71,7 +69,7 @@ function StatCard({ icon, label, value, trend, trendLabel, iconBg }) {
       <p className="text-2xl font-black text-foreground tracking-tight">
         {value}
       </p>
-      <p className="text-xs font-bold text-green-500 flex items-center gap-1">
+      <p className="text-xs font-bold text-emerald-600 dark:text-emerald-300 flex items-center gap-1">
         <svg
           className="w-3 h-3"
           fill="none"
@@ -97,7 +95,7 @@ function StatusBadge({ status }) {
     <span
       className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-widest border ${
         isActive
-          ? "bg-green-50 text-green-600 border-green-200"
+          ? "bg-emerald-100 text-emerald-700 border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300"
           : "bg-muted text-muted-foreground border-border"
       }`}
     >
@@ -112,7 +110,7 @@ const CustomTooltip = ({ active, payload, label }) => {
       <div className="bg-card border border-border rounded-xl px-4 py-2 shadow-lg text-xs">
         <p className="font-bold text-foreground">{label}</p>
         <p className="text-primary font-black">
-          students : {payload[0].value.toLocaleString()}
+          students: {payload[0].value.toLocaleString()}
         </p>
       </div>
     );
@@ -120,34 +118,30 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-// ── Main page ──────────────────────────────────────────────────────────────────
-
-export default function InstructorDashboard() {
+export default function AdminDashboard() {
   return (
     <MainLayout>
-      <div className="p-8 space-y-6">
-        {/* Header */}
+      <div data-role="admin" className="p-8 space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-foreground uppercase">
-              Instructor Hub
+              Admin Command Center
             </h2>
             <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Empower the next generation of engineers.
+              Monitor approvals, users, and learning performance.
             </p>
           </div>
         </div>
 
-        {/* Stat Cards */}
         <div className="flex gap-4 flex-wrap">
           <StatCard
             label="Active Students"
             value="1,284"
-            trendLabel="+48"
-            iconBg="bg-purple-50"
+            trendLabel="+48 this week"
+            iconClassName="bg-[var(--primary-soft)] text-[var(--primary)]"
             icon={
               <svg
-                className="w-5 h-5 text-purple-500"
+                className="w-5 h-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -165,10 +159,10 @@ export default function InstructorDashboard() {
             label="Completion Rate"
             value="92.4%"
             trendLabel="+2.1%"
-            iconBg="bg-green-50"
+            iconClassName="bg-secondary text-foreground"
             icon={
               <svg
-                className="w-5 h-5 text-green-500"
+                className="w-5 h-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -184,9 +178,7 @@ export default function InstructorDashboard() {
           />
         </div>
 
-        {/* Revenue Analytics + Announcements */}
         <div className="flex gap-4 flex-wrap lg:flex-nowrap">
-          {/* Chart */}
           <div className="bg-card rounded-2xl p-6 shadow-sm border border-border flex-1 min-w-0">
             <h3 className="text-xs font-black tracking-widest text-foreground uppercase mb-6">
               Growth Analytics
@@ -197,24 +189,46 @@ export default function InstructorDashboard() {
                 margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="revGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.01} />
+                  <linearGradient
+                    id="growthGradient"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="5%"
+                      stopColor={CHART_COLOR}
+                      stopOpacity={0.2}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor={CHART_COLOR}
+                      stopOpacity={0.02}
+                    />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="#f0f0f0"
+                  stroke="var(--border)"
                   vertical={false}
                 />
                 <XAxis
                   dataKey="day"
-                  tick={{ fontSize: 10, fill: "#9ca3af", fontWeight: 600 }}
+                  tick={{
+                    fontSize: 10,
+                    fill: "var(--muted-foreground)",
+                    fontWeight: 600,
+                  }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 10, fill: "#9ca3af", fontWeight: 600 }}
+                  tick={{
+                    fontSize: 10,
+                    fill: "var(--muted-foreground)",
+                    fontWeight: 600,
+                  }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -222,14 +236,14 @@ export default function InstructorDashboard() {
                 <Area
                   type="monotone"
                   dataKey="Students"
-                  stroke="#2563eb"
+                  stroke={CHART_COLOR}
                   strokeWidth={2.5}
-                  fill="url(#revGradient)"
+                  fill="url(#growthGradient)"
                   dot={false}
                   activeDot={{
                     r: 5,
-                    fill: "#2563eb",
-                    stroke: "#fff",
+                    fill: CHART_COLOR,
+                    stroke: "var(--card)",
                     strokeWidth: 2,
                   }}
                 />
@@ -237,69 +251,67 @@ export default function InstructorDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Announcements */}
-          <div className="bg-gray-900 rounded-2xl p-6 flex flex-col gap-4 w-full lg:w-72 flex-shrink-0">
-            <h3 className="text-xs font-black tracking-widest text-white uppercase">
+          <div className="bg-[var(--primary-soft)] rounded-2xl border border-border p-6 flex flex-col gap-4 w-full lg:w-72 flex-shrink-0">
+            <h3 className="text-xs font-black tracking-widest text-[var(--primary-soft-foreground)] uppercase">
               Active Announcements
             </h3>
             <div className="flex flex-col gap-3 flex-1">
-              {announcements.map((a) => (
-                <div key={a.id} className="bg-gray-800 rounded-xl px-4 py-3">
-                  <p className="text-sm font-bold text-white leading-snug">
-                    {a.title}
+              {announcements.map((announcement) => (
+                <div
+                  key={announcement.id}
+                  className="bg-background rounded-xl px-4 py-3 border border-border"
+                >
+                  <p className="text-sm font-bold text-foreground leading-snug">
+                    {announcement.title}
                   </p>
                   <p className="text-[10px] font-bold tracking-widest text-muted-foreground mt-1">
-                    {a.time}
+                    {announcement.time}
                   </p>
                 </div>
               ))}
             </div>
-            <button className="w-full py-3 bg-primary text-white text-xs font-black tracking-widest uppercase rounded-xl hover:bg-primary-hover transition-all">
+            <button className="w-full py-3 bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-black tracking-widest uppercase rounded-xl hover:bg-[var(--primary-hover)] transition-all">
               Broadcast New
             </button>
           </div>
         </div>
 
-        {/* My Trainings */}
         <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
           <div className="flex items-center justify-between px-6 py-5 border-b border-border">
             <h3 className="text-xs font-black tracking-widest text-foreground uppercase">
               My Trainings
             </h3>
-            <button className="text-[10px] font-black tracking-widest text-primary uppercase hover:text-primary transition-colors">
+            <button className="text-[10px] font-black tracking-widest text-primary uppercase hover:text-primary-hover transition-colors">
               See Detailed List
             </button>
           </div>
 
-          {/* Table header */}
           <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-border">
             {["Training Title", "Students", "Revenue", "Status", ""].map(
-              (col, i) => (
+              (columnName) => (
                 <span
-                  key={i}
+                  key={columnName}
                   className="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
                 >
-                  {col}
+                  {columnName}
                 </span>
               ),
             )}
           </div>
 
-          {/* Rows */}
-          {trainings.map((t, idx) => (
+          {trainings.map((training, index) => (
             <div
-              key={t.id}
+              key={training.id}
               className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center px-6 py-4 ${
-                idx !== trainings.length - 1 ? "border-b border-border" : ""
+                index !== trainings.length - 1 ? "border-b border-border" : ""
               } hover:bg-muted/50 transition-colors`}
             >
-              {/* Title + tags */}
               <div>
                 <p className="text-sm font-black text-foreground tracking-wide uppercase">
-                  {t.title}
+                  {training.title}
                 </p>
                 <div className="flex items-center gap-3 mt-1.5">
-                  {t.tags.map((tag) => (
+                  {training.tags.map((tag) => (
                     <span
                       key={tag}
                       className="flex items-center gap-1 text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
@@ -344,26 +356,22 @@ export default function InstructorDashboard() {
                 </div>
               </div>
 
-              {/* Students */}
               <div className="flex items-center gap-2">
                 <span className="text-sm font-black text-foreground">
-                  {t.students}
+                  {training.students}
                 </span>
                 <span className="text-[9px] font-black tracking-widest text-muted-foreground uppercase bg-muted px-2 py-0.5 rounded-md">
                   Enrolled
                 </span>
               </div>
 
-              {/* Revenue */}
               <span className="text-sm font-black text-foreground">
-                {t.revenue}
+                {training.revenue}
               </span>
 
-              {/* Status */}
-              <StatusBadge status={t.status} />
+              <StatusBadge status={training.status} />
 
-              {/* Actions */}
-              <button className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-muted-foreground hover:bg-muted transition-colors">
+              <button className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <svg
                   className="w-4 h-4"
                   fill="currentColor"

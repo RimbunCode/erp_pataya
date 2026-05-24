@@ -1,401 +1,314 @@
 import MainLayout from "@/Layouts/MainLayout";
-import { useState } from "react";
+import { router, usePage } from "@inertiajs/react";
+import { useEffect, useMemo, useState } from "react";
 
-const approvalData = [
-  {
-    id: 1,
-    title: "Structural BIM for Civil Engineers",
-    instructor: "Budi Santoso",
-    category: "Civil Engineering",
-    submitted: "2025-06-10",
-    type: "New Course",
-    status: "pending",
-    thumbnail: "SB",
-    color: "bg-blue-100 text-blue-700",
-    description:
-      "A comprehensive course covering Building Information Modeling fundamentals applied to structural civil engineering projects.",
-    modules: 12,
-    duration: "24 hours",
-    price: "Rp 850.000",
-  },
-  {
-    id: 2,
-    title: "Ethics in Engineering Practice",
-    instructor: "Siti Nur",
-    category: "Professional Development",
-    submitted: "2025-06-09",
-    type: "New Course",
-    status: "pending",
-    thumbnail: "EE",
-    color: "bg-violet-100 text-violet-700",
-    description:
-      "Explores ethical frameworks and decision-making in engineering, aligned with Indonesian professional standards.",
-    modules: 8,
-    duration: "16 hours",
-    price: "Rp 550.000",
-  },
-  {
-    id: 3,
-    title: "Advanced Construction Management",
-    instructor: "Adi Wijaya",
-    category: "Management",
-    submitted: "2025-06-08",
-    type: "New Course",
-    status: "pending",
-    thumbnail: "AC",
-    color: "bg-emerald-100 text-emerald-700",
-    description:
-      "Advanced techniques in project scheduling, cost estimation, and risk management for large-scale construction projects.",
-    modules: 15,
-    duration: "32 hours",
-    price: "Rp 1.200.000",
-  },
-  {
-    id: 4,
-    title: "AutoCAD 2D & 3D Mastery",
-    instructor: "Reza Kurniawan",
-    category: "CAD & Design",
-    submitted: "2025-06-07",
-    type: "Course Update",
-    status: "approved",
-    thumbnail: "AM",
-    color: "bg-amber-100 text-amber-700",
-    description:
-      "Complete AutoCAD training from 2D drafting basics to advanced 3D modeling for architecture and engineering.",
-    modules: 20,
-    duration: "40 hours",
-    price: "Rp 950.000",
-  },
-  {
-    id: 5,
-    title: "Geotechnical Engineering Fundamentals",
-    instructor: "Hendra Putra",
-    category: "Civil Engineering",
-    submitted: "2025-06-06",
-    type: "New Course",
-    status: "rejected",
-    thumbnail: "GE",
-    color: "bg-rose-100 text-rose-700",
-    description:
-      "Foundation design, soil mechanics, and site investigation methods for civil engineering practice.",
-    modules: 10,
-    duration: "20 hours",
-    price: "Rp 720.000",
-  },
-  {
-    id: 6,
-    title: "Electrical Installation Standards",
-    instructor: "Dewi Lestari",
-    category: "Electrical",
-    submitted: "2025-06-05",
-    type: "New Course",
-    status: "approved",
-    thumbnail: "EI",
-    color: "bg-cyan-100 text-cyan-700",
-    description:
-      "Comprehensive guide to PLN installation standards and safety regulations for residential and commercial buildings.",
-    modules: 9,
-    duration: "18 hours",
-    price: "Rp 680.000",
-  },
-  {
-    id: 7,
-    title: "Project Risk Assessment",
-    instructor: "Fajar Hidayat",
-    category: "Management",
-    submitted: "2025-06-04",
-    type: "Course Update",
-    status: "pending",
-    thumbnail: "PR",
-    color: "bg-indigo-100 text-indigo-700",
-    description:
-      "Systematic identification, analysis, and mitigation of risks in engineering and construction projects.",
-    modules: 7,
-    duration: "14 hours",
-    price: "Rp 490.000",
-  },
-];
-
-const statusConfig = {
+const STATUS_CFG = {
   pending: {
     label: "Pending",
-    class:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    dot: "bg-amber-500",
-    icon: "⏳",
+    pill: "bg-[var(--primary-soft)] text-[var(--primary-soft-foreground)]",
+    dot: "bg-[var(--primary)]",
   },
   approved: {
     label: "Approved",
-    class:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
     dot: "bg-emerald-500",
-    icon: "✓",
   },
   rejected: {
     label: "Rejected",
-    class: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+    pill: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
     dot: "bg-red-500",
-    icon: "✗",
   },
 };
 
-export default function Approvals() {
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [selectedItem, setSelectedItem] = useState(approvalData[0]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [localData, setLocalData] = useState(approvalData);
+const fmtCurrency = (value) =>
+  new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(Number(value ?? 0));
 
-  const counts = {
-    all: localData.length,
-    pending: localData.filter((d) => d.status === "pending").length,
-    approved: localData.filter((d) => d.status === "approved").length,
-    rejected: localData.filter((d) => d.status === "rejected").length,
-  };
+const fmtDateTime = (iso) => {
+  if (!iso) {
+    return "-";
+  }
 
-  const filtered = localData.filter((d) => {
-    const matchFilter = activeFilter === "all" || d.status === activeFilter;
-    const matchSearch =
-      d.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.instructor.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchFilter && matchSearch;
+  return new Date(iso).toLocaleString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   });
+};
 
-  const handleApprove = (id) => {
-    setLocalData((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: "approved" } : d)),
+const initials = (name) => {
+  const parts = String(name ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 0) {
+    return "NA";
+  }
+
+  return `${parts[0][0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+};
+
+function StatusBadge({ status }) {
+  const cfg = STATUS_CFG[status] ?? STATUS_CFG.pending;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${cfg.pill}`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  );
+}
+
+export default function Approvals() {
+  const { requests = [] } = usePage().props;
+  const [activeFilter, setActiveFilter] = useState("pending");
+  const [selectedId, setSelectedId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [rejectMode, setRejectMode] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const defaultSelectionId = useMemo(() => {
+    return (
+      requests.find((item) => item.status === "pending")?.id ??
+      requests[0]?.id ??
+      null
     );
-    if (selectedItem?.id === id)
-      setSelectedItem((prev) => ({ ...prev, status: "approved" }));
+  }, [requests]);
+
+  useEffect(() => {
+    if (defaultSelectionId === null) {
+      setSelectedId(null);
+      return;
+    }
+
+    if (!selectedId || !requests.some((item) => item.id === selectedId)) {
+      setSelectedId(defaultSelectionId);
+    }
+  }, [defaultSelectionId, requests, selectedId]);
+
+  const counts = useMemo(
+    () => ({
+      all: requests.length,
+      pending: requests.filter((item) => item.status === "pending").length,
+      approved: requests.filter((item) => item.status === "approved").length,
+      rejected: requests.filter((item) => item.status === "rejected").length,
+    }),
+    [requests],
+  );
+
+  const filtered = useMemo(() => {
+    return requests.filter((item) => {
+      const matchStatus =
+        activeFilter === "all" || item.status === activeFilter;
+      const keyword = searchQuery.trim().toLowerCase();
+
+      if (!keyword) {
+        return matchStatus;
+      }
+
+      const matchKeyword =
+        item.title?.toLowerCase().includes(keyword) ||
+        item.instructor?.toLowerCase().includes(keyword) ||
+        item.category?.toLowerCase().includes(keyword);
+
+      return matchStatus && matchKeyword;
+    });
+  }, [activeFilter, requests, searchQuery]);
+
+  const selectedItem = useMemo(
+    () => requests.find((item) => item.id === selectedId) ?? null,
+    [requests, selectedId],
+  );
+
+  const closeRejectMode = () => {
+    setRejectMode(false);
+    setRejectReason("");
   };
 
-  const handleReject = (id) => {
-    setLocalData((prev) =>
-      prev.map((d) => (d.id === id ? { ...d, status: "rejected" } : d)),
+  const handleApprove = () => {
+    if (!selectedItem || selectedItem.status !== "pending" || submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+    router.patch(
+      route("admin.approval.approve", {
+        coursePublishRequest: selectedItem.id,
+      }),
+      {},
+      {
+        preserveScroll: true,
+        only: ["requests"],
+        onSuccess: closeRejectMode,
+        onFinish: () => setSubmitting(false),
+      },
     );
-    if (selectedItem?.id === id)
-      setSelectedItem((prev) => ({ ...prev, status: "rejected" }));
+  };
+
+  const handleReject = () => {
+    if (
+      !selectedItem ||
+      selectedItem.status !== "pending" ||
+      !rejectReason.trim() ||
+      submitting
+    ) {
+      return;
+    }
+
+    setSubmitting(true);
+    router.patch(
+      route("admin.approval.reject", {
+        coursePublishRequest: selectedItem.id,
+      }),
+      {
+        reason: rejectReason.trim(),
+      },
+      {
+        preserveScroll: true,
+        only: ["requests"],
+        onSuccess: closeRejectMode,
+        onFinish: () => setSubmitting(false),
+      },
+    );
   };
 
   return (
     <MainLayout>
       <div
         data-role="admin"
-        className="flex h-screen bg-[var(--background)] overflow-hidden font-sans"
+        className="flex h-screen bg-[var(--background)] overflow-hidden"
       >
-        {/* Main Content */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Page Body */}
-          <div className="flex-1 overflow-auto p-6">
-            {/* Page Title */}
-            <div className="flex items-center justify-between mb-6">
+          <div className="flex-1 overflow-auto p-6 space-y-5">
+            <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-3xl font-black text-[var(--foreground)] tracking-tight">
-                  ACCOUNT APPROVAL
+                  COURSE APPROVALS
                 </h1>
                 <p className="text-sm text-[var(--muted-foreground)] mt-0.5">
-                  Review and manage user accounts and their approval status
+                  Review and decide publish requests from instructors.
                 </p>
               </div>
-              <div className="flex gap-2">
-                <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium border border-[var(--border)] text-[var(--foreground)] bg-[var(--card)] rounded-lg hover:bg-[var(--secondary)] transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z"
-                    />
-                  </svg>
-                  Filter
-                </button>
-                <button className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] transition-colors">
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
-                    />
-                  </svg>
-                  Export
-                </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4">
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+                <p className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
+                  Total Requests
+                </p>
+                <p className="text-2xl font-black text-[var(--foreground)] mt-3">
+                  {counts.all}
+                </p>
+              </div>
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+                <p className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
+                  Pending
+                </p>
+                <p className="text-2xl font-black text-[var(--foreground)] mt-3">
+                  {counts.pending}
+                </p>
+              </div>
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+                <p className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
+                  Approved
+                </p>
+                <p className="text-2xl font-black text-[var(--foreground)] mt-3">
+                  {counts.approved}
+                </p>
+              </div>
+              <div className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4">
+                <p className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
+                  Rejected
+                </p>
+                <p className="text-2xl font-black text-[var(--foreground)] mt-3">
+                  {counts.rejected}
+                </p>
               </div>
             </div>
 
-            {/* Stat Cards */}
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              {[
-                {
-                  label: "Total Submissions",
-                  value: counts.all,
-                  icon: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
-                  sub: "This Month",
-                  subColor: "text-[var(--muted-foreground)]",
-                  trend: null,
-                },
-                {
-                  label: "Pending Review",
-                  value: counts.pending,
-                  icon: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
-                  sub: "Requires Action",
-                  subColor: "text-red-500",
-                  trend: "↑",
-                },
-                {
-                  label: "Approved",
-                  value: counts.approved,
-                  icon: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
-                  sub: "+2 This Week",
-                  subColor: "text-emerald-500",
-                  trend: "↑",
-                },
-                {
-                  label: "Rejected",
-                  value: counts.rejected,
-                  icon: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z",
-                  sub: "Needs Revision",
-                  subColor: "text-red-500",
-                  trend: null,
-                },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className="bg-[var(--card)] border border-[var(--border)] rounded-xl p-4"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <p className="text-xs font-semibold text-[var(--muted-foreground)] uppercase tracking-wider">
-                      {stat.label}
-                    </p>
-                    <div className="w-8 h-8 rounded-lg bg-[var(--primary-soft)] flex items-center justify-center">
-                      <svg
-                        className="w-4 h-4 text-[var(--primary)]"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d={stat.icon}
-                        />
-                      </svg>
-                    </div>
-                  </div>
-                  <p className="text-3xl font-black text-[var(--foreground)]">
-                    {stat.value}
-                  </p>
-                  <p className={`text-xs font-medium mt-1 ${stat.subColor}`}>
-                    {stat.sub}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {/* Content Area: List + Detail */}
-            <div className="flex gap-4 h-[calc(100vh-380px)] min-h-[420px]">
-              {/* Left: Approval List */}
+            <div className="flex gap-4 min-h-[420px]">
               <div className="flex-1 bg-[var(--card)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
-                {/* Filter Tabs */}
-                <div className="flex border-b border-[var(--border)] px-4">
-                  {["all", "pending", "approved", "rejected"].map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setActiveFilter(f)}
-                      className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider transition-colors relative ${
-                        activeFilter === f
-                          ? "text-[var(--primary)]"
-                          : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
-                      }`}
-                    >
-                      {f === "all"
-                        ? "All"
-                        : f.charAt(0).toUpperCase() + f.slice(1)}
-                      <span
-                        className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${
-                          activeFilter === f
-                            ? "bg-[var(--primary-soft)] text-[var(--primary)]"
-                            : "bg-[var(--secondary)] text-[var(--muted-foreground)]"
-                        }`}
-                      >
-                        {counts[f]}
-                      </span>
-                      {activeFilter === f && (
-                        <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--primary)] rounded-t" />
-                      )}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)]">
+                  <div className="flex border border-[var(--border)] rounded-lg overflow-hidden text-xs font-semibold">
+                    {["all", "pending", "approved", "rejected"].map(
+                      (status) => (
+                        <button
+                          key={status}
+                          onClick={() => setActiveFilter(status)}
+                          className={`px-3 py-1.5 capitalize transition-colors ${
+                            activeFilter === status
+                              ? "bg-[var(--primary)] text-[var(--primary-foreground)]"
+                              : "text-[var(--muted-foreground)] hover:bg-[var(--secondary)]"
+                          }`}
+                        >
+                          {status === "all"
+                            ? `All (${counts.all})`
+                            : `${status.charAt(0).toUpperCase() + status.slice(1)} (${counts[status]})`}
+                        </button>
+                      ),
+                    )}
+                  </div>
+
+                  <input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Search title, instructor, category..."
+                    className="ml-auto text-xs border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] w-64"
+                  />
                 </div>
 
-                {/* List */}
                 <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]">
                   {filtered.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-[var(--muted-foreground)]">
-                      <svg
-                        className="w-10 h-10 mb-2 opacity-40"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={1.5}
-                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                        />
-                      </svg>
-                      <p className="text-sm">No submissions found</p>
+                    <div className="h-full flex items-center justify-center text-sm text-[var(--muted-foreground)]">
+                      No requests found
                     </div>
                   ) : (
                     filtered.map((item) => {
-                      const status = statusConfig[item.status];
-                      const isSelected = selectedItem?.id === item.id;
+                      const active = selectedItem?.id === item.id;
+
                       return (
                         <div
                           key={item.id}
-                          onClick={() => setSelectedItem(item)}
+                          onClick={() => {
+                            setSelectedId(item.id);
+                            closeRejectMode();
+                          }}
                           className={`flex items-center gap-3 px-4 py-3.5 cursor-pointer transition-colors ${
-                            isSelected
-                              ? "bg-primary-soft dark:bg-primary-soft]"
-                              : "hover:bg-background-accent dark:hover:bg-background-accent-dark]"
+                            active
+                              ? "bg-[var(--primary-soft)]"
+                              : "hover:bg-[var(--background-accent)]"
                           }`}
                         >
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 ${item.color}`}
-                          >
-                            {item.thumbnail}
+                          <div className="w-10 h-10 rounded-full bg-[var(--primary-soft)] text-[var(--primary)] text-xs font-bold flex items-center justify-center">
+                            {initials(item.instructor)}
                           </div>
                           <div className="flex-1 min-w-0">
                             <p
-                              className={`text-sm font-semibold truncate ${isSelected ? "text-[var(--primary)]" : "text-[var(--foreground)]"}`}
+                              className={`text-sm font-semibold truncate ${
+                                active
+                                  ? "text-[var(--primary)]"
+                                  : "text-[var(--foreground)]"
+                              }`}
                             >
                               {item.title}
                             </p>
                             <p className="text-xs text-[var(--muted-foreground)] truncate">
-                              {item.instructor} · {item.category}
+                              {item.instructor} - {item.category}
                             </p>
                           </div>
                           <div className="shrink-0 flex flex-col items-end gap-1">
-                            <span
-                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold ${status.class}`}
-                            >
-                              <span
-                                className={`w-1.5 h-1.5 rounded-full ${status.dot}`}
-                              />
-                              {status.label}
-                            </span>
+                            <StatusBadge status={item.status} />
                             <span className="text-[10px] text-[var(--muted-foreground)]">
-                              {item.submitted}
+                              {fmtDateTime(item.submittedAt)}
                             </span>
                           </div>
                         </div>
@@ -405,157 +318,142 @@ export default function Approvals() {
                 </div>
               </div>
 
-              {/* Right: Detail Panel */}
-              {selectedItem &&
-                (() => {
-                  const currentItem =
-                    localData.find((d) => d.id === selectedItem.id) ||
-                    selectedItem;
-                  const status = statusConfig[currentItem.status];
-                  return (
-                    <div className="w-80 bg-[var(--card)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden shrink-0">
-                      {/* Detail Header */}
-                      <div className="p-5 border-b border-[var(--border)]">
-                        <div className="flex items-start justify-between mb-3">
-                          <div
-                            className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold ${currentItem.color}`}
-                          >
-                            {currentItem.thumbnail}
-                          </div>
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${status.class}`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${status.dot}`}
-                            />
-                            {status.label}
-                          </span>
-                        </div>
-                        <h3 className="text-sm font-bold text-[var(--foreground)] leading-snug">
-                          {currentItem.title}
-                        </h3>
-                        <p className="text-xs text-[var(--muted-foreground)] mt-0.5">
-                          {currentItem.type} · {currentItem.category}
-                        </p>
+              {selectedItem && (
+                <div className="w-80 shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
+                  <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
+                    <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">
+                      Request Detail
+                    </p>
+                    <StatusBadge status={selectedItem.status} />
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="px-5 py-4 border-b border-[var(--border)]">
+                      <p className="text-sm font-bold text-[var(--foreground)] leading-snug">
+                        {selectedItem.title}
+                      </p>
+                      <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                        {selectedItem.instructor} - {selectedItem.category}
+                      </p>
+                      <p className="text-xs text-[var(--muted-foreground)] mt-2">
+                        Submitted: {fmtDateTime(selectedItem.submittedAt)}
+                      </p>
+                    </div>
+
+                    <div className="px-5 py-4 border-b border-[var(--border)]">
+                      <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold mb-2">
+                        Description
+                      </p>
+                      <p className="text-xs text-[var(--foreground)] leading-relaxed">
+                        {selectedItem.description || "-"}
+                      </p>
+                    </div>
+
+                    <div className="px-5 py-4 border-b border-[var(--border)] space-y-2.5">
+                      <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold">
+                        Submitted Pricing Snapshot
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-[var(--muted-foreground)]">
+                          Base Price
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--foreground)]">
+                          {fmtCurrency(selectedItem.submittedPrice)}
+                        </span>
                       </div>
-
-                      {/* Instructor */}
-                      <div className="px-5 py-4 border-b border-[var(--border)]">
-                        <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold mb-2">
-                          Instructor
-                        </p>
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-full bg-[var(--primary-soft)] flex items-center justify-center text-xs font-bold text-[var(--primary)]">
-                            {currentItem.instructor
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .slice(0, 2)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-[var(--foreground)]">
-                              {currentItem.instructor}
-                            </p>
-                            <p className="text-xs text-[var(--muted-foreground)]">
-                              Submitted {currentItem.submitted}
-                            </p>
-                          </div>
-                        </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-[var(--muted-foreground)]">
+                          Discount
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--foreground)]">
+                          {selectedItem.submittedDiscountType === "percentage"
+                            ? `${selectedItem.submittedDiscount}%`
+                            : fmtCurrency(selectedItem.submittedDiscount)}
+                        </span>
                       </div>
-
-                      {/* Description */}
-                      <div className="px-5 py-4 border-b border-[var(--border)] flex-1 overflow-y-auto">
-                        <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold mb-2">
-                          Description
-                        </p>
-                        <p className="text-xs text-[var(--foreground)] leading-relaxed">
-                          {currentItem.description}
-                        </p>
-
-                        <div className="grid grid-cols-3 gap-2 mt-4">
-                          {[
-                            { label: "Modules", value: currentItem.modules },
-                            { label: "Duration", value: currentItem.duration },
-                            { label: "Price", value: currentItem.price },
-                          ].map((info) => (
-                            <div
-                              key={info.label}
-                              className="bg-[var(--background-accent)] rounded-lg p-2.5 text-center dark:bg-[var(--background)] dark:text-[var(--foreground)] dark:border-[var(--primary)]"
-                            >
-                              <p className="text-[10px] text-[var(--muted-foreground)] font-medium">
-                                {info.label}
-                              </p>
-                              <p className="text-xs font-bold text-[var(--foreground)] mt-0.5">
-                                {info.value}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="p-4">
-                        {currentItem.status === "pending" ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleReject(currentItem.id)}
-                              className="flex-1 py-2.5 text-xs font-semibold border border-[var(--border)] text-[var(--foreground)] rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 dark:hover:bg-red-950/30 transition-colors"
-                            >
-                              Reject
-                            </button>
-                            <button
-                              onClick={() => handleApprove(currentItem.id)}
-                              className="flex-1 py-2.5 text-xs font-semibold bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] transition-colors"
-                            >
-                              Approve
-                            </button>
-                          </div>
-                        ) : currentItem.status === "approved" ? (
-                          <div className="flex items-center justify-center gap-2 py-2.5 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg">
-                            <svg
-                              className="w-4 h-4 text-emerald-600 dark:text-emerald-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                              Course Approved
-                            </span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center gap-2 py-2.5 bg-red-50 dark:bg-red-950/30 rounded-lg">
-                            <svg
-                              className="w-4 h-4 text-red-600 dark:text-red-400"
-                              fill="none"
-                              stroke="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                              />
-                            </svg>
-                            <span className="text-xs font-semibold text-red-600 dark:text-red-400">
-                              Course Rejected
-                            </span>
-                          </div>
-                        )}
-                        <button className="w-full mt-2 py-2 text-xs font-medium text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors">
-                          View Full Details →
-                        </button>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs text-[var(--muted-foreground)]">
+                          Final Price
+                        </span>
+                        <span className="text-xs font-semibold text-[var(--foreground)]">
+                          {fmtCurrency(selectedItem.submittedFinalPrice)}
+                        </span>
                       </div>
                     </div>
-                  );
-                })()}
+
+                    {selectedItem.status !== "pending" && (
+                      <div className="px-5 py-4 border-b border-[var(--border)] space-y-2">
+                        <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold">
+                          Review Result
+                        </p>
+                        <p className="text-xs text-[var(--foreground)]">
+                          Reviewed by {selectedItem.reviewedBy ?? "-"}
+                        </p>
+                        <p className="text-xs text-[var(--foreground)]">
+                          Reviewed at {fmtDateTime(selectedItem.reviewedAt)}
+                        </p>
+                        {selectedItem.status === "rejected" && (
+                          <p className="text-xs text-red-700 bg-red-500/10 dark:text-red-300 rounded-lg p-2.5 leading-relaxed">
+                            {selectedItem.rejectReason ||
+                              "No rejection reason."}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 border-t border-[var(--border)]">
+                    {selectedItem.status === "pending" && !rejectMode && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setRejectMode(true)}
+                          disabled={submitting}
+                          className="flex-1 py-2.5 text-xs font-semibold border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300 hover:border-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={handleApprove}
+                          disabled={submitting}
+                          className="flex-1 py-2.5 text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                        >
+                          Approve
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedItem.status === "pending" && rejectMode && (
+                      <div className="space-y-2">
+                        <textarea
+                          value={rejectReason}
+                          onChange={(event) =>
+                            setRejectReason(event.target.value)
+                          }
+                          placeholder="Rejection reason (required)..."
+                          rows={3}
+                          className="w-full text-xs p-2.5 rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={closeRejectMode}
+                            disabled={submitting}
+                            className="flex-1 py-2 text-xs font-medium border border-[var(--border)] rounded-lg text-[var(--muted-foreground)] hover:bg-[var(--secondary)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={handleReject}
+                            disabled={!rejectReason.trim() || submitting}
+                            className="flex-1 py-2 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Send
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

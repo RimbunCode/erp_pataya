@@ -1,0 +1,114 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\FormStatus;
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\RejectCoursePublishRequestRequest;
+use App\Models\CoursePublishRequest;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class CourseApprovalController extends Controller {
+    public function index(): Response {
+        $requests = CoursePublishRequest::query()
+            ->with([
+                'course:id,title,description,thumbnail,total_hours,total_sessions,certificate_type,level,created_by',
+                'course.categories:id,name',
+                'course.creator:id,name',
+                'requester:id,name',
+                'reviewer:id,name',
+            ])
+            ->latest('created_at')
+            ->get()
+            ->map(function (CoursePublishRequest $request): array {
+                $course              = $request->course;
+                $submittedPrice      = (float) $request->submitted_price;
+                $submittedDiscount   = (float) $request->submitted_discount;
+                $discountType        = (string) $request->submitted_discount_type;
+                $submittedFinalPrice = $discountType === 'percentage'
+                    ? max(0, $submittedPrice - (($submittedPrice * $submittedDiscount) / 100))
+                    : max(0, $submittedPrice - $submittedDiscount);
+
+                return [
+                    'id'                    => (string) $request->id,
+                    'courseId'              => (string) ($request->course_id ?? ''),
+                    'status'                => (string) $request->status,
+                    'submittedAt'           => $request->created_at?->toIso8601String(),
+                    'reviewedAt'            => $request->reviewed_at?->toIso8601String(),
+                    'rejectReason'          => $request->rejection_reason,
+                    'reviewedBy'            => $request->reviewer?->name,
+                    'instructor'            => (string) ($course?->creator?->name ?? $request->requester?->name ?? '-'),
+                    'title'                 => (string) ($course?->title ?? '-'),
+                    'description'           => (string) ($course?->description ?? '-'),
+                    'category'              => (string) ($course?->categories?->first()?->name ?? '-'),
+                    'thumbnail'             => (string) ($course?->thumbnail ?? ''),
+                    'totalHours'            => (int) ($course?->total_hours ?? 0),
+                    'totalSessions'         => (int) ($course?->total_sessions ?? 0),
+                    'certificateType'       => $course?->certificate_type,
+                    'level'                 => $course?->level,
+                    'submittedPrice'        => $submittedPrice,
+                    'submittedDiscount'     => $submittedDiscount,
+                    'submittedDiscountType' => $discountType,
+                    'submittedFinalPrice'   => $submittedFinalPrice,
+                ];
+            })
+            ->values();
+
+        return Inertia::render('Admin/Approvals', [
+            'requests' => $requests,
+        ]);
+    }
+
+    public function approve(CoursePublishRequest $coursePublishRequest): RedirectResponse {
+        $this->ensurePendingRequest($coursePublishRequest);
+
+        DB::transaction(function () use ($coursePublishRequest): void {
+            $coursePublishRequest->update([
+                'status'           => FormStatus::APPROVED->value,
+                'reviewed_by'      => auth()->id(),
+                'reviewed_at'      => now(),
+                'rejection_reason' => null,
+            ]);
+
+            $coursePublishRequest->course()->update([
+                'price'         => $coursePublishRequest->submitted_price,
+                'discount'      => $coursePublishRequest->submitted_discount,
+                'discount_type' => $coursePublishRequest->submitted_discount_type,
+                'is_published'  => true,
+            ]);
+        });
+
+        return back()->with('success', 'Permintaan publish course disetujui.');
+    }
+
+    public function reject(
+        RejectCoursePublishRequestRequest $request,
+        CoursePublishRequest $coursePublishRequest,
+    ): RedirectResponse {
+        $this->ensurePendingRequest($coursePublishRequest);
+        $validated = $request->validated();
+
+        DB::transaction(function () use ($coursePublishRequest, $validated): void {
+            $coursePublishRequest->update([
+                'status'           => FormStatus::REJECTED->value,
+                'reviewed_by'      => auth()->id(),
+                'reviewed_at'      => now(),
+                'rejection_reason' => $validated['reason'],
+            ]);
+        });
+
+        return back()->with('success', 'Permintaan publish course ditolak.');
+    }
+
+    private function ensurePendingRequest(CoursePublishRequest $coursePublishRequest): void {
+        if ($coursePublishRequest->status !== FormStatus::PENDING->value) {
+            throw ValidationException::withMessages([
+                'request' => 'Request ini tidak dapat diproses.',
+            ]);
+        }
+    }
+}

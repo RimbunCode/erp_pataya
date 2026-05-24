@@ -2,33 +2,38 @@
 
 namespace App\Http\Controllers\Instructor;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Core\File;
 use App\Models\Course;
+use App\Models\CoursePublishRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class CourseController extends Controller {
     public function index(Request $request): Response {
-        $courses = Course::with(['categories'])
+        $courses = Course::with(['categories', 'latestPublishRequest'])
             ->where('created_by', Auth::id())
             ->when(
                 $request->search,
                 fn ($q) => $q->where('title', 'like', "%{$request->search}%"),
             )
-            ->when(
-                $request->status && $request->status !== 'all',
-                fn ($q) => $q->where('is_published', $request->status === 'published'),
-            )
             ->withCount('enrollments as students_count')
             ->latest()
             ->get()
             ->map(fn (Course $course) => $this->mapCourse($course));
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $courses = $courses
+                ->filter(fn (array $course) => $course['status'] === $request->status)
+                ->values();
+        }
 
         return Inertia::render('Instructors/ManageClasses', [
             'courses'    => $courses,
@@ -39,10 +44,10 @@ class CourseController extends Controller {
 
     // ── Show ───────────────────────────────────────────────────────────────────
     public function show(Course $course): Response {
-        $course->load(['categories', 'sections.contents']);
+        $course->load(['categories', 'sections.contents', 'latestPublishRequest']);
 
         return Inertia::render('Instructors/CourseDetail', [
-            'course'     => [
+            'course' => [
                 ...$this->mapCourse($course),
                 'sections' => $course->sections
                     ->sortBy('order')
@@ -73,11 +78,11 @@ class CourseController extends Controller {
 
     public function store(Request $request) {
         $validated = $request->validate([
-            'title'                       => 'required|string|max:255',
-            'description'                 => 'required|string',
-            'price'                       => 'required|numeric|min:0',
-            'discount_type'               => 'required|in:percentage,amount',
-            'discount'                    => ['nullable', 'numeric', 'min:0', Rule::when(
+            'title'         => 'required|string|max:255',
+            'description'   => 'required|string',
+            'price'         => 'required|numeric|min:0',
+            'discount_type' => 'required|in:percentage,amount',
+            'discount'      => ['nullable', 'numeric', 'min:0', Rule::when(
                 $request->input('discount_type') === 'percentage',
                 ['max:100'],
                 ['lte:price'],
@@ -148,11 +153,11 @@ class CourseController extends Controller {
 
     public function update(Request $request, Course $course) {
         $validated = $request->validate([
-            'title'            => 'required|string|max:255',
-            'description'      => 'required|string',
-            'price'            => 'required|numeric|min:0',
-            'discount_type'    => 'required|in:percentage,amount',
-            'discount'         => ['nullable', 'numeric', 'min:0', Rule::when(
+            'title'         => 'required|string|max:255',
+            'description'   => 'required|string',
+            'price'         => 'required|numeric|min:0',
+            'discount_type' => 'required|in:percentage,amount',
+            'discount'      => ['nullable', 'numeric', 'min:0', Rule::when(
                 $request->input('discount_type') === 'percentage',
                 ['max:100'],
                 ['lte:price'],
@@ -166,8 +171,12 @@ class CourseController extends Controller {
                 request()->hasFile('thumbnail'),
                 ['image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
                 ['string', 'max:255'], // bisa ganti jadi 'url' kalau harus URL
-            ),],
+            ), ],
         ]);
+
+        $isPricingChanged = (float) $validated['price'] !== (float) $course->price
+            || (float) ($validated['discount'] ?? 0) !== (float) $course->discount
+            || $validated['discount_type'] !== $course->discount_type;
 
         $updateData = [
             'title'            => $validated['title'],
@@ -181,6 +190,24 @@ class CourseController extends Controller {
             'certificate_type' => $validated['certificate_type'] ?? $course->certificate_type,
         ];
 
+        if ($course->is_published && $isPricingChanged) {
+            $hasPendingRequest = CoursePublishRequest::query()
+                ->where('course_id', $course->id)
+                ->where('status', FormStatus::PENDING->value)
+                ->exists();
+
+            if ($hasPendingRequest) {
+                throw ValidationException::withMessages([
+                    'course' => 'Masih ada request perubahan harga/diskon yang menunggu review admin.',
+                ]);
+            }
+
+            // Keep live catalogue pricing unchanged while pending approval.
+            $updateData['price']         = $course->price;
+            $updateData['discount']      = $course->discount;
+            $updateData['discount_type'] = $course->discount_type;
+        }
+
         // Upload hanya kalau ada file baru, thumbnail lama tidak disentuh
         if ($request->hasFile('thumbnail')) {
             File::uploadFile($validated['thumbnail'], 'ImageCourse', function ($file) use (&$updateData) {
@@ -190,7 +217,20 @@ class CourseController extends Controller {
             $updateData['thumbnail'] = null;
         }
 
-        $course->update($updateData);
+        DB::transaction(function () use ($course, $updateData, $validated, $isPricingChanged): void {
+            $course->update($updateData);
+
+            if ($course->is_published && $isPricingChanged) {
+                CoursePublishRequest::query()->create([
+                    'course_id'               => $course->id,
+                    'requested_by'            => Auth::id(),
+                    'status'                  => FormStatus::PENDING->value,
+                    'submitted_price'         => $validated['price'],
+                    'submitted_discount'      => $validated['discount'] ?? 0,
+                    'submitted_discount_type' => $validated['discount_type'],
+                ]);
+            }
+        });
 
         if (! empty($validated['category'])) {
             $category = Category::where('slug', $validated['category'])
@@ -209,11 +249,51 @@ class CourseController extends Controller {
 
     // ── Toggle Publish ─────────────────────────────────────────────────────────
     public function togglePublish(Course $course) {
-        $course->update(['is_published' => ! $course->is_published]);
+        if ($course->is_published) {
+            $course->update(['is_published' => false]);
+
+            return back()->with('success', 'Course unpublished.');
+        }
+
+        $hasPendingRequest = CoursePublishRequest::query()
+            ->where('course_id', $course->id)
+            ->where('status', FormStatus::PENDING->value)
+            ->exists();
+
+        if ($hasPendingRequest) {
+            throw ValidationException::withMessages([
+                'course' => 'Masih ada request publish yang menunggu review admin.',
+            ]);
+        }
+
+        $latestRejectedRequest = CoursePublishRequest::query()
+            ->where('course_id', $course->id)
+            ->where('status', FormStatus::REJECTED->value)
+            ->latest('created_at')
+            ->first();
+
+        if (
+            $latestRejectedRequest?->reviewed_at !== null
+            && $course->updated_at !== null
+            && $course->updated_at->lte($latestRejectedRequest->reviewed_at)
+        ) {
+            throw ValidationException::withMessages([
+                'course' => 'Perbarui info course terlebih dahulu sebelum submit publish ulang.',
+            ]);
+        }
+
+        CoursePublishRequest::query()->create([
+            'course_id'               => $course->id,
+            'requested_by'            => Auth::id(),
+            'status'                  => FormStatus::PENDING->value,
+            'submitted_price'         => $course->price,
+            'submitted_discount'      => $course->discount,
+            'submitted_discount_type' => $course->discount_type,
+        ]);
 
         return back()->with(
             'success',
-            $course->is_published ? 'Course published.' : 'Course unpublished.',
+            'Request publish course berhasil dikirim ke admin.',
         );
     }
 
@@ -243,6 +323,15 @@ class CourseController extends Controller {
      * Jika thumbnail null → kirim null, frontend akan render logo default sendiri.
      */
     private function mapCourse(Course $course): array {
+        $latestPublishRequest          = $course->latestPublishRequest;
+        $hasPendingPriceChangeApproval = $course->is_published
+            && $latestPublishRequest?->status === FormStatus::PENDING->value
+            && (
+                (float) ($latestPublishRequest->submitted_price ?? $course->price) !== (float) $course->price
+                || (float) ($latestPublishRequest->submitted_discount ?? $course->discount) !== (float) $course->discount
+                || (string) ($latestPublishRequest->submitted_discount_type ?? $course->discount_type) !== (string) $course->discount_type
+            );
+
         return [
             'id'               => $course->id,
             'title'            => $course->title,
@@ -254,10 +343,42 @@ class CourseController extends Controller {
             'total_hours'      => $course->total_hours,
             'total_sessions'   => $course->total_sessions,
             'certificate_type' => $course->certificate_type,
-            'status'           => $course->is_published ? 'published' : 'draft',
+            'status'           => $this->resolveStatus($course),
             'students_count'   => $course->students_count ?? 0,
             'categories'       => $course->categories->pluck('name'),
             'thumbnail'        => $course->thumbnail,
+            'updated_at'       => $course->updated_at?->toIso8601String(),
+            'rejection_reason' => $latestPublishRequest?->status === FormStatus::REJECTED->value
+                ? $latestPublishRequest->rejection_reason
+                : null,
+            'requested_at' => $latestPublishRequest?->status === FormStatus::PENDING->value
+                ? $latestPublishRequest->created_at?->toIso8601String()
+                : null,
+            'has_pending_price_change_approval' => $hasPendingPriceChangeApproval,
+            'pending_price_change'              => $hasPendingPriceChangeApproval ? [
+                'submitted_price'         => (float) $latestPublishRequest->submitted_price,
+                'submitted_discount'      => (float) $latestPublishRequest->submitted_discount,
+                'submitted_discount_type' => (string) $latestPublishRequest->submitted_discount_type,
+                'requested_at'            => $latestPublishRequest->created_at?->toIso8601String(),
+            ] : null,
         ];
+    }
+
+    private function resolveStatus(Course $course): string {
+        if ($course->is_published) {
+            return 'published';
+        }
+
+        $latestPublishRequestStatus = (string) ($course->latestPublishRequest?->status ?? '');
+
+        if ($latestPublishRequestStatus === FormStatus::PENDING->value) {
+            return 'pending';
+        }
+
+        if ($latestPublishRequestStatus === FormStatus::REJECTED->value) {
+            return 'rejected';
+        }
+
+        return 'draft';
     }
 }

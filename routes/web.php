@@ -1,4 +1,5 @@
 <?php
+use App\Http\Controllers\Admin\CourseApprovalController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\SystemFinanceController;
 use App\Http\Controllers\Admin\UserDirectoryController;
@@ -139,7 +140,9 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware(['role:admin'])->prefix('/admin')->name('admin.')->group(function () {
         Route::get('/dashboard', fn () => inertia('Admin/Dashboard'))->name('dashboard');
-        Route::get('/approvals', fn () => inertia('Admin/Approvals'))->name('approval');
+        Route::get('/approvals', [CourseApprovalController::class, 'index'])->name('approval');
+        Route::patch('/approvals/{coursePublishRequest}/approve', [CourseApprovalController::class, 'approve'])->name('approval.approve');
+        Route::patch('/approvals/{coursePublishRequest}/reject', [CourseApprovalController::class, 'reject'])->name('approval.reject');
         Route::get('/finance', [SystemFinanceController::class, 'index'])->name('finance');
         Route::patch('/finance/{payment}/approve', [SystemFinanceController::class, 'approve'])->name('finance.approve');
         Route::patch('/finance/{payment}/reject', [SystemFinanceController::class, 'reject'])->name('finance.reject');

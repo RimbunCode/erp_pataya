@@ -27,8 +27,9 @@ export default function TabRoleRequests({ requests }) {
   const counts = useMemo(
     () => ({
       all: requests.length,
-      pending: requests.filter((requestItem) => requestItem.status === "pending")
-        .length,
+      pending: requests.filter(
+        (requestItem) => requestItem.status === "pending",
+      ).length,
       approved: requests.filter(
         (requestItem) => requestItem.status === "approved",
       ).length,
@@ -44,7 +45,9 @@ export default function TabRoleRequests({ requests }) {
       return null;
     }
 
-    return requests.find((requestItem) => requestItem.id === selectedId) ?? null;
+    return (
+      requests.find((requestItem) => requestItem.id === selectedId) ?? null
+    );
   }, [requests, selectedId]);
 
   const closeRejectMode = () => {
@@ -257,7 +260,7 @@ export default function TabRoleRequests({ requests }) {
 
             {selectedRequest.status === "approved" && (
               <div className="px-5 py-4 border-b border-[var(--border)]">
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium leading-relaxed">
+                <p className="text-xs text-emerald-600 dark:text-emerald-300 font-medium leading-relaxed">
                   Approved by {selectedRequest.approvedBy ?? "-"} on{" "}
                   {fmtDate(selectedRequest.approvedAt)}
                 </p>
@@ -269,7 +272,7 @@ export default function TabRoleRequests({ requests }) {
                 <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold mb-1.5">
                   Rejection Note
                 </p>
-                <p className="text-xs text-red-600 dark:text-red-400 leading-relaxed bg-red-50 dark:bg-red-950/30 rounded-lg p-3">
+                <p className="text-xs text-red-700 dark:text-red-300 leading-relaxed bg-red-500/10 rounded-lg p-3">
                   {selectedRequest.rejectReason ?? "-"}
                 </p>
                 <p className="text-[11px] text-[var(--muted-foreground)] mt-2">
@@ -286,14 +289,14 @@ export default function TabRoleRequests({ requests }) {
                 <button
                   onClick={() => setRejectMode(true)}
                   disabled={submitting}
-                  className="flex-1 py-2.5 text-xs font-semibold border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-red-50 hover:text-red-600 hover:border-red-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 py-2.5 text-xs font-semibold border border-[var(--border)] rounded-lg text-[var(--foreground)] hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300 hover:border-red-500/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Reject
                 </button>
                 <button
                   onClick={handleApprove}
                   disabled={submitting}
-                  className="flex-1 py-2.5 text-xs font-semibold bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 py-2.5 text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)] rounded-lg hover:bg-[var(--primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                   Approve
                 </button>
@@ -320,7 +323,7 @@ export default function TabRoleRequests({ requests }) {
                   <button
                     onClick={handleReject}
                     disabled={!rejectReason.trim() || submitting}
-                    className="flex-1 py-2 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 py-2 text-xs font-semibold bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     Send
                   </button>
@@ -330,10 +333,10 @@ export default function TabRoleRequests({ requests }) {
 
             {selectedRequest.status !== "pending" && (
               <div
-                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg ${selectedRequest.status === "approved" ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-red-50 dark:bg-red-950/30"}`}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg ${selectedRequest.status === "approved" ? "bg-emerald-100 dark:bg-emerald-500/15" : "bg-red-100 dark:bg-red-500/15"}`}
               >
                 <span
-                  className={`text-xs font-semibold ${selectedRequest.status === "approved" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}
+                  className={`text-xs font-semibold ${selectedRequest.status === "approved" ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-300"}`}
                 >
                   Request{" "}
                   {selectedRequest.status === "approved"

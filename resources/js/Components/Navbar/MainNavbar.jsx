@@ -192,7 +192,7 @@ export default function MainNavbar({
 
               <button
                 onClick={onLogout}
-                className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 transition-all border-t border-border text-left"
+                className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-destructive hover:text-destructive hover:bg-destructive/10 transition-all border-t border-border text-left"
               >
                 <svg
                   className="w-4 h-4 flex-shrink-0"
