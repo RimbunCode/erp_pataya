@@ -19,10 +19,6 @@ class AdministratorSeeder extends Seeder {
      * Run the database seeds.
      */
     public function run(): void {
-        if (Permission::query()->doesntExist()) {
-            $this->call(PermissionSeeder::class);
-        }
-
         DB::transaction(function (): void {
             $defaultBranch = Branch::query()
                 ->where('is_main_branch', true)
@@ -36,24 +32,25 @@ class AdministratorSeeder extends Seeder {
                 ->get();
 
             $passwordAdmin = config('app.debug') ? 'admin' : Utils::generateRandom(10, true);
-            $adminUser     = User::updateOrCreate(
-                ['username' => 'admin'],
-                [
-                    'name'              => 'Administrator',
-                    'email'             => 'test@example.com',
-                    'email_verified_at' => now(),
-                    'password'          => bcrypt($passwordAdmin),
-                    'default_branch_id' => $defaultBranch->id,
-                    'remember_token'    => Str::random(10),
-                    'status'            => FormStatus::ACTIVE,
-                ],
-            );
+            $adminUser     = User::withoutGlobalScope('exclude_example_data')
+                ->updateOrCreate(
+                    ['username' => 'admin'],
+                    [
+                        'name'              => 'Administrator',
+                        'email'             => 'test@example.com',
+                        'email_verified_at' => now(),
+                        'password'          => bcrypt($passwordAdmin),
+                        'default_branch_id' => $defaultBranch->id,
+                        'remember_token'    => Str::random(10),
+                        'status'            => FormStatus::ACTIVE,
+                    ],
+                );
 
             $roleIds = [];
             foreach ($this->defaultRoles() as $roleDefinition) {
                 $normalizedRoleDefinition = $this->normalizeRoleDefinition($roleDefinition);
 
-                $role = Role::updateOrCreate(
+                $role      = Role::updateOrCreate(
                     ['name' => $normalizedRoleDefinition['name']],
                     [
                         'description' => $normalizedRoleDefinition['description'],
@@ -142,7 +139,7 @@ class AdministratorSeeder extends Seeder {
                         'models' => ['Items', 'Categories', 'Units', 'Attributes'],
                     ],
                 ],
-                'profile' => 'operator',
+                'profile'     => 'operator',
             ],
             [
                 'name'        => 'Purchasing Officer',
@@ -159,7 +156,7 @@ class AdministratorSeeder extends Seeder {
                         'models'       => ['Items', 'Categories', 'Units', 'Attributes'],
                     ],
                 ],
-                'profile' => 'operator',
+                'profile'     => 'operator',
             ],
             [
                 'name'        => 'Warehouse Officer',
@@ -193,8 +190,8 @@ class AdministratorSeeder extends Seeder {
         if (\is_array($modules) && $modules === ['*']) {
             $modules = '*';
         }
-        $roleDefinition['modules'] = $modules;
-        $roleDefinition['profile'] ??= 'read_only';
+        $roleDefinition['modules']                = $modules;
+        $roleDefinition['profile']              ??= 'read_only';
         $roleDefinition['profile_only_creator'] ??= null;
 
         return $roleDefinition;
