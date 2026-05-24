@@ -1,14 +1,23 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { router } from "@inertiajs/react";
 import Icon from "@/Components/ui/Icon";
 import { Avatar } from "@/Components/ui/avatar";
 import RoleBadge from "@/Components/ui/RoleBadge";
 import StatusBadge from "@/Components/ui/StatusBadge";
 import PermBadge from "@/Components/ui/PermBadge";
 import EmptyState from "../components/EmptyState";
+import { PERMISSION_GROUPS } from "../config/roles";
 import { fmtDate, fmtTime } from "../utils/format";
 
-export default function TabAdmins({ admins }) {
+const AVAILABLE_PERMISSION_KEYS = PERMISSION_GROUPS.map((group) => group.key);
+
+export default function TabAdmins({
+  admins,
+  canManageAdminPermissions = false,
+}) {
   const [selectedId, setSelectedId] = useState(null);
+  const [draftPermissions, setDraftPermissions] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
 
   const selectedAdmin = useMemo(() => {
     if (!selectedId) {
@@ -18,6 +27,62 @@ export default function TabAdmins({ admins }) {
     return admins.find((adminItem) => adminItem.id === selectedId) ?? null;
   }, [admins, selectedId]);
 
+  useEffect(() => {
+    if (!selectedAdmin) {
+      setDraftPermissions([]);
+      return;
+    }
+
+    setDraftPermissions(
+      Array.isArray(selectedAdmin.permissions) ? selectedAdmin.permissions : [],
+    );
+  }, [selectedAdmin]);
+
+  const togglePermission = (permissionKey) => {
+    if (!canManageAdminPermissions) {
+      return;
+    }
+
+    setDraftPermissions((prevPermissions) => {
+      const nextSet = new Set(prevPermissions);
+      const hasPermission = nextSet.has(permissionKey);
+
+      if (hasPermission) {
+        nextSet.delete(permissionKey);
+      } else if (permissionKey === "super_admin") {
+        return ["super_admin"];
+      } else {
+        nextSet.delete("super_admin");
+        nextSet.add(permissionKey);
+      }
+
+      return [...nextSet];
+    });
+  };
+
+  const handleSavePermissions = () => {
+    if (!selectedAdmin || submitting || !canManageAdminPermissions) {
+      return;
+    }
+
+    setSubmitting(true);
+    router.patch(
+      route("admin.user.admins.permissions", {
+        user: selectedAdmin.id,
+      }),
+      {
+        permissions: draftPermissions,
+      },
+      {
+        preserveScroll: true,
+        only: ["admins", "canManageAdminPermissions"],
+        onFinish: () => {
+          setSubmitting(false);
+        },
+      },
+    );
+  };
+
   return (
     <div className="flex gap-4 flex-1 overflow-hidden">
       <div className="flex-1 bg-[var(--card)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
@@ -26,7 +91,7 @@ export default function TabAdmins({ admins }) {
             Admin Accounts ({admins.length})
           </p>
           <p className="text-[10px] font-semibold text-[var(--muted-foreground)] uppercase tracking-widest">
-            Read Only
+            {canManageAdminPermissions ? "Editable" : "Read Only"}
           </p>
         </div>
 
@@ -64,7 +129,10 @@ export default function TabAdmins({ admins }) {
                       <div className="flex flex-wrap gap-1 mt-2">
                         {adminItem.permissions.length > 0 ? (
                           adminItem.permissions.map((permissionName) => (
-                            <PermBadge key={permissionName} pkey={permissionName} />
+                            <PermBadge
+                              key={permissionName}
+                              pkey={permissionName}
+                            />
                           ))
                         ) : (
                           <span className="text-[10px] text-[var(--muted-foreground)] italic">
@@ -82,7 +150,7 @@ export default function TabAdmins({ admins }) {
       </div>
 
       {selectedAdmin && (
-        <div className="w-72 shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
+        <div className="w-80 shrink-0 bg-[var(--card)] border border-[var(--border)] rounded-xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
             <p className="text-[10px] font-bold text-[var(--muted-foreground)] uppercase tracking-widest">
               Admin Detail
@@ -123,7 +191,10 @@ export default function TabAdmins({ admins }) {
                   : "-",
               ],
             ].map(([label, value]) => (
-              <div key={label} className="flex justify-between items-start gap-3">
+              <div
+                key={label}
+                className="flex justify-between items-start gap-3"
+              >
                 <p className="text-[10px] text-[var(--muted-foreground)]">
                   {label}
                 </p>
@@ -137,19 +208,55 @@ export default function TabAdmins({ admins }) {
               <p className="text-[10px] text-[var(--muted-foreground)] uppercase tracking-widest font-semibold mb-2">
                 Permissions
               </p>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedAdmin.permissions.length > 0 ? (
-                  selectedAdmin.permissions.map((permissionName) => (
-                    <PermBadge key={permissionName} pkey={permissionName} />
-                  ))
-                ) : (
-                  <p className="text-xs text-[var(--muted-foreground)] italic">
-                    No permissions
-                  </p>
-                )}
+              <div className="space-y-2">
+                {AVAILABLE_PERMISSION_KEYS.map((permissionKey) => {
+                  const permissionGroup = PERMISSION_GROUPS.find(
+                    (group) => group.key === permissionKey,
+                  );
+                  const checked = draftPermissions.includes(permissionKey);
+
+                  if (!permissionGroup) {
+                    return null;
+                  }
+
+                  return (
+                    <label
+                      key={permissionKey}
+                      className={`flex items-start gap-2 rounded-lg border border-[var(--border)] px-3 py-2 ${canManageAdminPermissions ? "cursor-pointer hover:bg-[var(--background-accent)]" : "opacity-70 cursor-default"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={!canManageAdminPermissions || submitting}
+                        onChange={() => togglePermission(permissionKey)}
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-[var(--foreground)]">
+                          {permissionGroup.label}
+                        </p>
+                        <p className="text-[10px] text-[var(--muted-foreground)]">
+                          {permissionGroup.desc}
+                        </p>
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           </div>
+
+          {canManageAdminPermissions && (
+            <div className="px-5 py-3 border-t border-[var(--border)]">
+              <button
+                onClick={handleSavePermissions}
+                disabled={submitting}
+                className="w-full py-2.5 rounded-lg text-xs font-semibold bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {submitting ? "Saving..." : "Save Permissions"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

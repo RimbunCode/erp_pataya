@@ -1,24 +1,7 @@
 import MainLayout from "@/Layouts/MainLayout";
 import { router, usePage } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
-
-const STATUS_CFG = {
-  pending: {
-    label: "Pending",
-    pill: "bg-[var(--primary-soft)] text-[var(--primary-soft-foreground)]",
-    dot: "bg-[var(--primary)]",
-  },
-  approved: {
-    label: "Approved",
-    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-    dot: "bg-emerald-500",
-  },
-  rejected: {
-    label: "Rejected",
-    pill: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
-    dot: "bg-red-500",
-  },
-};
+import { STATUS_CFG } from "@/lib/utils";
 
 const fmtCurrency = (value) =>
   new Intl.NumberFormat("id-ID", {

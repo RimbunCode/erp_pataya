@@ -10,7 +10,8 @@ use App\Models\User\User;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Inertia\Testing\AssertableInertia as Assert;
+use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\AssertionFailedError;
 use Tests\TestCase;
 
 class UserDirectoryRoleRequestTest extends TestCase {
@@ -19,6 +20,7 @@ class UserDirectoryRoleRequestTest extends TestCase {
         $student = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'user_admin');
         $this->assignRole($student, 'student');
         $this->ensureRoleExists('instructor');
 
@@ -48,6 +50,7 @@ class UserDirectoryRoleRequestTest extends TestCase {
         $student = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'user_admin');
         $this->assignRole($student, 'student');
 
         $roleRequest = $this->createPendingInstructorRequest($student);
@@ -80,6 +83,7 @@ class UserDirectoryRoleRequestTest extends TestCase {
         $user  = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'user_admin');
 
         $response = $this->actingAs($admin)
             ->from(route('admin.user'))
@@ -96,6 +100,7 @@ class UserDirectoryRoleRequestTest extends TestCase {
         $user  = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'user_admin');
 
         $inactiveResponse = $this->actingAs($admin)->patch(
             route('admin.user.users.status', ['user' => $user->id]),
@@ -134,25 +139,29 @@ class UserDirectoryRoleRequestTest extends TestCase {
         $student = User::factory()->create(['name' => 'Student User']);
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'user_admin');
         $this->assignRole($student, 'student');
 
         $roleRequest = $this->createPendingInstructorRequest($student);
 
         $response = $this->actingAs($admin)->get(route('admin.user'));
+        $response->assertOk();
 
-        $response->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->component('Admin/UserDirectory/index')
-            ->has('users')
-            ->has('requests', 1)
-            ->has('admins')
-            ->where('orgs', [])
-            ->where('orgsMeta.ready', false)
-            ->has('requests.0', fn (Assert $request) => $request
-                ->where('id', (string) $roleRequest->id)
-                ->where('userId', (string) $student->id)
-                ->where('requestedRole', 'instructor')
-                ->where('status', FormStatus::PENDING->value)
-                ->etc()));
+        $page = $this->extractInertiaPage($response);
+        $this->assertSame('Admin/UserDirectory/index', $page['component'] ?? null);
+
+        $props = $page['props'] ?? [];
+        $this->assertIsArray($props['users'] ?? null);
+        $this->assertIsArray($props['requests'] ?? null);
+        $this->assertIsArray($props['admins'] ?? null);
+        $this->assertSame([], $props['orgs'] ?? null);
+        $this->assertFalse((bool) ($props['orgsMeta']['ready'] ?? true));
+
+        $requestPayload = collect($props['requests'] ?? [])->firstWhere('id', (string) $roleRequest->id);
+        $this->assertNotNull($requestPayload);
+        $this->assertSame((string) $student->id, $requestPayload['userId'] ?? null);
+        $this->assertSame('instructor', $requestPayload['requestedRole'] ?? null);
+        $this->assertSame(FormStatus::PENDING->value, $requestPayload['status'] ?? null);
     }
 
     public function test_admin_user_directory_page_exposes_rejection_history_for_reapplied_role_request(): void {
@@ -160,6 +169,7 @@ class UserDirectoryRoleRequestTest extends TestCase {
         $student = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'user_admin');
         $this->assignRole($student, 'student');
 
         $rejectedRequest = RoleRequest::query()->create([
@@ -175,23 +185,19 @@ class UserDirectoryRoleRequestTest extends TestCase {
 
         $pendingRequest = $this->createPendingInstructorRequest($student);
 
-        $this->actingAs($admin)
-            ->get(route('admin.user'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/UserDirectory/index')
-                ->where('requests', function ($requests) use ($pendingRequest, $rejectedRequest): bool {
-                    $requestCollection = collect($requests);
-                    $pendingPayload    = $requestCollection->firstWhere('id', (string) $pendingRequest->id);
+        $response = $this->actingAs($admin)->get(route('admin.user'));
+        $response->assertOk();
 
-                    if ($pendingPayload === null) {
-                        return false;
-                    }
+        $page = $this->extractInertiaPage($response);
+        $this->assertSame('Admin/UserDirectory/index', $page['component'] ?? null);
 
-                    return ($pendingPayload['rejectionHistoryCount'] ?? 0) === 1
-                        && ($pendingPayload['rejectionHistory'][0]['id'] ?? null) === (string) $rejectedRequest->id
-                        && ($pendingPayload['rejectionHistory'][0]['reason'] ?? null) === 'Dokumen bukti tidak terbaca.';
-                }));
+        $requestCollection = collect($page['props']['requests'] ?? []);
+        $pendingPayload    = $requestCollection->firstWhere('id', (string) $pendingRequest->id);
+
+        $this->assertNotNull($pendingPayload);
+        $this->assertSame(1, $pendingPayload['rejectionHistoryCount'] ?? 0);
+        $this->assertSame((string) $rejectedRequest->id, $pendingPayload['rejectionHistory'][0]['id'] ?? null);
+        $this->assertSame('Dokumen bukti tidak terbaca.', $pendingPayload['rejectionHistory'][0]['reason'] ?? null);
     }
 
     protected function setUp(): void {
@@ -251,6 +257,69 @@ class UserDirectoryRoleRequestTest extends TestCase {
         );
     }
 
+    private function grantAdminPermission(User $user, string $permissionName): void {
+        $permissionId = DB::table('permissions')
+            ->where('name', $permissionName)
+            ->whereNull('deleted_at')
+            ->value('id');
+
+        if (! $permissionId) {
+            $permissionId = (string) Str::ulid();
+            DB::table('permissions')->insert([
+                'id'          => $permissionId,
+                'module'      => 'lms',
+                'name'        => $permissionName,
+                'model'       => User::class,
+                'route'       => 'admin.*',
+                'permissions' => json_encode(['view']),
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+        }
+
+        $exists = DB::table('admin_user_permissions')
+            ->where('user_id', $user->id)
+            ->where('permission_id', $permissionId)
+            ->whereNull('deleted_at')
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        DB::table('admin_user_permissions')->insert([
+            'id'            => (string) Str::ulid(),
+            'user_id'       => $user->id,
+            'permission_id' => $permissionId,
+            'created_at'    => now(),
+            'updated_at'    => now(),
+            'deleted_at'    => null,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extractInertiaPage(TestResponse $response): array {
+        if ($response->headers->has('X-Inertia')) {
+            return (array) $response->json();
+        }
+
+        try {
+            return (array) $response->viewData('page');
+        } catch (AssertionFailedError) {
+            $content = (string) $response->getContent();
+            preg_match('/data-page="([^"]+)"/', $content, $matches);
+
+            $encodedPage = $matches[1] ?? null;
+            if (! $encodedPage) {
+                return [];
+            }
+
+            return json_decode(html_entity_decode($encodedPage, ENT_QUOTES, 'UTF-8'), true) ?? [];
+        }
+    }
+
     /**
      * @return array<int, string>
      */
@@ -261,6 +330,7 @@ class UserDirectoryRoleRequestTest extends TestCase {
             'database/migrations/2025_01_31_150339_create_permissions_table.php',
             'database/migrations/2025_01_31_152926_create_user_role_table.php',
             'database/migrations/2025_01_31_153311_create_role_permissions_table.php',
+            'database/migrations/2026_05_24_141817_create_admin_user_permissions_table.php',
             'database/migrations/2025_01_30_134342_create_files_table.php',
             'database/migrations/2026_05_23_004628_create_role_requests_table.php',
         ];

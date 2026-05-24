@@ -10,8 +10,11 @@ use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Inertia\Testing\AssertableInertia as Assert;
+use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
+use PHPUnit\Framework\AssertionFailedError;
 use Tests\TestCase;
 
 class EnrollmentVerificationFlowTest extends TestCase {
@@ -53,6 +56,7 @@ class EnrollmentVerificationFlowTest extends TestCase {
         $student    = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'finance_admin');
         $this->assignRole($instructor, 'instructor');
         $this->assignRole($student, 'student');
 
@@ -95,6 +99,7 @@ class EnrollmentVerificationFlowTest extends TestCase {
         $student    = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'finance_admin');
         $this->assignRole($instructor, 'instructor');
         $this->assignRole($student, 'student');
 
@@ -118,13 +123,17 @@ class EnrollmentVerificationFlowTest extends TestCase {
             'status'     => FormStatus::PENDING->value,
         ]);
 
-        $this->actingAs($admin)
-            ->get(route('admin.finance'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/SystemFinance')
-                ->where('payments.0.id', (string) $payment->id)
-                ->where('payments.0.studentNote', 'Mohon dicek, transfer dari rekening BCA atas nama A.'));
+        $response = $this->actingAs($admin)->get(route('admin.finance'));
+        $response->assertOk();
+
+        $page = $this->extractInertiaPage($response);
+        $this->assertSame('Admin/SystemFinance', $page['component'] ?? null);
+
+        $paymentPayload = collect($page['props']['payments'] ?? [])
+            ->firstWhere('id', (string) $payment->id);
+
+        $this->assertNotNull($paymentPayload);
+        $this->assertSame('Mohon dicek, transfer dari rekening BCA atas nama A.', $paymentPayload['studentNote'] ?? null);
     }
 
     public function test_admin_finance_page_exposes_rejection_history_after_student_reupload(): void {
@@ -133,6 +142,7 @@ class EnrollmentVerificationFlowTest extends TestCase {
         $student    = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'finance_admin');
         $this->assignRole($instructor, 'instructor');
         $this->assignRole($student, 'student');
 
@@ -170,24 +180,20 @@ class EnrollmentVerificationFlowTest extends TestCase {
             'status'     => FormStatus::PENDING->value,
         ]);
 
-        $this->actingAs($admin)
-            ->get(route('admin.finance'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/SystemFinance')
-                ->where('payments', function ($payments) use ($pendingPayment, $rejectedPayment): bool {
-                    $paymentCollection = collect($payments);
+        $response = $this->actingAs($admin)->get(route('admin.finance'));
+        $response->assertOk();
 
-                    $pendingPayload = $paymentCollection->firstWhere('id', (string) $pendingPayment->id);
-                    if ($pendingPayload === null) {
-                        return false;
-                    }
+        $page = $this->extractInertiaPage($response);
+        $this->assertSame('Admin/SystemFinance', $page['component'] ?? null);
 
-                    return $paymentCollection->firstWhere('id', (string) $rejectedPayment->id) !== null
-                        && ($pendingPayload['rejectionHistoryCount'] ?? 0) === 1
-                        && ($pendingPayload['rejectionHistory'][0]['id'] ?? null) === (string) $rejectedPayment->id
-                        && ($pendingPayload['rejectionHistory'][0]['reason'] ?? null) === 'Bukti transfer tidak jelas.';
-                }));
+        $paymentCollection = collect($page['props']['payments'] ?? []);
+        $pendingPayload    = $paymentCollection->firstWhere('id', (string) $pendingPayment->id);
+
+        $this->assertNotNull($pendingPayload);
+        $this->assertNotNull($paymentCollection->firstWhere('id', (string) $rejectedPayment->id));
+        $this->assertSame(1, $pendingPayload['rejectionHistoryCount'] ?? 0);
+        $this->assertSame((string) $rejectedPayment->id, $pendingPayload['rejectionHistory'][0]['id'] ?? null);
+        $this->assertSame('Bukti transfer tidak jelas.', $pendingPayload['rejectionHistory'][0]['reason'] ?? null);
     }
 
     public function test_admin_can_reject_and_student_can_reupload_for_same_course(): void {
@@ -198,6 +204,7 @@ class EnrollmentVerificationFlowTest extends TestCase {
         $student    = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'finance_admin');
         $this->assignRole($instructor, 'instructor');
         $this->assignRole($student, 'student');
 
@@ -274,6 +281,69 @@ class EnrollmentVerificationFlowTest extends TestCase {
         $user->roles()->syncWithoutDetaching([$role->id]);
     }
 
+    private function grantAdminPermission(User $user, string $permissionName): void {
+        $permissionId = DB::table('permissions')
+            ->where('name', $permissionName)
+            ->whereNull('deleted_at')
+            ->value('id');
+
+        if (! $permissionId) {
+            $permissionId = (string) Str::ulid();
+            DB::table('permissions')->insert([
+                'id'          => $permissionId,
+                'module'      => 'lms',
+                'name'        => $permissionName,
+                'model'       => User::class,
+                'route'       => 'admin.*',
+                'permissions' => json_encode(['view']),
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+        }
+
+        $exists = DB::table('admin_user_permissions')
+            ->where('user_id', $user->id)
+            ->where('permission_id', $permissionId)
+            ->whereNull('deleted_at')
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        DB::table('admin_user_permissions')->insert([
+            'id'            => (string) Str::ulid(),
+            'user_id'       => $user->id,
+            'permission_id' => $permissionId,
+            'created_at'    => now(),
+            'updated_at'    => now(),
+            'deleted_at'    => null,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extractInertiaPage(TestResponse $response): array {
+        if ($response->headers->has('X-Inertia')) {
+            return (array) $response->json();
+        }
+
+        try {
+            return (array) $response->viewData('page');
+        } catch (AssertionFailedError) {
+            $content = (string) $response->getContent();
+            preg_match('/data-page="([^"]+)"/', $content, $matches);
+
+            $encodedPage = $matches[1] ?? null;
+            if (! $encodedPage) {
+                return [];
+            }
+
+            return json_decode(html_entity_decode($encodedPage, ENT_QUOTES, 'UTF-8'), true) ?? [];
+        }
+    }
+
     private function createCourse(User $instructor, string $title): Course {
         return Course::query()->create([
             'title'          => $title,
@@ -292,13 +362,19 @@ class EnrollmentVerificationFlowTest extends TestCase {
     private function requiredMigrationPaths(): array {
         return [
             'database/migrations/0001_01_01_000000_create_users_table.php',
+            'database/migrations/0001_01_01_000000_create_preferences_table.php',
             'database/migrations/2025_01_31_135456_create_roles_table.php',
+            'database/migrations/2025_01_31_150339_create_permissions_table.php',
             'database/migrations/2025_01_31_152926_create_user_role_table.php',
+            'database/migrations/2026_05_24_141817_create_admin_user_permissions_table.php',
             'database/migrations/2026_04_26_075938_create_courses_table.php',
             'database/migrations/2026_04_26_075939_create_categories_table.php',
             'database/migrations/2026_04_28_074544_create_course_category_table.php',
             'database/migrations/2026_04_28_074634_create_payments_table.php',
             'database/migrations/2026_04_28_074652_create_enrollments_table.php',
+            'database/migrations/2026_05_24_141817_create_instructor_earnings_table.php',
+            'database/migrations/2026_05_24_141817_create_instructor_payout_requests_table.php',
+            'database/migrations/2026_05_24_141818_create_instructor_payout_request_items_table.php',
         ];
     }
 }

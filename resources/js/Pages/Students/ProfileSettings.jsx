@@ -4,7 +4,7 @@ import MainLayout from "@/Layouts/MainLayout";
 import UploadDialog from "../Core/Components/UploadDialog";
 import UploadDialog2 from "../Core/Components/UploadDialog2";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { cn } from "@/lib/utils";
+import { cn, STATUS_CFG } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
+import DatetimePicker from "@/Components/DatetimePicker";
 
 const MONTHS = [
   "January",
@@ -103,21 +104,6 @@ function BirthdateCalendar({ value, onChange }) {
   );
 }
 
-const REQUEST_STATUS_CFG = {
-  pending: {
-    label: "Pending Review",
-    pill: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-  },
-  approved: {
-    label: "Approved",
-    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  },
-  rejected: {
-    label: "Rejected",
-    pill: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-  },
-};
-
 const formatDateTime = (value) => {
   if (!value) return "—";
   return new Date(value).toLocaleString("id-ID", {
@@ -153,14 +139,12 @@ export default function ProfileSettings({
   const rawPhone = (user?.phone ?? "").replace(/^\+62/, "").replace(/^0/, "");
 
   const [form, setForm] = useState({
-    // — from users table —
     name: user?.name ?? "",
     username: user?.username ?? "",
     email: user?.email ?? "",
     phone: rawPhone,
     gender: user?.gender ?? "",
     birthdate: parsedBirthdate,
-    // — from student_profiles table —
     institution: profile?.institution ?? "",
     student_id_number: profile?.student_id_number ?? "",
     socials: profile?.socials ?? [],
@@ -218,7 +202,7 @@ export default function ProfileSettings({
   const hasInstructorRole = roleNames.includes("instructor");
   const currentRequestStatus = latestInstructorRequest?.status ?? null;
   const requestStatusConfig =
-    REQUEST_STATUS_CFG[currentRequestStatus] ?? REQUEST_STATUS_CFG.pending;
+    STATUS_CFG[currentRequestStatus] ?? STATUS_CFG.pending;
   const isRequestLocked =
     hasInstructorRole ||
     currentRequestStatus === "pending" ||
@@ -403,30 +387,15 @@ export default function ProfileSettings({
                   <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                     Date of Birth
                   </label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal rounded-xl border border-border bg-muted px-4 py-3 h-auto text-base hover:bg-card shadow-md",
-                          !form.birthdate && "text-muted-foreground",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                        {form.birthdate
-                          ? format(form.birthdate, "dd MMM yyyy")
-                          : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <BirthdateCalendar
-                        value={form.birthdate}
-                        onChange={(d) =>
-                          setForm((prev) => ({ ...prev, birthdate: d ?? null }))
-                        }
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DatetimePicker
+                    placeholder="Select date of birth"
+                    type="date"
+                    value={form.birthdate}
+                    onValueChange={(d) =>
+                      setForm((prev) => ({ ...prev, birthdate: d ?? null }))
+                    }
+                    className="w-full bg-muted border border-border rounded-xl h-12 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+                  />
                 </div>
               </div>
             </div>

@@ -2,13 +2,17 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Admin\AdminPermissionService;
 use App\Services\Auth\RoleResolver;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
 
 class HandleInertiaRequests extends Middleware {
-    public function __construct(private RoleResolver $roleResolver) {}
+    public function __construct(
+        private RoleResolver $roleResolver,
+        private AdminPermissionService $adminPermissionService,
+    ) {}
 
     /**
      * The root template that is loaded on the first page visit.
@@ -30,11 +34,13 @@ class HandleInertiaRequests extends Middleware {
      * @return array<string, mixed>
      */
     public function share(Request $request): array {
-        $isDebug    = config('app.debug');
-        $flashKeys  = $request->session()->has('_flash') ? $request->session()->get('_flash')['old'] : [];
-        $user       = $request->user();
-        $sharedUser = null;
-        $activeRole = null;
+        $isDebug                   = config('app.debug');
+        $flashKeys                 = $request->session()->has('_flash') ? $request->session()->get('_flash')['old'] : [];
+        $user                      = $request->user();
+        $sharedUser                = null;
+        $activeRole                = null;
+        $adminPermissions          = [];
+        $canManageAdminPermissions = false;
 
         if ($user) {
             $userRoles = $this->roleResolver->normalizeRoles($user->roles->pluck('name')->toArray());
@@ -47,6 +53,11 @@ class HandleInertiaRequests extends Middleware {
                 $request->path(),
                 $request->cookie(RoleResolver::LAST_ACTIVE_ROLE_COOKIE),
             );
+
+            if (\in_array('admin', $userRoles, true)) {
+                $adminPermissions          = $this->adminPermissionService->resolveUserPermissionNames($user);
+                $canManageAdminPermissions = \in_array('super_admin', $adminPermissions, true);
+            }
         } elseif ($request->session()->get('mock_auth')) {
             $sharedUser = $request->session()->get('mock_user');
         }
@@ -54,8 +65,10 @@ class HandleInertiaRequests extends Middleware {
         return [
             ...parent::share($request),
             'auth' => [
-                'user'        => $sharedUser,
-                'active_role' => $activeRole,
+                'user'                         => $sharedUser,
+                'active_role'                  => $activeRole,
+                'admin_permissions'            => $adminPermissions,
+                'can_manage_admin_permissions' => $canManageAdminPermissions,
             ],
             'lang'  => $request->cookie('lang') ?? 'en',
             'ziggy' => fn () => [

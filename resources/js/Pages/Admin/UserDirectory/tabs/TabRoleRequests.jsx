@@ -3,7 +3,7 @@ import { router } from "@inertiajs/react";
 import Icon from "@/Components/ui/Icon";
 import { Avatar } from "@/Components/ui/avatar";
 import RoleBadge from "@/Components/ui/RoleBadge";
-import { STATUS_CFG } from "../config/status";
+import { STATUS_CFG } from "@/lib/utils";
 import EmptyState from "../components/EmptyState";
 import { fmtDate } from "../utils/format";
 

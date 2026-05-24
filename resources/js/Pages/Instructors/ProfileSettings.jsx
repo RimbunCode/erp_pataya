@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/Components/ui/select";
+import DatetimePicker from "@/Components/DatetimePicker";
 
 const MONTHS = [
   "January",
@@ -303,6 +304,7 @@ export default function ProfileSettings({ user, profile }) {
                       className={`${inputClass}`}
                     />
                   </div>
+                </div>
                 <div>
                   <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                     Email Address
@@ -367,30 +369,15 @@ export default function ProfileSettings({ user, profile }) {
                   <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
                     Date of Birth
                   </label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal rounded-xl border border-border bg-muted px-4 py-3 h-auto text-base hover:bg-card shadow-md",
-                          !form.birthdate && "text-muted-foreground",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
-                        {form.birthdate
-                          ? format(form.birthdate, "dd MMM yyyy")
-                          : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <BirthdateCalendar
-                        value={form.birthdate}
-                        onChange={(d) =>
-                          setForm((prev) => ({ ...prev, birthdate: d ?? null }))
-                        }
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <DatetimePicker
+                    placeholder="Select date of birth"
+                    type="date"
+                    value={form.birthdate}
+                    onValueChange={(d) =>
+                      setForm((prev) => ({ ...prev, birthdate: d ?? null }))
+                    }
+                    className="w-full bg-muted border border-border rounded-xl h-12 text-base text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+                  />
                 </div>
               </div>
             </div>

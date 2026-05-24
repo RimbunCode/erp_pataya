@@ -2,6 +2,8 @@
 
 import Link from "@/Components/Link";
 import { navConfig } from "@/Components/Navbar/NavConfig";
+import { useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 
 export default function MainSidebar({
   collapsed,
@@ -10,7 +12,29 @@ export default function MainSidebar({
   currentPath,
   onLogout,
 }) {
-  const config = navConfig[activeRole];
+  const { auth } = usePage().props;
+  const adminPermissions = Array.isArray(auth?.admin_permissions)
+    ? auth.admin_permissions
+    : [];
+  const isSuperAdmin = adminPermissions.includes("super_admin");
+
+  const config = useMemo(() => {
+    const currentConfig = navConfig[activeRole];
+    if (!currentConfig || activeRole !== "admin") {
+      return currentConfig;
+    }
+
+    return {
+      ...currentConfig,
+      items: currentConfig.items.filter((item) => {
+        if (!item.adminPermission) {
+          return true;
+        }
+
+        return isSuperAdmin || adminPermissions.includes(item.adminPermission);
+      }),
+    };
+  }, [activeRole, adminPermissions, isSuperAdmin]);
 
   return (
     <aside

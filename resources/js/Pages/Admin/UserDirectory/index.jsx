@@ -33,8 +33,15 @@ const TABS = [
 
 export default function UserDirectory() {
   const [activeTab, setActiveTab] = useState("users");
-  const { users, requests, orgs, orgsMeta, admins, pendingRequests } =
-    useUserDirectory();
+  const {
+    users,
+    requests,
+    orgs,
+    orgsMeta,
+    admins,
+    pendingRequests,
+    canManageAdminPermissions,
+  } = useUserDirectory();
 
   return (
     <MainLayout>
@@ -130,7 +137,12 @@ export default function UserDirectory() {
               {activeTab === "orgs" && (
                 <TabOrganizations orgs={orgs} orgsMeta={orgsMeta} />
               )}
-              {activeTab === "admins" && <TabAdmins admins={admins} />}
+              {activeTab === "admins" && (
+                <TabAdmins
+                  admins={admins}
+                  canManageAdminPermissions={canManageAdminPermissions}
+                />
+              )}
             </div>
           </div>
         </div>

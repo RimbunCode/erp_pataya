@@ -10,6 +10,7 @@ use App\Http\Controllers\Instructor\CourseContentController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\CourseSectionController;
 use App\Http\Controllers\Instructor\CourseSectionNoteController;
+use App\Http\Controllers\Instructor\FinancialController as InstructorFinancialController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
 use App\Http\Controllers\Instructor\StudentManagementController;
 use App\Http\Controllers\ModelController;
@@ -123,7 +124,8 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::get('/students', [StudentManagementController::class, 'index'])->name('students');
         Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('growth');
-        Route::get('/financial', fn () => inertia('Instructors/Financials'))->name('financial');
+        Route::get('/financial', [InstructorFinancialController::class, 'index'])->name('financial');
+        Route::post('/financial/payout-requests', [InstructorFinancialController::class, 'storePayoutRequest'])->name('financial.payout-requests.store');
 
         Route::get('/profile', [InstructorProfileController::class, 'index'])->name('profile');
         Route::put('/profile', [InstructorProfileController::class, 'update'])->name('profile.update');
@@ -140,17 +142,38 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware(['role:admin'])->prefix('/admin')->name('admin.')->group(function () {
         Route::get('/dashboard', fn () => inertia('Admin/Dashboard'))->name('dashboard');
-        Route::get('/approvals', [CourseApprovalController::class, 'index'])->name('approval');
-        Route::patch('/approvals/{coursePublishRequest}/approve', [CourseApprovalController::class, 'approve'])->name('approval.approve');
-        Route::patch('/approvals/{coursePublishRequest}/reject', [CourseApprovalController::class, 'reject'])->name('approval.reject');
-        Route::get('/finance', [SystemFinanceController::class, 'index'])->name('finance');
-        Route::patch('/finance/{payment}/approve', [SystemFinanceController::class, 'approve'])->name('finance.approve');
-        Route::patch('/finance/{payment}/reject', [SystemFinanceController::class, 'reject'])->name('finance.reject');
-        Route::get('/finance/{payment}/proof', [SystemFinanceController::class, 'proof'])->name('finance.proof');
-        Route::get('/user', [UserDirectoryController::class, 'index'])->name('user');
-        Route::patch('/user/requests/{roleRequest}/approve', [UserDirectoryController::class, 'approveRequest'])->name('user.requests.approve');
-        Route::patch('/user/requests/{roleRequest}/reject', [UserDirectoryController::class, 'rejectRequest'])->name('user.requests.reject');
-        Route::patch('/user/users/{user}/status', [UserDirectoryController::class, 'updateUserStatus'])->name('user.users.status');
+
+        Route::middleware(['admin.permission:course_admin,super_admin'])->group(function () {
+            Route::get('/approvals', [CourseApprovalController::class, 'index'])->name('approval');
+            Route::patch('/approvals/{coursePublishRequest}/approve', [CourseApprovalController::class, 'approve'])->name('approval.approve');
+            Route::patch('/approvals/{coursePublishRequest}/reject', [CourseApprovalController::class, 'reject'])->name('approval.reject');
+        });
+
+        Route::middleware(['admin.permission:finance_admin,super_admin'])->group(function () {
+            Route::get('/finance', [SystemFinanceController::class, 'index'])->name('finance');
+            Route::patch('/finance/{payment}/approve', [SystemFinanceController::class, 'approve'])->name('finance.approve');
+            Route::patch('/finance/{payment}/reject', [SystemFinanceController::class, 'reject'])->name('finance.reject');
+            Route::get('/finance/{payment}/proof', [SystemFinanceController::class, 'proof'])->name('finance.proof');
+            Route::post('/finance/payouts/batch', [SystemFinanceController::class, 'runPayoutBatch'])->name('finance.payouts.batch');
+            Route::patch('/finance/payouts/{payoutRequest}/approve', [SystemFinanceController::class, 'approvePayoutRequest'])->name('finance.payouts.approve');
+            Route::patch('/finance/payouts/{payoutRequest}/reject', [SystemFinanceController::class, 'rejectPayoutRequest'])->name('finance.payouts.reject');
+            Route::patch('/finance/payouts/{payoutRequest}/paid', [SystemFinanceController::class, 'markPayoutRequestAsPaid'])->name('finance.payouts.paid');
+            Route::get('/finance/payouts/{payoutRequest}/proof', [SystemFinanceController::class, 'payoutProof'])->name('finance.payouts.proof');
+            Route::patch('/finance/settings/payout-delay', [SystemFinanceController::class, 'updatePayoutDelay'])->name('finance.settings.payout-delay');
+            Route::patch('/finance/settings/company-fee', [SystemFinanceController::class, 'updateCompanyFee'])->name('finance.settings.company-fee');
+        });
+
+        Route::middleware(['admin.permission:user_admin,super_admin'])->group(function () {
+            Route::get('/user', [UserDirectoryController::class, 'index'])->name('user');
+            Route::patch('/user/requests/{roleRequest}/approve', [UserDirectoryController::class, 'approveRequest'])->name('user.requests.approve');
+            Route::patch('/user/requests/{roleRequest}/reject', [UserDirectoryController::class, 'rejectRequest'])->name('user.requests.reject');
+            Route::patch('/user/users/{user}/status', [UserDirectoryController::class, 'updateUserStatus'])->name('user.users.status');
+        });
+
+        Route::middleware(['admin.permission:super_admin'])->group(function () {
+            Route::patch('/user/admins/{user}/permissions', [UserDirectoryController::class, 'updateAdminPermissions'])->name('user.admins.permissions');
+        });
+
         Route::get('/profile', [AdminProfileController::class, 'index'])->name('profile');
         Route::put('/profile', [AdminProfileController::class, 'update'])->name('profile.update');
         Route::post('/profile/avatar', [AdminProfileController::class, 'updateAvatar'])->name('avatar.update');

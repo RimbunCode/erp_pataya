@@ -20,6 +20,8 @@ use App\Traits\LinkModel;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -135,6 +137,16 @@ class User extends Authenticatable {
 
     public function reviewedRoleRequests() {
         return $this->hasMany(RoleRequest::class, 'reviewed_by');
+    }
+
+    public function adminPermissionAssignments(): HasMany {
+        return $this->hasMany(AdminUserPermission::class);
+    }
+
+    public function adminPermissions(): BelongsToMany {
+        return $this->belongsToMany(Permission::class, 'admin_user_permissions', 'user_id', 'permission_id')
+            ->wherePivotNull('deleted_at')
+            ->withTimestamps();
     }
 
     public function inactiveByUser() {

@@ -5,10 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RejectInstructorRoleRequestRequest;
+use App\Http\Requests\Admin\UpdateAdminPermissionsRequest;
 use App\Http\Requests\Admin\UpdateUserStatusRequest;
 use App\Models\RoleRequest;
-use App\Models\User\Role;
 use App\Models\User\User;
+use App\Services\Admin\AdminPermissionService;
 use App\Services\Auth\UserRoleManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
@@ -18,7 +19,10 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 class UserDirectoryController extends Controller {
-    public function __construct(private UserRoleManager $userRoleManager) {}
+    public function __construct(
+        private UserRoleManager $userRoleManager,
+        private AdminPermissionService $adminPermissionService,
+    ) {}
 
     public function index(): Response {
         $users = User::query()
@@ -121,12 +125,7 @@ class UserDirectoryController extends Controller {
         $adminsPayload = $users
             ->filter(fn (User $user) => $user->roles->pluck('name')->map(fn ($roleName) => strtolower((string) $roleName))->contains('admin'))
             ->map(function (User $user): array {
-                $permissions = $user->roles
-                    ->flatMap(fn (Role $role) => $role->rules->pluck('name'))
-                    ->map(fn ($permissionName) => (string) $permissionName)
-                    ->unique()
-                    ->values()
-                    ->all();
+                $permissions = $this->adminPermissionService->resolveUserPermissionNames($user);
 
                 return [
                     'id'          => (string) $user->id,
@@ -142,12 +141,15 @@ class UserDirectoryController extends Controller {
             })
             ->values();
 
+        $authUser = request()->user();
+
         return Inertia::render('Admin/UserDirectory/index', [
-            'users'    => $usersPayload,
-            'requests' => $requestsPayload,
-            'admins'   => $adminsPayload,
-            'orgs'     => [],
-            'orgsMeta' => [
+            'users'                     => $usersPayload,
+            'requests'                  => $requestsPayload,
+            'admins'                    => $adminsPayload,
+            'canManageAdminPermissions' => $authUser ? $this->adminPermissionService->canManageAdminPermissions($authUser) : false,
+            'orgs'                      => [],
+            'orgsMeta'                  => [
                 'ready'   => false,
                 'message' => 'Organizations backend integration is not implemented yet.',
             ],
@@ -197,6 +199,22 @@ class UserDirectoryController extends Controller {
         ]);
 
         return back()->with('success', 'Status user berhasil diperbarui.');
+    }
+
+    public function updateAdminPermissions(UpdateAdminPermissionsRequest $request, User $user): RedirectResponse {
+        $actor = $request->user();
+        if (! $actor) {
+            abort(401);
+        }
+
+        $validated = $request->validated();
+        $this->adminPermissionService->syncAdminPermissions(
+            $actor,
+            $user,
+            $validated['permissions'] ?? [],
+        );
+
+        return back()->with('success', 'Permission admin berhasil diperbarui.');
     }
 
     private function roleRequestHistoryKey(RoleRequest $roleRequest): string {

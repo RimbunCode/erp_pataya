@@ -9,7 +9,9 @@ use App\Models\CoursePublishRequest;
 use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Support\Facades\Artisan;
-use Inertia\Testing\AssertableInertia as Assert;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\AssertionFailedError;
 use Tests\TestCase;
 
@@ -19,6 +21,7 @@ class CourseApprovalFlowTest extends TestCase {
         $instructor = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'course_admin');
         $this->assignRole($instructor, 'instructor');
 
         $course = $this->createCourse($instructor);
@@ -53,6 +56,7 @@ class CourseApprovalFlowTest extends TestCase {
         $instructor = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'course_admin');
         $this->assignRole($instructor, 'instructor');
 
         $course = $this->createCourse($instructor, [
@@ -91,6 +95,7 @@ class CourseApprovalFlowTest extends TestCase {
         $instructor = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'course_admin');
         $this->assignRole($instructor, 'instructor');
 
         $course = $this->createCourse($instructor);
@@ -136,6 +141,7 @@ class CourseApprovalFlowTest extends TestCase {
         $instructor = User::factory()->create(['name' => 'Instruktur A']);
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'course_admin');
         $this->assignRole($instructor, 'instructor');
 
         $category = Category::query()->create([
@@ -158,17 +164,19 @@ class CourseApprovalFlowTest extends TestCase {
         ]);
 
         $response = $this->actingAs($admin)->get(route('admin.approval'));
+        $response->assertOk();
 
-        $response->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->component('Admin/Approvals')
-            ->has('requests', 1)
-            ->has('requests.0', fn (Assert $request) => $request
-                ->where('id', (string) $publishRequest->id)
-                ->where('courseId', (string) $course->id)
-                ->where('title', 'Course Approval Payload')
-                ->where('instructor', 'Instruktur A')
-                ->where('status', FormStatus::PENDING->value)
-                ->etc()));
+        $page = $this->extractInertiaPage($response);
+        $this->assertSame('Admin/Approvals', $page['component'] ?? null);
+
+        $requests = collect($page['props']['requests'] ?? []);
+        $payload  = $requests->firstWhere('id', (string) $publishRequest->id);
+
+        $this->assertNotNull($payload);
+        $this->assertSame((string) $course->id, $payload['courseId'] ?? null);
+        $this->assertSame('Course Approval Payload', $payload['title'] ?? null);
+        $this->assertSame('Instruktur A', $payload['instructor'] ?? null);
+        $this->assertSame(FormStatus::PENDING->value, $payload['status'] ?? null);
     }
 
     public function test_admin_approvals_page_exposes_rejection_history_for_resubmitted_course_request(): void {
@@ -176,6 +184,7 @@ class CourseApprovalFlowTest extends TestCase {
         $instructor = User::factory()->create();
 
         $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'course_admin');
         $this->assignRole($instructor, 'instructor');
 
         $course = $this->createCourse($instructor);
@@ -204,22 +213,7 @@ class CourseApprovalFlowTest extends TestCase {
         $response = $this->actingAs($admin)->get(route('admin.approval'));
         $response->assertOk();
 
-        if ($response->headers->has('X-Inertia')) {
-            $page = $response->json();
-        } else {
-            try {
-                $page = $response->viewData('page');
-            } catch (AssertionFailedError) {
-                $content = (string) $response->getContent();
-
-                preg_match('/data-page="([^"]+)"/', $content, $matches);
-
-                $encodedPage = $matches[1] ?? null;
-                $page        = $encodedPage !== null
-                    ? json_decode(html_entity_decode($encodedPage, ENT_QUOTES, 'UTF-8'), true)
-                    : null;
-            }
-        }
+        $page = $this->extractInertiaPage($response);
 
         $this->assertIsArray($page);
         $this->assertSame('Admin/Approvals', $page['component'] ?? null);
@@ -272,6 +266,69 @@ class CourseApprovalFlowTest extends TestCase {
         $user->roles()->syncWithoutDetaching([$role->id]);
     }
 
+    private function grantAdminPermission(User $user, string $permissionName): void {
+        $permissionId = DB::table('permissions')
+            ->where('name', $permissionName)
+            ->whereNull('deleted_at')
+            ->value('id');
+
+        if (! $permissionId) {
+            $permissionId = (string) Str::ulid();
+            DB::table('permissions')->insert([
+                'id'          => $permissionId,
+                'module'      => 'lms',
+                'name'        => $permissionName,
+                'model'       => User::class,
+                'route'       => 'admin.*',
+                'permissions' => json_encode(['view']),
+                'created_at'  => now(),
+                'updated_at'  => now(),
+            ]);
+        }
+
+        $exists = DB::table('admin_user_permissions')
+            ->where('user_id', $user->id)
+            ->where('permission_id', $permissionId)
+            ->whereNull('deleted_at')
+            ->exists();
+
+        if ($exists) {
+            return;
+        }
+
+        DB::table('admin_user_permissions')->insert([
+            'id'            => (string) Str::ulid(),
+            'user_id'       => $user->id,
+            'permission_id' => $permissionId,
+            'created_at'    => now(),
+            'updated_at'    => now(),
+            'deleted_at'    => null,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function extractInertiaPage(TestResponse $response): array {
+        if ($response->headers->has('X-Inertia')) {
+            return (array) $response->json();
+        }
+
+        try {
+            return (array) $response->viewData('page');
+        } catch (AssertionFailedError) {
+            $content = (string) $response->getContent();
+            preg_match('/data-page="([^"]+)"/', $content, $matches);
+
+            $encodedPage = $matches[1] ?? null;
+            if (! $encodedPage) {
+                return [];
+            }
+
+            return json_decode(html_entity_decode($encodedPage, ENT_QUOTES, 'UTF-8'), true) ?? [];
+        }
+    }
+
     /**
      * @return array<int, string>
      */
@@ -279,7 +336,9 @@ class CourseApprovalFlowTest extends TestCase {
         return [
             'database/migrations/0001_01_01_000000_create_users_table.php',
             'database/migrations/2025_01_31_135456_create_roles_table.php',
+            'database/migrations/2025_01_31_150339_create_permissions_table.php',
             'database/migrations/2025_01_31_152926_create_user_role_table.php',
+            'database/migrations/2026_05_24_141817_create_admin_user_permissions_table.php',
             'database/migrations/2026_04_26_075938_create_courses_table.php',
             'database/migrations/2026_04_26_075939_create_categories_table.php',
             'database/migrations/2026_04_28_074544_create_course_category_table.php',

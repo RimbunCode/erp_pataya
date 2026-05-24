@@ -1,5 +1,6 @@
 <?php
 use App\Console\Commands\Feature;
+use App\Http\Middleware\AdminModulePermissionMiddleware;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -42,10 +43,11 @@ return Application::configure(dirname(__DIR__))
         ]);
         $middleware->redirectGuestsTo('/');
         $middleware->alias([
-            'app'       => AppMiddleware::class,
-            'role'      => RoleMiddleware::class,
-            'lang'      => LanguageMiddleware::class,
-            'onboarded' => EnsureUserIsOnboarded::class,
+            'app'              => AppMiddleware::class,
+            'role'             => RoleMiddleware::class,
+            'lang'             => LanguageMiddleware::class,
+            'onboarded'        => EnsureUserIsOnboarded::class,
+            'admin.permission' => AdminModulePermissionMiddleware::class,
         ]);
         //
     })

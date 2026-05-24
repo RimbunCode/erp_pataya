@@ -7,6 +7,7 @@ export function useUserDirectory() {
     requests: initialRequests = [],
     orgs: initialOrgs = [],
     admins: initialAdmins = [],
+    canManageAdminPermissions = false,
     orgsMeta = null,
   } = usePage().props;
 
@@ -45,6 +46,7 @@ export function useUserDirectory() {
     setOrgs,
     admins,
     setAdmins,
+    canManageAdminPermissions,
     orgsMeta,
     pendingRequests,
   };
