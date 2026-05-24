@@ -13,7 +13,26 @@ import { formatValue } from "@/Components/CurrencyInput";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import axios from "axios";
 import { simplifyTokenDisplay } from "./tokenConfigHelpers";
+function buildVariableToken({
+  variableType,
+  parentType,
+  variablePath,
+  keyName,
+}) {
+  if (parentType === "preferences" || variableType === "preferences") {
+    return `{{company.${keyName}}}`;
+  }
 
+  const normalizedPath = variablePath.startsWith("doc.")
+    ? variablePath
+    : `doc.${variablePath}`;
+
+  if (variableType === "relation") {
+    return `{{relation ${normalizedPath}}}`;
+  }
+
+  return `{{${normalizedPath}}}`;
+}
 /**
  * Format a value based on the column type and format options from DataTableColumns.
  *
@@ -219,6 +238,24 @@ function simplifyInlineDisplayToken(fullKey = "", token = "") {
   return `{{${fullKey.replace(/^doc\./, "")}}}`;
 }
 
+export function buildVariableDragPayload({
+  variable,
+  nestedColumns,
+  formattedExampleValue,
+  exampleValue,
+  displayLabel,
+  fullKey,
+}) {
+  return {
+    ...variable,
+    columns: nestedColumns,
+    exampleValue: formattedExampleValue ?? exampleValue,
+    displayLabel,
+    fullKey,
+    formattedToken: getFormattedHandlebarToken(variable, fullKey),
+  };
+}
+
 function tryInsertInlineVariableToken(
   editor,
   selectedComponent,
@@ -386,27 +423,242 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     if (tryInsertInlineVariableToken(editor, selected, token, fullKey)) {
       return;
     }
+    const getSimplifiedTokenDisplay = (token, variablePath = "") => {
+      if (!token) {
+        return variablePath ? `{{${variablePath.replace(/^doc\./, "")}}}` : "";
+      }
 
+      const formattedTokenMatch = token.match(
+        /\{\{\s*format(?:Currency|Number)\s+doc\.([^\s}]+)/,
+      );
+      if (formattedTokenMatch?.[1]) {
+        return `{{${formattedTokenMatch[1]}}}`;
+      }
+
+      return simplifyTokenDisplay(token);
+    };
+    const payload = buildVariableDragPayload({
+      variable,
+      nestedColumns,
+      formattedExampleValue,
+      exampleValue,
+      displayLabel,
+      fullKey,
+    });
+    const varPath = payload.fullKey || payload.name;
+    const SUBGRID_CLASS = "gjs-subgrid";
+    const SUBGRID_RULE_STYLE = {
+      display: "grid",
+      "grid-template-columns": "subgrid",
+      gap: "8px",
+      "grid-column": "1 / -1",
+      padding: "0px",
+    };
+    const getComponentType = (component) =>
+      component?.getType?.() || component?.get?.("type") || "";
+    const isGridComponent = (component) => {
+      const type = getComponentType(component);
+      return (
+        type === "gjsGrid" ||
+        type === "grid" ||
+        component?.is?.("gjsGrid") ||
+        component?.is?.("grid")
+      );
+    };
+    const isSubGridComponent = (component) => {
+      const type = getComponentType(component);
+      return (
+        type === "gjsSubGrid" ||
+        type === "subGrid" ||
+        component?.is?.("gjsSubGrid") ||
+        component?.is?.("subGrid")
+      );
+    };
+    const resolveParentGridComponent = (component) => {
+      let current = component;
+      while (current) {
+        if (isGridComponent(current)) {
+          return current;
+        }
+        current = current.parent?.() || null;
+      }
+      return null;
+    };
+
+    const tokenValue =
+      payload.formattedToken ||
+      buildVariableToken({
+        variableType: payload.type,
+        parentType: payload.parentType,
+        variablePath: varPath,
+        keyName: payload.name,
+      });
+    const simplifiedToken = getSimplifiedTokenDisplay(
+      payload.formattedToken ||
+        buildVariableToken({
+          variableType: payload.type,
+          parentType: payload.parentType,
+          variablePath: varPath,
+          keyName: payload.name,
+        }),
+      varPath,
+    );
     if (selected && selected.is("text")) {
-      const current = selected.get("content") || "";
-      selected.set("content", current + token);
+      selected.components().add({
+        type: "text",
+        tagName: "span",
+        selectable: true,
+        editable: false,
+        draggable: false,
+        attributes: {
+          "data-token": tokenValue,
+          title: tokenValue,
+          contenteditable: "false",
+        },
+        content: simplifiedToken,
+      });
+    } else if (
+      selected &&
+      (isSubGridComponent(selected) || isGridComponent(selected))
+    ) {
+      const gridTarget = isGridComponent(selected)
+        ? selected
+        : resolveParentGridComponent(selected.parent?.() || null);
+
+      if (gridTarget) {
+        const subGridType = editor.DomComponents?.getType?.("gjsSubGrid")
+          ? "gjsSubGrid"
+          : "subGrid";
+        const subGridComponentDefinition = {
+          type: subGridType,
+          classes: [SUBGRID_CLASS],
+          attributes: {
+            "data-variable": varPath,
+            "data-variable-type": payload.parentType || payload.type || "data",
+            class: SUBGRID_CLASS,
+          },
+          styles: `
+          .${SUBGRID_CLASS} {
+            display: ${SUBGRID_RULE_STYLE.display};
+            grid-template-columns: ${SUBGRID_RULE_STYLE["grid-template-columns"]};
+            gap: ${SUBGRID_RULE_STYLE.gap};
+            grid-column: ${SUBGRID_RULE_STYLE["grid-column"]};
+            padding: ${SUBGRID_RULE_STYLE.padding};
+          }
+        `,
+          components: [
+            {
+              type: "text",
+              tagName: "p",
+              draggable: false,
+              content: payload.displayLabel || payload.name,
+              attributes: {
+                "data-label-key": payload.name,
+                title: `{{label "${payload.name}"}}`,
+              },
+              components: [
+                [
+                  {
+                    type: "text",
+                    tagName: "span",
+                    selectable: true,
+                    editable: false,
+                    draggable: false,
+                    attributes: {
+                      "data-label-key": payload.name,
+                      title: payload.name,
+                      contenteditable: "false",
+                    },
+                    content: payload.displayLabel || payload.name,
+                  },
+                ],
+              ],
+            },
+            {
+              type: "text",
+              tagName: "p",
+              editable: true,
+              draggable: false,
+              components: [
+                {
+                  type: "textnode",
+                  content: ": ",
+                },
+                {
+                  type: "text",
+                  tagName: "span",
+                  selectable: true,
+                  editable: false,
+                  draggable: false,
+                  attributes: {
+                    "data-token":
+                      payload.formattedToken ||
+                      buildVariableToken({
+                        variableType: payload.type,
+                        parentType: payload.parentType,
+                        variablePath: varPath,
+                        keyName: payload.name,
+                      }),
+                    title:
+                      payload.formattedToken ||
+                      buildVariableToken({
+                        variableType: payload.type,
+                        parentType: payload.parentType,
+                        variablePath: varPath,
+                        keyName: payload.name,
+                      }),
+                    contenteditable: "false",
+                  },
+                  content: getSimplifiedTokenDisplay(
+                    payload.formattedToken ||
+                      buildVariableToken({
+                        variableType: payload.type,
+                        parentType: payload.parentType,
+                        variablePath: varPath,
+                        keyName: payload.name,
+                      }),
+                    varPath,
+                  ),
+                },
+              ],
+            },
+          ],
+        };
+        const addedComponent = gridTarget
+          .components()
+          .add(subGridComponentDefinition);
+        if (Array.isArray(addedComponent)) {
+          editor.select(addedComponent[0] || gridTarget);
+        } else {
+          editor.select(addedComponent || gridTarget);
+        }
+        return;
+      }
     } else {
       editor.addComponents({
         type: "text",
-        content: token,
-        style: {
-          display: "inline-block",
-          padding: "2px 4px",
-          border: "1px dashed #999",
-          backgroundColor: "#f9f9f9",
-          borderRadius: "4px",
-          fontFamily: "monospace",
-        },
+        tagName: "p",
+        components: [
+          {
+            type: "text",
+            tagName: "span",
+            selectable: true,
+            editable: false,
+            draggable: false,
+            attributes: {
+              "data-token": tokenValue,
+              title: tokenValue,
+              contenteditable: "false",
+            },
+            content: simplifiedToken,
+          },
+        ],
       });
     }
   };
 
   const canDrag = variable.type !== "data" && variable.type !== "preferences";
+  const didDragRef = React.useRef(false);
 
   /**
    * Handle drag start - passes variable data including example data and formatting
@@ -421,18 +673,45 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
       return;
     }
 
+    didDragRef.current = true;
+
+    const payload = buildVariableDragPayload({
+      variable,
+      nestedColumns,
+      formattedExampleValue,
+      exampleValue,
+      displayLabel,
+      fullKey,
+    });
+    const serializedPayload = JSON.stringify(payload);
+
     e.dataTransfer.effectAllowed = "copy";
-    e.dataTransfer.setData(
-      "variable/json",
-      JSON.stringify({
-        ...variable,
-        columns: nestedColumns,
-        exampleValue: formattedExampleValue ?? exampleValue,
-        displayLabel: displayLabel,
-        fullKey: fullKey,
-        formattedToken: getFormattedHandlebarToken(variable, fullKey),
-      }),
-    );
+    e.dataTransfer.dropEffect = "copy";
+    e.dataTransfer.setData("variable/json", serializedPayload);
+    // Cross-frame fallback: some browsers require a generic MIME type.
+    e.dataTransfer.setData("text/plain", serializedPayload);
+  };
+
+  const handleDragEnd = () => {
+    window.setTimeout(() => {
+      didDragRef.current = false;
+    }, 0);
+  };
+
+  const handleItemClick = () => {
+    if (didDragRef.current) {
+      return;
+    }
+
+    if (
+      variable.type === "relations" ||
+      variable.type === "data" ||
+      variable.type === "preferences"
+    ) {
+      return;
+    }
+
+    handleInsert();
   };
 
   // Non-relation item with tooltip showing Handlebar token
@@ -444,16 +723,9 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
             <div
               className="flex flex-col px-2 py-1 border rounded-md hover:bg-muted cursor-pointer transition-colors mt-1"
               draggable={canDrag}
-              onClick={() => {
-                if (
-                  variable.type === "relations" ||
-                  variable.type === "data" ||
-                  variable.type === "preferences"
-                )
-                  return;
-                handleInsert();
-              }}
+              onClick={handleItemClick}
               onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
             >
               <span className="text-sm font-medium">{displayLabel}</span>
               {/* Show formatted example value if available, otherwise show token */}
@@ -538,17 +810,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                 type="button"
                 draggable={canDrag}
                 onDragStart={handleDragStart}
-                onClick={() => {
-                  if (
-                    variable.type === "relations" ||
-                    variable.type === "data" ||
-                    variable.type === "preferences"
-                  ) {
-                    return;
-                  }
-
-                  handleInsert();
-                }}
+                onDragEnd={handleDragEnd}
+                onClick={handleItemClick}
                 className={cn(
                   "flex min-w-0 flex-1 flex-col justify-center px-2 py-1 text-left",
                   isRelationsMany && "rounded-l-md",

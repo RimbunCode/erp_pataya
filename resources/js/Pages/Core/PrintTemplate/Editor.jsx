@@ -1,7 +1,13 @@
 import "grapesjs/dist/css/grapes.min.css";
 
 import GjsEditor, { Canvas, WithEditor } from "@grapesjs/react";
-import React, { useCallback, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { useIsMobile } from "@/Hooks/use-mobile";
 import AppLayout from "@/Layouts/AppLayout";
@@ -26,9 +32,23 @@ import { initHandlebar } from "@/lib/initHandlebar";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { toast } from "sonner";
 import { simplifyTokenDisplay } from "./Components/tokenConfigHelpers";
+import {
+  removeAllSelectedComponents,
+  shouldClearSelectionOnCanvasClick,
+} from "./utils/canvasSelectionUtils";
 
-const BOOTSTRAP_CSS_CDN =
-  "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css";
+const SIDEBAR_DEFAULT_WIDTH = 320;
+const SIDEBAR_MIN_WIDTH = 280;
+const SIDEBAR_MAX_WIDTH = 520;
+
+function clampSidebarWidth(width) {
+  const numericWidth = Number(width);
+  if (!Number.isFinite(numericWidth)) {
+    return SIDEBAR_DEFAULT_WIDTH;
+  }
+
+  return Math.min(SIDEBAR_MAX_WIDTH, Math.max(SIDEBAR_MIN_WIDTH, numericWidth));
+}
 
 function resolveTemplateUnitCode(printTemplate) {
   const rawUnit =
@@ -207,6 +227,35 @@ function mountLetterheadPreview(editor, { html, css }) {
 
 function variableDropListener(editor, { t, exampleData, locale }) {
   const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
+  const GRID_CLASS = "gjs-grid";
+  const SUBGRID_CLASS = "gjs-subgrid";
+  const GRID_RULE_STYLE = {
+    display: "grid",
+    "grid-template-columns": "max-content 1fr",
+    "column-gap": "12px",
+    "padding-top": "10px",
+    "padding-bottom": "10px",
+  };
+  const SUBGRID_RULE_STYLE = {
+    display: "grid",
+    "grid-template-columns": "subgrid",
+    gap: "8px",
+    "grid-column": "1 / -1",
+    padding: "0px",
+  };
+  const ensureVariableGridCssRules = () => {
+    const cssComposer = editor?.Css;
+    if (!cssComposer) {
+      return;
+    }
+
+    cssComposer.setRule(`.${GRID_CLASS}`, GRID_RULE_STYLE, {
+      addStyles: true,
+    });
+    cssComposer.setRule(`.${SUBGRID_CLASS}`, SUBGRID_RULE_STYLE, {
+      addStyles: true,
+    });
+  };
   const getSimplifiedTokenDisplay = (token, variablePath = "") => {
     if (!token) {
       return variablePath ? `{{${variablePath.replace(/^doc\./, "")}}}` : "";
@@ -221,27 +270,28 @@ function variableDropListener(editor, { t, exampleData, locale }) {
 
     return simplifyTokenDisplay(token);
   };
-  editor.DomComponents.addType("grid", {
+  editor.DomComponents.addType("gjsGrid", {
     model: {
       defaults: {
         droppable: true,
         tagName: "div",
+        classes: [GRID_CLASS],
         attributes: {
-          class: "gjs-grid",
+          class: GRID_CLASS,
         },
         styles: `
-          .gjs-grid {
-            display: grid;
-            grid-template-columns: max-content 1fr;
-            column-gap: 12px;
-            padding-top: 10px;
-            padding-bottom: 10px;
+          .${GRID_CLASS} {
+            display: ${GRID_RULE_STYLE.display};
+            grid-template-columns: ${GRID_RULE_STYLE["grid-template-columns"]};
+            column-gap: ${GRID_RULE_STYLE["column-gap"]};
+            padding-top: ${GRID_RULE_STYLE["padding-top"]};
+            padding-bottom: ${GRID_RULE_STYLE["padding-bottom"]};
           }
         `,
       },
     },
   });
-  editor.DomComponents.addType("subGrid", {
+  editor.DomComponents.addType("gjsSubGrid", {
     model: {
       defaults: {
         droppable: false,
@@ -249,16 +299,17 @@ function variableDropListener(editor, { t, exampleData, locale }) {
         selectable: true,
         layerable: true,
         tagName: "div",
+        classes: [SUBGRID_CLASS],
         attributes: {
-          class: "gjs-subgrid",
+          class: SUBGRID_CLASS,
         },
         styles: `
-          .gjs-subgrid {
-            display: grid;
-            grid-template-columns: subgrid;
-            gap: 8px;
-            grid-column: 1 / -1;
-            padding: 0px;
+          .${SUBGRID_CLASS} {
+            display: ${SUBGRID_RULE_STYLE.display};
+            grid-template-columns: ${SUBGRID_RULE_STYLE["grid-template-columns"]};
+            gap: ${SUBGRID_RULE_STYLE.gap};
+            grid-column: ${SUBGRID_RULE_STYLE["grid-column"]};
+            padding: ${SUBGRID_RULE_STYLE.padding};
           }
         `,
       },
@@ -290,9 +341,9 @@ function variableDropListener(editor, { t, exampleData, locale }) {
           variableType === "preferences" ? ' type="companyDetail"' : "";
 
         return `
-<div data-variable="${variablePath}" data-variable-type="${variableType}">
-  <p>{{label "${labelKey}"${labelTypeArg}}}</p>
-  <p>: ${token}</p>
+<div class="${SUBGRID_CLASS}" data-variable="${variablePath}" data-variable-type="${variableType}">
+  <p><span>{{label "${labelKey}"${labelTypeArg}}}</span></p>
+  <p>: <span>${token}</span></p>
 </div>
         `.trim();
       },
@@ -300,7 +351,7 @@ function variableDropListener(editor, { t, exampleData, locale }) {
   });
 
   const syncVariableComponentDisplay = (component) => {
-    if (!component || component.getType?.() !== "subGrid") {
+    if (!component || component.getType?.() !== "gjsSubGrid") {
       return;
     }
 
@@ -312,8 +363,10 @@ function variableDropListener(editor, { t, exampleData, locale }) {
     const tokenComponent = Array.from(
       component.find?.("[data-token]") || [],
     )[0];
+    component.removeClass(SUBGRID_CLASS);
+    component.addClass(SUBGRID_CLASS);
 
-    if (labelComponent) {
+    if (String(labelComponent?.get("tagName") || "").toLowerCase() === "p") {
       const labelKey =
         labelComponent.getAttributes?.()?.["data-label-key"] || "";
       const translatedLabel = labelKey ? t(`fields.${labelKey}`) : "";
@@ -324,7 +377,22 @@ function variableDropListener(editor, { t, exampleData, locale }) {
           ? translatedLabel
           : fallbackLabel;
 
-      labelComponent.set("content", displayLabel || fallbackLabel || "-");
+      labelComponent.set("draggable", false);
+      labelComponent.components([
+        {
+          type: "text",
+          tagName: "span",
+          selectable: true,
+          editable: false,
+          draggable: false,
+          attributes: {
+            "data-label-key": labelKey,
+            title: labelKey,
+            contenteditable: "false",
+          },
+          content: displayLabel || fallbackLabel || "-",
+        },
+      ]);
     }
 
     if (!tokenComponent) {
@@ -335,7 +403,8 @@ function variableDropListener(editor, { t, exampleData, locale }) {
     const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, variablePath);
 
     if (String(tokenComponent.get("tagName") || "").toLowerCase() === "p") {
-      tokenComponent.set("editable", false);
+      tokenComponent.set("editable", true);
+      tokenComponent.set("draggable", false);
       tokenComponent.components([
         {
           type: "textnode",
@@ -376,11 +445,25 @@ function variableDropListener(editor, { t, exampleData, locale }) {
     );
   };
 
+  ensureVariableGridCssRules();
   editor.on("load", syncAllVariableComponents);
+  editor.on("load", ensureVariableGridCssRules);
   editor.on("component:add", syncVariableComponentDisplay);
+  editor.on("component:add", (component) => {
+    if (!component) {
+      return;
+    }
+
+    const componentType = component.getType?.();
+    if (componentType === "gjsGrid" || componentType === "gjsSubGrid") {
+      ensureVariableGridCssRules();
+    }
+  });
   // 1. Intersep data drop dari luar
   editor.on("canvas:dragdata", (dataTransfer, result) => {
-    const json = dataTransfer.getData("variable/json");
+    const customMimeJson = dataTransfer.getData("variable/json");
+    const plainTextJson = dataTransfer.getData("text/plain");
+    const json = customMimeJson || plainTextJson;
     if (!json) return;
 
     let payload;
@@ -388,6 +471,14 @@ function variableDropListener(editor, { t, exampleData, locale }) {
       payload = JSON.parse(json);
     } catch (err) {
       console.error("Invalid variable/json payload", err);
+      return;
+    }
+
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      (!payload.name && !payload.fullKey)
+    ) {
       return;
     }
 
@@ -433,25 +524,50 @@ function variableDropListener(editor, { t, exampleData, locale }) {
       // Requirements: 1.1, 1.2, 1.5, 1.6 - Display example data in canvas with grid layout
       const varPath = payload.fullKey || payload.name;
       result.content = {
-        type: "subGrid",
+        type: "gjsSubGrid",
+        classes: [SUBGRID_CLASS],
         attributes: {
           "data-variable": varPath,
           "data-variable-type": payload.parentType || payload.type || "data",
+          class: SUBGRID_CLASS,
         },
+        styles: `
+          .${SUBGRID_CLASS} {
+            display: ${SUBGRID_RULE_STYLE.display};
+            grid-template-columns: ${SUBGRID_RULE_STYLE["grid-template-columns"]};
+            gap: ${SUBGRID_RULE_STYLE.gap};
+            grid-column: ${SUBGRID_RULE_STYLE["grid-column"]};
+            padding: ${SUBGRID_RULE_STYLE.padding};
+          }
+        `,
         components: [
           {
             type: "text",
             tagName: "p",
-            content: payload.displayLabel || payload.name,
-            attributes: {
-              "data-label-key": payload.name,
-              title: `{{label "${payload.name}"}}`,
-            },
+            draggable: false,
+            components: [
+              [
+                {
+                  type: "text",
+                  tagName: "span",
+                  selectable: true,
+                  editable: false,
+                  draggable: false,
+                  attributes: {
+                    "data-label-key": payload.name,
+                    title: payload.name,
+                    contenteditable: "false",
+                  },
+                  content: payload.displayLabel || payload.name,
+                },
+              ],
+            ],
           },
           {
             type: "text",
             tagName: "p",
-            editable: false,
+            editable: true,
+            draggable: false,
             components: [
               {
                 type: "textnode",
@@ -508,28 +624,40 @@ function variableDropListener(editor, { t, exampleData, locale }) {
 
     // const { target } = opts || {};
 
-    // console.log({ target, model, parent: model.parent() });
-
     if (!model) return;
-    if (model.getType() != "subGrid") {
+    if (model.getType() != "gjsSubGrid") {
       return;
     }
     const parent = model.parent();
     if (!parent) return;
-    if (parent.getType() === "subGrid") {
+    if (parent.getType() === "gjsSubGrid") {
       model.remove();
       toast.error(
-        t("core/printTemplate.editor.invalid_drop_target") ||
+        t("core.printTemplate.editor.invalid_drop_target") ||
           "Invalid drop target for variable component.",
       );
       return;
     }
-    if (parent.getType() !== "grid") {
+    if (parent.getType() !== "gjsGrid") {
       const coll = parent.components();
       const oldIndex = coll.indexOf(model);
       const wrapper = coll.add(
         {
-          type: "grid",
+          type: "gjsGrid",
+          classes: [GRID_CLASS],
+          attributes: {
+            class: GRID_CLASS,
+          },
+
+          styles: `
+          .${GRID_CLASS} {
+            display: ${GRID_RULE_STYLE.display};
+            grid-template-columns: ${GRID_RULE_STYLE["grid-template-columns"]};
+            column-gap: ${GRID_RULE_STYLE["column-gap"]};
+            padding-top: ${GRID_RULE_STYLE["padding-top"]};
+            padding-bottom: ${GRID_RULE_STYLE["padding-bottom"]};
+          }
+        `,
         },
         { at: oldIndex },
       );
@@ -545,6 +673,8 @@ function variableDropListener(editor, { t, exampleData, locale }) {
  * Removes the border/outline rule and the ::before pseudo-element rule
  * that are only meant for the canvas editing experience.
  * (Requirements: 24.3)
+ * @param {string} css
+ * @returns {string}
  */
 function stripEditorOnlyWrapperStyles(css) {
   if (typeof css !== "string" || !css.trim()) {
@@ -649,6 +779,64 @@ function PrintTemplate({
     html: printTemplate?.html || "",
     css: printTemplate?.css || "",
   });
+  const [sidebarWidth, setSidebarWidth] = useState(SIDEBAR_DEFAULT_WIDTH);
+  const [isSidebarResizing, setIsSidebarResizing] = useState(false);
+  const sidebarResizeStateRef = useRef({
+    startX: 0,
+    startWidth: SIDEBAR_DEFAULT_WIDTH,
+  });
+  const desktopLayoutStyle = useMemo(
+    () => ({
+      "--print-editor-sidebar-width": `${sidebarWidth}px`,
+    }),
+    [sidebarWidth],
+  );
+
+  const handleSidebarResizeStart = useCallback(
+    (event) => {
+      if (event.button !== 0) {
+        return;
+      }
+
+      event.preventDefault();
+      sidebarResizeStateRef.current = {
+        startX: event.clientX,
+        startWidth: sidebarWidth,
+      };
+      setIsSidebarResizing(true);
+    },
+    [sidebarWidth],
+  );
+
+  useEffect(() => {
+    if (!isSidebarResizing) {
+      return undefined;
+    }
+
+    const handleMouseMove = (event) => {
+      const { startX, startWidth } = sidebarResizeStateRef.current;
+      const nextWidth = clampSidebarWidth(
+        startWidth + (startX - event.clientX),
+      );
+      setSidebarWidth(nextWidth);
+    };
+
+    const stopResizing = () => {
+      setIsSidebarResizing(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", stopResizing);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", stopResizing);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isSidebarResizing]);
 
   // Handle save from StaticHTMLComponent modal
   const handleStaticHTMLSave = useCallback(
@@ -673,6 +861,8 @@ function PrintTemplate({
 
   const onEditor = (editor) => {
     let isBootstrapping = true;
+    let removeCanvasEmptyClickListener = null;
+    let clearSelectionTimeoutId = null;
 
     const applyBodyStyle = () => {
       const frame = editor.Canvas.getFrameEl();
@@ -695,14 +885,6 @@ function PrintTemplate({
         printTemplate?.font_family,
       );
       body.style.color = "#111827";
-
-      if (!doc.getElementById("print-template-bootstrap-css")) {
-        const bootstrapLink = doc.createElement("link");
-        bootstrapLink.id = "print-template-bootstrap-css";
-        bootstrapLink.rel = "stylesheet";
-        bootstrapLink.href = BOOTSTRAP_CSS_CDN;
-        doc.head.appendChild(bootstrapLink);
-      }
 
       let styleEl = doc.getElementById("print-template-editor-style");
       if (!styleEl) {
@@ -733,8 +915,65 @@ function PrintTemplate({
           outline-color: rgba(59, 130, 246, 0.7) !important;
         }
       `;
+
+      bindCanvasEmptyClickToClearSelection();
     };
+
+    const bindCanvasEmptyClickToClearSelection = () => {
+      const frameEl = editor.Canvas.getFrameEl();
+      const frameDocument =
+        frameEl?.contentDocument || frameEl?.contentWindow?.document;
+      const frameBody = frameDocument?.body;
+      const frameWindow = frameDocument?.defaultView || window;
+
+      if (!frameBody) {
+        return;
+      }
+
+      removeCanvasEmptyClickListener?.();
+
+      if (clearSelectionTimeoutId !== null) {
+        frameWindow.clearTimeout(clearSelectionTimeoutId);
+        clearSelectionTimeoutId = null;
+      }
+
+      const handleCanvasClick = (event) => {
+        const shouldClearSelection = shouldClearSelectionOnCanvasClick({
+          target: event?.target,
+          wrapperElement: editor.getWrapper()?.view?.el || null,
+        });
+
+        if (!shouldClearSelection) {
+          return;
+        }
+
+        clearSelectionTimeoutId = frameWindow.setTimeout(() => {
+          clearSelectionTimeoutId = null;
+          removeAllSelectedComponents(editor);
+        }, 0);
+      };
+
+      frameDocument.addEventListener("click", handleCanvasClick);
+      frameDocument.addEventListener("pointerup", handleCanvasClick);
+      removeCanvasEmptyClickListener = () => {
+        frameDocument.removeEventListener("click", handleCanvasClick);
+        frameDocument.removeEventListener("pointerup", handleCanvasClick);
+        if (clearSelectionTimeoutId !== null) {
+          frameWindow.clearTimeout(clearSelectionTimeoutId);
+          clearSelectionTimeoutId = null;
+        }
+        removeCanvasEmptyClickListener = null;
+      };
+    };
+
     editor.on("load", applyBodyStyle);
+    editor.on("canvas:frame:load:body", bindCanvasEmptyClickToClearSelection);
+    editor.on("canvas:frame:unload", () => {
+      removeCanvasEmptyClickListener?.();
+    });
+    editor.on("destroy", () => {
+      removeCanvasEmptyClickListener?.();
+    });
     variableDropListener(editor, {
       t,
       exampleData,
@@ -751,7 +990,7 @@ function PrintTemplate({
             {
               type: "select",
               name: "tagName",
-              label: t("core/printTemplate.editor.html_tag"),
+              label: t("core.printTemplate.editor.html_tag"),
               options: [
                 { value: "div", name: "div" },
                 { value: "section", name: "section" },
@@ -772,7 +1011,7 @@ function PrintTemplate({
 
     // Register multi-function container block (Requirements: 17.1, 17.5)
     editor.BlockManager.add("multiContainer", {
-      label: t("core/printTemplate.editor.multi_container"),
+      label: t("core.printTemplate.editor.multi_container"),
       category: "Basic",
       content: { type: "multiContainer" },
     });
@@ -783,7 +1022,7 @@ function PrintTemplate({
 
     if (isMobile) {
       toast.info(
-        t("core/printTemplate.editor.mobile_mode_info") ||
+        t("core.printTemplate.editor.mobile_mode_info") ||
           "Mode mobile: drag & drop dan perubahan struktur layout hanya tersedia di desktop.",
       );
       editor.getWrapper()?.set({
@@ -793,7 +1032,7 @@ function PrintTemplate({
       editor.Commands.add("core:mobile-structural-block", {
         run() {
           toast.info(
-            t("core/printTemplate.editor.desktop_only_structure") ||
+            t("core.printTemplate.editor.desktop_only_structure") ||
               "Fitur perubahan struktur hanya tersedia di desktop.",
           );
         },
@@ -814,7 +1053,7 @@ function PrintTemplate({
         }
         component.remove();
         toast.info(
-          t("core/printTemplate.editor.desktop_only_add") ||
+          t("core.printTemplate.editor.desktop_only_add") ||
             "Menambah komponen baru hanya tersedia di desktop.",
         );
       });
@@ -824,7 +1063,7 @@ function PrintTemplate({
           return;
         }
         toast.info(
-          t("core/printTemplate.editor.desktop_only_remove") ||
+          t("core.printTemplate.editor.desktop_only_remove") ||
             "Menghapus komponen hanya tersedia di desktop.",
         );
       });
@@ -832,7 +1071,7 @@ function PrintTemplate({
 
     if (!exampleData || Object.keys(exampleData || {}).length === 0) {
       toast.info(
-        t("core/printTemplate.editor.no_example_data") ||
+        t("core.printTemplate.editor.no_example_data") ||
           "Data contoh belum tersedia untuk model ini. Preview dapat menampilkan placeholder.",
       );
     }
@@ -865,7 +1104,7 @@ function PrintTemplate({
         const validation = validateHandlebarTemplate(currentTemplate.html);
         if (!validation.valid) {
           toast.error(
-            `${t("core/printTemplate.editor.template_invalid") || "Template tidak valid"}: ${validation.message}`,
+            `${t("core.printTemplate.editor.template_invalid") || "Template tidak valid"}: ${validation.message}`,
           );
           editor.trigger("template:save-error", validation.message);
           return;
@@ -913,11 +1152,11 @@ function PrintTemplate({
     editor.on("preview:open", openPreview);
     editor.on("storage:error:load", () => {
       toast.error(
-        t("core/printTemplate.editor.load_error") ||
+        t("core.printTemplate.editor.load_error") ||
           "Gagal memuat template. Menggunakan template kosong.",
         {
           action: {
-            label: t("core/printTemplate.editor.reload") || "Muat Ulang",
+            label: t("core.printTemplate.editor.reload") || "Muat Ulang",
             onClick: () => window.location.reload(),
           },
         },
@@ -935,7 +1174,7 @@ function PrintTemplate({
     });
     editor.on("storage:error:store", () => {
       toast.error(
-        t("core/printTemplate.editor.save_error") ||
+        t("core.printTemplate.editor.save_error") ||
           "Gagal menyimpan template karena masalah jaringan.",
       );
     });
@@ -968,6 +1207,13 @@ function PrintTemplate({
         options={{
           telemetry: false,
           undoManager: { trackSelection: false },
+          canvas: {
+            allowExternalDrop: true,
+            styles: [
+              "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
+            ],
+            scripts: ["https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"],
+          },
           deviceManager: {
             devices: [
               {
@@ -1035,8 +1281,11 @@ function PrintTemplate({
             />
           </WithEditor>
         ) : (
-          <div className="grid h-full w-full gap-3 md:max-xl:grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
-            <div className="flex h-full min-h-0 w-full grow flex-col gap-3">
+          <div
+            className="grid h-full w-full gap-3 md:max-xl:grid-cols-1 lg:grid-cols-[minmax(0,1fr)_12px_var(--print-editor-sidebar-width)] lg:gap-0"
+            style={desktopLayoutStyle}
+          >
+            <div className="flex h-full min-h-0 w-full grow flex-col gap-3 lg:pr-2">
               <div className="rounded-xl border border-border bg-card px-2 py-1.5 shadow-xs">
                 <WithEditor>
                   <TopBar />
@@ -1049,7 +1298,23 @@ function PrintTemplate({
                 />
               </div>
             </div>
-            <div className="h-full min-h-0">
+            <div className="relative hidden h-full min-h-0 lg:flex lg:items-stretch">
+              <button
+                type="button"
+                aria-label="Resize sidebar"
+                onMouseDown={handleSidebarResizeStart}
+                className="group flex h-full w-3 cursor-col-resize touch-none items-center justify-center"
+              >
+                <span
+                  className={`h-[calc(100%-12px)] w-px rounded-full transition-colors ${
+                    isSidebarResizing
+                      ? "bg-primary"
+                      : "bg-border group-hover:bg-primary/70"
+                  }`}
+                />
+              </button>
+            </div>
+            <div className="h-full min-h-0 w-full lg:pl-2">
               <WithEditor>
                 <Sidebar />
               </WithEditor>

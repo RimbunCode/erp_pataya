@@ -56,7 +56,7 @@ const SelectColumn = memo(function SelectColumn({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-full md:max-w-[50%]  min-w-64">
         <DialogHeader className="pb-2 border-b border-muted-foreground/25">
           <DialogTitle>{t("core.formtable.select_columns")}</DialogTitle>
           <DialogDescription className="sr-only"></DialogDescription>
@@ -64,7 +64,7 @@ const SelectColumn = memo(function SelectColumn({
         <p className="text-sm text-muted-foreground">
           {t("core.formtable.select_columns.description")}
         </p>
-        <div className="space-y-4 columns-3xs">
+        <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
           {columns &&
             columns.map((col) => {
               return (

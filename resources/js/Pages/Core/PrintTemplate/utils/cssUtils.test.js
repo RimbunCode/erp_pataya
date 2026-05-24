@@ -1,7 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  buildComponentSelectorTokens,
+  filterCssRulesByComponentTokens,
   parseCssDeclarations,
+  selectorIncludesComponentToken,
+  selectorMatchesComponentTokens,
   serializeCssDeclarations,
+  splitSelectorList,
   validateCssDeclarations,
   mergeCssStyles,
   cleanupManualCss,
@@ -61,6 +66,33 @@ describe("parseCssDeclarations", () => {
   it("last value wins for duplicate properties", () => {
     const result = parseCssDeclarations("color: red; color: blue;");
     expect(result).toEqual({ color: "blue" });
+  });
+
+  it("parses declaration blocks with selector syntax", () => {
+    const result = parseCssDeclarations(
+      "#invoice .total-row { color: red; font-size: 14px; }",
+    );
+    expect(result).toEqual({
+      "#invoice .total-row": { color: "red", "font-size": "14px" },
+    });
+  });
+
+  it("parses multiple selector blocks into selector map", () => {
+    const result = parseCssDeclarations(
+      "body{background-color:red;color:black} #c123{margin:2px; color:black; }",
+    );
+    expect(result).toEqual({
+      body: { "background-color": "red", color: "black" },
+      "#c123": { margin: "2px", color: "black" },
+    });
+  });
+
+  it("can force rule blocks to return flat declaration map", () => {
+    const result = parseCssDeclarations(
+      "#invoice .total-row { color: red; font-size: 14px; }",
+      { mode: "declarations" },
+    );
+    expect(result).toEqual({ color: "red", "font-size": "14px" });
   });
 });
 
@@ -138,6 +170,51 @@ describe("validateCssDeclarations", () => {
     expect(result.isValid).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
+
+  it("returns valid for standard CSS rule block syntax", () => {
+    const result = validateCssDeclarations(
+      "#invoice .item-row > td { color: red; font-size: 12px; }",
+    );
+    expect(result.isValid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.validDeclarations).toEqual({
+      color: "red",
+      "font-size": "12px",
+    });
+  });
+
+  it("supports selector list with id and class", () => {
+    const result = validateCssDeclarations(
+      "#invoice, .invoice-preview { margin: 0; padding: 8px; }",
+    );
+    expect(result.isValid).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(result.validDeclarations).toEqual({ margin: "0", padding: "8px" });
+  });
+
+  it("detects invalid selector syntax in rule blocks", () => {
+    const result = validateCssDeclarations("#invoice > { color: red; }");
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].reason).toBe("invalid_selector");
+  });
+
+  it("detects missing closing brace in rule blocks", () => {
+    const result = validateCssDeclarations("#invoice { color: red;");
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].reason).toBe("missing_brace");
+  });
+
+  it("still validates declarations inside selector blocks", () => {
+    const result = validateCssDeclarations(
+      "#invoice { color red; margin: 10px; }",
+    );
+    expect(result.isValid).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].reason).toBe("missing_colon");
+    expect(result.validDeclarations).toEqual({ margin: "10px" });
+  });
 });
 
 describe("mergeCssStyles", () => {
@@ -183,6 +260,13 @@ describe("mergeCssStyles", () => {
     const visual = { color: "blue" };
     const result = mergeCssStyles(visual, "");
     expect(result).toEqual({ color: "blue" });
+  });
+
+  it("flattens selector map result when merging string rule blocks", () => {
+    const visual = { color: "blue", margin: "10px" };
+    const manual = "#invoice { color: red; padding: 8px; }";
+    const result = mergeCssStyles(visual, manual);
+    expect(result).toEqual({ color: "red", margin: "10px", padding: "8px" });
   });
 });
 
@@ -270,5 +354,109 @@ describe("preventBodyDoubleWrap", () => {
   it("handles case-insensitive body selector", () => {
     const result = preventBodyDoubleWrap("BODY { color: red; }");
     expect(result).toBe("color: red;");
+  });
+});
+
+describe("splitSelectorList", () => {
+  it("splits simple selector list", () => {
+    expect(splitSelectorList(".a, .b, #c")).toEqual([".a", ".b", "#c"]);
+  });
+
+  it("does not split commas inside attribute or pseudo params", () => {
+    expect(
+      splitSelectorList(
+        '[data-label="a,b"], .card:is(.warn, .info), button[type="submit"]',
+      ),
+    ).toEqual([
+      '[data-label="a,b"]',
+      ".card:is(.warn, .info)",
+      'button[type="submit"]',
+    ]);
+  });
+});
+
+describe("buildComponentSelectorTokens", () => {
+  it("builds tag, id, class, and attribute tokens", () => {
+    expect(
+      buildComponentSelectorTokens({
+        id: "print-btn",
+        tagName: "button",
+        classes: ["card", "alert"],
+        attributes: { type: "submit", "data-role": "primary" },
+        selectorsString: ".card.alert",
+      }),
+    ).toEqual(
+      expect.arrayContaining([
+        "button",
+        "#print-btn",
+        ".card",
+        ".alert",
+        "[type]",
+        '[type="submit"]',
+        "[data-role]",
+        '[data-role="primary"]',
+        ".card.alert",
+      ]),
+    );
+  });
+});
+
+describe("selectorIncludesComponentToken", () => {
+  it("matches class and id with token boundaries", () => {
+    expect(selectorIncludesComponentToken(".card > button", ".card")).toBe(
+      true,
+    );
+    expect(selectorIncludesComponentToken(".card-alert", ".card")).toBe(false);
+    expect(selectorIncludesComponentToken("section #main", "#main")).toBe(true);
+  });
+
+  it("matches tag and attribute selectors", () => {
+    expect(selectorIncludesComponentToken(".card > button", "button")).toBe(
+      true,
+    );
+    expect(
+      selectorIncludesComponentToken('input[type="submit"]', "[type]"),
+    ).toBe(true);
+    expect(
+      selectorIncludesComponentToken('input[type="submit"]', '[type="submit"]'),
+    ).toBe(true);
+  });
+});
+
+describe("selectorMatchesComponentTokens", () => {
+  it("matches selectors with combinators and selector list", () => {
+    const componentTokens = ["button", ".alert"];
+    expect(
+      selectorMatchesComponentTokens(
+        ".card > button, .unknown",
+        componentTokens,
+      ),
+    ).toBe(true);
+    expect(
+      selectorMatchesComponentTokens(
+        "button .alert, .unknown",
+        componentTokens,
+      ),
+    ).toBe(true);
+    expect(selectorMatchesComponentTokens(".foo .bar", componentTokens)).toBe(
+      false,
+    );
+  });
+});
+
+describe("filterCssRulesByComponentTokens", () => {
+  it("filters rules using component tokens", () => {
+    const cssRules = [
+      { selectors: ".card > button", style: { color: "red" } },
+      { selectors: "button .alert", style: { margin: "8px" } },
+      { selectors: ".unrelated", style: { padding: "4px" } },
+    ];
+
+    expect(
+      filterCssRulesByComponentTokens(cssRules, ["button", ".alert"]),
+    ).toEqual([
+      { selectors: ".card > button", style: { color: "red" } },
+      { selectors: "button .alert", style: { margin: "8px" } },
+    ]);
   });
 });

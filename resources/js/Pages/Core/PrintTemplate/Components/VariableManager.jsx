@@ -53,7 +53,7 @@ function VariableManager() {
       {docInfoVariables.length > 0 && (
         <>
           <h3 className="text-base font-semibold">
-            {t("core/printTemplate.editor.doc_info")}
+            {t("core.printTemplate.editor.doc_info")}
           </h3>
           <div className="space-y-2">
             {docInfoVariables.map((variable) => (

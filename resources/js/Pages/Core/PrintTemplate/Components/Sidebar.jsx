@@ -27,37 +27,37 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 const sidebarTabDefs = [
   {
     value: "style",
-    labelKey: "core/printTemplate.editor.tab_style",
+    labelKey: "core.printTemplate.editor.tab_style",
     fallback: "Style",
     icon: Brush,
   },
   {
     value: "layer",
-    labelKey: "core/printTemplate.editor.tab_layer",
+    labelKey: "core.printTemplate.editor.tab_layer",
     fallback: "Layer",
     icon: Layers3Icon,
   },
   {
     value: "blocks",
-    labelKey: "core/printTemplate.editor.tab_blocks",
+    labelKey: "core.printTemplate.editor.tab_blocks",
     fallback: "Blocks",
     icon: BlocksIcon,
   },
   {
     value: "variables",
-    labelKey: "core/printTemplate.editor.tab_variables",
+    labelKey: "core.printTemplate.editor.tab_variables",
     fallback: "Variables",
     icon: BracesIcon,
   },
   {
     value: "token",
-    labelKey: "core/printTemplate.editor.tab_token",
+    labelKey: "core.printTemplate.editor.tab_token",
     fallback: "Token",
     icon: KeyRound,
   },
   {
     value: "inspector",
-    labelKey: "core/printTemplate.editor.tab_inspector",
+    labelKey: "core.printTemplate.editor.tab_inspector",
     fallback: "Inspector",
     icon: CogIcon,
   },

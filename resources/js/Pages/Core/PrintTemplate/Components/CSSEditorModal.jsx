@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +11,8 @@ import { Button } from "@/Components/ui/button";
 import { Check, Code2, AlertTriangle } from "lucide-react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { validateCssDeclarations } from "../utils/cssUtils";
+import { findProtectedSelectorsInCssText } from "../utils/manualCssRuleUtils";
+import { handleModalEditorKeyDown } from "../utils/modalEditorUtils";
 import MonacoCSSEditor from "./MonacoCSSEditor";
 
 /**
@@ -28,23 +30,43 @@ import MonacoCSSEditor from "./MonacoCSSEditor";
  * @param {boolean} props.open - Whether the modal is open
  * @param {(open: boolean) => void} props.onOpenChange - Callback to change open state
  * @param {string} props.initialCSS - The initial CSS text to edit
- * @param {boolean} props.isBodyNode - Whether editing body-level CSS (allows selectors)
  * @param {(cssText: string) => void} props.onSave - Callback when CSS is saved
  * @param {string} props.componentId - Unique ID of the component being edited
+ * @param {string[]} props.protectedSelectors - Selectors that are protected
  * @returns {React.JSX.Element}
  */
 function CSSEditorModal({
   open,
   onOpenChange,
   initialCSS = "",
-  isBodyNode = false,
   onSave,
   componentId = "global",
+  protectedSelectors = [],
 }) {
   const { t } = useLaravelReactI18n();
   const [draft, setDraft] = useState(initialCSS);
   const [isValid, setIsValid] = useState(true);
   const [errors, setErrors] = useState([]);
+  const normalizedProtectedSelectors = useMemo(
+    () =>
+      [
+        ...new Set(
+          (protectedSelectors || []).map((item) => String(item).trim()),
+        ),
+      ].filter(Boolean),
+    [protectedSelectors],
+  );
+  const matchedProtectedSelectors = useMemo(
+    () => findProtectedSelectorsInCssText(draft, normalizedProtectedSelectors),
+    [draft, normalizedProtectedSelectors],
+  );
+  const warningSelectors = useMemo(
+    () =>
+      matchedProtectedSelectors.length
+        ? matchedProtectedSelectors
+        : normalizedProtectedSelectors,
+    [matchedProtectedSelectors, normalizedProtectedSelectors],
+  );
 
   // Reset draft to initialCSS when modal opens
   useEffect(() => {
@@ -63,23 +85,21 @@ function CSSEditorModal({
 
   const handleSave = useCallback(() => {
     // For body node, skip declaration validation (allows full CSS with selectors)
-    if (!isBodyNode) {
-      const validation = validateCssDeclarations(draft);
-      if (!validation.isValid) {
-        setIsValid(false);
-        setErrors(
-          validation.errors.map((err) => ({
-            severity: 8,
-            message: `${err.reason}: "${err.declaration}"`,
-          })),
-        );
-        return;
-      }
+    const validation = validateCssDeclarations(draft);
+    if (!validation.isValid) {
+      setIsValid(false);
+      setErrors(
+        validation.errors.map((err) => ({
+          severity: 8,
+          message: `${err.reason}: "${err.declaration}"`,
+        })),
+      );
+      return;
     }
 
     onSave?.(draft);
     onOpenChange?.(false);
-  }, [draft, isBodyNode, onSave, onOpenChange]);
+  }, [draft, onSave, onOpenChange]);
 
   const handleCancel = useCallback(() => {
     // Discard changes - just close without saving
@@ -95,25 +115,16 @@ function CSSEditorModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Code2 className="h-5 w-5" />
-            {t("core/printTemplate.editor.manual_css")}
+            {t("core.printTemplate.editor.manual_css")}
           </DialogTitle>
-          <DialogDescription>
-            {isBodyNode
-              ? t("core/printTemplate.editor.css_body_hint") ||
-                "Write CSS with selectors for the body node."
-              : t("core/printTemplate.editor.css_declaration_hint") ||
-                "Write CSS declarations (property: value;) without selectors."}
-          </DialogDescription>
+          <DialogDescription></DialogDescription>
         </DialogHeader>
 
         <div className="mt-2">
           <div
             className="overflow-hidden rounded-md border min-h-[300px]"
-            onKeyDown={(e) => {
-              // Prevent "/" from propagating to GrapesJS global command palette
-              if (e.key === "/") {
-                e.stopPropagation();
-              }
+            onKeyDown={(event) => {
+              handleModalEditorKeyDown(event, handleSave);
             }}
           >
             <MonacoCSSEditor
@@ -142,15 +153,38 @@ function CSSEditorModal({
               </ul>
             </div>
           )}
+
+          {normalizedProtectedSelectors.length > 0 && (
+            <div className="mt-2 p-3 border border-amber-500/50 bg-amber-500/10 rounded-md">
+              <div className="flex items-center gap-2 mb-1.5">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-medium text-amber-700">
+                  Protected selector terdeteksi
+                </span>
+              </div>
+              <p className="text-xs text-amber-800">
+                Selector ini tidak boleh dihapus. Property default pada selector
+                ini juga tidak boleh dihapus; Anda hanya bisa mengubah value
+                atau menambah property baru.
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {warningSelectors.map((selector) => (
+                  <li key={selector} className="text-xs text-amber-800">
+                    • {selector}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="mt-4">
           <Button variant="outline" size="md" onClick={handleCancel}>
-            {t("core/printTemplate.cancel")}
+            {t("core.printTemplate.cancel")}
           </Button>
           <Button variant="primary" size="md" onClick={handleSave}>
             <Check className="h-4 w-4" />
-            {t("core/printTemplate.editor.edit_css")}
+            {t("core.printTemplate.editor.edit_css")}
           </Button>
         </DialogFooter>
       </DialogContent>

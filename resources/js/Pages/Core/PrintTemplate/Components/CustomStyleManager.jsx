@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useEditor } from "@grapesjs/react";
 import {
   Accordion,
@@ -20,44 +14,27 @@ import { Pencil, Plus, X } from "lucide-react";
 import FlexLayoutControls from "./FlexLayoutControls";
 import GridLayoutControls from "./GridLayoutControls";
 import CSSEditorModal from "./CSSEditorModal";
-import StylePropertyField from "./StylePropertyField";
-import { parseCssDeclarations, preventBodyDoubleWrap } from "../utils/cssUtils";
-
-const HIDDEN_PROPERTY_IDS = new Set([
-  "font-family",
-  "text-shadow",
-  "box-shadow",
-  "transition",
-  "transform",
-  "background-image",
-  "background-repeat",
-  "background-position",
-  "background-size",
-  "background-attachment",
-]);
-
-function normalizeSectorName(name = "") {
-  const key = name.trim().toLowerCase();
-
-  if (key.includes("typo")) {
-    return "Typography";
-  }
-
-  if (key.includes("decor") || key.includes("border")) {
-    return "Borders & Visual";
-  }
-
-  if (key.includes("dimension") || key.includes("size")) {
-    return "Layout & Spacing";
-  }
-
-  if (key.includes("extra")) {
-    return "Advanced";
-  }
-
-  return name || "Styles";
-}
-
+import {
+  buildComponentSelectorTokens,
+  filterCssRulesByComponentTokens,
+  toKebabCase,
+} from "../utils/cssUtils";
+import {
+  ensureComponentIdRuleFirst,
+  hasStyleDeclarations,
+  mergeProtectedSelectorStyles,
+  normalizeCssInputToSelectorMap,
+  resolveComponentPrimarySelector,
+  resolveProtectedSelectorsForComponent,
+  stripEmptyStyleRules,
+} from "../utils/manualCssRuleUtils";
+import {
+  FIELD_COMPONENT_TYPES,
+  STYLE_SECTION_IDS,
+  mapSectorsToSections,
+  resolveFieldComponent,
+} from "../utils/styleManagerUtils";
+import { getStyleFieldComponent } from "./StyleFields";
 function componentIdOf(component) {
   return component?.cid ?? component?.getId?.() ?? "unknown";
 }
@@ -67,12 +44,71 @@ function styleObjectToCssText(styleObject = {}) {
     .filter(
       ([, value]) => value !== null && value !== undefined && value !== "",
     )
-    .map(([property, value]) => `${property}: ${value};`)
+    .map(([property, value]) => `  ${toKebabCase(property)}: ${value};`)
     .join("\n");
 }
 
-// parseCssDeclarations is imported from ../utils/cssUtils
-// It normalizes property names to lowercase and handles edge cases
+function normalizePropertyId(propertyId) {
+  return String(propertyId ?? "")
+    .trim()
+    .toLowerCase();
+}
+
+function groupSectionProperties(sectionId, properties) {
+  const hasMarginComposite = properties.some(
+    (property) =>
+      normalizePropertyId(property?.getId?.()) === "margin" &&
+      property?.getType?.() === "composite",
+  );
+  const hasPaddingComposite = properties.some(
+    (property) =>
+      normalizePropertyId(property?.getId?.()) === "padding" &&
+      property?.getType?.() === "composite",
+  );
+  const hasBorderComposite = properties.some(
+    (property) =>
+      normalizePropertyId(property?.getId?.()) === "border" &&
+      property?.getType?.() === "composite",
+  );
+
+  return properties.filter((property) => {
+    const propertyId = normalizePropertyId(property?.getId?.());
+
+    if (
+      hasMarginComposite &&
+      ["margin-top", "margin-right", "margin-bottom", "margin-left"].includes(
+        propertyId,
+      )
+    ) {
+      return false;
+    }
+
+    if (
+      hasPaddingComposite &&
+      [
+        "padding-top",
+        "padding-right",
+        "padding-bottom",
+        "padding-left",
+      ].includes(propertyId)
+    ) {
+      return false;
+    }
+
+    if (
+      hasBorderComposite &&
+      ["border-width", "border-style", "border-color"].includes(propertyId)
+    ) {
+      return false;
+    }
+
+    if (sectionId === "advanced" && propertyId === "float") {
+      return false;
+    }
+
+    return true;
+  });
+}
 
 function detectLayoutMode(component) {
   if (!component) {
@@ -103,8 +139,48 @@ function CustomStyleManager({ sectors }) {
   const [componentClasses, setComponentClasses] = useState([]);
   const [newClassName, setNewClassName] = useState("");
 
-  const cssByComponentRef = useRef(new Map());
-  const manualKeysByComponentRef = useRef(new Map());
+  const getCssRules = () => {
+    const css = editor.Css;
+    return stripEmptyStyleRules(
+      css.getRules().map((rule) => {
+        return {
+          selectors: rule.getSelectorsString(),
+          style: rule.getStyle(),
+        };
+      }),
+    );
+  };
+  const cssRulesToString = (cssRules) => {
+    cssRules ??= getCssRules();
+    let result = "";
+    cssRules.forEach((rule) => {
+      result += `${rule.selectors} {\n${styleObjectToCssText(rule.style)}\n}\n\n`;
+    });
+    return result;
+  };
+
+  const getCssByComponent = (component) => {
+    if (!component) {
+      return getCssRules();
+    }
+
+    const classes = (component.getClasses?.() || []).map((cls) =>
+      typeof cls === "string"
+        ? cls
+        : cls.get?.("name") || cls.id || String(cls),
+    );
+
+    const componentDescriptor = {
+      id: component.getId?.() || component.get?.("id") || "",
+      tagName: component.get?.("tagName") || "",
+      classes,
+      attributes: component.getAttributes?.() || {},
+      selectorsString: component.getSelectorsString?.() || "",
+    };
+
+    const componentTokens = buildComponentSelectorTokens(componentDescriptor);
+    return filterCssRulesByComponentTokens(getCssRules(), componentTokens);
+  };
 
   useEffect(() => {
     const refreshSelection = () => {
@@ -123,21 +199,46 @@ function CustomStyleManager({ sectors }) {
       editor.off("component:update", refreshSelection);
     };
   }, [editor]);
-
+  const isBodyNode = useMemo(() => {
+    if (!selectedComponent) return false;
+    const tagName = selectedComponent.get?.("tagName") || "";
+    const type = selectedComponent.get?.("type") || "";
+    return (
+      tagName.toLowerCase() === "body" || type === "wrapper" || type === "body"
+    );
+  }, [selectedComponent]);
   useEffect(() => {
     if (!selectedComponent) {
-      setCssDraft("");
+      setCssDraft(cssRulesToString());
       setComponentClasses([]);
       return;
+    } else if (isBodyNode) {
+      setCssDraft(cssRulesToString());
+      return;
     }
-
-    const componentId = componentIdOf(selectedComponent);
-    const cachedDraft = cssByComponentRef.current.get(componentId);
-
-    if (typeof cachedDraft === "string") {
-      setCssDraft(cachedDraft);
+    const componentId = String(selectedComponent.getId?.() || "").trim();
+    const matchedCssRules = getCssByComponent(selectedComponent);
+    if (matchedCssRules.length > 0) {
+      const initialRules = ensureComponentIdRuleFirst(
+        matchedCssRules,
+        componentId,
+      );
+      setCssDraft(cssRulesToString(initialRules));
     } else {
-      setCssDraft(styleObjectToCssText(selectedComponent.getStyle?.() || {}));
+      const fallbackSelector =
+        componentId ||
+        selectedComponent.getSelectorsString?.() ||
+        selectedComponent.get?.("tagName") ||
+        "*";
+
+      setCssDraft(
+        cssRulesToString([
+          {
+            selectors: componentId ? `#${componentId}` : fallbackSelector,
+            style: selectedComponent.getStyle?.() || {},
+          },
+        ]),
+      );
     }
 
     // Refresh classes
@@ -149,37 +250,35 @@ function CustomStyleManager({ sectors }) {
           : cls.get?.("name") || cls.id || String(cls),
       ),
     );
-  }, [selectedComponent]);
+  }, [selectedComponent, isBodyNode]);
 
-  const filteredSectors = useMemo(() => {
-    return sectors
-      .map((sector) => {
-        const properties = sector
-          .getProperties()
-          .filter((property) => !HIDDEN_PROPERTY_IDS.has(property.getId()));
+  const sectionItems = useMemo(() => {
+    const mappedSections = mapSectorsToSections(sectors);
 
-        return {
-          id: sector.getId(),
-          name: normalizeSectorName(sector.getName()),
-          properties,
-        };
-      })
-      .filter((sector) => sector.properties.length > 0);
+    return STYLE_SECTION_IDS.map((sectionId) => mappedSections[sectionId])
+      .map((section) => ({
+        ...section,
+        properties: groupSectionProperties(section.id, section.properties),
+      }))
+      .filter((section) => section.properties.length > 0);
   }, [sectors]);
 
   const layoutMode = useMemo(
     () => detectLayoutMode(selectedComponent),
     [selectedComponent],
   );
+  const manualCssProtectedSelectors = useMemo(() => {
+    if (!selectedComponent || isBodyNode) {
+      return [];
+    }
 
-  const isBodyNode = useMemo(() => {
-    if (!selectedComponent) return false;
-    const tagName = selectedComponent.get?.("tagName") || "";
-    const type = selectedComponent.get?.("type") || "";
-    return (
-      tagName.toLowerCase() === "body" || type === "wrapper" || type === "body"
-    );
-  }, [selectedComponent]);
+    return [
+      ...resolveProtectedSelectorsForComponent(
+        selectedComponent,
+        getCssRules(),
+      ),
+    ];
+  }, [selectedComponent, isBodyNode, cssDraft]);
 
   const refreshClasses = useCallback((component) => {
     if (!component) {
@@ -219,63 +318,93 @@ function CustomStyleManager({ sectors }) {
   );
 
   const applyManualCss = (cssText) => {
-    if (!selectedComponent) {
-      return;
-    }
+    const css = editor.Css;
+    const currentRules = getCssRules();
+    const primarySelector = resolveComponentPrimarySelector(selectedComponent);
+    const nextSelectorMap = normalizeCssInputToSelectorMap(
+      cssText,
+      primarySelector,
+    );
 
-    const componentId = componentIdOf(selectedComponent);
+    const previousSelectorMap = normalizeCssInputToSelectorMap(
+      cssDraft,
+      primarySelector,
+    );
 
-    // For body node: prevent double-wrapping and store full CSS with selectors
-    if (isBodyNode) {
-      const cleanCss = preventBodyDoubleWrap(cssText);
-      cssByComponentRef.current.set(componentId, cleanCss);
-      setCssDraft(cleanCss);
+    const selectorsToReplace = isBodyNode
+      ? new Set(currentRules.map((rule) => rule.selectors))
+      : new Set(Object.keys(previousSelectorMap));
 
-      // Apply clean CSS as declarations to the body component style
-      // Parse what we can as declarations for the inline style
-      const parsedStyles = parseCssDeclarations(cleanCss);
-      const currentStyle = { ...(selectedComponent.getStyle?.() || {}) };
-      const previousManualKeys =
-        manualKeysByComponentRef.current.get(componentId) || [];
-
-      previousManualKeys.forEach((key) => {
-        delete currentStyle[key];
+    if (!isBodyNode && selectorsToReplace.size === 0 && selectedComponent) {
+      getCssByComponent(selectedComponent).forEach((rule) => {
+        selectorsToReplace.add(rule.selectors);
       });
-
-      const nextStyle = {
-        ...currentStyle,
-        ...parsedStyles,
-      };
-
-      selectedComponent.setStyle(nextStyle);
-      manualKeysByComponentRef.current.set(
-        componentId,
-        Object.keys(parsedStyles),
-      );
-      return;
     }
 
-    const parsedStyles = parseCssDeclarations(cssText);
-    const currentStyle = { ...(selectedComponent.getStyle?.() || {}) };
-    const previousManualKeys =
-      manualKeysByComponentRef.current.get(componentId) || [];
+    const protectedSelectorSet = resolveProtectedSelectorsForComponent(
+      selectedComponent,
+      currentRules,
+    );
+    const mergedNextSelectorMap = mergeProtectedSelectorStyles(
+      nextSelectorMap,
+      currentRules,
+      protectedSelectorSet,
+    );
+    const nextSelectors = new Set(
+      Object.keys(mergedNextSelectorMap)
+        .map((selector) => String(selector || "").trim())
+        .filter(Boolean),
+    );
 
-    previousManualKeys.forEach((key) => {
-      delete currentStyle[key];
+    const effectiveSelectorsToReplace = new Set(
+      [...selectorsToReplace]
+        .map((selector) => String(selector || "").trim())
+        .filter(Boolean)
+        .filter((selector) => {
+          if (!protectedSelectorSet.has(selector)) {
+            return true;
+          }
+
+          // Selector default komponen tidak boleh hilang.
+          // User tetap boleh ubah jika selector itu ditulis ulang di input terbaru.
+          return nextSelectors.has(selector);
+        }),
+    );
+
+    const preservedRules = currentRules.filter(
+      (rule) =>
+        !effectiveSelectorsToReplace.has(String(rule.selectors || "").trim()),
+    );
+
+    css.clear();
+    preservedRules.forEach((rule) => {
+      css.setRule(rule.selectors, rule.style);
     });
 
-    const nextStyle = {
-      ...currentStyle,
-      ...parsedStyles,
-    };
+    Object.entries(mergedNextSelectorMap).forEach(([selector, style]) => {
+      if (!selector?.trim()) {
+        return;
+      }
 
-    selectedComponent.setStyle(nextStyle);
-    manualKeysByComponentRef.current.set(
-      componentId,
-      Object.keys(parsedStyles),
-    );
-    cssByComponentRef.current.set(componentId, cssText);
-    setCssDraft(cssText);
+      if (!hasStyleDeclarations(style)) {
+        return;
+      }
+
+      css.setRule(selector.trim(), style);
+    });
+
+    if (isBodyNode) {
+      setCssDraft(cssRulesToString(getCssRules()));
+      return;
+    }
+
+    if (selectedComponent) {
+      const updatedRules = getCssByComponent(selectedComponent);
+      setCssDraft(cssRulesToString(updatedRules));
+      return;
+    }
+
+    setCssDraft(cssRulesToString(getCssRules()));
   };
 
   return (
@@ -293,33 +422,45 @@ function CustomStyleManager({ sectors }) {
         </div>
       )}
 
-      {!filteredSectors.length ? (
+      {!sectionItems.length ? (
         <div className="p-4 text-sm text-muted-foreground">
           Tidak ada properti style yang tersedia untuk komponen ini.
         </div>
       ) : (
         <Accordion
           type="multiple"
-          defaultValue={["typography"]}
+          defaultValue={["dimension", "typography"]}
           className="w-full"
         >
-          {filteredSectors.map((sector) => (
-            <AccordionItem key={sector.id} value={sector.id}>
+          {sectionItems.map((section) => (
+            <AccordionItem key={section.id} value={section.id}>
               <AccordionTrigger className="px-4 text-sm hover:bg-muted/50">
-                {sector.name}
+                {section.label}
               </AccordionTrigger>
-              <AccordionContent className="grid grid-cols-2 gap-2 px-4 pb-4">
-                {sector.properties.map((property) => {
+              <AccordionContent className="grid grid-cols-1 gap-2 px-4 pb-4">
+                {section.properties.map((property, index) => {
+                  const propertyId = property.getId?.() || `property-${index}`;
                   const hasValue = property.hasValue?.() ?? false;
+                  const fieldType = resolveFieldComponent(property, section.id);
+                  const FieldComponent = getStyleFieldComponent(fieldType);
+                  const isGroupField = [
+                    FIELD_COMPONENT_TYPES.COMPOSITE_SPACING,
+                    FIELD_COMPONENT_TYPES.BORDER_FIELD,
+                    FIELD_COMPONENT_TYPES.TEXT_ALIGN_BUTTONS,
+                    FIELD_COMPONENT_TYPES.TEXT_DECORATION_BUTTONS,
+                    FIELD_COMPONENT_TYPES.FONT_STYLE_BUTTONS,
+                    FIELD_COMPONENT_TYPES.LEGACY_FIELD,
+                  ].includes(fieldType);
 
                   return (
                     <div
-                      key={property.getId()}
+                      key={`${section.id}:${propertyId}:${index}`}
                       className={cn(
-                        "rounded-md border p-2",
+                        "rounded-md border p-2.5",
                         hasValue
                           ? "border-emerald-500/40 bg-emerald-500/5"
                           : "border-border/50",
+                        isGroupField && "bg-muted/20",
                       )}
                     >
                       <div className="mb-1 flex items-center justify-between gap-2">
@@ -330,7 +471,7 @@ function CustomStyleManager({ sectors }) {
                           <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
                         )}
                       </div>
-                      <StylePropertyField prop={property} hideLabel />
+                      <FieldComponent prop={property} />
                     </div>
                   );
                 })}
@@ -342,11 +483,11 @@ function CustomStyleManager({ sectors }) {
 
       <div className="rounded-md border border-border/60 bg-card p-3">
         <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("core/printTemplate.editor.class_manager")}
+          {t("core.printTemplate.editor.class_manager")}
         </p>
         {!selectedComponent ? (
           <p className="text-xs text-muted-foreground">
-            {t("core/printTemplate.editor.select_component")}
+            {t("core.printTemplate.editor.select_component")}
           </p>
         ) : (
           <div className="space-y-2">
@@ -375,7 +516,7 @@ function CustomStyleManager({ sectors }) {
                 value={newClassName}
                 onValueChange={setNewClassName}
                 onKeyDown={handleClassInputKeyDown}
-                placeholder={t("core/printTemplate.editor.add_class")}
+                placeholder={t("core.printTemplate.editor.add_class")}
                 className="h-7 text-xs"
               />
               <Button
@@ -385,7 +526,7 @@ function CustomStyleManager({ sectors }) {
                 className="h-7 w-7 shrink-0 p-0"
                 onClick={handleAddClass}
                 disabled={!newClassName.trim()}
-                aria-label={t("core/printTemplate.editor.add_class")}
+                aria-label={t("core.printTemplate.editor.add_class")}
               >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
@@ -397,7 +538,7 @@ function CustomStyleManager({ sectors }) {
       <div className="rounded-md border border-border/60 bg-card p-3">
         <div className="mb-2 flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("core/printTemplate.editor.manual_css")}
+            {t("core.printTemplate.editor.manual_css")}
           </p>
           {selectedComponent && (
             <Button
@@ -407,13 +548,13 @@ function CustomStyleManager({ sectors }) {
               onClick={() => setCssModalOpen(true)}
             >
               <Pencil className="h-3 w-3" />
-              {t("core/printTemplate.editor.edit_css")}
+              {t("core.printTemplate.editor.edit_css")}
             </Button>
           )}
         </div>
         {!selectedComponent ? (
           <p className="text-xs text-muted-foreground">
-            {t("core/printTemplate.editor.select_component")}
+            {t("core.printTemplate.editor.select_component")}
           </p>
         ) : (
           <div className="rounded-md border border-border/40 bg-muted/30 p-2">
@@ -433,7 +574,7 @@ function CustomStyleManager({ sectors }) {
           open={cssModalOpen}
           onOpenChange={setCssModalOpen}
           initialCSS={cssDraft}
-          isBodyNode={isBodyNode}
+          protectedSelectors={manualCssProtectedSelectors}
           componentId={
             selectedComponent ? componentIdOf(selectedComponent) : "global"
           }

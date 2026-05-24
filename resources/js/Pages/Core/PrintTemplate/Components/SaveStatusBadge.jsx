@@ -91,8 +91,7 @@ function SaveStatusBadge() {
     if (status === "saving") {
       return {
         label: "Saving...",
-        className:
-          "border-blue-500/30 bg-blue-500/10 text-blue-700 dark:text-blue-300",
+        className: "primary",
         icon: <Loader2Icon className="size-3 animate-spin" />,
       };
     }
@@ -100,8 +99,7 @@ function SaveStatusBadge() {
     if (status === "dirty") {
       return {
         label: "Not Saved",
-        className:
-          "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+        className: "warning",
         icon: null,
       };
     }
@@ -109,8 +107,7 @@ function SaveStatusBadge() {
     if (status === "error") {
       return {
         label: "Save Error",
-        className:
-          "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300",
+        className: "error",
         icon: null,
       };
     }
@@ -118,26 +115,20 @@ function SaveStatusBadge() {
     if (status === "saved" || lastSavedAt) {
       return {
         label: `Saved ${formatRelativeTime(lastSavedAt)}`.trim(),
-        className:
-          "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+        className: "success",
         icon: null,
       };
     }
 
     return {
       label: "Ready",
-      className: "border-muted-foreground/20 bg-muted/40 text-muted-foreground",
+      className: "secondary",
       icon: null,
     };
   }, [lastSavedAt, status]);
 
   return (
-    <span
-      className={cn(
-        "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium",
-        viewModel.className,
-      )}
-    >
+    <span className={cn("badge", viewModel.className)}>
       {viewModel.icon}
       <span>{viewModel.label}</span>
     </span>

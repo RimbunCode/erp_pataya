@@ -12,6 +12,7 @@ import { sanitizeHTML } from "@/lib/htmlSanitizer";
 import { AlertTriangle, Code2, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import MonacoHTMLEditor from "./MonacoHTMLEditor";
+import { handleModalEditorKeyDown } from "../utils/modalEditorUtils";
 
 /**
  * StaticHTMLComponent - Code editor modal for custom HTML input
@@ -106,12 +107,8 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
                 "bg-muted/30 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-1",
                 "dark:bg-zinc-900 dark:text-zinc-100",
               )}
-              onKeyDown={(e) => {
-                // Prevent "/" from propagating to GrapesJS global command palette
-                // while still allowing the character to be inserted normally
-                if (e.key === "/") {
-                  e.stopPropagation();
-                }
+              onKeyDown={(event) => {
+                handleModalEditorKeyDown(event, handleSave);
               }}
             >
               <MonacoHTMLEditor
