@@ -27,7 +27,7 @@ After completing a task:
 
 ## Terminal Shell
 
-All terminal commands must be Bash-compatible.
+All terminal commands must be Bash-compatible `C:/Program Files/Git/usr/bin/bash.exe`.
 Do not generate or execute PowerShell/cmd commands.
 If a command is Windows-specific, ask before running it.
 
