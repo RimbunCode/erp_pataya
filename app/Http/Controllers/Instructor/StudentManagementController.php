@@ -29,7 +29,7 @@ class StudentManagementController extends Controller {
                 $query->where('created_by', $instructorId);
             })
             ->with([
-                'user:id,name,email',
+                'user:id,name,email,image,updated_at',
                 'course:id,title,created_by',
                 'course.sections:id,course_id,title,order',
                 'course.sections.contents:id,section_id,title,type,order',
@@ -47,12 +47,7 @@ class StudentManagementController extends Controller {
         [$completedLookupByUser, $completedAtByUserContent] = $this->buildCompletedContentMaps($studentIds, $contentIds);
         [$submittedLookupByUser, $submittedAtByUserContent] = $this->buildSubmittedContentMaps($studentIds, $contentIds);
 
-        $students = $enrollments->map(function ($enrollment) use (
-            $completedLookupByUser,
-            $completedAtByUserContent,
-            $submittedLookupByUser,
-            $submittedAtByUserContent
-        ) {
+        $students = $enrollments->map(function ($enrollment) use ($completedLookupByUser, $completedAtByUserContent, $submittedLookupByUser, $submittedAtByUserContent) {
             $userId         = (string) $enrollment->user_id;
             $courseContents = $enrollment->course->sections->flatMap->contents;
 
@@ -76,6 +71,8 @@ class StudentManagementController extends Controller {
                 'id'         => (string) $enrollment->id,
                 'name'       => (string) $enrollment->user->name,
                 'avatar'     => $this->initials((string) $enrollment->user->name),
+                'image'      => $enrollment->user->image !== null ? (string) $enrollment->user->image : null,
+                'updated_at' => $enrollment->user->updated_at?->toIso8601String(),
                 'email'      => (string) $enrollment->user->email,
                 'course'     => (string) $enrollment->course->title,
                 'progress'   => $progress,

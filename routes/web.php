@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Admin\CourseApprovalController;
+use App\Http\Controllers\Admin\LandingPageSettingController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\SystemFinanceController;
 use App\Http\Controllers\Admin\UserDirectoryController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\Instructor\CourseContentController;
 use App\Http\Controllers\Instructor\CourseController as InstructorCourseController;
 use App\Http\Controllers\Instructor\CourseSectionController;
 use App\Http\Controllers\Instructor\CourseSectionNoteController;
+use App\Http\Controllers\Instructor\DashboardController as InstructorDashboardController;
 use App\Http\Controllers\Instructor\FinancialController as InstructorFinancialController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
 use App\Http\Controllers\Instructor\StudentManagementController;
@@ -17,6 +19,7 @@ use App\Http\Controllers\ModelController;
 use App\Http\Controllers\Student\CartController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
 use App\Http\Controllers\Student\CourseListController;
+use App\Http\Controllers\Student\DashboardController as StudentDashboardController;
 use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\InstructorRoleRequestController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
@@ -78,7 +81,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resourceDetail('file', FileController::class);
 
     Route::middleware(['role:student'])->prefix('/student')->group(function () {
-        Route::get('/dashboard', fn () => inertia('Students/Dashboard'))->name('student.dashboard');
+        Route::get('/dashboard', [StudentDashboardController::class, 'index'])->name('student.dashboard');
         Route::get('/my-courses', [CourseListController::class, 'index'])->name('student.courses.index');
         Route::post('/submissions/{content}', [SubmissionController::class, 'store'])->name('student.submissions.store');
         Route::delete('/submissions/{content}/files/{file}', [SubmissionController::class, 'destroyFile'])->name('student.submissions.files.destroy');
@@ -98,7 +101,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::middleware(['role:instructor'])->prefix('/instructor')->name('instructor.')->group(function () {
 
-        Route::get('/dashboard', fn () => inertia('Instructors/Dashboard'))->name('dashboard');
+        Route::get('/dashboard', [InstructorDashboardController::class, 'index'])->name('dashboard');
         Route::prefix('classes')->name('classes.')->group(function () {
             // Course CRUD
             Route::get('/', [InstructorCourseController::class, 'index'])->name('index');
@@ -168,6 +171,11 @@ Route::middleware(['auth'])->group(function () {
             Route::patch('/user/requests/{roleRequest}/approve', [UserDirectoryController::class, 'approveRequest'])->name('user.requests.approve');
             Route::patch('/user/requests/{roleRequest}/reject', [UserDirectoryController::class, 'rejectRequest'])->name('user.requests.reject');
             Route::patch('/user/users/{user}/status', [UserDirectoryController::class, 'updateUserStatus'])->name('user.users.status');
+        });
+
+        Route::middleware(['admin.permission:content_admin,super_admin'])->group(function () {
+            Route::get('/landing-page-settings', [LandingPageSettingController::class, 'index'])->name('landing-page-settings.index');
+            Route::patch('/landing-page-settings', [LandingPageSettingController::class, 'update'])->name('landing-page-settings.update');
         });
 
         Route::middleware(['admin.permission:super_admin'])->group(function () {

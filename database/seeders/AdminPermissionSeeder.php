@@ -44,6 +44,14 @@ class AdminPermissionSeeder extends Seeder {
             ],
             [
                 'module'      => 'lms',
+                'name'        => 'content_admin',
+                'model'       => 'App\\Models\\Core\\Preference',
+                'route'       => 'admin.landing-page-settings.*',
+                'permissions' => json_encode(['view', 'edit']),
+                'description' => 'Manage Guest page and landing page content',
+            ],
+            [
+                'module'      => 'lms',
                 'name'        => 'super_admin',
                 'model'       => 'App\Models\User',
                 'route'       => 'admin.*',
@@ -62,6 +70,7 @@ class AdminPermissionSeeder extends Seeder {
 
             if ($existing) {
                 $this->command->warn("Permission [{$perm['name']}] already exists, skipping.");
+
                 continue;
             }
 

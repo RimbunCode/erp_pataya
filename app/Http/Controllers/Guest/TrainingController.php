@@ -7,12 +7,16 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Services\Guest\GuestPageContentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class TrainingController extends Controller {
-    public function index(Request $request) {
+    public function __construct(private GuestPageContentService $guestPageContentService) {}
+
+    public function index(Request $request): Response {
         $user = Auth::user();
 
         // Ambil role user yang sedang login
@@ -70,10 +74,11 @@ class TrainingController extends Controller {
             'courses'    => $courses,
             'categories' => $categories,
             'filters'    => $request->only(['search', 'level', 'category']),
+            'content'    => $this->guestPageContentService->resolve(),
         ]);
     }
 
-    public function show(Course $course) {
+    public function show(Course $course): Response {
         $user      = Auth::user();
         $isStudent = $user !== null && $user->roles->pluck('name')->contains('student');
 
@@ -98,7 +103,7 @@ class TrainingController extends Controller {
         }
 
         return Inertia::render('Guest/TrainingSection/TrainingPreview', [
-            'course'           => [
+            'course' => [
                 'id'               => $course->id,
                 'title'            => $course->title,
                 'description'      => $course->description,
@@ -132,6 +137,7 @@ class TrainingController extends Controller {
             'isEnrolled'       => $isEnrolled,
             'enrollmentStatus' => $enrollmentStatus,
             'rejectionReason'  => $rejectionReason,
+            'content'          => $this->guestPageContentService->resolve(),
         ]);
     }
 }

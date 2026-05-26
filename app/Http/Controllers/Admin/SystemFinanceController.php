@@ -75,10 +75,10 @@ class SystemFinanceController extends Controller {
 
         $payoutRequests = InstructorPayoutRequest::query()
             ->with([
-                'instructor:id,name,email',
-                'requestedBy:id,name',
-                'approvedBy:id,name',
-                'paidBy:id,name',
+                'instructor',
+                'requestedBy',
+                'approvedBy',
+                'paidBy',
             ])
             ->latest('created_at')
             ->get();

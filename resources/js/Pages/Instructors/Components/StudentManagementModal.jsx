@@ -1,16 +1,38 @@
+import { useMemo } from "react";
 import {
   avatarColors,
   statusCfg,
 } from "@/Pages/Instructors/Utils/studentManagementConfig";
-
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
+import { cn } from "@/lib/utils";
+import { XIcon } from "lucide-react";
 export default function StudentManagementModal({ student, index, onClose }) {
+  const avatarSource = useMemo(() => {
+    if (!student?.image) {
+      return null;
+    }
+
+    const updatedAtTimestamp = student.updated_at
+      ? new Date(student.updated_at).getTime()
+      : null;
+    const cacheBuster = Number.isFinite(updatedAtTimestamp)
+      ? `?v=${updatedAtTimestamp}`
+      : "";
+
+    return route("files.preview", student.avatar) + cacheBuster;
+  }, [student?.avatar, student?.updated_at]);
   if (!student) {
     return null;
   }
-
+  console.log("student data:", student);
   const cfg = statusCfg[student.status] ?? statusCfg.PENDING;
   const color = avatarColors[index % avatarColors.length];
   const modules = student.modules ?? [];
+  const alias = student.name
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n.charAt(0))
+    .join("");
 
   const barColor =
     student.progress === 100
@@ -29,34 +51,37 @@ export default function StudentManagementModal({ student, index, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-card rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden"
+        className="bg-card rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="bg-gray-900 px-7 pt-7 pb-10 relative">
+        <div className="bg-gray-900 px-7 pt-7 pb-10 relative flex-shrink-0 rounded-t-3xl">
           <button
             onClick={onClose}
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-card/10 text-white/60 hover:bg-card/20 hover:text-white transition-all"
           >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            <XIcon className="size-5" />
           </button>
 
           <div className="flex items-center gap-4">
             <div
               className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center text-white text-lg font-black flex-shrink-0`}
             >
-              {student.avatar}
+              {/* Hapus bg-muted, perbaiki ukuran dari w-16 → w-14 */}
+              <Avatar className="w-14 h-14 rounded-xl overflow-hidden shrink-0, border border-muted dark:border-white">
+                {avatarSource ? (
+                  <AvatarImage
+                    src={avatarSource}
+                    alt={student.name}
+                    className={cn("transition-[filter] group-hover:blur-sm")}
+                  />
+                ) : null}
+                {/* ✅ Tambah warna background + text putih ke fallback */}
+                <AvatarFallback
+                  className={`rounded-xl ${color} text-white text-lg font-black`}
+                >
+                  {alias}
+                </AvatarFallback>
+              </Avatar>
             </div>
             <div>
               <h3 className="text-base font-black text-white tracking-wide">
@@ -75,7 +100,7 @@ export default function StudentManagementModal({ student, index, onClose }) {
           </div>
         </div>
 
-        <div className="px-7 -mt-5 pb-7 space-y-5">
+        <div className="px-7 -mt-5 pt-7 pb-4 space-y-5 overflow-y-auto flex-1 min-h-0">
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: "Joined", value: student.joinDate },
@@ -193,15 +218,14 @@ export default function StudentManagementModal({ student, index, onClose }) {
               </div>
             )}
           </div>
-
-          <div className="flex gap-3 pt-1">
-            <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border hover:text-foreground transition-all">
-              Send Message
-            </button>
-            <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20">
-              View Full Report
-            </button>
-          </div>
+        </div>
+        <div className="flex gap-3 px-7 py-4 border-t border-border flex-shrink-0">
+          <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border hover:text-foreground transition-all">
+            Send Message
+          </button>
+          <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20">
+            View Full Report
+          </button>
         </div>
       </div>
     </div>

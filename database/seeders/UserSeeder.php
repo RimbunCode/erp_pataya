@@ -35,12 +35,6 @@ class UserSeeder extends Seeder {
             'email'    => 'instructor@inkindo.test',
         ]);
 
-        $organization = $this->seedUser([
-            'name'     => 'PT. Konstruksi Jaya',
-            'username' => 'pt.konstruksi',
-            'email'    => 'org@inkindo.test',
-        ]);
-
         $superAdmin = $this->seedUser([
             'name'     => 'Administrator',
             'username' => 'admin',
@@ -65,17 +59,22 @@ class UserSeeder extends Seeder {
             'email'    => 'user.admin@inkindo.test',
         ]);
 
+        $contentAdmin = $this->seedUser([
+            'name'     => 'Content Admin',
+            'username' => 'content',
+            'email'    => 'content.admin@inkindo.test',
+        ]);
+
         $multiRoleUser = $this->seedUser([
             'name'     => 'Budi Santoso',
-            'username' => 'budi.santoso',
+            'username' => 'multi',
             'email'    => 'multi@inkindo.test',
         ]);
 
         $this->attachRole($student, (string) $roleIdsByName['student']);
         $this->attachRole($instructor, (string) $roleIdsByName['instructor']);
-        $this->attachRole($organization, (string) $roleIdsByName['organization']);
 
-        foreach ([$superAdmin, $financeAdmin, $courseAdmin, $userAdmin] as $adminUser) {
+        foreach ([$superAdmin, $financeAdmin, $courseAdmin, $userAdmin, $contentAdmin] as $adminUser) {
             $this->attachRole($adminUser, (string) $roleIdsByName['admin']);
         }
 
@@ -86,6 +85,7 @@ class UserSeeder extends Seeder {
         $this->assignAdminPermission($financeAdmin, 'finance_admin');
         $this->assignAdminPermission($courseAdmin, 'course_admin');
         $this->assignAdminPermission($userAdmin, 'user_admin');
+        $this->assignAdminPermission($contentAdmin, 'content_admin');
     }
 
     /**

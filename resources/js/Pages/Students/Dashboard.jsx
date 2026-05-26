@@ -1,412 +1,399 @@
-import { useState } from "react";
 import MainLayout from "@/Layouts/MainLayout";
-import { router } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 
-const stats = [
-  {
-    label: "In Progress",
-    value: "4",
-    icon: (
-      <svg
-        className="w-6 h-6 text-primary"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-        />
-      </svg>
-    ),
-    iconBg: "bg-primary-soft",
+const deadlineTypeConfig = {
+  assignment: {
+    label: "Assignment",
+    className:
+      "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
   },
-  {
-    label: "Hours Learned",
-    value: "128",
-    icon: (
-      <svg
-        className="w-6 h-6 text-purple-500"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    iconBg: "bg-purple-50",
+  pre_assessment: {
+    label: "Pre-assessment",
+    className:
+      "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-300",
   },
-  {
-    label: "Certificates",
-    value: "12",
-    icon: (
-      <svg
-        className="w-6 h-6 text-green-500"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-        />
-      </svg>
-    ),
-    iconBg: "bg-green-50",
-  },
-  {
-    label: "Avg Score",
-    value: "94%",
-    icon: (
-      <svg
-        className="w-6 h-6 text-amber-500"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-        />
-      </svg>
-    ),
-    iconBg: "bg-amber-50",
-  },
-];
+};
 
-const courses = [
-  {
-    id: 1,
-    title: "BIM Mastery for Structural Engineers",
-    next: "Structural Analysis Tools",
-    progress: 65,
-    remaining: "12h 45m remaining",
-    thumb: "bg-primary-soft",
-    image: "https://picsum.photos/seed/bim/200/150",
-  },
-  {
-    id: 2,
-    title: "Advanced Project Planning & Control",
-    next: "Critical Path Method",
-    progress: 28,
-    remaining: "24h 10m remaining",
-    thumb: "bg-purple-100",
-    image: "https://picsum.photos/seed/planning/200/150",
-  },
-  {
-    id: 3,
-    title: "Digital Transformation in Construction",
-    next: "IoT Implementation",
-    progress: 92,
-    remaining: "45m remaining",
-    thumb: "bg-green-100",
-    image: "https://picsum.photos/seed/digital/200/150",
-  },
-];
+const fallbackTypeClass =
+  "bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300";
+const DEFAULT_THUMBNAIL = "/storage/images/logo-default.png";
 
-const schedule = [
-  {
-    time: "14:00",
-    label: null,
-    title: "Structural BIM Lab",
-    type: "Live Session",
-  },
-  {
-    time: "16:30",
-    label: null,
-    title: "Project Review",
-    type: "Group Discussion",
-  },
-  {
-    time: "09:00",
-    label: null,
-    title: "Ethics Exam",
-    type: "Assessment",
-  },
-];
+const formatDateTime = (isoString) => {
+  if (!isoString) {
+    return "-";
+  }
 
-function CourseCard({ course }) {
-  const [hovered, setHovered] = useState(false);
+  const date = new Date(isoString);
 
+  return `${date.toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })} ${date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+};
+
+function StatCard({ label, value, helper, icon, accentClass }) {
   return (
-    <div
-      className="bg-card rounded-2xl border border-border shadow-sm p-5 flex items-center gap-5 hover:shadow-md transition-all duration-200 cursor-pointer"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Thumbnail */}
-      <div
-        className={`w-28 h-24 rounded-xl flex-shrink-0 ${course.thumb} flex items-center justify-center relative overflow-hidden`}
-      >
-        {course.image && (
-          <img
-            src={course.image}
-            alt={course.title}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-        {hovered && (
-          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center transition-all duration-200">
-            <div className="w-10 h-10 rounded-full bg-card flex items-center justify-center shadow-md">
-              <svg
-                className="w-5 h-5 text-primary ml-0.5"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M8 5v14l11-7z" />
-              </svg>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <h3 className="text-sm font-black text-foreground uppercase tracking-wide leading-tight mb-1">
-          {course.title}
-        </h3>
-        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3">
-          Next: {course.next}
-        </p>
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all duration-500"
-              style={{ width: `${course.progress}%` }}
-            />
-          </div>
-          <span className="text-[10px] font-extrabold text-primary tracking-widest whitespace-nowrap">
-            {course.progress}% Complete
-          </span>
-          <span className="text-[10px] text-muted-foreground tracking-wide whitespace-nowrap">
-            {course.remaining}
-          </span>
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div
+          className={`w-10 h-10 rounded-xl flex items-center justify-center ${accentClass}`}
+        >
+          {icon}
         </div>
+        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase text-right">
+          {label}
+        </p>
       </div>
-
-      {/* Arrow */}
-      <svg
-        className={`w-4 h-4 flex-shrink-0 transition-colors duration-200 ${hovered ? "text-primary" : "text-muted-foreground"}`}
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2.5}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-      </svg>
+      <p className="text-2xl font-black text-foreground mt-4">{value}</p>
+      <p className="text-xs text-muted-foreground mt-1">{helper}</p>
     </div>
   );
 }
 
-function ScheduleItem({ item }) {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <div
-      className="flex items-start gap-4 py-3 cursor-default"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      <div className="text-right min-w-[44px]">
-        <p
-          className={`text-xs font-black transition-colors duration-200 ${hovered ? "text-primary" : "text-foreground"}`}
-        >
-          {item.time}
-        </p>
-        {item.label && (
-          <p className="text-[9px] font-bold tracking-widest text-primary uppercase">
-            {item.label}
-          </p>
-        )}
-      </div>
-      <div className="flex flex-col items-center gap-1 pt-1">
-        <div
-          className={`w-2 h-2 rounded-full transition-all duration-200 ${hovered ? "bg-primary scale-125" : "bg-gray-200"}`}
-        />
-        <div className="w-px flex-1 bg-muted min-h-[24px]" />
-      </div>
-      <div className="pb-3">
-        <p
-          className={`text-xs font-black uppercase tracking-wide transition-colors duration-200 ${hovered ? "text-primary" : "text-foreground"}`}
-        >
-          {item.title}
-        </p>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
-          {item.type}
-        </p>
-      </div>
-    </div>
+export default function StudentDashboard({
+  overview = {},
+  hero = {},
+  continueLearning = [],
+  upcomingDeadlines = [],
+}) {
+  const ongoingCourses = Number(overview.ongoingCourses ?? 0);
+  const completedCourses = Number(overview.completedCourses ?? 0);
+  const pendingVerificationCourses = Number(
+    overview.pendingVerificationCourses ?? 0,
   );
-}
+  const pendingSubmissions = Number(overview.pendingSubmissions ?? 0);
 
-export default function Dashboard() {
+  const averageProgress = Number(hero.averageProgress ?? 0);
+  const resumeCourse = hero.resumeCourse ?? null;
+
   return (
-    <MainLayout title="My Learning" breadcrumb="Dashboard">
-      <div className="p-8 flex flex-col gap-8">
-        {/* ── Hero Banner ── */}
+    <MainLayout title="Learning Dashboard" breadcrumb="Dashboard">
+      <div className="p-8 space-y-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-foreground uppercase">
+              Learning Dashboard
+            </h2>
+            <p className="text-xs text-muted-foreground font-medium mt-1">
+              Track your progress and focus on what to finish next.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={route("student.courses.index")}
+              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl transition-colors"
+            >
+              Continue Learning
+            </Link>
+            <Link
+              href={route("student.courses.index")}
+              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase border border-border text-foreground rounded-xl hover:bg-muted transition-colors"
+            >
+              View All Courses
+            </Link>
+            <Link
+              href={route("student.course-catalogue")}
+              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase border border-border text-foreground rounded-xl hover:bg-muted transition-colors"
+            >
+              Browse Catalogue
+            </Link>
+          </div>
+        </div>
+
         <div
-          className="rounded-3xl p-8 flex items-center justify-between relative overflow-hidden"
+          className="rounded-3xl p-6 sm:p-8 overflow-hidden relative"
           style={{
-            background: "linear-gradient(135deg, #2563eb 60%, #4338ca 100%)",
+            background: "linear-gradient(135deg, #2563eb 55%, #1e3a8a 100%)",
           }}
         >
-          <div
-            className="absolute inset-0 pointer-events-none opacity-30"
-            style={{
-              background:
-                "linear-gradient(120deg, transparent 50%, #1e3a8a 50%)",
-            }}
-          />
-          <div className="relative z-10 max-w-lg">
-            <h2 className="text-3xl font-black text-white uppercase tracking-tight leading-tight mb-3">
-              Ready to Master
-              <br />
-              Your Next Skill?
-            </h2>
-            <p className="text-sm text-primary leading-relaxed mb-6">
-              You have 2 pending assignments and 4 unfinished courses. Keep up
-              the momentum!
-            </p>
-            <button
-              onClick={() => router.visit("/student/classes")}
-              className="bg-card text-primary text-xs font-extrabold tracking-widest uppercase px-6 py-3 rounded-xl hover:bg-primary-soft transition-colors duration-200"
-            >
-              Resume Learning
-            </button>
-          </div>
-          <div className="relative z-10 flex gap-3 flex-shrink-0">
-            <div className="bg-card/15 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
-              <p className="text-3xl font-black text-white">82%</p>
-              <p className="text-[10px] font-bold tracking-widest text-primary uppercase mt-1">
-                Avg Score
-              </p>
-            </div>
-            <div className="bg-card/15 backdrop-blur-sm rounded-2xl px-6 py-4 text-center">
-              <p className="text-3xl font-black text-white">4</p>
-              <p className="text-[10px] font-bold tracking-widest text-primary uppercase mt-1">
-                Ongoing
-              </p>
-            </div>
-          </div>
-        </div>
+          <div className="absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(circle_at_top_right,_#ffffff_0%,_transparent_45%)]" />
 
-        {/* ── Stats ── */}
-        <div className="grid grid-cols-4 gap-5">
-          {stats.map((s) => (
-            <div
-              key={s.label}
-              className="bg-card rounded-2xl border border-border shadow-sm p-6 flex flex-col gap-4"
-            >
-              <div
-                className={`w-12 h-12 rounded-xl ${s.iconBg} flex items-center justify-center`}
+          <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-xl">
+              <h3 className="text-3xl font-black text-white uppercase tracking-tight leading-tight">
+                {resumeCourse ? "Ready to Continue?" : "Start Your Next Course"}
+              </h3>
+              <p className="text-sm text-blue-100 mt-3 leading-relaxed">
+                {resumeCourse
+                  ? `Resume ${resumeCourse.title} at ${resumeCourse.progress}% completion and keep your streak active.`
+                  : "You do not have an ongoing course yet. Browse the catalogue to begin learning."}
+              </p>
+              <Link
+                href={route("student.courses.index")}
+                className="inline-flex mt-5 px-5 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-white text-primary hover:bg-primary-soft transition-colors"
               >
-                {s.icon}
+                Resume Learning
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center min-w-[120px]">
+                <p className="text-3xl font-black text-white">
+                  {averageProgress}%
+                </p>
+                <p className="text-[10px] font-bold tracking-widest text-blue-100 uppercase mt-1">
+                  Avg Progress
+                </p>
               </div>
-              <div>
-                <p className="text-3xl font-black text-foreground">{s.value}</p>
-                <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mt-1">
-                  {s.label}
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center min-w-[120px]">
+                <p className="text-3xl font-black text-white">
+                  {ongoingCourses}
+                </p>
+                <p className="text-[10px] font-bold tracking-widest text-blue-100 uppercase mt-1">
+                  Ongoing
                 </p>
               </div>
             </div>
-          ))}
+          </div>
         </div>
 
-        {/* ── Currently Learning + Schedule ── */}
-        <div className="grid grid-cols-3 gap-6">
-          {/* Courses — 2/3 width */}
-          <div className="col-span-2 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-foreground uppercase tracking-widest">
-                Currently Learning
-              </h2>
-              <button className="text-[10px] font-extrabold tracking-widest text-primary hover:text-primary uppercase transition-colors">
-                View All
-              </button>
-            </div>
-            <div className="flex flex-col gap-4">
-              {courses.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <StatCard
+            label="Ongoing Courses"
+            value={ongoingCourses}
+            helper="Courses still in progress"
+            accentClass="bg-[var(--primary-soft)] text-[var(--primary)]"
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 8v4l2.5 2.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            }
+          />
+          <StatCard
+            label="Completed"
+            value={completedCourses}
+            helper="Courses finished"
+            accentClass="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            }
+          />
+          <StatCard
+            label="Verification"
+            value={pendingVerificationCourses}
+            helper="Pending or rejected enrollments"
+            accentClass="bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 8v4m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z"
+                />
+              </svg>
+            }
+          />
+          <StatCard
+            label="Pending Submissions"
+            value={pendingSubmissions}
+            helper="Required tasks not submitted"
+            accentClass="bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-300"
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7 8h10M7 12h7m-7 4h10M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z"
+                />
+              </svg>
+            }
+          />
+        </div>
 
-          {/* Schedule + Upgrade — 1/3 width */}
-          <div className="flex flex-col gap-5">
-            {/* Schedule */}
-            <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-primary-soft flex items-center justify-center">
-                  <svg
-                    className="w-5 h-5 text-primary"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
-                </div>
-                <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
-                  Schedule
-                </h3>
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+          <div className="xl:col-span-3 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4 flex-wrap">
+              <h3 className="text-sm font-black tracking-widest text-foreground uppercase">
+                Continue Learning
+              </h3>
+              <Link
+                href={route("student.courses.index")}
+                className="text-[10px] font-black tracking-widest uppercase text-primary hover:text-primary-hover transition-colors"
+              >
+                View All Courses
+              </Link>
+            </div>
+
+            {continueLearning.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
+                  No ongoing course
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  You can browse the catalogue and enroll in a new class.
+                </p>
               </div>
-              <div className="flex flex-col">
-                {schedule.map((item, i) => (
-                  <ScheduleItem key={i} item={item} />
+            ) : (
+              <div className="divide-y divide-border">
+                {continueLearning.map((course) => (
+                  <Link
+                    key={course.id}
+                    href={route("student.courses.index")}
+                    className="px-6 py-4 flex items-start gap-4 hover:bg-muted/40 transition-colors"
+                  >
+                    <Avatar className="w-16 h-14 rounded-xl overflow-hidden shrink-0 bg-muted">
+                      <AvatarImage
+                        src={course.thumbnail || DEFAULT_THUMBNAIL}
+                        alt={course.title}
+                        className="object-cover"
+                      />
+                      <AvatarFallback className="rounded-xl">
+                        <img
+                          src={DEFAULT_THUMBNAIL}
+                          alt={course.title}
+                          className="w-full h-full object-contain"
+                        />
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-black text-foreground truncate">
+                        {course.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                        {course.instructor || "-"}
+                      </p>
+
+                      <div className="mt-3 flex items-center gap-3">
+                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full"
+                            style={{
+                              width: `${Number(course.progress ?? 0)}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-black tracking-widest text-primary uppercase shrink-0">
+                          {Number(course.progress ?? 0)}%
+                        </span>
+                      </div>
+
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          Next:{" "}
+                          {course.nextContentTitle || "All contents completed"}
+                        </p>
+                        <p className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+                          Last activity {formatDateTime(course.lastActivityAt)}
+                        </p>
+                      </div>
+                    </div>
+                  </Link>
                 ))}
               </div>
+            )}
+          </div>
+
+          <div className="xl:col-span-2 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4 flex-wrap">
+              <h3 className="text-sm font-black tracking-widest text-foreground uppercase">
+                Upcoming Deadlines
+              </h3>
+              <Link
+                href={route("student.courses.index")}
+                className="text-[10px] font-black tracking-widest uppercase text-primary hover:text-primary-hover transition-colors"
+              >
+                Manage Tasks
+              </Link>
             </div>
 
-            {/* Upgrade CTA */}
-            <div
-              className="rounded-2xl p-6"
-              style={{
-                background:
-                  "linear-gradient(135deg, #2563eb 60%, #4338ca 100%)",
-              }}
-            >
-              <div className="w-9 h-9 rounded-xl bg-card/20 flex items-center justify-center mb-4">
-                <svg
-                  className="w-5 h-5 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13 10V3L4 14h7v7l9-11h-7z"
-                  />
-                </svg>
+            {upcomingDeadlines.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
+                  No deadline yet
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Pending tasks with deadlines will appear here.
+                </p>
               </div>
-              <h3 className="text-sm font-black text-white uppercase tracking-wide leading-tight mb-2">
-                Upgrade for Pro Benefits
-              </h3>
-              <p className="text-xs text-primary leading-relaxed mb-5">
-                Get lifetime access to materials, exclusive community, and
-                premium certifications.
-              </p>
-              <button className="w-full bg-card text-primary text-xs font-extrabold tracking-widest uppercase py-3 rounded-xl hover:bg-primary-soft transition-colors duration-200">
-                Learn More
-              </button>
-            </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {upcomingDeadlines.map((deadline) => {
+                  const config = deadlineTypeConfig[deadline.type] ?? {
+                    label: deadline.type,
+                    className: fallbackTypeClass,
+                  };
+
+                  return (
+                    <Link
+                      key={`${deadline.courseId}-${deadline.contentId}`}
+                      href={route("student.courses.index")}
+                      className="px-6 py-4 block hover:bg-muted/40 transition-colors"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-black text-foreground truncate">
+                            {deadline.contentTitle}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1 truncate">
+                            {deadline.courseTitle}
+                          </p>
+                        </div>
+                        <span
+                          className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${config.className}`}
+                        >
+                          {config.label}
+                        </span>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <p className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase">
+                          {formatDateTime(deadline.deadlineAt)}
+                        </p>
+                        {deadline.isOverdue ? (
+                          <span className="text-[10px] font-black tracking-widest uppercase text-red-600">
+                            Overdue
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black tracking-widest uppercase text-amber-600">
+                            Upcoming
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

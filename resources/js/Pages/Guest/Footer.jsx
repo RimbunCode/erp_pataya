@@ -1,12 +1,75 @@
 import Link from "@/Components/Link";
+import { usePage } from "@inertiajs/react";
+import { getGuestLines, getGuestText } from "@/lib/guestPageContent";
 
-// ── Footer ────────────────────────────────────────────────────────────────────
 export function SiteFooter() {
+  const { content = {} } = usePage().props;
+
+  const brandTitle = getGuestText(content, "footer.brand.title", "INKINDO");
+  const brandSubtitle = getGuestText(
+    content,
+    "footer.brand.subtitle",
+    "Learning Center",
+  );
+  const brandDescription = getGuestText(
+    content,
+    "footer.brand.description",
+    "Leading the digital transformation of professional training and certification for engineering and construction industries in Indonesia.",
+  );
+
+  const exploreTitle = getGuestText(content, "footer.explore.title", "EXPLORE");
+  const exploreLinks = getGuestLines(content, "footer.explore.links", [
+    "BROWSE TRAININGS",
+    "CERTIFICATION PATH",
+    "OUR INSTRUCTORS",
+    "AFFILIATE PROGRAM",
+  ]);
+
+  const companyTitle = getGuestText(content, "footer.company.title", "COMPANY");
+  const companyLinks = getGuestLines(content, "footer.company.links", [
+    "ABOUT INKINDO",
+    "CAREER OPPORTUNITIES",
+    "PRIVACY POLICY",
+    "TERMS OF SERVICE",
+  ]);
+
+  const contactTitle = getGuestText(
+    content,
+    "footer.contact.title",
+    "CONTACT US",
+  );
+  const contactAddress = getGuestText(
+    content,
+    "footer.contact.address",
+    "Jl. Bendungan Hilir No.29, Jakarta Pusat, DKI Jakarta 10210",
+  );
+  const contactPhone = getGuestText(
+    content,
+    "footer.contact.phone",
+    "+62 (21) 573-8603",
+  );
+  const contactEmail = getGuestText(
+    content,
+    "footer.contact.email",
+    "info@inkindo-learning.com",
+  );
+
+  const copyright = getGuestText(
+    content,
+    "footer.bottom.copyright",
+    "� 2024 INKINDO LEARNING CENTER. ALL RIGHTS RESERVED.",
+  );
+  const helpCenter = getGuestText(
+    content,
+    "footer.bottom.helpCenter",
+    "HELP CENTER",
+  );
+  const sitemap = getGuestText(content, "footer.bottom.sitemap", "SITEMAP");
+
   return (
     <footer className="bg-[#0f1623] text-white pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
-          {/* Brand */}
           <div className="col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
@@ -20,93 +83,77 @@ export function SiteFooter() {
                 </svg>
               </div>
               <div>
-                <div className="font-extrabold text-sm tracking-widest uppercase">
-                  INKINDO
+                <div className="font-extrabold text-sm tracking-widest uppercase whitespace-pre-line">
+                  {brandTitle}
                 </div>
-                <div className="text-[9px] tracking-widest text-primary uppercase font-semibold">
-                  Learning Center
+                <div className="text-[9px] tracking-widest text-primary uppercase font-semibold whitespace-pre-line">
+                  {brandSubtitle}
                 </div>
               </div>
             </div>
-            <p className="text-muted-foreground text-xs leading-relaxed mb-6 max-w-[220px]">
-              Leading the digital transformation of professional training and
-              certification for engineering and construction industries in
-              Indonesia.
+            <p className="text-muted-foreground text-xs leading-relaxed mb-6 max-w-[220px] whitespace-pre-line">
+              {brandDescription}
             </p>
-            {/* Social icons */}
             <div className="flex items-center gap-2">
               {[
                 { label: "f", href: "#" },
-                { label: "𝕏", href: "#" },
+                { label: "X", href: "#" },
                 { label: "in", href: "#" },
                 { label: "li", href: "#" },
-              ].map((s) => (
+              ].map((social) => (
                 <a
-                  key={s.label}
-                  href={s.href}
+                  key={social.label}
+                  href={social.href}
                   className="w-8 h-8 rounded-full border border-border hover:border-primary/50 flex items-center justify-center text-muted-foreground hover:text-primary text-[10px] font-bold transition-colors"
                 >
-                  {s.label}
+                  {social.label}
                 </a>
               ))}
             </div>
           </div>
 
-          {/* Explore */}
           <div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5">
-              EXPLORE
+            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5 whitespace-pre-line">
+              {exploreTitle}
             </p>
             <ul className="space-y-3">
-              {[
-                "BROWSE TRAININGS",
-                "CERTIFICATION PATH",
-                "OUR INSTRUCTORS",
-                "AFFILIATE PROGRAM",
-              ].map((l) => (
-                <li key={l}>
+              {exploreLinks.map((linkLabel) => (
+                <li key={linkLabel}>
                   <Link
-                    href="#"
-                    className="text-muted-foreground hover:text-white text-[11px] font-semibold tracking-widest uppercase transition-colors"
+                    href={route("guest.training")}
+                    className="text-muted-foreground hover:text-white text-[11px] font-semibold tracking-widest uppercase transition-colors whitespace-pre-line"
                   >
-                    {l}
+                    {linkLabel}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Company */}
           <div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5">
-              COMPANY
+            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5 whitespace-pre-line">
+              {companyTitle}
             </p>
             <ul className="space-y-3">
-              {[
-                "ABOUT INKINDO",
-                "CAREER OPPORTUNITIES",
-                "PRIVACY POLICY",
-                "TERMS OF SERVICE",
-              ].map((l) => (
-                <li key={l}>
+              {companyLinks.map((linkLabel) => (
+                <li key={linkLabel}>
                   <Link
-                    href="#"
-                    className="text-muted-foreground hover:text-white text-[11px] font-semibold tracking-widest uppercase transition-colors"
+                    href={route("guest.about")}
+                    className="text-muted-foreground hover:text-white text-[11px] font-semibold tracking-widest uppercase transition-colors whitespace-pre-line"
                   >
-                    {l}
+                    {linkLabel}
                   </Link>
                 </li>
               ))}
             </ul>
           </div>
 
-          {/* Contact */}
           <div>
-            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5">
-              CONTACT US
+            <p className="text-[10px] font-bold tracking-widest uppercase text-primary mb-5 whitespace-pre-line">
+              {contactTitle}
             </p>
             <ul className="space-y-4">
-              <li className="flex items-start gap-2 text-muted-foreground text-xs">
+              <li className="flex items-start gap-2 text-muted-foreground text-xs whitespace-pre-line">
                 <svg
                   className="w-3.5 h-3.5 mt-0.5 shrink-0 text-primary"
                   fill="currentColor"
@@ -114,9 +161,9 @@ export function SiteFooter() {
                 >
                   <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                 </svg>
-                Jl. Bendungan Hilir No.29, Jakarta Pusat, DKI Jakarta 10210
+                {contactAddress}
               </li>
-              <li className="flex items-center gap-2 text-muted-foreground text-xs">
+              <li className="flex items-center gap-2 text-muted-foreground text-xs whitespace-pre-line">
                 <svg
                   className="w-3.5 h-3.5 shrink-0 text-primary"
                   fill="currentColor"
@@ -124,9 +171,9 @@ export function SiteFooter() {
                 >
                   <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" />
                 </svg>
-                +62 (21) 573-8603
+                {contactPhone}
               </li>
-              <li className="flex items-center gap-2 text-muted-foreground text-xs">
+              <li className="flex items-center gap-2 text-muted-foreground text-xs whitespace-pre-line">
                 <svg
                   className="w-3.5 h-3.5 shrink-0 text-primary"
                   fill="currentColor"
@@ -134,21 +181,28 @@ export function SiteFooter() {
                 >
                   <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
                 </svg>
-                info@inkindo-learning.com
+                {contactEmail}
               </li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom bar */}
         <div className="border-t border-border pt-6 flex flex-col sm:flex-row justify-between items-center gap-3 text-[10px] text-muted-foreground tracking-widest uppercase">
-          <span>© 2024 INKINDO LEARNING CENTER. ALL RIGHTS RESERVED.</span>
+          <span className="whitespace-pre-line text-center sm:text-left">
+            {copyright}
+          </span>
           <div className="flex gap-6">
-            <Link href="#" className="hover:text-muted-foreground transition-colors">
-              HELP CENTER
+            <Link
+              href="#"
+              className="hover:text-muted-foreground transition-colors whitespace-pre-line"
+            >
+              {helpCenter}
             </Link>
-            <Link href="#" className="hover:text-muted-foreground transition-colors">
-              SITEMAP
+            <Link
+              href="#"
+              className="hover:text-muted-foreground transition-colors whitespace-pre-line"
+            >
+              {sitemap}
             </Link>
           </div>
         </div>
