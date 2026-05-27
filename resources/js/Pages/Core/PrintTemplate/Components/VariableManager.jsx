@@ -10,7 +10,7 @@ function VariableManager() {
   const availableVariables = useMemo(() => {
     return Array.isArray(dataTableColumns) ? dataTableColumns : [];
   }, [dataTableColumns]);
-
+  console.log(availableVariables);
   /**
    * Build docInfo variables from the docInfo prop.
    * Each field in docInfo becomes a draggable variable generating {{docInfo.<field>}} tokens.

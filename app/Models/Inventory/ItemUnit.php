@@ -9,21 +9,32 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ItemUnit extends Model {
     use HasUlids, SoftDeletes;
-
-    protected $guarded = ['id'];
-    protected $casts   = [
+    protected       $guarded       = ['id'];
+    protected       $casts         = [
         'is_default'                => 'boolean',
         'is_manual'                 => 'boolean',
         'generated_by_default_unit' => 'boolean',
     ];
-    public string $translateKey    = 'inventories.itemUnit';
+    public string   $translateKey  = 'inventories.itemUnit';
     protected array $configColumns = [
         'item',
         'unit',
-        'is_default' => [
+        'code'                      => [
+            'isLink'      => true,
+            'show'        => true,
+            'order'       => 0,
+            'forceAppend' => true,
+        ],
+        'name'                      => [
+            'isLink'      => true,
+            'show'        => true,
+            'order'       => 1,
+            'forceAppend' => true,
+        ],
+        'is_default'                => [
             'ignore' => true,
         ],
-        'is_manual' => [
+        'is_manual'                 => [
             'ignore' => true,
         ],
         'generated_by_default_unit' => [

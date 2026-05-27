@@ -222,7 +222,7 @@ export default function Form() {
                     "items",
                     ...(data.reference_to?.model ==
                     "App\\Models\\Sales\\SalesOrder"
-                      ? ["customer", "customer_branch"]
+                      ? ["customer", "customerBranch"]
                       : ["branch"]),
                     "items.item",
                     "items.unit",
@@ -295,9 +295,9 @@ export default function Form() {
                   appends={["model"]}
                   with={[
                     "referenceable",
-                    "reference_to",
+                    "referenceTo",
                     "customer",
-                    "customer_branch",
+                    "customerBranch",
                     "items",
                     "items.item",
                     "items.unit",

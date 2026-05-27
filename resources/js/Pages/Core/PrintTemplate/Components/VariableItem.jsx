@@ -192,6 +192,9 @@ function getHandlebarToken(variable) {
   if (variable.type === "relation") {
     return `{{relation ${normalizedDocPath}}}`;
   }
+  if (variable.type == "relations") {
+    return `{{#each ${normalizedDocPath}}}...{{/each}}`;
+  }
   return `{{${normalizedDocPath}}}`;
 }
 
@@ -315,7 +318,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
   const hasInlineColumns =
     Array.isArray(variable.columns) && variable.columns.length > 0;
   const relationModel = variable.related ?? null;
-  const canFetchColumns = Boolean(relationModel);
+  const canFetchColumns =
+    variable.typeRelation == "basic" && Boolean(relationModel);
   const isRelation =
     (variable.type === "relation" ||
       variable.type === "relations" ||
@@ -715,7 +719,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
   };
 
   // Non-relation item with tooltip showing Handlebar token
-  if (!isRelation) {
+  if (!isRelation || variable.typeRelation == "morph") {
+    if (variable.type == "relations") return null;
     return (
       <TooltipProvider delayDuration={300}>
         <Tooltip>
@@ -824,11 +829,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                   variable.type === "data" || variable.type === "preferences"
                 ) && (
                   <span className="truncate text-xs text-muted-foreground">
-                    {variable.type === "relations" ? (
-                      <code>{"{{#each " + variable.name + "}}"}</code>
-                    ) : (
-                      <code>{"{{" + variable.name + "}}"}</code>
-                    )}
+                    <code>{handlebarToken}</code>
                   </span>
                 )}
               </button>
@@ -840,9 +841,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
               <div className="space-y-1">
                 <p className="font-medium text-xs">{displayLabel}</p>
                 <code className="text-xs block bg-muted px-1.5 py-0.5 rounded">
-                  {variable.type === "relations"
-                    ? `{{#each ${variable.name}}}...{{/each}}`
-                    : `{{${variable.name}}}`}
+                  {handlebarToken}
                 </code>
                 <p className="text-xs text-muted-foreground">
                   {variable.type === "relations"

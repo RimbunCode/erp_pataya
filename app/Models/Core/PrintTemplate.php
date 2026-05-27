@@ -24,7 +24,7 @@ class PrintTemplate extends Model {
         'is_letter_head'       => 'boolean',
         'show_absolute_values' => 'boolean',
     ];
-    protected $appends           = ['title', 'columns'];
+    protected $appends           = ['title'];
     public string $keyBreadcrumb = 'name';
     public string $translateKey  = 'core.printTemplate';
 

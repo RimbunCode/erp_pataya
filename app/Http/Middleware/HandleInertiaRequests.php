@@ -16,7 +16,6 @@ class HandleInertiaRequests extends Middleware {
     private const SESSION_PREFERENCES_VERSION_KEY = 'preferences_version';
     private const SESSION_USER_ROLE_IDS_KEY       = 'shared_user_role_ids';
     private const SESSION_USER_ROLE_VERSION_KEY   = 'shared_user_role_ids_version';
-
     /**
      * The root template that is loaded on the first page visit.
      *
@@ -51,16 +50,16 @@ class HandleInertiaRequests extends Middleware {
 
         return [
             ...parent::share($request),
-            'auth' => [
+            'auth'        => [
                 'user' => $sharedUser,
             ],
-            'lang'  => $request->cookie('lang') ?? 'en',
-            'ziggy' => fn () => [
+            'lang'        => $request->cookie('lang') ?? 'en',
+            'ziggy'       => fn () => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),
                 'query'    => \count($request->query()) > 0 ? $request->query() : null,
             ],
-            'flash' => \array_filter(
+            'flash'       => \array_filter(
                 $request->session()->all(),
                 fn ($key) => \in_array($key, $flashKeys),
                 \ARRAY_FILTER_USE_KEY,

@@ -36,6 +36,7 @@ import {
   removeAllSelectedComponents,
   shouldClearSelectionOnCanvasClick,
 } from "./utils/canvasSelectionUtils";
+import { formatHandlebarTemplate } from "./utils/templateFormatUtils";
 
 const SIDEBAR_DEFAULT_WIDTH = 320;
 const SIDEBAR_MIN_WIDTH = 280;
@@ -66,78 +67,6 @@ function resolveTemplateUnitCode(printTemplate) {
 function parseNumericValue(value, fallbackValue) {
   const numeric = Number(value);
   return Number.isFinite(numeric) ? numeric : fallbackValue;
-}
-
-function decodeTokenFromBase64(base64Token = "") {
-  if (!base64Token || typeof window === "undefined") {
-    return "";
-  }
-
-  try {
-    const binary = window.atob(base64Token);
-    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
-    return new TextDecoder().decode(bytes);
-  } catch {
-    return "";
-  }
-}
-
-function normalizeInlineVariableTokenSpans(template = "") {
-  if (typeof template !== "string" || !template.trim()) {
-    return "";
-  }
-
-  if (typeof DOMParser === "undefined") {
-    return template;
-  }
-
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(
-      `<div id="inline-token-root">${template}</div>`,
-      "text/html",
-    );
-    const root = doc.getElementById("inline-token-root");
-
-    if (!root) {
-      return template;
-    }
-
-    const inlineTokens = Array.from(
-      root.querySelectorAll("[data-variable-inline]"),
-    );
-
-    inlineTokens.forEach((tokenNode) => {
-      const token =
-        tokenNode.getAttribute("data-token") ||
-        decodeTokenFromBase64(tokenNode.getAttribute("data-token-b64") || "") ||
-        tokenNode.textContent ||
-        "";
-
-      tokenNode.replaceWith(doc.createTextNode(token));
-    });
-
-    return root.innerHTML;
-  } catch {
-    return template;
-  }
-}
-
-function formatHandlebarTemplate(template = "") {
-  if (typeof template !== "string" || !template.trim()) {
-    return "";
-  }
-
-  const normalized = normalizeInlineVariableTokenSpans(template)
-    .replace(/\{\{#(each|if|unless)([^}]*)\}\}/g, "\n$&\n")
-    .replace(/\{\{\/(each|if|unless)\}\}/g, "\n$&\n")
-    .replace(/\n{2,}/g, "\n");
-
-  return normalized
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("\n");
 }
 
 function validateHandlebarTemplate(template = "") {
@@ -337,12 +266,9 @@ function variableDropListener(editor, { t, exampleData, locale }) {
             keyName: labelKey,
           });
 
-        const labelTypeArg =
-          variableType === "preferences" ? ' type="companyDetail"' : "";
-
         return `
 <div class="${SUBGRID_CLASS}" data-variable="${variablePath}" data-variable-type="${variableType}">
-  <p><span>{{label "${labelKey}"${labelTypeArg}}}</span></p>
+  <p><span>{{trans "${labelKey}"}}</span></p>
   <p>: <span>${token}</span></p>
 </div>
         `.trim();

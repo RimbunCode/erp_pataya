@@ -25,6 +25,12 @@ function generateRelationTableHTML({ relationName, columnsConfig }) {
     return "";
   }
 
+  const relationTarget = relationName.startsWith("doc.")
+    ? relationName
+    : relationName
+      ? `doc.${relationName}`
+      : relationName;
+
   let html = `<table class="table table-bordered w-100" data-relations="${relationName}">`;
 
   html += `<thead>`;
@@ -37,7 +43,7 @@ function generateRelationTableHTML({ relationName, columnsConfig }) {
   html += `</thead>`;
 
   html += `<tbody>`;
-  html += `{{#each ${relationName}}}`;
+  html += `{{#each ${relationTarget}}}`;
   html += `<tr>`;
   html += `<td style="text-align:center">{{idx}}</td>`;
   for (const col of visibleColumns) {
@@ -425,7 +431,7 @@ describe("Property 12: Relation table HTML export includes Bootstrap classes", (
           expect(html).toContain(`data-relations="${relationName}"`);
 
           // Must contain the Handlebars each loop with the relation name
-          expect(html).toContain(`{{#each ${relationName}}}`);
+          expect(html).toContain(`{{#each doc.${relationName}}}`);
           expect(html).toContain("{{/each}}");
         },
       ),

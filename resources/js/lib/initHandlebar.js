@@ -45,7 +45,8 @@ function resolveFieldPath(path, columns) {
 }
 
 export function initHandlebar(trans) {
-  Handlebars.registerHelper("relation", function (payload) {
+  Handlebars.registerHelper("relation", function (payload, option) {
+    console.log({ payload, option });
     return convertTemplateLink(payload);
   });
 
@@ -123,35 +124,11 @@ export function initHandlebar(trans) {
   // These helpers are preserved to avoid breaking existing templates.
   // New templates should use the unified `label` helper instead.
 
-  Handlebars.registerHelper("trans", function (payload, options) {
+  Handlebars.registerHelper("trans", function (payload) {
     if (typeof payload !== "string") {
       return payload?.title || trans(payload?.titleTrans) || payload?.name;
-    }
-    const keys = payload.split(".");
-
-    if (keys[0] == "document") {
-      let document = options?.data?.root?.document;
-      const key = keys[1];
-      document = document?.find((x) => x.name == key);
-      return document?.title || trans(document?.titleTrans) || document?.name;
-    }
-
-    let data = options?.data?.root.dataTableColumns;
-    const type = options.hash.type ?? "data";
-
-    data = data?.filter(
-      (x) => x.type == (type == "companyDetail" ? "preferences" : type),
-    )[0]?.columns;
-
-    for (let i = 0; i < keys.length; i++) {
-      const key = keys[i];
-      data = data?.filter((x) => x.name == key)[0];
-      if (i == keys.length - 1) {
-        return data?.title || trans(data?.titleTrans) || data?.name;
-      }
-      if (data) {
-        data = data?.columns;
-      }
+    } else {
+      return trans(payload);
     }
   });
   Handlebars.registerHelper("companyDetail", function (key, options) {

@@ -370,11 +370,11 @@ function buildExampleDataTable({ columns, exampleData, t, genId, locale }) {
  * This is used when serializing the template for actual rendering.
  *
  * Token format (Requirement 3.14):
- * <table>{{#each items}}<tr><td>{{label "fieldPath"}}</td><td>{{this.value}}</td></tr>{{/each}}</table>
+ * <table><tbody>{{#each doc.items}}<tr><td>{{label "fieldPath"}}</td><td>{{this.value}}</td></tr>{{/each}}</tbody></table>
  *
  * Uses:
  * - Unified `label` helper (inline) for column headers
- * - `{{#each relationName}}` for row iteration
+ * - `{{#each doc.relationName}}` for row iteration
  * - `{{this.columnName}}` for simple columns
  * - `{{relation this.columnName}}` for relation columns
  *
@@ -385,6 +385,12 @@ function buildExampleDataTable({ columns, exampleData, t, genId, locale }) {
  * @returns {Array} GrapeJS component definitions with Handlebar tokens
  */
 function buildHandlebarTokenTable({ columns, relationName, genId }) {
+  const relationTarget = relationName.startsWith("doc.")
+    ? relationName
+    : relationName
+      ? `doc.${relationName}`
+      : relationName;
+
   return [
     {
       type: "tableHead",
@@ -445,7 +451,7 @@ function buildHandlebarTokenTable({ columns, relationName, genId }) {
       components: [
         {
           type: "html-comment",
-          attributes: { text: `{{#each ${relationName}}}` },
+          attributes: { text: `{{#each ${relationTarget}}}` },
         },
         {
           tagName: "tr",
@@ -574,18 +580,37 @@ export default function gjsRelationsTable(editor) {
        * The canvas shows example data for visual preview,
        * but the serialized HTML uses Handlebar tokens for rendering.
        *
-       * Token format (Requirement 3.14):
-       * <table>{{#each items}}<tr><td>{{label "fieldPath"}}</td><td>{{this.value}}</td></tr>{{/each}}</table>
+       * Token format:
+       * <table>
+       *   <thead>
+       *     <tr>
+       *       <td>{{label "fieldPath"}}</td>
+       *     </tr>
+       *   </thead>
+       *   <tbody>
+       *   {{#each doc.items}}
+       *     <tr>
+       *       <td>{{this.value}}</td>
+       *     </tr>
+       *   {{/each}}
+       *   </tbody>
+       * </table>
        *
        * Uses:
        * - Unified `label` helper for column headers (inline, not block)
-       * - `{{#each relationName}}` for row iteration
+       * - {{label "relationName.columnName"}}
+       * - `{{#each doc.relationName}}` for row iteration
        * - `{{this.columnName}}` for simple columns
        * - `{{relation this.columnName}}` for relation columns
        */
       toHTML() {
         const attrs = this.getAttributes();
         const relationName = attrs["data-relations"] || "";
+        const relationTarget = relationName.startsWith("doc.")
+          ? relationName
+          : relationName
+            ? `doc.${relationName}`
+            : relationName;
         const columnsData = this.get("columnsConfig") || [];
 
         // If no columnsConfig stored, fall back to default behavior
@@ -614,7 +639,7 @@ export default function gjsRelationsTable(editor) {
         // Supports calculated columns with inline expressions (Requirement 3.15)
         // e.g., {{multiply this.quantity this.price}}, {{subtract this.total this.discount}}
         html += `<tbody>`;
-        html += `{{#each ${relationName}}}`;
+        html += `{{#each ${relationTarget}}}`;
         html += `<tr>`;
         html += `<td style="text-align:center">{{idx}}</td>`;
         for (const col of visibleColumns) {

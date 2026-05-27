@@ -9,11 +9,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class StockEntryItem extends Model {
     use HasUlids;
     use SoftDeletes;
-
-    public static $parentRelation  = 'stockEntry';
-    protected $guarded             = ['id'];
-    public $translateKey           = 'inventory.stockEntry.item_columns';
-    protected array $configColumns = [
+    public static   $parentRelation = 'stockEntry';
+    protected       $guarded        = ['id'];
+    public          $translateKey   = 'inventory.stockEntry.item_columns';
+    protected array $configColumns  = [
         'sourceWarehouse' => [
             'type'  => 'relation',
             'show'  => true,
@@ -24,28 +23,27 @@ class StockEntryItem extends Model {
             'show'  => true,
             'order' => 1,
         ],
-        'item' => [
+        'item'            => [
             'type'  => 'relation',
             'show'  => true,
             'order' => 2,
         ],
-        'quantity' => [
-            'type'  => 'numeric',
+        'quantity'        => [
             'show'  => true,
             'order' => 3,
         ],
-        'unit' => [
+        'unit'            => [
             'type'  => 'relation',
             'show'  => true,
             'order' => 4,
         ],
-        'basic_rate' => [
+        'basic_rate'      => [
             'type'         => 'currency',
             'decimalScale' => 2,
             'show'         => true,
             'order'        => 5,
         ],
-        'stockEntry' => [
+        'stockEntry'      => [
             'ignore' => true,
         ],
     ];

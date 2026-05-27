@@ -68,7 +68,7 @@ class SalesInvoice extends Model {
             'show'  => true,
             'order' => 4,
         ],
-        'customer_branch',
+        'customerBranch',
         'currency',
         'branch' => [
             'ignore' => true,
@@ -104,7 +104,7 @@ class SalesInvoice extends Model {
         return [
             'salesOrder',
             'customer',
-            'customer_branch',
+            'customerBranch',
             'branch',
             'currency',
             'items',
@@ -135,7 +135,7 @@ class SalesInvoice extends Model {
         return $this->belongsTo(Customer::class);
     }
 
-    public function customer_branch() {
+    public function customerBranch() {
         return $this->belongsTo(Branch::class, 'customer_branch_id');
     }
 

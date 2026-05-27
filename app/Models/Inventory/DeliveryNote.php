@@ -54,7 +54,7 @@ class DeliveryNote extends Model {
             'show'  => true,
             'order' => 3,
         ],
-        'customer_branch' => [
+        'customerBranch' => [
             'type'  => 'relation',
             'show'  => true,
             'order' => 4,
@@ -73,9 +73,9 @@ class DeliveryNote extends Model {
     protected static function loadRelationsOnShow() {
         return [
             'referenceable',
-            'reference_to',
+            'referenceTo',
             'customer',
-            'customer_branch',
+            'customerBranch',
             'items',
             'items.unit',
             'items.item',
@@ -84,7 +84,7 @@ class DeliveryNote extends Model {
         ];
     }
 
-    public function reference_to() {
+    public function referenceTo() {
         return $this->belongsTo(Permission::class, 'reference_to_id');
     }
 
@@ -100,7 +100,7 @@ class DeliveryNote extends Model {
         return $this->belongsTo(Customer::class);
     }
 
-    public function customer_branch() {
+    public function customerBranch() {
         return $this->belongsTo(Branch::class, 'customer_branch_id');
     }
 

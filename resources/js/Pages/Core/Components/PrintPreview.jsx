@@ -10,7 +10,9 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 function formatData(data, columns, opts = {}) {
-  const cols = columns.reduce((a, b) => ({ ...a, [b.name]: b }), {});
+  const cols = columns[opts.model];
+  console.log(data, columns, opts.model);
+  if (!cols) return data;
   const newData = {};
   for (let key in data) {
     const col = cols[key];
@@ -22,11 +24,16 @@ function formatData(data, columns, opts = {}) {
     if (col == null) continue;
     switch (col.type) {
       case "relation": {
-        newData[key] = formatData(value, col.columns, opts);
+        newData[key] = formatData(value, columns, {
+          ...opts,
+          model: col.related,
+        });
         break;
       }
       case "relations": {
-        newData[key] = value.map((item) => formatData(item, col.columns, opts));
+        newData[key] = value.map((item) =>
+          formatData(item, columns, { ...opts, model: col.related }),
+        );
         break;
       }
       case "date":
@@ -73,12 +80,11 @@ function formatData(data, columns, opts = {}) {
                 col.type == "number"
                   ? undefined
                   : col.currencyCode || opts.defaultCurrencyCode,
-              decimalScale: col.decimalScale,
             },
+            decimalScale: col.decimalScale ?? 0,
           });
         } catch (e) {
           newData[key] = value;
-          console.log(e);
         }
         break;
       }
@@ -105,12 +111,7 @@ const PRINT_WRAPPER_OVERRIDES = `
 `;
 
 export default forwardRef(function PrintPreview({ template }, ref) {
-  const {
-    data: _data,
-    dataTableColumns,
-    preferences,
-    document,
-  } = usePage().props;
+  const { doc: _doc, columns, preferences, document } = usePage().props;
   const { t, setLocale } = useLaravelReactI18n();
 
   const { default_currency_id } = usePage().props.preferences;
@@ -119,18 +120,16 @@ export default forwardRef(function PrintPreview({ template }, ref) {
     setLocale(template.default_language ?? "en");
   }, [template.default_language]);
 
-  const data = useMemo(() => {
-    return formatData(
-      _data,
-      template?.columns?.find((x) => x.type == "data")?.columns ?? [],
-      {
-        t,
-        lang: template.default_language ?? "en",
-        defaultCurrencyCode: default_currency_id,
-        absoluteNumber: template?.show_absolute_values ?? false,
-      },
-    );
-  }, [_data, template, t, default_currency_id]);
+  const doc = useMemo(() => {
+    // return _doc;
+    return formatData(_doc, columns, {
+      t,
+      model: template.model,
+      lang: template.default_language ?? "en",
+      defaultCurrencyCode: default_currency_id,
+      absoluteNumber: template?.show_absolute_values ?? false,
+    });
+  }, [_doc, template, t, default_currency_id]);
   const { html, css } = useMemo(() => {
     initHandlebar(t);
     let css = "";
@@ -141,33 +140,27 @@ export default forwardRef(function PrintPreview({ template }, ref) {
         (letterHeadTemplate.css?.replace("body", "div") ?? "") +
         ".resize-divider{display:none !important;}.gjs-cell{display: table-cell !important;}";
       html = Handlebars.compile(
-        "{{#with preferences}}" +
-          (letterHeadTemplate?.html?.replace("body", "div") ?? "") +
-          "{{/with}}",
+        letterHeadTemplate?.html?.replace("body", "div") ?? "",
       )({
-        dataTableColumns,
-        preferences,
+        columns,
+        doc: preferences,
       });
     }
 
     css +=
       (template.css?.replace("body", "main") ?? "") +
       ".resize-divider{display:none !important;}";
-    html += Handlebars.compile(
-      "{{#with data}}" +
-        (template?.html?.replace("body", "main") ?? "") +
-        "{{/with}}",
-    )({
-      dataTableColumns: template?.columns ?? [],
-      preferences,
+    html += Handlebars.compile(template?.html?.replace("body", "main") ?? "")({
+      columns: template?.columns ?? [],
+      company: preferences,
       document,
-      data,
+      doc,
     });
     return {
       html,
       css,
     };
-  }, [data, template, t]);
+  }, [doc, template, t]);
 
   useEffect(() => {
     if (!ref?.current) return;
@@ -218,5 +211,5 @@ export default forwardRef(function PrintPreview({ template }, ref) {
     };
   }, [html, css, ref, template]);
 
-  return <iframe ref={ref} data-role="print-preview"></iframe>;
+  return <iframe ref={ref} data-role="print-preview" />;
 });

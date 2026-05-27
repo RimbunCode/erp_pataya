@@ -22,7 +22,7 @@ class Account extends Model {
 
     protected static function loadRelationsOnShow() {
         return [
-            'parent_account',
+            'parentAccount',
             'currency',
         ];
     }
@@ -52,7 +52,7 @@ class Account extends Model {
             'show'  => true,
             'order' => 1,
         ],
-        'parent_account' => [
+        'parentAccount' => [
             'show'  => true,
             'order' => 2,
         ],
@@ -79,7 +79,7 @@ class Account extends Model {
         return $this->belongsTo(Currency::class);
     }
 
-    public function parent_account() {
+    public function parentAccount() {
         return $this->belongsTo(Account::class, 'parent_id');
     }
 

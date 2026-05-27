@@ -27,11 +27,11 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected $permissions;
-    protected $modelPermissions;
-    protected $onlyCreator = false;
+    protected        $permissions;
+    protected        $modelPermissions;
+    protected        $onlyCreator      = false;
     protected string $lang;
-    protected bool $ignorePermission = false;
+    protected bool   $ignorePermission = false;
 
     /**
      * Summary of setBreadcrumbs
@@ -60,8 +60,8 @@ abstract class Controller {
                     $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? '') . '.title', 'link' => route("{$model->route}.index")];
                     $name          = Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
                     $breadcrumbs[] = ($key == (count($models) - 1)) ?
-                      ['name' => $name] :
-                      ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
+                        ['name' => $name] :
+                        ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
 
                     continue;
                 }
@@ -69,8 +69,8 @@ abstract class Controller {
                 $alias         = $model->aliasBreadcrumb ?? $className[1];
                 $value         = Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
                 $breadcrumbs[] = ($key == (count($models) - 1)) ?
-                  ['name' => "{$alias}: {$value}"] :
-                  ['name' => "{$alias}: {$value}", 'link' => route("{$model->route}.show", $model->id)];
+                    ['name' => "{$alias}: {$value}"] :
+                    ['name' => "{$alias}: {$value}", 'link' => route("{$model->route}.show", $model->id)];
             }
         }
         Inertia::share([
@@ -301,39 +301,26 @@ abstract class Controller {
         // Use template's used_relations for optimized eager loading when available
         $usedRelations = $printTemplate?->getUsedRelations() ?? [];
 
-        if (! empty($usedRelations)) {
-            // Validate and load only the relations used in the template
-            $relationTracker = app(RelationTrackerService::class);
-            $validRelations  = $relationTracker->validateRelations($this->model, $usedRelations);
-            $data->load($validRelations);
-        } else {
-            // Fallback: load all relations when template has no used_relations tracked
-            $data->loadRelations();
-        }
+        $relationTracker                                             = app(RelationTrackerService::class);
+        ['relations' => $validRelations, 'modelColumns' => $columns] = $relationTracker->validateRelations($this->model, $usedRelations, true);
+        $data->load($validRelations);
 
         $printTemplate->loadRelations();
-
-        $preferences = [];
-        try {
-            $preferences = Preference::pluck('value', 'key')->toArray();
-        } catch (Exception $e) {
-            $preferences = [];
-        }
 
         $docInfo = [
             'name' => $data->{$data->keyBreadcrumb ?? 'name'} ?? '',
         ];
 
         return Inertia::render('Core/Print', [
-            'doc'         => $data,
-            'preferences' => $preferences,
-            'docInfo'     => $docInfo,
-            'document'    => [
+            'doc'           => $data,
+            'docInfo'       => $docInfo,
+            'document'      => [
                 [
                     'name'       => 'name',
                     'titleTrans' => $data->translateKey . '.name',
                 ],
             ],
+            'columns'       => $columns,
             'printTemplate' => $printTemplate->toArray(),
         ]);
     }
