@@ -19,8 +19,11 @@ function buildVariableToken({
   variablePath,
   keyName,
 }) {
-  if (parentType === "preferences" || variableType === "preferences") {
+  if (parentType === "company" || variableType === "company") {
     return `{{company.${keyName}}}`;
+  }
+  if (parentType === "docInfo" || variableType === "docInfo") {
+    return `{{docInfo.${keyName}}}`;
   }
 
   const normalizedPath = variablePath.startsWith("doc.")
@@ -105,7 +108,7 @@ function getFormattedHandlebarToken(variable, fullKey) {
     ? fullKey
     : `doc.${fullKey}`;
 
-  if (variable.parentType === "preferences") {
+  if (variable.parentType === "company") {
     return `{{company.${variable.name}}}`;
   }
 
@@ -183,7 +186,7 @@ function getHandlebarToken(variable) {
     ? variable.name
     : `doc.${variable.name}`;
 
-  if (variable.parentType === "preferences") {
+  if (variable.parentType === "company") {
     return `{{company.${variable.name}}}`;
   }
   if (variable.parentType === "docInfo" || variable.type === "docInfo") {
@@ -323,8 +326,9 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
   const isRelation =
     (variable.type === "relation" ||
       variable.type === "relations" ||
-      variable.type === "data" ||
-      variable.type === "preferences") &&
+      variable.type === "doc" ||
+      variable.type === "docInfo" ||
+      variable.type === "company") &&
     (hasInlineColumns || canFetchColumns);
 
   const [nestedColumns, setNestedColumns] = React.useState(
@@ -709,8 +713,9 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
 
     if (
       variable.type === "relations" ||
-      variable.type === "data" ||
-      variable.type === "preferences"
+      variable.type === "doc" ||
+      variable.type === "docInfo" ||
+      variable.type === "company"
     ) {
       return;
     }
@@ -735,7 +740,9 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
               <span className="text-sm font-medium">{displayLabel}</span>
               {/* Show formatted example value if available, otherwise show token */}
               {!(
-                variable.type === "data" || variable.type === "preferences"
+                variable.type === "doc" ||
+                variable.type === "docInfo" ||
+                variable.type === "company"
               ) && (
                 <span className="text-xs text-muted-foreground truncate">
                   {formattedExampleValue ? (
@@ -750,7 +757,11 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
             </div>
           </TooltipTrigger>
           {/* Requirement 1.7: Show Handlebar token in tooltip on hover */}
-          {!(variable.type === "data" || variable.type === "preferences") && (
+          {!(
+            variable.type === "doc" ||
+            variable.type === "docInfo" ||
+            variable.type === "company"
+          ) && (
             <TooltipContent side="left" className="max-w-xs">
               <div className="space-y-1">
                 <p className="font-medium text-xs">{displayLabel}</p>
@@ -826,7 +837,9 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                   {displayLabel}
                 </span>
                 {!(
-                  variable.type === "data" || variable.type === "preferences"
+                  variable.type === "doc" ||
+                  variable.type === "docInfo" ||
+                  variable.type === "company"
                 ) && (
                   <span className="truncate text-xs text-muted-foreground">
                     <code>{handlebarToken}</code>
@@ -836,7 +849,11 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
             </div>
           </TooltipTrigger>
           {/* Requirement 1.7: Tooltip with token info for relations */}
-          {!(variable.type === "data" || variable.type === "preferences") && (
+          {!(
+            variable.type === "doc" ||
+            variable.type === "docInfo" ||
+            variable.type === "company"
+          ) && (
             <TooltipContent side="left" className="max-w-xs">
               <div className="space-y-1">
                 <p className="font-medium text-xs">{displayLabel}</p>
@@ -870,7 +887,9 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
 
           {nestedColumns.map((sub) => {
             const parentType =
-              variable.type === "data" || variable.type === "preferences"
+              variable.type === "doc" ||
+              variable.type === "docInfo" ||
+              variable.type === "company"
                 ? variable.type
                 : variable.parentType;
 
@@ -878,7 +897,9 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
               <VariableItem
                 key={`${fullKey}.${sub.name}`}
                 path={
-                  variable.type === "data" || variable.type === "preferences"
+                  variable.type === "doc" ||
+                  variable.type === "docInfo" ||
+                  variable.type === "company"
                     ? ""
                     : fullKey
                 }

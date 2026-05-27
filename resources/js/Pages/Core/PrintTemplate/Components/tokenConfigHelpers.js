@@ -46,7 +46,7 @@ export function buildTreeOptions(columns, path = "", parentType = "data") {
     // Top-level category containers (data, preferences) — promote their children
     // directly without creating a path segment for the container itself.
     if (
-      (columnType === "data" || columnType === "preferences") &&
+      (columnType === "doc" || columnType === "company") &&
       path === "" &&
       Array.isArray(column.columns) &&
       column.columns.length > 0

@@ -15,16 +15,15 @@ use Illuminate\Support\Str;
 
 class PrintTemplate extends Model {
     use DataTable, HasUlids, SoftDeletes;
-
-    protected $guarded = ['id'];
-    protected $casts   = [
+    protected     $guarded       = ['id'];
+    protected     $casts         = [
         'template'             => Json::class,
         'used_relations'       => 'array',
         'is_default'           => 'boolean',
         'is_letter_head'       => 'boolean',
         'show_absolute_values' => 'boolean',
     ];
-    protected $appends           = ['title'];
+    protected     $appends       = ['title'];
     public string $keyBreadcrumb = 'name';
     public string $translateKey  = 'core.printTemplate';
 
@@ -49,46 +48,58 @@ class PrintTemplate extends Model {
     public function columns(): Attribute {
         return new Attribute(
             get: function () {
-                if ($this->model) {
-                    $instance = new $this->model;
-                    $columns  = [
-                        [
-                            'name'    => 'company_details',
-                            'title'   => trans('core/company.company_details.title'),
-                            'type'    => 'preferences',
-                            'columns' => Utils::getPreferenceColumns(),
-                        ], [
-                            'name'       => Str::lower(Str::snake(Str::singular($this->name_model))),
-                            'type'       => 'data',
-                            'titleTrans' => isset($instance) ? $instance->translateKey . '.title' : Str::singular($this->name_model),
-                            'columns'    => $this->model::getColumns(2),
+                $columns = [
+                    [
+                        'name'       => 'company_details',
+                        'titleTrans' => 'core.company.company_details.title',
+                        'type'       => 'company',
+                        'columns'    => Utils::getPreferenceColumns(),
+                    ],
+                    [
+                        'name'       => 'doc_info',
+                        'titleTrans' => 'core.printTemplate.doc_info',
+                        'type'       => 'docInfo',
+                        'columns'    => [
+                            [
+                                'name'       => 'doc_name',
+                                'titleTrans' => 'core.printTemplate.doc_info.columns.doc_name',
+                                'type'       => 'string',
+                            ],
                         ],
+                    ],
+                ];
+                if ($this->model) {
+                    $instance  = new $this->model;
+                    $columns[] = [
+                        'name'       => Str::lower(Str::snake(Str::singular($this->name_model))),
+                        'type'       => 'doc',
+                        'titleTrans' => isset($instance) ? $instance->translateKey . '.title' : Str::singular($this->name_model),
+                        'columns'    => $this->model::getColumns(2),
                     ];
                 }
 
-                return $this->model != null ? $columns : Utils::getPreferenceColumns();
+                return $columns;
             },
         );
     }
-
     protected array $configColumns = [
-        'name' => [
+        'name'          => [
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
         ],
-        'name_model' => [
+        'name_model'    => [
             'show'  => true,
             'order' => 1,
         ],
-        'is_default' => [
+        'is_default'    => [
             'show'  => true,
             'order' => 2,
         ],
         'permission_id' => [
             'ignore' => true,
         ],
-        'model' => [
+        'model'         => [
             'ignore' => true,
         ],
     ];

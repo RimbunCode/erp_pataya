@@ -321,8 +321,7 @@ function getSourceDepth(columns, currentDepth = 0) {
     if (col && typeof col === "object" && col.name) {
       if (Array.isArray(col.columns) && col.columns.length > 0) {
         const isTopLevelContainer =
-          (col.type === "data" || col.type === "preferences") &&
-          currentDepth === 0;
+          (col.type === "doc" || col.type === "company") && currentDepth === 0;
         if (isTopLevelContainer) {
           const childDepth = getSourceDepth(col.columns, currentDepth);
           maxDepth = Math.max(maxDepth, childDepth);
@@ -397,7 +396,7 @@ describe("Property 2: Tree structure building preserves parent-child hierarchy",
             if (!col || typeof col !== "object" || !col.name) return false;
             if (
               isRoot &&
-              (col.type === "data" || col.type === "preferences") &&
+              (col.type === "doc" || col.type === "company") &&
               Array.isArray(col.columns) &&
               col.columns.length > 0
             ) {

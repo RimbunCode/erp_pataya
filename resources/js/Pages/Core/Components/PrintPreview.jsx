@@ -11,7 +11,6 @@ import { usePage } from "@inertiajs/react";
 
 function formatData(data, columns, opts = {}) {
   const cols = columns[opts.model];
-  console.log(data, columns, opts.model);
   if (!cols) return data;
   const newData = {};
   for (let key in data) {
@@ -111,7 +110,13 @@ const PRINT_WRAPPER_OVERRIDES = `
 `;
 
 export default forwardRef(function PrintPreview({ template }, ref) {
-  const { doc: _doc, columns, preferences, document } = usePage().props;
+  const {
+    doc: _doc,
+    columns,
+    docInfo: _docInfo,
+    preferences,
+    document,
+  } = usePage().props;
   const { t, setLocale } = useLaravelReactI18n();
 
   const { default_currency_id } = usePage().props.preferences;
@@ -130,6 +135,13 @@ export default forwardRef(function PrintPreview({ template }, ref) {
       absoluteNumber: template?.show_absolute_values ?? false,
     });
   }, [_doc, template, t, default_currency_id]);
+  const docInfo = useMemo(() => {
+    const newData = {};
+    for (let key in _docInfo) {
+      newData[key] = t(_docInfo[key]);
+    }
+    return newData;
+  }, [_docInfo, t]);
   const { html, css } = useMemo(() => {
     initHandlebar(t);
     let css = "";
@@ -144,6 +156,7 @@ export default forwardRef(function PrintPreview({ template }, ref) {
       )({
         columns,
         doc: preferences,
+        docInfo,
       });
     }
 
@@ -153,6 +166,7 @@ export default forwardRef(function PrintPreview({ template }, ref) {
     html += Handlebars.compile(template?.html?.replace("body", "main") ?? "")({
       columns: template?.columns ?? [],
       company: preferences,
+      docInfo,
       document,
       doc,
     });

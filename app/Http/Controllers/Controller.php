@@ -308,18 +308,12 @@ abstract class Controller {
         $printTemplate->loadRelations();
 
         $docInfo = [
-            'name' => $data->{$data->keyBreadcrumb ?? 'name'} ?? '',
+            'doc_name' => $data->translateKey . ".name",
         ];
 
         return Inertia::render('Core/Print', [
             'doc'           => $data,
             'docInfo'       => $docInfo,
-            'document'      => [
-                [
-                    'name'       => 'name',
-                    'titleTrans' => $data->translateKey . '.name',
-                ],
-            ],
             'columns'       => $columns,
             'printTemplate' => $printTemplate->toArray(),
         ]);

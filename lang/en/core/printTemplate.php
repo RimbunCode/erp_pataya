@@ -11,27 +11,27 @@ return [
     'cancel'             => 'Cancel',
     'printTemplate'      => 'Print Template',
     'columns'            => [
-        'name'                     => 'Name',
-        'model'                    => 'Model',
-        'model.placeholder'        => 'Select a model',
-        'is_default'               => 'Is Default',
-        'languange'                => 'Languange',
-        'default_language'         => 'Default Language',
-        'default_language.options' => [
+        'name'                             => 'Name',
+        'model'                            => 'Model',
+        'model.placeholder'                => 'Select a model',
+        'is_default'                       => 'Is Default',
+        'languange'                        => 'Languange',
+        'default_language'                 => 'Default Language',
+        'default_language.options'         => [
             'en' => 'English',
             'id' => 'Indonesia',
         ],
-        'is_letter_head'    => 'Is Letter Head',
-        'letter_head'       => 'Letter Head',
-        'font_family'       => 'Font Family',
-        'unit'              => 'Unit',
-        'paper'             => 'Paper',
-        'paper.placeholder' => 'Select a paper',
-        'paper.options'     => [
+        'is_letter_head'                   => 'Is Letter Head',
+        'letter_head'                      => 'Letter Head',
+        'font_family'                      => 'Font Family',
+        'unit'                             => 'Unit',
+        'paper'                            => 'Paper',
+        'paper.placeholder'                => 'Select a paper',
+        'paper.options'                    => [
             'custom' => 'Custom',
         ],
-        'page_number'         => 'Page Number',
-        'page_number.options' => [
+        'page_number'                      => 'Page Number',
+        'page_number.options'              => [
             'hide'          => 'Hide',
             'top_left'      => 'Top Left',
             'top_center'    => 'Top Center',
@@ -40,9 +40,9 @@ return [
             'bottom_center' => 'Bottom Center',
             'bottom_right'  => 'Bottom Right',
         ],
-        'page_number_format'  => 'Page Number Format',
-        'orientation'         => 'Orientation',
-        'orientation.options' => [
+        'page_number_format'               => 'Page Number Format',
+        'orientation'                      => 'Orientation',
+        'orientation.options'              => [
             'portrait'  => 'Portrait',
             'landscape' => 'Landscape',
         ],
@@ -55,11 +55,14 @@ return [
         'show_absolute_values'             => 'Show Absolute Values',
         'show_absolute_values.description' => 'If checked, negative numeric values of Currency, Quantity or Count would be shown as positive',
     ],
+    'doc_info'           => 'Document Info',
+    'doc_info.columns'   => [
+        'doc_name' => 'Document Name',
+    ],
+    'open_editor'        => 'Open Editor',
+    'style_settings'     => 'Style Settings',
 
-    'open_editor'    => 'Open Editor',
-    'style_settings' => 'Style Settings',
-
-    'editor' => [
+    'editor'             => [
         'tab_style'              => 'Style',
         'tab_layer'              => 'Layer',
         'tab_blocks'             => 'Blocks',

@@ -304,7 +304,7 @@ function resolveRelationNodeByPath(dataTableColumns, relationPath = "") {
   }
 
   let currentColumns =
-    dataTableColumns.find((column) => column.type === "data")?.columns || [];
+    dataTableColumns.find((column) => column.type === "doc")?.columns || [];
   let currentNode = null;
 
   for (const segment of segments) {
@@ -358,7 +358,7 @@ function flattenVariableOptions(
       return;
     }
 
-    if (column.type === "data" || column.type === "preferences") {
+    if (column.type === "doc" || column.type === "company") {
       entries.push(
         ...flattenVariableOptions(column.columns || [], "", column.type, 0),
       );
@@ -400,7 +400,7 @@ function buildTokenFromOption(option) {
     return "";
   }
 
-  if (option.type === "preferences") {
+  if (option.type === "company") {
     const preferenceKey = option.value.split(".").pop();
     return `{{company.${preferenceKey}}}`;
   }

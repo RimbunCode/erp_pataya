@@ -87,8 +87,11 @@ function buildVariableToken({
   variablePath,
   keyName,
 }) {
-  if (parentType === "preferences" || variableType === "preferences") {
+  if (parentType === "company" || variableType === "company") {
     return `{{company.${keyName}}}`;
+  }
+  if (parentType === "docInfo" || variableType === "docInfo") {
+    return `{{docInfo.${keyName}}}`;
   }
 
   const normalizedPath = variablePath.startsWith("doc.")
