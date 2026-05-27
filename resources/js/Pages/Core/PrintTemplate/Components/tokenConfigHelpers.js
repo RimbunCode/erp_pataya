@@ -136,6 +136,7 @@ export function generateRelationToken(name) {
  * Simplify a token for canvas display by stripping known prefixes.
  * - `{{relation doc.branch}}` → `{{branch}}`
  * - `{{docInfo.name}}` → `{{name}}`
+ * - `{{company.name}}` → `{{name}}`
  * - `{{doc.date}}` → `{{date}}`
  * - `{{relation doc.customer.address}}` → `{{customer.address}}`
  * Handles nested dot-notation paths correctly by only removing the first
@@ -177,6 +178,12 @@ export function simplifyTokenDisplay(token) {
   // Strip "docInfo." prefix (e.g., "docInfo.name" → "name")
   if (inner.startsWith("docInfo.")) {
     inner = inner.slice("docInfo.".length);
+    return `{{${inner}}}`;
+  }
+
+  // Strip "company." prefix (e.g., "company.name" → "name")
+  if (inner.startsWith("company.")) {
+    inner = inner.slice("company.".length);
     return `{{${inner}}}`;
   }
 
