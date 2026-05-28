@@ -77,7 +77,7 @@ const units = {
     conversion_factor: 1,
   },
 };
-function Print({ data: _data, printTemplate }) {
+function Print({ data: _data, printTemplate, lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const initialTemplate = useMemo(() => {
@@ -95,6 +95,7 @@ function Print({ data: _data, printTemplate }) {
       paper,
       unit,
       orientation: normalizedOrientation,
+      default_language: printTemplate?.default_language || lang || "en",
       page_number: printTemplate?.page_number ?? "bottom_right",
       font_family: printTemplate?.font_family ?? "Times New Roman",
       width:
@@ -106,7 +107,7 @@ function Print({ data: _data, printTemplate }) {
       last_conversion_factor:
         printTemplate?.last_conversion_factor ?? conversionFactor,
     };
-  }, [printTemplate]);
+  }, [printTemplate, lang]);
 
   const { data: template, setData: setTemplate } = useForm(initialTemplate);
   const frame = useRef();

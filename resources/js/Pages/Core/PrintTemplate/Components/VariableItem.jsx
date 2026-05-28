@@ -1,3 +1,19 @@
+/**
+ * Komponen VariableItem - Menampilkan item variabel yang dapat di-drag ke canvas editor.
+ * Mendukung tampilan data contoh, tooltip token Handlebar, format mata uang/angka,
+ * layout grid dengan label dan nilai, serta kolom nested untuk relasi.
+ *
+ * @module VariableItem
+ * @param {object} props
+ * @param {string} props.path - Path parent dalam notasi dot
+ * @param {object|null} props.exampleData - Data contoh dari backend untuk preview
+ * @param {string} props.name - Nama variabel
+ * @param {string} props.type - Tipe variabel (relation, relations, doc, docInfo, company, dll)
+ * @param {string} [props.parentType] - Tipe parent variabel
+ * @param {Array} [props.columns] - Kolom-kolom nested untuk relasi
+ * @param {string} [props.related] - Model relasi untuk fetch kolom
+ * @param {string} [props.typeRelation] - Tipe relasi (basic, morph)
+ */
 import React from "react";
 import { Collapsible, CollapsibleContent } from "@/Components/ui/collapsible";
 import {
@@ -9,311 +25,27 @@ import {
 import { ChevronRight } from "lucide-react";
 import { useEditor } from "@grapesjs/react";
 import { cn } from "@/lib/utils";
-import { formatValue } from "@/Components/CurrencyInput";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import axios from "axios";
-import { simplifyTokenDisplay } from "./tokenConfigHelpers";
-function buildVariableToken({
-  variableType,
-  parentType,
-  variablePath,
-  keyName,
-}) {
-  if (parentType === "company" || variableType === "company") {
-    return `{{company.${keyName}}}`;
-  }
-  if (parentType === "docInfo" || variableType === "docInfo") {
-    return `{{docInfo.${keyName}}}`;
-  }
+import {
+  formatColumnValue,
+  getFormattedHandlebarToken,
+  isFormattableType,
+  resolveExampleValue,
+  getHandlebarToken,
+  getDisplayLabel,
+} from "../utils/variableTokenUtils";
+import {
+  buildVariableToken,
+  getSimplifiedTokenDisplay,
+  buildVariableDragPayload,
+  tryInsertInlineVariableToken,
+} from "../utils/variableInsertUtils";
+import { SUBGRID_CLASS, SUBGRID_RULE_STYLE } from "../utils/gridConstants";
 
-  const normalizedPath = variablePath.startsWith("doc.")
-    ? variablePath
-    : `doc.${variablePath}`;
+// Re-export untuk backward compatibility - consumer eksternal yang mengimport dari VariableItem.jsx
+export { buildVariableDragPayload } from "../utils/variableInsertUtils";
 
-  if (variableType === "relation") {
-    return `{{relation ${normalizedPath}}}`;
-  }
-
-  return `{{${normalizedPath}}}`;
-}
-/**
- * Format a value based on the column type and format options from DataTableColumns.
- *
- * Supports:
- * - "currency" type: formats with currency symbol using Intl.NumberFormat
- * - "numeric" / "number" type: formats with decimal places using Intl.NumberFormat
- *
- * Requirements: 1.9 - Apply formatting settings from DataTableColumns configuration
- * @param {number|string|null} value - The value to format
- * @param {object} column - The column definition from DataTableColumns
- * @returns {string} The formatted value or original string
- */
-function formatColumnValue(value, column) {
-  if (value == null || value === "") return "";
-
-  const type = column?.type;
-  const decimalScale = column?.decimalScale ?? column?.formatOptions?.decimals;
-  const currency = column?.currency ?? column?.formatOptions?.currency ?? "IDR";
-
-  if (type === "currency") {
-    try {
-      const numericValue =
-        typeof value === "number" ? value.toString() : String(value);
-      return formatValue({
-        value: numericValue,
-        intlConfig: {
-          locale: "id",
-          currency: currency,
-        },
-      });
-    } catch {
-      return String(value);
-    }
-  }
-
-  if (type === "numeric" || type === "number") {
-    try {
-      const numericValue =
-        typeof value === "string" ? parseFloat(value) : Number(value);
-      if (isNaN(numericValue)) return String(value);
-
-      const decimals = typeof decimalScale === "number" ? decimalScale : 0;
-      return formatValue({
-        value: numericValue.toFixed(decimals),
-        intlConfig: {
-          locale: "id",
-        },
-        decimalScale: decimals,
-      });
-    } catch {
-      return String(value);
-    }
-  }
-
-  return String(value);
-}
-
-/**
- * Generate the Handlebar token for a variable, wrapping with formatting helpers
- * when the column type is currency or numeric/number.
- *
- * Requirements: 1.9 - Apply formatting when rendering on canvas
- * @param {object} variable - The variable/column definition
- * @param {string} fullKey - The full dot-notation key for the variable
- * @returns {string} The Handlebar token string (with outer {{ }})
- */
-function getFormattedHandlebarToken(variable, fullKey) {
-  const type = variable?.type;
-  const normalizedDocPath = fullKey.startsWith("doc.")
-    ? fullKey
-    : `doc.${fullKey}`;
-
-  if (variable.parentType === "company") {
-    return `{{company.${variable.name}}}`;
-  }
-
-  if (variable.parentType === "docInfo" || type === "docInfo") {
-    return `{{docInfo.${variable.name}}}`;
-  }
-
-  if (type === "relation") {
-    return `{{relation ${normalizedDocPath}}}`;
-  }
-
-  if (type === "currency") {
-    const currency =
-      variable?.currency ?? variable?.formatOptions?.currency ?? "IDR";
-    return `{{formatCurrency ${normalizedDocPath} "${currency}"}}`;
-  }
-
-  if (type === "numeric" || type === "number") {
-    const decimals =
-      variable?.decimalScale ?? variable?.formatOptions?.decimals ?? 0;
-    return `{{formatNumber ${normalizedDocPath} ${decimals}}}`;
-  }
-
-  return `{{${normalizedDocPath}}}`;
-}
-
-/**
- * Check if a column type requires formatting.
- * @param {string} type - The column type from DataTableColumns
- * @returns {boolean} True if the type requires formatting
- */
-function isFormattableType(type) {
-  return type === "currency" || type === "numeric" || type === "number";
-}
-
-/**
- * Resolve a value from example data using a dot-notation path.
- * @param {object} exampleData - The example data object from the backend
- * @param {string} path - Dot-notation path (e.g., "customer_name", "customer.name")
- * @param {string} type - Variable type ("data", "preferences", "relation", etc.)
- * @returns {string|null} The resolved example value or null
- */
-function resolveExampleValue(exampleData, path, type) {
-  if (!exampleData || !path) return null;
-
-  // For preferences, look in preferences object
-  if (type === "preferences") {
-    const preferences = exampleData?.preferences;
-    if (preferences && preferences[path] !== undefined) {
-      return String(preferences[path]);
-    }
-    return null;
-  }
-
-  // For regular data, traverse the example data object
-  const parts = path.split(".");
-  let current = exampleData;
-
-  for (const part of parts) {
-    if (current == null || typeof current !== "object") return null;
-    current = current[part];
-  }
-
-  if (current == null) return null;
-  if (typeof current === "object") return JSON.stringify(current);
-  return String(current);
-}
-
-/**
- * Get the Handlebar token string for a variable.
- * @param variable
- */
-function getHandlebarToken(variable) {
-  const normalizedDocPath = variable.name.startsWith("doc.")
-    ? variable.name
-    : `doc.${variable.name}`;
-
-  if (variable.parentType === "company") {
-    return `{{company.${variable.name}}}`;
-  }
-  if (variable.parentType === "docInfo" || variable.type === "docInfo") {
-    return `{{docInfo.${variable.name}}}`;
-  }
-  if (variable.type === "relation") {
-    return `{{relation ${normalizedDocPath}}}`;
-  }
-  if (variable.type == "relations") {
-    return `{{#each ${normalizedDocPath}}}...{{/each}}`;
-  }
-  return `{{${normalizedDocPath}}}`;
-}
-
-/**
- * Get the display label for a variable using translation or title.
- * @param variable
- * @param t
- */
-function getDisplayLabel(variable, t) {
-  return (
-    variable.title ||
-    (variable.titleTrans ? t(variable.titleTrans) : null) ||
-    variable.name
-  );
-}
-
-function encodeTokenToBase64(token) {
-  if (!token || typeof window === "undefined") {
-    return "";
-  }
-
-  try {
-    const bytes = new TextEncoder().encode(token);
-    const binary = String.fromCharCode(...bytes);
-    return window.btoa(binary);
-  } catch {
-    return "";
-  }
-}
-
-function escapeAttributeValue(value = "") {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-function simplifyInlineDisplayToken(fullKey = "", token = "") {
-  // If we have the full token, use the canonical simplifyTokenDisplay
-  if (token) {
-    return simplifyTokenDisplay(token);
-  }
-  return `{{${fullKey.replace(/^doc\./, "")}}}`;
-}
-
-export function buildVariableDragPayload({
-  variable,
-  nestedColumns,
-  formattedExampleValue,
-  exampleValue,
-  displayLabel,
-  fullKey,
-}) {
-  return {
-    ...variable,
-    columns: nestedColumns,
-    exampleValue: formattedExampleValue ?? exampleValue,
-    displayLabel,
-    fullKey,
-    formattedToken: getFormattedHandlebarToken(variable, fullKey),
-  };
-}
-
-function tryInsertInlineVariableToken(
-  editor,
-  selectedComponent,
-  token,
-  fullKey,
-) {
-  if (!editor || !selectedComponent || !token) {
-    return false;
-  }
-
-  const isTextComponent = selectedComponent.is?.("text");
-  const isTextEditingActive = editor.Commands?.isActive?.(
-    "core:component-text",
-  );
-
-  if (!isTextComponent || !isTextEditingActive) {
-    return false;
-  }
-
-  const iframeDocument = editor.Canvas.getDocument?.();
-  if (!iframeDocument?.execCommand) {
-    return false;
-  }
-
-  const inlinePath = fullKey.replace(/^doc\./, "");
-  const displayToken = simplifyInlineDisplayToken(fullKey, token);
-  const encodedToken = encodeTokenToBase64(token);
-  const inlineHtml = `<span data-variable-inline="${escapeAttributeValue(inlinePath)}" data-variable-path="${escapeAttributeValue(inlinePath)}" data-token="${escapeAttributeValue(token)}" data-token-b64="${escapeAttributeValue(encodedToken)}" contenteditable="false" class="inline-variable-token">${escapeAttributeValue(displayToken)}</span>`;
-
-  iframeDocument.execCommand("insertHTML", false, inlineHtml);
-  selectedComponent.trigger("change:content");
-  editor.trigger("update");
-
-  return true;
-}
-
-/**
- * VariableItem Component (Enhanced)
- *
- * Draggable component representing a data variable with support for:
- * - Example data display in canvas instead of Handlebar tokens
- * - Tooltip showing Handlebar token on hover in Sidebar
- * - labelLang and value configuration from DataTableColumns
- * - Grid layout with label on left and example value on right when dropped
- * - Nested columns for single relations
- * - relationsTable structure for many relations
- *
- * Requirements: 1.1, 1.2, 1.4, 1.5, 1.6, 1.7
- * @param root0
- * @param root0.path
- * @param root0.exampleData
- */
 function VariableItem({ path = "", exampleData = null, ...variable }) {
   const editor = useEditor();
   const { t } = useLaravelReactI18n();
@@ -340,7 +72,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
   const [columnsError, setColumnsError] = React.useState(null);
   const [isOpen, setIsOpen] = React.useState(false);
 
-  // Resolve example value for this variable
+  // Menghitung nilai contoh dari exampleData berdasarkan fullKey dan tipe variabel
   const exampleValue = React.useMemo(() => {
     const rawValue = resolveExampleValue(
       exampleData,
@@ -350,7 +82,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     return rawValue;
   }, [exampleData, fullKey, variable.parentType, variable.type]);
 
-  // Format the example value based on column type (Requirements: 1.9)
+  // Memformat nilai contoh berdasarkan tipe kolom (currency/number) - Requirements: 1.9
   const formattedExampleValue = React.useMemo(() => {
     if (exampleValue == null) return null;
     if (isFormattableType(variable.type)) {
@@ -359,16 +91,17 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     return exampleValue;
   }, [exampleValue, variable]);
 
-  // Get the Handlebar token for tooltip display
+  // Menghasilkan token Handlebar untuk ditampilkan di tooltip
   const handlebarToken = React.useMemo(() => {
     return getHandlebarToken({ ...variable, name: fullKey });
   }, [variable, fullKey]);
 
-  // Get display label
+  // Mengambil label tampilan variabel menggunakan terjemahan atau title
   const displayLabel = React.useMemo(() => {
     return getDisplayLabel(variable, t);
   }, [variable, t]);
 
+  // Mengambil kolom nested dari API saat relasi di-expand - dipicu oleh canFetchColumns, hasFetchedColumns, relationModel
   const fetchColumns = React.useCallback(async () => {
     if (!canFetchColumns || isLoadingColumns || hasFetchedColumns) {
       return;
@@ -392,6 +125,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     }
   }, [canFetchColumns, hasFetchedColumns, isLoadingColumns, relationModel]);
 
+  // Menangani perubahan state buka/tutup collapsible - memicu fetch kolom jika belum ada
   const handleOpenChange = React.useCallback(
     async (open) => {
       setIsOpen(open);
@@ -414,37 +148,27 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
   };
 
   /**
-   * Insert variable into the canvas.
-   * Creates a formatted component with label on left and example data value on right.
-   * The actual template output still uses proper Handlebar tokens.
-   * For currency/number types, uses formatCurrency/formatNumber helpers.
+   * Menyisipkan variabel ke canvas editor.
+   * Alur eksekusi:
+   * 1. Coba sisipkan inline jika komponen teks sedang diedit
+   * 2. Jika komponen grid/subgrid dipilih, buat baris subgrid baru
+   * 3. Jika komponen teks biasa dipilih, tambahkan span token
+   * 4. Fallback: tambahkan paragraf baru dengan token
    *
-   * Requirements: 1.5, 1.6, 1.9 - Grid layout with label, example value, and formatting
+   * Efek samping: memodifikasi canvas editor dan memicu event update
    */
   const handleInsert = () => {
     if (!editor) return;
 
     const selected = editor.getSelected();
-    // Use formatted token for currency/number types (Requirement 1.9)
+    // Gunakan token terformat untuk tipe currency/number (Requirement 1.9)
     const token = getFormattedHandlebarToken(variable, fullKey);
 
+    // Coba sisipkan inline terlebih dahulu
     if (tryInsertInlineVariableToken(editor, selected, token, fullKey)) {
       return;
     }
-    const getSimplifiedTokenDisplay = (token, variablePath = "") => {
-      if (!token) {
-        return variablePath ? `{{${variablePath.replace(/^doc\./, "")}}}` : "";
-      }
 
-      const formattedTokenMatch = token.match(
-        /\{\{\s*format(?:Currency|Number)\s+doc\.([^\s}]+)/,
-      );
-      if (formattedTokenMatch?.[1]) {
-        return `{{${formattedTokenMatch[1]}}}`;
-      }
-
-      return simplifyTokenDisplay(token);
-    };
     const payload = buildVariableDragPayload({
       variable,
       nestedColumns,
@@ -454,14 +178,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
       fullKey,
     });
     const varPath = payload.fullKey || payload.name;
-    const SUBGRID_CLASS = "gjs-subgrid";
-    const SUBGRID_RULE_STYLE = {
-      display: "grid",
-      "grid-template-columns": "subgrid",
-      gap: "8px",
-      "grid-column": "1 / -1",
-      padding: "0px",
-    };
+
+    // Helper lokal untuk menentukan tipe komponen di canvas
     const getComponentType = (component) =>
       component?.getType?.() || component?.get?.("type") || "";
     const isGridComponent = (component) => {
@@ -511,6 +229,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
         }),
       varPath,
     );
+
+    // Jika komponen teks biasa dipilih, tambahkan span token ke dalamnya
     if (selected && selected.is("text")) {
       selected.components().add({
         type: "text",
@@ -529,6 +249,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
       selected &&
       (isSubGridComponent(selected) || isGridComponent(selected))
     ) {
+      // Jika komponen grid/subgrid dipilih, buat baris subgrid baru dengan label dan nilai
       const gridTarget = isGridComponent(selected)
         ? selected
         : resolveParentGridComponent(selected.parent?.() || null);
@@ -643,6 +364,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
         return;
       }
     } else {
+      // Fallback: tambahkan paragraf baru dengan span token
       editor.addComponents({
         type: "text",
         tagName: "p",
@@ -669,12 +391,11 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
   const didDragRef = React.useRef(false);
 
   /**
-   * Handle drag start - passes variable data including example data and formatting
-   * info for canvas display. The canvas will show formatted example data values
-   * while the template stores Handlebar tokens with formatting helpers.
+   * Menangani event drag start - mengirim data variabel termasuk data contoh
+   * dan informasi format ke canvas. Canvas akan menampilkan data contoh terformat
+   * sementara template menyimpan token Handlebar dengan helper format.
    *
-   * Requirements: 1.1, 1.2, 1.9 - Display formatted example data in canvas
-   * @param e
+   * Efek samping: mengatur dataTransfer dengan payload JSON variabel
    */
   const handleDragStart = (e) => {
     if (!canDrag) {
@@ -696,7 +417,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     e.dataTransfer.effectAllowed = "copy";
     e.dataTransfer.dropEffect = "copy";
     e.dataTransfer.setData("variable/json", serializedPayload);
-    // Cross-frame fallback: some browsers require a generic MIME type.
+    // Fallback cross-frame: beberapa browser memerlukan MIME type generik
     e.dataTransfer.setData("text/plain", serializedPayload);
   };
 
@@ -723,7 +444,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     handleInsert();
   };
 
-  // Non-relation item with tooltip showing Handlebar token
+  // Item non-relasi dengan tooltip menampilkan token Handlebar
   if (!isRelation || variable.typeRelation == "morph") {
     if (variable.type == "relations") return null;
     return (
@@ -738,7 +459,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
               onDragEnd={handleDragEnd}
             >
               <span className="text-sm font-medium">{displayLabel}</span>
-              {/* Show formatted example value if available, otherwise show token */}
+              {/* Tampilkan nilai contoh terformat jika tersedia, jika tidak tampilkan token */}
               {!(
                 variable.type === "doc" ||
                 variable.type === "docInfo" ||
@@ -756,7 +477,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
               )}
             </div>
           </TooltipTrigger>
-          {/* Requirement 1.7: Show Handlebar token in tooltip on hover */}
+          {/* Requirement 1.7: Tampilkan token Handlebar di tooltip saat hover */}
           {!(
             variable.type === "doc" ||
             variable.type === "docInfo" ||
@@ -786,12 +507,11 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     );
   }
 
-  // Requirement 13.1, 13.2, 13.3: Hide nested columns for "relations" type,
-  // keep collapsible for "relation", "data", and "preferences" types.
-  // "relations" items remain draggable to create relation tables.
+  // Requirement 13.1, 13.2, 13.3: Sembunyikan kolom nested untuk tipe "relations",
+  // pertahankan collapsible untuk "relation", "data", dan "preferences".
   const isRelationsMany = variable.type === "relations";
 
-  // Relation item with collapsible nested columns
+  // Item relasi dengan kolom nested yang bisa di-collapse
   return (
     <Collapsible className="mt-1" open={isOpen} onOpenChange={handleOpenChange}>
       <TooltipProvider delayDuration={300}>
@@ -803,7 +523,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                 "hover:bg-muted",
               )}
             >
-              {/* Hide chevron for "relations" (many) type - Requirement 13.1 */}
+              {/* Sembunyikan chevron untuk tipe "relations" (many) - Requirement 13.1 */}
               {!isRelationsMany && (
                 <button
                   type="button"
@@ -848,7 +568,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
               </button>
             </div>
           </TooltipTrigger>
-          {/* Requirement 1.7: Tooltip with token info for relations */}
+          {/* Requirement 1.7: Tooltip dengan info token untuk relasi */}
           {!(
             variable.type === "doc" ||
             variable.type === "docInfo" ||
@@ -871,8 +591,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
         </Tooltip>
       </TooltipProvider>
 
-      {/* Hide CollapsibleContent for "relations" (many) type - Requirement 13.1 */}
-      {/* Keep collapsible for "relation", "data", "preferences" - Requirement 13.2 */}
+      {/* Sembunyikan CollapsibleContent untuk tipe "relations" (many) - Requirement 13.1 */}
+      {/* Pertahankan collapsible untuk "relation", "data", "preferences" - Requirement 13.2 */}
       {!isRelationsMany && (
         <CollapsibleContent className="pl-4 mt-1 border-l border-muted-foreground/25">
           {isLoadingColumns && (

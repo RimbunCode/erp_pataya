@@ -1,7 +1,21 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import axios from "axios";
 import Handlebars from "handlebars";
-import { Eye, FileDown, Printer } from "lucide-react";
+import {
+  AlertCircle,
+  Eye,
+  FileDown,
+  Info,
+  Printer,
+  TableProperties,
+  TriangleAlert,
+} from "lucide-react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import {
   Dialog,
@@ -12,7 +26,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/Components/ui/dialog";
+import {
+  Alert,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from "@/Components/ui/alert";
 import { Button } from "@/Components/ui/button";
+import { getSafePrintFontFamily } from "@/lib/utils";
 import { initHandlebar } from "@/lib/initHandlebar";
 
 const BOOTSTRAP_CSS_CDN =
@@ -111,18 +133,6 @@ function parseNumericValue(value, fallbackValue) {
   return Number.isFinite(numericValue) ? numericValue : fallbackValue;
 }
 
-function unitToMillimeter(value, unitCode) {
-  if (unitCode === "cm") {
-    return value * 10;
-  }
-
-  if (unitCode === "in") {
-    return value * 25.4;
-  }
-
-  return value;
-}
-
 function PreviewModal({
   open,
   onOpenChange,
@@ -142,54 +152,21 @@ function PreviewModal({
   const [relationRowSummary, setRelationRowSummary] = useState([]);
   const [isGeneratingExampleData, setIsGeneratingExampleData] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [viewportWidth, setViewportWidth] = useState(() =>
-    typeof window !== "undefined" ? window.innerWidth : 1280,
-  );
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const onResize = () => setViewportWidth(window.innerWidth);
-    window.addEventListener("resize", onResize);
-
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+  const iframeRef = useRef(null);
 
   const unitCode = useMemo(
     () => resolveTemplateUnitCode(printTemplate),
     [printTemplate],
   );
 
-  const isLetterHead = Boolean(printTemplate?.is_letter_head);
-  const paperWidthValue = useMemo(
-    () => (isLetterHead ? 210 : parseNumericValue(printTemplate?.width, 210)),
-    [isLetterHead, printTemplate?.width],
+  const paperWidth = useMemo(
+    () => parseNumericValue(printTemplate?.width, 210),
+    [printTemplate?.width],
   );
-  const paperHeightValue = useMemo(
+  const paperHeight = useMemo(
     () => parseNumericValue(printTemplate?.height, 297),
     [printTemplate?.height],
   );
-  const pageWidth = useMemo(
-    () => `${paperWidthValue}${unitCode}`,
-    [paperWidthValue, unitCode],
-  );
-  const pageMinHeight = useMemo(
-    () => (isLetterHead ? "auto" : `${paperHeightValue}${unitCode}`),
-    [isLetterHead, paperHeightValue, unitCode],
-  );
-  const previewScale = useMemo(() => {
-    const paperWidthInMillimeter = unitToMillimeter(paperWidthValue, unitCode);
-    const paperWidthInPixel = paperWidthInMillimeter * 3.779527559;
-    const maxWidth = Math.max(320, viewportWidth - 120);
-
-    if (!paperWidthInPixel || !Number.isFinite(paperWidthInPixel)) {
-      return 1;
-    }
-
-    return Math.min(1, maxWidth / paperWidthInPixel);
-  }, [paperWidthValue, unitCode, viewportWidth]);
 
   const openPrintWindow = useCallback(
     ({ autoPrint = false } = {}) => {
@@ -234,7 +211,6 @@ function PreviewModal({
   }, [openPrintWindow]);
 
   const handleExportPDF = useCallback(() => {
-    // Browser print dialog supports "Save as PDF".
     openPrintWindow({ autoPrint: true });
   }, [openPrintWindow]);
 
@@ -271,22 +247,56 @@ function PreviewModal({
     }
   }, [isGeneratingExampleData, printTemplate?.id]);
 
+  // Stable refs for values used inside the fetch to avoid re-triggering
+  // the effect when object references change on parent re-renders.
+  const cancelledRef = useRef(false);
+  const templateRef = useRef(template);
+  const dataTableColumnsRef = useRef(dataTableColumns);
+  const preferencesRef = useRef(preferences);
+  const docInfoRef = useRef(docInfo);
+  const tRef = useRef(t);
+
+  useEffect(() => {
+    templateRef.current = template;
+  }, [template]);
+  useEffect(() => {
+    dataTableColumnsRef.current = dataTableColumns;
+  }, [dataTableColumns]);
+  useEffect(() => {
+    preferencesRef.current = preferences;
+  }, [preferences]);
+  useEffect(() => {
+    docInfoRef.current = docInfo;
+  }, [docInfo]);
+  useEffect(() => {
+    tRef.current = t;
+  }, [t]);
+
   useEffect(() => {
     if (!open) {
+      cancelledRef.current = true;
       return;
     }
+
+    cancelledRef.current = false;
 
     if (!printTemplate?.id) {
-      setRenderError("Template tidak valid untuk preview.");
-      setPreviewHTML("");
-      setPreviewCSS("");
-      setWarnings([]);
-      setMissingDataMessage("");
-      setRelationRowSummary([]);
-      return;
+      const frameId = requestAnimationFrame(() => {
+        if (cancelledRef.current) return;
+        setRenderError("Template tidak valid untuk preview.");
+        setPreviewHTML("");
+        setPreviewCSS("");
+        setWarnings([]);
+        setMissingDataMessage("");
+        setRelationRowSummary([]);
+      });
+      return () => {
+        cancelAnimationFrame(frameId);
+        cancelledRef.current = true;
+      };
     }
 
-    const sourceTemplate = template || {};
+    const sourceTemplate = templateRef.current || {};
     const requestPayload = {
       template: {
         html: sourceTemplate.html || "",
@@ -294,9 +304,15 @@ function PreviewModal({
       },
     };
 
-    let cancelled = false;
+    // Defer fetch to next frame so Radix Presence animation completes
+    // before we trigger state updates (prevents React 19 infinite loop).
+    const frameId = requestAnimationFrame(() => {
+      if (cancelledRef.current) return;
+      runPreview();
+    });
 
-    const runPreview = async () => {
+    async function runPreview() {
+      if (cancelledRef.current) return;
       setLoading(true);
       setRenderError("");
       setWarnings([]);
@@ -311,9 +327,7 @@ function PreviewModal({
           requestPayload,
         );
 
-        if (cancelled) {
-          return;
-        }
+        if (cancelledRef.current) return;
 
         const responseData = response?.data || {};
         const responseHTML =
@@ -330,9 +344,9 @@ function PreviewModal({
           responseData.warnings,
         );
         const mergedColumns =
-          responseData.dataTableColumns || dataTableColumns || [];
+          responseData.dataTableColumns || dataTableColumnsRef.current || [];
 
-        initHandlebar(t);
+        initHandlebar(tRef.current);
 
         const compiledTemplate = Handlebars.compile(responseHTML, {
           noEscape: true,
@@ -341,9 +355,9 @@ function PreviewModal({
         const context = {
           ...normalizedExampleData,
           doc: normalizedExampleData || {},
-          preferences: preferences || {},
-          company: preferences || {},
-          docInfo: docInfo || {},
+          preferences: preferencesRef.current || {},
+          company: preferencesRef.current || {},
+          docInfo: docInfoRef.current || {},
           dataTableColumns: mergedColumns,
         };
 
@@ -374,9 +388,7 @@ function PreviewModal({
             : "",
         );
       } catch (error) {
-        if (cancelled) {
-          return;
-        }
+        if (cancelledRef.current) return;
 
         const backendMessage = error?.response?.data?.message;
         const problematicToken = extractProblematicToken(
@@ -384,7 +396,7 @@ function PreviewModal({
         );
         setRenderError(
           problematicToken
-            ? `${backendMessage || error?.message} (token/posisi bermasalah: ${problematicToken})`
+            ? `${backendMessage || error?.message} (token: ${problematicToken})`
             : backendMessage ||
                 error?.message ||
                 "Gagal merender preview template.",
@@ -394,146 +406,234 @@ function PreviewModal({
         setMissingDataMessage("");
         setRelationRowSummary([]);
       } finally {
-        if (!cancelled) {
+        if (!cancelledRef.current) {
           setLoading(false);
         }
       }
-    };
-
-    runPreview();
+    }
 
     return () => {
-      cancelled = true;
+      cancelAnimationFrame(frameId);
+      cancelledRef.current = true;
     };
+  }, [open, printTemplate?.id, refreshKey]);
+
+  // Write rendered HTML into the iframe (mirrors PrintPreview approach)
+  // with proper font-family, margins, and page dimensions.
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe || !previewHTML) return;
+
+    const doc = iframe.contentDocument;
+    if (!doc) return;
+
+    doc.open();
+    doc.write("<!DOCTYPE html><html><head></head><body></body></html>");
+    doc.close();
+
+    // Bootstrap CSS
+    let bootstrapLink = doc.getElementById("bootstrap-css-link");
+    if (!bootstrapLink) {
+      bootstrapLink = doc.createElement("link");
+      bootstrapLink.id = "bootstrap-css-link";
+      bootstrapLink.rel = "stylesheet";
+      bootstrapLink.href = BOOTSTRAP_CSS_CDN;
+      doc.head.appendChild(bootstrapLink);
+    }
+
+    // Template styles + page layout (same as PrintPreview)
+    const fontFamily = getSafePrintFontFamily(printTemplate?.font_family);
+    const marginTop = printTemplate?.margin_top ?? 0;
+    const marginRight = printTemplate?.margin_right ?? 0;
+    const marginBottom = printTemplate?.margin_bottom ?? 0;
+    const marginLeft = printTemplate?.margin_left ?? 0;
+
+    const style = doc.createElement("style");
+    style.id = "print-preview-style";
+    style.innerHTML =
+      PRINT_PREVIEW_OVERRIDES +
+      (previewCSS || "") +
+      `
+      body {
+        font-family: ${fontFamily};
+        margin: ${marginTop}${unitCode} ${marginRight}${unitCode} ${marginBottom}${unitCode} ${marginLeft}${unitCode};
+        background: #fff;
+        color: #111827;
+      }
+      @media print {
+        @page {
+          size: ${paperWidth}${unitCode} ${paperHeight}${unitCode};
+          margin: ${marginTop}${unitCode} ${marginRight}${unitCode} ${marginBottom}${unitCode} ${marginLeft}${unitCode};
+        }
+        body { margin: 0; }
+      }
+    `;
+    doc.head.appendChild(style);
+
+    doc.body.innerHTML = previewHTML;
+
+    // Set iframe dimensions to match paper size
+    iframe.style.width = `${paperWidth}${unitCode}`;
+    iframe.style.minHeight = `${paperHeight}${unitCode}`;
   }, [
-    open,
-    printTemplate?.id,
-    template,
-    dataTableColumns,
-    preferences,
-    docInfo,
-    t,
-    refreshKey,
+    previewHTML,
+    previewCSS,
+    printTemplate,
+    unitCode,
+    paperWidth,
+    paperHeight,
   ]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[98vw] h-[96vh] p-0" align="center">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-muted-foreground/20">
-          <DialogTitle className="flex items-center gap-2">
-            <Eye className="h-5 w-5" />
+      <DialogContent
+        className="flex max-h-[90dvh] max-w-[min(96vw,1100px)] flex-col gap-0 overflow-hidden p-0"
+        align="center"
+      >
+        {/* Fixed Header */}
+        <DialogHeader className="shrink-0 border-b px-5 py-4">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Eye className="size-4 text-muted-foreground" />
             Preview Template
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-xs">
             Render hasil template menggunakan example data dari server.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="h-full overflow-auto bg-muted/30 p-5">
+        {/* Scrollable Body */}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20 p-4">
           {loading && (
-            <div className="rounded-md border border-muted-foreground/20 bg-background p-4 text-sm text-muted-foreground">
-              Memuat preview...
-            </div>
-          )}
-
-          {!loading && renderError && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
-              {renderError}
-            </div>
-          )}
-
-          {!loading && !renderError && warnings.length > 0 && (
-            <div className="mb-4 rounded-md border border-amber-400/40 bg-amber-50 dark:bg-amber-950/20 p-3">
-              <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                Warnings Preview
-              </p>
-              <ul className="mt-1 space-y-1 text-xs text-amber-700 dark:text-amber-400">
-                {warnings.map((warning, index) => (
-                  <li key={index}>• {warning}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {!loading && !renderError && relationRowSummary.length > 0 && (
-            <div className="mb-4 rounded-md border border-emerald-400/40 bg-emerald-50 dark:bg-emerald-950/20 p-3">
-              <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
-                Ringkasan Table Relation
-              </p>
-              <ul className="mt-1 space-y-1 text-xs text-emerald-700 dark:text-emerald-400">
-                {relationRowSummary.map((item) => (
-                  <li key={item.relation}>
-                    • {item.relation}: {item.rows} baris data contoh
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {!loading && !renderError && missingDataMessage && (
-            <div className="mb-4 rounded-md border border-blue-400/40 bg-blue-50 dark:bg-blue-950/20 p-3">
-              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                Data Contoh Tidak Tersedia
-              </p>
-              <p className="mt-1 text-xs text-blue-700 dark:text-blue-400">
-                {missingDataMessage}
-              </p>
-              <div className="mt-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGenerateExampleData}
-                  disabled={isGeneratingExampleData}
-                >
-                  {isGeneratingExampleData
-                    ? "Membuat Data..."
-                    : "Generate Example Data"}
-                </Button>
+            <div className="flex items-center justify-center py-16">
+              <div className="flex flex-col items-center gap-3">
+                <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
+                <p className="text-sm text-muted-foreground">
+                  Memuat preview...
+                </p>
               </div>
             </div>
           )}
 
+          {!loading && renderError && (
+            <Alert variant="destructive" appearance="light" size="sm">
+              <AlertIcon>
+                <AlertCircle />
+              </AlertIcon>
+              <AlertContent>
+                <AlertTitle>Gagal merender preview</AlertTitle>
+                <AlertDescription>{renderError}</AlertDescription>
+              </AlertContent>
+            </Alert>
+          )}
+
           {!loading && !renderError && (
-            <div className="mx-auto w-full overflow-x-hidden">
-              <div
-                className="mx-auto origin-top border border-black/10 bg-white text-black shadow-sm"
-                style={{
-                  width: pageWidth,
-                  minHeight: pageMinHeight,
-                  transform: `scale(${previewScale})`,
-                  transformOrigin: "top center",
-                }}
-              >
-                <style>{`@import url('${BOOTSTRAP_CSS_CDN}');\n${PRINT_PREVIEW_OVERRIDES}\n${previewCSS || ""}`}</style>
-                <div dangerouslySetInnerHTML={{ __html: previewHTML }} />
+            <div className="space-y-3">
+              {warnings.length > 0 && (
+                <Alert variant="warning" appearance="light" size="sm">
+                  <AlertIcon>
+                    <TriangleAlert />
+                  </AlertIcon>
+                  <AlertContent>
+                    <AlertTitle>Warnings</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-inside list-disc space-y-0.5">
+                        {warnings.map((warning, index) => (
+                          <li key={index}>{warning}</li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </AlertContent>
+                </Alert>
+              )}
+
+              {relationRowSummary.length > 0 && (
+                <Alert variant="success" appearance="light" size="sm">
+                  <AlertIcon>
+                    <TableProperties />
+                  </AlertIcon>
+                  <AlertContent>
+                    <AlertTitle>Ringkasan Table Relation</AlertTitle>
+                    <AlertDescription>
+                      <ul className="list-inside list-disc space-y-0.5">
+                        {relationRowSummary.map((item) => (
+                          <li key={item.relation}>
+                            {item.relation}: {item.rows} baris data contoh
+                          </li>
+                        ))}
+                      </ul>
+                    </AlertDescription>
+                  </AlertContent>
+                </Alert>
+              )}
+
+              {missingDataMessage && (
+                <Alert variant="info" appearance="light" size="sm">
+                  <AlertIcon>
+                    <Info />
+                  </AlertIcon>
+                  <AlertContent>
+                    <AlertTitle>Data Contoh Tidak Tersedia</AlertTitle>
+                    <AlertDescription>
+                      <p>{missingDataMessage}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={handleGenerateExampleData}
+                        disabled={isGeneratingExampleData}
+                      >
+                        {isGeneratingExampleData
+                          ? "Membuat Data..."
+                          : "Generate Example Data"}
+                      </Button>
+                    </AlertDescription>
+                  </AlertContent>
+                </Alert>
+              )}
+
+              {/* Preview iframe — mirrors PrintPreview rendering */}
+              <div className="flex justify-center">
+                <div className="inline-block rounded border border-border bg-white shadow-sm">
+                  <iframe
+                    ref={iframeRef}
+                    title="Print Preview"
+                    className="block border-0"
+                    style={{
+                      width: `${paperWidth}${unitCode}`,
+                      minHeight: `${paperHeight}${unitCode}`,
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        <DialogFooter className="px-5 py-3 border-t border-muted-foreground/20 gap-2">
+        {/* Fixed Footer */}
+        <DialogFooter className="shrink-0 gap-2 border-t px-5 py-3">
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" size="sm">
               Close
             </Button>
           </DialogClose>
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={handlePrint}
             disabled={loading || !previewHTML}
           >
-            <Printer className="h-4 w-4" />
+            <Printer className="size-3.5" />
             Print
           </Button>
           <Button
             type="button"
-            variant="default"
+            size="sm"
             onClick={handleExportPDF}
             disabled={loading || !previewHTML}
           >
-            <FileDown className="h-4 w-4" />
+            <FileDown className="size-3.5" />
             Export PDF
           </Button>
         </DialogFooter>

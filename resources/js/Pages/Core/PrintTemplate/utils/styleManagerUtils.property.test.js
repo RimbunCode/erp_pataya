@@ -4,6 +4,7 @@ import {
   STYLE_MANAGER_UNIT_OPTIONS,
   combineValueUnit,
   mapSectorsToSections,
+  normalizePropertyId,
   parseValueAndUnit,
 } from "./styleManagerUtils";
 
@@ -107,6 +108,47 @@ describe("Property 2: Section Mapping Completeness", () => {
         },
       ),
       { numRuns: 120 },
+    );
+  });
+});
+
+/**
+ * Property 3: normalizePropertyId idempotence and correctness
+ * **Validates: Requirements 3.4**
+ */
+describe("Property 3: normalizePropertyId idempotence and correctness", () => {
+  const inputArb = fc.oneof(
+    fc.string(),
+    fc.constant(null),
+    fc.constant(undefined),
+    fc.constant(""),
+    fc.constant("   "),
+    fc.stringMatching(/^[\s]*[A-Za-z0-9-]+[\s]*$/),
+  );
+
+  it("normalizePropertyId is idempotent: applying it twice yields the same result as once", () => {
+    fc.assert(
+      fc.property(inputArb, (input) => {
+        const once = normalizePropertyId(input);
+        const twice = normalizePropertyId(once);
+
+        expect(twice).toBe(once);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("normalizePropertyId output equals String(input ?? '').trim().toLowerCase()", () => {
+    fc.assert(
+      fc.property(inputArb, (input) => {
+        const result = normalizePropertyId(input);
+        const expected = String(input ?? "")
+          .trim()
+          .toLowerCase();
+
+        expect(result).toBe(expected);
+      }),
+      { numRuns: 100 },
     );
   });
 });

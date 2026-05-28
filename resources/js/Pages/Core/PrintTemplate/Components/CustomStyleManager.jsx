@@ -1,3 +1,13 @@
+/**
+ * Komponen pengelola style kustom untuk editor PrintTemplate.
+ * Menampilkan panel style properties (dikelompokkan per section), class manager,
+ * dan editor CSS manual untuk komponen yang sedang dipilih di canvas GrapesJS.
+ *
+ * @module CustomStyleManager
+ * @param {Object} props
+ * @param {Array} props.sectors - Daftar sector style dari GrapesJS StyleManager,
+ *   berisi properti-properti CSS yang tersedia untuk komponen terpilih
+ */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useEditor } from "@grapesjs/react";
 import {
@@ -32,13 +42,16 @@ import {
   FIELD_COMPONENT_TYPES,
   STYLE_SECTION_IDS,
   mapSectorsToSections,
+  normalizePropertyId,
   resolveFieldComponent,
 } from "../utils/styleManagerUtils";
 import { getStyleFieldComponent } from "./StyleFields";
+// Mengambil ID unik dari komponen GrapesJS (fallback ke "unknown")
 function componentIdOf(component) {
   return component?.cid ?? component?.getId?.() ?? "unknown";
 }
 
+// Mengkonversi objek style menjadi string CSS text dengan format indentasi
 function styleObjectToCssText(styleObject = {}) {
   return Object.entries(styleObject)
     .filter(
@@ -48,12 +61,15 @@ function styleObjectToCssText(styleObject = {}) {
     .join("\n");
 }
 
-function normalizePropertyId(propertyId) {
-  return String(propertyId ?? "")
-    .trim()
-    .toLowerCase();
-}
-
+/**
+ * Mengelompokkan dan memfilter properti style berdasarkan section.
+ * Menyembunyikan properti individual jika composite parent sudah ada
+ * (misal: margin-top disembunyikan jika composite margin tersedia).
+ *
+ * @param {string} sectionId - ID section style (dimension, typography, dll)
+ * @param {Array} properties - Daftar properti GrapesJS dari sector
+ * @returns {Array} Properti yang sudah difilter untuk ditampilkan
+ */
 function groupSectionProperties(sectionId, properties) {
   const hasMarginComposite = properties.some(
     (property) =>
@@ -110,6 +126,14 @@ function groupSectionProperties(sectionId, properties) {
   });
 }
 
+/**
+ * Mendeteksi mode layout dari komponen yang dipilih.
+ * Memeriksa style display dan tipe komponen untuk menentukan apakah
+ * komponen menggunakan grid atau flex layout.
+ *
+ * @param {Object|null} component - Komponen GrapesJS yang dipilih
+ * @returns {"grid"|"flex"|null} Mode layout atau null jika tidak terdeteksi
+ */
 function detectLayoutMode(component) {
   if (!component) {
     return null;
@@ -139,6 +163,7 @@ function CustomStyleManager({ sectors }) {
   const [componentClasses, setComponentClasses] = useState([]);
   const [newClassName, setNewClassName] = useState("");
 
+  // Mengambil semua CSS rules dari editor dan menghapus rule kosong
   const getCssRules = () => {
     const css = editor.Css;
     return stripEmptyStyleRules(
@@ -150,6 +175,7 @@ function CustomStyleManager({ sectors }) {
       }),
     );
   };
+  // Mengkonversi array CSS rules menjadi string CSS yang bisa ditampilkan
   const cssRulesToString = (cssRules) => {
     cssRules ??= getCssRules();
     let result = "";
@@ -159,6 +185,7 @@ function CustomStyleManager({ sectors }) {
     return result;
   };
 
+  // Mengambil CSS rules yang relevan untuk komponen tertentu berdasarkan selector tokens
   const getCssByComponent = (component) => {
     if (!component) {
       return getCssRules();
@@ -182,6 +209,10 @@ function CustomStyleManager({ sectors }) {
     return filterCssRulesByComponentTokens(getCssRules(), componentTokens);
   };
 
+  // useEffect: Sinkronisasi state selectedComponent dengan komponen yang dipilih di editor.
+  // Dependency: [editor] — dipicu ulang jika instance editor berubah.
+  // Diperlukan untuk mendengarkan event selected/deselected/update dari GrapesJS
+  // dan memperbarui state lokal agar UI panel style selalu sinkron.
   useEffect(() => {
     const refreshSelection = () => {
       setSelectedComponent(editor.getSelected() || null);
@@ -199,6 +230,8 @@ function CustomStyleManager({ sectors }) {
       editor.off("component:update", refreshSelection);
     };
   }, [editor]);
+  // useMemo: Mendeteksi apakah komponen yang dipilih adalah node body/wrapper.
+  // Dependency: [selectedComponent] — dihitung ulang saat komponen berubah.
   const isBodyNode = useMemo(() => {
     if (!selectedComponent) return false;
     const tagName = selectedComponent.get?.("tagName") || "";
@@ -207,6 +240,10 @@ function CustomStyleManager({ sectors }) {
       tagName.toLowerCase() === "body" || type === "wrapper" || type === "body"
     );
   }, [selectedComponent]);
+  // useEffect: Memperbarui cssDraft dan componentClasses saat komponen berubah.
+  // Dependency: [selectedComponent, isBodyNode] — dipicu oleh perubahan komponen terpilih atau status body node.
+  // Diperlukan agar preview CSS dan daftar class selalu mencerminkan komponen aktif.
+  // Jika body node, tampilkan semua CSS. Jika komponen biasa, filter CSS yang relevan saja.
   useEffect(() => {
     if (!selectedComponent) {
       setCssDraft(cssRulesToString());
@@ -252,6 +289,8 @@ function CustomStyleManager({ sectors }) {
     );
   }, [selectedComponent, isBodyNode]);
 
+  // useMemo: Memetakan sectors ke section items dan memfilter properti per section.
+  // Dependency: [sectors] — dihitung ulang saat sectors dari GrapesJS berubah.
   const sectionItems = useMemo(() => {
     const mappedSections = mapSectorsToSections(sectors);
 
@@ -263,10 +302,15 @@ function CustomStyleManager({ sectors }) {
       .filter((section) => section.properties.length > 0);
   }, [sectors]);
 
+  // useMemo: Mendeteksi mode layout (grid/flex) dari komponen yang dipilih.
+  // Dependency: [selectedComponent] — dihitung ulang saat komponen berubah.
   const layoutMode = useMemo(
     () => detectLayoutMode(selectedComponent),
     [selectedComponent],
   );
+  // useMemo: Menghitung daftar selector CSS yang dilindungi (tidak boleh dihapus user).
+  // Dependency: [selectedComponent, isBodyNode, cssDraft] — dihitung ulang saat komponen,
+  // status body, atau draft CSS berubah.
   const manualCssProtectedSelectors = useMemo(() => {
     if (!selectedComponent || isBodyNode) {
       return [];
@@ -280,6 +324,9 @@ function CustomStyleManager({ sectors }) {
     ];
   }, [selectedComponent, isBodyNode, cssDraft]);
 
+  // useCallback: Memperbarui daftar class CSS dari komponen yang dipilih.
+  // Dependency: [] — fungsi stabil, tidak bergantung pada state eksternal.
+  // Diperlukan untuk menyinkronkan state componentClasses dengan class aktual di komponen.
   const refreshClasses = useCallback((component) => {
     if (!component) {
       setComponentClasses([]);
@@ -289,6 +336,9 @@ function CustomStyleManager({ sectors }) {
     setComponentClasses([...classes]);
   }, []);
 
+  // useCallback: Menambahkan class baru ke komponen yang dipilih.
+  // Dependency: [newClassName, selectedComponent, refreshClasses] — dibuat ulang saat input atau komponen berubah.
+  // Diperlukan agar class yang ditambahkan selalu mengacu pada komponen dan input terkini.
   const handleAddClass = useCallback(() => {
     const trimmed = newClassName.trim();
     if (!trimmed || !selectedComponent) return;
@@ -298,6 +348,9 @@ function CustomStyleManager({ sectors }) {
     refreshClasses(selectedComponent);
   }, [newClassName, selectedComponent, refreshClasses]);
 
+  // useCallback: Menghapus class dari komponen yang dipilih.
+  // Dependency: [selectedComponent, refreshClasses] — dibuat ulang saat komponen berubah.
+  // Diperlukan agar penghapusan class selalu mengacu pada komponen aktif.
   const handleRemoveClass = useCallback(
     (className) => {
       if (!selectedComponent) return;
@@ -307,6 +360,9 @@ function CustomStyleManager({ sectors }) {
     [selectedComponent, refreshClasses],
   );
 
+  // useCallback: Menangani keydown Enter pada input class untuk trigger penambahan.
+  // Dependency: [handleAddClass] — dibuat ulang saat handleAddClass berubah.
+  // Diperlukan agar user bisa menambah class dengan menekan Enter tanpa klik tombol.
   const handleClassInputKeyDown = useCallback(
     (e) => {
       if (e.key === "Enter") {
@@ -317,6 +373,14 @@ function CustomStyleManager({ sectors }) {
     [handleAddClass],
   );
 
+  // Handler: Menerapkan CSS manual yang diedit user ke editor GrapesJS.
+  // Alur eksekusi:
+  //   1. Parse input CSS menjadi selector map
+  //   2. Tentukan selector mana yang akan di-replace berdasarkan draft sebelumnya
+  //   3. Lindungi selector yang protected (tidak boleh dihapus)
+  //   4. Hapus semua rules lama yang termasuk dalam scope replace
+  //   5. Terapkan rules baru dari merged selector map
+  // Efek samping: memperbarui cssDraft state dan CSS rules di editor GrapesJS.
   const applyManualCss = (cssText) => {
     const css = editor.Css;
     const currentRules = getCssRules();

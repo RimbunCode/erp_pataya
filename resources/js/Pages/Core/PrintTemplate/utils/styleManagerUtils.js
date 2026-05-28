@@ -115,7 +115,14 @@ const UNIT_FIELD_PROPERTY_IDS = new Set([
   "line-height",
 ]);
 
-function normalizePropertyId(propertyId) {
+/**
+ * Menormalisasi property ID menjadi lowercase dan trimmed.
+ * Digunakan untuk membandingkan property ID secara konsisten tanpa terpengaruh
+ * perbedaan huruf besar/kecil atau spasi.
+ * @param {string|null|undefined} propertyId - ID properti CSS yang akan dinormalisasi
+ * @returns {string} Property ID yang sudah dinormalisasi (lowercase, trimmed)
+ */
+export function normalizePropertyId(propertyId) {
   return String(propertyId ?? "")
     .trim()
     .toLowerCase();

@@ -82,7 +82,7 @@ function formatData(data, columns, opts = {}) {
             },
             decimalScale: col.decimalScale ?? 0,
           });
-        } catch (e) {
+        } catch {
           newData[key] = value;
         }
         break;
@@ -154,8 +154,10 @@ export default forwardRef(function PrintPreview({ template }, ref) {
       html = Handlebars.compile(
         letterHeadTemplate?.html?.replace("body", "div") ?? "",
       )({
+        lang: template.default_language ?? "en",
+        modelDoc: template.model,
         columns,
-        doc: preferences,
+        company: preferences,
         docInfo,
       });
     }
@@ -164,7 +166,9 @@ export default forwardRef(function PrintPreview({ template }, ref) {
       (template.css?.replace("body", "main") ?? "") +
       ".resize-divider{display:none !important;}";
     html += Handlebars.compile(template?.html?.replace("body", "main") ?? "")({
-      columns: template?.columns ?? [],
+      lang: template.default_language ?? "en",
+      modelDoc: template.model,
+      columns,
       company: preferences,
       docInfo,
       document,
@@ -178,10 +182,24 @@ export default forwardRef(function PrintPreview({ template }, ref) {
 
   useEffect(() => {
     if (!ref?.current) return;
-    ref.current.contentDocument.body.innerHTML = html;
+    const doc = ref.current.contentDocument;
+    doc.body.innerHTML = html;
+
+    // Ensure Bootstrap CSS is loaded via <link> in the iframe head
+    let bootstrapLink = doc.getElementById("bootstrap-css-link");
+    if (!bootstrapLink) {
+      bootstrapLink = doc.createElement("link");
+      bootstrapLink.id = "bootstrap-css-link";
+      bootstrapLink.rel = "stylesheet";
+      bootstrapLink.href =
+        "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css";
+      doc.head.appendChild(bootstrapLink);
+    }
+
     const style =
-      ref.current.contentDocument.head.getElementsByTagName("style")[0] ??
-      ref.current.contentDocument.createElement("style");
+      doc.head.querySelector("style#print-preview-style") ??
+      doc.createElement("style");
+    style.id = "print-preview-style";
     const unitCode = template.unit ?? "cm";
     const fontFamily = getSafePrintFontFamily(template.font_family);
     style.innerHTML =
@@ -212,8 +230,8 @@ export default forwardRef(function PrintPreview({ template }, ref) {
         }
       }
     `;
-    if (!ref.current.contentDocument.head.getElementsByTagName("style")[0])
-      ref.current.contentDocument.head.appendChild(style);
+    if (!doc.head.querySelector("style#print-preview-style"))
+      doc.head.appendChild(style);
 
     ref.current.style.width = `${template.width}${unitCode}`;
     ref.current.style.minHeight = `${template.height}${unitCode}`;

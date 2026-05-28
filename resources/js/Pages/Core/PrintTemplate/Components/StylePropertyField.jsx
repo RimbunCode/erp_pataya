@@ -29,7 +29,6 @@ export default function StylePropertyField({ prop, hideLabel = false }) {
     const { Assets } = editor;
     Assets.open({
       select: (asset, complete) => {
-        console.log({ complete });
         prop.upValue(asset.getSrc(), { partial: !complete });
         complete && Assets.close();
       },

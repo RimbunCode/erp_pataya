@@ -1184,7 +1184,6 @@ function TokenConfigurationManager() {
           ) : (
             <Accordion type="single" collapsible className="mt-2 w-full">
               {unifiedTokenItems.map((item) => {
-                console.log(item);
                 return (
                   <AccordionItem key={item.id} value={item.id}>
                     <AccordionTrigger

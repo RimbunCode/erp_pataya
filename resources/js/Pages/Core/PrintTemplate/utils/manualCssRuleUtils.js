@@ -1,4 +1,11 @@
+/**
+ * Utilitas untuk mengelola aturan CSS manual pada komponen editor.
+ * Menyediakan fungsi-fungsi untuk normalisasi selector, proteksi selector,
+ * dan penggabungan style CSS manual dengan style visual panel.
+ * @module manualCssRuleUtils
+ */
 import {
+  escapeRegExp,
   parseCssDeclarations,
   selectorMatchesComponentTokens,
   splitSelectorList,
@@ -223,10 +230,6 @@ export function mergeProtectedSelectorStyles(
     };
     return result;
   }, {});
-}
-
-function escapeRegExp(value = "") {
-  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export function findProtectedSelectorsInCssText(

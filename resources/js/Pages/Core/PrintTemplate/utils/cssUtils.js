@@ -510,7 +510,13 @@ export function preventBodyDoubleWrap(cssText = "") {
   return result;
 }
 
-function escapeRegExp(value = "") {
+/**
+ * Meng-escape karakter spesial regex agar string dapat digunakan sebagai pola literal di RegExp.
+ * Karakter yang di-escape: . * + ? ^ $ { } ( ) | [ ] \
+ * @param {string} value - String yang akan di-escape
+ * @returns {string} String dengan karakter regex spesial yang sudah di-escape
+ */
+export function escapeRegExp(value = "") {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 

@@ -14,6 +14,7 @@ import {
   mergeCssStyles,
   cleanupManualCss,
   preventBodyDoubleWrap,
+  escapeRegExp,
 } from "./cssUtils";
 
 // --- Arbitraries ---
@@ -508,6 +509,28 @@ describe("Property 17: Body node CSS prevents double-wrapping", () => {
           expect(result).not.toMatch(/^\s*body\s*\{/i);
         },
       ),
+      { numRuns: 100 },
+    );
+  });
+});
+
+// --- Property 4: escapeRegExp round-trip safety ---
+
+describe("Property 4: escapeRegExp round-trip safety", () => {
+  /**
+   * **Validates: Requirements 4.4**
+   *
+   * For any string input, `new RegExp(escapeRegExp(input)).test(input)` SHALL return true,
+   * meaning the escaped string, when used as a regex pattern, always matches the original
+   * literal string.
+   */
+  it("escaped string used as regex always matches the original input", () => {
+    fc.assert(
+      fc.property(fc.string(), (input) => {
+        const escaped = escapeRegExp(input);
+        const regex = new RegExp(escaped);
+        expect(regex.test(input)).toBe(true);
+      }),
       { numRuns: 100 },
     );
   });
