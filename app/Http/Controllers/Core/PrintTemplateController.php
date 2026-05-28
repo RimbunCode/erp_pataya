@@ -113,7 +113,6 @@ class PrintTemplateController extends Controller {
             'printTemplate'    => $printTemplates,
             'csrfToken'        => csrf_token(),
             'dataTableColumns' => $printTemplates->columns,
-            'exampleData'      => fn () => $this->exampleDataService->getExampleDataForTemplate($printTemplates),
         ]);
     }
 

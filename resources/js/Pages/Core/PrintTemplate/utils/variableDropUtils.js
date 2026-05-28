@@ -30,10 +30,9 @@ import {
  * @param {object} editor - Instance editor GrapesJS
  * @param {object} options - Opsi konfigurasi listener
  * @param {Function} options.t - Fungsi translasi i18n
- * @param {object} options.exampleData - Data contoh untuk preview variabel di canvas
  * @param {string} options.locale - Kode locale untuk formatting (misal: "id", "en")
  */
-export function variableDropListener(editor, { t, exampleData, locale }) {
+export function variableDropListener(editor, { t, locale }) {
   // Helper untuk generate ID unik pada komponen grid
   const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
 
@@ -288,21 +287,12 @@ export function variableDropListener(editor, { t, exampleData, locale }) {
           ?.filter((c) => c.show)
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) || [];
 
-      // Resolve data contoh untuk relasi ini dari prop exampleData
-      const relationExampleData = exampleData
-        ? Array.isArray(exampleData[payload.name])
-          ? exampleData[payload.name]
-          : exampleData[payload.name]
-            ? [exampleData[payload.name]]
-            : []
-        : [];
-
-      // Bangun preview canvas menggunakan data contoh (bukan token Handlebar)
+      // Bangun preview canvas untuk tabel relasi (tanpa data contoh)
       // Requirements: 3.1, 3.2, 3.4
       const tableComponents = buildExampleDataTable({
         columns,
         relationName: payload.name,
-        exampleData: relationExampleData,
+        exampleData: [],
         t,
         genId,
         locale,

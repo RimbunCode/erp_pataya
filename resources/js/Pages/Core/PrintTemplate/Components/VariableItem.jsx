@@ -1,12 +1,11 @@
 /**
  * Komponen VariableItem - Menampilkan item variabel yang dapat di-drag ke canvas editor.
- * Mendukung tampilan data contoh, tooltip token Handlebar, format mata uang/angka,
+ * Mendukung tooltip token Handlebar, format mata uang/angka,
  * layout grid dengan label dan nilai, serta kolom nested untuk relasi.
  *
  * @module VariableItem
  * @param {object} props
  * @param {string} props.path - Path parent dalam notasi dot
- * @param {object|null} props.exampleData - Data contoh dari backend untuk preview
  * @param {string} props.name - Nama variabel
  * @param {string} props.type - Tipe variabel (relation, relations, doc, docInfo, company, dll)
  * @param {string} [props.parentType] - Tipe parent variabel
@@ -28,10 +27,8 @@ import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import axios from "axios";
 import {
-  formatColumnValue,
   getFormattedHandlebarToken,
   isFormattableType,
-  resolveExampleValue,
   getHandlebarToken,
   getDisplayLabel,
 } from "../utils/variableTokenUtils";
@@ -47,7 +44,7 @@ import { SUBGRID_CLASS, SUBGRID_RULE_STYLE } from "../utils/gridConstants";
 // Re-export untuk backward compatibility - consumer eksternal yang mengimport dari VariableItem.jsx
 export { buildVariableDragPayload } from "../utils/variableInsertUtils";
 
-function VariableItem({ path = "", exampleData = null, ...variable }) {
+function VariableItem({ path = "", ...variable }) {
   const editor = useEditor();
   const { t } = useLaravelReactI18n();
   const fullKey = path ? `${path}.${variable.name}` : variable.name;
@@ -72,25 +69,6 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     React.useState(hasInlineColumns);
   const [columnsError, setColumnsError] = React.useState(null);
   const [isOpen, setIsOpen] = React.useState(false);
-
-  // Menghitung nilai contoh dari exampleData berdasarkan fullKey dan tipe variabel
-  const exampleValue = React.useMemo(() => {
-    const rawValue = resolveExampleValue(
-      exampleData,
-      fullKey,
-      variable.parentType || variable.type,
-    );
-    return rawValue;
-  }, [exampleData, fullKey, variable.parentType, variable.type]);
-
-  // Memformat nilai contoh berdasarkan tipe kolom (currency/number) - Requirements: 1.9
-  const formattedExampleValue = React.useMemo(() => {
-    if (exampleValue == null) return null;
-    if (isFormattableType(variable.type)) {
-      return formatColumnValue(exampleValue, variable);
-    }
-    return exampleValue;
-  }, [exampleValue, variable]);
 
   // Menghasilkan token Handlebar untuk ditampilkan di tooltip
   const handlebarToken = React.useMemo(() => {
@@ -173,8 +151,6 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     const payload = buildVariableDragPayload({
       variable,
       nestedColumns,
-      formattedExampleValue,
-      exampleValue,
       displayLabel,
       fullKey,
     });
@@ -361,9 +337,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
   const didDragRef = React.useRef(false);
 
   /**
-   * Menangani event drag start - mengirim data variabel termasuk data contoh
-   * dan informasi format ke canvas. Canvas akan menampilkan data contoh terformat
-   * sementara template menyimpan token Handlebar dengan helper format.
+   * Menangani event drag start - mengirim data variabel dan informasi format ke canvas.
    *
    * Efek samping: mengatur dataTransfer dengan payload JSON variabel
    */
@@ -377,8 +351,6 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
     const payload = buildVariableDragPayload({
       variable,
       nestedColumns,
-      formattedExampleValue,
-      exampleValue,
       displayLabel,
       fullKey,
     });
@@ -429,20 +401,14 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
               onDragEnd={handleDragEnd}
             >
               <span className="text-sm font-medium">{displayLabel}</span>
-              {/* Tampilkan nilai contoh terformat jika tersedia, jika tidak tampilkan token */}
+              {/* Tampilkan token Handlebar */}
               {!(
                 variable.type === "doc" ||
                 variable.type === "docInfo" ||
                 variable.type === "company"
               ) && (
                 <span className="text-xs text-muted-foreground truncate">
-                  {formattedExampleValue ? (
-                    <span className="text-emerald-600 dark:text-emerald-400">
-                      {formattedExampleValue}
-                    </span>
-                  ) : (
-                    <code>{handlebarToken}</code>
-                  )}
+                  <code>{handlebarToken}</code>
                 </span>
               )}
             </div>
@@ -461,14 +427,6 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                     ? getFormattedHandlebarToken(variable, fullKey)
                     : handlebarToken}
                 </code>
-                {formattedExampleValue && (
-                  <p className="text-xs text-muted-foreground">
-                    {t("core.printTemplate.editor.example_label")}
-                    <span className="text-emerald-600">
-                      {formattedExampleValue}
-                    </span>
-                  </p>
-                )}
               </div>
             </TooltipContent>
           )}
@@ -594,7 +552,6 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                     : fullKey
                 }
                 parentType={parentType}
-                exampleData={exampleData}
                 {...sub}
               />
             );

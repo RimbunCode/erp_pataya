@@ -574,7 +574,7 @@ function SortableColumnItem({ column, onRemove }) {
 function TokenConfigurationManager() {
   const editor = useEditor();
   const { t } = useLaravelReactI18n();
-  const { dataTableColumns, exampleData, printTemplate } = usePage().props;
+  const { dataTableColumns, printTemplate } = usePage().props;
 
   const [selectedTokenConfig, setSelectedTokenConfig] = useState(null);
   const [selectedLabelConfig, setSelectedLabelConfig] = useState(null);
@@ -1110,18 +1110,11 @@ function TokenConfigurationManager() {
         },
       ]);
     } else {
-      const relationData = exampleData?.[relationPath];
-      const previewRows = Array.isArray(relationData)
-        ? relationData
-        : relationData
-          ? [relationData]
-          : [];
-
       config.component.components(
         buildExampleDataTable({
           columns: visibleColumns,
           relationName: relationPath,
-          exampleData: previewRows,
+          exampleData: [],
           t,
           genId: createId,
           locale: printTemplate?.default_language,

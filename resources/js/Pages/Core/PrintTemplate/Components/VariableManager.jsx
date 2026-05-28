@@ -4,7 +4,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 import VariableItem from "./VariableItem";
 
 function VariableManager() {
-  const { dataTableColumns, exampleData, docInfo } = usePage().props;
+  const { dataTableColumns, docInfo } = usePage().props;
   const { t } = useLaravelReactI18n();
 
   const availableVariables = useMemo(() => {
@@ -41,11 +41,7 @@ function VariableManager() {
       ) : (
         <div className="space-y-2">
           {availableVariables.map((variable) => (
-            <VariableItem
-              key={variable.name}
-              exampleData={exampleData}
-              {...variable}
-            />
+            <VariableItem key={variable.name} {...variable} />
           ))}
         </div>
       )}
@@ -58,11 +54,7 @@ function VariableManager() {
           </h3>
           <div className="space-y-2">
             {docInfoVariables.map((variable) => (
-              <VariableItem
-                key={`docInfo.${variable.name}`}
-                exampleData={exampleData}
-                {...variable}
-              />
+              <VariableItem key={`docInfo.${variable.name}`} {...variable} />
             ))}
           </div>
         </>

@@ -59,7 +59,6 @@ import { formatHandlebarTemplate } from "./utils/templateFormatUtils";
  * @param {string} props.csrfToken - Token CSRF untuk request penyimpanan
  * @param {Array} props.dataTableColumns - Kolom tabel data untuk relasi
  * @param {Object} props.preferences - Preferensi pengguna untuk rendering template
- * @param {Object} props.exampleData - Data contoh untuk preview variabel di canvas
  * @param {Object} props.docInfo - Informasi dokumen untuk preview
  */
 
@@ -68,7 +67,6 @@ function PrintTemplate({
   csrfToken,
   dataTableColumns,
   preferences,
-  exampleData,
   docInfo,
 }) {
   const { t } = useLaravelReactI18n();
@@ -343,7 +341,6 @@ function PrintTemplate({
     });
     variableDropListener(editor, {
       t,
-      exampleData,
       locale: printTemplate?.default_language,
     });
 
@@ -434,13 +431,6 @@ function PrintTemplate({
             "Menghapus komponen hanya tersedia di desktop.",
         );
       });
-    }
-
-    if (!exampleData || Object.keys(exampleData || {}).length === 0) {
-      toast.info(
-        t("core.printTemplate.editor.no_example_data") ||
-          "Data contoh belum tersedia untuk model ini. Preview dapat menampilkan placeholder.",
-      );
     }
 
     // Listen for staticHTML:edit event to open the modal (Requirements: 6.1, 6.2)

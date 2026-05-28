@@ -175,7 +175,7 @@ const ColumnItem = memo(function ColumnItem({ column, onRemove }) {
 });
 const ComponentItem = memo(function ComponentItem({ component, data }) {
   const { t } = useLaravelReactI18n();
-  const { exampleData, printTemplate } = usePage().props ?? {};
+  const { printTemplate } = usePage().props ?? {};
   const {
     data: _data,
     setData: _setData,
@@ -254,21 +254,12 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
     const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
     const relationName = attributes["data-relations"];
 
-    // Get example data for canvas preview
-    const relationExampleData = exampleData
-      ? Array.isArray(exampleData[relationName])
-        ? exampleData[relationName]
-        : exampleData[relationName]
-          ? [exampleData[relationName]]
-          : []
-      : [];
-
-    // Build canvas preview with example data (not Handlebar tokens)
+    // Build canvas preview (without example data)
     // Requirements: 3.1, 3.2, 3.4
     const tableComponents = buildExampleDataTable({
       columns,
       relationName,
-      exampleData: relationExampleData,
+      exampleData: [],
       t,
       genId,
       locale: printTemplate?.default_language,
@@ -278,7 +269,7 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
     component.set("columnsConfig", columns);
 
     component.append(tableComponents);
-  }, [_data, exampleData]);
+  }, [_data]);
   const onReset = useCallback(() => {
     setColumns(data.columns);
   }, []);

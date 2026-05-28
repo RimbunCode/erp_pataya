@@ -105,13 +105,11 @@ export function getSimplifiedTokenDisplay(token, variablePath = "") {
 
 /**
  * Membuat payload data untuk operasi drag variabel ke canvas editor.
- * Menggabungkan informasi variabel dengan data contoh dan token terformat.
+ * Menggabungkan informasi variabel dengan token terformat.
  *
  * @param {object} params - Parameter untuk membuat payload
  * @param {object} params.variable - Objek variabel dengan properti name, type, dll
  * @param {Array} params.nestedColumns - Kolom-kolom nested untuk relasi
- * @param {string|null} params.formattedExampleValue - Nilai contoh yang sudah diformat
- * @param {string|null} params.exampleValue - Nilai contoh mentah
  * @param {string} params.displayLabel - Label tampilan variabel
  * @param {string} params.fullKey - Key lengkap dalam notasi dot
  * @returns {object} Payload yang siap digunakan untuk drag-and-drop
@@ -119,15 +117,12 @@ export function getSimplifiedTokenDisplay(token, variablePath = "") {
 export function buildVariableDragPayload({
   variable,
   nestedColumns,
-  formattedExampleValue,
-  exampleValue,
   displayLabel,
   fullKey,
 }) {
   return {
     ...variable,
     columns: nestedColumns,
-    exampleValue: formattedExampleValue ?? exampleValue,
     displayLabel,
     fullKey,
     formattedToken: getFormattedHandlebarToken(variable, fullKey),
