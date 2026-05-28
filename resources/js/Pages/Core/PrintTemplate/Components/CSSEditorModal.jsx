@@ -109,10 +109,10 @@ function CSSEditorModal({
   return (
     <Dialog open={open} onOpenChange={handleCancel}>
       <DialogContent
-        className="max-w-xl max-h-[92svh] overflow-y-auto"
+        className="max-w-5xl max-h-[90dvh] overflow-hidden flex flex-col gap-0 p-0"
         align="center"
       >
-        <DialogHeader>
+        <DialogHeader className="shrink-0 border-b px-5 py-4">
           <DialogTitle className="flex items-center gap-2">
             <Code2 className="h-5 w-5" />
             {t("core.printTemplate.editor.manual_css")}
@@ -120,66 +120,63 @@ function CSSEditorModal({
           <DialogDescription></DialogDescription>
         </DialogHeader>
 
-        <div className="mt-2">
-          <div
-            className="overflow-hidden rounded-md border min-h-[300px]"
-            onKeyDown={(event) => {
-              handleModalEditorKeyDown(event, handleSave);
-            }}
-          >
-            <MonacoCSSEditor
-              value={draft}
-              componentId={componentId}
-              onChange={(nextValue) => setDraft(nextValue)}
-              onValidationChange={handleValidationChange}
-              height="300px"
-            />
+        {!isValid && errors.length > 0 && (
+          <div className="shrink-0 mx-4 mt-2 p-3 border border-destructive/50 bg-destructive/5 rounded-md">
+            <div className="flex items-center gap-2 mb-1.5">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <span className="text-sm font-medium text-destructive">
+                {t("core.printTemplate.editor.css_syntax_error")} (
+                {errors.length})
+              </span>
+            </div>
+            <ul className="space-y-1">
+              {errors.slice(0, 5).map((error, idx) => (
+                <li key={idx} className="text-xs text-destructive/80">
+                  •{" "}
+                  {error.message ||
+                    t("core.printTemplate.editor.invalid_css_declaration")}
+                </li>
+              ))}
+            </ul>
           </div>
+        )}
 
-          {!isValid && errors.length > 0 && (
-            <div className="mt-2 p-3 border border-destructive/50 bg-destructive/5 rounded-md">
-              <div className="flex items-center gap-2 mb-1.5">
-                <AlertTriangle className="h-4 w-4 text-destructive" />
-                <span className="text-sm font-medium text-destructive">
-                  {t("core.printTemplate.editor.css_syntax_error")} (
-                  {errors.length})
-                </span>
-              </div>
-              <ul className="space-y-1">
-                {errors.slice(0, 5).map((error, idx) => (
-                  <li key={idx} className="text-xs text-destructive/80">
-                    •{" "}
-                    {error.message ||
-                      t("core.printTemplate.editor.invalid_css_declaration")}
-                  </li>
-                ))}
-              </ul>
+        {normalizedProtectedSelectors.length > 0 && (
+          <div className="shrink-0 mx-4 mt-2 p-3 border border-amber-500/50 bg-amber-500/10 rounded-md">
+            <div className="flex items-center gap-2 mb-1.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-medium text-amber-700">
+                {t("core.printTemplate.editor.protected_selector_title")}
+              </span>
             </div>
-          )}
-
-          {normalizedProtectedSelectors.length > 0 && (
-            <div className="mt-2 p-3 border border-amber-500/50 bg-amber-500/10 rounded-md">
-              <div className="flex items-center gap-2 mb-1.5">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
-                <span className="text-sm font-medium text-amber-700">
-                  {t("core.printTemplate.editor.protected_selector_title")}
-                </span>
-              </div>
-              <p className="text-xs text-amber-800">
-                {t("core.printTemplate.editor.protected_selector_desc")}
-              </p>
-              <ul className="mt-1.5 space-y-1">
-                {warningSelectors.map((selector) => (
-                  <li key={selector} className="text-xs text-amber-800">
-                    • {selector}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+            <p className="text-xs text-amber-800">
+              {t("core.printTemplate.editor.protected_selector_desc")}
+            </p>
+            <ul className="mt-1.5 space-y-1">
+              {warningSelectors.map((selector) => (
+                <li key={selector} className="text-xs text-amber-800">
+                  • {selector}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div
+          className="min-h-0 flex-1 overflow-y-auto bg-muted/20 m-4 rounded-md border"
+          onKeyDown={(event) => {
+            handleModalEditorKeyDown(event, handleSave);
+          }}
+        >
+          <MonacoCSSEditor
+            value={draft}
+            componentId={componentId}
+            onChange={(nextValue) => setDraft(nextValue)}
+            onValidationChange={handleValidationChange}
+            height="300px"
+          />
         </div>
 
-        <DialogFooter className="mt-4">
+        <DialogFooter className="shrink-0 gap-2 border-t px-5 py-3">
           <Button variant="outline" size="md" onClick={handleCancel}>
             {t("core.printTemplate.cancel")}
           </Button>

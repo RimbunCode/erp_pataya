@@ -342,6 +342,8 @@ function PrintTemplate({
     variableDropListener(editor, {
       t,
       locale: printTemplate?.default_language,
+      dataTableColumns,
+      docInfo,
     });
 
     // Register multi-function container component type (Requirements: 17.2, 17.3, 17.4, 17.5)

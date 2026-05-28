@@ -85,10 +85,10 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-xl max-h-[92svh] overflow-y-auto"
+        className="max-w-(--breakpoint-2xl) max-h-[90dvh] overflow-hidden flex flex-col gap-0 p-0"
         align="center"
       >
-        <DialogHeader>
+        <DialogHeader className="shrink-0 border-b px-5 py-4">
           <DialogTitle className="flex items-center gap-2">
             <Code2 className="h-5 w-5" />
             {t("core.printTemplate.editor.custom_html_editor")}
@@ -97,8 +97,27 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
             {t("core.printTemplate.editor.html_editor_desc")}
           </DialogDescription>
         </DialogHeader>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+        {hasWarnings && (
+          <div className="shrink-0 mx-4 mt-2 p-3 border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md">
+            <div className="flex items-center gap-2 mb-1.5">
+              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                {t("core.printTemplate.editor.security_warning")}
+              </span>
+            </div>
+            <ul className="space-y-1">
+              {sanitizationResult.warnings.map((warning, idx) => (
+                <li
+                  key={idx}
+                  className="text-xs text-amber-700 dark:text-amber-400"
+                >
+                  • {warning}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-muted/20 p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Code Editor (textarea) */}
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-medium">
@@ -153,30 +172,9 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
             </div>
           </div>
         </div>
-
         {/* Warnings display (Requirement 6.7 - display warnings for removed content) */}
-        {hasWarnings && (
-          <div className="mt-2 p-3 border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md">
-            <div className="flex items-center gap-2 mb-1.5">
-              <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                {t("core.printTemplate.editor.security_warning")}
-              </span>
-            </div>
-            <ul className="space-y-1">
-              {sanitizationResult.warnings.map((warning, idx) => (
-                <li
-                  key={idx}
-                  className="text-xs text-amber-700 dark:text-amber-400"
-                >
-                  • {warning}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
-        <DialogFooter className="mt-4">
+        <DialogFooter className="shrink-0 gap-2 border-t px-5 py-3">
           <Button
             variant="outline"
             size="md"

@@ -6,7 +6,7 @@
  */
 
 import { generateRandom } from "@/lib/utils";
-import { buildExampleDataTable } from "@/lib/gjsRelationsTable";
+import { buildExampleDataTable, getColumnLabel } from "@/lib/gjsRelationsTable";
 import { toast } from "sonner";
 import {
   buildVariableToken,
@@ -19,6 +19,7 @@ import {
   GRID_RULE_STYLE,
   SUBGRID_RULE_STYLE,
 } from "./gridConstants";
+import { getDisplayLabel } from "./variableTokenUtils";
 
 /**
  * Mendaftarkan listener dan handler drag-and-drop variabel pada editor GrapesJS.
@@ -31,10 +32,102 @@ import {
  * @param {object} options - Opsi konfigurasi listener
  * @param {Function} options.t - Fungsi translasi i18n
  * @param {string} options.locale - Kode locale untuk formatting (misal: "id", "en")
+ * @param {Array} options.dataTableColumns - Kolom variabel dari props halaman
+ * @param {object} options.docInfo - Informasi dokumen untuk variabel docInfo
  */
-export function variableDropListener(editor, { t, locale }) {
+export function variableDropListener(
+  editor,
+  { t, locale, dataTableColumns = [], docInfo = {} },
+) {
   // Helper untuk generate ID unik pada komponen grid
   const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
+
+  /**
+   * Membangun flat lookup map dari semua variabel: labelKey → displayLabel.
+   * Digunakan untuk sinkronisasi displayLabel di canvas saat editor load.
+   * Key di canvas (data-label-key) dihasilkan dari extractLabelKeyFromToken:
+   * - Tipe doc: "doc.<fieldName>" (karena token = {{doc.<fieldName>}})
+   * - Tipe company: "company.<fieldName>"
+   * - Tipe docInfo: "docInfo.<fieldName>"
+   * - Tipe relation: "relation doc.<path>"
+   */
+  const buildLabelMap = () => {
+    const map = {};
+
+    const traverse = (columns, parentPath = "", parentType = "") => {
+      if (!Array.isArray(columns)) return;
+      for (const col of columns) {
+        const label = getDisplayLabel(col, t);
+        const colType = col.type || "";
+
+        // Tentukan key sesuai dengan cara VariableItem membangun fullKey
+        // dan bagaimana buildVariableToken menghasilkan token
+        let fullKey;
+        if (
+          parentType === "doc" ||
+          parentType === "docInfo" ||
+          parentType === "company"
+        ) {
+          // Parent bertipe doc/docInfo/company → path dikirim sebagai "" ke children
+          // fullKey = col.name (tanpa parent path)
+          fullKey = parentPath ? `${parentPath}.${col.name}` : col.name;
+        } else if (parentPath) {
+          fullKey = `${parentPath}.${col.name}`;
+        } else {
+          fullKey = col.name;
+        }
+
+        // Simpan dengan fullKey asli
+        map[fullKey] = label;
+        // Simpan dengan col.name saja
+        map[col.name] = label;
+
+        // Simpan sesuai format labelKey di canvas (hasil extractLabelKeyFromToken)
+        if (parentType === "doc" || colType === "doc") {
+          // Token: {{doc.<fullKey>}} → labelKey: "doc.<fullKey>"
+          map[`doc.${fullKey}`] = label;
+        }
+        if (parentType === "company" || colType === "company") {
+          map[`company.${col.name}`] = label;
+          map[`company.${fullKey}`] = label;
+        }
+        if (parentType === "docInfo" || colType === "docInfo") {
+          map[`docInfo.${col.name}`] = label;
+        }
+        if (colType === "relation") {
+          // Token: {{relation doc.<fullKey>}} → labelKey: "relation doc.<fullKey>"
+          map[`relation doc.${fullKey}`] = label;
+        }
+
+        // Traverse nested columns
+        if (Array.isArray(col.columns) && col.columns.length > 0) {
+          // Tentukan effectiveParentType untuk children
+          const effectiveParentType =
+            colType === "doc" || colType === "docInfo" || colType === "company"
+              ? colType
+              : parentType;
+          // Tentukan effectivePath untuk children (sama seperti VariableItem)
+          const effectivePath =
+            colType === "doc" || colType === "docInfo" || colType === "company"
+              ? ""
+              : fullKey;
+          traverse(col.columns, effectivePath, effectiveParentType);
+        }
+      }
+    };
+
+    traverse(dataTableColumns, "", "");
+
+    // Tambahkan docInfo variables dari prop docInfo
+    if (docInfo && typeof docInfo === "object") {
+      for (const key of Object.keys(docInfo)) {
+        map[key] = key;
+        map[`docInfo.${key}`] = key;
+      }
+    }
+
+    return map;
+  };
 
   /**
    * Memastikan CSS rules untuk grid dan subgrid terdaftar di CssComposer editor.
@@ -61,18 +154,6 @@ export function variableDropListener(editor, { t, locale }) {
         droppable: true,
         tagName: "div",
         classes: [GRID_CLASS],
-        attributes: {
-          class: GRID_CLASS,
-        },
-        styles: `
-          .${GRID_CLASS} {
-            display: ${GRID_RULE_STYLE.display};
-            grid-template-columns: ${GRID_RULE_STYLE["grid-template-columns"]};
-            column-gap: ${GRID_RULE_STYLE["column-gap"]};
-            padding-top: ${GRID_RULE_STYLE["padding-top"]};
-            padding-bottom: ${GRID_RULE_STYLE["padding-bottom"]};
-          }
-        `,
       },
     },
   });
@@ -87,18 +168,6 @@ export function variableDropListener(editor, { t, locale }) {
         layerable: true,
         tagName: "div",
         classes: [SUBGRID_CLASS],
-        attributes: {
-          class: SUBGRID_CLASS,
-        },
-        styles: `
-          .${SUBGRID_CLASS} {
-            display: ${SUBGRID_RULE_STYLE.display};
-            grid-template-columns: ${SUBGRID_RULE_STYLE["grid-template-columns"]};
-            gap: ${SUBGRID_RULE_STYLE.gap};
-            grid-column: ${SUBGRID_RULE_STYLE["grid-column"]};
-            padding: ${SUBGRID_RULE_STYLE.padding};
-          }
-        `,
       },
       toHTML() {
         const attrs = this.getAttributes() || {};
@@ -145,45 +214,92 @@ export function variableDropListener(editor, { t, locale }) {
       return;
     }
 
+    // Build labelMap saat dipanggil agar t() sudah ready (translate selesai)
+    const labelMap = buildLabelMap();
+
     const attributes = component.getAttributes?.() || {};
     const variablePath = attributes["data-variable"] || "";
-    const labelComponent = Array.from(
-      component.find?.("[data-label-key]") || [],
-    )[0];
-    const tokenComponent = Array.from(
-      component.find?.("[data-token]") || [],
-    )[0];
+
+    // Cari label dan token component secara rekursif
+    let labelComponent = null;
+    let tokenComponent = null;
+
+    const findComponents = (parent) => {
+      const children = parent.components?.() || [];
+      children.forEach((child) => {
+        const childAttrs = child.getAttributes?.() || {};
+        if (childAttrs["data-label-key"] && !labelComponent) {
+          labelComponent = child;
+        }
+        if (childAttrs["data-token"] && !tokenComponent) {
+          tokenComponent = child;
+        }
+        // Traverse deeper
+        if (!labelComponent || !tokenComponent) {
+          findComponents(child);
+        }
+      });
+    };
+
+    findComponents(component);
+
     component.removeClass(SUBGRID_CLASS);
     component.addClass(SUBGRID_CLASS);
 
-    // Perbarui tampilan label dengan terjemahan jika tersedia
-    if (String(labelComponent?.get("tagName") || "").toLowerCase() === "p") {
+    // Perbarui tampilan label dari labelMap (data VariableManager)
+    if (labelComponent) {
       const labelKey =
         labelComponent.getAttributes?.()?.["data-label-key"] || "";
-      const translatedLabel = labelKey ? t(`fields.${labelKey}`) : "";
-      const fallbackLabel =
-        labelKey.split(".").pop() || labelKey || variablePath;
-      const displayLabel =
-        translatedLabel && translatedLabel !== `fields.${labelKey}`
-          ? translatedLabel
-          : fallbackLabel;
 
-      labelComponent.set("draggable", false);
-      labelComponent.components([
-        {
-          type: "text",
-          tagName: "span",
-          selectable: true,
-          editable: false,
-          draggable: false,
-          attributes: {
-            "data-label-key": labelKey,
-            title: labelKey,
-            contenteditable: "false",
+      // Ambil displayLabel dari labelMap sesuai data-label-key
+      // Jika tidak ditemukan, fallback ke shorthand (simplified token tanpa {{...}})
+      let displayLabel = labelMap[labelKey] || labelMap[variablePath];
+
+      if (!displayLabel) {
+        // Fallback: buat shorthand dari labelKey — strip prefix dan {{...}}
+        // Contoh: "company.company_name" → "company_name", "doc.customer_name" → "customer_name"
+        const stripped = labelKey
+          .replace(/^relation\s+/, "")
+          .replace(/^doc\./, "")
+          .replace(/^company\./, "")
+          .replace(/^docInfo\./, "");
+        displayLabel = stripped || labelKey.split(".").pop() || variablePath;
+      }
+
+      const labelTagName = String(
+        labelComponent.get("tagName") || "",
+      ).toLowerCase();
+
+      if (labelTagName === "p") {
+        // Format lama: data-label-key ada di <p>, ganti children-nya
+        labelComponent.set("draggable", false);
+        labelComponent.components([
+          {
+            type: "text",
+            tagName: "span",
+            selectable: true,
+            editable: false,
+            draggable: false,
+            attributes: {
+              "data-label-key": labelKey,
+              title: labelKey,
+              contenteditable: "false",
+            },
+            content: displayLabel,
           },
-          content: displayLabel || fallbackLabel || "-",
-        },
-      ]);
+        ]);
+      } else if (labelTagName === "span") {
+        // Format baru: data-label-key ada di <span>, update content langsung
+        labelComponent.set("content", displayLabel);
+        // Pastikan parent <p> tidak draggable
+        const parentP = labelComponent.parent?.();
+        if (
+          parentP &&
+          String(parentP.get("tagName") || "").toLowerCase() === "p"
+        ) {
+          parentP.set("draggable", false);
+        }
+      }
     }
 
     if (!tokenComponent) {
@@ -194,7 +310,11 @@ export function variableDropListener(editor, { t, locale }) {
     const tokenValue = tokenComponent.getAttributes?.()?.["data-token"] || "";
     const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, variablePath);
 
-    if (String(tokenComponent.get("tagName") || "").toLowerCase() === "p") {
+    const tokenTagName = String(
+      tokenComponent.get("tagName") || "",
+    ).toLowerCase();
+
+    if (tokenTagName === "p") {
       tokenComponent.set("editable", true);
       tokenComponent.set("draggable", false);
       tokenComponent.components([
@@ -233,18 +353,101 @@ export function variableDropListener(editor, { t, locale }) {
       return;
     }
 
-    const variableComponents = Array.from(
-      wrapper.find?.("[data-variable]") || [],
-    );
-    variableComponents.forEach((component) =>
-      syncVariableComponentDisplay(component),
-    );
+    // Cari semua komponen gjsSubGrid di canvas
+    const allComponents = wrapper.findType?.("gjsSubGrid") || [];
+    // Fallback: cari juga berdasarkan atribut data-variable
+    const byAttribute = Array.from(wrapper.find?.("[data-variable]") || []);
+
+    // Gabungkan dan deduplikasi
+    const seen = new Set();
+    const components = [];
+    for (const comp of [...allComponents, ...byAttribute]) {
+      const cid = comp.cid || comp.getId?.();
+      if (!seen.has(cid)) {
+        seen.add(cid);
+        components.push(comp);
+      }
+    }
+
+    components.forEach((component) => syncVariableComponentDisplay(component));
+  };
+
+  /**
+   * Sinkronisasi header row pada semua gjsRelationsTable di canvas.
+   * Memperbarui label kolom header agar selaras dengan terjemahan terbaru.
+   */
+  const syncRelationsTableHeaders = () => {
+    const wrapper = editor.getWrapper?.();
+    if (!wrapper) {
+      return;
+    }
+
+    const tables = wrapper.findType?.("gjsRelationsTable") || [];
+    tables.forEach((table) => {
+      const columnsConfig = table.get("columnsConfig") || [];
+      if (!columnsConfig.length) {
+        return;
+      }
+
+      // Cari thead > tr > th cells
+      const findThead = (parent) => {
+        const children = parent.components?.() || [];
+        for (const child of children) {
+          const tag = String(child.get("tagName") || "").toLowerCase();
+          if (tag === "thead" || child.getType?.() === "tableHead") {
+            return child;
+          }
+        }
+        return null;
+      };
+
+      const thead = findThead(table);
+      if (!thead) {
+        return;
+      }
+
+      // Cari tr di dalam thead
+      const trComponents = thead.components?.() || [];
+      const headerRow = trComponents.at?.(0) || trComponents.models?.[0];
+      if (!headerRow) {
+        return;
+      }
+
+      // Update setiap th cell yang punya atribut name
+      const thCells = headerRow.components?.() || [];
+      thCells.forEach((th) => {
+        const attrs = th.getAttributes?.() || {};
+        const colName = attrs.name;
+        if (!colName) {
+          return; // Skip "#" column atau cell tanpa name
+        }
+
+        // Cari column config yang sesuai
+        const colConfig = columnsConfig.find((c) => c.name === colName);
+        if (!colConfig) {
+          return;
+        }
+
+        // Update content dengan label terbaru
+        const newLabel = getColumnLabel(colConfig, t, locale);
+        if (newLabel && newLabel !== th.get("content")) {
+          th.set("content", newLabel);
+        }
+      });
+    });
   };
 
   // Inisialisasi: pastikan CSS rules ada dan sinkronisasi komponen saat load
   ensureVariableGridCssRules();
-  editor.on("load", syncAllVariableComponents);
-  editor.on("load", ensureVariableGridCssRules);
+  editor.on("load", () => {
+    ensureVariableGridCssRules();
+    // Delay sinkronisasi untuk memastikan semua komponen sudah ter-render
+    // GrapesJS membutuhkan waktu untuk mem-parse project data dan membangun tree komponen
+    setTimeout(() => {
+      syncAllVariableComponents();
+      syncRelationsTableHeaders();
+    }, 300);
+  });
   editor.on("component:add", syncVariableComponentDisplay);
   editor.on("component:add", (component) => {
     if (!component) {
@@ -325,21 +528,10 @@ export function variableDropListener(editor, { t, locale }) {
       const simplifiedToken = getSimplifiedTokenDisplay(token, varPath);
       result.content = {
         type: "gjsSubGrid",
-        classes: [SUBGRID_CLASS],
         attributes: {
           "data-variable": varPath,
           "data-variable-type": payload.parentType || payload.type || "data",
-          class: SUBGRID_CLASS,
         },
-        styles: `
-          .${SUBGRID_CLASS} {
-            display: ${SUBGRID_RULE_STYLE.display};
-            grid-template-columns: ${SUBGRID_RULE_STYLE["grid-template-columns"]};
-            gap: ${SUBGRID_RULE_STYLE.gap};
-            grid-column: ${SUBGRID_RULE_STYLE["grid-column"]};
-            padding: ${SUBGRID_RULE_STYLE.padding};
-          }
-        `,
         components: [
           {
             type: "text",
@@ -419,24 +611,11 @@ export function variableDropListener(editor, { t, locale }) {
       const wrapper = coll.add(
         {
           type: "gjsGrid",
-          classes: [GRID_CLASS],
-          attributes: {
-            class: GRID_CLASS,
-          },
-
-          styles: `
-          .${GRID_CLASS} {
-            display: ${GRID_RULE_STYLE.display};
-            grid-template-columns: ${GRID_RULE_STYLE["grid-template-columns"]};
-            column-gap: ${GRID_RULE_STYLE["column-gap"]};
-            padding-top: ${GRID_RULE_STYLE["padding-top"]};
-            padding-bottom: ${GRID_RULE_STYLE["padding-bottom"]};
-          }
-        `,
         },
         { at: oldIndex },
       );
       model.move(wrapper, { at: 0 });
+      ensureVariableGridCssRules();
     }
 
     editor.select(model);

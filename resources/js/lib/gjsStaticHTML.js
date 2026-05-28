@@ -178,8 +178,13 @@ export default function gjsStaticHTML(editor) {
   });
 
   // When a new staticHTML component is added, trigger the edit modal
+  // Only open for freshly added components (no existing customHTML content),
+  // not for components being loaded from a saved template.
   editor.on("component:add", (component) => {
-    if (component.get("type") === "staticHTML") {
+    if (
+      component.get("type") === "staticHTML" &&
+      !component.get("customHTML")
+    ) {
       // Small delay to let the component render first
       setTimeout(() => {
         editor.trigger("staticHTML:edit", component);

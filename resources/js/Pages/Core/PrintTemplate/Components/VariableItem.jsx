@@ -39,7 +39,6 @@ import {
   tryInsertInlineVariableToken,
   extractLabelKeyFromToken,
 } from "../utils/variableInsertUtils";
-import { SUBGRID_CLASS, SUBGRID_RULE_STYLE } from "../utils/gridConstants";
 
 // Re-export untuk backward compatibility - consumer eksternal yang mengimport dari VariableItem.jsx
 export { buildVariableDragPayload } from "../utils/variableInsertUtils";
@@ -229,21 +228,10 @@ function VariableItem({ path = "", ...variable }) {
           : "subGrid";
         const subGridComponentDefinition = {
           type: subGridType,
-          classes: [SUBGRID_CLASS],
           attributes: {
             "data-variable": varPath,
             "data-variable-type": payload.parentType || payload.type || "data",
-            class: SUBGRID_CLASS,
           },
-          styles: `
-          .${SUBGRID_CLASS} {
-            display: ${SUBGRID_RULE_STYLE.display};
-            grid-template-columns: ${SUBGRID_RULE_STYLE["grid-template-columns"]};
-            gap: ${SUBGRID_RULE_STYLE.gap};
-            grid-column: ${SUBGRID_RULE_STYLE["grid-column"]};
-            padding: ${SUBGRID_RULE_STYLE.padding};
-          }
-        `,
           components: [
             {
               type: "text",
