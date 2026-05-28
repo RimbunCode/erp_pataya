@@ -7,6 +7,7 @@ import {
   UndoIcon,
 } from "lucide-react";
 import React, { memo, useEffect, useMemo, useState } from "react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 import { Button } from "@/Components/ui/button";
 import { Kbd, KbdGroup } from "@/Components/ui/kbd";
@@ -20,6 +21,7 @@ import { useEditor } from "@grapesjs/react";
 import SaveStatusBadge from "./SaveStatusBadge";
 
 const TopBar = memo(function TopBar() {
+  const { t } = useLaravelReactI18n();
   const editor = useEditor();
   const { UndoManager, Commands } = editor;
   const [isSaving, setIsSaving] = useState(false);
@@ -46,7 +48,7 @@ const TopBar = memo(function TopBar() {
     return [
       {
         id: "core:save-template",
-        label: "Save",
+        label: t("core.printTemplate.editor.save"),
         icon: isSaving ? (
           <Loader2Icon className="animate-spin" />
         ) : (
@@ -58,27 +60,27 @@ const TopBar = memo(function TopBar() {
       },
       {
         id: "core:undo",
-        label: "Undo",
+        label: t("core.printTemplate.editor.undo"),
         icon: <UndoIcon />,
         shortcut: ["Ctrl/Cmd", "Z"],
         disabled: () => !UndoManager.hasUndo(),
       },
       {
         id: "core:redo",
-        label: "Redo",
+        label: t("core.printTemplate.editor.redo"),
         icon: <RedoIcon />,
         shortcut: ["Ctrl/Cmd", "Shift", "Z"],
         disabled: () => !UndoManager.hasRedo(),
       },
       {
         id: "core:preview-template",
-        label: "Preview",
+        label: t("core.printTemplate.editor.preview"),
         icon: <Eye />,
         shortcut: ["Ctrl/Cmd", "Shift", "P"],
       },
       {
         id: "core:component-outline",
-        label: "Outline",
+        label: t("core.printTemplate.editor.outline"),
         toggle: true,
         icon: (
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
@@ -91,12 +93,12 @@ const TopBar = memo(function TopBar() {
       },
       {
         id: "core:open-code",
-        label: "Code",
+        label: t("core.printTemplate.editor.code"),
         toggle: true,
         icon: <Code />,
       },
     ];
-  }, [UndoManager, isSaving]);
+  }, [UndoManager, isSaving, t]);
 
   useEffect(() => {
     const cmdEvent = "run stop";

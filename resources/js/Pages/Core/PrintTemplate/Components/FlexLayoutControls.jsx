@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
 import { Input } from "@/Components/ui/input";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const justifyOptions = [
   "flex-start",
@@ -19,6 +20,7 @@ const alignOptions = [
 ];
 
 function FlexLayoutControls({ component }) {
+  const { t } = useLaravelReactI18n();
   const componentStyle = useMemo(
     () => component?.getStyle?.() || {},
     [component],
@@ -40,7 +42,7 @@ function FlexLayoutControls({ component }) {
       <div className="grid grid-cols-2 gap-2">
         <label className="space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground">
-            Justify Content
+            {t("core.printTemplate.editor.justify_content")}
           </span>
           <select
             value={componentStyle["justify-content"] || "flex-start"}
@@ -59,7 +61,7 @@ function FlexLayoutControls({ component }) {
 
         <label className="space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground">
-            Align Content
+            {t("core.printTemplate.editor.align_content")}
           </span>
           <select
             value={componentStyle["align-content"] || "stretch"}
@@ -78,7 +80,7 @@ function FlexLayoutControls({ component }) {
 
         <label className="space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground">
-            Align Items
+            {t("core.printTemplate.editor.align_items")}
           </span>
           <select
             value={componentStyle["align-items"] || "stretch"}
@@ -97,7 +99,7 @@ function FlexLayoutControls({ component }) {
       <div className="grid grid-cols-2 gap-2">
         <label className="space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground">
-            Column Gap
+            {t("core.printTemplate.editor.column_gap")}
           </span>
           <Input
             value={componentStyle["column-gap"] || ""}
@@ -109,7 +111,7 @@ function FlexLayoutControls({ component }) {
 
         <label className="space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground">
-            Row Gap
+            {t("core.printTemplate.editor.row_gap")}
           </span>
           <Input
             value={componentStyle["row-gap"] || ""}

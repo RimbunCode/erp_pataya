@@ -40,6 +40,7 @@ import {
   getSimplifiedTokenDisplay,
   buildVariableDragPayload,
   tryInsertInlineVariableToken,
+  extractLabelKeyFromToken,
 } from "../utils/variableInsertUtils";
 import { SUBGRID_CLASS, SUBGRID_RULE_STYLE } from "../utils/gridConstants";
 
@@ -119,11 +120,11 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
       setHasFetchedColumns(true);
     } catch (error) {
       console.error(error);
-      setColumnsError("Gagal memuat kolom.");
+      setColumnsError(t("core.printTemplate.editor.load_columns_error"));
     } finally {
       setIsLoadingColumns(false);
     }
-  }, [canFetchColumns, hasFetchedColumns, isLoadingColumns, relationModel]);
+  }, [canFetchColumns, hasFetchedColumns, isLoadingColumns, relationModel, t]);
 
   // Menangani perubahan state buka/tutup collapsible - memicu fetch kolom jika belum ada
   const handleOpenChange = React.useCallback(
@@ -219,16 +220,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
         variablePath: varPath,
         keyName: payload.name,
       });
-    const simplifiedToken = getSimplifiedTokenDisplay(
-      payload.formattedToken ||
-        buildVariableToken({
-          variableType: payload.type,
-          parentType: payload.parentType,
-          variablePath: varPath,
-          keyName: payload.name,
-        }),
-      varPath,
-    );
+    const labelKey = extractLabelKeyFromToken(tokenValue);
+    const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, varPath);
 
     // Jika komponen teks biasa dipilih, tambahkan span token ke dalamnya
     if (selected && selected.is("text")) {
@@ -282,8 +275,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
               draggable: false,
               content: payload.displayLabel || payload.name,
               attributes: {
-                "data-label-key": payload.name,
-                title: `{{label "${payload.name}"}}`,
+                "data-label-key": labelKey,
+                title: `{{label "${labelKey}"}}`,
               },
               components: [
                 [
@@ -294,8 +287,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                     editable: false,
                     draggable: false,
                     attributes: {
-                      "data-label-key": payload.name,
-                      title: payload.name,
+                      "data-label-key": labelKey,
+                      title: labelKey,
                       contenteditable: "false",
                     },
                     content: payload.displayLabel || payload.name,
@@ -320,34 +313,11 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                   editable: false,
                   draggable: false,
                   attributes: {
-                    "data-token":
-                      payload.formattedToken ||
-                      buildVariableToken({
-                        variableType: payload.type,
-                        parentType: payload.parentType,
-                        variablePath: varPath,
-                        keyName: payload.name,
-                      }),
-                    title:
-                      payload.formattedToken ||
-                      buildVariableToken({
-                        variableType: payload.type,
-                        parentType: payload.parentType,
-                        variablePath: varPath,
-                        keyName: payload.name,
-                      }),
+                    "data-token": tokenValue,
+                    title: tokenValue,
                     contenteditable: "false",
                   },
-                  content: getSimplifiedTokenDisplay(
-                    payload.formattedToken ||
-                      buildVariableToken({
-                        variableType: payload.type,
-                        parentType: payload.parentType,
-                        variablePath: varPath,
-                        keyName: payload.name,
-                      }),
-                    varPath,
-                  ),
+                  content: simplifiedToken,
                 },
               ],
             },
@@ -493,7 +463,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                 </code>
                 {formattedExampleValue && (
                   <p className="text-xs text-muted-foreground">
-                    Contoh:{" "}
+                    {t("core.printTemplate.editor.example_label")}
                     <span className="text-emerald-600">
                       {formattedExampleValue}
                     </span>
@@ -582,8 +552,8 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
                 </code>
                 <p className="text-xs text-muted-foreground">
                   {variable.type === "relations"
-                    ? "Tabel relasi (drag untuk membuat tabel)"
-                    : "Relasi (klik untuk expand)"}
+                    ? t("core.printTemplate.editor.relations_tooltip")
+                    : t("core.printTemplate.editor.relation_tooltip")}
                 </p>
               </div>
             </TooltipContent>
@@ -597,7 +567,7 @@ function VariableItem({ path = "", exampleData = null, ...variable }) {
         <CollapsibleContent className="pl-4 mt-1 border-l border-muted-foreground/25">
           {isLoadingColumns && (
             <p className="px-2 py-1 text-xs text-muted-foreground">
-              Memuat kolom...
+              {t("core.printTemplate.editor.loading_columns")}
             </p>
           )}
 

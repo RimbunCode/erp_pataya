@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
 
@@ -56,6 +57,7 @@ function splitTrackList(trackList) {
 }
 
 function GridLayoutControls({ component }) {
+  const { t } = useLaravelReactI18n();
   const [columns, setColumns] = useState(["1fr"]);
 
   useEffect(() => {
@@ -91,7 +93,7 @@ function GridLayoutControls({ component }) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Grid Columns
+            {t("core.printTemplate.editor.grid_columns")}
           </p>
           <Button
             type="button"
@@ -100,7 +102,7 @@ function GridLayoutControls({ component }) {
             className="h-7 text-xs"
             onClick={() => updateColumns([...columns, "1fr"])}
           >
-            + Kolom
+            {t("core.printTemplate.editor.add_column")}
           </Button>
         </div>
         <div className="space-y-2">
@@ -129,7 +131,7 @@ function GridLayoutControls({ component }) {
                   updateColumns(nextColumns.length ? nextColumns : ["1fr"]);
                 }}
               >
-                Hapus
+                {t("core.printTemplate.editor.remove")}
               </Button>
             </div>
           ))}
@@ -138,10 +140,10 @@ function GridLayoutControls({ component }) {
 
       <div className="grid grid-cols-2 gap-2">
         {[
-          ["justify-content", "Justify Content"],
-          ["align-content", "Align Content"],
-          ["justify-items", "Justify Items"],
-          ["align-items", "Align Items"],
+          ["justify-content", t("core.printTemplate.editor.justify_content")],
+          ["align-content", t("core.printTemplate.editor.align_content")],
+          ["justify-items", t("core.printTemplate.editor.justify_items")],
+          ["align-items", t("core.printTemplate.editor.align_items")],
         ].map(([property, label]) => (
           <label key={property} className="space-y-1">
             <span className="text-[11px] font-medium text-muted-foreground">
@@ -165,7 +167,7 @@ function GridLayoutControls({ component }) {
       <div className="grid grid-cols-2 gap-2">
         <label className="space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground">
-            Column Gap
+            {t("core.printTemplate.editor.column_gap")}
           </span>
           <Input
             value={componentStyle["column-gap"] || ""}
@@ -176,7 +178,7 @@ function GridLayoutControls({ component }) {
         </label>
         <label className="space-y-1">
           <span className="text-[11px] font-medium text-muted-foreground">
-            Row Gap
+            {t("core.printTemplate.editor.row_gap")}
           </span>
           <Input
             value={componentStyle["row-gap"] || ""}

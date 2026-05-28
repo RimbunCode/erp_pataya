@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Loader2Icon } from "lucide-react";
 import { useEditor } from "@grapesjs/react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-function formatRelativeTime(lastSavedAt) {
+function formatRelativeTime(lastSavedAt, t) {
   if (!lastSavedAt) {
     return "";
   }
@@ -13,20 +14,23 @@ function formatRelativeTime(lastSavedAt) {
   const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
 
   if (diffSeconds < 60) {
-    return "baru saja";
+    return t("core.printTemplate.editor.time_just_now");
   }
 
   const diffMinutes = Math.floor(diffSeconds / 60);
   if (diffMinutes < 60) {
-    return `${diffMinutes}m lalu`;
+    return t("core.printTemplate.editor.time_minutes_ago", {
+      count: diffMinutes,
+    });
   }
 
   const diffHours = Math.floor(diffMinutes / 60);
-  return `${diffHours}j lalu`;
+  return t("core.printTemplate.editor.time_hours_ago", { count: diffHours });
 }
 
 function SaveStatusBadge() {
   const editor = useEditor();
+  const { t } = useLaravelReactI18n();
   const [status, setStatus] = useState("idle");
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [, setTick] = useState(0);
@@ -56,7 +60,7 @@ function SaveStatusBadge() {
     };
 
     const onSaveSuccess = () => {
-      toast.success("Template berhasil disimpan.");
+      toast.success(t("core.printTemplate.editor.save_success"));
       onSaved();
     };
 
@@ -64,7 +68,7 @@ function SaveStatusBadge() {
       const message =
         typeof error === "string"
           ? error
-          : error?.message || "Terjadi kesalahan saat menyimpan template.";
+          : error?.message || t("core.printTemplate.editor.save_error_message");
 
       setStatus("error");
       toast.error(message);
@@ -90,7 +94,7 @@ function SaveStatusBadge() {
   const viewModel = useMemo(() => {
     if (status === "saving") {
       return {
-        label: "Saving...",
+        label: t("core.printTemplate.editor.status_saving"),
         className: "primary",
         icon: <Loader2Icon className="size-3 animate-spin" />,
       };
@@ -98,7 +102,7 @@ function SaveStatusBadge() {
 
     if (status === "dirty") {
       return {
-        label: "Not Saved",
+        label: t("core.printTemplate.editor.status_not_saved"),
         className: "warning",
         icon: null,
       };
@@ -106,7 +110,7 @@ function SaveStatusBadge() {
 
     if (status === "error") {
       return {
-        label: "Save Error",
+        label: t("core.printTemplate.editor.status_save_error"),
         className: "error",
         icon: null,
       };
@@ -114,18 +118,19 @@ function SaveStatusBadge() {
 
     if (status === "saved" || lastSavedAt) {
       return {
-        label: `Saved ${formatRelativeTime(lastSavedAt)}`.trim(),
+        label:
+          `${t("core.printTemplate.editor.status_saved")} ${formatRelativeTime(lastSavedAt, t)}`.trim(),
         className: "success",
         icon: null,
       };
     }
 
     return {
-      label: "Ready",
+      label: t("core.printTemplate.editor.status_ready"),
       className: "secondary",
       icon: null,
     };
-  }, [lastSavedAt, status]);
+  }, [lastSavedAt, status, t]);
 
   return (
     <span className={cn("badge", viewModel.className)}>

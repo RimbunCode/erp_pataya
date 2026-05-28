@@ -141,13 +141,16 @@ function CSSEditorModal({
               <div className="flex items-center gap-2 mb-1.5">
                 <AlertTriangle className="h-4 w-4 text-destructive" />
                 <span className="text-sm font-medium text-destructive">
-                  CSS Syntax Error ({errors.length})
+                  {t("core.printTemplate.editor.css_syntax_error")} (
+                  {errors.length})
                 </span>
               </div>
               <ul className="space-y-1">
                 {errors.slice(0, 5).map((error, idx) => (
                   <li key={idx} className="text-xs text-destructive/80">
-                    • {error.message || "Invalid CSS declaration"}
+                    •{" "}
+                    {error.message ||
+                      t("core.printTemplate.editor.invalid_css_declaration")}
                   </li>
                 ))}
               </ul>
@@ -159,13 +162,11 @@ function CSSEditorModal({
               <div className="flex items-center gap-2 mb-1.5">
                 <AlertTriangle className="h-4 w-4 text-amber-600" />
                 <span className="text-sm font-medium text-amber-700">
-                  Protected selector terdeteksi
+                  {t("core.printTemplate.editor.protected_selector_title")}
                 </span>
               </div>
               <p className="text-xs text-amber-800">
-                Selector ini tidak boleh dihapus. Property default pada selector
-                ini juga tidak boleh dihapus; Anda hanya bisa mengubah value
-                atau menambah property baru.
+                {t("core.printTemplate.editor.protected_selector_desc")}
               </p>
               <ul className="mt-1.5 space-y-1">
                 {warningSelectors.map((selector) => (

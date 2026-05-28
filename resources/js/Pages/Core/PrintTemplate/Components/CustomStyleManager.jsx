@@ -2,7 +2,6 @@
  * Komponen pengelola style kustom untuk editor PrintTemplate.
  * Menampilkan panel style properties (dikelompokkan per section), class manager,
  * dan editor CSS manual untuk komponen yang sedang dipilih di canvas GrapesJS.
- *
  * @module CustomStyleManager
  * @param {Object} props
  * @param {Array} props.sectors - Daftar sector style dari GrapesJS StyleManager,
@@ -65,7 +64,6 @@ function styleObjectToCssText(styleObject = {}) {
  * Mengelompokkan dan memfilter properti style berdasarkan section.
  * Menyembunyikan properti individual jika composite parent sudah ada
  * (misal: margin-top disembunyikan jika composite margin tersedia).
- *
  * @param {string} sectionId - ID section style (dimension, typography, dll)
  * @param {Array} properties - Daftar properti GrapesJS dari sector
  * @returns {Array} Properti yang sudah difilter untuk ditampilkan
@@ -130,7 +128,6 @@ function groupSectionProperties(sectionId, properties) {
  * Mendeteksi mode layout dari komponen yang dipilih.
  * Memeriksa style display dan tipe komponen untuk menentukan apakah
  * komponen menggunakan grid atau flex layout.
- *
  * @param {Object|null} component - Komponen GrapesJS yang dipilih
  * @returns {"grid"|"flex"|null} Mode layout atau null jika tidak terdeteksi
  */
@@ -476,7 +473,7 @@ function CustomStyleManager({ sectors }) {
       {layoutMode && selectedComponent && (
         <div className="rounded-md border border-border/60 bg-card p-3">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Layout
+            {t("core.printTemplate.editor.layout")}
           </p>
           {layoutMode === "grid" ? (
             <GridLayoutControls component={selectedComponent} />
@@ -488,7 +485,7 @@ function CustomStyleManager({ sectors }) {
 
       {!sectionItems.length ? (
         <div className="p-4 text-sm text-muted-foreground">
-          Tidak ada properti style yang tersedia untuk komponen ini.
+          {t("core.printTemplate.editor.no_style_properties")}
         </div>
       ) : (
         <Accordion
@@ -628,7 +625,7 @@ function CustomStyleManager({ sectors }) {
               </pre>
             ) : (
               <p className="text-xs italic text-muted-foreground">
-                No manual CSS applied.
+                {t("core.printTemplate.editor.no_manual_css")}
               </p>
             )}
           </div>

@@ -15,6 +15,22 @@ import { simplifyTokenDisplay } from "../Components/tokenConfigHelpers";
 import { getFormattedHandlebarToken } from "./variableTokenUtils";
 
 /**
+ * Mengekstrak label key dari token Handlebar dengan menghapus pembungkus {{...}}.
+ * Idempotent: jika input sudah tanpa pembungkus, dikembalikan apa adanya.
+ *
+ * @param {string} token - String token (bisa dengan atau tanpa pembungkus `{{...}}`)
+ * @returns {string} Isi token tanpa pembungkus, atau string asli jika bukan format token
+ */
+export function extractLabelKeyFromToken(token) {
+  if (!token || typeof token !== "string") {
+    return "";
+  }
+
+  const match = token.trim().match(/^\{\{\s*(.*?)\s*\}\}$/);
+  return match ? match[1] : token;
+}
+
+/**
  * Membangun string token Handlebar berdasarkan tipe dan path variabel.
  * Menentukan format token sesuai dengan tipe variabel:
  * - company → {{company.<keyName>}}

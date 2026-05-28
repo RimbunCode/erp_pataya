@@ -70,6 +70,7 @@ export function initHandlebar(trans) {
         ""
       );
     }
+    console.log(options);
 
     const locale = options?.hash?.locale;
     const type = options?.hash?.type ?? "data";

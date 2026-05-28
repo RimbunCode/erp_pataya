@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ import { handleModalEditorKeyDown } from "../utils/modalEditorUtils";
  * @returns {React.JSX.Element}
  */
 function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
+  const { t } = useLaravelReactI18n();
   const [rawHTML, setRawHTML] = useState(initialHTML);
   const [sanitizationResult, setSanitizationResult] = useState(null);
 
@@ -89,18 +91,19 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Code2 className="h-5 w-5" />
-            Custom HTML Editor
+            {t("core.printTemplate.editor.custom_html_editor")}
           </DialogTitle>
           <DialogDescription>
-            Masukkan HTML kustom. Konten berbahaya akan otomatis dihapus untuk
-            keamanan.
+            {t("core.printTemplate.editor.html_editor_desc")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
           {/* Code Editor (textarea) */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Input HTML</label>
+            <label className="text-sm font-medium">
+              {t("core.printTemplate.editor.input_html")}
+            </label>
             <div
               className={cn(
                 "overflow-hidden rounded-md border min-h-[400px]",
@@ -127,7 +130,9 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
 
           {/* Sanitization Preview (Requirement 6.7 - real-time preview) */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium">Preview (Sanitized)</label>
+            <label className="text-sm font-medium">
+              {t("core.printTemplate.editor.preview_sanitized")}
+            </label>
             <div
               className={cn(
                 "w-full min-h-[400px] p-3 border rounded-md overflow-auto",
@@ -142,7 +147,7 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
                 />
               ) : (
                 <p className="text-sm text-muted-foreground italic">
-                  Preview akan muncul di sini...
+                  {t("core.printTemplate.editor.preview_placeholder")}
                 </p>
               )}
             </div>
@@ -155,7 +160,7 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
             <div className="flex items-center gap-2 mb-1.5">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
               <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
-                Peringatan Keamanan
+                {t("core.printTemplate.editor.security_warning")}
               </span>
             </div>
             <ul className="space-y-1">
@@ -177,7 +182,7 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
             size="md"
             onClick={() => onOpenChange?.(false)}
           >
-            Batal
+            {t("core.printTemplate.editor.cancel_button")}
           </Button>
           <Button
             variant="primary"
@@ -186,7 +191,7 @@ function StaticHTMLComponent({ open, onOpenChange, initialHTML = "", onSave }) {
             disabled={!rawHTML.trim()}
           >
             <Check className="h-4 w-4" />
-            Simpan HTML
+            {t("core.printTemplate.editor.save_html")}
           </Button>
         </DialogFooter>
       </DialogContent>

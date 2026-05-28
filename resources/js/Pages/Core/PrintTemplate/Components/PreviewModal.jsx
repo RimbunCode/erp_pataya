@@ -176,9 +176,7 @@ function PreviewModal({
 
       const previewWindow = window.open("", "_blank", "noopener,noreferrer");
       if (!previewWindow) {
-        setRenderError(
-          "Popup diblokir browser. Izinkan popup untuk print/export.",
-        );
+        setRenderError(t("core.printTemplate.editor.popup_blocked"));
         return;
       }
 
@@ -203,7 +201,7 @@ function PreviewModal({
         };
       }
     },
-    [previewCSS, previewHTML, printTemplate?.name],
+    [previewCSS, previewHTML, printTemplate?.name, t],
   );
 
   const handlePrint = useCallback(() => {
@@ -234,18 +232,18 @@ function PreviewModal({
         ...current.filter(
           (warning) => !/no example data|tidak ada data contoh/i.test(warning),
         ),
-        "Example data berhasil dibuat. Preview dimuat ulang.",
+        t("core.printTemplate.editor.example_data_success"),
       ]);
       setRefreshKey((current) => current + 1);
     } catch (error) {
       const message =
         error?.response?.data?.message ||
-        "Gagal membuat example data otomatis. Jalankan seeder lalu coba lagi.";
+        t("core.printTemplate.editor.example_data_error");
       setRenderError(message);
     } finally {
       setIsGeneratingExampleData(false);
     }
-  }, [isGeneratingExampleData, printTemplate?.id]);
+  }, [isGeneratingExampleData, printTemplate?.id, t]);
 
   // Stable refs for values used inside the fetch to avoid re-triggering
   // the effect when object references change on parent re-renders.
@@ -283,7 +281,9 @@ function PreviewModal({
     if (!printTemplate?.id) {
       const frameId = requestAnimationFrame(() => {
         if (cancelledRef.current) return;
-        setRenderError("Template tidak valid untuk preview.");
+        setRenderError(
+          tRef.current("core.printTemplate.editor.template_invalid_preview"),
+        );
         setPreviewHTML("");
         setPreviewCSS("");
         setWarnings([]);
@@ -384,7 +384,7 @@ function PreviewModal({
         setMissingDataMessage(
           hasNoExampleData
             ? noDataWarning ||
-                "Example data tidak tersedia untuk model ini. Preview bisa tidak merepresentasikan output akhir."
+                tRef.current("core.printTemplate.editor.missing_data_message")
             : "",
         );
       } catch (error) {
@@ -399,7 +399,7 @@ function PreviewModal({
             ? `${backendMessage || error?.message} (token: ${problematicToken})`
             : backendMessage ||
                 error?.message ||
-                "Gagal merender preview template.",
+                tRef.current("core.printTemplate.editor.render_error_title"),
         );
         setPreviewHTML("");
         setPreviewCSS("");
@@ -494,10 +494,10 @@ function PreviewModal({
         <DialogHeader className="shrink-0 border-b px-5 py-4">
           <DialogTitle className="flex items-center gap-2 text-base">
             <Eye className="size-4 text-muted-foreground" />
-            Preview Template
+            {t("core.printTemplate.editor.preview_template")}
           </DialogTitle>
           <DialogDescription className="text-xs">
-            Render hasil template menggunakan example data dari server.
+            {t("core.printTemplate.editor.preview_description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -508,7 +508,7 @@ function PreviewModal({
               <div className="flex flex-col items-center gap-3">
                 <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-primary" />
                 <p className="text-sm text-muted-foreground">
-                  Memuat preview...
+                  {t("core.printTemplate.editor.loading_preview")}
                 </p>
               </div>
             </div>
@@ -520,7 +520,9 @@ function PreviewModal({
                 <AlertCircle />
               </AlertIcon>
               <AlertContent>
-                <AlertTitle>Gagal merender preview</AlertTitle>
+                <AlertTitle>
+                  {t("core.printTemplate.editor.render_error_title")}
+                </AlertTitle>
                 <AlertDescription>{renderError}</AlertDescription>
               </AlertContent>
             </Alert>
@@ -534,7 +536,9 @@ function PreviewModal({
                     <TriangleAlert />
                   </AlertIcon>
                   <AlertContent>
-                    <AlertTitle>Warnings</AlertTitle>
+                    <AlertTitle>
+                      {t("core.printTemplate.editor.warnings")}
+                    </AlertTitle>
                     <AlertDescription>
                       <ul className="list-inside list-disc space-y-0.5">
                         {warnings.map((warning, index) => (
@@ -552,12 +556,17 @@ function PreviewModal({
                     <TableProperties />
                   </AlertIcon>
                   <AlertContent>
-                    <AlertTitle>Ringkasan Table Relation</AlertTitle>
+                    <AlertTitle>
+                      {t("core.printTemplate.editor.relation_summary_title")}
+                    </AlertTitle>
                     <AlertDescription>
                       <ul className="list-inside list-disc space-y-0.5">
                         {relationRowSummary.map((item) => (
                           <li key={item.relation}>
-                            {item.relation}: {item.rows} baris data contoh
+                            {item.relation}: {item.rows}{" "}
+                            {t(
+                              "core.printTemplate.editor.relation_rows_suffix",
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -572,7 +581,9 @@ function PreviewModal({
                     <Info />
                   </AlertIcon>
                   <AlertContent>
-                    <AlertTitle>Data Contoh Tidak Tersedia</AlertTitle>
+                    <AlertTitle>
+                      {t("core.printTemplate.editor.missing_data_title")}
+                    </AlertTitle>
                     <AlertDescription>
                       <p>{missingDataMessage}</p>
                       <Button
@@ -584,8 +595,10 @@ function PreviewModal({
                         disabled={isGeneratingExampleData}
                       >
                         {isGeneratingExampleData
-                          ? "Membuat Data..."
-                          : "Generate Example Data"}
+                          ? t("core.printTemplate.editor.generating_data")
+                          : t(
+                              "core.printTemplate.editor.generate_example_data",
+                            )}
                       </Button>
                     </AlertDescription>
                   </AlertContent>
@@ -597,7 +610,7 @@ function PreviewModal({
                 <div className="inline-block rounded border border-border bg-white shadow-sm">
                   <iframe
                     ref={iframeRef}
-                    title="Print Preview"
+                    title={t("core.printTemplate.editor.preview_iframe_title")}
                     className="block border-0"
                     style={{
                       width: `${paperWidth}${unitCode}`,
@@ -614,7 +627,7 @@ function PreviewModal({
         <DialogFooter className="shrink-0 gap-2 border-t px-5 py-3">
           <DialogClose asChild>
             <Button type="button" variant="outline" size="sm">
-              Close
+              {t("core.printTemplate.editor.close")}
             </Button>
           </DialogClose>
           <Button
@@ -625,7 +638,7 @@ function PreviewModal({
             disabled={loading || !previewHTML}
           >
             <Printer className="size-3.5" />
-            Print
+            {t("core.printTemplate.editor.print")}
           </Button>
           <Button
             type="button"
@@ -634,7 +647,7 @@ function PreviewModal({
             disabled={loading || !previewHTML}
           >
             <FileDown className="size-3.5" />
-            Export PDF
+            {t("core.printTemplate.editor.export_pdf")}
           </Button>
         </DialogFooter>
       </DialogContent>

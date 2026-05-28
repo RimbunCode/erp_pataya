@@ -449,7 +449,7 @@ function RelationColumnDialog({
         <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
           {isLoadingColumns && (
             <p className="text-xs text-muted-foreground">
-              Memuat kolom terbaru...
+              {t("core.printTemplate.editor.loading_latest_columns")}
             </p>
           )}
 

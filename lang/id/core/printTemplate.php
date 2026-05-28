@@ -55,6 +55,10 @@ return [
         'show_absolute_values'             => 'Tampilkan Nilai Mutlak',
         'show_absolute_values.description' => 'Jika dicentang, nilai minus dari Mata Uang, Jumlah atau Hitungan akan ditampilkan bernilai positif',
     ],
+    'doc_info'         => 'Info Dokumen',
+    'doc_info.columns' => [
+        'doc_name' => 'Nama Dokumen',
+    ],
     'open_editor'    => 'Buka Editor',
     'style_settings' => 'Pengaturan Gaya (Style)',
 
@@ -94,5 +98,122 @@ return [
         'save_error'             => 'Gagal menyimpan template karena masalah jaringan.',
         'template_invalid'       => 'Template tidak valid',
         'invalid_drop_target'    => 'Target drop tidak valid untuk komponen variabel.',
+
+        // MobileEditor
+        'save'                => 'Simpan',
+        'preview'             => 'Pratinjau',
+        'undo'                => 'Urungkan',
+        'redo'                => 'Ulangi',
+        'mobile_editor_title' => 'Editor Mobile',
+        'mobile_editor_desc'  => 'Tap komponen teks di canvas untuk mengubah isi dan style dasarnya.',
+        'no_text_selected'    => 'Belum ada komponen teks yang dipilih.',
+        'text'                => 'Teks',
+        'font_size'           => 'Ukuran Font (px)',
+        'color'               => 'Warna',
+        'alignment'           => 'Perataan',
+        'align_left'          => 'Rata Kiri',
+        'align_center'        => 'Rata Tengah',
+        'align_right'         => 'Rata Kanan',
+        'align_justify'       => 'Rata Kiri-Kanan',
+
+        // TopBar (reuses save/preview/undo/redo)
+        'outline' => 'Outline',
+        'code'    => 'Kode',
+
+        // SaveStatusBadge
+        'status_saving'      => 'Menyimpan...',
+        'status_not_saved'   => 'Belum Disimpan',
+        'status_save_error'  => 'Gagal Simpan',
+        'status_saved'       => 'Tersimpan',
+        'status_ready'       => 'Siap',
+        'time_just_now'      => 'baru saja',
+        'time_minutes_ago'   => ':countm lalu',
+        'time_hours_ago'     => ':countj lalu',
+        'save_success'       => 'Template berhasil disimpan.',
+        'save_error_message' => 'Terjadi kesalahan saat menyimpan template.',
+
+        // PreviewModal
+        'preview_template'         => 'Pratinjau Template',
+        'preview_description'      => 'Render hasil template menggunakan example data dari server.',
+        'loading_preview'          => 'Memuat pratinjau...',
+        'render_error_title'       => 'Gagal merender preview',
+        'warnings'                 => 'Peringatan',
+        'relation_summary_title'   => 'Ringkasan Tabel Relasi',
+        'relation_rows_suffix'     => 'baris data contoh',
+        'missing_data_title'       => 'Data Contoh Tidak Tersedia',
+        'missing_data_message'     => 'Example data tidak tersedia untuk model ini. Preview bisa tidak merepresentasikan output akhir.',
+        'generate_example_data'    => 'Generate Data Contoh',
+        'generating_data'          => 'Membuat Data...',
+        'close'                    => 'Tutup',
+        'print'                    => 'Cetak',
+        'export_pdf'               => 'Ekspor PDF',
+        'popup_blocked'            => 'Popup diblokir browser. Izinkan popup untuk print/export.',
+        'example_data_success'     => 'Example data berhasil dibuat. Preview dimuat ulang.',
+        'example_data_error'       => 'Gagal membuat example data otomatis. Jalankan seeder lalu coba lagi.',
+        'template_invalid_preview' => 'Template tidak valid untuk preview.',
+        'preview_iframe_title'     => 'Pratinjau Cetak',
+
+        // CustomStyleManager
+        'layout'              => 'Layout',
+        'no_style_properties' => 'Tidak ada properti style yang tersedia untuk komponen ini.',
+        'no_manual_css'       => 'Tidak ada CSS manual yang diterapkan.',
+
+        // CustomSelectorManager
+        'selectors'          => 'Selektor',
+        'select_a_component' => 'Pilih komponen',
+        'selected'           => 'Terpilih:',
+        'none'               => 'Tidak ada',
+
+        // FlexLayoutControls
+        'justify_content' => 'Justify Content',
+        'align_content'   => 'Align Content',
+        'align_items'     => 'Align Items',
+        'column_gap'      => 'Column Gap',
+        'row_gap'         => 'Row Gap',
+
+        // GridLayoutControls
+        'grid_columns'  => 'Grid Columns',
+        'add_column'    => '+ Kolom',
+        'remove'        => 'Hapus',
+        'justify_items' => 'Justify Items',
+
+        // StaticHTMLComponent
+        'custom_html_editor'  => 'Editor HTML Kustom',
+        'html_editor_desc'    => 'Masukkan HTML kustom. Konten berbahaya akan otomatis dihapus untuk keamanan.',
+        'input_html'          => 'Input HTML',
+        'preview_sanitized'   => 'Preview (Tersanitasi)',
+        'preview_placeholder' => 'Preview akan muncul di sini...',
+        'security_warning'    => 'Peringatan Keamanan',
+        'cancel_button'       => 'Batal',
+        'save_html'           => 'Simpan HTML',
+
+        // StaticHTMLInspector
+        'static_html_inspector' => 'Inspektur HTML Statis',
+        'select_html_component' => 'Pilih komponen Custom HTML di canvas untuk melihat dan mengedit HTML.',
+        'edit_html'             => 'Edit HTML',
+        'raw_html'              => 'HTML Mentah',
+        'sanitization_warning'  => 'Peringatan Sanitasi',
+        'sanitized_preview'     => 'Preview Tersanitasi',
+        'no_html_stored'        => 'Belum ada HTML yang tersimpan.',
+
+        // CSSEditorModal
+        'css_syntax_error'         => 'Error Sintaks CSS',
+        'invalid_css_declaration'  => 'Deklarasi CSS tidak valid',
+        'protected_selector_title' => 'Protected selector terdeteksi',
+        'protected_selector_desc'  => 'Selector ini tidak boleh dihapus. Property default pada selector ini juga tidak boleh dihapus; Anda hanya bisa mengubah value atau menambah property baru.',
+
+        // VariableManager
+        'document_variables'     => 'Variabel Dokumen',
+        'no_variables_available' => 'Tidak ada variabel tersedia.',
+
+        // VariableItem
+        'load_columns_error' => 'Gagal memuat kolom.',
+        'example_label'      => 'Contoh:',
+        'relations_tooltip'  => 'Tabel relasi (drag untuk membuat tabel)',
+        'relation_tooltip'   => 'Relasi (klik untuk expand)',
+        'loading_columns'    => 'Memuat kolom...',
+
+        // TokenConfigurationManager
+        'loading_latest_columns' => 'Memuat kolom terbaru...',
     ],
 ];

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import {
   buildVariableToken,
   getSimplifiedTokenDisplay,
+  extractLabelKeyFromToken,
 } from "./variableInsertUtils";
 import {
   GRID_CLASS,
@@ -26,7 +27,6 @@ import {
  * - Sinkronisasi tampilan variabel saat komponen ditambahkan atau dimuat
  * - Intersepsi data drop dari panel variabel ke canvas
  * - Validasi target drop dan pembungkusan otomatis dengan grid container
- *
  * @param {object} editor - Instance editor GrapesJS
  * @param {object} options - Opsi konfigurasi listener
  * @param {Function} options.t - Fungsi translasi i18n
@@ -323,6 +323,16 @@ export function variableDropListener(editor, { t, exampleData, locale }) {
       // Penanganan drop variabel tunggal - buat baris subgrid dengan label dan token
       // Requirements: 1.1, 1.2, 1.5, 1.6 - Tampilkan data contoh di canvas dengan layout grid
       const varPath = payload.fullKey || payload.name;
+      const token =
+        payload.formattedToken ||
+        buildVariableToken({
+          variableType: payload.type,
+          parentType: payload.parentType,
+          variablePath: varPath,
+          keyName: payload.name,
+        });
+      const labelKey = extractLabelKeyFromToken(token);
+      const simplifiedToken = getSimplifiedTokenDisplay(token, varPath);
       result.content = {
         type: "gjsSubGrid",
         classes: [SUBGRID_CLASS],
@@ -354,8 +364,8 @@ export function variableDropListener(editor, { t, exampleData, locale }) {
                   editable: false,
                   draggable: false,
                   attributes: {
-                    "data-label-key": payload.name,
-                    title: payload.name,
+                    "data-label-key": labelKey,
+                    title: labelKey,
                     contenteditable: "false",
                   },
                   content: payload.displayLabel || payload.name,
@@ -380,34 +390,11 @@ export function variableDropListener(editor, { t, exampleData, locale }) {
                 editable: false,
                 draggable: false,
                 attributes: {
-                  "data-token":
-                    payload.formattedToken ||
-                    buildVariableToken({
-                      variableType: payload.type,
-                      parentType: payload.parentType,
-                      variablePath: varPath,
-                      keyName: payload.name,
-                    }),
-                  title:
-                    payload.formattedToken ||
-                    buildVariableToken({
-                      variableType: payload.type,
-                      parentType: payload.parentType,
-                      variablePath: varPath,
-                      keyName: payload.name,
-                    }),
+                  "data-token": token,
+                  title: token,
                   contenteditable: "false",
                 },
-                content: getSimplifiedTokenDisplay(
-                  payload.formattedToken ||
-                    buildVariableToken({
-                      variableType: payload.type,
-                      parentType: payload.parentType,
-                      variablePath: varPath,
-                      keyName: payload.name,
-                    }),
-                  varPath,
-                ),
+                content: simplifiedToken,
               },
             ],
           },

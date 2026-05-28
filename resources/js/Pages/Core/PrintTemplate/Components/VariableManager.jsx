@@ -30,11 +30,13 @@ function VariableManager() {
 
   return (
     <div className="max-h-[80vh] space-y-3 overflow-y-auto p-3 text-left">
-      <h3 className="text-base font-semibold">Variabel Dokumen</h3>
+      <h3 className="text-base font-semibold">
+        {t("core.printTemplate.editor.document_variables")}
+      </h3>
 
       {!availableVariables.length ? (
         <p className="text-sm text-muted-foreground">
-          Tidak ada variabel tersedia.
+          {t("core.printTemplate.editor.no_variables_available")}
         </p>
       ) : (
         <div className="space-y-2">

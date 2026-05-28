@@ -11,6 +11,7 @@ import {
   SaveIcon,
   UndoIcon,
 } from "lucide-react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
@@ -25,22 +26,22 @@ const ALIGNMENT_OPTIONS = [
   {
     value: "left",
     icon: AlignLeft,
-    label: "Align Left",
+    labelKey: "core.printTemplate.editor.align_left",
   },
   {
     value: "center",
     icon: AlignCenter,
-    label: "Align Center",
+    labelKey: "core.printTemplate.editor.align_center",
   },
   {
     value: "right",
     icon: AlignRight,
-    label: "Align Right",
+    labelKey: "core.printTemplate.editor.align_right",
   },
   {
     value: "justify",
     icon: AlignJustify,
-    label: "Align Justify",
+    labelKey: "core.printTemplate.editor.align_justify",
   },
 ];
 
@@ -127,6 +128,7 @@ function resolveEditableComponent(component) {
 }
 
 function MobileEditor({ canvasClassName, canvasStyle }) {
+  const { t } = useLaravelReactI18n();
   const editor = useEditor();
   const { UndoManager, Commands } = editor;
 
@@ -284,7 +286,7 @@ function MobileEditor({ canvasClassName, canvasStyle }) {
             className="h-9"
           >
             {isSaving ? <Loader2Icon className="animate-spin" /> : <SaveIcon />}
-            Save
+            {t("core.printTemplate.editor.save")}
           </Button>
           <Button
             type="button"
@@ -294,7 +296,7 @@ function MobileEditor({ canvasClassName, canvasStyle }) {
             className="h-9"
           >
             <Eye />
-            Preview
+            {t("core.printTemplate.editor.preview")}
           </Button>
           <Button
             type="button"
@@ -305,7 +307,7 @@ function MobileEditor({ canvasClassName, canvasStyle }) {
             className="h-9"
           >
             <UndoIcon />
-            Undo
+            {t("core.printTemplate.editor.undo")}
           </Button>
           <Button
             type="button"
@@ -316,7 +318,7 @@ function MobileEditor({ canvasClassName, canvasStyle }) {
             className="h-9"
           >
             <RedoIcon />
-            Redo
+            {t("core.printTemplate.editor.redo")}
           </Button>
         </div>
       </div>
@@ -328,20 +330,24 @@ function MobileEditor({ canvasClassName, canvasStyle }) {
       <div className="max-h-[42vh] overflow-auto rounded-xl border border-border bg-card p-3 shadow-xs">
         <div className="space-y-3 text-left">
           <div>
-            <h3 className="text-sm font-semibold">Editor Mobile</h3>
+            <h3 className="text-sm font-semibold">
+              {t("core.printTemplate.editor.mobile_editor_title")}
+            </h3>
             <p className="text-xs text-muted-foreground">
-              Tap komponen teks di canvas untuk mengubah isi dan style dasarnya.
+              {t("core.printTemplate.editor.mobile_editor_desc")}
             </p>
           </div>
 
           {!hasSelectedTextComponent ? (
             <div className="rounded-md border border-dashed border-muted-foreground/40 p-3 text-xs text-muted-foreground">
-              Belum ada komponen teks yang dipilih.
+              {t("core.printTemplate.editor.no_text_selected")}
             </div>
           ) : (
             <>
               <div className="space-y-1.5">
-                <Label className="text-xs">Text</Label>
+                <Label className="text-xs">
+                  {t("core.printTemplate.editor.text")}
+                </Label>
                 <Textarea
                   rows={3}
                   value={textContent}
@@ -352,7 +358,9 @@ function MobileEditor({ canvasClassName, canvasStyle }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Font Size (px)</Label>
+                  <Label className="text-xs">
+                    {t("core.printTemplate.editor.font_size")}
+                  </Label>
                   <Input
                     value={fontSize}
                     onChange={(event) => applyFontSize(event.target.value)}
@@ -362,7 +370,9 @@ function MobileEditor({ canvasClassName, canvasStyle }) {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Color</Label>
+                  <Label className="text-xs">
+                    {t("core.printTemplate.editor.color")}
+                  </Label>
                   <Input
                     type="color"
                     value={fontColor}
@@ -373,15 +383,17 @@ function MobileEditor({ canvasClassName, canvasStyle }) {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs">Alignment</Label>
+                <Label className="text-xs">
+                  {t("core.printTemplate.editor.alignment")}
+                </Label>
                 <div className="grid grid-cols-4 gap-2">
-                  {ALIGNMENT_OPTIONS.map(({ value, icon: Icon, label }) => (
+                  {ALIGNMENT_OPTIONS.map(({ value, icon: Icon, labelKey }) => (
                     <Button
                       key={value}
                       type="button"
                       variant={textAlign === value ? "secondary" : "outline"}
                       size="md"
-                      aria-label={label}
+                      aria-label={t(labelKey)}
                       onClick={() => applyTextAlign(value)}
                       className={cn("h-8 px-2")}
                     >

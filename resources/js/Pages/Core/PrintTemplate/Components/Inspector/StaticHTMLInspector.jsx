@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { AlertTriangle, Code2 } from "lucide-react";
 import { useEditor } from "@grapesjs/react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import { Button } from "@/Components/ui/button";
 
 function findStaticHTMLComponent(component) {
@@ -38,6 +39,7 @@ function extractStaticHTMLState(component) {
 }
 
 function StaticHTMLInspector() {
+  const { t } = useLaravelReactI18n();
   const editor = useEditor();
   const [state, setState] = useState(() => extractStaticHTMLState(null));
 
@@ -70,10 +72,10 @@ function StaticHTMLInspector() {
       <div className="p-4 border rounded-md border-muted-foreground/25 bg-background">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <Code2 className="h-4 w-4" />
-          Static HTML Inspector
+          {t("core.printTemplate.editor.static_html_inspector")}
         </h3>
         <p className="mt-2 text-xs text-muted-foreground">
-          Pilih komponen Custom HTML di canvas untuk melihat dan mengedit HTML.
+          {t("core.printTemplate.editor.select_html_component")}
         </p>
       </div>
     );
@@ -84,20 +86,22 @@ function StaticHTMLInspector() {
       <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold flex items-center gap-2">
           <Code2 className="h-4 w-4" />
-          Static HTML Inspector
+          {t("core.printTemplate.editor.static_html_inspector")}
         </h3>
         <Button
           type="button"
           size="sm"
           variant="outline"
-          onClick={() => editor.trigger("staticHTML:edit", state.selectedComponent)}
+          onClick={() =>
+            editor.trigger("staticHTML:edit", state.selectedComponent)
+          }
         >
-          Edit HTML
+          {t("core.printTemplate.editor.edit_html")}
         </Button>
       </div>
 
       <div className="space-y-1 text-xs">
-        <p className="font-medium">Raw HTML</p>
+        <p className="font-medium">{t("core.printTemplate.editor.raw_html")}</p>
         <pre className="max-h-32 overflow-auto rounded-md border border-muted-foreground/20 bg-muted/40 p-2 whitespace-pre-wrap break-all">
           {state.rawHTML || "-"}
         </pre>
@@ -107,7 +111,9 @@ function StaticHTMLInspector() {
         <div className="rounded-md border border-amber-400/40 bg-amber-50 dark:bg-amber-950/20 p-2">
           <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
             <AlertTriangle className="h-3.5 w-3.5" />
-            <span className="text-xs font-medium">Peringatan Sanitasi</span>
+            <span className="text-xs font-medium">
+              {t("core.printTemplate.editor.sanitization_warning")}
+            </span>
           </div>
           <ul className="mt-1 space-y-1 text-xs text-amber-700 dark:text-amber-300">
             {state.warnings.map((warning, index) => (
@@ -118,12 +124,16 @@ function StaticHTMLInspector() {
       )}
 
       <div className="space-y-1 text-xs">
-        <p className="font-medium">Sanitized Preview</p>
+        <p className="font-medium">
+          {t("core.printTemplate.editor.sanitized_preview")}
+        </p>
         <div className="max-h-40 overflow-auto rounded-md border border-muted-foreground/20 bg-white dark:bg-zinc-950 p-2">
           {state.sanitizedHTML ? (
             <div dangerouslySetInnerHTML={{ __html: state.sanitizedHTML }} />
           ) : (
-            <p className="text-muted-foreground italic">Belum ada HTML yang tersimpan.</p>
+            <p className="text-muted-foreground italic">
+              {t("core.printTemplate.editor.no_html_stored")}
+            </p>
           )}
         </div>
       </div>
