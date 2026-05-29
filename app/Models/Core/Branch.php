@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Branch extends Model {
     use DataTable, HasUlids, SoftDeletes;
-
     protected $guarded = ['id'];
     protected $casts   = [
         'is_main_branch' => 'boolean',
@@ -22,6 +21,10 @@ class Branch extends Model {
         'title',
         'shippingAddress',
         'billingAddress',
+    ];
+    protected $with    = [
+        'billingCountry',
+        'shippingCountry',
     ];
 
     public function getShippingAddressAttribute() {
@@ -60,16 +63,15 @@ class Branch extends Model {
     protected static function loadRelationsOnShow() {
         return ['shippingCountry', 'billingCountry'];
     }
-
-    public string $formComponent   = 'Settings/Branches/Form';
-    public string $translateKey    = 'core.branch';
+    public string   $formComponent = 'Settings/Branches/Form';
+    public string   $translateKey  = 'core.branch';
     protected array $configColumns = [
-        'title' => [
+        'title'           => [
             'isLink' => true,
             'show'   => true,
             'order'  => 0,
         ],
-        'is_main_branch' => [
+        'is_main_branch'  => [
             'show'  => true,
             'order' => 1,
         ],
@@ -77,7 +79,7 @@ class Branch extends Model {
             'show'  => true,
             'order' => 2,
         ],
-        'billingAdrress' => [
+        'billingAdrress'  => [
             'show'  => true,
             'order' => 3,
         ],

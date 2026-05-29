@@ -2,6 +2,7 @@
 
 namespace App\Services\Core\PrintTemplate;
 
+use App\Utils;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Str;
@@ -427,12 +428,20 @@ class RelationTrackerService {
      * @return array Array of valid relation paths
      */
     public function validateRelations(string $modelClass, array $relations, bool $withColumns = false): array {
-        if (! class_exists($modelClass)) {
-            return [];
-        }
-
         $validatedRelations = [];
-        $modelColumns       = [];
+        $modelColumns       = [
+            'company' => collect(Utils::getPreferenceColumns())->mapWithKeys(fn ($col) => [$col['name'] => $col]),
+            'docInfo' => collect(Utils::getDocInfoColumns())->mapWithKeys(fn ($col) => [$col['name'] => $col]),
+        ];
+        if (! class_exists($modelClass)) {
+            if (! $withColumns) {
+                return $validatedRelations;
+            }
+            return [
+                'relations'    => $validatedRelations,
+                'modelColumns' => $modelColumns,
+            ];
+        }
 
         // try {
         $rootModel    = new $modelClass;
@@ -498,6 +507,7 @@ class RelationTrackerService {
                 }
 
                 $currentModel = $relation->getRelated();
+                // dd($currentModel);
 
                 $segmentCache[$segmentCacheKey] = $currentModel;
                 $segmentResolved[]              = $method;

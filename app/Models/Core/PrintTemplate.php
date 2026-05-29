@@ -59,13 +59,7 @@ class PrintTemplate extends Model {
                         'name'       => 'doc_info',
                         'titleTrans' => 'core.printTemplate.doc_info',
                         'type'       => 'docInfo',
-                        'columns'    => [
-                            [
-                                'name'       => 'doc_name',
-                                'titleTrans' => 'core.printTemplate.doc_info.columns.doc_name',
-                                'type'       => 'string',
-                            ],
-                        ],
+                        'columns'    => Utils::getDocInfoColumns(),
                     ],
                 ];
                 if ($this->model) {

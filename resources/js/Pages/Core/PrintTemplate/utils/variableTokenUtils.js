@@ -201,3 +201,37 @@ export function getDisplayLabel(variable, t) {
     variable.name
   );
 }
+
+export function resolveLabel(path, columns, modelDoc, t) {
+  const firstDotIndex = path.indexOf(".");
+
+  if (firstDotIndex === -1) {
+    return path;
+  }
+
+  const prefix = path.slice(0, firstDotIndex);
+  const paths = path.slice(firstDotIndex + 1).split(".");
+  if (paths.length <= 0) return path;
+
+  if (!columns) return path;
+
+  let currentModel = prefix;
+  if (prefix == "doc") {
+    if (!modelDoc) return path;
+    currentModel = modelDoc;
+  }
+
+  let result = path;
+  for (const path of paths) {
+    const cols = columns[currentModel] ?? {};
+    const col = cols[path];
+    if (
+      (col.type === "relation" || col.type === "relations") &&
+      col.typeRelation === "basic"
+    ) {
+      currentModel = col.related;
+    }
+    result = col.title || (col.titleTrans && t(col.titleTrans)) || col.name;
+  }
+  return result;
+}

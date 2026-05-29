@@ -49,7 +49,7 @@ export function variableDropListener(
    * - Tipe doc: "doc.<fieldName>" (karena token = {{doc.<fieldName>}})
    * - Tipe company: "company.<fieldName>"
    * - Tipe docInfo: "docInfo.<fieldName>"
-   * - Tipe relation: "relation doc.<path>"
+   * - Tipe relation: "doc.<path>" (cleaned dari {{relation doc.<path>}})
    */
   const buildLabelMap = () => {
     const map = {};
@@ -95,7 +95,9 @@ export function variableDropListener(
           map[`docInfo.${col.name}`] = label;
         }
         if (colType === "relation") {
-          // Token: {{relation doc.<fullKey>}} → labelKey: "relation doc.<fullKey>"
+          // Token: {{relation doc.<fullKey>}} → labelKey: "doc.<fullKey>" (cleaned)
+          map[`doc.${fullKey}`] = label;
+          // Keep legacy key for backward compatibility with existing templates
           map[`relation doc.${fullKey}`] = label;
         }
 
@@ -375,12 +377,15 @@ export function variableDropListener(
   /**
    * Sinkronisasi header row pada semua gjsRelationsTable di canvas.
    * Memperbarui label kolom header agar selaras dengan terjemahan terbaru.
+   * Menggunakan data-label-key untuk resolusi label dari labelMap.
    */
   const syncRelationsTableHeaders = () => {
     const wrapper = editor.getWrapper?.();
     if (!wrapper) {
       return;
     }
+
+    const labelMap = buildLabelMap();
 
     const tables = wrapper.findType?.("gjsRelationsTable") || [];
     tables.forEach((table) => {
@@ -413,23 +418,29 @@ export function variableDropListener(
         return;
       }
 
-      // Update setiap th cell yang punya atribut name
+      // Update setiap th cell yang punya atribut data-label-key
       const thCells = headerRow.components?.() || [];
       thCells.forEach((th) => {
         const attrs = th.getAttributes?.() || {};
-        const colName = attrs.name;
-        if (!colName) {
-          return; // Skip "#" column atau cell tanpa name
+        const labelKey = attrs["data-label-key"];
+        if (!labelKey) {
+          return; // Skip "#" column atau cell tanpa data-label-key
         }
 
-        // Cari column config yang sesuai
-        const colConfig = columnsConfig.find((c) => c.name === colName);
-        if (!colConfig) {
-          return;
+        // Resolusi label dari labelMap menggunakan data-label-key
+        let newLabel = labelMap[labelKey];
+
+        // Fallback: cari dari columnsConfig menggunakan name attribute
+        if (!newLabel) {
+          const colName = attrs.name;
+          const colConfig = colName
+            ? columnsConfig.find((c) => c.name === colName)
+            : null;
+          if (colConfig) {
+            newLabel = getColumnLabel(colConfig, t, locale);
+          }
         }
 
-        // Update content dengan label terbaru
-        const newLabel = getColumnLabel(colConfig, t, locale);
         if (newLabel && newLabel !== th.get("content")) {
           th.set("content", newLabel);
         }

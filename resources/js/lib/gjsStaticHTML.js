@@ -78,6 +78,9 @@ export default function gjsStaticHTML(editor) {
         tagName: "div",
         droppable: false,
         editable: false,
+        layerable: true,
+        selectable: true,
+        hoverable: true,
         attributes: {
           class: "gjs-static-html-wrapper",
           "data-gjs-type": "staticHTML",
@@ -113,9 +116,15 @@ export default function gjsStaticHTML(editor) {
       },
 
       init() {
-        // Show placeholder if no content
-        if (!this.get("customHTML")) {
-          this.components(PLACEHOLDER_HTML);
+        // Use `content` to render raw HTML without GrapesJS parsing it
+        // into editable child components.
+        const sanitized = this.get("sanitizedHTML");
+        if (sanitized) {
+          // Loaded from saved data — render the sanitized HTML directly
+          this.set("content", sanitized);
+        } else if (!this.get("customHTML")) {
+          // Fresh component — show placeholder
+          this.set("content", PLACEHOLDER_HTML);
         }
       },
 
@@ -131,12 +140,21 @@ export default function gjsStaticHTML(editor) {
         this.set("sanitizedHTML", result.sanitizedHTML);
         this.set("sanitizationWarnings", result.warnings || []);
 
-        // Update canvas display with sanitized content
+        // Use `content` instead of `components()` to render raw HTML directly
+        // in the canvas view. This prevents GrapesJS from parsing children into
+        // editable component nodes, keeping the canvas faithful to the actual HTML
+        // and consistent with the Inspector preview.
         if (result.sanitizedHTML) {
-          this.components(result.sanitizedHTML);
+          // Clear any previously parsed child components
+          this.components().reset();
+          this.set("content", result.sanitizedHTML);
         } else {
-          this.components(PLACEHOLDER_HTML);
+          this.components().reset();
+          this.set("content", PLACEHOLDER_HTML);
         }
+
+        // Trigger view re-render
+        this.trigger("change:content");
 
         return result;
       },
@@ -151,6 +169,31 @@ export default function gjsStaticHTML(editor) {
           return `<div class="gjs-static-html-wrapper">${sanitized}</div>`;
         }
         return `<div class="gjs-static-html-wrapper"></div>`;
+      },
+    },
+
+    view: {
+      // Override the view to render `content` as innerHTML directly,
+      // preventing GrapesJS from creating editable child component views.
+      onRender() {
+        const content = this.model.get("content");
+        if (content) {
+          this.el.innerHTML = content;
+        }
+
+        // Ensure no child element is contenteditable
+        this.disableChildContentEditable();
+      },
+
+      /**
+       * Disable contenteditable on all child elements within the wrapper.
+       * This prevents accidental inline editing of staticHTML content on the canvas.
+       */
+      disableChildContentEditable() {
+        const children = this.el.querySelectorAll("[contenteditable]");
+        children.forEach((child) => {
+          child.removeAttribute("contenteditable");
+        });
       },
     },
   });

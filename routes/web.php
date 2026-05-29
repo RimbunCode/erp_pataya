@@ -175,10 +175,10 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
         Route::resourceDetail('formatingSeries', FormatingSeriesController::class);
         Route::resourceDetail('approvalScheme', ApprovalSchemeController::class);
 
-        Route::resourceDetail('printTemplates', PrintTemplateController::class);
-        Route::get('/printTemplates/{printTemplates}/editor', [PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
-        Route::post('/printTemplates/{printTemplates}/preview', [PrintTemplateController::class, 'preview'])->name('printTemplates.preview');
-        Route::post('/printTemplates/{printTemplates}/generate-example-data', [PrintTemplateController::class, 'generateExampleData'])->name('printTemplates.generate-example-data');
+        Route::resourceDetail('printTemplate', PrintTemplateController::class);
+        Route::get('/printTemplates/{printTemplate}/editor', [PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
+        Route::post('/printTemplates/{printTemplate}/preview', [PrintTemplateController::class, 'preview'])->name('printTemplates.preview');
+        Route::post('/printTemplates/{printTemplate}/generate-example-data', [PrintTemplateController::class, 'generateExampleData'])->name('printTemplates.generate-example-data');
         Route::resourceDetail('widget', WidgetController::class);
     });
     // Tags

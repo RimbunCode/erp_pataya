@@ -177,13 +177,28 @@ function getColumnLabel(col, t, locale) {
  *
  * @param {object} options
  * @param {Array} options.columns - Column definitions (filtered & sorted)
+ * @param {string} options.relationName - The relation name for constructing label/token paths
  * @param {Array|null} options.exampleData - Array of example data rows for this relation
  * @param {Function} options.t - Translation function
  * @param {Function} options.genId - ID generator function
  * @param {string} [options.locale] - Optional locale code (e.g., "en", "id") for header translation
  * @returns {Array} GrapeJS component definitions for thead and tbody
  */
-function buildExampleDataTable({ columns, exampleData, t, genId, locale }) {
+function buildExampleDataTable({
+  columns,
+  relationName = "",
+  exampleData,
+  t,
+  genId,
+  locale,
+}) {
+  // Ensure relation name has "doc." prefix for label path construction
+  const labelRelationPrefix = relationName.startsWith("doc.")
+    ? relationName
+    : relationName
+      ? `doc.${relationName}`
+      : "";
+
   // Build thead with labels from unified label helper
   const theadComponents = [
     {
@@ -199,21 +214,25 @@ function buildExampleDataTable({ columns, exampleData, t, genId, locale }) {
         class: "border border-gray-400 px-2 py-1 text-left bg-gray-100",
       },
     },
-    ...columns.map((col) => ({
-      tagName: "th",
-      content: getColumnLabel(col, t, locale),
-      selectable: false,
-      droppable: false,
-      layerable: false,
-      editable: false,
-      draggable: false,
-      attributes: {
-        "data-id": genId("cell"),
-        name: col.name,
-        titleTrans: col.titleTrans,
-        class: "border border-gray-400 px-2 py-1 text-left bg-gray-100",
-      },
-    })),
+    ...columns.map((col) => {
+      const labelKey = `${labelRelationPrefix}.${col.name}`;
+
+      return {
+        tagName: "th",
+        content: getColumnLabel(col, t, locale),
+        selectable: false,
+        droppable: false,
+        layerable: false,
+        editable: false,
+        draggable: false,
+        attributes: {
+          "data-id": genId("cell"),
+          "data-label-key": labelKey,
+          name: col.name,
+          class: "border border-gray-400 px-2 py-1 text-left bg-gray-100",
+        },
+      };
+    }),
   ];
 
   // Build tbody with example data rows
@@ -272,6 +291,11 @@ function buildExampleDataTable({ columns, exampleData, t, genId, locale }) {
                 ? " text-right"
                 : "";
 
+            // Build data-token for body cells
+            const cellToken = col.expression
+              ? col.expression
+              : `{{${col.type === "relation" ? "relation " : ""}this.${col.name}}}`;
+
             return {
               tagName: "td",
               content: displayValue,
@@ -282,6 +306,7 @@ function buildExampleDataTable({ columns, exampleData, t, genId, locale }) {
               draggable: false,
               attributes: {
                 "data-id": genId("cell"),
+                "data-token": cellToken,
                 name: col.name,
                 class:
                   "border border-gray-300 px-2 py-1" + alignClass + rowBgClass,
@@ -324,6 +349,9 @@ function buildExampleDataTable({ columns, exampleData, t, genId, locale }) {
           draggable: false,
           attributes: {
             "data-id": genId("cell"),
+            "data-token": col.expression
+              ? col.expression
+              : `{{${col.type === "relation" ? "relation " : ""}this.${col.name}}}`,
             name: col.name,
             class: "border border-gray-300 px-2 py-1",
           },
@@ -391,6 +419,13 @@ function buildHandlebarTokenTable({ columns, relationName, genId }) {
       ? `doc.${relationName}`
       : relationName;
 
+  // Ensure relation name has "doc." prefix for label path construction
+  const labelRelationPrefix = relationName.startsWith("doc.")
+    ? relationName
+    : relationName
+      ? `doc.${relationName}`
+      : "";
+
   return [
     {
       type: "tableHead",
@@ -422,21 +457,27 @@ function buildHandlebarTokenTable({ columns, relationName, genId }) {
                 class: "border border-gray-400 px-2 py-1 text-left bg-gray-100",
               },
             },
-            ...columns.map((col) => ({
-              tagName: "th",
-              content: `{{label "${col.name}"}}`,
-              selectable: false,
-              droppable: false,
-              layerable: false,
-              editable: false,
-              draggable: false,
-              attributes: {
-                "data-id": genId("cell"),
-                name: col.name,
-                titleTrans: col.titleTrans,
-                class: "border border-gray-400 px-2 py-1 text-left bg-gray-100",
-              },
-            })),
+            ...columns.map((col) => {
+              const labelKey = `${labelRelationPrefix}.${col.name}`;
+              const token = `{{label "${labelKey}"}}`;
+
+              return {
+                tagName: "th",
+                content: token,
+                selectable: false,
+                droppable: false,
+                layerable: false,
+                editable: false,
+                draggable: false,
+                attributes: {
+                  "data-id": genId("cell"),
+                  "data-label-key": labelKey,
+                  name: col.name,
+                  class:
+                    "border border-gray-400 px-2 py-1 text-left bg-gray-100",
+                },
+              };
+            }),
           ],
         },
       ],
@@ -474,22 +515,27 @@ function buildHandlebarTokenTable({ columns, relationName, genId }) {
                 class: "border border-gray-300 px-2 py-1",
               },
             },
-            ...columns.map((col) => ({
-              tagName: "td",
-              content: col.expression
+            ...columns.map((col) => {
+              const cellToken = col.expression
                 ? col.expression
-                : `{{${col.type === "relation" ? "relation " : ""}this.${col.name}}}`,
-              selectable: false,
-              droppable: false,
-              layerable: false,
-              editable: false,
-              draggable: false,
-              attributes: {
-                "data-id": genId("cell"),
-                name: col.name,
-                class: "border border-gray-300 px-2 py-1",
-              },
-            })),
+                : `{{${col.type === "relation" ? "relation " : ""}this.${col.name}}}`;
+
+              return {
+                tagName: "td",
+                content: cellToken,
+                selectable: false,
+                droppable: false,
+                layerable: false,
+                editable: false,
+                draggable: false,
+                attributes: {
+                  "data-id": genId("cell"),
+                  "data-token": cellToken,
+                  name: col.name,
+                  class: "border border-gray-300 px-2 py-1",
+                },
+              };
+            }),
           ],
         },
         {
@@ -622,15 +668,22 @@ export default function gjsRelationsTable(editor) {
           .filter((col) => col.show)
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
+        // Ensure relation name has "doc." prefix for label path
+        const labelRelationPrefix = relationName.startsWith("doc.")
+          ? relationName
+          : relationName
+            ? `doc.${relationName}`
+            : "";
+
         // Generate the Handlebar token table HTML using unified label helper
         let html = `<table class="table table-bordered w-100" data-relations="${relationName}">`;
 
-        // Header row uses {{label "fieldPath"}} for consistent translated labels
+        // Header row uses {{label "doc.relationName.fieldPath"}} for consistent translated labels
         html += `<thead>`;
         html += `<tr>`;
         html += `<th>#</th>`;
         for (const col of visibleColumns) {
-          html += `<th>{{label "${col.name}"}}</th>`;
+          html += `<th>{{label "${labelRelationPrefix}.${col.name}"}}</th>`;
         }
         html += `</tr>`;
         html += `</thead>`;

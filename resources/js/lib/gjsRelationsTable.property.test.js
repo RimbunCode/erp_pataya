@@ -31,13 +31,20 @@ function generateRelationTableHTML({ relationName, columnsConfig }) {
       ? `doc.${relationName}`
       : relationName;
 
+  // Ensure relation name has "doc." prefix for label path construction
+  const labelRelationPrefix = relationName.startsWith("doc.")
+    ? relationName
+    : relationName
+      ? `doc.${relationName}`
+      : "";
+
   let html = `<table class="table table-bordered w-100" data-relations="${relationName}">`;
 
   html += `<thead>`;
   html += `<tr>`;
   html += `<th>#</th>`;
   for (const col of visibleColumns) {
-    html += `<th>{{label "${col.name}"}}</th>`;
+    html += `<th>{{label "${labelRelationPrefix}.${col.name}"}}</th>`;
   }
   html += `</tr>`;
   html += `</thead>`;
@@ -455,9 +462,18 @@ describe("Property 12: Relation table HTML export includes Bootstrap classes", (
             (a, b) => (a.order ?? 0) - (b.order ?? 0),
           );
 
-          // Each visible column should have a th with its label helper
+          // Ensure relation name has "doc." prefix for label path
+          const labelRelationPrefix = relationName.startsWith("doc.")
+            ? relationName
+            : relationName
+              ? `doc.${relationName}`
+              : "";
+
+          // Each visible column should have a th with its label helper using doc prefix
           for (const col of sorted) {
-            expect(html).toContain(`<th>{{label "${col.name}"}}</th>`);
+            expect(html).toContain(
+              `<th>{{label "${labelRelationPrefix}.${col.name}"}}</th>`,
+            );
           }
 
           // Should also have the # header

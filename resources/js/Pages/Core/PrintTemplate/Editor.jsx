@@ -200,7 +200,11 @@ function PrintTemplate({
           Array.isArray(warnings) ? warnings : [],
         );
         if (sanitizedHTML) {
-          editingStaticHTMLComponent.components(sanitizedHTML);
+          // Use `content` instead of `components()` to render raw HTML directly
+          // without GrapesJS parsing children into editable component nodes.
+          editingStaticHTMLComponent.components().reset();
+          editingStaticHTMLComponent.set("content", sanitizedHTML);
+          editingStaticHTMLComponent.trigger("change:content");
         }
       }
       setEditingStaticHTMLComponent(null);
@@ -594,9 +598,7 @@ function PrintTemplate({
                   Accept: "application/json",
                   "Content-Type": "application/json",
                 }, // Custom headers for the remote storage request
-                urlLoad: window.route("printTemplates.show", {
-                  printTemplates: printTemplate.id,
-                }), // Endpoint URL where to load data project
+                urlLoad: window.route("printTemplates.show", printTemplate.id), // Endpoint URL where to load data project
                 urlStore: window.route("printTemplates.store"),
               },
             },

@@ -15,19 +15,59 @@ import { simplifyTokenDisplay } from "../Components/tokenConfigHelpers";
 import { getFormattedHandlebarToken } from "./variableTokenUtils";
 
 /**
- * Mengekstrak label key dari token Handlebar dengan menghapus pembungkus {{...}}.
- * Idempotent: jika input sudah tanpa pembungkus, dikembalikan apa adanya.
+ * Mengekstrak label key dari token Handlebar dengan menghapus pembungkus {{...}}
+ * dan membersihkan prefix helper (relation, label, formatCurrency, formatNumber, #each).
+ * Idempotent: jika input sudah tanpa pembungkus, dikembalikan apa adanya setelah cleaning.
  *
  * @param {string} token - String token (bisa dengan atau tanpa pembungkus `{{...}}`)
- * @returns {string} Isi token tanpa pembungkus, atau string asli jika bukan format token
+ * @returns {string} Path variabel bersih tanpa prefix helper dan tanpa pembungkus
+ *
+ * @example
+ * extractLabelKeyFromToken('{{relation doc.category}}')   // "doc.category"
+ * extractLabelKeyFromToken('{{label "doc.category"}}')    // "doc.category"
+ * extractLabelKeyFromToken('{{formatCurrency doc.total "IDR"}}') // "doc.total"
+ * extractLabelKeyFromToken('{{formatNumber doc.qty 0}}')  // "doc.qty"
+ * extractLabelKeyFromToken('{{#each doc.items}}...{{/each}}') // "doc.items"
+ * extractLabelKeyFromToken('{{doc.name}}')                // "doc.name"
+ * extractLabelKeyFromToken('{{company.name}}')            // "company.name"
  */
 export function extractLabelKeyFromToken(token) {
   if (!token || typeof token !== "string") {
     return "";
   }
 
+  // Strip {{...}} wrapper
   const match = token.trim().match(/^\{\{\s*(.*?)\s*\}\}$/);
-  return match ? match[1] : token;
+  let inner = match ? match[1] : token.trim();
+
+  // Strip #each prefix and trailing }}...{{/each}}
+  // e.g. "#each doc.items}}...{{/each" → "doc.items"
+  inner = inner.replace(/^#each\s+/, "").replace(/\}\}.*\{\{\/each$/, "");
+
+  // Strip "relation " prefix → "relation doc.category" → "doc.category"
+  inner = inner.replace(/^relation\s+/, "");
+
+  // Strip "label " prefix and surrounding quotes → 'label "doc.category"' → "doc.category"
+  inner = inner.replace(/^label\s+/, "");
+
+  // Strip "formatCurrency " prefix and trailing arguments → 'formatCurrency doc.total "IDR"' → "doc.total"
+  inner = inner.replace(/^formatCurrency\s+/, "");
+
+  // Strip "formatNumber " prefix and trailing arguments → 'formatNumber doc.qty 0' → "doc.qty"
+  inner = inner.replace(/^formatNumber\s+/, "");
+
+  // Strip "formatDate " prefix and trailing arguments
+  inner = inner.replace(/^formatDate\s+/, "");
+
+  // Remove trailing helper arguments (quoted strings, numbers) after the path
+  // e.g. 'doc.total "IDR"' → "doc.total", 'doc.qty 0' → "doc.qty"
+  inner = inner.replace(/\s+["'\d].*$/, "");
+
+  // Remove surrounding quotes (from label helper)
+  // e.g. '"doc.category"' → "doc.category"
+  inner = inner.replace(/^["']|["']$/g, "");
+
+  return inner;
 }
 
 /**

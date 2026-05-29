@@ -3,6 +3,7 @@ import { format as dateFnsFormat } from "date-fns";
 import { TZDate } from "@date-fns/tz";
 import { formatValue } from "@/Components/CurrencyInput";
 import { convertTemplateLink } from "./linkModelUtils";
+import { resolveLabel } from "@/Pages/Core/PrintTemplate/utils/variableTokenUtils";
 
 /**
  * Resolve a dot-notation field path within a DataTableColumns configuration array.
@@ -45,8 +46,7 @@ function resolveFieldPath(path, columns) {
 }
 
 export function initHandlebar(trans) {
-  Handlebars.registerHelper("relation", function (payload, option) {
-    console.log({ payload, option });
+  Handlebars.registerHelper("relation", function (payload) {
     return convertTemplateLink(payload);
   });
 
@@ -61,64 +61,13 @@ export function initHandlebar(trans) {
   //   {{label "items.product"}}
   //   {{label "fieldPath" type="preferences"}}
   //   {{label "fieldPath" locale="id"}}
-  Handlebars.registerHelper("label", function (fieldPath, options) {
-    if (typeof fieldPath !== "string" || !fieldPath) {
-      return (
-        fieldPath?.title ||
-        trans(fieldPath?.titleTrans) ||
-        fieldPath?.name ||
-        ""
-      );
-    }
-    console.log(options);
+  Handlebars.registerHelper("label", function (path, options) {
+    if (typeof path !== "string") return null;
 
-    const locale = options?.hash?.locale;
-    const type = options?.hash?.type ?? "data";
+    const root = options.data.root;
+    const { columns, modelDoc } = root;
 
-    // Handle "document" prefix for document-level labels
-    const keys = fieldPath.split(".");
-    if (keys[0] === "document") {
-      const document = options?.data?.root?.document;
-      if (document) {
-        const key = keys[1];
-        const docEntry = document?.find((x) => x.name === key);
-        return (
-          docEntry?.title ||
-          trans(docEntry?.titleTrans) ||
-          docEntry?.name ||
-          fieldPath
-        );
-      }
-      return fieldPath;
-    }
-
-    // Resolve from dataTableColumns
-    const dataTableColumns = options?.data?.root?.dataTableColumns;
-    if (!dataTableColumns) return fieldPath;
-
-    // Get the columns for the specified type
-    const typeColumns = dataTableColumns?.find(
-      (x) => x.type === (type === "companyDetail" ? "preferences" : type),
-    )?.columns;
-
-    if (!typeColumns) return fieldPath;
-
-    // Resolve the field path through nested columns
-    const resolved = resolveFieldPath(fieldPath, typeColumns);
-
-    if (!resolved) return fieldPath;
-
-    // Return translated label with locale support
-    if (resolved.titleTrans) {
-      const translated = locale
-        ? trans(resolved.titleTrans, {}, locale)
-        : trans(resolved.titleTrans);
-      if (translated && translated !== resolved.titleTrans) {
-        return translated;
-      }
-    }
-
-    return resolved.title || resolved.name || fieldPath;
+    return resolveLabel(path, columns, modelDoc, trans);
   });
 
   // ─── Legacy Helpers (kept for backward compatibility) ─────────────────────────

@@ -89,30 +89,33 @@ class PrintTemplateController extends Controller {
     /**
      * Display the specified resource.
      */
-    public function show(Request $request, PrintTemplate $printTemplates) {
+    public function show(Request $request, PrintTemplate $printTemplate) {
         if (! $this->isInertiaRequest($request)) {
-            return response()->json($printTemplates->template);
+            return response()->json($printTemplate->template);
         }
-        $this->setBreadcrumbs($printTemplates);
-        $printTemplates->showDetail();
+        $this->setBreadcrumbs($printTemplate);
+        $printTemplate->showDetail();
 
         return Inertia::render('Core/PrintTemplate/Show', [
-            'printTemplate' => function () use ($printTemplates) {
-                $printTemplates->loadRelations();
+            'printTemplate' => function () use ($printTemplate) {
+                $printTemplate->loadRelations();
 
-                return $printTemplates;
+                return $printTemplate;
             },
         ]);
     }
 
-    public function editor(Request $request, PrintTemplate $printTemplates) {
-        $this->setBreadcrumbs($printTemplates, __('core/form.editor'));
-        $printTemplates->loadRelations();
+    public function editor(Request $request, PrintTemplate $printTemplate) {
+        $this->setBreadcrumbs($printTemplate, __('core/form.editor'));
+        $printTemplate->loadRelations();
+        $usedRelations                                               = $printTemplate?->getUsedRelations() ?? [];
+        ['relations' => $validRelations, 'modelColumns' => $columns] = $this->relationTracker->validateRelations($printTemplate->model, $usedRelations, true);
 
         return Inertia::render('Core/PrintTemplate/Editor', [
-            'printTemplate'    => $printTemplates,
+            'printTemplate'    => $printTemplate,
             'csrfToken'        => csrf_token(),
-            'dataTableColumns' => $printTemplates->columns,
+            'columns'          => $columns ?? [],
+            'dataTableColumns' => $printTemplate->columns,
         ]);
     }
 
@@ -125,7 +128,7 @@ class PrintTemplateController extends Controller {
      */
     public function preview(
         Request $request,
-        PrintTemplate $printTemplates,
+        PrintTemplate $printTemplate,
     ) {
         $request->validate([
             'template' => ['required', 'array'],
@@ -138,11 +141,10 @@ class PrintTemplateController extends Controller {
         $relations = $this->relationTracker->extractRelations($template);
 
         // Validate relations against the model
-        $modelClass     = $printTemplates->model;
-        $validRelations = [];
+        $modelClass = $printTemplate->model;
 
         if ($modelClass && class_exists($modelClass)) {
-            $validRelations = $this->relationTracker->validateRelations($modelClass, $relations);
+            ['relations' => $validRelations, 'modelColumns' => $columns] = $this->relationTracker->validateRelations($modelClass, $relations, true);
 
             // Warn about invalid relations
             $invalidRelations = array_diff($relations, $validRelations);
@@ -156,7 +158,7 @@ class PrintTemplateController extends Controller {
         // Get example data with the extracted relations
         $exampleData = null;
         if ($modelClass) {
-            $exampleData = $this->exampleDataService->getExampleDataWithRelations($modelClass, $validRelations);
+            $exampleData = $this->exampleDataService->getExampleDataWithRelations($modelClass, $validRelations ?? []);
 
             if (! $exampleData) {
                 $warnings[] = 'No example data available for this model. Preview will show placeholder values.';
@@ -164,16 +166,16 @@ class PrintTemplateController extends Controller {
         }
 
         // Get HTML and CSS from the template data
-        $html = $template['html'] ?? $printTemplates->html ?? '';
-        $css  = $template['css'] ?? $printTemplates->css ?? '';
+        $html = $template['html'] ?? $printTemplate->html ?? '';
+        $css  = $template['css'] ?? $printTemplate->css ?? '';
 
         return response()->json([
-            'html'             => $html,
-            'css'              => $css,
-            'exampleData'      => $exampleData,
-            'usedRelations'    => $validRelations,
-            'dataTableColumns' => $printTemplates->columns,
-            'warnings'         => $warnings,
+            'html'          => $html,
+            'css'           => $css,
+            'exampleData'   => $exampleData,
+            'usedRelations' => $validRelations ?? [],
+            'columns'       => $columns ?? [],
+            'warnings'      => $warnings,
         ]);
     }
 
@@ -181,9 +183,9 @@ class PrintTemplateController extends Controller {
      * Generate example data for the template model.
      */
     public function generateExampleData(
-        PrintTemplate $printTemplates,
+        PrintTemplate $printTemplate,
     ) {
-        $modelClass = $printTemplates->model;
+        $modelClass = $printTemplate->model;
 
         if (! $modelClass || ! class_exists($modelClass)) {
             return response()->json([
@@ -213,7 +215,7 @@ class PrintTemplateController extends Controller {
     /**
      * Update the specified resource in storage.
      */
-    public function update(PrintTemplateRequest $request, PrintTemplate $printTemplates) {
+    public function update(PrintTemplateRequest $request, PrintTemplate $printTemplate) {
         $data = $request->validated();
         DB::beginTransaction();
         $data['permission_id'] = isset($data['permission']) ? $data['permission']['id'] : null;
@@ -222,18 +224,18 @@ class PrintTemplateController extends Controller {
 
         $data['letter_head_id'] = isset($data['letter_head']) ? $data['letter_head']['id'] : null;
 
-        $printTemplates->fillForUpdate($data['is_letter_head'] ? [
+        $printTemplate->fillForUpdate($data['is_letter_head'] ? [
             'is_letter_head' => $data['is_letter_head'],
             'name'           => $data['name'],
             'is_default'     => $data['is_default'],
         ] : $data);
 
         // Re-extract used_relations if model changed and template has content
-        if ($printTemplates->isDirty('model') && $printTemplates->template) {
-            $printTemplates->setUsedRelationsFromTemplate();
+        if ($printTemplate->isDirty('model') && $printTemplate->template) {
+            $printTemplate->setUsedRelationsFromTemplate();
         }
 
-        $printTemplates->logForUpdated();
+        $printTemplate->logForUpdated();
         DB::commit();
 
         return redirect()->back();
@@ -242,10 +244,10 @@ class PrintTemplateController extends Controller {
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(PrintTemplate $printTemplates) {
+    public function destroy(PrintTemplate $printTemplate) {
         DB::beginTransaction();
-        $printTemplates->logForDeleted();
-        $printTemplates->delete();
+        $printTemplate->logForDeleted();
+        $printTemplate->delete();
         DB::commit();
 
         return redirect()->route('printTemplates.index');

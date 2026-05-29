@@ -222,9 +222,7 @@ function PreviewModal({
 
     try {
       await axios.post(
-        window.route("printTemplates.generate-example-data", {
-          printTemplates: printTemplate.id,
-        }),
+        window.route("printTemplates.generate-example-data", printTemplate.id),
       );
 
       setMissingDataMessage("");
@@ -321,9 +319,7 @@ function PreviewModal({
 
       try {
         const response = await axios.post(
-          window.route("printTemplates.preview", {
-            printTemplates: printTemplate.id,
-          }),
+          window.route("printTemplates.preview", printTemplate.id),
           requestPayload,
         );
 
