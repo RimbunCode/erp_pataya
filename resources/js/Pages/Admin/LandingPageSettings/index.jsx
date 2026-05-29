@@ -383,6 +383,7 @@ export default function LandingPageSettings() {
       const fieldValue = ensureTiptapDoc(getByPath(draftContent, field.path));
 
       return {
+        key: field.path,
         label: field.label,
         value: docToPlainText(fieldValue),
       };
@@ -481,7 +482,7 @@ export default function LandingPageSettings() {
             <div className="space-y-2">
               {previewItems.map((item) => (
                 <div
-                  key={item.label}
+                  key={item.key}
                   className="rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2"
                 >
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted-foreground)]">

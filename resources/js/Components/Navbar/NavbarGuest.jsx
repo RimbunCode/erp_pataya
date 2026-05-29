@@ -49,7 +49,7 @@ export default memo(function NavbarGuest({ onLogout }) {
           href={route("guest.home")}
           className="flex items-center gap-2 shrink-0"
         >
-          <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center">
+          <div className="w-9 h-9 rounded-lg bg-primary dark:bg-primary flex items-center justify-center">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
@@ -61,7 +61,7 @@ export default memo(function NavbarGuest({ onLogout }) {
           </div>
           <div className="leading-tight">
             <div className="font-extrabold text-sm tracking-widest text-black dark:text-white uppercase">
-              INKINDO
+              INKINDO JATIM
             </div>
             <div className="text-xs tracking-widest text-primary uppercase font-semibold">
               Learning Center
@@ -118,14 +118,14 @@ export default memo(function NavbarGuest({ onLogout }) {
                   onClick={() => setDropdownOpen((v) => !v)}
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-gray-50 transition-colors"
                 >
-                  <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-blue-600 flex items-center justify-center">
+                  <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-primary flex items-center justify-center">
                     <AvatarImage
                       src={avatarSrc}
                       alt={user?.name}
                       className="w-full h-full object-cover"
                     />
 
-                    <AvatarFallback className="bg-blue-600 text-white text-sm font-black">
+                    <AvatarFallback className="bg-primary text-white text-sm font-black">
                       {initials}
                     </AvatarFallback>
                   </Avatar>

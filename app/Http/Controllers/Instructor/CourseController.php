@@ -87,8 +87,16 @@ class CourseController extends Controller {
                 ['max:100'],
                 ['lte:price'],
             )],
-            'level'                       => 'required|in:beginner,intermediate,advanced',
-            'category'                    => 'required|string',
+            'level'    => 'required|in:beginner,intermediate,advanced',
+            'category' => [
+                'required',
+                'string',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (! $this->categoryExists((string) $value)) {
+                        $fail('Kategori tidak ditemukan.');
+                    }
+                },
+            ],
             'total_hours'                 => 'nullable|numeric|min:0',
             'total_sessions'              => 'nullable|integer|min:0',
             'certificate_type'            => 'nullable|in:professional,competency,attendance',
@@ -99,6 +107,7 @@ class CourseController extends Controller {
             'sections.*.contents.*.title' => 'required|string|max:255',
             'sections.*.contents.*.type'  => 'required|in:pre_assessment,material,assignment',
         ]);
+        $category = $this->resolveCategory((string) $validated['category']);
 
         $thumbnailFileId = null;
 
@@ -123,13 +132,7 @@ class CourseController extends Controller {
             'created_by'       => Auth::id(),
         ]);
 
-        $category = Category::where('slug', $validated['category'])
-            ->orWhere('name', $validated['category'])
-            ->first();
-
-        if ($category) {
-            $course->categories()->attach($category->id);
-        }
+        $course->categories()->attach($category->id);
 
         foreach ($validated['sections'] ?? [] as $index => $sectionData) {
             $section = $course->sections()->create([
@@ -162,8 +165,20 @@ class CourseController extends Controller {
                 ['max:100'],
                 ['lte:price'],
             )],
-            'level'            => 'required|in:beginner,intermediate,advanced',
-            'category'         => 'nullable|string',
+            'level'    => 'required|in:beginner,intermediate,advanced',
+            'category' => [
+                'nullable',
+                'string',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === null || trim((string) $value) === '') {
+                        return;
+                    }
+
+                    if (! $this->categoryExists((string) $value)) {
+                        $fail('Kategori tidak ditemukan.');
+                    }
+                },
+            ],
             'total_hours'      => 'nullable|numeric|min:0',
             'total_sessions'   => 'nullable|integer|min:0',
             'certificate_type' => 'nullable|in:professional,competency,attendance',
@@ -233,13 +248,8 @@ class CourseController extends Controller {
         });
 
         if (! empty($validated['category'])) {
-            $category = Category::where('slug', $validated['category'])
-                ->orWhere('name', $validated['category'])
-                ->first();
-
-            if ($category) {
-                $course->categories()->sync([$category->id]);
-            }
+            $category = $this->resolveCategory((string) $validated['category']);
+            $course->categories()->sync([$category->id]);
         }
 
         return redirect()
@@ -380,5 +390,19 @@ class CourseController extends Controller {
         }
 
         return 'draft';
+    }
+
+    private function categoryExists(string $categoryInput): bool {
+        return Category::query()
+            ->where('slug', $categoryInput)
+            ->orWhere('name', $categoryInput)
+            ->exists();
+    }
+
+    private function resolveCategory(string $categoryInput): Category {
+        return Category::query()
+            ->where('slug', $categoryInput)
+            ->orWhere('name', $categoryInput)
+            ->firstOrFail();
     }
 }

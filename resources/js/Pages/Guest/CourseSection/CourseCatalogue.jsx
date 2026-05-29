@@ -1,6 +1,6 @@
 // resources/js/Pages/Guest/TrainingCatalogue.jsx
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import GuestLayout from "@/Layouts/GuestLayout";
 import Link from "@/Components/Link";
 import { router } from "@inertiajs/react";
@@ -518,39 +518,40 @@ function FilterSidebar({ categories, activeFilters, onFilter, onReset }) {
   const CheckItem = ({ label, filterKey, value }) => {
     const active = activeFilters[filterKey] === value;
     return (
-      <label className="flex items-center gap-2.5 cursor-pointer group">
+      <button
+        type="button"
+        onClick={() => onFilter(filterKey, active ? "" : value)}
+        className="flex w-full items-center gap-2.5 cursor-pointer group select-none text-left"
+      >
         <div
-          onClick={() => onFilter(filterKey, active ? "" : value)}
-          className={`w-4 h-4 rounded flex items-center justify-center transition-all flex-shrink-0
-            ${active ? "bg-primary" : "border-2 border-border group-hover:border-primary/40"}`}
+          className={`w-4 h-4 rounded flex items-center justify-center transition-all duration-300 ease-out flex-shrink-0
+            ${active ? "bg-primary scale-105 shadow-sm shadow-primary/30" : "border-2 border-border group-hover:border-primary/40"}`}
         >
-          {active && (
-            <svg
-              className="w-2.5 h-2.5 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={3}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-          )}
+          <svg
+            className={`w-2.5 h-2.5 text-white transition-all duration-300 ease-out ${active ? "opacity-100 scale-100" : "opacity-0 scale-75"}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={3}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M5 13l4 4L19 7"
+            />
+          </svg>
         </div>
         <span
-          className={`text-sm transition-colors ${active ? "font-bold text-foreground" : "text-foreground group-hover:text-foreground"}`}
+          className={`text-sm transition-all duration-200 ${active ? "font-bold text-foreground translate-x-0.5" : "text-foreground group-hover:text-foreground"}`}
         >
           {label}
         </span>
-      </label>
+      </button>
     );
   };
 
   return (
-    <div className="bg-card rounded-2xl border border-border shadow-sm p-6 sticky top-24">
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-6 transition-all duration-300 hover:shadow-md max-h-[calc(100vh-8rem)] overflow-y-auto">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-xs font-extrabold tracking-[2px] text-foreground uppercase">
           Filters
@@ -646,10 +647,29 @@ export default function TrainingCatalogue({
     certification: initialFilters.certification ?? "",
   });
 
+  const replaceQueryWithoutReload = (filters) => {
+    const params = new URLSearchParams();
+
+    Object.entries(filters).forEach(([key, value]) => {
+      const normalizedValue = String(value ?? "").trim();
+      if (normalizedValue !== "") {
+        params.set(key, normalizedValue);
+      }
+    });
+
+    const baseUrl = route("guest.training");
+    const query = params.toString();
+    const nextUrl = query === "" ? baseUrl : `${baseUrl}?${query}`;
+    window.history.replaceState({}, "", nextUrl);
+  };
+
   const applyFilter = (key, value) => {
-    const next = { ...activeFilters, [key]: value };
-    setActiveFilters(next);
-    router.get("/guest/training", next, { preserveState: true, replace: true });
+    setActiveFilters((previousFilters) => {
+      const nextFilters = { ...previousFilters, [key]: value };
+      replaceQueryWithoutReload(nextFilters);
+
+      return nextFilters;
+    });
   };
 
   const handleSearch = () => {
@@ -660,8 +680,87 @@ export default function TrainingCatalogue({
     const empty = { search: "", level: "", category: "", certification: "" };
     setSearch("");
     setActiveFilters(empty);
-    router.get("/guest/training", {}, { preserveState: true, replace: true });
+    replaceQueryWithoutReload(empty);
   };
+
+  useEffect(() => {
+    const normalizedSearch = String(search ?? "").trim();
+    const normalizedActiveSearch = String(activeFilters.search ?? "").trim();
+
+    if (normalizedSearch === normalizedActiveSearch) {
+      return;
+    }
+
+    const debounceTimer = window.setTimeout(() => {
+      applyFilter("search", normalizedSearch);
+    }, 350);
+
+    return () => {
+      window.clearTimeout(debounceTimer);
+    };
+  }, [search, activeFilters.search]);
+
+  const filteredCourses = useMemo(() => {
+    const normalizedSearch = String(activeFilters.search ?? "")
+      .trim()
+      .toLowerCase();
+    const normalizedLevel = String(activeFilters.level ?? "")
+      .trim()
+      .toLowerCase();
+    const normalizedCertification = String(activeFilters.certification ?? "")
+      .trim()
+      .toLowerCase();
+    const selectedCategoryName = categories.find(
+      (category) => category.slug === activeFilters.category,
+    )?.name;
+    const normalizedCategoryName = String(selectedCategoryName ?? "")
+      .trim()
+      .toLowerCase();
+
+    return courses.filter((course) => {
+      const level = String(course.level ?? "")
+        .trim()
+        .toLowerCase();
+      const certification = String(course.certificate_type ?? "")
+        .trim()
+        .toLowerCase();
+      const courseCategories = (course.categories ?? []).map((categoryName) =>
+        String(categoryName).trim().toLowerCase(),
+      );
+      const searchableText = [
+        course.title,
+        course.description,
+        course.instructor,
+        ...(course.categories ?? []),
+      ]
+        .map((value) => String(value ?? "").toLowerCase())
+        .join(" ");
+
+      if (normalizedLevel !== "" && level !== normalizedLevel) {
+        return false;
+      }
+
+      if (
+        normalizedCategoryName !== "" &&
+        !courseCategories.includes(normalizedCategoryName)
+      ) {
+        return false;
+      }
+
+      if (
+        normalizedCertification !== "" &&
+        certification !== normalizedCertification
+      ) {
+        return false;
+      }
+
+      if (normalizedSearch !== "" && !searchableText.includes(normalizedSearch)) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [activeFilters, categories, courses]);
 
   const toggleCompare = (course) => {
     setCompareList((prev) => {
@@ -725,9 +824,9 @@ export default function TrainingCatalogue({
             </div>
           </div>
 
-          <div className="flex gap-7">
+          <div className="flex gap-7 items-start">
             {/* ── Sidebar ── */}
-            <aside className="w-64 flex-shrink-0">
+            <aside className="w-64 flex-shrink-0 self-start sticky top-28">
               <FilterSidebar
                 categories={categories}
                 activeFilters={activeFilters}
@@ -741,7 +840,8 @@ export default function TrainingCatalogue({
               {/* Results bar */}
               <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-3.5 flex items-center justify-between mb-5">
                 <p className="text-xs font-extrabold tracking-[2px] text-muted-foreground uppercase">
-                  <span className="text-primary">{courses.length}</span> Results
+                  <span className="text-primary">{filteredCourses.length}</span>{" "}
+                  Results
                   Found
                 </p>
                 <div className="flex items-center gap-2">
@@ -779,7 +879,7 @@ export default function TrainingCatalogue({
               </div>
 
               {/* Cards */}
-              {courses.length > 0 ? (
+              {filteredCourses.length > 0 ? (
                 <div
                   className={
                     viewMode === "grid"
@@ -787,7 +887,7 @@ export default function TrainingCatalogue({
                       : "flex flex-col gap-4"
                   }
                 >
-                  {courses.map((course, index) => (
+                  {filteredCourses.map((course, index) => (
                     <CourseCard
                       key={course.id}
                       course={course}

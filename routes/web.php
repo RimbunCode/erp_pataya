@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Admin\CourseApprovalController;
+use App\Http\Controllers\Admin\CourseCategoryController;
 use App\Http\Controllers\Admin\LandingPageSettingController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\SystemFinanceController;
@@ -150,6 +151,8 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/approvals', [CourseApprovalController::class, 'index'])->name('approval');
             Route::patch('/approvals/{coursePublishRequest}/approve', [CourseApprovalController::class, 'approve'])->name('approval.approve');
             Route::patch('/approvals/{coursePublishRequest}/reject', [CourseApprovalController::class, 'reject'])->name('approval.reject');
+            Route::get('/course-categories', [CourseCategoryController::class, 'index'])->name('course-categories.index');
+            Route::post('/course-categories', [CourseCategoryController::class, 'store'])->name('course-categories.store');
         });
 
         Route::middleware(['admin.permission:finance_admin,super_admin'])->group(function () {

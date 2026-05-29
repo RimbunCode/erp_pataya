@@ -33,6 +33,7 @@ class AdminModulePermissionTest extends TestCase {
         $this->grantAdminPermission($admin, 'course_admin');
 
         $this->actingAs($admin)->get(route('admin.approval'))->assertOk();
+        $this->actingAs($admin)->get(route('admin.course-categories.index'))->assertOk();
 
         $this->actingAs($admin)->get(route('admin.finance'))
             ->assertRedirect(route('admin.dashboard'))
@@ -61,6 +62,10 @@ class AdminModulePermissionTest extends TestCase {
         $this->actingAs($admin)->get(route('admin.landing-page-settings.index'))
             ->assertRedirect(route('admin.dashboard'))
             ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
+
+        $this->actingAs($admin)->get(route('admin.course-categories.index'))
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
     }
 
     public function test_content_admin_can_only_access_landing_page_settings_module(): void {
@@ -79,6 +84,10 @@ class AdminModulePermissionTest extends TestCase {
             ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
 
         $this->actingAs($admin)->get(route('admin.user'))
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
+
+        $this->actingAs($admin)->get(route('admin.course-categories.index'))
             ->assertRedirect(route('admin.dashboard'))
             ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
     }
@@ -105,6 +114,10 @@ class AdminModulePermissionTest extends TestCase {
         $this->actingAs($admin)->get(route('admin.landing-page-settings.index'))
             ->assertRedirect(route('admin.dashboard'))
             ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
+
+        $this->actingAs($admin)->get(route('admin.course-categories.index'))
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
     }
 
     public function test_super_admin_can_access_all_modules_and_assign_permissions(): void {
@@ -119,6 +132,7 @@ class AdminModulePermissionTest extends TestCase {
         $this->actingAs($superAdmin)->get(route('admin.finance'))->assertOk();
         $this->actingAs($superAdmin)->get(route('admin.user'))->assertOk();
         $this->actingAs($superAdmin)->get(route('admin.landing-page-settings.index'))->assertOk();
+        $this->actingAs($superAdmin)->get(route('admin.course-categories.index'))->assertOk();
 
         $response = $this->actingAs($superAdmin)->patch(
             route('admin.user.admins.permissions', ['user' => $targetAdmin->id]),

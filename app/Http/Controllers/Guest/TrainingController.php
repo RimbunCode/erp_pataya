@@ -23,23 +23,7 @@ class TrainingController extends Controller {
         $role = $user?->roles->pluck('name')->first();
 
         $query = Course::with(['categories', 'creator'])
-            ->where('is_published', true)
-            ->when(
-                $request->search,
-                fn ($q) => $q->where('title', 'like', "%{$request->search}%")
-                    ->orWhere('description', 'like', "%{$request->search}%"),
-            )
-            ->when(
-                $request->level,
-                fn ($q) => $q->where('level', $request->level),
-            )
-            ->when(
-                $request->category,
-                fn ($q) => $q->whereHas(
-                    'categories',
-                    fn ($q) => $q->where('slug', $request->category),
-                ),
-            );
+            ->where('is_published', true);
 
         if ($role === 'student' && $user) {
             // Sembunyikan course yang sudah di-enroll oleh student ini
@@ -70,10 +54,10 @@ class TrainingController extends Controller {
 
         $categories = Category::orderBy('name')->get(['id', 'name', 'slug']);
 
-        return Inertia::render('Guest/TrainingSection/TrainingCatalogue', [
+        return Inertia::render('Guest/CourseSection/CourseCatalogue', [
             'courses'    => $courses,
             'categories' => $categories,
-            'filters'    => $request->only(['search', 'level', 'category']),
+            'filters'    => $request->only(['search', 'level', 'category', 'certification']),
             'content'    => $this->guestPageContentService->resolve(),
         ]);
     }
@@ -102,7 +86,7 @@ class TrainingController extends Controller {
             }
         }
 
-        return Inertia::render('Guest/TrainingSection/TrainingPreview', [
+        return Inertia::render('Guest/CourseSection/CoursePreview', [
             'course' => [
                 'id'               => $course->id,
                 'title'            => $course->title,
