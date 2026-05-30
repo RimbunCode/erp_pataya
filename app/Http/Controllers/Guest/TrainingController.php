@@ -13,7 +13,8 @@ use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class TrainingController extends Controller { public function __construct(private GuestPageContentService $guestPageContentService) {}
+class TrainingController extends Controller {
+    public function __construct(private GuestPageContentService $guestPageContentService) {}
 
     public function index(Request $request): Response {
         $user = Auth::user();
@@ -86,7 +87,7 @@ class TrainingController extends Controller { public function __construct(privat
         }
 
         return Inertia::render('Guest/CourseSection/CoursePreview', [
-            'course'           => [
+            'course' => [
                 'id'               => $course->id,
                 'title'            => $course->title,
                 'description'      => $course->description,
