@@ -12,7 +12,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class FinancialController extends Controller { public function __construct(private InstructorPayoutService $instructorPayoutService) {}
+class FinancialController extends Controller {
+    public function __construct(private InstructorPayoutService $instructorPayoutService) {}
 
     public function index(Request $request): Response {
         $user = $request->user();
@@ -25,7 +26,7 @@ class FinancialController extends Controller { public function __construct(priva
         $lifetimeEarning      = InstructorEarning::query()
             ->where('instructor_id', $user->id)
             ->sum('instructor_amount');
-        $pendingPayout        = InstructorPayoutRequest::query()
+        $pendingPayout = InstructorPayoutRequest::query()
             ->where('instructor_id', $user->id)
             ->whereIn('status', ['draft', 'pending', 'approved'])
             ->sum('requested_amount');
@@ -59,12 +60,12 @@ class FinancialController extends Controller { public function __construct(priva
                     'effectiveFeePercentage' => $grossAmount > 0
                         ? round(($companyAmount / $grossAmount) * 100, 2)
                         : 0.0,
-                    'earnedAt'               => $earning->payment?->verified_at?->toIso8601String()
+                    'earnedAt' => $earning->payment?->verified_at?->toIso8601String()
                         ?? $earning->payment?->created_at?->toIso8601String()
                         ?? $earning->created_at?->toIso8601String(),
-                    'availableAt'            => $earning->available_at?->toIso8601String(),
-                    'releasedAt'             => $earning->released_at?->toIso8601String(),
-                    'status'                 => $status,
+                    'availableAt' => $earning->available_at?->toIso8601String(),
+                    'releasedAt'  => $earning->released_at?->toIso8601String(),
+                    'status'      => $status,
                 ];
             })
             ->values();
@@ -92,7 +93,7 @@ class FinancialController extends Controller { public function __construct(priva
             ->values();
 
         return Inertia::render('Instructors/Financials', [
-            'stats'                => [
+            'stats' => [
                 'availableBalance' => (float) $eligibleBalance,
                 'pendingPayout'    => (float) $pendingPayout,
                 'lifetimeEarning'  => (float) $lifetimeEarning,

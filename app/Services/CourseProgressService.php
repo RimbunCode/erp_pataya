@@ -28,9 +28,9 @@ class CourseProgressService {
         array $submittedContentLookup,
     ): bool {
         return match ($contentType) {
-            'material' => isset($completedContentLookup[$contentId]),
+            'material'                     => isset($completedContentLookup[$contentId]),
             'pre_assessment', 'assignment' => isset($submittedContentLookup[$contentId]),
-            default => false,
+            default                        => false,
         };
     }
 
