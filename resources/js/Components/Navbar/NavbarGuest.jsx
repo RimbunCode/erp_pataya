@@ -177,10 +177,10 @@ export default memo(function NavbarGuest({ onLogout }) {
                         <Link
                           href={dashboardRoute}
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 hover:dark:bg-gray-700 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 dark:text-primary-foreground/50 dark:bg-gray-100 hover:bg-gray-50 hover:dark:bg-gray-700 transition-colors"
                         >
                           <svg
-                            className="w-4 h-4 text-gray-400"
+                            className="w-4 h-4 text-gray-400 dark:text-primary-foreground flex-shrink-0"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"

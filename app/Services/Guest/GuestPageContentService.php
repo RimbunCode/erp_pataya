@@ -50,6 +50,18 @@ class GuestPageContentService {
      */
     private function defaultContent(): array {
         return [
+            'theme' => [
+                'guest' => [
+                    'primary'               => '#2563eb',
+                    'primaryHover'          => '#1d4ed8',
+                    'primarySoft'           => '#dbeafe',
+                    'primarySoftForeground' => '#1d4ed8',
+                    'foreground'            => '#0f172a',
+                    'mutedForeground'       => '#64748b',
+                    'background'            => '#f8fafc',
+                    'card'                  => '#ffffff',
+                ],
+            ],
             'home' => [
                 'hero' => [
                     'badge'              => $this->doc('NEW: BIM CERTIFICATION 2024'),
@@ -62,6 +74,23 @@ class GuestPageContentService {
                     'topCardSubtitle'    => $this->doc('GLOBAL STANDARDS'),
                     'bottomCardTitle'    => $this->doc('ISO CERTIFIED LMS'),
                     'bottomCardSubtitle' => $this->doc('VERIFIED PROGRAM'),
+                ],
+                'media' => [
+                    'heroImageFileId'         => null,
+                    'popularCardImageFileIds' => [null, null, null],
+                ],
+                'ads' => [
+                    'items' => [
+                        [
+                            'enabled'      => false,
+                            'title'        => $this->doc('TRAINING PARTNER PROMO'),
+                            'description'  => $this->doc('Promosikan program atau partner strategis di area home page.'),
+                            'imageFileId'  => null,
+                            'ctaLabel'     => $this->doc('LEARN MORE'),
+                            'url'          => '',
+                            'openInNewTab' => true,
+                        ],
+                    ],
                 ],
                 'trusted' => [
                     'heading'   => $this->doc('TRUSTED BY INDUSTRY LEADERS'),
@@ -220,7 +249,7 @@ class GuestPageContentService {
                     'email'   => $this->doc('info@inkindo-learning.com'),
                 ],
                 'bottom' => [
-                    'copyright'  => $this->doc('© 2024 INKINDO LEARNING CENTER. ALL RIGHTS RESERVED.'),
+                    'copyright'  => $this->doc('COPYRIGHT 2024 INKINDO LEARNING CENTER. ALL RIGHTS RESERVED.'),
                     'helpCenter' => $this->doc('HELP CENTER'),
                     'sitemap'    => $this->doc('SITEMAP'),
                 ],
@@ -269,7 +298,7 @@ class GuestPageContentService {
         ];
     }
 
-    private function sanitizeValue(mixed $value, mixed $default): mixed {
+    private function sanitizeValue(mixed $value, mixed $default, string $path = ''): mixed {
         if ($this->isTipTapDoc($default)) {
             if ($this->isTipTapDoc($value)) {
                 return $value;
@@ -291,9 +320,41 @@ class GuestPageContentService {
         }
 
         if ($this->isList($default)) {
+            if ($path === 'home.ads.items') {
+                $itemTemplate = $default[0] ?? [];
+                $items        = is_array($value) ? array_values($value) : [];
+                $result       = [];
+
+                foreach ($items as $item) {
+                    $result[] = $this->sanitizeValue($item, $itemTemplate, "{$path}.*");
+                }
+
+                if ($result === []) {
+                    $result[] = $this->sanitizeValue(null, $itemTemplate, "{$path}.*");
+                }
+
+                return $result;
+            }
+
+            if ($path === 'home.trusted.companies') {
+                $itemTemplate = $default[0] ?? $this->doc('PARTNER');
+                $items        = is_array($value) ? array_values($value) : [];
+                $result       = [];
+
+                foreach ($items as $item) {
+                    $result[] = $this->sanitizeValue($item, $itemTemplate, "{$path}.*");
+                }
+
+                if ($result === []) {
+                    $result[] = $this->sanitizeValue(null, $itemTemplate, "{$path}.*");
+                }
+
+                return $result;
+            }
+
             $result = [];
             foreach ($default as $index => $defaultItem) {
-                $result[] = $this->sanitizeValue($value[$index] ?? null, $defaultItem);
+                $result[] = $this->sanitizeValue($value[$index] ?? null, $defaultItem, "{$path}.{$index}");
             }
 
             return $result;
@@ -301,7 +362,8 @@ class GuestPageContentService {
 
         $result = [];
         foreach ($default as $key => $defaultItem) {
-            $result[$key] = $this->sanitizeValue($value[$key] ?? null, $defaultItem);
+            $nextPath     = $path === '' ? (string) $key : "{$path}.{$key}";
+            $result[$key] = $this->sanitizeValue($value[$key] ?? null, $defaultItem, $nextPath);
         }
 
         return $result;
@@ -335,4 +397,3 @@ class GuestPageContentService {
         return $this->hasPreferencesTable;
     }
 }
-

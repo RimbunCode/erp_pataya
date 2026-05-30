@@ -1,4 +1,5 @@
 import { getGuestText } from "@/lib/guestPageContent";
+import { LiveEditableText } from "./LiveEditor/GuestLiveEditorContext";
 
 const FEATURE_ICONS = [
   <svg
@@ -89,16 +90,24 @@ export function WhyInkindoSection({ content = {} }) {
     <section className="bg-muted py-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="text-center mb-14">
-          <h2 className="text-4xl lg:text-5xl font-black text-foreground tracking-tight mb-3 whitespace-pre-line">
+          <LiveEditableText
+            as="h2"
+            path="home.why.heading"
+            className="text-4xl lg:text-5xl font-black text-foreground tracking-tight mb-3 whitespace-pre-line"
+          >
             {heading}
-          </h2>
-          <p className="text-muted-foreground text-sm whitespace-pre-line">
+          </LiveEditableText>
+          <LiveEditableText
+            as="p"
+            path="home.why.description"
+            className="text-muted-foreground text-sm whitespace-pre-line"
+          >
             {description}
-          </p>
+          </LiveEditableText>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {features.map((feature) => (
+          {features.map((feature, index) => (
             <div
               key={feature.title}
               className="bg-card rounded-2xl p-8 shadow-sm border border-border hover:shadow-md hover:-translate-y-1 hover:border-primary/50 transition-all duration-300 flex flex-col"
@@ -109,19 +118,32 @@ export function WhyInkindoSection({ content = {} }) {
                 {feature.icon}
               </div>
 
-              <h3 className="font-black text-foreground text-sm tracking-wide mb-3 whitespace-pre-line">
+              <LiveEditableText
+                as="h3"
+                path={`home.why.features.${index}.title`}
+                className="font-black text-foreground text-sm tracking-wide mb-3 whitespace-pre-line"
+              >
                 {feature.title}
-              </h3>
+              </LiveEditableText>
 
-              <p className="text-muted-foreground text-xs leading-relaxed flex-1 mb-6 whitespace-pre-line">
+              <LiveEditableText
+                as="p"
+                path={`home.why.features.${index}.description`}
+                className="text-muted-foreground text-xs leading-relaxed flex-1 mb-6 whitespace-pre-line"
+              >
                 {feature.desc}
-              </p>
+              </LiveEditableText>
 
               <a
                 href={route("guest.about")}
                 className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors group"
               >
-                {feature.linkLabel}
+                <LiveEditableText
+                  as="span"
+                  path={`home.why.features.${index}.linkLabel`}
+                >
+                  {feature.linkLabel}
+                </LiveEditableText>
                 <svg
                   className="w-3 h-3 group-hover:translate-x-0.5 transition-transform"
                   fill="none"

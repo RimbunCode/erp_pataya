@@ -1,5 +1,9 @@
 import GuestLayout from "@/Layouts/GuestLayout";
 import { getGuestLines, getGuestText } from "@/lib/guestPageContent";
+import {
+  LiveEditableText,
+  useGuestLiveContent,
+} from "../LiveEditor/GuestLiveEditorContext";
 
 const STAT_STYLES = [
   {
@@ -89,26 +93,28 @@ const STAT_STYLES = [
   },
 ];
 
-export default function AboutUs({ content = {} }) {
+function AboutUsContent({ content = {} }) {
+  const effectiveContent = useGuestLiveContent(content);
+
   const heroTitle = getGuestText(
-    content,
+    effectiveContent,
     "about.hero.title",
     "Empowering Engineers Since 1970",
   );
   const heroDescription = getGuestText(
-    content,
+    effectiveContent,
     "about.hero.description",
     "INKINDO (Ikatan Nasional Konsultan Indonesia) Learning Center is a hub for engineering excellence and professional development in Indonesia.",
   );
 
   const stats = [0, 1, 2, 3].map((index) => ({
     value: getGuestText(
-      content,
+      effectiveContent,
       `about.stats.${index}.value`,
       index === 0 ? "54+" : index === 1 ? "12K+" : index === 2 ? "450+" : "34",
     ),
     label: getGuestText(
-      content,
+      effectiveContent,
       `about.stats.${index}.label`,
       index === 0
         ? "Years of Excellence"
@@ -120,19 +126,23 @@ export default function AboutUs({ content = {} }) {
     ),
   }));
 
-  const visionTitle = getGuestText(content, "about.vision.title", "Our Vision");
+  const visionTitle = getGuestText(
+    effectiveContent,
+    "about.vision.title",
+    "Our Vision",
+  );
   const visionDescription = getGuestText(
-    content,
+    effectiveContent,
     "about.vision.description",
     "Menjunjung tinggi kehormatan, kemuliaan dan nama baik profesi konsultan dalam hubungan kerja dengan pemberi tugas, sesama rekan konsultan dan masyarakat.",
   );
 
   const missionTitle = getGuestText(
-    content,
+    effectiveContent,
     "about.mission.title",
     "Our Mission",
   );
-  const missionItems = getGuestLines(content, "about.mission.items", [
+  const missionItems = getGuestLines(effectiveContent, "about.mission.items", [
     "Inkindo Jatim sebagai learning organisation yang dinamis dan adaptif terhadap perubahan peradaban.",
     "Inkindo Jatim sebagai wadah komunikasi anggota dan salah satu pusat environment jasa konstruksi khususnya di Jawa Timur.",
     "Penegakan norma, etika dan aturan organisasi.",
@@ -144,119 +154,151 @@ export default function AboutUs({ content = {} }) {
   ]);
 
   return (
-    <GuestLayout>
-      <div className="bg-muted min-h-screen">
-        <section
-          className="relative px-6 pt-32 pb-16"
+    <div className="bg-muted min-h-screen">
+      <section
+        className="relative px-6 pt-32 pb-16"
+        style={{
+          background: "linear-gradient(135deg, #0a0f2e 60%, #1a2a6c 100%)",
+        }}
+      >
+        <div
+          className="absolute inset-0 pointer-events-none"
           style={{
-            background: "linear-gradient(135deg, #0a0f2e 60%, #1a2a6c 100%)",
+            background: "linear-gradient(120deg, transparent 55%, #1e3a8a 55%)",
+            opacity: 0.4,
           }}
-        >
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background:
-                "linear-gradient(120deg, transparent 55%, #1e3a8a 55%)",
-              opacity: 0.4,
-            }}
-          />
+        />
 
-          <div className="relative z-10 max-w-3xl mx-auto text-center mb-16">
-            <h1 className="text-5xl md:text-6xl font-black text-white tracking-tight leading-tight uppercase whitespace-pre-line">
-              {heroTitle}
-            </h1>
-            <p className="mt-6 text-sm md:text-base text-white leading-relaxed max-w-xl mx-auto whitespace-pre-line">
-              {heroDescription}
-            </p>
-          </div>
+        <div className="relative z-10 max-w-3xl mx-auto text-center mb-16">
+          <LiveEditableText
+            as="h1"
+            path="about.hero.title"
+            className="text-5xl md:text-6xl font-black text-white tracking-tight leading-tight uppercase whitespace-pre-line"
+          >
+            {heroTitle}
+          </LiveEditableText>
+          <LiveEditableText
+            as="p"
+            path="about.hero.description"
+            className="mt-6 text-sm md:text-base text-white leading-relaxed max-w-xl mx-auto whitespace-pre-line"
+          >
+            {heroDescription}
+          </LiveEditableText>
+        </div>
 
-          <div className="relative z-10 max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {stats.map((stat, index) => {
-              const style = STAT_STYLES[index] ?? STAT_STYLES[0];
+        <div className="relative z-10 max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
+          {stats.map((stat, index) => {
+            const style = STAT_STYLES[index] ?? STAT_STYLES[0];
 
-              return (
+            return (
+              <div
+                key={`${stat.label}-${index}`}
+                className={`bg-gradient-to-br ${style.accent} border rounded-2xl px-6 py-8 flex flex-col items-center gap-3 text-center`}
+              >
                 <div
-                  key={`${stat.label}-${index}`}
-                  className={`bg-gradient-to-br ${style.accent} border rounded-2xl px-6 py-8 flex flex-col items-center gap-3 text-center`}
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${style.iconBg}`}
                 >
-                  <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${style.iconBg}`}
-                  >
-                    {style.icon}
-                  </div>
-                  <div
-                    className={`text-4xl font-black tracking-tight leading-none ${style.numColor} whitespace-pre-line`}
-                  >
-                    {stat.value}
-                  </div>
-                  <div className="text-[10px] font-bold tracking-[2px] text-white/40 uppercase whitespace-pre-line">
-                    {stat.label}
-                  </div>
+                  {style.icon}
                 </div>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="py-24 px-6">
-          <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="group bg-card rounded-3xl p-10 border border-primary/20 shadow-sm border-b-4 border-b-blue-500 hover:bg-muted hover:shadow-md transition-all duration-300">
-              <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-6">
-                <svg
-                  className="w-7 h-7 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
+                <LiveEditableText
+                  as="div"
+                  path={`about.stats.${index}.value`}
+                  className={`text-4xl font-black tracking-tight leading-none ${style.numColor} whitespace-pre-line`}
                 >
-                  <circle cx="12" cy="12" r="10" />
-                  <circle cx="12" cy="12" r="6" />
-                  <circle cx="12" cy="12" r="2" />
-                </svg>
+                  {stat.value}
+                </LiveEditableText>
+                <LiveEditableText
+                  as="div"
+                  path={`about.stats.${index}.label`}
+                  className="text-[10px] font-bold tracking-[2px] text-white/40 uppercase whitespace-pre-line"
+                >
+                  {stat.label}
+                </LiveEditableText>
               </div>
-              <h2 className="text-2xl font-black text-foreground uppercase tracking-wide mb-5 whitespace-pre-line">
-                {visionTitle}
-              </h2>
-              <p className="text-sm text-black leading-relaxed whitespace-pre-line">
-                {visionDescription}
-              </p>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="py-24 px-6">
+        <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="group bg-card rounded-3xl p-10 border border-primary/20 shadow-sm border-b-4 border-b-blue-500 hover:bg-muted hover:shadow-md transition-all duration-300">
+            <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-6">
+              <svg
+                className="w-7 h-7 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+              </svg>
             </div>
+            <LiveEditableText
+              as="h2"
+              path="about.vision.title"
+              className="text-2xl font-black text-foreground uppercase tracking-wide mb-5 whitespace-pre-line"
+            >
+              {visionTitle}
+            </LiveEditableText>
+            <LiveEditableText
+              as="p"
+              path="about.vision.description"
+              className="text-sm text-black leading-relaxed whitespace-pre-line"
+            >
+              {visionDescription}
+            </LiveEditableText>
+          </div>
 
-            <div className="group bg-card rounded-3xl p-11 border border-purple-100 shadow-sm border-b-4 border-b-purple-500 hover:bg-muted hover:shadow-md transition-all duration-300">
-              <div className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center mb-6">
-                <svg
-                  className="w-7 h-7 text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <circle cx="12" cy="8" r="4" />
-                  <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-black text-foreground uppercase tracking-wide mb-5 whitespace-pre-line">
-                {missionTitle}
-              </h2>
-              <ul className="space-y-4">
-                {missionItems.map((item, index) => (
-                  <li
-                    key={`${index}-${item}`}
-                    className="flex items-start gap-3"
+          <div className="group bg-card rounded-3xl p-11 border border-purple-100 shadow-sm border-b-4 border-b-purple-500 hover:bg-muted hover:shadow-md transition-all duration-300">
+            <div className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center mb-6">
+              <svg
+                className="w-7 h-7 text-white"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <circle cx="12" cy="8" r="4" />
+                <path d="M6 20v-2a6 6 0 0 1 12 0v2" />
+              </svg>
+            </div>
+            <LiveEditableText
+              as="h2"
+              path="about.mission.title"
+              className="text-2xl font-black text-foreground uppercase tracking-wide mb-5 whitespace-pre-line"
+            >
+              {missionTitle}
+            </LiveEditableText>
+            <ul className="space-y-4">
+              {missionItems.map((item, index) => (
+                <li key={`${index}-${item}`} className="flex items-start gap-3">
+                  <span className="text-primary font-black text-xl leading-tight mt-0.5">
+                    &gt;
+                  </span>
+                  <LiveEditableText
+                    as="span"
+                    path={`about.mission.items.${index}`}
+                    className="text-sm font-semibold text-foreground leading-snug whitespace-pre-line"
                   >
-                    <span className="text-primary font-black text-xl leading-tight mt-0.5">
-                      &gt;
-                    </span>
-                    <span className="text-sm font-semibold text-foreground leading-snug whitespace-pre-line">
-                      {item}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+                    {item}
+                  </LiveEditableText>
+                </li>
+              ))}
+            </ul>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default function AboutUs({ content = {} }) {
+  return (
+    <GuestLayout>
+      <AboutUsContent content={content} />
     </GuestLayout>
   );
 }

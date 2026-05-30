@@ -3,6 +3,7 @@ import React, {
   forwardRef,
   memo as GuestLayout,
   useContext,
+  useMemo,
   useState,
 } from "react";
 import MasterLayout from "./MasterLayout";
@@ -12,7 +13,10 @@ import NavbarGuest from "@/Components/Navbar/NavbarGuest";
 import { SiteFooter } from "@/Pages/Guest/Footer";
 import RolesSelectionModal from "@/Components/Modals/LoginModal";
 import RegisterModal from "@/Components/Modals/RegisterModal";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
+import { buildGuestThemeStyle } from "@/lib/guestTheme";
+import { GuestLiveEditorProvider } from "@/Pages/Guest/LiveEditor/GuestLiveEditorContext";
+import GuestLiveEditorPanel from "@/Pages/Guest/LiveEditor/GuestLiveEditorPanel";
 
 export const RolesSelectionModalContext = createContext(null);
 export const RegisterModalContext = createContext(null);
@@ -29,10 +33,16 @@ export default GuestLayout(
     { className, actions, children, ...props },
     ref,
   ) {
-    const [showSearch, setShowSearch] = React.useState(false);
+    const { content = {}, liveEditor = {} } = usePage().props;
+    const [_showSearch, setShowSearch] = React.useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [showRegister, setShowRegister] = useState(false);
     const { _setTheme } = useTheme();
+    const pageKey = liveEditor?.pageKey ?? "home";
+    const guestThemeStyle = useMemo(
+      () => buildGuestThemeStyle(content),
+      [content],
+    );
     React.useEffect(() => {
       const down = (e) => {
         if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
@@ -56,44 +66,50 @@ export default GuestLayout(
     return (
       <RolesSelectionModalContext.Provider value={() => setShowLogin(true)}>
         <RegisterModalContext.Provider value={() => setShowRegister(true)}>
-          <MasterLayout>
-            <div className="relative mx-auto max-w-full print:hidden dark:bg-gray-900">
-              <NavbarGuest
-                actions={actions}
-                setShowSearch={setShowSearch}
-                onLogout={handleLogout}
-              />
+          <GuestLiveEditorProvider content={content} pageKey={pageKey}>
+            <MasterLayout>
               <div
-                ref={ref}
-                {...props}
-                className={cn(
-                  "relative flex flex-col flex-1 max-h-full p-0 overflow-y-auto",
-                  className,
-                )}
+                className="relative mx-auto max-w-full print:hidden dark:bg-gray-900 bg-background text-foreground"
+                style={guestThemeStyle}
               >
-                {children}
+                <NavbarGuest
+                  actions={actions}
+                  setShowSearch={setShowSearch}
+                  onLogout={handleLogout}
+                />
+                <div
+                  ref={ref}
+                  {...props}
+                  className={cn(
+                    "relative flex flex-col flex-1 max-h-full p-0 overflow-y-auto",
+                    className,
+                  )}
+                >
+                  {children}
+                </div>
               </div>
-            </div>
-            <SiteFooter />
-            {showLogin && (
-              <RolesSelectionModal
-                onClose={() => setShowLogin(false)}
-                onSwitchToRegister={() => {
-                  setShowLogin(false);
-                  setShowRegister(true);
-                }}
-              />
-            )}
-            {showRegister && (
-              <RegisterModal
-                onClose={() => setShowRegister(false)}
-                onSwitchToLogin={() => {
-                  setShowRegister(false);
-                  setShowLogin(true);
-                }}
-              />
-            )}
-          </MasterLayout>
+              <SiteFooter />
+              <GuestLiveEditorPanel />
+              {showLogin && (
+                <RolesSelectionModal
+                  onClose={() => setShowLogin(false)}
+                  onSwitchToRegister={() => {
+                    setShowLogin(false);
+                    setShowRegister(true);
+                  }}
+                />
+              )}
+              {showRegister && (
+                <RegisterModal
+                  onClose={() => setShowRegister(false)}
+                  onSwitchToLogin={() => {
+                    setShowRegister(false);
+                    setShowLogin(true);
+                  }}
+                />
+              )}
+            </MasterLayout>
+          </GuestLiveEditorProvider>
         </RegisterModalContext.Provider>
       </RolesSelectionModalContext.Provider>
     );

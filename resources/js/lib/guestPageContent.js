@@ -20,6 +20,16 @@ function getByPath(content, path) {
   }, content);
 }
 
+export function getGuestImageUrl(content, path, fallbackUrl = "") {
+  const value = getByPath(content, path);
+
+  if (typeof value === "string" && value.trim() !== "") {
+    return route("files.preview", value);
+  }
+
+  return fallbackUrl;
+}
+
 function normalizeFallbackText(fallback) {
   if (typeof fallback === "string") {
     return fallback;

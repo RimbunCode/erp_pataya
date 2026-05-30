@@ -1,5 +1,6 @@
 import Link from "@/Components/Link";
-import { getGuestText } from "@/lib/guestPageContent";
+import { getGuestImageUrl, getGuestText } from "@/lib/guestPageContent";
+import { LiveEditableText } from "./LiveEditor/GuestLiveEditorContext";
 
 function TrainingCard({
   category,
@@ -138,7 +139,11 @@ export function PopularTrainingSection({ content = {} }) {
       level: "Advanced",
       rating: 4.9,
       price: "2.500.000",
-      image: "/storage/images/bim.png",
+      image: getGuestImageUrl(
+        content,
+        "home.media.popularCardImageFileIds.0",
+        "/storage/images/bim.png",
+      ),
     },
     {
       category: "Project Management",
@@ -151,7 +156,11 @@ export function PopularTrainingSection({ content = {} }) {
       level: "Intermediate",
       rating: 4.8,
       price: "1.850.000",
-      image: "/storage/images/project-management.png",
+      image: getGuestImageUrl(
+        content,
+        "home.media.popularCardImageFileIds.1",
+        "/storage/images/project-management.png",
+      ),
       featured: true,
     },
     {
@@ -165,7 +174,11 @@ export function PopularTrainingSection({ content = {} }) {
       level: "Advanced",
       rating: 4.9,
       price: "3.100.000",
-      image: "/storage/images/green-building.png",
+      image: getGuestImageUrl(
+        content,
+        "home.media.popularCardImageFileIds.2",
+        "/storage/images/green-building.png",
+      ),
     },
   ];
 
@@ -173,12 +186,20 @@ export function PopularTrainingSection({ content = {} }) {
     <section className="bg-card py-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="mb-10">
-          <h2 className="text-4xl font-black text-foreground tracking-tight mb-2 whitespace-pre-line">
+          <LiveEditableText
+            as="h2"
+            path="home.popular.heading"
+            className="text-4xl font-black text-foreground tracking-tight mb-2 whitespace-pre-line"
+          >
             {sectionHeading}
-          </h2>
-          <p className="text-muted-foreground text-sm whitespace-pre-line">
+          </LiveEditableText>
+          <LiveEditableText
+            as="p"
+            path="home.popular.description"
+            className="text-muted-foreground text-sm whitespace-pre-line"
+          >
             {sectionDescription}
-          </p>
+          </LiveEditableText>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">

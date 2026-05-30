@@ -179,6 +179,7 @@ Route::middleware(['auth'])->group(function () {
         Route::middleware(['admin.permission:content_admin,super_admin'])->group(function () {
             Route::get('/landing-page-settings', [LandingPageSettingController::class, 'index'])->name('landing-page-settings.index');
             Route::patch('/landing-page-settings', [LandingPageSettingController::class, 'update'])->name('landing-page-settings.update');
+            Route::post('/landing-page-settings/media', [LandingPageSettingController::class, 'uploadMedia'])->name('landing-page-settings.media.upload');
         });
 
         Route::middleware(['admin.permission:super_admin'])->group(function () {

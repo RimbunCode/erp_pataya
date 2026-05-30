@@ -32,14 +32,7 @@ const PAGE_CONFIG = [
       },
       {
         title: "Trusted",
-        fields: [
-          { label: "Heading", path: "home.trusted.heading" },
-          { label: "Company 1", path: "home.trusted.companies.0" },
-          { label: "Company 2", path: "home.trusted.companies.1" },
-          { label: "Company 3", path: "home.trusted.companies.2" },
-          { label: "Company 4", path: "home.trusted.companies.3" },
-          { label: "Company 5", path: "home.trusted.companies.4" },
-        ],
+        fields: [{ label: "Heading", path: "home.trusted.heading" }],
       },
       {
         title: "Popular Training Intro",
@@ -268,6 +261,15 @@ const PAGE_CONFIG = [
   },
 ];
 
+const LIVE_EDIT_ROUTE_BY_PAGE = {
+  home: "guest.home",
+  about: "guest.about",
+  verify: "guest.verify",
+  contact: "guest.contact",
+  footer: "guest.home",
+};
+const HOME_TRUSTED_COMPANIES_PATH = "home.trusted.companies";
+
 function parsePath(path) {
   return path
     .split(".")
@@ -325,6 +327,21 @@ function setByPath(obj, path, nextValue) {
   return next;
 }
 
+function addListItemByPath(obj, path, item) {
+  const list = getByPath(obj, path);
+  const currentList = Array.isArray(list) ? list : [];
+
+  return setByPath(obj, path, [...currentList, item]);
+}
+
+function removeListItemByPath(obj, path, indexToRemove) {
+  const list = getByPath(obj, path);
+  const currentList = Array.isArray(list) ? list : [];
+  const nextList = currentList.filter((_, index) => index !== indexToRemove);
+
+  return setByPath(obj, path, nextList);
+}
+
 export default function LandingPageSettings() {
   const { content: initialContent = {}, flash = {} } = usePage().props;
 
@@ -351,6 +368,36 @@ export default function LandingPageSettings() {
 
   const setFieldValue = (path, value) => {
     setDraftContent((previousValue) => setByPath(previousValue, path, value));
+  };
+
+  const trustedCompanies = useMemo(() => {
+    const items = getByPath(draftContent, HOME_TRUSTED_COMPANIES_PATH);
+
+    return Array.isArray(items) ? items : [];
+  }, [draftContent]);
+
+  const addTrustedCompany = () => {
+    setDraftContent((previousValue) =>
+      addListItemByPath(
+        previousValue,
+        HOME_TRUSTED_COMPANIES_PATH,
+        ensureTiptapDoc("NEW PARTNER"),
+      ),
+    );
+  };
+
+  const removeTrustedCompany = (indexToRemove) => {
+    if (trustedCompanies.length <= 1) {
+      return;
+    }
+
+    setDraftContent((previousValue) =>
+      removeListItemByPath(
+        previousValue,
+        HOME_TRUSTED_COMPANIES_PATH,
+        indexToRemove,
+      ),
+    );
   };
 
   const handleSave = () => {
@@ -390,6 +437,12 @@ export default function LandingPageSettings() {
     });
   }, [currentPage, draftContent]);
 
+  const liveEditTargetUrl = useMemo(() => {
+    const routeName = LIVE_EDIT_ROUTE_BY_PAGE[activePageKey] ?? "guest.home";
+
+    return `${route(routeName)}?liveEdit=1`;
+  }, [activePageKey]);
+
   return (
     <MainLayout>
       <div className="p-6 space-y-5">
@@ -403,6 +456,15 @@ export default function LandingPageSettings() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = liveEditTargetUrl;
+              }}
+              className="px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider border border-[var(--border)] bg-[var(--card)] text-[var(--foreground)] hover:bg-[var(--background-accent)]"
+            >
+              Live Edit Current Page
+            </button>
             <span
               className={`text-xs font-semibold px-3 py-1.5 rounded-lg border ${
                 hasUnsavedChanges
@@ -469,6 +531,57 @@ export default function LandingPageSettings() {
                 </div>
               </section>
             ))}
+
+            {activePageKey === "home" && (
+              <section className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 className="text-sm font-black uppercase tracking-wide text-[var(--foreground)]">
+                    Trusted Companies
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={addTrustedCompany}
+                    className="px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border border-[var(--primary)] bg-[var(--primary)] text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)]"
+                  >
+                    Add Company
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {trustedCompanies.map((companyItem, index) => (
+                    <div
+                      key={`trusted-company-${index}`}
+                      className="rounded-lg border border-[var(--border)] bg-[var(--background)] p-3 space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--muted-foreground)]">
+                          Company {index + 1}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => removeTrustedCompany(index)}
+                          disabled={trustedCompanies.length <= 1}
+                          className="px-2 py-1 rounded-md text-[10px] font-semibold uppercase tracking-wider border border-[var(--border)] text-[var(--muted-foreground)] hover:bg-[var(--card)] disabled:opacity-40"
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      <TiptapFieldEditor
+                        label={`Company ${index + 1}`}
+                        value={companyItem}
+                        onChange={(nextDoc) =>
+                          setFieldValue(
+                            `${HOME_TRUSTED_COMPANIES_PATH}.${index}`,
+                            nextDoc,
+                          )
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           <aside className="xl:sticky xl:top-20 rounded-xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-3 max-h-[calc(100vh-7rem)] overflow-y-auto">
