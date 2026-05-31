@@ -1,5 +1,9 @@
 import { generateRandom } from "./utils";
 import { formatValue } from "@/Components/CurrencyInput";
+import {
+  serializeCustomModeHeader,
+  serializeCustomModeBody,
+} from "../Pages/Core/PrintTemplate/utils/customModeUtils";
 
 /**
  * Resolves a dot-notation path on an object to get the value.
@@ -619,10 +623,21 @@ export default function gjsRelationsTable(editor) {
         attributes: { class: "table table-bordered w-100" },
         droppable: false,
         traits: [],
+        customMode: false,
       },
       init() {
         this.listenTo(this, "change:selectedColumns", this.updateColumns);
         this.listenTo(this, "change:columnOrder", this.updateColumns);
+
+        // On load: if customMode is active but children are missing, emit error event
+        // Deferred so the component tree is fully populated before checking
+        if (this.get("customMode") === true) {
+          window.setTimeout(() => {
+            if (this.components().length === 0) {
+              this.trigger("customMode:layoutRestoreError");
+            }
+          }, 0);
+        }
       },
       updateColumns() {
         const selected = this.get("selectedColumns") || [];
@@ -676,7 +691,35 @@ export default function gjsRelationsTable(editor) {
        * - `{{this.columnName}}` for simple columns
        * - `{{relation this.columnName}}` for relation columns
        */
+      /**
+       * Serializes the table when Custom Mode is active.
+       * Uses serializeCustomModeHeader/Body from customModeUtils to build
+       * the Handlebar-token HTML from the live GrapesJS component tree.
+       * Outputs data-custom-mode="true" as a marker attribute.
+       */
+      toCustomModeHTML() {
+        const attrs = this.getAttributes();
+        const relationName = attrs["data-relations"] || "";
+
+        const thead = this.components().find(
+          (c) => (c.get("tagName") || "").toLowerCase() === "thead",
+        );
+        const tbody = this.components().find(
+          (c) => (c.get("tagName") || "").toLowerCase() === "tbody",
+        );
+
+        const headerHtml = serializeCustomModeHeader(thead, relationName);
+        const bodyHtml = serializeCustomModeBody(tbody, relationName);
+
+        return `<table class="table table-bordered w-100" data-relations="${relationName}" data-custom-mode="true">${headerHtml}${bodyHtml}</table>`;
+      },
+
       toHTML() {
+        // Custom Mode: delegate to dedicated serializer
+        if (this.get("customMode") === true) {
+          return this.toCustomModeHTML();
+        }
+
         const attrs = this.getAttributes();
         const relationName = attrs["data-relations"] || "";
         const relationTarget = relationName.startsWith("doc.")

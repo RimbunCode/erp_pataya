@@ -393,6 +393,22 @@ function PrintTemplate({
       isBootstrapping = false;
     });
 
+    // Handle Custom Mode layout restore error — shown when a Custom Mode table
+    // is loaded but its child components are missing or cannot be parsed
+    editor.on("component:mount", (component) => {
+      if (component.getType?.() !== "gjsRelationsTable") return;
+
+      component.on("customMode:layoutRestoreError", () => {
+        toast.error(
+          t(
+            "core.printTemplate.editor.custom_mode_layout_restore_error",
+            {},
+            "Custom layout could not be restored",
+          ),
+        );
+      });
+    });
+
     if (isMobile) {
       toast.info(
         t("core.printTemplate.editor.mobile_mode_info") ||

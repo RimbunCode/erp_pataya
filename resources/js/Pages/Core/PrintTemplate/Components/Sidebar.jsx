@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 
 import CustomBlockManager from "./CustomBlockManager";
 import CustomLayerManager from "./CustomLayerManager";
+import CustomModePanel from "./CustomModePanel";
 import CustomStyleManager from "./CustomStyleManager";
 import React, { useEffect, useMemo, useState } from "react";
 import StaticHTMLInspector from "./Inspector/StaticHTMLInspector";
@@ -68,11 +69,14 @@ function Sidebar() {
   const { t } = useLaravelReactI18n();
   const [activeTab, setActiveTab] = useState("variables");
   const [isStaticHtmlSelected, setIsStaticHtmlSelected] = useState(false);
+  const [selectedComponent, setSelectedComponent] = useState(null);
 
   useEffect(() => {
     const updateSelectedComponentState = () => {
-      const selectedType = editor.getSelected()?.getType?.();
+      const selected = editor.getSelected();
+      const selectedType = selected?.getType?.();
       setIsStaticHtmlSelected(selectedType === "staticHTML");
+      setSelectedComponent(selected || null);
     };
 
     editor.on("component:selected", updateSelectedComponentState);
@@ -93,6 +97,11 @@ function Sidebar() {
       setActiveTab("variables");
     }
   }, [activeTab, isStaticHtmlSelected]);
+
+  // Detect if the selected component is a gjsRelationsTable (custom mode or not)
+  const isRelationsTableSelected = useMemo(() => {
+    return selectedComponent?.getType?.() === "gjsRelationsTable";
+  }, [selectedComponent]);
 
   const sidebarTabs = useMemo(
     () =>
@@ -152,12 +161,16 @@ function Sidebar() {
           {(props) => <CustomBlockManager {...props} />}
         </BlocksProvider>
       </TabsContent>
-      {/* 🧾 VARIABEL */}
+      {/* 🧾 VARIABEL — replaced by CustomModePanel when a gjsRelationsTable is selected */}
       <TabsContent value="variables" className="mt-0 h-full overflow-auto">
-        <VariableManager />
+        {isRelationsTableSelected ? (
+          <CustomModePanel selectedComponent={selectedComponent} />
+        ) : (
+          <VariableManager />
+        )}
       </TabsContent>
       <TabsContent value="token" className="mt-0 h-full overflow-auto">
-        <TokenConfigurationManager />
+        {isRelationsTableSelected ? null : <TokenConfigurationManager />}
       </TabsContent>
       <TabsContent value="inspector" className="mt-0 h-full overflow-auto">
         <div className="space-y-3 p-3">

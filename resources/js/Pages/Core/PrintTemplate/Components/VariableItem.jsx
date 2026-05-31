@@ -203,6 +203,47 @@ function VariableItem({ path = "", titleTransLookup = {}, ...variable }) {
     const labelKey = extractLabelKeyFromToken(tokenValue);
     const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, varPath);
 
+    // Custom Mode: jika <td> atau <th> dalam Custom Mode table dipilih, sisipkan token span sebagai child
+    const selectedTag = (
+      selected?.get?.("tagName") ||
+      selected?.getTagName?.() ||
+      ""
+    ).toLowerCase();
+    const isTableCell = selectedTag === "td" || selectedTag === "th";
+
+    if (selected && isTableCell) {
+      let current = selected.parent?.();
+      let isInCustomModeTable = false;
+      while (current) {
+        if (
+          current.getType?.() === "gjsRelationsTable" &&
+          current.get?.("customMode") === true
+        ) {
+          isInCustomModeTable = true;
+          break;
+        }
+        current = current.parent?.();
+      }
+
+      if (isInCustomModeTable) {
+        const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, varPath);
+        selected.components().add({
+          type: "text",
+          tagName: "span",
+          selectable: true,
+          editable: false,
+          draggable: false,
+          attributes: {
+            "data-token": tokenValue,
+            title: tokenValue,
+            contenteditable: "false",
+          },
+          content: simplifiedToken,
+        });
+        return;
+      }
+    }
+
     // Jika komponen teks biasa dipilih, tambahkan span token ke dalamnya
     if (selected && selected.is("text")) {
       selected.components().add({

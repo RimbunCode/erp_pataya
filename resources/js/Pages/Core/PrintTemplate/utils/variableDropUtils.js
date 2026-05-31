@@ -8,6 +8,7 @@
 import { generateRandom } from "@/lib/utils";
 import { buildExampleDataTable, getColumnLabel } from "@/lib/gjsRelationsTable";
 import { toast } from "sonner";
+import { isValidBodyDropTarget } from "./customModeUtils";
 import {
   buildVariableToken,
   getSimplifiedTokenDisplay,
@@ -727,6 +728,26 @@ export function variableDropListener(
     }
   });
 
+  /**
+   * Walk up the component tree to find the nearest gjsRelationsTable ancestor.
+   * Returns the table component if found and it is in Custom Mode, otherwise null.
+   * @param {object} component - GrapesJS component
+   * @returns {object|null}
+   */
+  const findCustomModeTable = (component) => {
+    let current = component;
+    while (current) {
+      if (
+        current.getType?.() === "gjsRelationsTable" &&
+        current.get?.("customMode") === true
+      ) {
+        return current;
+      }
+      current = current.parent?.();
+    }
+    return null;
+  };
+
   // Validasi dan pembungkusan otomatis saat komponen di-drop ke canvas
   editor.on("canvas:drop", (_sorter, model) => {
     if (!model) return;
@@ -735,6 +756,56 @@ export function variableDropListener(
     }
     const parent = model.parent();
     if (!parent) return;
+
+    // --- Custom Mode drop validation ---
+    // Check if the drop happened inside a Custom Mode gjsRelationsTable
+    const customModeTable = findCustomModeTable(parent);
+    if (customModeTable) {
+      // Validate that the direct parent is a <td> in <tbody>
+      if (!isValidBodyDropTarget(parent)) {
+        model.remove();
+        toast.error(
+          t("core.printTemplate.editor.invalid_drop_target") ||
+            "Invalid drop target for variable component.",
+        );
+        return;
+      }
+
+      // Transform gjsSubGrid into a token span within the <td> cell
+      // Extract the token from the subgrid's token component
+      const tokenComponents = Array.from(model.find?.("[data-token]") || []);
+      const token =
+        tokenComponents[0]?.getAttributes?.()?.["data-token"] || "";
+
+      model.remove();
+
+      if (token) {
+        const simplifiedToken = getSimplifiedTokenDisplay(token, token);
+        const inserted = parent.components().add({
+          type: "text",
+          tagName: "span",
+          selectable: true,
+          editable: false,
+          draggable: false,
+          attributes: {
+            "data-token": token,
+            title: token,
+            contenteditable: "false",
+          },
+          content: simplifiedToken,
+        });
+
+        if (Array.isArray(inserted)) {
+          editor.select(inserted[0] || parent);
+        } else {
+          editor.select(inserted || parent);
+        }
+      }
+
+      return;
+    }
+
+    // --- Standard mode validation (unchanged) ---
 
     // Tolak drop ke dalam subgrid lain (nesting tidak diizinkan)
     if (parent.getType() === "gjsSubGrid") {
