@@ -160,6 +160,64 @@ class CourseManagementTest extends TestCase {
         $response->assertSessionHasErrors(['discount']);
     }
 
+    public function test_store_rejects_non_existing_category(): void {
+        $instructor = User::factory()->create();
+        $this->assignRole($instructor, 'instructor');
+
+        $response = $this->actingAs($instructor)->post(route('instructor.classes.store'), [
+            'title'            => 'Course Invalid Category',
+            'description'      => 'Course description',
+            'price'            => 500000,
+            'discount_type'    => 'amount',
+            'discount'         => 10000,
+            'level'            => 'beginner',
+            'category'         => 'kategori-tidak-ada',
+            'total_hours'      => 8,
+            'total_sessions'   => 2,
+            'certificate_type' => 'attendance',
+        ]);
+
+        $response->assertSessionHasErrors(['category']);
+    }
+
+    public function test_update_rejects_non_existing_category(): void {
+        $instructor = User::factory()->create();
+        $this->assignRole($instructor, 'instructor');
+
+        $category = Category::query()->create([
+            'name' => 'Category Existing',
+            'slug' => 'category-existing',
+        ]);
+
+        $course = Course::query()->create([
+            'title'          => 'Course Update Category Invalid',
+            'description'    => 'Old description',
+            'price'          => 600000,
+            'discount_type'  => 'amount',
+            'discount'       => 0,
+            'level'          => 'intermediate',
+            'total_hours'    => 10,
+            'total_sessions' => 4,
+            'created_by'     => $instructor->id,
+        ]);
+        $course->categories()->attach($category->id);
+
+        $response = $this->actingAs($instructor)->patch(route('instructor.classes.update', $course->id), [
+            'title'            => 'Course Update Category Invalid',
+            'description'      => 'Old description',
+            'price'            => 600000,
+            'discount_type'    => 'amount',
+            'discount'         => 100000,
+            'level'            => 'intermediate',
+            'category'         => 'kategori-tidak-ada',
+            'total_hours'      => 10,
+            'total_sessions'   => 4,
+            'certificate_type' => 'professional',
+        ]);
+
+        $response->assertSessionHasErrors(['category']);
+    }
+
     protected function setUp(): void {
         parent::setUp();
 

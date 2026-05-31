@@ -21,21 +21,25 @@ class UserSeederPermissionTest extends TestCase {
         $financeAdmin = User::query()->where('email', 'finance.admin@inkindo.test')->first();
         $courseAdmin  = User::query()->where('email', 'course.admin@inkindo.test')->first();
         $userAdmin    = User::query()->where('email', 'user.admin@inkindo.test')->first();
+        $contentAdmin = User::query()->where('email', 'content.admin@inkindo.test')->first();
 
         $this->assertNotNull($superAdmin);
         $this->assertNotNull($financeAdmin);
         $this->assertNotNull($courseAdmin);
         $this->assertNotNull($userAdmin);
+        $this->assertNotNull($contentAdmin);
 
         $this->assertSame(FormStatus::ACTIVE, $superAdmin->status);
         $this->assertSame(FormStatus::ACTIVE, $financeAdmin->status);
         $this->assertSame(FormStatus::ACTIVE, $courseAdmin->status);
         $this->assertSame(FormStatus::ACTIVE, $userAdmin->status);
+        $this->assertSame(FormStatus::ACTIVE, $contentAdmin->status);
 
         $this->assertSame(['super_admin'], $this->resolveAdminPermissionNames((string) $superAdmin->id));
         $this->assertSame(['finance_admin'], $this->resolveAdminPermissionNames((string) $financeAdmin->id));
         $this->assertSame(['course_admin'], $this->resolveAdminPermissionNames((string) $courseAdmin->id));
         $this->assertSame(['user_admin'], $this->resolveAdminPermissionNames((string) $userAdmin->id));
+        $this->assertSame(['content_admin'], $this->resolveAdminPermissionNames((string) $contentAdmin->id));
     }
 
     protected function setUp(): void {

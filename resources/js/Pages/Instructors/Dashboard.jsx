@@ -1,153 +1,158 @@
-import { useState } from "react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
 import MainLayout from "@/Layouts/MainLayout";
+import { Link } from "@inertiajs/react";
+import { formatRp } from "@/lib/utils";
+import { statusConfig } from "./Utils/statusConfig";
 
-// ── Mock data ──────────────────────────────────────────────────────────────────
-const growthData = [
-  { day: "Mon", Students: 100 },
-  { day: "Tue", Students: 123 },
-  { day: "Wed", Students: 223 },
-  { day: "Thu", Students: 131 },
-  { day: "Fri", Students: 123 },
-  { day: "Sat", Students: 128 },
-  { day: "Sun", Students: 393 },
-];
+const fallbackBadgeClass =
+  "border border-gray-900 text-gray-900 bg-gray-100 dark:border-gray-500 dark:bg-gray-900 dark:text-gray-100";
 
-const announcements = [
-  { id: 1, title: "Zoom link for BIM Mastery", time: "2H AGO" },
-  { id: 2, title: "Module 4 Material Uploaded", time: "YESTERDAY" },
-];
+const fmtDateTime = (isoString) => {
+  if (!isoString) {
+    return "-";
+  }
 
-const trainings = [
-  {
-    id: 1,
-    title: "Advanced Project Planning",
-    tags: ["ZOOM LINK ADDED", "4 ASSETS"],
-    students: 245,
-    revenue: "Rp 12.2M",
-    status: "ACTIVE",
-  },
-  {
-    id: 2,
-    title: "Building Information Modeling",
-    tags: ["ZOOM LINK ADDED", "4 ASSETS"],
-    students: 128,
-    revenue: "Rp 24.5M",
-    status: "ACTIVE",
-  },
-  {
-    id: 3,
-    title: "Structural Engineering Ethics",
-    tags: ["ZOOM LINK ADDED", "4 ASSETS"],
-    students: 89,
-    revenue: "Rp 4.5M",
-    status: "DRAFT",
-  },
-];
+  const date = new Date(isoString);
+  return `${date.toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  })} · ${date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
+};
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
-
-function StatCard({ icon, label, value, trend, trendLabel, iconBg }) {
+function StatCard({ label, value, helper, icon, accentClass }) {
   return (
-    <div className="bg-card rounded-2xl p-6 flex flex-col gap-3 shadow-sm border border-border flex-1 min-w-0">
-      <div className="flex items-start justify-between">
+    <div className="bg-card rounded-2xl border border-border shadow-sm p-5">
+      <div className="flex items-start justify-between gap-4">
         <div
-          className={`w-11 h-11 rounded-xl flex items-center justify-center ${iconBg}`}
+          className={`w-11 h-11 rounded-xl flex items-center justify-center ${accentClass}`}
         >
           {icon}
         </div>
-        <span className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase">
+        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase text-right">
           {label}
-        </span>
+        </p>
       </div>
-      <p className="text-2xl font-black text-foreground tracking-tight">
-        {value}
-      </p>
-      <p className="text-xs font-bold text-green-500 flex items-center gap-1">
-        <svg
-          className="w-3 h-3"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={3}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 10l7-7m0 0l7 7m-7-7v18"
-          />
-        </svg>
-        {trendLabel}
-      </p>
+      <p className="text-2xl font-black text-foreground mt-4">{value}</p>
+      <p className="text-xs text-muted-foreground mt-1">{helper}</p>
     </div>
   );
 }
 
-function StatusBadge({ status }) {
-  const isActive = status === "ACTIVE";
+function CourseStatusBadge({ status }) {
+  const cfg = statusConfig[status];
+
   return (
     <span
-      className={`px-3 py-1 rounded-lg text-[10px] font-black tracking-widest border ${
-        isActive
-          ? "bg-green-50 text-green-600 border-green-200"
-          : "bg-muted text-muted-foreground border-border"
-      }`}
+      className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${cfg?.bg ?? fallbackBadgeClass}`}
     >
-      {status}
+      {cfg?.label ?? status}
     </span>
   );
 }
 
-const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-card border border-border rounded-xl px-4 py-2 shadow-lg text-xs">
-        <p className="font-bold text-foreground">{label}</p>
-        <p className="text-primary font-black">
-          students : {payload[0].value.toLocaleString()}
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
+export default function InstructorDashboard({
+  overview = {},
+  attention = {},
+  topCourses = [],
+  recentEnrollments = [],
+}) {
+  const totalCourses = Number(overview.totalCourses ?? 0);
+  const publishedCourses = Number(overview.publishedCourses ?? 0);
+  const totalStudents = Number(overview.totalStudents ?? 0);
+  const availableBalance = Number(overview.availableBalance ?? 0);
 
-// ── Main page ──────────────────────────────────────────────────────────────────
+  const pendingApprovalCourses = Number(attention.pendingApprovalCourses ?? 0);
+  const rejectedCourses = Number(attention.rejectedCourses ?? 0);
+  const pendingPayoutAmount = Number(attention.pendingPayoutAmount ?? 0);
 
-export default function InstructorDashboard() {
   return (
-    <MainLayout>
+    <MainLayout title="Instructor Hub" breadcrumb="Dashboard">
       <div className="p-8 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between flex-wrap gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-black tracking-tight text-foreground uppercase">
               Instructor Hub
             </h2>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Empower the next generation of engineers.
+            <p className="text-xs text-muted-foreground font-medium mt-1">
+              Monitor teaching performance and take quick actions.
             </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={route("instructor.classes.index")}
+              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl transition-colors"
+            >
+              Create Course
+            </Link>
+            <Link
+              href={route("instructor.students")}
+              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase border border-border text-foreground rounded-xl hover:bg-muted transition-colors"
+            >
+              Manage Students
+            </Link>
+            <Link
+              href={route("instructor.financial")}
+              className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase border border-border text-foreground rounded-xl hover:bg-muted transition-colors"
+            >
+              Financials
+            </Link>
           </div>
         </div>
 
-        {/* Stat Cards */}
-        <div className="flex gap-4 flex-wrap">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
-            label="Active Students"
-            value="1,284"
-            trendLabel="+48"
-            iconBg="bg-purple-50"
+            label="Total Courses"
+            value={totalCourses}
+            helper="Courses created by you"
+            accentClass="bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300"
             icon={
               <svg
-                className="w-5 h-5 text-purple-500"
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                />
+              </svg>
+            }
+          />
+          <StatCard
+            label="Published"
+            value={publishedCourses}
+            helper="Live in catalogue"
+            accentClass="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+            icon={
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+            }
+          />
+          <StatCard
+            label="Total Students"
+            value={totalStudents}
+            helper="Unique active learners"
+            accentClass="bg-[var(--primary-soft)] text-[var(--primary)]"
+            icon={
+              <svg
+                className="w-5 h-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -162,13 +167,13 @@ export default function InstructorDashboard() {
             }
           />
           <StatCard
-            label="Completion Rate"
-            value="92.4%"
-            trendLabel="+2.1%"
-            iconBg="bg-green-50"
+            label="Available Balance"
+            value={formatRp(availableBalance)}
+            helper="Eligible for payout"
+            accentClass="bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300"
             icon={
               <svg
-                className="w-5 h-5 text-green-500"
+                className="w-5 h-5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -177,203 +182,164 @@ export default function InstructorDashboard() {
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
             }
           />
         </div>
 
-        {/* Revenue Analytics + Announcements */}
-        <div className="flex gap-4 flex-wrap lg:flex-nowrap">
-          {/* Chart */}
-          <div className="bg-card rounded-2xl p-6 shadow-sm border border-border flex-1 min-w-0">
-            <h3 className="text-xs font-black tracking-widest text-foreground uppercase mb-6">
-              Growth Analytics
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
+          <div className="flex items-center justify-between gap-4 flex-wrap mb-4">
+            <h3 className="text-sm font-black tracking-widest text-foreground uppercase">
+              Needs Attention
             </h3>
-            <ResponsiveContainer width="100%" height={220}>
-              <AreaChart
-                data={growthData}
-                margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="revGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.01} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#f0f0f0"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="day"
-                  tick={{ fontSize: 10, fill: "#9ca3af", fontWeight: 600 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fontSize: 10, fill: "#9ca3af", fontWeight: 600 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip content={<CustomTooltip />} />
-                <Area
-                  type="monotone"
-                  dataKey="Students"
-                  stroke="#2563eb"
-                  strokeWidth={2.5}
-                  fill="url(#revGradient)"
-                  dot={false}
-                  activeDot={{
-                    r: 5,
-                    fill: "#2563eb",
-                    stroke: "#fff",
-                    strokeWidth: 2,
-                  }}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <Link
+              href={route("instructor.classes.index")}
+              className="text-[10px] font-black tracking-widest uppercase text-primary hover:text-primary-hover transition-colors"
+            >
+              Review Courses
+            </Link>
           </div>
-
-          {/* Announcements */}
-          <div className="bg-gray-900 rounded-2xl p-6 flex flex-col gap-4 w-full lg:w-72 flex-shrink-0">
-            <h3 className="text-xs font-black tracking-widest text-white uppercase">
-              Active Announcements
-            </h3>
-            <div className="flex flex-col gap-3 flex-1">
-              {announcements.map((a) => (
-                <div key={a.id} className="bg-gray-800 rounded-xl px-4 py-3">
-                  <p className="text-sm font-bold text-white leading-snug">
-                    {a.title}
-                  </p>
-                  <p className="text-[10px] font-bold tracking-widest text-muted-foreground mt-1">
-                    {a.time}
-                  </p>
-                </div>
-              ))}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="rounded-xl border border-amber-500/30 bg-amber-100/60 dark:bg-amber-500/10 px-4 py-3">
+              <p className="text-[10px] font-bold tracking-widest text-amber-700 dark:text-amber-300 uppercase">
+                Pending Approval
+              </p>
+              <p className="text-xl font-black text-foreground mt-1">
+                {pendingApprovalCourses}
+              </p>
             </div>
-            <button className="w-full py-3 bg-primary text-white text-xs font-black tracking-widest uppercase rounded-xl hover:bg-primary-hover transition-all">
-              Broadcast New
-            </button>
+            <div className="rounded-xl border border-red-500/30 bg-red-100/60 dark:bg-red-500/10 px-4 py-3">
+              <p className="text-[10px] font-bold tracking-widest text-red-700 dark:text-red-300 uppercase">
+                Rejected Courses
+              </p>
+              <p className="text-xl font-black text-foreground mt-1">
+                {rejectedCourses}
+              </p>
+            </div>
+            <div className="rounded-xl border border-blue-500/30 bg-blue-100/60 dark:bg-blue-500/10 px-4 py-3">
+              <p className="text-[10px] font-bold tracking-widest text-blue-700 dark:text-blue-300 uppercase">
+                Pending Payout
+              </p>
+              <p className="text-xl font-black text-foreground mt-1">
+                {formatRp(pendingPayoutAmount)}
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* My Trainings */}
-        <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-border">
-            <h3 className="text-xs font-black tracking-widest text-foreground uppercase">
-              My Trainings
-            </h3>
-            <button className="text-[10px] font-black tracking-widest text-primary uppercase hover:text-primary transition-colors">
-              See Detailed List
-            </button>
-          </div>
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+          <div className="xl:col-span-3 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4 flex-wrap">
+              <h3 className="text-sm font-black tracking-widest text-foreground uppercase">
+                Top Courses
+              </h3>
+              <Link
+                href={route("instructor.classes.index")}
+                className="text-[10px] font-black tracking-widest uppercase text-primary hover:text-primary-hover transition-colors"
+              >
+                Manage Classes
+              </Link>
+            </div>
 
-          {/* Table header */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-6 py-3 border-b border-border">
-            {["Training Title", "Students", "Revenue", "Status", ""].map(
-              (col, i) => (
-                <span
-                  key={i}
-                  className="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
-                >
-                  {col}
-                </span>
-              ),
-            )}
-          </div>
-
-          {/* Rows */}
-          {trainings.map((t, idx) => (
-            <div
-              key={t.id}
-              className={`grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center px-6 py-4 ${
-                idx !== trainings.length - 1 ? "border-b border-border" : ""
-              } hover:bg-muted/50 transition-colors`}
-            >
-              {/* Title + tags */}
-              <div>
-                <p className="text-sm font-black text-foreground tracking-wide uppercase">
-                  {t.title}
+            {topCourses.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
+                  No courses yet
                 </p>
-                <div className="flex items-center gap-3 mt-1.5">
-                  {t.tags.map((tag) => (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Start by creating your first course.
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-[1.8fr_auto_auto_auto] gap-4 px-6 py-3 bg-muted/60 border-b border-border">
+                  {["Course", "Status", "Students", "Earning"].map((column) => (
                     <span
-                      key={tag}
-                      className="flex items-center gap-1 text-[9px] font-bold tracking-widest text-muted-foreground uppercase"
+                      key={column}
+                      className="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
                     >
-                      {tag.includes("ZOOM") ? (
-                        <svg
-                          className="w-3 h-3"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M14.828 14.828a4 4 0 015.656 0l4 4a4 4 0 01-5.656 5.656l-1.1-1.1"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          className="w-3 h-3"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                          />
-                        </svg>
-                      )}
-                      {tag}
+                      {column}
                     </span>
                   ))}
                 </div>
-              </div>
 
-              {/* Students */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-black text-foreground">
-                  {t.students}
-                </span>
-                <span className="text-[9px] font-black tracking-widest text-muted-foreground uppercase bg-muted px-2 py-0.5 rounded-md">
-                  Enrolled
-                </span>
-              </div>
+                {topCourses.map((course, index) => (
+                  <div
+                    key={course.id}
+                    className={`px-6 py-4 grid grid-cols-[1.8fr_auto_auto_auto] gap-4 items-center ${
+                      index !== topCourses.length - 1
+                        ? "border-b border-border"
+                        : ""
+                    }`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-foreground truncate">
+                        {course.title}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        Updated {fmtDateTime(course.updatedAt)}
+                      </p>
+                    </div>
+                    <CourseStatusBadge status={course.status} />
+                    <p className="text-sm font-black text-foreground text-right">
+                      {Number(course.studentsCount ?? 0)}
+                    </p>
+                    <p className="text-sm font-black text-foreground text-right">
+                      {formatRp(Number(course.lifetimeEarning ?? 0))}
+                    </p>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
 
-              {/* Revenue */}
-              <span className="text-sm font-black text-foreground">
-                {t.revenue}
-              </span>
-
-              {/* Status */}
-              <StatusBadge status={t.status} />
-
-              {/* Actions */}
-              <button className="w-7 h-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-muted-foreground hover:bg-muted transition-colors">
-                <svg
-                  className="w-4 h-4"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0 7a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
-                </svg>
-              </button>
+          <div className="xl:col-span-2 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4 flex-wrap">
+              <h3 className="text-sm font-black tracking-widest text-foreground uppercase">
+                Recent Enrollments
+              </h3>
+              <Link
+                href={route("instructor.students")}
+                className="text-[10px] font-black tracking-widest uppercase text-primary hover:text-primary-hover transition-colors"
+              >
+                Student Management
+              </Link>
             </div>
-          ))}
+
+            {recentEnrollments.length === 0 ? (
+              <div className="px-6 py-16 text-center">
+                <p className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
+                  No enrollments yet
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Enrollments will appear here once students join.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {recentEnrollments.map((enrollment) => (
+                  <div
+                    key={enrollment.id}
+                    className="px-6 py-4 flex items-start justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-foreground truncate">
+                        {enrollment.studentName}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1 truncate">
+                        {enrollment.courseTitle}
+                      </p>
+                    </div>
+                    <p className="text-[10px] font-bold tracking-wider text-muted-foreground uppercase text-right shrink-0">
+                      {fmtDateTime(enrollment.enrolledAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </MainLayout>

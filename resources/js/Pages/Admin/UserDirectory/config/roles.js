@@ -46,6 +46,13 @@ export const PERMISSION_GROUPS = [
     color: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
   },
   {
+    key: "content_admin",
+    label: "Content Admin",
+    desc: "Manage Guest and landing page content",
+    color:
+      "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+  {
     key: "super_admin",
     label: "Super Admin",
     desc: "Full access + manage admin permissions",

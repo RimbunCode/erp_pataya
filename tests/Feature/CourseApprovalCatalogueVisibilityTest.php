@@ -69,7 +69,7 @@ class CourseApprovalCatalogueVisibilityTest extends TestCase {
         $this->get(route('guest.training'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Guest/TrainingSection/TrainingCatalogue')
+                ->component('Guest/CourseSection/CourseCatalogue')
                 ->has('courses', 1)
                 ->where('courses.0.id', (string) $approvedCourse->id)
                 ->where('courses.0.title', 'Approved Course'));

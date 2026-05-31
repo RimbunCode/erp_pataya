@@ -7,35 +7,23 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Course;
 use App\Models\Enrollment;
+use App\Services\Guest\GuestPageContentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class TrainingController extends Controller {
-    public function index(Request $request) {
+    public function __construct(private GuestPageContentService $guestPageContentService) {}
+
+    public function index(Request $request): Response {
         $user = Auth::user();
 
         // Ambil role user yang sedang login
         $role = $user?->roles->pluck('name')->first();
 
         $query = Course::with(['categories', 'creator'])
-            ->where('is_published', true)
-            ->when(
-                $request->search,
-                fn ($q) => $q->where('title', 'like', "%{$request->search}%")
-                    ->orWhere('description', 'like', "%{$request->search}%"),
-            )
-            ->when(
-                $request->level,
-                fn ($q) => $q->where('level', $request->level),
-            )
-            ->when(
-                $request->category,
-                fn ($q) => $q->whereHas(
-                    'categories',
-                    fn ($q) => $q->where('slug', $request->category),
-                ),
-            );
+            ->where('is_published', true);
 
         if ($role === 'student' && $user) {
             // Sembunyikan course yang sudah di-enroll oleh student ini
@@ -66,14 +54,15 @@ class TrainingController extends Controller {
 
         $categories = Category::orderBy('name')->get(['id', 'name', 'slug']);
 
-        return Inertia::render('Guest/TrainingSection/TrainingCatalogue', [
+        return Inertia::render('Guest/CourseSection/CourseCatalogue', [
             'courses'    => $courses,
             'categories' => $categories,
-            'filters'    => $request->only(['search', 'level', 'category']),
+            'filters'    => $request->only(['search', 'level', 'category', 'certification']),
+            'content'    => $this->guestPageContentService->resolve(),
         ]);
     }
 
-    public function show(Course $course) {
+    public function show(Course $course): Response {
         $user      = Auth::user();
         $isStudent = $user !== null && $user->roles->pluck('name')->contains('student');
 
@@ -97,7 +86,7 @@ class TrainingController extends Controller {
             }
         }
 
-        return Inertia::render('Guest/TrainingSection/TrainingPreview', [
+        return Inertia::render('Guest/CourseSection/CoursePreview', [
             'course' => [
                 'id'               => $course->id,
                 'title'            => $course->title,
@@ -132,6 +121,7 @@ class TrainingController extends Controller {
             'isEnrolled'       => $isEnrolled,
             'enrollmentStatus' => $enrollmentStatus,
             'rejectionReason'  => $rejectionReason,
+            'content'          => $this->guestPageContentService->resolve(),
         ]);
     }
 }

@@ -1,14 +1,36 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import StudentManagementProgressRing from "./StudentManagementProgressRing";
 import {
   avatarColors,
   statusCfg,
 } from "@/Pages/Instructors/Utils/studentManagementConfig";
-
+import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
+import { cn } from "@/lib/utils";
 export default function StudentManagementRow({ student, index, onOpen }) {
   const [hovered, setHovered] = useState(false);
   const cfg = statusCfg[student.status] ?? statusCfg.PENDING;
   const color = avatarColors[index % avatarColors.length];
+
+  const alias = student.name
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n.charAt(0))
+    .join("");
+
+  const avatarSource = useMemo(() => {
+    if (!student?.image) {
+      return null;
+    }
+
+    const updatedAtTimestamp = student.updated_at
+      ? new Date(student.updated_at).getTime()
+      : null;
+    const cacheBuster = Number.isFinite(updatedAtTimestamp)
+      ? `?v=${updatedAtTimestamp}`
+      : "";
+
+    return route("files.preview", student.image) + cacheBuster;
+  }, [student?.image, student?.updated_at]);
 
   return (
     <div
@@ -21,7 +43,16 @@ export default function StudentManagementRow({ student, index, onOpen }) {
         <div
           className={`w-9 h-9 rounded-full ${color} flex items-center justify-center text-white text-xs font-black flex-shrink-0`}
         >
-          {student.avatar}
+          <Avatar className="w-16 h-14 rounded-xl overflow-hidden shrink-0 bg-muted">
+            {avatarSource ? (
+              <AvatarImage
+                src={avatarSource}
+                alt={student.name}
+                className={cn("transition-[filter] group-hover:blur-sm")}
+              />
+            ) : null}
+            <AvatarFallback className="rounded-xl">{alias}</AvatarFallback>
+          </Avatar>
         </div>
         <div className="min-w-0">
           <p className="text-xs font-black text-foreground truncate">

@@ -17,6 +17,7 @@ class AdminPermissionService {
         'finance_admin',
         'course_admin',
         'user_admin',
+        'content_admin',
         'super_admin',
     ];
 
