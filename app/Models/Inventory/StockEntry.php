@@ -3,6 +3,7 @@
 namespace App\Models\Inventory;
 
 use App\FormStatus;
+use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\AdditionalCost;
 use App\Models\Model;
@@ -61,9 +62,6 @@ class StockEntry extends Model {
             'show'  => true,
             'order' => 3,
         ],
-        'branch' => [
-            'ignore' => true,
-        ],
         'items' => [
             'show'  => true,
             'order' => 10,
@@ -84,6 +82,10 @@ class StockEntry extends Model {
             'additionalCosts',
             'differenceAccount',
         ];
+    }
+
+    public function branch() {
+        return $this->belongsTo(Branch::class, 'branch_id');
     }
 
     public function differenceAccount() {

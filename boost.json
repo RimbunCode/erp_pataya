@@ -2,7 +2,8 @@
     "agents": [
         "codex",
         "copilot",
-        "gemini"
+        "gemini",
+        "claude_code"
     ],
     "guidelines": true,
     "mcp": true,

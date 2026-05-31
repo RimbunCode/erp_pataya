@@ -19,7 +19,7 @@ import {
   GRID_RULE_STYLE,
   SUBGRID_RULE_STYLE,
 } from "./gridConstants";
-import { getDisplayLabel } from "./variableTokenUtils";
+import { getDisplayLabel, resolveLabelWithMeta } from "./variableTokenUtils";
 
 /**
  * Mendaftarkan listener dan handler drag-and-drop variabel pada editor GrapesJS.
@@ -34,13 +34,64 @@ import { getDisplayLabel } from "./variableTokenUtils";
  * @param {string} options.locale - Kode locale untuk formatting (misal: "id", "en")
  * @param {Array} options.dataTableColumns - Kolom variabel dari props halaman
  * @param {object} options.docInfo - Informasi dokumen untuk variabel docInfo
+ * @param {object|null} options.columns - Model columns keyed by model class
+ * @param {string|null} options.modelDoc - Root model class untuk path "doc."
  */
 export function variableDropListener(
   editor,
-  { t, locale, dataTableColumns = [], docInfo = {} },
+  {
+    t,
+    locale,
+    dataTableColumns = [],
+    docInfo = {},
+    columns = null,
+    modelDoc = null,
+  },
 ) {
   // Helper untuk generate ID unik pada komponen grid
   const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
+  const resolveTitleTransValue = (value) => {
+    if (typeof value !== "string") {
+      return null;
+    }
+
+    const trimmed = value.trim();
+    return trimmed ? trimmed : null;
+  };
+
+  const escapeHtmlAttribute = (value) =>
+    String(value)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+  const setTransTitleAttribute = (component, rawValue) => {
+    if (!component) {
+      return;
+    }
+
+    const nextValue = resolveTitleTransValue(rawValue);
+    const currentAttributes = { ...(component.getAttributes?.() || {}) };
+
+    if (nextValue) {
+      delete currentAttributes["data-title-trans"];
+      currentAttributes["data-trans-title"] = nextValue;
+      component.setAttributes?.(currentAttributes);
+      return;
+    }
+
+    if (
+      !("data-trans-title" in currentAttributes) &&
+      !("data-title-trans" in currentAttributes)
+    ) {
+      return;
+    }
+
+    delete currentAttributes["data-trans-title"];
+    delete currentAttributes["data-title-trans"];
+    component.setAttributes?.(currentAttributes);
+  };
 
   /**
    * Membangun flat lookup map dari semua variabel: labelKey → displayLabel.
@@ -175,6 +226,12 @@ export function variableDropListener(
         const attrs = this.getAttributes() || {};
         const variablePath = attrs["data-variable"] || "";
         const variableType = attrs["data-variable-type"] || "data";
+        const titleTrans = resolveTitleTransValue(
+          attrs["data-trans-title"] || attrs["data-title-trans"],
+        );
+        const labelTitleTransAttr = titleTrans
+          ? ` data-trans-title="${escapeHtmlAttribute(titleTrans)}"`
+          : "";
 
         const labelComponent = Array.from(
           this.find?.("[data-label-key]") || [],
@@ -197,7 +254,7 @@ export function variableDropListener(
 
         return `
 <div class="${SUBGRID_CLASS}" data-variable="${variablePath}" data-variable-type="${variableType}">
-  <p><span>{{label "${labelKey}"}}</span></p>
+  <p data-label-key="${labelKey}"${labelTitleTransAttr}><span>{{label "${labelKey}"}}</span></p>
   <p>: <span>${token}</span></p>
 </div>
         `.trim();
@@ -208,7 +265,6 @@ export function variableDropListener(
   /**
    * Sinkronisasi tampilan komponen variabel tunggal di canvas.
    * Memperbarui label terjemahan dan token yang disederhanakan.
-   *
    * @param {object} component - Komponen GrapesJS yang akan disinkronisasi
    */
   const syncVariableComponentDisplay = (component) => {
@@ -248,24 +304,59 @@ export function variableDropListener(
     component.removeClass(SUBGRID_CLASS);
     component.addClass(SUBGRID_CLASS);
 
-    // Perbarui tampilan label dari labelMap (data VariableManager)
+    // Perbarui tampilan label dengan urutan fallback:
+    // 1) modelColumns (resolveLabelWithMeta)
+    // 2) data-trans-title tersimpan di komponen
+    // 3) labelMap dari dataTableColumns
+    // 4) fallback path terakhir
     if (labelComponent) {
       const labelKey =
         labelComponent.getAttributes?.()?.["data-label-key"] || "";
+      let displayLabel = null;
+      let resolvedFromModelColumns = false;
+      let resolvedTitleTrans = null;
 
-      // Ambil displayLabel dari labelMap sesuai data-label-key
-      // Jika tidak ditemukan, fallback ke shorthand (simplified token tanpa {{...}})
-      let displayLabel = labelMap[labelKey] || labelMap[variablePath];
+      if (columns) {
+        try {
+          const resolved = resolveLabelWithMeta(labelKey, columns, modelDoc, t);
+          if (resolved?.label && resolved.label !== labelKey) {
+            resolvedFromModelColumns = true;
+            displayLabel = resolved.label;
+            resolvedTitleTrans = resolveTitleTransValue(resolved.titleTrans);
+          }
+        } catch {
+          // Ignore resolve failures and continue fallback chain.
+        }
+      }
 
       if (!displayLabel) {
-        // Fallback: buat shorthand dari labelKey — strip prefix dan {{...}}
-        // Contoh: "company.company_name" → "company_name", "doc.customer_name" → "customer_name"
+        const storedTitleTrans = resolveTitleTransValue(
+          labelComponent.getAttributes?.()?.["data-trans-title"] ||
+            labelComponent.getAttributes?.()?.["data-title-trans"] ||
+            component.getAttributes?.()?.["data-trans-title"] ||
+            component.getAttributes?.()?.["data-title-trans"],
+        );
+        if (storedTitleTrans) {
+          displayLabel = t(storedTitleTrans);
+        }
+      }
+
+      if (!displayLabel) {
+        displayLabel = labelMap[labelKey] || labelMap[variablePath];
+      }
+
+      if (!displayLabel) {
+        // Fallback final: strip prefix ke segment terakhir
         const stripped = labelKey
           .replace(/^relation\s+/, "")
           .replace(/^doc\./, "")
           .replace(/^company\./, "")
           .replace(/^docInfo\./, "");
         displayLabel = stripped || labelKey.split(".").pop() || variablePath;
+      }
+
+      if (resolvedFromModelColumns) {
+        setTransTitleAttribute(labelComponent, resolvedTitleTrans);
       }
 
       const labelTagName = String(
@@ -427,8 +518,40 @@ export function variableDropListener(
           return; // Skip "#" column atau cell tanpa data-label-key
         }
 
-        // Resolusi label dari labelMap menggunakan data-label-key
-        let newLabel = labelMap[labelKey];
+        let newLabel = null;
+        let resolvedFromModelColumns = false;
+        let resolvedTitleTrans = null;
+
+        if (columns) {
+          try {
+            const resolved = resolveLabelWithMeta(
+              labelKey,
+              columns,
+              modelDoc,
+              t,
+            );
+            if (resolved?.label && resolved.label !== labelKey) {
+              resolvedFromModelColumns = true;
+              newLabel = resolved.label;
+              resolvedTitleTrans = resolveTitleTransValue(resolved.titleTrans);
+            }
+          } catch {
+            // Ignore resolve failures and continue fallback chain.
+          }
+        }
+
+        if (!newLabel) {
+          const storedTitleTrans = resolveTitleTransValue(
+            attrs["data-trans-title"] || attrs["data-title-trans"],
+          );
+          if (storedTitleTrans) {
+            newLabel = t(storedTitleTrans);
+          }
+        }
+
+        if (!newLabel) {
+          newLabel = labelMap[labelKey];
+        }
 
         // Fallback: cari dari columnsConfig menggunakan name attribute
         if (!newLabel) {
@@ -439,6 +562,10 @@ export function variableDropListener(
           if (colConfig) {
             newLabel = getColumnLabel(colConfig, t, locale);
           }
+        }
+
+        if (resolvedFromModelColumns) {
+          setTransTitleAttribute(th, resolvedTitleTrans);
         }
 
         if (newLabel && newLabel !== th.get("content")) {
@@ -537,6 +664,7 @@ export function variableDropListener(
         });
       const labelKey = extractLabelKeyFromToken(token);
       const simplifiedToken = getSimplifiedTokenDisplay(token, varPath);
+      const dropTitleTrans = resolveTitleTransValue(payload.titleTrans);
       result.content = {
         type: "gjsSubGrid",
         attributes: {
@@ -548,6 +676,10 @@ export function variableDropListener(
             type: "text",
             tagName: "p",
             draggable: false,
+            attributes: {
+              "data-label-key": labelKey,
+              ...(dropTitleTrans ? { "data-trans-title": dropTitleTrans } : {}),
+            },
             components: [
               [
                 {
@@ -557,7 +689,6 @@ export function variableDropListener(
                   editable: false,
                   draggable: false,
                   attributes: {
-                    "data-label-key": labelKey,
                     title: labelKey,
                     contenteditable: "false",
                   },

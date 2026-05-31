@@ -1,0 +1,64 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "command": "php",
+            "args": [
+                "artisan",
+                "boost:mcp"
+            ]
+        },
+        "herd": {
+            "command": "php",
+            "args": [
+                "-r",
+                "$home=getenv('USERPROFILE')?:getenv('HOME'); if(!$home){fwrite(STDERR,'Unable to resolve USERPROFILE or HOME'.PHP_EOL); exit(1);} require rtrim(str_replace('\\\\','/',$home),'/').'/.config/herd/bin/herd-mcp.phar';"
+            ],
+            "env": {
+                "SITE_PATH": "${workspaceFolder}"
+            }
+        },
+        "shadcn": {
+            "command": "npx",
+            "args": [
+                "shadcn@latest",
+                "mcp"
+            ]
+        },
+        "postman": {
+            "url": "https://mcp.postman.com/minimal",
+            "headers": {
+                "Authorization": "Bearer PMAK-6a0e0388cc8f7b0001e9ac77-30225829276f8c0808318cd381c5a2d3b6"
+            },
+            "autoApprove": [
+                "*"
+            ]
+        },
+        "context7": {
+            "url": "https://mcp.context7.com/mcp",
+            "autoApprove": [
+                "resolve-library-id",
+                "query-docs"
+            ]
+        },
+        "exa": {
+            "url": "https://mcp.exa.ai/mcp?client=kiro-power",
+            "headers": {
+                "x-api-key": "ec1d8fe9-5418-4893-a575-ed09fefac2f1",
+                "x-exa-source": "kiro-power"
+            },
+            "disabled": false,
+            "disabledTools": [],
+            "autoApprove": [
+                "web_search_exa",
+                "web_fetch_exa"
+            ]
+        },
+        "figma": {
+            "type": "http",
+            "url": "https://mcp.figma.com/mcp",
+            "autoApprove": [
+                "*"
+            ]
+        }
+    }
+}

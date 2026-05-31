@@ -23,7 +23,7 @@
         "$home=getenv('USERPROFILE')?:getenv('HOME'); if(!$home){fwrite(STDERR,'Unable to resolve USERPROFILE or HOME'.PHP_EOL); exit(1);} require rtrim(str_replace('\\\\','/',$home),'/').'/.config/herd/bin/herd-mcp.phar';"
       ],
       "env": {
-        "SITE_PATH": "${workspaceFolder}"
+        "SITE_PATH": "G:/Project App/erp"
       },
       "autoApprove": [
         "get_all_php_versions",

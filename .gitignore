@@ -5,6 +5,7 @@
 /lang/php_*.json
 #----------------------
 
+.claude/skills
 .github/skills
 .kiro/skills
 *_translations.json

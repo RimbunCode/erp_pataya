@@ -52,14 +52,14 @@ import { formatHandlebarTemplate } from "./utils/templateFormatUtils";
  * Komponen halaman utama Editor PrintTemplate.
  * Menyediakan antarmuka visual untuk mengedit template cetak menggunakan GrapesJS,
  * termasuk drag-and-drop variabel, preview letterhead, dan penyimpanan template.
- *
  * @module Editor
- * @param {Object} props - Props komponen
- * @param {Object} props.printTemplate - Konfigurasi template cetak (dimensi, margin, font, HTML/CSS)
+ * @param {object} props - Props komponen
+ * @param {object} props.printTemplate - Konfigurasi template cetak (dimensi, margin, font, HTML/CSS)
  * @param {string} props.csrfToken - Token CSRF untuk request penyimpanan
  * @param {Array} props.dataTableColumns - Kolom tabel data untuk relasi
- * @param {Object} props.preferences - Preferensi pengguna untuk rendering template
- * @param {Object} props.docInfo - Informasi dokumen untuk preview
+ * @param {object} props.preferences - Preferensi pengguna untuk rendering template
+ * @param {object} props.docInfo - Informasi dokumen untuk preview
+ * @param {object | null} props.columns - Model columns keyed by model class
  */
 
 function PrintTemplate({
@@ -68,6 +68,7 @@ function PrintTemplate({
   dataTableColumns,
   preferences,
   docInfo,
+  columns,
 }) {
   const { t } = useLaravelReactI18n();
   const isMobile = useIsMobile();
@@ -348,6 +349,8 @@ function PrintTemplate({
       locale: printTemplate?.default_language,
       dataTableColumns,
       docInfo,
+      columns,
+      modelDoc: printTemplate?.model || null,
     });
 
     // Register multi-function container component type (Requirements: 17.2, 17.3, 17.4, 17.5)

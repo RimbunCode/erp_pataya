@@ -43,7 +43,7 @@ import {
 // Re-export untuk backward compatibility - consumer eksternal yang mengimport dari VariableItem.jsx
 export { buildVariableDragPayload } from "../utils/variableInsertUtils";
 
-function VariableItem({ path = "", ...variable }) {
+function VariableItem({ path = "", titleTransLookup = {}, ...variable }) {
   const editor = useEditor();
   const { t } = useLaravelReactI18n();
   const fullKey = path ? `${path}.${variable.name}` : variable.name;
@@ -152,6 +152,7 @@ function VariableItem({ path = "", ...variable }) {
       nestedColumns,
       displayLabel,
       fullKey,
+      titleTransLookup,
     });
     const varPath = payload.fullKey || payload.name;
 
@@ -195,6 +196,10 @@ function VariableItem({ path = "", ...variable }) {
         variablePath: varPath,
         keyName: payload.name,
       });
+    const normalizedTitleTrans =
+      typeof payload.titleTrans === "string" && payload.titleTrans.trim()
+        ? payload.titleTrans.trim()
+        : null;
     const labelKey = extractLabelKeyFromToken(tokenValue);
     const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, varPath);
 
@@ -240,24 +245,24 @@ function VariableItem({ path = "", ...variable }) {
               content: payload.displayLabel || payload.name,
               attributes: {
                 "data-label-key": labelKey,
+                ...(normalizedTitleTrans
+                  ? { "data-trans-title": normalizedTitleTrans }
+                  : {}),
                 title: `{{label "${labelKey}"}}`,
               },
               components: [
-                [
-                  {
-                    type: "text",
-                    tagName: "span",
-                    selectable: true,
-                    editable: false,
-                    draggable: false,
-                    attributes: {
-                      "data-label-key": labelKey,
-                      title: labelKey,
-                      contenteditable: "false",
-                    },
-                    content: payload.displayLabel || payload.name,
+                {
+                  type: "text",
+                  tagName: "span",
+                  selectable: true,
+                  editable: false,
+                  draggable: false,
+                  attributes: {
+                    title: labelKey,
+                    contenteditable: "false",
                   },
-                ],
+                  content: payload.displayLabel || payload.name,
+                },
               ],
             },
             {
@@ -328,6 +333,7 @@ function VariableItem({ path = "", ...variable }) {
    * Menangani event drag start - mengirim data variabel dan informasi format ke canvas.
    *
    * Efek samping: mengatur dataTransfer dengan payload JSON variabel
+   * @param {DragEvent} e - Event drag yang membawa dataTransfer
    */
   const handleDragStart = (e) => {
     if (!canDrag) {
@@ -341,6 +347,7 @@ function VariableItem({ path = "", ...variable }) {
       nestedColumns,
       displayLabel,
       fullKey,
+      titleTransLookup,
     });
     const serializedPayload = JSON.stringify(payload);
 
@@ -540,6 +547,7 @@ function VariableItem({ path = "", ...variable }) {
                     : fullKey
                 }
                 parentType={parentType}
+                titleTransLookup={titleTransLookup}
                 {...sub}
               />
             );

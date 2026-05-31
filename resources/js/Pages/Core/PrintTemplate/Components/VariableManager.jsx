@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import VariableItem from "./VariableItem";
+import { buildTitleTransLookupMap } from "../utils/variableInsertUtils";
 
 function VariableManager() {
   const { dataTableColumns, docInfo } = usePage().props;
@@ -10,6 +11,9 @@ function VariableManager() {
   const availableVariables = useMemo(() => {
     return Array.isArray(dataTableColumns) ? dataTableColumns : [];
   }, [dataTableColumns]);
+  const titleTransLookup = useMemo(() => {
+    return buildTitleTransLookupMap(availableVariables);
+  }, [availableVariables]);
   /**
    * Build docInfo variables from the docInfo prop.
    * Each field in docInfo becomes a draggable variable generating {{docInfo.<field>}} tokens.
@@ -41,7 +45,11 @@ function VariableManager() {
       ) : (
         <div className="space-y-2">
           {availableVariables.map((variable) => (
-            <VariableItem key={variable.name} {...variable} />
+            <VariableItem
+              key={variable.name}
+              titleTransLookup={titleTransLookup}
+              {...variable}
+            />
           ))}
         </div>
       )}
@@ -54,7 +62,11 @@ function VariableManager() {
           </h3>
           <div className="space-y-2">
             {docInfoVariables.map((variable) => (
-              <VariableItem key={`docInfo.${variable.name}`} {...variable} />
+              <VariableItem
+                key={`docInfo.${variable.name}`}
+                titleTransLookup={titleTransLookup}
+                {...variable}
+              />
             ))}
           </div>
         </>

@@ -126,6 +126,7 @@ class RelationTrackerService {
 
         return $relations;
     }
+
     /** @var string[] Valid prefixes for accessing document data */
     protected const DATA_PREFIXES = ['doc', 'docInfo', 'company'];
 
@@ -209,8 +210,8 @@ class RelationTrackerService {
         $currentPath = '';
         for ($i = 0; $i < $count; $i++) {
             $currentPath .= ($currentPath ? '.' : '') . $parts[$i];
-            $fullPath     = $prefix ? $prefix . '.' . $currentPath : $currentPath;
-            $result[]     = $fullPath;
+            $fullPath = $prefix ? $prefix . '.' . $currentPath : $currentPath;
+            $result[] = $fullPath;
         }
 
         return $result;
@@ -312,7 +313,7 @@ class RelationTrackerService {
                             'path'    => $eachPath,
                             'content' => $innerContent,
                         ];
-                        $offset       = $nextClose + strlen($closeMatch[0][0]);
+                        $offset = $nextClose + strlen($closeMatch[0][0]);
                     } else {
                         $searchPos = $nextClose + 1;
                     }
@@ -428,8 +429,9 @@ class RelationTrackerService {
      * @return array Array of valid relation paths
      */
     public function validateRelations(string $modelClass, array $relations, bool $withColumns = false): array {
-        $validatedRelations = [];
-        $modelColumns       = [
+        $validatedRelations       = [];
+        $expandedDefaultRelations = [];
+        $modelColumns             = [
             'company' => collect(Utils::getPreferenceColumns())->mapWithKeys(fn ($col) => [$col['name'] => $col]),
             'docInfo' => collect(Utils::getDocInfoColumns())->mapWithKeys(fn ($col) => [$col['name'] => $col]),
         ];
@@ -437,13 +439,13 @@ class RelationTrackerService {
             if (! $withColumns) {
                 return $validatedRelations;
             }
+
             return [
                 'relations'    => $validatedRelations,
                 'modelColumns' => $modelColumns,
             ];
         }
 
-        // try {
         $rootModel    = new $modelClass;
         $segmentCache = [];
 
@@ -460,83 +462,169 @@ class RelationTrackerService {
                 continue;
             }
 
-            $segments        = explode('.', $relationPath);
-            $currentModel    = $rootModel;
-            $segmentResolved = [];
+            $resolvedRelation = $this->resolveRelationPathRecursively(
+                model: $rootModel,
+                segments: explode('.', $relationPath),
+                segmentCache: $segmentCache,
+                modelColumns: $modelColumns,
+                withColumns: $withColumns,
+            );
 
-            foreach ($segments as $segment) {
-                $method          = Str::camel($segment);
-                $modelCacheKey   = $currentModel::class;
-                $segmentCacheKey = $modelCacheKey . '::' . $method;
-
-                if (\array_key_exists($segmentCacheKey, $segmentCache)) {
-                    $cachedRelatedModel = $segmentCache[$segmentCacheKey];
-
-                    if ($cachedRelatedModel === false) {
-                        continue 2;
-                    }
-
-                    $currentModel      = $cachedRelatedModel;
-                    $segmentResolved[] = $method;
-
-                    continue;
-                }
-
-                if (! static::isPublicZeroArgumentMethod($currentModel, $method)) {
-                    $segmentCache[$segmentCacheKey] = false;
-
-                    continue 2;
-                }
-
-                try {
-                    /**
-                     * Relation::noConstraints() dipakai agar resolver hanya membaca struktur relasi,
-                     * bukan menjalankan constraint relasi berdasarkan instance model tertentu.
-                     */
-                    $relation = Relation::noConstraints($currentModel->{$method}(...));
-                } catch (Throwable) {
-                    $segmentCache[$segmentCacheKey] = false;
-
-                    continue 2;
-                }
-
-                if (! $relation instanceof Relation) {
-                    $segmentCache[$segmentCacheKey] = false;
-
-                    continue 2;
-                }
-
-                $currentModel = $relation->getRelated();
-                // dd($currentModel);
-
-                $segmentCache[$segmentCacheKey] = $currentModel;
-                $segmentResolved[]              = $method;
-                if ($withColumns) {
-                    $this->cacheModelColumns($modelColumns, $currentModel);
-                }
+            if ($resolvedRelation === null) {
+                continue;
             }
 
-            if ($segmentResolved !== []) {
-                $validatedRelations[] = implode('.', $segmentResolved);
-            }
+            $validatedRelations[]     = $resolvedRelation['path'];
+            $expandedDefaultRelations = [
+                ...$expandedDefaultRelations,
+                ...$this->expandDefaultWithRelations(
+                    basePath: $resolvedRelation['path'],
+                    model: $resolvedRelation['model'],
+                    segmentCache: $segmentCache,
+                    modelColumns: $modelColumns,
+                    withColumns: $withColumns,
+                ),
+            ];
         }
-        // } catch (Throwable $e) {
-        //     // If model instantiation or relation resolution fails, return empty metadata
-        //     if (! $withColumns) {
-        //         return [];
-        //     }
-        //     return [
-        //         'relations'    => [],
-        //         'modelColumns' => [],
-        //     ];
-        // }
+
+        $validatedRelations = array_values(array_unique([
+            ...$validatedRelations,
+            ...$expandedDefaultRelations,
+        ]));
+
         if (! $withColumns) {
             return $validatedRelations;
         }
+
         return [
             'relations'    => $validatedRelations,
             'modelColumns' => $modelColumns,
         ];
+    }
+
+    /**
+     * @param  string[]  $segments
+     * @param  array<string, Model|false>  $segmentCache
+     * @return array{path: string, model: Model}|null
+     */
+    private function resolveRelationPathRecursively(
+        Model $model,
+        array $segments,
+        array &$segmentCache,
+        array &$modelColumns,
+        bool $withColumns,
+        int $index = 0,
+    ): ?array {
+        if (! isset($segments[$index])) {
+            return [
+                'path'  => '',
+                'model' => $model,
+            ];
+        }
+
+        $method          = Str::camel($segments[$index]);
+        $modelCacheKey   = $model::class;
+        $segmentCacheKey = $modelCacheKey . '::' . $method;
+
+        if (\array_key_exists($segmentCacheKey, $segmentCache)) {
+            $cachedRelatedModel = $segmentCache[$segmentCacheKey];
+            if ($cachedRelatedModel === false) {
+                return null;
+            }
+
+            $relatedModel = $cachedRelatedModel;
+        } else {
+            if (! static::isPublicZeroArgumentMethod($model, $method)) {
+                $segmentCache[$segmentCacheKey] = false;
+
+                return null;
+            }
+
+            try {
+                /**
+                 * Relation::noConstraints() dipakai agar resolver hanya membaca struktur relasi,
+                 * bukan menjalankan constraint relasi berdasarkan instance model tertentu.
+                 */
+                $relation = Relation::noConstraints($model->{$method}(...));
+            } catch (Throwable) {
+                $segmentCache[$segmentCacheKey] = false;
+
+                return null;
+            }
+
+            if (! $relation instanceof Relation) {
+                $segmentCache[$segmentCacheKey] = false;
+
+                return null;
+            }
+
+            $relatedModel                   = $relation->getRelated();
+            $segmentCache[$segmentCacheKey] = $relatedModel;
+        }
+
+        if ($withColumns) {
+            $this->cacheModelColumns($modelColumns, $relatedModel);
+        }
+
+        $resolvedTail = $this->resolveRelationPathRecursively(
+            model: $relatedModel,
+            segments: $segments,
+            segmentCache: $segmentCache,
+            modelColumns: $modelColumns,
+            withColumns: $withColumns,
+            index: $index + 1,
+        );
+
+        if ($resolvedTail === null) {
+            return null;
+        }
+
+        return [
+            'path'  => $resolvedTail['path'] === '' ? $method : $method . '.' . $resolvedTail['path'],
+            'model' => $resolvedTail['model'],
+        ];
+    }
+
+    /**
+     * @param  array<string, Model|false>  $segmentCache
+     * @return string[]
+     */
+    private function expandDefaultWithRelations(
+        string $basePath,
+        Model $model,
+        array &$segmentCache,
+        array &$modelColumns,
+        bool $withColumns,
+    ): array {
+        $expandedDefaultRelations = [];
+        $defaultWiths             = array_keys($model->newQueryWithoutScopes()->getEagerLoads());
+
+        foreach ($defaultWiths as $defaultWith) {
+            if (! is_string($defaultWith)) {
+                continue;
+            }
+
+            $defaultWith = trim($defaultWith);
+            if ($defaultWith === '') {
+                continue;
+            }
+
+            $resolvedDefaultWith = $this->resolveRelationPathRecursively(
+                model: $model,
+                segments: explode('.', $defaultWith),
+                segmentCache: $segmentCache,
+                modelColumns: $modelColumns,
+                withColumns: $withColumns,
+            );
+
+            if ($resolvedDefaultWith === null || $resolvedDefaultWith['path'] === '') {
+                continue;
+            }
+
+            $expandedDefaultRelations[] = $basePath . '.' . $resolvedDefaultWith['path'];
+        }
+
+        return $expandedDefaultRelations;
     }
 
     private function cacheModelColumns(array &$modelColumns, Model $model): void {

@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Branch extends Model {
     use DataTable, HasUlids, SoftDeletes;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'is_main_branch' => 'boolean',
@@ -22,17 +23,29 @@ class Branch extends Model {
         'shippingAddress',
         'billingAddress',
     ];
-    protected $with    = [
+    protected $with = [
         'billingCountry',
         'shippingCountry',
     ];
 
     public function getShippingAddressAttribute() {
-        return "{$this->shipping_street}, {$this->shipping_city}, {$this->shipping_province}, {$this->shippingCountry?->name} {$this->shipping_zip_code}";
+        return collect([
+            $this->shipping_street,
+            $this->shipping_city,
+            $this->shipping_state,
+            $this->shipping_zip_code,
+            $this->shippingCountry?->name,
+        ])->filter()->implode(', ');
     }
 
     public function getBillingAddressAttribute() {
-        return "{$this->billing_street}, {$this->billing_city}, {$this->billing_province}, {$this->billingCountry?->name} {$this->billing_zip_code}";
+        return collect([
+            $this->billing_street,
+            $this->billing_city,
+            $this->billing_state,
+            $this->billing_zip_code,
+            $this->billingCountry?->name,
+        ])->filter()->implode(', ');
     }
 
     public function title(): Attribute {
@@ -63,15 +76,16 @@ class Branch extends Model {
     protected static function loadRelationsOnShow() {
         return ['shippingCountry', 'billingCountry'];
     }
-    public string   $formComponent = 'Settings/Branches/Form';
-    public string   $translateKey  = 'core.branch';
+
+    public string $formComponent   = 'Settings/Branches/Form';
+    public string $translateKey    = 'core.branch';
     protected array $configColumns = [
-        'title'           => [
+        'title' => [
             'isLink' => true,
             'show'   => true,
             'order'  => 0,
         ],
-        'is_main_branch'  => [
+        'is_main_branch' => [
             'show'  => true,
             'order' => 1,
         ],
@@ -79,13 +93,15 @@ class Branch extends Model {
             'show'  => true,
             'order' => 2,
         ],
-        'billingAdrress'  => [
+        'billingAdrress' => [
             'show'  => true,
             'order' => 3,
         ],
         'billingCountry',
         'shippingCountry',
-        'branchable',
+        'branchable' => [
+            'ignore' => true,
+        ],
     ];
 
     public function billingCountry() {

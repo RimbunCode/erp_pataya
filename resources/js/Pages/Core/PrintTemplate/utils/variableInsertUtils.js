@@ -144,6 +144,96 @@ export function getSimplifiedTokenDisplay(token, variablePath = "") {
 }
 
 /**
+ * Membangun lookup map `labelKey/path -> titleTrans` dari dataTableColumns.
+ * Lookup key mengikuti pola key yang digunakan di canvas (`data-label-key`).
+ *
+ * @param {Array} dataTableColumns
+ * @returns {Record<string, string>}
+ */
+export function buildTitleTransLookupMap(dataTableColumns) {
+  const map = {};
+
+  const normalizeTitleTrans = (value) =>
+    typeof value === "string" && value.trim() ? value.trim() : null;
+
+  const put = (key, titleTrans) => {
+    if (!key) {
+      return;
+    }
+    if (!titleTrans) {
+      return;
+    }
+    map[key] = titleTrans;
+  };
+
+  const traverse = (columns, parentPath = "", parentType = "") => {
+    if (!Array.isArray(columns)) {
+      return;
+    }
+
+    for (const col of columns) {
+      const colType = col?.type || "";
+      const colName = col?.name || "";
+      if (!colName) {
+        continue;
+      }
+
+      let fullKey;
+      if (
+        parentType === "doc" ||
+        parentType === "docInfo" ||
+        parentType === "company"
+      ) {
+        fullKey = parentPath ? `${parentPath}.${colName}` : colName;
+      } else if (parentPath) {
+        fullKey = `${parentPath}.${colName}`;
+      } else {
+        fullKey = colName;
+      }
+
+      const titleTrans = normalizeTitleTrans(col?.titleTrans);
+
+      put(fullKey, titleTrans);
+      put(colName, titleTrans);
+
+      if (parentType === "doc" || colType === "doc") {
+        put(`doc.${fullKey}`, titleTrans);
+      }
+
+      if (parentType === "company" || colType === "company") {
+        put(`company.${colName}`, titleTrans);
+        put(`company.${fullKey}`, titleTrans);
+      }
+
+      if (parentType === "docInfo" || colType === "docInfo") {
+        put(`docInfo.${colName}`, titleTrans);
+      }
+
+      if (colType === "relation") {
+        put(`doc.${fullKey}`, titleTrans);
+        put(`relation doc.${fullKey}`, titleTrans);
+      }
+
+      if (Array.isArray(col?.columns) && col.columns.length > 0) {
+        const effectiveParentType =
+          colType === "doc" || colType === "docInfo" || colType === "company"
+            ? colType
+            : parentType;
+        const effectivePath =
+          colType === "doc" || colType === "docInfo" || colType === "company"
+            ? ""
+            : fullKey;
+        traverse(col.columns, effectivePath, effectiveParentType);
+      }
+    }
+  };
+
+  traverse(dataTableColumns, "", "");
+
+  return map;
+}
+
+/**
  * Membuat payload data untuk operasi drag variabel ke canvas editor.
  * Menggabungkan informasi variabel dengan token terformat.
  *
@@ -152,6 +242,7 @@ export function getSimplifiedTokenDisplay(token, variablePath = "") {
  * @param {Array} params.nestedColumns - Kolom-kolom nested untuk relasi
  * @param {string} params.displayLabel - Label tampilan variabel
  * @param {string} params.fullKey - Key lengkap dalam notasi dot
+ * @param {Record<string, string>|null} [params.titleTransLookup] - Lookup titleTrans berdasarkan key/path variabel
  * @returns {object} Payload yang siap digunakan untuk drag-and-drop
  */
 export function buildVariableDragPayload({
@@ -159,9 +250,28 @@ export function buildVariableDragPayload({
   nestedColumns,
   displayLabel,
   fullKey,
+  titleTransLookup = null,
 }) {
+  const { titleTrans, ...restVariable } = variable || {};
+  const labelKey = extractLabelKeyFromToken(
+    getFormattedHandlebarToken(variable, fullKey),
+  );
+  const lookupTitleTrans =
+    titleTransLookup && typeof titleTransLookup === "object"
+      ? titleTransLookup[labelKey] ||
+        titleTransLookup[fullKey] ||
+        titleTransLookup[variable?.name]
+      : null;
+  let normalizedTitleTrans = null;
+  if (typeof titleTrans === "string" && titleTrans.trim()) {
+    normalizedTitleTrans = titleTrans.trim();
+  } else if (typeof lookupTitleTrans === "string" && lookupTitleTrans.trim()) {
+    normalizedTitleTrans = lookupTitleTrans.trim();
+  }
+
   return {
-    ...variable,
+    ...restVariable,
+    ...(normalizedTitleTrans ? { titleTrans: normalizedTitleTrans } : {}),
     columns: nestedColumns,
     displayLabel,
     fullKey,

@@ -34,7 +34,7 @@ class RelationTrackerServiceValidateRelationsTest extends TestCase {
             'parent_relation.parent_relation',
             'not_a_relation',
             'not_a_relation',
-        ]);
+        ], true);
 
         $this->assertSame(
             ['parentRelation', 'parentRelation.parentRelation'],
@@ -48,5 +48,65 @@ class RelationTrackerServiceValidateRelationsTest extends TestCase {
         $service = new RelationTrackerService;
 
         $this->assertSame([], $service->validateRelations('App\\Models\\UnknownModel', ['customer']));
+    }
+
+    public function test_validate_relations_expands_default_with_and_caches_related_model_columns(): void {
+        $service = new RelationTrackerService;
+
+        $validated = $service->validateRelations(RelationTrackerValidateRelationsStockEntryModel::class, ['branch'], true);
+
+        $this->assertSame([
+            'branch',
+            'branch.shippingCountry',
+            'branch.billingCountry',
+        ], $validated['relations']);
+        $this->assertArrayHasKey(RelationTrackerValidateRelationsStockEntryModel::class, $validated['modelColumns']);
+        $this->assertArrayHasKey(RelationTrackerValidateRelationsBranchModel::class, $validated['modelColumns']);
+        $this->assertArrayHasKey(RelationTrackerValidateRelationsCountryModel::class, $validated['modelColumns']);
+    }
+}
+
+class RelationTrackerValidateRelationsStockEntryModel extends Model {
+    public static function getColumns($schema = null): array {
+        return [
+            ['name' => 'id'],
+            ['name' => 'branch_id'],
+        ];
+    }
+
+    public function branch(): BelongsTo {
+        return $this->belongsTo(RelationTrackerValidateRelationsBranchModel::class, 'branch_id');
+    }
+}
+
+class RelationTrackerValidateRelationsBranchModel extends Model {
+    protected $with = [
+        'shippingCountry',
+        'billingCountry',
+    ];
+
+    public static function getColumns($schema = null): array {
+        return [
+            ['name' => 'id'],
+            ['name' => 'shipping_country_id'],
+            ['name' => 'billing_country_id'],
+        ];
+    }
+
+    public function shippingCountry(): BelongsTo {
+        return $this->belongsTo(RelationTrackerValidateRelationsCountryModel::class, 'shipping_country_id');
+    }
+
+    public function billingCountry(): BelongsTo {
+        return $this->belongsTo(RelationTrackerValidateRelationsCountryModel::class, 'billing_country_id');
+    }
+}
+
+class RelationTrackerValidateRelationsCountryModel extends Model {
+    public static function getColumns($schema = null): array {
+        return [
+            ['name' => 'code'],
+            ['name' => 'name'],
+        ];
     }
 }

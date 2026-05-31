@@ -4,7 +4,6 @@ import { formatValue } from "@/Components/CurrencyInput";
 /**
  * Resolves a dot-notation path on an object to get the value.
  * e.g., resolveValue(obj, "customer.name") => obj.customer.name
- *
  * @param {object} obj - The data object to resolve from
  * @param {string} path - Dot-notation path
  * @returns {*} The resolved value or undefined
@@ -31,7 +30,6 @@ function resolveValue(obj, path) {
  *   "{{divide this.total this.quantity}}" => row.total / row.quantity
  *
  * Requirements: 3.15 - Support calculated columns with inline expressions
- *
  * @param {string} expression - The Handlebar expression string
  * @param {object} row - The data row to evaluate against
  * @returns {number|null} The calculated result or null if evaluation fails
@@ -74,7 +72,6 @@ function evaluateExpression(expression, row) {
  * - "numeric" / "number" type: formats with decimal places using formatValue utility
  *
  * Requirements: 3.10 - Apply formatting settings from DataTableColumns configuration
- *
  * @param {number|string|null} value - The value to format
  * @param {object} column - The column definition from DataTableColumns
  * @returns {string} The formatted value or original string
@@ -125,6 +122,33 @@ function formatCellValue(value, column) {
 }
 
 /**
+ * Normalisasi key titleTrans agar hanya string non-kosong yang disimpan.
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+function resolveTitleTransKey(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+/**
+ * Escape nilai atribut HTML agar aman dimasukkan ke string template.
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtmlAttribute(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
  * Gets the label for a column using a locale-aware fallback chain.
  *
  * Resolution order:
@@ -136,7 +160,6 @@ function formatCellValue(value, column) {
  *
  * Guarantees: never returns undefined or empty string when at least one of
  * `titleTrans`, `title`, or `name` is present on the column object.
- *
  * @param {object} col - Column definition with name, title, titleTrans
  * @param {Function} t - Translation function (e.g., `t` from useLaravelReactI18n)
  * @param {string} [locale] - Optional locale code (e.g., "en", "id") for translation resolution
@@ -174,7 +197,6 @@ function getColumnLabel(col, t, locale) {
 /**
  * Builds the canvas-visible table components using example data.
  * Displays actual data values in cells for accurate preview.
- *
  * @param {object} options
  * @param {Array} options.columns - Column definitions (filtered & sorted)
  * @param {string} options.relationName - The relation name for constructing label/token paths
@@ -216,6 +238,7 @@ function buildExampleDataTable({
     },
     ...columns.map((col) => {
       const labelKey = `${labelRelationPrefix}.${col.name}`;
+      const titleTransKey = resolveTitleTransKey(col.titleTrans);
 
       return {
         tagName: "th",
@@ -228,6 +251,7 @@ function buildExampleDataTable({
         attributes: {
           "data-id": genId("cell"),
           "data-label-key": labelKey,
+          ...(titleTransKey ? { "data-title-trans": titleTransKey } : {}),
           name: col.name,
           class: "border border-gray-400 px-2 py-1 text-left bg-gray-100",
         },
@@ -405,7 +429,6 @@ function buildExampleDataTable({
  * - `{{#each doc.relationName}}` for row iteration
  * - `{{this.columnName}}` for simple columns
  * - `{{relation this.columnName}}` for relation columns
- *
  * @param {object} options
  * @param {Array} options.columns - Column definitions
  * @param {string} options.relationName - The relation name
@@ -460,6 +483,7 @@ function buildHandlebarTokenTable({ columns, relationName, genId }) {
             ...columns.map((col) => {
               const labelKey = `${labelRelationPrefix}.${col.name}`;
               const token = `{{label "${labelKey}"}}`;
+              const titleTransKey = resolveTitleTransKey(col.titleTrans);
 
               return {
                 tagName: "th",
@@ -472,6 +496,9 @@ function buildHandlebarTokenTable({ columns, relationName, genId }) {
                 attributes: {
                   "data-id": genId("cell"),
                   "data-label-key": labelKey,
+                  ...(titleTransKey
+                    ? { "data-title-trans": titleTransKey }
+                    : {}),
                   name: col.name,
                   class:
                     "border border-gray-400 px-2 py-1 text-left bg-gray-100",
@@ -683,7 +710,11 @@ export default function gjsRelationsTable(editor) {
         html += `<tr>`;
         html += `<th>#</th>`;
         for (const col of visibleColumns) {
-          html += `<th>{{label "${labelRelationPrefix}.${col.name}"}}</th>`;
+          const titleTransKey = resolveTitleTransKey(col.titleTrans);
+          const titleTransAttr = titleTransKey
+            ? ` data-title-trans="${escapeHtmlAttribute(titleTransKey)}"`
+            : "";
+          html += `<th${titleTransAttr}>{{label "${labelRelationPrefix}.${col.name}"}}</th>`;
         }
         html += `</tr>`;
         html += `</thead>`;

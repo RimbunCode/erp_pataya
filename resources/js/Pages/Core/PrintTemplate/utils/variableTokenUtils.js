@@ -10,7 +10,6 @@ import { formatValue } from "@/Components/CurrencyInput";
 /**
  * Memformat nilai berdasarkan tipe kolom dan opsi format dari DataTableColumns.
  * Mendukung tipe "currency" (format mata uang) dan "numeric"/"number" (format angka desimal).
- *
  * @param {number|string|null} value - Nilai yang akan diformat
  * @param {object} column - Definisi kolom dari DataTableColumns
  * @returns {string} Nilai yang sudah diformat atau string asli
@@ -65,7 +64,6 @@ export function formatColumnValue(value, column) {
 /**
  * Menghasilkan token Handlebar untuk variabel, membungkus dengan helper format
  * jika tipe kolom adalah currency atau numeric/number.
- *
  * @param {object} variable - Definisi variabel/kolom
  * @param {string} fullKey - Key lengkap dengan notasi dot untuk variabel
  * @returns {string} String token Handlebar (dengan {{ }})
@@ -110,7 +108,6 @@ export function getFormattedHandlebarToken(variable, fullKey) {
 
 /**
  * Memeriksa apakah tipe kolom memerlukan pemformatan khusus.
- *
  * @param {string} type - Tipe kolom dari DataTableColumns
  * @returns {boolean} True jika tipe memerlukan pemformatan
  */
@@ -120,7 +117,6 @@ export function isFormattableType(type) {
 
 /**
  * Mengambil nilai contoh dari data example menggunakan path notasi dot.
- *
  * @param {object} exampleData - Objek data contoh dari backend
  * @param {string} path - Path notasi dot (misal: "customer_name", "customer.name")
  * @param {string} type - Tipe variabel ("data", "preferences", "relation", dll.)
@@ -154,7 +150,6 @@ export function resolveExampleValue(exampleData, path, type) {
 
 /**
  * Menghasilkan string token Handlebar untuk variabel berdasarkan tipe dan parentType.
- *
  * @param {object} variable - Objek variabel dengan properti name, type, dan parentType
  * @returns {string} String token Handlebar
  */
@@ -189,7 +184,6 @@ export function getHandlebarToken(variable) {
 /**
  * Mengambil label tampilan untuk variabel menggunakan terjemahan atau title.
  * Prioritas: title > titleTrans (diterjemahkan) > name.
- *
  * @param {object} variable - Objek variabel dengan properti title, titleTrans, dan name
  * @param {Function} t - Fungsi terjemahan dari laravel-react-i18n
  * @returns {string} Label yang akan ditampilkan
@@ -202,36 +196,126 @@ export function getDisplayLabel(variable, t) {
   );
 }
 
-export function resolveLabel(path, columns, modelDoc, t) {
-  const firstDotIndex = path.indexOf(".");
+/**
+ * Menentukan label kolom dengan prioritas:
+ * `title` → `t(titleTrans)` → `name`.
+ * @param {object} col
+ * @param {Function} t
+ * @param {string} fallbackPath
+ * @returns {string}
+ */
+function resolveColumnDisplayLabel(col, t, fallbackPath) {
+  const hasDirectTitle = typeof col?.title === "string" && col.title.trim();
+  if (hasDirectTitle) {
+    return col.title;
+  }
 
+  const hasTitleTrans =
+    typeof col?.titleTrans === "string" && col.titleTrans.trim();
+  if (hasTitleTrans) {
+    if (typeof t === "function") {
+      const translated = t(col.titleTrans);
+      if (translated != null && translated !== "") {
+        return translated;
+      }
+    }
+    return col.titleTrans;
+  }
+
+  const hasName = typeof col?.name === "string" && col.name.trim();
+  if (hasName) {
+    return col.name;
+  }
+
+  return fallbackPath;
+}
+
+/**
+ * Resolusi label dari path dan mengembalikan metadata `titleTrans`
+ * dari leaf column saat berhasil.
+ * @param {string} path
+ * @param {object|null|undefined} columns
+ * @param {string|null|undefined} modelDoc
+ * @param {Function} t
+ * @returns {{ label: string, titleTrans: string|null }}
+ */
+export function resolveLabelWithMeta(path, columns, modelDoc, t) {
+  if (!path || !columns) {
+    return { label: path ?? "", titleTrans: null };
+  }
+
+  const firstDotIndex = path.indexOf(".");
   if (firstDotIndex === -1) {
-    return path;
+    return { label: path, titleTrans: null };
   }
 
   const prefix = path.slice(0, firstDotIndex);
-  const paths = path.slice(firstDotIndex + 1).split(".");
-  if (paths.length <= 0) return path;
+  const segments = path.slice(firstDotIndex + 1).split(".");
+  if (segments.length === 0) {
+    return { label: path, titleTrans: null };
+  }
 
-  if (!columns) return path;
-
-  let currentModel = prefix;
-  if (prefix == "doc") {
-    if (!modelDoc) return path;
+  let currentModel = null;
+  if (prefix === "doc") {
+    if (!modelDoc) {
+      return { label: path, titleTrans: null };
+    }
     currentModel = modelDoc;
+  } else if (prefix === "company" || prefix === "docInfo") {
+    currentModel = prefix;
+  } else {
+    return { label: path, titleTrans: null };
   }
 
   let result = path;
-  for (const path of paths) {
-    const cols = columns[currentModel] ?? {};
-    const col = cols[path];
-    if (
-      (col.type === "relation" || col.type === "relations") &&
-      col.typeRelation === "basic"
-    ) {
-      currentModel = col.related;
+  let resolvedTitleTrans = null;
+
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index];
+    const modelColumns = columns?.[currentModel];
+    if (!modelColumns || typeof modelColumns !== "object") {
+      return { label: path, titleTrans: null };
     }
-    result = col.title || (col.titleTrans && t(col.titleTrans)) || col.name;
+
+    const col = modelColumns?.[segment];
+    if (!col || typeof col !== "object") {
+      return { label: path, titleTrans: null };
+    }
+
+    const hasAnyLabelValue = Boolean(
+      (typeof col.title === "string" && col.title.trim()) ||
+      (typeof col.titleTrans === "string" && col.titleTrans.trim()) ||
+      (typeof col.name === "string" && col.name.trim()),
+    );
+    if (!hasAnyLabelValue) {
+      return { label: path, titleTrans: null };
+    }
+
+    result = resolveColumnDisplayLabel(col, t, path);
+    resolvedTitleTrans =
+      typeof col.titleTrans === "string" && col.titleTrans.trim()
+        ? col.titleTrans
+        : null;
+
+    const isRelationType = col.type === "relation" || col.type === "relations";
+    if (!isRelationType) {
+      continue;
+    }
+
+    if (col.related) {
+      currentModel = col.related;
+      continue;
+    }
+
+    // Relation leaf tanpa `related`: kembalikan label terbaik yang sudah ada.
+    if (index < segments.length - 1) {
+      return { label: result, titleTrans: resolvedTitleTrans };
+    }
   }
-  return result;
+
+  return { label: result, titleTrans: resolvedTitleTrans };
+}
+
+export function resolveLabel(path, columns, modelDoc, t) {
+  return resolveLabelWithMeta(path, columns, modelDoc, t).label;
 }
