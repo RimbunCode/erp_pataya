@@ -38,7 +38,7 @@ function FadingCard({
       className={`absolute bg-card rounded-xl shadow-xl px-4 py-3 flex items-center gap-3 transition-opacity duration-700 ease-in-out ${className}`}
       style={{ opacity: visible ? 1 : 0.3 }}
     >
-      <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shrink-0 text-white text-lg">
+      <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shrink-0 text-primary-foreground text-lg">
         {icon}
       </div>
       <div>
@@ -83,7 +83,7 @@ function BouncingCard({
       <div
         className={`bounce-card absolute bg-card rounded-xl shadow-xl px-4 py-3 flex items-center gap-3 ${className}`}
       >
-        <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shrink-0 text-white text-lg">
+        <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shrink-0 text-primary-foreground text-lg">
           {icon}
         </div>
         <div>
@@ -147,7 +147,7 @@ function AvatarStack() {
       {colors.map((color, index) => (
         <div
           key={initials[index]}
-          className={`w-8 h-8 rounded-full border-2 border-white ${color} flex items-center justify-center text-white text-[9px] font-bold`}
+          className={`w-8 h-8 rounded-full border-2 border-background ${color} flex items-center justify-center text-white text-[9px] font-bold`}
         >
           {initials[index]}
         </div>
@@ -219,7 +219,7 @@ function HeroSection({ content }) {
         className="absolute inset-0 opacity-30"
         style={{
           backgroundImage:
-            "linear-gradient(to right, #e5e7eb 1px, transparent 1px), linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)",
+            "linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       />
@@ -247,7 +247,7 @@ function HeroSection({ content }) {
           <div className="flex items-center gap-4 flex-wrap">
             <Link
               href={route("guest.training")}
-              className="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold tracking-widest uppercase px-6 py-3.5 rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold tracking-widest uppercase px-6 py-3.5 rounded-lg transition-colors"
             >
               <LiveEditableText as="span" path="home.hero.primaryCtaLabel">
                 {primaryCtaLabel}
@@ -514,7 +514,7 @@ function HomeAdsSection({ content }) {
                         href={linkHref}
                         target={openInNewTab ? "_blank" : "_self"}
                         rel={openInNewTab ? "noreferrer noopener" : undefined}
-                        className="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-white text-xs font-bold tracking-widest uppercase px-4 py-2.5 rounded-lg transition-colors"
+                        className="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold tracking-widest uppercase px-4 py-2.5 rounded-lg transition-colors"
                       >
                         <LiveEditableText as="span" path={ctaPath}>
                           {ctaLabel}

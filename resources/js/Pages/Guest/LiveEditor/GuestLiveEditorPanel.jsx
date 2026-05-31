@@ -386,8 +386,8 @@ export default function GuestLiveEditorPanel() {
               <span
                 className={`text-[10px] px-2 py-1 rounded-md border font-semibold uppercase tracking-wider ${
                   hasUnsavedChanges
-                    ? "bg-amber-100 text-amber-800 border-amber-200"
-                    : "bg-emerald-100 text-emerald-800 border-emerald-200"
+                    ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-900"
+                    : "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-900"
                 }`}
               >
                 {hasUnsavedChanges ? "Unsaved changes" : "All changes saved"}

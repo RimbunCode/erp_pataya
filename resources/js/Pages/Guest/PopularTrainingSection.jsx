@@ -96,7 +96,7 @@ function TrainingCard({
           </span>
           <Link
             href={route("guest.training")}
-            className="inline-flex items-center gap-2 bg-gray-900 hover:bg-gray-700 text-white text-[10px] font-bold tracking-widest uppercase px-4 py-2.5 rounded-full transition-colors"
+            className="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-primary-foreground text-[10px] font-bold tracking-widest uppercase px-4 py-2.5 rounded-full transition-colors"
           >
             VIEW DETAILS
             <svg
@@ -147,7 +147,8 @@ export function PopularTrainingSection({ content = {} }) {
     },
     {
       category: "Project Management",
-      categoryColor: "bg-green-50 text-green-600 border border-green-100",
+      categoryColor:
+        "bg-green-100 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-900",
       title: "PROJECT MANAGEMENT EXCELLENCE",
       author: "Siti Aminah, PMP",
       description:
@@ -165,7 +166,8 @@ export function PopularTrainingSection({ content = {} }) {
     },
     {
       category: "Digital Engineering",
-      categoryColor: "bg-purple-50 text-purple-500 border border-purple-100",
+      categoryColor:
+        "bg-violet-100 text-violet-700 border border-violet-200 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-900",
       title: "GREEN BUILDING CERTIFICATION",
       author: "Budi Setiawan, LEED AP",
       description:
@@ -211,7 +213,7 @@ export function PopularTrainingSection({ content = {} }) {
         <div className="text-center mt-12">
           <Link
             href={route("guest.training")}
-            className="inline-flex items-center gap-3 bg-primary hover:bg-primary-hover text-white text-xs font-bold tracking-widest uppercase px-8 py-4 rounded-lg transition-colors"
+            className="inline-flex items-center gap-3 bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-bold tracking-widest uppercase px-8 py-4 rounded-lg transition-colors"
           >
             VIEW ALL TRAINING PROGRAMS
             <svg

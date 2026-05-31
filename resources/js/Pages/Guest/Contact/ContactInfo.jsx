@@ -154,7 +154,7 @@ function ContactUsContent({ content = {} }) {
         <LiveEditableText
           as="h1"
           path="contact.hero.title"
-          className="text-5xl md:text-6xl font-black text-white tracking-tight uppercase whitespace-pre-line"
+          className="text-5xl md:text-6xl font-black text-primary-foreground tracking-tight uppercase whitespace-pre-line"
         >
           {heroTitle}
         </LiveEditableText>
@@ -230,7 +230,7 @@ function ContactUsContent({ content = {} }) {
                 <input
                   type="text"
                   placeholder={fullNamePlaceholder}
-                  className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-black-800 placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+                  className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
                 />
               </div>
               <div>
@@ -260,7 +260,7 @@ function ContactUsContent({ content = {} }) {
               <input
                 type="text"
                 placeholder={subjectPlaceholder}
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-black-800 placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all"
               />
             </div>
 
@@ -275,11 +275,11 @@ function ContactUsContent({ content = {} }) {
               <textarea
                 rows={5}
                 placeholder={messagePlaceholder}
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-black-800 placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all resize-none"
+                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card transition-all resize-none"
               />
             </div>
 
-            <button className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 hover:-translate-y-0.5 shadow-md shadow-primary/20 whitespace-pre-line">
+            <button className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 hover:-translate-y-0.5 shadow-md shadow-primary/20 whitespace-pre-line">
               <LiveEditableText as="span" path="contact.form.submitLabel">
                 {submitLabel}
               </LiveEditableText>

@@ -2,10 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import GuestLayout from "@/Layouts/GuestLayout";
-import Link from "@/Components/Link";
 import { router } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { GitCompareArrowsIcon, PlusIcon, XIcon } from "lucide-react";
+import { GitCompareArrowsIcon, XIcon } from "lucide-react";
 import { cn, formatRp } from "@/lib/utils";
 
 function StarRating({ rating = 0, size = "w-4 h-4" }) {
@@ -24,18 +23,6 @@ function StarRating({ rating = 0, size = "w-4 h-4" }) {
     </div>
   );
 }
-
-// Warna thumbnail otomatis karena tidak ada image dari controller
-const thumbColors = [
-  "from-gray-700 to-gray-900",
-  "from-primary to-primary",
-  "from-green-600 to-green-800",
-  "from-violet-600 to-violet-900",
-  "from-teal-500 to-teal-700",
-  "from-orange-500 to-orange-700",
-  "from-rose-500 to-rose-700",
-  "from-slate-400 to-slate-600",
-];
 
 const levelColor = {
   beginner: "bg-green-500",
@@ -109,7 +96,7 @@ function TrainingCompare({ selected, onBack }) {
                     onClick={() =>
                       router.visit(route("guest.training.preview", course.id))
                     }
-                    className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 transition-all duration-200"
+                    className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 transition-all duration-200"
                   >
                     View Details
                   </button>
@@ -229,7 +216,6 @@ function TrainingCompare({ selected, onBack }) {
 // ── Course Card ────────────────────────────────────────────────────────────────
 function CourseCard({
   course,
-  index,
   isSelected,
   onToggleCompare,
   compareCount,
@@ -237,10 +223,8 @@ function CourseCard({
 }) {
   const [hovered, setHovered] = useState(false);
   const canAdd = !isSelected && compareCount < 3;
-  const color = thumbColors[index % thumbColors.length];
   const levelKey = course.level?.toLowerCase();
   const levelBg = levelColor[levelKey] ?? "bg-gray-400";
-  const DEFAULT_THUMB = "images/logo-default.png";
 
   const goToDetail = () =>
     router.visit(route("guest.training.preview", course.id));
@@ -331,7 +315,7 @@ function CourseCard({
               onClick={() => onToggleCompare(course)}
               disabled={!isSelected && !canAdd}
               className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200
-                ${isSelected ? "bg-primary text-white" : canAdd ? "border border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border border-border text-muted-foreground cursor-not-allowed"}`}
+                ${isSelected ? "bg-primary text-primary-foreground" : canAdd ? "border border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border border-border text-muted-foreground cursor-not-allowed"}`}
             >
               {!isSelected ? (
                 <GitCompareArrowsIcon className="w-4 h-4" />
@@ -341,7 +325,7 @@ function CourseCard({
             </button>
             <button
               onClick={goToDetail}
-              className="px-4 py-2 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl transition-colors"
+              className="px-4 py-2 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-primary-foreground rounded-xl transition-colors"
             >
               View Details
             </button>
@@ -488,7 +472,7 @@ function CourseCard({
                       : "Maximum 3 courses"
                 }
                 className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200
-                ${isSelected ? "bg-primary text-white shadow-md shadow-primary/20" : canAdd ? "border-2 border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border-2 border-border text-muted-foreground cursor-not-allowed"}`}
+                ${isSelected ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" : canAdd ? "border-2 border-border text-muted-foreground hover:border-primary/40 hover:text-primary" : "border-2 border-border text-muted-foreground cursor-not-allowed"}`}
               >
                 {!isSelected ? (
                   <GitCompareArrowsIcon className="w-4 h-4" />
@@ -498,7 +482,7 @@ function CourseCard({
               </button>
               <button
                 onClick={goToDetail}
-                className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-white rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
+                className="px-4 py-2.5 text-xs font-extrabold tracking-widest uppercase bg-primary hover:bg-primary-hover text-primary-foreground rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all duration-200"
               >
                 View Details
               </button>
@@ -638,7 +622,6 @@ export default function TrainingCatalogue({
   const [search, setSearch] = useState(initialFilters.search ?? "");
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
-  const DEFAULT_THUMBNAIL = "/storage/images/logo-default.png";
 
   const [activeFilters, setActiveFilters] = useState({
     search: initialFilters.search ?? "",
@@ -754,7 +737,10 @@ export default function TrainingCatalogue({
         return false;
       }
 
-      if (normalizedSearch !== "" && !searchableText.includes(normalizedSearch)) {
+      if (
+        normalizedSearch !== "" &&
+        !searchableText.includes(normalizedSearch)
+      ) {
         return false;
       }
 
@@ -817,7 +803,7 @@ export default function TrainingCatalogue({
               />
               <button
                 onClick={handleSearch}
-                className="bg-primary hover:bg-primary-hover text-white text-xs font-extrabold tracking-widest uppercase px-6 py-2.5 rounded-xl transition-colors flex-shrink-0"
+                className="bg-primary hover:bg-primary-hover text-primary-foreground text-xs font-extrabold tracking-widest uppercase px-6 py-2.5 rounded-xl transition-colors flex-shrink-0"
               >
                 Search
               </button>
@@ -841,13 +827,12 @@ export default function TrainingCatalogue({
               <div className="bg-card rounded-2xl border border-border shadow-sm px-5 py-3.5 flex items-center justify-between mb-5">
                 <p className="text-xs font-extrabold tracking-[2px] text-muted-foreground uppercase">
                   <span className="text-primary">{filteredCourses.length}</span>{" "}
-                  Results
-                  Found
+                  Results Found
                 </p>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"}`}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
                   >
                     <svg
                       className="w-4 h-4"
@@ -859,7 +844,7 @@ export default function TrainingCatalogue({
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-primary text-white" : "text-muted-foreground hover:bg-muted"}`}
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
                   >
                     <svg
                       className="w-4 h-4"
@@ -887,11 +872,10 @@ export default function TrainingCatalogue({
                       : "flex flex-col gap-4"
                   }
                 >
-                  {filteredCourses.map((course, index) => (
+                  {filteredCourses.map((course) => (
                     <CourseCard
                       key={course.id}
                       course={course}
-                      index={index}
                       isSelected={compareList.some((c) => c.id === course.id)}
                       onToggleCompare={toggleCompare}
                       compareCount={compareList.length}
@@ -983,7 +967,7 @@ export default function TrainingCatalogue({
                 onClick={() => setShowCompare(true)}
                 disabled={compareList.length < 2}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold tracking-widest uppercase transition-all duration-200
-                  ${compareList.length >= 2 ? "bg-primary hover:bg-primary-hover text-white hover:-translate-y-0.5" : "bg-card/10 text-white/40 cursor-not-allowed"}`}
+                  ${compareList.length >= 2 ? "bg-primary hover:bg-primary-hover text-primary-foreground hover:-translate-y-0.5" : "bg-card/10 text-white/40 cursor-not-allowed"}`}
               >
                 Compare Now
                 <svg

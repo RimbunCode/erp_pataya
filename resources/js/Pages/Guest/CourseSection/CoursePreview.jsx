@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { router, useForm } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 import GuestLayout from "@/Layouts/GuestLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { cn, formatRp } from "@/lib/utils";
@@ -71,12 +71,6 @@ function ContentIcon({ type }) {
     </svg>
   );
 }
-
-const contentTypeLabel = {
-  pre_assessment: "Pre Assessment",
-  material: "Materi",
-  assignment: "Tugas",
-};
 
 // ── Enroll / Payment Modal ─────────────────────────────────────────────────────
 function EnrollModal({ course, onClose }) {
@@ -204,7 +198,7 @@ function EnrollModal({ course, onClose }) {
                 <div key={i} className="flex items-center gap-2">
                   <div
                     className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black transition-all
-                    ${step > i + 1 ? "bg-green-500 text-white" : step === i + 1 ? "bg-primary-soft0 text-white" : "bg-card/10 text-white/40"}`}
+                    ${step > i + 1 ? "bg-green-500 text-white" : step === i + 1 ? "bg-primary text-primary-foreground" : "bg-card/10 text-white/40"}`}
                   >
                     {step > i + 1 ? "✓" : i + 1}
                   </div>
@@ -227,7 +221,7 @@ function EnrollModal({ course, onClose }) {
         <div className="px-6 py-5 space-y-4">
           {done ? (
             <div className="py-4 flex flex-col items-center gap-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-green-50 border-2 border-green-200 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-full bg-green-100 border-2 border-green-200 dark:bg-green-950 dark:border-green-900 flex items-center justify-center">
                 <svg
                   className="w-8 h-8 text-green-500"
                   fill="none"
@@ -250,14 +244,14 @@ function EnrollModal({ course, onClose }) {
                   Pendaftaran sedang diverifikasi admin. Proses 1×24 jam kerja.
                 </p>
               </div>
-              <div className="bg-amber-50 border border-amber-100 rounded-2xl px-4 py-3 w-full">
-                <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest">
+              <div className="bg-amber-100 border border-amber-200 dark:bg-amber-950 dark:border-amber-900 rounded-2xl px-4 py-3 w-full">
+                <p className="text-[9px] font-black text-amber-700 dark:text-amber-200 uppercase tracking-widest">
                   ⏳ Menunggu Verifikasi
                 </p>
               </div>
               <button
                 onClick={onClose}
-                className="w-full py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
+                className="w-full py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
               >
                 Tutup
               </button>
@@ -288,9 +282,9 @@ function EnrollModal({ course, onClose }) {
                           </p>
                         </div>
                         {method === m.id && (
-                          <div className="ml-auto w-5 h-5 rounded-full bg-primary-soft0 flex items-center justify-center">
+                          <div className="ml-auto w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                             <svg
-                              className="w-3 h-3 text-white"
+                              className="w-3 h-3 text-primary-foreground"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -310,7 +304,7 @@ function EnrollModal({ course, onClose }) {
                   <button
                     disabled={!method}
                     onClick={() => setStep(2)}
-                    className="w-full py-3 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="w-full py-3 text-[10px] font-black tracking-widest uppercase bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Lanjutkan →
                   </button>
@@ -357,7 +351,7 @@ function EnrollModal({ course, onClose }) {
                     </button>
                     <button
                       onClick={() => setStep(3)}
-                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
+                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
                     >
                       Sudah Bayar →
                     </button>
@@ -385,9 +379,9 @@ function EnrollModal({ course, onClose }) {
                     />
                     {file ? (
                       <>
-                        <div className="w-10 h-10 rounded-xl bg-primary-soft0 flex items-center justify-center">
+                        <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                           <svg
-                            className="w-5 h-5 text-white"
+                            className="w-5 h-5 text-primary-foreground"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -455,7 +449,7 @@ function EnrollModal({ course, onClose }) {
                     <button
                       disabled={!file}
                       onClick={submitPayment}
-                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       Kirim →
                     </button>
@@ -480,9 +474,9 @@ function SectionAccordion({ section, index, isEnrolled }) {
   const typeCfg = {
     pre_assessment: {
       label: "Pre Assessment",
-      bg: "bg-amber-50",
-      border: "border-amber-100",
-      text: "text-amber-600",
+      bg: "bg-amber-100 dark:bg-amber-950",
+      border: "border-amber-200 dark:border-amber-900",
+      text: "text-amber-700 dark:text-amber-200",
     },
     material: {
       label: "Materi",
@@ -492,9 +486,9 @@ function SectionAccordion({ section, index, isEnrolled }) {
     },
     assignment: {
       label: "Tugas",
-      bg: "bg-violet-50",
-      border: "border-violet-100",
-      text: "text-violet-600",
+      bg: "bg-violet-100 dark:bg-violet-950",
+      border: "border-violet-200 dark:border-violet-900",
+      text: "text-violet-700 dark:text-violet-200",
     },
   };
 
@@ -578,7 +572,7 @@ function SectionAccordion({ section, index, isEnrolled }) {
           className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${open ? "bg-primary" : "bg-muted"}`}
         >
           <span
-            className={`text-xs font-black ${open ? "text-white" : "text-muted-foreground"}`}
+            className={`text-xs font-black ${open ? "text-primary-foreground" : "text-muted-foreground"}`}
           >
             {String(index + 1).padStart(2, "0")}
           </span>
@@ -657,7 +651,6 @@ export default function TrainingPreview({
   rejectionReason = null,
 }) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [openChapter, setOpenChapter] = useState(null);
   const [showEnroll, setShowEnroll] = useState(false);
   const isPending = enrollmentStatus === "pending";
   const isRejected = enrollmentStatus === "rejected";
@@ -665,9 +658,11 @@ export default function TrainingPreview({
   const tabs = ["overview", "curriculum", "instructor", "reviews"];
 
   const levelColor = {
-    beginner: "bg-green-100 text-green-700",
-    intermediate: "bg-amber-100 text-amber-700",
-    advanced: "bg-red-100 text-red-700",
+    beginner:
+      "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-200",
+    intermediate:
+      "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-200",
+    advanced: "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-200",
   };
 
   const handleEnrollClick = () => {
@@ -736,7 +731,7 @@ export default function TrainingPreview({
               {course.categories?.map((cat) => (
                 <span
                   key={cat}
-                  className="px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase bg-primary text-white"
+                  className="px-4 py-1.5 rounded-full text-xs font-extrabold tracking-widest uppercase bg-primary text-primary-foreground"
                 >
                   {cat}
                 </span>
@@ -1046,7 +1041,7 @@ export default function TrainingPreview({
 
                   {/* Enrolled banner */}
                   {isEnrolled && (
-                    <div className="bg-green-50 border border-green-200 rounded-2xl px-5 py-3 flex items-center gap-3">
+                    <div className="bg-green-100 border border-green-200 dark:bg-green-950 dark:border-green-900 rounded-2xl px-5 py-3 flex items-center gap-3">
                       <svg
                         className="w-5 h-5 text-green-500 flex-shrink-0"
                         fill="none"
@@ -1060,14 +1055,14 @@ export default function TrainingPreview({
                           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
-                      <p className="text-xs font-bold text-green-700">
+                      <p className="text-xs font-bold text-green-700 dark:text-green-200">
                         Anda sudah terdaftar — semua materi dapat diunduh.
                       </p>
                     </div>
                   )}
 
                   {isPending && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-center gap-3">
+                    <div className="bg-amber-100 border border-amber-200 dark:bg-amber-950 dark:border-amber-900 rounded-2xl px-5 py-3 flex items-center gap-3">
                       <svg
                         className="w-5 h-5 text-amber-500 flex-shrink-0"
                         fill="none"
@@ -1081,19 +1076,19 @@ export default function TrainingPreview({
                           d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
                         />
                       </svg>
-                      <p className="text-xs font-bold text-amber-700">
+                      <p className="text-xs font-bold text-amber-700 dark:text-amber-200">
                         Bukti pembayaran Anda sedang diverifikasi admin.
                       </p>
                     </div>
                   )}
 
                   {isRejected && (
-                    <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-3">
-                      <p className="text-xs font-black text-red-700 uppercase tracking-widest">
+                    <div className="bg-red-100 border border-red-200 dark:bg-red-950 dark:border-red-900 rounded-2xl px-5 py-3">
+                      <p className="text-xs font-black text-red-700 dark:text-red-200 uppercase tracking-widest">
                         Pembayaran ditolak
                       </p>
                       {rejectionReason && (
-                        <p className="text-xs text-red-700 mt-1 leading-relaxed">
+                        <p className="text-xs text-red-700 dark:text-red-200 mt-1 leading-relaxed">
                           Alasan: {rejectionReason}
                         </p>
                       )}
@@ -1101,7 +1096,7 @@ export default function TrainingPreview({
                   )}
 
                   {!isEnrolled && !isPending && !isRejected && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 flex items-center gap-3">
+                    <div className="bg-amber-100 border border-amber-200 dark:bg-amber-950 dark:border-amber-900 rounded-2xl px-5 py-3 flex items-center gap-3">
                       <svg
                         className="w-5 h-5 text-amber-500 flex-shrink-0"
                         fill="none"
@@ -1115,7 +1110,7 @@ export default function TrainingPreview({
                           d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                         />
                       </svg>
-                      <p className="text-xs font-bold text-amber-700">
+                      <p className="text-xs font-bold text-amber-700 dark:text-amber-200">
                         Enroll untuk mengakses dan mengunduh semua materi,
                         tugas, dan pra asesmen.
                       </p>
@@ -1161,7 +1156,7 @@ export default function TrainingPreview({
                     Instruktur
                   </h2>
                   <div className="flex items-start gap-5">
-                    <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center text-white text-3xl font-black flex-shrink-0">
+                    <div className="w-20 h-20 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground text-3xl font-black flex-shrink-0">
                       {course.instructor?.slice(0, 1) ?? "I"}
                     </div>
                     <div>
@@ -1212,7 +1207,7 @@ export default function TrainingPreview({
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                          <span className="text-xs font-black text-green-600 uppercase tracking-widest">
+                          <span className="text-xs font-black text-green-600 dark:text-green-300 uppercase tracking-widest">
                             Terdaftar
                           </span>
                         </div>
@@ -1224,7 +1219,7 @@ export default function TrainingPreview({
                           onClick={() =>
                             router.visit(route("student.courses.index"))
                           }
-                          className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
+                          className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
                         >
                           Buka My Learning
                         </button>
@@ -1233,7 +1228,7 @@ export default function TrainingPreview({
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                          <span className="text-xs font-black text-amber-600 uppercase tracking-widest">
+                          <span className="text-xs font-black text-amber-600 dark:text-amber-300 uppercase tracking-widest">
                             Pending
                           </span>
                         </div>
@@ -1246,18 +1241,18 @@ export default function TrainingPreview({
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2 mb-1">
                           <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                          <span className="text-xs font-black text-red-600 uppercase tracking-widest">
+                          <span className="text-xs font-black text-red-600 dark:text-red-300 uppercase tracking-widest">
                             Rejected
                           </span>
                         </div>
                         {rejectionReason && (
-                          <p className="text-xs text-red-600 leading-relaxed">
+                          <p className="text-xs text-red-600 dark:text-red-300 leading-relaxed">
                             Alasan: {rejectionReason}
                           </p>
                         )}
                         <button
                           onClick={handleEnrollClick}
-                          className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
+                          className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
                         >
                           Upload Ulang Bukti
                         </button>
@@ -1291,7 +1286,7 @@ export default function TrainingPreview({
                         <div className="flex flex-col gap-3 mt-5">
                           <button
                             onClick={handleEnrollClick}
-                            className="w-full bg-primary hover:bg-primary-hover text-white font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
+                            className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-extrabold tracking-widest uppercase text-xs py-4 rounded-xl shadow-md shadow-primary/20 hover:-translate-y-0.5 transition-all"
                           >
                             {isLoggedIn
                               ? "Enroll Sekarang"
