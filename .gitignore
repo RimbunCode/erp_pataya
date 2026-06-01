@@ -8,6 +8,17 @@
 .claude/skills
 .github/skills
 .kiro/skills
+
+# opencode (project-local; junctions to .claude/.agents sources)
+/.opencode/command
+/.opencode/skills
+/.opencode/plugin/node_modules
+.opencode/cache
+.opencode/state
+.opencode/sessions
+
+# opencode plugin dependencies (if any per-plugin package.json)
+/.opencode/**/node_modules
 *_translations.json
 /.phpunit.cache
 /node_modules
