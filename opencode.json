@@ -2,6 +2,9 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": ["AGENTS.md", "CLAUDE.md", "RTK.md"],
   "shell": "C:/Program Files/Git/usr/bin/bash.exe",
+  "env": {
+    "SHELL": ""
+  },
   "skills": {
     "paths": [".opencode/skills"]
   },
@@ -44,9 +47,7 @@
       "enabled": true
     }
   },
-  "plugin": [
-    "./.opencode/plugin/security-scan.ts"
-  ],
+  "plugin": ["./.opencode/plugin/security-scan.ts"],
   "lsp": true,
   "formatter": true
 }

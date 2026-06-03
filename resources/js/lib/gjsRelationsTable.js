@@ -628,6 +628,7 @@ export default function gjsRelationsTable(editor) {
       init() {
         this.listenTo(this, "change:selectedColumns", this.updateColumns);
         this.listenTo(this, "change:columnOrder", this.updateColumns);
+        this.listenTo(this, "change:customMode", this.onCustomModeChange);
 
         // On load: if customMode is active but children are missing, emit error event
         // Deferred so the component tree is fully populated before checking
@@ -637,6 +638,148 @@ export default function gjsRelationsTable(editor) {
               this.trigger("customMode:layoutRestoreError");
             }
           }, 0);
+        }
+      },
+      onCustomModeChange() {
+        const isCustomMode = this.get("customMode");
+        const components = this.components();
+        const relationName = this.getAttributes()?.["data-relations"] || "";
+
+        // Convert components to be editable/selectable if entering Custom Mode
+        const updateComponentAccess = (comp) => {
+          comp.set({
+            selectable: true,
+            droppable: true,
+            editable: true,
+            draggable: false, // Table structure shouldn't be moved around
+          });
+          comp.components().forEach(updateComponentAccess);
+        };
+
+        // Convert existing cells to Custom Mode format when entering Custom Mode
+        const convertCellToCustomMode = (cell) => {
+          // Make cell editable (it will contain editable text + non-editable token spans)
+          cell.set({ editable: true });
+
+          const attrs = cell.getAttributes() || {};
+
+          // Check for data-label-key (header) or data-token (body)
+          const labelKey = attrs["data-label-key"];
+          const tokenValue = attrs["data-token"];
+
+          // If cell has label or token data, convert content to non-editable span
+          if (labelKey || tokenValue) {
+            const currentContent = cell.get("content") || "";
+            const cellTag = (cell.get("tagName") || "").toLowerCase();
+            const relationPrefix = relationName
+              ? `doc.${relationName}.`
+              : "doc.";
+            const normalizedTokenValue = labelKey
+              ? ""
+              : (() => {
+                  const tokenInner = tokenValue
+                    .trim()
+                    .replace(/^\{\{\s*/, "")
+                    .replace(/\s*\}\}$/, "");
+                  if (cellTag !== "td") return tokenValue;
+                  if (
+                    tokenInner.startsWith("this.") ||
+                    tokenInner.startsWith("relation this.")
+                  ) {
+                    return tokenValue;
+                  }
+                  if (tokenInner.startsWith("relation ")) {
+                    const path = tokenInner.slice("relation ".length);
+                    if (path.startsWith(relationPrefix)) {
+                      return `{{relation this.${path.slice(relationPrefix.length)}}}`;
+                    }
+                  }
+                  if (tokenInner.startsWith(relationPrefix)) {
+                    return `{{this.${tokenInner.slice(relationPrefix.length)}}}`;
+                  }
+                  return tokenValue;
+                })();
+            const displayValue = labelKey
+              ? currentContent || labelKey.split(".").pop() || labelKey
+              : (() => {
+                  const tokenInner = normalizedTokenValue
+                    .trim()
+                    .replace(/^\{\{\s*/, "")
+                    .replace(/\s*\}\}$/, "");
+                  if (tokenInner.startsWith("relation this.")) {
+                    return `[${tokenInner.slice("relation this.".length)}]`;
+                  }
+                  if (tokenInner.startsWith("this.")) {
+                    return `[${tokenInner.slice("this.".length)}]`;
+                  }
+                  if (tokenInner.startsWith("relation doc.")) {
+                    return `{{${tokenInner.slice("relation doc.".length)}}}`;
+                  }
+                  if (tokenInner.startsWith("doc.")) {
+                    return `{{${tokenInner.slice("doc.".length)}}}`;
+                  }
+                  return normalizedTokenValue;
+                })();
+
+            // Clear current content and add non-editable span child
+            cell.components().reset();
+            cell.components().add({
+              type: "text",
+              tagName: "span",
+              selectable: false,
+              editable: false,
+              draggable: false,
+              attributes: {
+                ...(labelKey
+                  ? { "data-label-key": labelKey }
+                  : { "data-token": normalizedTokenValue }),
+                title: labelKey
+                  ? `{{label "${labelKey}"}}`
+                  : normalizedTokenValue,
+                contenteditable: "false",
+              },
+              content: displayValue,
+            });
+          }
+        };
+
+        if (isCustomMode) {
+          updateComponentAccess(this);
+          // Special: table itself and sections should not be editable text nodes
+          this.set({ editable: false });
+          components.forEach((c) => c.set({ editable: false }));
+
+          // Find and convert all header and body cells to Custom Mode format
+          const thead = this.components().find(
+            (c) => (c.get("tagName") || "").toLowerCase() === "thead",
+          );
+          const tbody = this.components().find(
+            (c) => (c.get("tagName") || "").toLowerCase() === "tbody",
+          );
+
+          if (thead) {
+            thead.components().forEach((row) => {
+              if (row.get("tagName") === "tr") {
+                row.components().forEach((cell) => {
+                  if (cell.get("tagName") === "th") {
+                    convertCellToCustomMode(cell);
+                  }
+                });
+              }
+            });
+          }
+
+          if (tbody) {
+            tbody.components().forEach((row) => {
+              if (row.get("tagName") === "tr") {
+                row.components().forEach((cell) => {
+                  if (cell.get("tagName") === "td") {
+                    convertCellToCustomMode(cell);
+                  }
+                });
+              }
+            });
+          }
         }
       },
       updateColumns() {
@@ -701,12 +844,14 @@ export default function gjsRelationsTable(editor) {
         const attrs = this.getAttributes();
         const relationName = attrs["data-relations"] || "";
 
-        const thead = this.components().find(
+        const theadComponents = this.components().filter(
           (c) => (c.get("tagName") || "").toLowerCase() === "thead",
         );
-        const tbody = this.components().find(
+        const tbodyComponents = this.components().filter(
           (c) => (c.get("tagName") || "").toLowerCase() === "tbody",
         );
+        const thead = theadComponents.length > 0 ? theadComponents[0] : null;
+        const tbody = tbodyComponents.length > 0 ? tbodyComponents[0] : null;
 
         const headerHtml = serializeCustomModeHeader(thead, relationName);
         const bodyHtml = serializeCustomModeBody(tbody, relationName);

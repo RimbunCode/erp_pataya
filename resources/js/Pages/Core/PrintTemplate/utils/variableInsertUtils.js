@@ -12,16 +12,15 @@ import {
   simplifyInlineDisplayToken,
 } from "./variableEncodingUtils";
 import { simplifyTokenDisplay } from "../Components/tokenConfigHelpers";
+
 import { getFormattedHandlebarToken } from "./variableTokenUtils";
 
 /**
  * Mengekstrak label key dari token Handlebar dengan menghapus pembungkus {{...}}
  * dan membersihkan prefix helper (relation, label, formatCurrency, formatNumber, #each).
  * Idempotent: jika input sudah tanpa pembungkus, dikembalikan apa adanya setelah cleaning.
- *
  * @param {string} token - String token (bisa dengan atau tanpa pembungkus `{{...}}`)
  * @returns {string} Path variabel bersih tanpa prefix helper dan tanpa pembungkus
- *
  * @example
  * extractLabelKeyFromToken('{{relation doc.category}}')   // "doc.category"
  * extractLabelKeyFromToken('{{label "doc.category"}}')    // "doc.category"
@@ -77,7 +76,6 @@ export function extractLabelKeyFromToken(token) {
  * - docInfo → {{docInfo.<keyName>}}
  * - relation → {{relation doc.<path>}}
  * - default → {{doc.<path>}}
- *
  * @param {object} params - Parameter untuk membangun token
  * @param {string} params.variableType - Tipe variabel (company, docInfo, relation, data, dll)
  * @param {string} params.parentType - Tipe parent dari variabel (company, docInfo, dll)
@@ -120,9 +118,8 @@ export function buildVariableToken({
  * - Token kosong dengan variablePath berprefix "doc." → hapus prefix
  * - Token dengan formatCurrency/formatNumber → ekstrak nama field
  * - Lainnya → delegasi ke simplifyTokenDisplay
- *
  * @param {string} token - String token Handlebar lengkap (bisa kosong)
- * @param {string} [variablePath=""] - Path variabel untuk fallback jika token kosong
+ * @param {string} [variablePath] - Path variabel untuk fallback jika token kosong
  * @returns {string} Token yang disederhanakan untuk tampilan di canvas
  */
 export function getSimplifiedTokenDisplay(token, variablePath = "") {
@@ -146,7 +143,6 @@ export function getSimplifiedTokenDisplay(token, variablePath = "") {
 /**
  * Membangun lookup map `labelKey/path -> titleTrans` dari dataTableColumns.
  * Lookup key mengikuti pola key yang digunakan di canvas (`data-label-key`).
- *
  * @param {Array} dataTableColumns
  * @returns {Record<string, string>}
  */
@@ -236,7 +232,6 @@ export function buildTitleTransLookupMap(dataTableColumns) {
 /**
  * Membuat payload data untuk operasi drag variabel ke canvas editor.
  * Menggabungkan informasi variabel dengan token terformat.
- *
  * @param {object} params - Parameter untuk membuat payload
  * @param {object} params.variable - Objek variabel dengan properti name, type, dll
  * @param {Array} params.nestedColumns - Kolom-kolom nested untuk relasi
@@ -269,13 +264,123 @@ export function buildVariableDragPayload({
     normalizedTitleTrans = lookupTitleTrans.trim();
   }
 
+  const tokenValue =
+    getFormattedHandlebarToken(variable, fullKey) ||
+    buildVariableToken({
+      variableType: variable?.type,
+      parentType: variable?.parentType,
+      variablePath: fullKey,
+      keyName: variable?.name,
+    });
+
   return {
     ...restVariable,
     ...(normalizedTitleTrans ? { titleTrans: normalizedTitleTrans } : {}),
     columns: nestedColumns,
     displayLabel,
     fullKey,
-    formattedToken: getFormattedHandlebarToken(variable, fullKey),
+    formattedToken: tokenValue,
+    labelKey,
+    simplifiedToken: getSimplifiedTokenDisplay(tokenValue, fullKey),
+  };
+}
+
+/**
+ * Membangun definisi komponen GrapesJS untuk mode "Label Only".
+ * @param {object} payload - Payload dari buildVariableDragPayload
+ * @returns {object} GrapesJS component definition
+ */
+export function buildLabelComponent(payload) {
+  const normalizedTitleTrans =
+    typeof payload.titleTrans === "string" && payload.titleTrans.trim()
+      ? payload.titleTrans.trim()
+      : null;
+
+  return {
+    type: "text",
+    tagName: "p",
+    droppable: true,
+    draggable: true,
+    attributes: {
+      "data-label-key": payload.labelKey,
+      ...(normalizedTitleTrans
+        ? { "data-trans-title": normalizedTitleTrans }
+        : {}),
+      title: `{{label "${payload.labelKey}"}}`,
+    },
+    components: [
+      {
+        type: "text",
+        tagName: "span",
+        selectable: true,
+        editable: false,
+        draggable: false,
+        attributes: {
+          title: payload.labelKey,
+          contenteditable: "false",
+        },
+        content: payload.displayLabel || payload.name,
+      },
+    ],
+  };
+}
+
+/**
+ * Membangun definisi komponen GrapesJS untuk mode "Token Only".
+ * @param {object} payload - Payload dari buildVariableDragPayload
+ * @returns {object} GrapesJS component definition
+ */
+export function buildTokenComponent(payload) {
+  return {
+    type: "text",
+    tagName: "p",
+    editable: true,
+    droppable: true,
+    draggable: true,
+    components: [
+      {
+        type: "text",
+        tagName: "span",
+        selectable: true,
+        editable: false,
+        draggable: false,
+        attributes: {
+          "data-token": payload.formattedToken,
+          title: payload.formattedToken,
+          contenteditable: "false",
+        },
+        content: payload.simplifiedToken,
+      },
+    ],
+  };
+}
+
+/**
+ * Membangun definisi komponen GrapesJS untuk mode "Both" (gjsSubGrid).
+ * @param {object} payload - Payload dari buildVariableDragPayload
+ * @returns {object} GrapesJS component definition
+ */
+export function buildSubGridComponent(payload) {
+  const labelComp = buildLabelComponent(payload);
+  const tokenComp = buildTokenComponent(payload);
+
+  // Sesuaikan komponen token agar punya separator ": " dan tidak draggable secara independen
+  tokenComp.draggable = false;
+  tokenComp.components.unshift({
+    type: "textnode",
+    content: ": ",
+  });
+
+  // Label juga tidak draggable secara independen dalam subgrid
+  labelComp.draggable = false;
+
+  return {
+    type: "gjsSubGrid",
+    attributes: {
+      "data-variable": payload.fullKey || payload.name,
+      "data-variable-type": payload.parentType || payload.type || "data",
+    },
+    components: [labelComp, tokenComp],
   };
 }
 
@@ -283,7 +388,6 @@ export function buildVariableDragPayload({
  * Mencoba menyisipkan token variabel secara inline ke komponen teks yang sedang diedit.
  * Hanya berhasil jika komponen yang dipilih adalah tipe "text" dan sedang dalam mode edit.
  * Menggunakan execCommand untuk menyisipkan HTML span dengan atribut data variabel.
- *
  * @param {object} editor - Instance editor GrapesJS
  * @param {object} selectedComponent - Komponen yang sedang dipilih di canvas
  * @param {string} token - String token Handlebar yang akan disisipkan

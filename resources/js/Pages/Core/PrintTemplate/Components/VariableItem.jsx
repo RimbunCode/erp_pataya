@@ -2,7 +2,6 @@
  * Komponen VariableItem - Menampilkan item variabel yang dapat di-drag ke canvas editor.
  * Mendukung tooltip token Handlebar, format mata uang/angka,
  * layout grid dengan label dan nilai, serta kolom nested untuk relasi.
- *
  * @module VariableItem
  * @param {object} props
  * @param {string} props.path - Path parent dalam notasi dot
@@ -38,6 +37,9 @@ import {
   buildVariableDragPayload,
   tryInsertInlineVariableToken,
   extractLabelKeyFromToken,
+  buildLabelComponent,
+  buildTokenComponent,
+  buildSubGridComponent,
 } from "../utils/variableInsertUtils";
 
 // Re-export untuk backward compatibility - consumer eksternal yang mengimport dari VariableItem.jsx
@@ -135,7 +137,7 @@ function VariableItem({ path = "", titleTransLookup = {}, ...variable }) {
    *
    * Efek samping: memodifikasi canvas editor dan memicu event update
    */
-  const handleInsert = () => {
+  const handleInsert = async () => {
     if (!editor) return;
 
     const selected = editor.getSelected();
@@ -196,12 +198,44 @@ function VariableItem({ path = "", titleTransLookup = {}, ...variable }) {
         variablePath: varPath,
         keyName: payload.name,
       });
-    const normalizedTitleTrans =
-      typeof payload.titleTrans === "string" && payload.titleTrans.trim()
-        ? payload.titleTrans.trim()
-        : null;
-    const labelKey = extractLabelKeyFromToken(tokenValue);
-    const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, varPath);
+
+    // Cari target parent untuk menentukan modes
+    const targetForMode = (() => {
+      if (!selected) return null;
+      const type = getComponentType(selected);
+      if (type === "gjsGrid" || type === "gjsSubGrid") return selected;
+      let cur = selected;
+      while (cur) {
+        const t = getComponentType(cur);
+        if (t === "gjsGrid" || t === "gjsSubGrid") return cur;
+        cur = cur.parent?.();
+      }
+      return null;
+    })();
+
+    const allowedModes = (() => {
+      if (!targetForMode) return ["label", "token", "both"];
+      const type = getComponentType(targetForMode);
+      if (type === "gjsSubGrid") return ["label", "token"];
+      return ["label", "token", "both"];
+    })();
+
+    // Minta mode insert ke user secara asinkron
+    let selectedMode = "both";
+    if (window.__printTemplateDropModeRequest) {
+      selectedMode = await window.__printTemplateDropModeRequest(
+        payload,
+        allowedModes,
+      );
+      if (!selectedMode) return;
+    }
+
+    const payloadWithToken = {
+      ...payload,
+      formattedToken: tokenValue,
+      simplifiedToken: getSimplifiedTokenDisplay(tokenValue, varPath),
+      labelKey: extractLabelKeyFromToken(tokenValue),
+    };
 
     // Custom Mode: jika <td> atau <th> dalam Custom Mode table dipilih, sisipkan token span sebagai child
     const selectedTag = (
@@ -226,7 +260,80 @@ function VariableItem({ path = "", titleTransLookup = {}, ...variable }) {
       }
 
       if (isInCustomModeTable) {
-        const simplifiedToken = getSimplifiedTokenDisplay(tokenValue, varPath);
+        const isBodyCell = (() => {
+          let current = selected.parent?.();
+          while (current) {
+            const tag = (current.get?.("tagName") || "").toLowerCase();
+            if (tag === "tbody") return true;
+            if (tag === "thead") return false;
+            current = current.parent?.();
+          }
+          return false;
+        })();
+        const customModeToken = (() => {
+          if (!isBodyCell) return tokenValue;
+          const fieldName = varPath
+            .replace(/^doc\./, "")
+            .split(".")
+            .pop();
+          if (payloadWithToken.type === "relation") {
+            return `{{relation this.${fieldName}}}`;
+          }
+          return `{{this.${fieldName}}}`;
+        })();
+        const customPayload = {
+          ...payloadWithToken,
+          formattedToken: customModeToken,
+          simplifiedToken: getSimplifiedTokenDisplay(customModeToken, varPath),
+        };
+
+        if (selectedMode === "both") {
+          // Both: bungkus gjsGrid + gjsSubGrid
+          const subgrid = buildSubGridComponent(customPayload);
+          const gridWrapper = selected.components().add({ type: "gjsGrid" });
+          gridWrapper.components().add(subgrid);
+          editor.select(gridWrapper);
+        } else if (selectedMode === "token") {
+          const inserted = selected.components().add({
+            type: "text",
+            tagName: "span",
+            selectable: true,
+            editable: false,
+            draggable: false,
+            attributes: {
+              "data-token": customModeToken,
+              title: customModeToken,
+              contenteditable: "false",
+            },
+            content: customPayload.simplifiedToken,
+          });
+          editor.select(inserted);
+        } else {
+          const labelComp = buildLabelComponent(customPayload);
+          const inserted = selected.components().add(labelComp);
+          editor.select(inserted);
+        }
+        return;
+      }
+    }
+
+    // Jika komponen teks biasa dipilih, tambahkan span token ke dalamnya
+    if (selected && selected.is("text")) {
+      if (selectedMode === "label") {
+        selected.components().add({
+          type: "text",
+          tagName: "span",
+          selectable: true,
+          editable: false,
+          draggable: false,
+          attributes: {
+            "data-label-key": payloadWithToken.labelKey,
+            title: payloadWithToken.labelKey,
+            contenteditable: "false",
+          },
+          content: payloadWithToken.displayLabel || payloadWithToken.name,
+        });
+      } else {
         selected.components().add({
           type: "text",
           tagName: "span",
@@ -238,132 +345,54 @@ function VariableItem({ path = "", titleTransLookup = {}, ...variable }) {
             title: tokenValue,
             contenteditable: "false",
           },
-          content: simplifiedToken,
+          content: payloadWithToken.simplifiedToken,
         });
-        return;
       }
-    }
-
-    // Jika komponen teks biasa dipilih, tambahkan span token ke dalamnya
-    if (selected && selected.is("text")) {
-      selected.components().add({
-        type: "text",
-        tagName: "span",
-        selectable: true,
-        editable: false,
-        draggable: false,
-        attributes: {
-          "data-token": tokenValue,
-          title: tokenValue,
-          contenteditable: "false",
-        },
-        content: simplifiedToken,
-      });
     } else if (
       selected &&
       (isSubGridComponent(selected) || isGridComponent(selected))
     ) {
-      // Jika komponen grid/subgrid dipilih, buat baris subgrid baru dengan label dan nilai
       const gridTarget = isGridComponent(selected)
         ? selected
         : resolveParentGridComponent(selected.parent?.() || null);
 
       if (gridTarget) {
-        const subGridType = editor.DomComponents?.getType?.("gjsSubGrid")
-          ? "gjsSubGrid"
-          : "subGrid";
-        const subGridComponentDefinition = {
-          type: subGridType,
-          attributes: {
-            "data-variable": varPath,
-            "data-variable-type": payload.parentType || payload.type || "data",
-          },
-          components: [
-            {
-              type: "text",
-              tagName: "p",
-              draggable: false,
-              content: payload.displayLabel || payload.name,
-              attributes: {
-                "data-label-key": labelKey,
-                ...(normalizedTitleTrans
-                  ? { "data-trans-title": normalizedTitleTrans }
-                  : {}),
-                title: `{{label "${labelKey}"}}`,
-              },
-              components: [
-                {
-                  type: "text",
-                  tagName: "span",
-                  selectable: true,
-                  editable: false,
-                  draggable: false,
-                  attributes: {
-                    title: labelKey,
-                    contenteditable: "false",
-                  },
-                  content: payload.displayLabel || payload.name,
-                },
-              ],
-            },
-            {
-              type: "text",
-              tagName: "p",
-              editable: true,
-              draggable: false,
-              components: [
-                {
-                  type: "textnode",
-                  content: ": ",
-                },
-                {
-                  type: "text",
-                  tagName: "span",
-                  selectable: true,
-                  editable: false,
-                  draggable: false,
-                  attributes: {
-                    "data-token": tokenValue,
-                    title: tokenValue,
-                    contenteditable: "false",
-                  },
-                  content: simplifiedToken,
-                },
-              ],
-            },
-          ],
-        };
-        const addedComponent = gridTarget
-          .components()
-          .add(subGridComponentDefinition);
-        if (Array.isArray(addedComponent)) {
-          editor.select(addedComponent[0] || gridTarget);
+        if (selectedMode === "both") {
+          const addedComponent = gridTarget
+            .components()
+            .add(buildSubGridComponent(payloadWithToken));
+          if (Array.isArray(addedComponent)) {
+            editor.select(addedComponent[0] || gridTarget);
+          } else {
+            editor.select(addedComponent || gridTarget);
+          }
+        } else if (selectedMode === "token") {
+          const addedComponent = gridTarget
+            .components()
+            .add(buildTokenComponent(payloadWithToken));
+          editor.select(addedComponent);
         } else {
-          editor.select(addedComponent || gridTarget);
+          const addedComponent = gridTarget
+            .components()
+            .add(buildLabelComponent(payloadWithToken));
+          editor.select(addedComponent);
         }
         return;
       }
     } else {
-      // Fallback: tambahkan paragraf baru dengan span token
-      editor.addComponents({
-        type: "text",
-        tagName: "p",
-        components: [
-          {
-            type: "text",
-            tagName: "span",
-            selectable: true,
-            editable: false,
-            draggable: false,
-            attributes: {
-              "data-token": tokenValue,
-              title: tokenValue,
-              contenteditable: "false",
-            },
-            content: simplifiedToken,
-          },
-        ],
-      });
+      // Fallback: tambahkan paragraf baru dengan span token / label
+      if (selectedMode === "both") {
+        const gridWrapper = editor.addComponents({ type: "gjsGrid" });
+        const gridComponent = Array.isArray(gridWrapper)
+          ? gridWrapper[0]
+          : gridWrapper;
+        gridComponent.components().add(buildSubGridComponent(payloadWithToken));
+        editor.select(gridComponent);
+      } else if (selectedMode === "token") {
+        editor.addComponents(buildTokenComponent(payloadWithToken));
+      } else {
+        editor.addComponents(buildLabelComponent(payloadWithToken));
+      }
     }
   };
 

@@ -2,7 +2,12 @@ import React, { useCallback, useMemo, useState } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useEditor } from "@grapesjs/react";
 import { toast } from "sonner";
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  PlusIcon,
+  Trash2Icon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+} from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
@@ -11,7 +16,45 @@ import {
   canRemoveHeaderRow,
   validateSpan,
   buildOccupancyGrid,
+  computeVisualColIndex,
 } from "../utils/customModeUtils";
+
+function getHeaderCellRows(thead) {
+  const rows = [];
+  if (!thead) return rows;
+  thead.components().forEach((row) => {
+    if ((row.get("tagName") || "").toLowerCase() === "tr") {
+      rows.push(
+        row
+          .components()
+          .filter((cell) => (cell.get("tagName") || "").toLowerCase() === "th"),
+      );
+    }
+  });
+  return rows;
+}
+
+function buildHeaderGridFromRows(rows) {
+  const totalRows = rows.length;
+  const totalColumns = rows[0]?.length || 1;
+  const gridRows = [];
+
+  rows.forEach((row, rIdx) => {
+    const rowCells = [];
+    row.forEach((cell, cIdx) => {
+      const attrs = cell.getAttributes?.() || {};
+      rowCells.push({
+        rowIndex: rIdx,
+        colIndex: computeVisualColIndex(rows, rIdx, cIdx),
+        colspan: parseInt(attrs.colspan || "1", 10),
+        rowspan: parseInt(attrs.rowspan || "1", 10),
+      });
+    });
+    gridRows.push(rowCells);
+  });
+
+  return { totalRows, totalColumns, rows: gridRows };
+}
 
 /**
  * Editor for managing header rows, colspan/rowspan configuration in Custom Mode.
@@ -28,9 +71,9 @@ function CustomModeHeaderEditor({ tableComponent }) {
 
   const thead = useMemo(() => {
     if (!tableComponent) return null;
-    return tableComponent.components().find(
-      (c) => (c.get("tagName") || "").toLowerCase() === "thead",
-    );
+    return tableComponent
+      .components()
+      .find((c) => (c.get("tagName") || "").toLowerCase() === "thead");
   }, [tableComponent]);
 
   const headerRows = useMemo(() => {
@@ -108,6 +151,41 @@ function CustomModeHeaderEditor({ tableComponent }) {
     [editor, headerRowCount, thead, t],
   );
 
+  const handleMoveRowUp = useCallback(
+    (rowIndex) => {
+      if (!thead || rowIndex === 0) return;
+
+      const rows = thead.components();
+      const currentRow = rows.at(rowIndex);
+      const previousRow = rows.at(rowIndex - 1);
+
+      if (!currentRow || !previousRow) return;
+
+      // Swap by removing and re-adding at correct positions
+      currentRow.remove();
+      thead.components().add(currentRow, { at: rowIndex - 1 });
+      editor.trigger("update");
+    },
+    [editor, thead],
+  );
+
+  const handleMoveRowDown = useCallback(
+    (rowIndex) => {
+      if (!thead || rowIndex >= headerRowCount - 1) return;
+
+      const rows = thead.components();
+      const currentRow = rows.at(rowIndex);
+
+      if (!currentRow) return;
+
+      // Remove and re-add at next position
+      currentRow.remove();
+      thead.components().add(currentRow, { at: rowIndex + 1 });
+      editor.trigger("update");
+    },
+    [editor, headerRowCount, thead],
+  );
+
   const handleApplySpan = useCallback(() => {
     if (!selectedCell || !thead) return;
 
@@ -115,19 +193,24 @@ function CustomModeHeaderEditor({ tableComponent }) {
     const rowspan = parseInt(rowspanInput, 10);
 
     if (isNaN(colspan) || isNaN(rowspan)) {
-      toast.error(t("core.printTemplate.editor.invalid_span", {}, "Invalid span values"));
+      toast.error(
+        t("core.printTemplate.editor.invalid_span", {}, "Invalid span values"),
+      );
       return;
     }
 
     // Find the cell position in the grid
+    const rows = getHeaderCellRows(thead);
     let cellRowIndex = -1;
     let cellColIndex = -1;
+    let cellVisualColIndex = -1;
 
-    thead.components().forEach((row, rIdx) => {
-      row.components().forEach((cell, cIdx) => {
+    rows.forEach((row, rIdx) => {
+      row.forEach((cell, cIdx) => {
         if (cell === selectedCell) {
           cellRowIndex = rIdx;
           cellColIndex = cIdx;
+          cellVisualColIndex = computeVisualColIndex(rows, rIdx, cIdx);
         }
       });
     });
@@ -135,35 +218,50 @@ function CustomModeHeaderEditor({ tableComponent }) {
     if (cellRowIndex === -1) return;
 
     // Build HeaderGrid for validation
-    const totalRows = headerRowCount;
-    const totalColumns = thead.components().at(0)?.components()?.length || 1;
-    const gridRows = [];
-
-    thead.components().forEach((row, rIdx) => {
-      const rowCells = [];
-      row.components().forEach((cell, cIdx) => {
-        rowCells.push({
-          rowIndex: rIdx,
-          colIndex: cIdx,
-          colspan: parseInt(cell.getAttributes()?.colspan || "1", 10),
-          rowspan: parseInt(cell.getAttributes()?.rowspan || "1", 10),
-        });
-      });
-      gridRows.push(rowCells);
-    });
-
-    const headerGrid = { totalRows, totalColumns, rows: gridRows };
+    const headerGrid = buildHeaderGridFromRows(rows);
 
     const result = validateSpan(
       headerGrid,
       cellRowIndex,
-      cellColIndex,
+      cellVisualColIndex,
       colspan,
       rowspan,
     );
 
     if (!result.valid) {
-      toast.error(result.error || t("core.printTemplate.editor.span_conflict", {}, "Cell span conflicts with existing cells"));
+      let errorMessage = "";
+      if (result.errorCode === "colspan_out_of_bounds") {
+        errorMessage = t(
+          "core.printTemplate.editor.colspan_out_of_bounds",
+          { max: result.params.max },
+          `Colspan must be between 1 and ${result.params.max}`,
+        );
+      } else if (result.errorCode === "rowspan_out_of_bounds") {
+        errorMessage = t(
+          "core.printTemplate.editor.rowspan_out_of_bounds",
+          { max: result.params.max },
+          `Rowspan must be between 1 and ${result.params.max}`,
+        );
+      } else if (result.errorCode === "span_exceeds_width") {
+        errorMessage = t(
+          "core.printTemplate.editor.span_exceeds_width",
+          {},
+          "Cell span exceeds grid width",
+        );
+      } else if (result.errorCode === "span_exceeds_height") {
+        errorMessage = t(
+          "core.printTemplate.editor.span_exceeds_height",
+          {},
+          "Cell span exceeds grid height",
+        );
+      } else {
+        errorMessage = t(
+          "core.printTemplate.editor.span_conflict",
+          {},
+          "Cell span conflicts with existing cells",
+        );
+      }
+      toast.error(errorMessage);
       return;
     }
 
@@ -181,8 +279,18 @@ function CustomModeHeaderEditor({ tableComponent }) {
     }
     selectedCell.setAttributes(currentAttrs);
     editor.trigger("update");
-    toast.success(t("core.printTemplate.editor.span_applied", {}, "Span applied"));
-  }, [colspanInput, editor, headerRowCount, rowspanInput, selectedCell, thead, t]);
+    toast.success(
+      t("core.printTemplate.editor.span_applied", {}, "Span applied"),
+    );
+  }, [
+    colspanInput,
+    editor,
+    headerRowCount,
+    rowspanInput,
+    selectedCell,
+    thead,
+    t,
+  ]);
 
   // Listen for cell selection on canvas to update the selected cell state
   React.useEffect(() => {
@@ -220,7 +328,9 @@ function CustomModeHeaderEditor({ tableComponent }) {
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">
           {t("core.printTemplate.editor.header_rows", {}, "Header Rows")}:{" "}
-          <span className="text-foreground font-semibold">{headerRowCount}</span>
+          <span className="text-foreground font-semibold">
+            {headerRowCount}
+          </span>
           <span className="text-muted-foreground"> / 5</span>
         </span>
         <div className="flex gap-1">
@@ -247,15 +357,46 @@ function CustomModeHeaderEditor({ tableComponent }) {
             <span className="text-xs text-muted-foreground">
               {t("core.printTemplate.editor.row", {}, "Row")} {idx + 1}
             </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
-              onClick={() => handleRemoveRow(idx)}
-              disabled={!canRemoveHeaderRow(headerRowCount)}
-            >
-              <Trash2Icon className="h-3 w-3" />
-            </Button>
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0"
+                onClick={() => handleMoveRowUp(idx)}
+                disabled={idx === 0}
+                title={t("core.printTemplate.editor.move_up", {}, "Move Up")}
+              >
+                <ChevronUpIcon className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0"
+                onClick={() => handleMoveRowDown(idx)}
+                disabled={idx >= headerRowCount - 1}
+                title={t(
+                  "core.printTemplate.editor.move_down",
+                  {},
+                  "Move Down",
+                )}
+              >
+                <ChevronDownIcon className="h-3 w-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                onClick={() => handleRemoveRow(idx)}
+                disabled={!canRemoveHeaderRow(headerRowCount)}
+                title={t(
+                  "core.printTemplate.editor.remove_row",
+                  {},
+                  "Remove Row",
+                )}
+              >
+                <Trash2Icon className="h-3 w-3" />
+              </Button>
+            </div>
           </div>
         ))}
       </div>
@@ -264,7 +405,11 @@ function CustomModeHeaderEditor({ tableComponent }) {
       {selectedCell && (
         <div className="space-y-2 rounded-md border p-2">
           <p className="text-xs font-medium text-muted-foreground">
-            {t("core.printTemplate.editor.cell_span", {}, "Cell Span (selected header cell)")}
+            {t(
+              "core.printTemplate.editor.cell_span",
+              {},
+              "Cell Span (selected header cell)",
+            )}
           </p>
           <div className="flex gap-2">
             <div className="flex-1 space-y-1">

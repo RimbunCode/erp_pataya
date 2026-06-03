@@ -159,6 +159,16 @@ export function simplifyTokenDisplay(token) {
 
   let inner = match[1];
 
+  // If token starts with "this.", use bracket notation [field]
+  if (inner.startsWith("this.")) {
+    return `[${inner.slice(5)}]`;
+  }
+
+  // If token starts with "relation this.", use bracket notation [field]
+  if (inner.startsWith("relation this.")) {
+    return `[${inner.slice(14)}]`;
+  }
+
   // Strip "relation doc." prefix (e.g., "relation doc.branch" → "branch")
   if (inner.startsWith("relation doc.")) {
     inner = inner.slice("relation doc.".length);

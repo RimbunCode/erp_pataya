@@ -1,0 +1,1 @@
+{"specId": "variable-drop-mode-selector", "workflowType": "design-first", "specType": "feature", "description": "Munculkan dialog pilihan saat drop VariableItem ke canvas: Label Only, Token Only, atau Both (wrapped gjsSubGrid)"}

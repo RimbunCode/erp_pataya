@@ -98,16 +98,35 @@ function Sidebar() {
     }
   }, [activeTab, isStaticHtmlSelected]);
 
-  // Detect if the selected component is a gjsRelationsTable (custom mode or not)
+  // Detect if the selected component or its ancestor is a gjsRelationsTable (custom mode or not)
   const isRelationsTableSelected = useMemo(() => {
-    return selectedComponent?.getType?.() === "gjsRelationsTable";
+    let current = selectedComponent;
+    while (current) {
+      if (current.getType?.() === "gjsRelationsTable") {
+        return true;
+      }
+      current = current.parent?.();
+    }
+    return false;
+  }, [selectedComponent]);
+
+  // Resolve the actual gjsRelationsTable component (could be the selection itself or an ancestor)
+  const relationsTableComponent = useMemo(() => {
+    let current = selectedComponent;
+    while (current) {
+      if (current.getType?.() === "gjsRelationsTable") {
+        return current;
+      }
+      current = current.parent?.();
+    }
+    return null;
   }, [selectedComponent]);
 
   const sidebarTabs = useMemo(
     () =>
       sidebarTabDefs.map((tab) => ({
         ...tab,
-        label: t(tab.labelKey) || tab.fallback,
+        label: t(tab.labelKey, {}, tab.fallback),
       })),
     [t],
   );
@@ -137,6 +156,10 @@ function Sidebar() {
               "h-8 shrink-0 gap-1.5 rounded-md border border-transparent px-2 text-xs font-medium text-muted-foreground transition-colors",
               "hover:bg-muted hover:text-foreground",
               "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs",
+              value === "token" &&
+                isRelationsTableSelected &&
+                relationsTableComponent?.get("customMode") === true &&
+                "hidden",
             )}
           >
             <Icon />
@@ -164,13 +187,18 @@ function Sidebar() {
       {/* 🧾 VARIABEL — replaced by CustomModePanel when a gjsRelationsTable is selected */}
       <TabsContent value="variables" className="mt-0 h-full overflow-auto">
         {isRelationsTableSelected ? (
-          <CustomModePanel selectedComponent={selectedComponent} />
+          <CustomModePanel selectedComponent={relationsTableComponent} />
         ) : (
           <VariableManager />
         )}
       </TabsContent>
       <TabsContent value="token" className="mt-0 h-full overflow-auto">
-        {isRelationsTableSelected ? null : <TokenConfigurationManager />}
+        {isRelationsTableSelected &&
+        relationsTableComponent?.get("customMode") === true ? (
+          <CustomModePanel selectedComponent={relationsTableComponent} />
+        ) : (
+          <TokenConfigurationManager />
+        )}
       </TabsContent>
       <TabsContent value="inspector" className="mt-0 h-full overflow-auto">
         <div className="space-y-3 p-3">

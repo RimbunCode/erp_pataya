@@ -35,7 +35,7 @@ function CustomModePanel({ selectedComponent }) {
       if (!selectedComponent) return;
 
       if (enabled) {
-        // Activate Custom Mode — preserve existing structure
+        // Activate Custom Mode — preserve existing structure, will trigger onCustomModeChange
         selectedComponent.set("customMode", true);
         editor.trigger("update");
       } else {

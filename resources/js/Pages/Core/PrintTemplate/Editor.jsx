@@ -15,6 +15,7 @@ import Handlebars from "handlebars";
 import { Head } from "@inertiajs/react";
 import MobileEditor from "./MobileEditor";
 import PreviewModal from "./Components/PreviewModal";
+import DropModeDialog from "./Components/DropModeDialog";
 import Sidebar from "./Components/Sidebar";
 import StaticHTMLComponent from "./Components/StaticHTMLComponent";
 import TopBar from "./Components/TopBar";
@@ -127,6 +128,14 @@ function PrintTemplate({
   const sidebarResizeStateRef = useRef({
     startX: 0,
     startWidth: SIDEBAR_DEFAULT_WIDTH,
+  });
+
+  // Drop mode dialog state
+  const [dropModeDialogOpen, setDropModeDialogOpen] = useState(false);
+  const [dropModeConfig, setDropModeConfig] = useState({
+    payload: null,
+    modes: [],
+    callback: null,
   });
   // useMemo: Menghitung style CSS variable untuk lebar sidebar di layout desktop
   const desktopLayoutStyle = useMemo(
@@ -351,7 +360,17 @@ function PrintTemplate({
       docInfo,
       columns,
       modelDoc: printTemplate?.model || null,
+      onDropModeRequest: (payload, modes, callback) => {
+        setDropModeConfig({ payload, modes, callback });
+        setDropModeDialogOpen(true);
+      },
     });
+
+    window.__printTemplateDropModeRequest = (payload, modes) =>
+      new Promise((resolve) => {
+        setDropModeConfig({ payload, modes, callback: resolve });
+        setDropModeDialogOpen(true);
+      });
 
     // Register multi-function container component type (Requirements: 17.2, 17.3, 17.4, 17.5)
     editor.DomComponents.addType("multiContainer", {
@@ -720,6 +739,25 @@ function PrintTemplate({
         dataTableColumns={dataTableColumns}
         preferences={preferences}
         docInfo={docInfo}
+      />
+      <DropModeDialog
+        open={dropModeDialogOpen}
+        variableName={
+          dropModeConfig.payload?.displayLabel ||
+          dropModeConfig.payload?.name ||
+          ""
+        }
+        modes={dropModeConfig.modes}
+        onSelect={(mode) => {
+          setDropModeDialogOpen(false);
+          dropModeConfig.callback?.(mode);
+          setDropModeConfig({ payload: null, modes: [], callback: null });
+        }}
+        onClose={() => {
+          setDropModeDialogOpen(false);
+          dropModeConfig.callback?.(null);
+          setDropModeConfig({ payload: null, modes: [], callback: null });
+        }}
       />
     </AppLayout>
   );

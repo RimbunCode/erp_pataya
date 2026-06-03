@@ -13,6 +13,9 @@ import {
   buildVariableToken,
   getSimplifiedTokenDisplay,
   extractLabelKeyFromToken,
+  buildLabelComponent,
+  buildTokenComponent,
+  buildSubGridComponent,
 } from "./variableInsertUtils";
 import {
   GRID_CLASS,
@@ -31,12 +34,14 @@ import { getDisplayLabel, resolveLabelWithMeta } from "./variableTokenUtils";
  * - Validasi target drop dan pembungkusan otomatis dengan grid container
  * @param {object} editor - Instance editor GrapesJS
  * @param {object} options - Opsi konfigurasi listener
- * @param {Function} options.t - Fungsi translasi i18n
+ * @param {function} options.t - Fungsi translasi i18n
  * @param {string} options.locale - Kode locale untuk formatting (misal: "id", "en")
  * @param {Array} options.dataTableColumns - Kolom variabel dari props halaman
  * @param {object} options.docInfo - Informasi dokumen untuk variabel docInfo
  * @param {object|null} options.columns - Model columns keyed by model class
  * @param {string|null} options.modelDoc - Root model class untuk path "doc."
+ * @param {function|null} options.onDropModeRequest - Callback untuk menampilkan dialog pilihan mode (asinkron)
+ * @returns {void}
  */
 export function variableDropListener(
   editor,
@@ -47,10 +52,13 @@ export function variableDropListener(
     docInfo = {},
     columns = null,
     modelDoc = null,
+    onDropModeRequest = null,
   },
 ) {
   // Helper untuk generate ID unik pada komponen grid
+  /** @param {string} prefix */
   const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
+  /** @param {string|null} value */
   const resolveTitleTransValue = (value) => {
     if (typeof value !== "string") {
       return null;
@@ -60,6 +68,7 @@ export function variableDropListener(
     return trimmed ? trimmed : null;
   };
 
+  /** @param {string} value */
   const escapeHtmlAttribute = (value) =>
     String(value)
       .replace(/&/g, "&amp;")
@@ -67,6 +76,10 @@ export function variableDropListener(
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
 
+  /**
+   * @param {object} component
+   * @param {string|null} rawValue
+   */
   const setTransTitleAttribute = (component, rawValue) => {
     if (!component) {
       return;
@@ -216,7 +229,7 @@ export function variableDropListener(
   editor.DomComponents.addType("gjsSubGrid", {
     model: {
       defaults: {
-        droppable: false,
+        droppable: true,
         draggable: true,
         selectable: true,
         layerable: true,
@@ -367,6 +380,7 @@ export function variableDropListener(
       if (labelTagName === "p") {
         // Format lama: data-label-key ada di <p>, ganti children-nya
         labelComponent.set("draggable", false);
+        labelComponent.set("droppable", true);
         labelComponent.components([
           {
             type: "text",
@@ -392,6 +406,7 @@ export function variableDropListener(
           String(parentP.get("tagName") || "").toLowerCase() === "p"
         ) {
           parentP.set("draggable", false);
+          parentP.set("droppable", true);
         }
       }
     }
@@ -410,6 +425,7 @@ export function variableDropListener(
 
     if (tokenTagName === "p") {
       tokenComponent.set("editable", true);
+      tokenComponent.set("droppable", true);
       tokenComponent.set("draggable", false);
       tokenComponent.components([
         {
@@ -599,6 +615,40 @@ export function variableDropListener(
     }
   });
 
+  // Variable untuk menyimpan payload saat dialog drop mode akan ditampilkan
+  let pendingDropPayload = null;
+
+  /**
+   * Menentukan daftar mode yang tersedia berdasarkan target drop.
+   * @param {object|null} target - Komponen target drop
+   * @returns {string[]} Daftar mode yang diizinkan
+   */
+  const getDropModesForTarget = (target) => {
+    if (!target) return ["label", "token", "both"];
+    const type = target.getType?.() || "";
+    if (type === "gjsSubGrid") return ["label", "token"];
+    return ["label", "token", "both"];
+  };
+
+  /**
+   * Mendapatkan parent container yang valid untuk insert berdasarkan target drop.
+   * Untuk "both" mode dibungkus grid jika parent bukan gjsGrid.
+   * @param {object} _editor - Instance editor GrapesJS
+   * @param {object} parent - Parent component
+   * @param {object} definition - Component definition
+   * @returns {object} Komponen yang ditambahkan
+   */
+  const insertWithAutoWrap = (_editor, parent, definition) => {
+    if (definition.type === "gjsSubGrid" && parent.getType?.() !== "gjsGrid") {
+      const coll = parent.components();
+      const wrapper = coll.add({ type: "gjsGrid" });
+      wrapper.components().add(definition);
+      ensureVariableGridCssRules();
+      return wrapper;
+    }
+    return parent.components().add(definition);
+  };
+
   // Intersep data drop dari luar (panel variabel) ke canvas
   editor.on("canvas:dragdata", (dataTransfer, result) => {
     const customMimeJson = dataTransfer.getData("variable/json");
@@ -629,8 +679,6 @@ export function variableDropListener(
           ?.filter((c) => c.show)
           .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)) || [];
 
-      // Bangun preview canvas untuk tabel relasi (tanpa data contoh)
-      // Requirements: 3.1, 3.2, 3.4
       const tableComponents = buildExampleDataTable({
         columns,
         relationName: payload.name,
@@ -640,9 +688,6 @@ export function variableDropListener(
         locale,
       });
 
-      // Beritahu GrapesJS: konten yang harus dibuat saat drop
-      // Canvas menampilkan data contoh untuk preview visual
-      // Override toHTML() pada komponen menghasilkan token Handlebar yang benar
       result.content = {
         type: "gjsRelationsTable",
         columnsConfig: columns,
@@ -651,9 +696,18 @@ export function variableDropListener(
         },
         components: tableComponents,
       };
+    } else if (onDropModeRequest) {
+      // Mode dialog aktif: simpan payload untuk digunakan di canvas:drop
+      pendingDropPayload = payload;
+      result.content = {
+        type: "text",
+        tagName: "div",
+        classes: ["variable-drop-placeholder"],
+        style: { display: "none" },
+        components: [],
+      };
     } else {
-      // Penanganan drop variabel tunggal - buat baris subgrid dengan label dan token
-      // Requirements: 1.1, 1.2, 1.5, 1.6 - Tampilkan data contoh di canvas dengan layout grid
+      // Fallback backward compatibility: langsung buat gjsSubGrid seperti sebelumnya
       const varPath = payload.fullKey || payload.name;
       const token =
         payload.formattedToken ||
@@ -676,6 +730,7 @@ export function variableDropListener(
           {
             type: "text",
             tagName: "p",
+            droppable: true,
             draggable: false,
             attributes: {
               "data-label-key": labelKey,
@@ -702,6 +757,7 @@ export function variableDropListener(
             type: "text",
             tagName: "p",
             editable: true,
+            droppable: true,
             draggable: false,
             components: [
               {
@@ -751,6 +807,115 @@ export function variableDropListener(
   // Validasi dan pembungkusan otomatis saat komponen di-drop ke canvas
   editor.on("canvas:drop", (_sorter, model) => {
     if (!model) return;
+
+    // --- Placeholder variable drop handler (mode selector) ---
+    if (pendingDropPayload) {
+      const payload = pendingDropPayload;
+      pendingDropPayload = null;
+
+      // Hapus placeholder dari canvas
+      const parent = model.parent();
+      model.remove();
+
+      if (!parent) return;
+
+      // Tentukan mode yang tersedia berdasarkan target parent
+      const targetForMode = (() => {
+        const customTable = findCustomModeTable(parent);
+        if (customTable && isValidBodyDropTarget(parent)) return null;
+        let cur = parent;
+        while (cur) {
+          const t = cur.getType?.() || "";
+          if (t === "gjsGrid" || t === "gjsSubGrid") return cur;
+          cur = cur.parent?.();
+        }
+        return null;
+      })();
+      const allowedModes = getDropModesForTarget(targetForMode);
+
+      onDropModeRequest(payload, allowedModes, (selectedMode) => {
+        if (!selectedMode) return;
+
+        const varPath = payload.fullKey || payload.name;
+        const payloadWithToken = {
+          ...payload,
+          formattedToken:
+            payload.formattedToken ||
+            buildVariableToken({
+              variableType: payload.type,
+              parentType: payload.parentType,
+              variablePath: varPath,
+              keyName: payload.name,
+            }),
+          simplifiedToken:
+            payload.simplifiedToken ||
+            getSimplifiedTokenDisplay(
+              payload.formattedToken ||
+                buildVariableToken({
+                  variableType: payload.type,
+                  parentType: payload.parentType,
+                  variablePath: varPath,
+                  keyName: payload.name,
+                }),
+              varPath,
+            ),
+          labelKey:
+            payload.labelKey ||
+            extractLabelKeyFromToken(
+              payload.formattedToken ||
+                buildVariableToken({
+                  variableType: payload.type,
+                  parentType: payload.parentType,
+                  variablePath: varPath,
+                  keyName: payload.name,
+                }),
+            ),
+        };
+
+        const handleCustomModeInsert = (comp) => {
+          const customTable = findCustomModeTable(parent);
+          if (!customTable || !isValidBodyDropTarget(parent)) return false;
+
+          if (selectedMode === "both") {
+            insertWithAutoWrap(editor, parent, comp);
+          } else if (selectedMode === "token") {
+            parent.components().add({
+              type: "text",
+              tagName: "span",
+              selectable: true,
+              editable: false,
+              draggable: false,
+              attributes: {
+                "data-token": payloadWithToken.formattedToken,
+                title: payloadWithToken.formattedToken,
+                contenteditable: "false",
+              },
+              content: payloadWithToken.simplifiedToken,
+            });
+          } else {
+            const labelComp = buildLabelComponent(payloadWithToken);
+            parent.components().add(labelComp);
+          }
+          return true;
+        };
+
+        if (handleCustomModeInsert()) return;
+
+        if (selectedMode === "both") {
+          insertWithAutoWrap(
+            editor,
+            parent,
+            buildSubGridComponent(payloadWithToken),
+          );
+        } else if (selectedMode === "token") {
+          parent.components().add(buildTokenComponent(payloadWithToken));
+        } else {
+          parent.components().add(buildLabelComponent(payloadWithToken));
+        }
+      });
+      return;
+    }
+
     if (model.getType() != "gjsSubGrid") {
       return;
     }
@@ -758,10 +923,8 @@ export function variableDropListener(
     if (!parent) return;
 
     // --- Custom Mode drop validation ---
-    // Check if the drop happened inside a Custom Mode gjsRelationsTable
     const customModeTable = findCustomModeTable(parent);
     if (customModeTable) {
-      // Validate that the direct parent is a <td> in <tbody>
       if (!isValidBodyDropTarget(parent)) {
         model.remove();
         toast.error(
@@ -771,11 +934,8 @@ export function variableDropListener(
         return;
       }
 
-      // Transform gjsSubGrid into a token span within the <td> cell
-      // Extract the token from the subgrid's token component
       const tokenComponents = Array.from(model.find?.("[data-token]") || []);
-      const token =
-        tokenComponents[0]?.getAttributes?.()?.["data-token"] || "";
+      const token = tokenComponents[0]?.getAttributes?.()?.["data-token"] || "";
 
       model.remove();
 
@@ -807,7 +967,6 @@ export function variableDropListener(
 
     // --- Standard mode validation (unchanged) ---
 
-    // Tolak drop ke dalam subgrid lain (nesting tidak diizinkan)
     if (parent.getType() === "gjsSubGrid") {
       model.remove();
       toast.error(
@@ -817,7 +976,6 @@ export function variableDropListener(
       return;
     }
 
-    // Jika parent bukan grid, bungkus otomatis dengan container grid baru
     if (parent.getType() !== "gjsGrid") {
       const coll = parent.components();
       const oldIndex = coll.indexOf(model);

@@ -123,26 +123,22 @@ export function detectOverlap(
  * @param {number} rowspan - Proposed rowspan value
  * @returns {{ valid: boolean, error?: string }}
  */
-export function validateSpan(
-  headerGrid,
-  rowIndex,
-  colIndex,
-  colspan,
-  rowspan,
-) {
+export function validateSpan(headerGrid, rowIndex, colIndex, colspan, rowspan) {
   const { totalRows = 1, totalColumns = 1, rows = [] } = headerGrid || {};
 
   if (colspan < 1 || colspan > totalColumns) {
     return {
       valid: false,
-      error: `Colspan must be between 1 and ${totalColumns}`,
+      errorCode: "colspan_out_of_bounds",
+      params: { max: totalColumns },
     };
   }
 
   if (rowspan < 1 || rowspan > totalRows) {
     return {
       valid: false,
-      error: `Rowspan must be between 1 and ${totalRows}`,
+      errorCode: "rowspan_out_of_bounds",
+      params: { max: totalRows },
     };
   }
 
@@ -150,14 +146,16 @@ export function validateSpan(
   if (colIndex + colspan > totalColumns) {
     return {
       valid: false,
-      error: `Cell span exceeds grid width (column ${colIndex} + colspan ${colspan} > ${totalColumns})`,
+      errorCode: "span_exceeds_width",
+      params: { col: colIndex, colspan, max: totalColumns },
     };
   }
 
   if (rowIndex + rowspan > totalRows) {
     return {
       valid: false,
-      error: `Cell span exceeds grid height (row ${rowIndex} + rowspan ${rowspan} > ${totalRows})`,
+      errorCode: "span_exceeds_height",
+      params: { row: rowIndex, rowspan, max: totalRows },
     };
   }
 
@@ -176,11 +174,71 @@ export function validateSpan(
   if (hasOverlap) {
     return {
       valid: false,
-      error: "Cell span conflicts with existing cells",
+      errorCode: "span_conflict",
     };
   }
 
   return { valid: true };
+}
+
+/**
+ * Computes the visual column index for a cell in a row, accounting for
+ * colspan/rowspan from previous rows that extend into this row.
+ *
+ * @param {object[][]} allRows - All header rows (array of component arrays)
+ * @param {number} targetRowIndex - The row index of the cell
+ * @param {number} targetCellIndex - The child index of the cell in its row
+ * @returns {number} Visual column index (0-based)
+ */
+export function computeVisualColIndex(
+  allRows,
+  targetRowIndex,
+  targetCellIndex,
+) {
+  // Build occupancy map for all rows up to and including target row
+  const occupancy = [];
+
+  for (let r = 0; r <= targetRowIndex; r++) {
+    if (!occupancy[r]) occupancy[r] = [];
+
+    const row = allRows[r];
+    if (!Array.isArray(row)) continue;
+
+    let visualCol = 0;
+
+    for (let cellIdx = 0; cellIdx < row.length; cellIdx++) {
+      const cell = row[cellIdx];
+      if (!cell) continue;
+
+      // Skip columns already occupied by previous rows' rowspans
+      while (occupancy[r][visualCol]) {
+        visualCol++;
+      }
+
+      const attrs = cell.getAttributes?.() || {};
+      const colspan = parseInt(attrs.colspan || "1", 10);
+      const rowspan = parseInt(attrs.rowspan || "1", 10);
+
+      // Mark this cell's span in occupancy grid
+      for (let dr = 0; dr < rowspan; dr++) {
+        for (let dc = 0; dc < colspan; dc++) {
+          const occRow = r + dr;
+          const occCol = visualCol + dc;
+          if (!occupancy[occRow]) occupancy[occRow] = [];
+          occupancy[occRow][occCol] = true;
+        }
+      }
+
+      // If this is our target cell, return its visual column
+      if (r === targetRowIndex && cellIdx === targetCellIndex) {
+        return visualCol;
+      }
+
+      visualCol += colspan;
+    }
+  }
+
+  return 0;
 }
 
 /**
@@ -347,7 +405,7 @@ export function serializeCustomModeBody(tbodyComponent, relationName) {
     cells.forEach((cell) => {
       const cellTag = cell.get?.("tagName") || "td";
       const cellAttrs = buildCellAttributes(cell, "");
-      const cellContent = serializeBodyCellContent(cell);
+      const cellContent = serializeBodyCellContent(cell, relationName);
       html += `<${cellTag}${cellAttrs}>${cellContent}</${cellTag}>`;
     });
 
@@ -425,8 +483,11 @@ function serializeCellContent(cell, labelRelationPrefix) {
   children.forEach((child) => {
     const attrs = child.getAttributes?.() || {};
     const token = attrs["data-token"] || "";
+    const labelKeyAttr = attrs["data-label-key"] || "";
 
-    if (token) {
+    if (labelKeyAttr) {
+      html += `<span>{{label "${labelKeyAttr}"}}</span>`;
+    } else if (token) {
       // Extract column name from token to build label helper
       // Tokens in header cells are stored as {{label "doc.items.colName"}}
       // or as raw token path in data-token
@@ -455,11 +516,31 @@ function serializeCellContent(cell, labelRelationPrefix) {
  * @param {object} cell - GrapesJS cell component
  * @returns {string}
  */
-function serializeBodyCellContent(cell) {
+function serializeBodyCellContent(cell, relationName = "") {
   const children = cell.components?.();
   if (!children || children.length === 0) {
     return cell.get?.("content") || "";
   }
+
+  const normalizeBodyToken = (token) => {
+    if (!token) return "";
+    const trimmed = token.trim();
+    const inner = trimmed.replace(/^\{\{\s*/, "").replace(/\s*\}\}$/, "");
+    if (inner.startsWith("this.") || inner.startsWith("relation this.")) {
+      return trimmed;
+    }
+    const relationPrefix = relationName ? `doc.${relationName}.` : "doc.";
+    if (inner.startsWith("relation ")) {
+      const path = inner.slice("relation ".length);
+      if (path.startsWith(relationPrefix)) {
+        return `{{relation this.${path.slice(relationPrefix.length)}}}`;
+      }
+    }
+    if (inner.startsWith(relationPrefix)) {
+      return `{{this.${inner.slice(relationPrefix.length)}}}`;
+    }
+    return trimmed;
+  };
 
   let html = "";
   children.forEach((child) => {
@@ -467,14 +548,14 @@ function serializeBodyCellContent(cell) {
     const token = attrs["data-token"] || "";
 
     if (token) {
-      html += token;
+      html += normalizeBodyToken(token);
     } else if (attrs["data-static-html"] !== undefined) {
       html += child.get?.("content") || "";
     } else {
       const childTag = child.get?.("tagName");
       if (childTag) {
         const childStyle = buildInlineStyleAttr(child);
-        html += `<${childTag}${childStyle}>${serializeBodyCellContent(child)}</${childTag}>`;
+        html += `<${childTag}${childStyle}>${serializeBodyCellContent(child, relationName)}</${childTag}>`;
       } else {
         html += child.get?.("content") || "";
       }
@@ -504,7 +585,9 @@ function extractColumnTokenPath(token, labelRelationPrefix) {
   const thisMatch = token.match(/\{\{(?:relation\s+)?this\.(\w[\w.]*)\}\}/);
   if (thisMatch) {
     const colName = thisMatch[1];
-    const key = labelRelationPrefix ? `${labelRelationPrefix}.${colName}` : colName;
+    const key = labelRelationPrefix
+      ? `${labelRelationPrefix}.${colName}`
+      : colName;
     return `{{label "${key}"}}`;
   }
 
