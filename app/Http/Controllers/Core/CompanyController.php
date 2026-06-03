@@ -25,20 +25,20 @@ class CompanyController extends Controller {
     public function index() {
         $oriPreferences = Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
             ->get(['key', 'value']);
-        $preferences    = $oriPreferences->mapWithKeys(fn ($pref) => [$pref->key => $pref->value]);
+        $preferences = $oriPreferences->mapWithKeys(fn ($pref) => [$pref->key => $pref->value]);
 
         return Inertia::render('Settings/Company', [
-            'company'     => $preferences->toArray(),
-            'currencies'  => Inertia::defer(function () {
+            'company'    => $preferences->toArray(),
+            'currencies' => Inertia::defer(function () {
                 return Currency::all()->toArray();
             }),
-            'countries'   => Inertia::defer(function () {
+            'countries' => Inertia::defer(function () {
                 return Country::all();
             }),
             'breadcrumbs' => [
                 ['name' => 'Company Details'],
             ],
-            'timezones'   => timezone_identifiers_list(),
+            'timezones' => timezone_identifiers_list(),
         ]);
     }
 

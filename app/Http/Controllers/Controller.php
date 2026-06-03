@@ -7,7 +7,6 @@ use App\Http\Requests\Core\TagRequest;
 use App\Models\Core\File;
 use App\Models\Core\Fileable;
 use App\Models\Core\Log;
-use App\Models\Core\Preference;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
@@ -27,11 +26,11 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected        $permissions;
-    protected        $modelPermissions;
-    protected        $onlyCreator      = false;
+    protected $permissions;
+    protected $modelPermissions;
+    protected $onlyCreator = false;
     protected string $lang;
-    protected bool   $ignorePermission = false;
+    protected bool $ignorePermission = false;
 
     /**
      * Summary of setBreadcrumbs
@@ -307,7 +306,7 @@ abstract class Controller {
         $printTemplate->loadRelations();
 
         $docInfo = [
-            'doc_name' => $data->translateKey . ".name",
+            'doc_name' => $data->translateKey . '.name',
         ];
 
         return Inertia::render('Core/Print', [

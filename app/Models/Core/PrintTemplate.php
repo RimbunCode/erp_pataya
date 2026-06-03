@@ -15,15 +15,16 @@ use Illuminate\Support\Str;
 
 class PrintTemplate extends Model {
     use DataTable, HasUlids, SoftDeletes;
-    protected     $guarded       = ['id'];
-    protected     $casts         = [
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'template'             => Json::class,
         'used_relations'       => 'array',
         'is_default'           => 'boolean',
         'is_letter_head'       => 'boolean',
         'show_absolute_values' => 'boolean',
     ];
-    protected     $appends       = ['title'];
+    protected $appends           = ['title'];
     public string $keyBreadcrumb = 'name';
     public string $translateKey  = 'core.printTemplate';
 
@@ -76,24 +77,25 @@ class PrintTemplate extends Model {
             },
         );
     }
+
     protected array $configColumns = [
-        'name'          => [
+        'name' => [
             'show'   => true,
             'order'  => 0,
             'isLink' => true,
         ],
-        'name_model'    => [
+        'name_model' => [
             'show'  => true,
             'order' => 1,
         ],
-        'is_default'    => [
+        'is_default' => [
             'show'  => true,
             'order' => 2,
         ],
         'permission_id' => [
             'ignore' => true,
         ],
-        'model'         => [
+        'model' => [
             'ignore' => true,
         ],
     ];
