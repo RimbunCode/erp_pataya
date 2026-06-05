@@ -228,6 +228,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('purchaseRequest', PurchaseRequestController::class, isSubmmitable: true);
     // Purchase Order
     Route::resourceDetail('purchaseOrder', PurchaseOrderController::class, isSubmmitable: true);
+    Route::post('purchaseOrders/{purchaseOrder}/sync-items', [PurchaseOrderController::class, 'syncItems'])->name('purchaseOrders.syncItems');
+    Route::post('purchaseOrders/{purchaseOrder}/mark-done', [PurchaseOrderController::class, 'markDone'])->name('purchaseOrders.markDone');
     // Purchase Receipt
     Route::resourceDetail('purchaseReceipt', PurchaseReceiptController::class, isSubmmitable: true);
     // / Purchase Group End

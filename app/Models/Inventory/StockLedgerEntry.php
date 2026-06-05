@@ -56,6 +56,7 @@ class StockLedgerEntry extends Model {
     ];
     protected $casts = [
         'stock_queue' => 'array',
+        'is_valuated' => 'boolean',
     ];
 
     public static function templateLink() {

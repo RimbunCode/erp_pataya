@@ -167,6 +167,28 @@ class PurchaseOrderController extends Controller {
     }
 
     /**
+     * Sync PO items berdasarkan data Invoice & Receipt (split per rate/tax/warehouse).
+     */
+    public function syncItems(PurchaseOrder $purchaseOrder) {
+        $syncLog = $this->service->syncItems($purchaseOrder);
+
+        return back()->with('success', 'Items berhasil disinkronisasi.');
+    }
+
+    /**
+     * Validasi receipt == invoice qty, lalu finalisasi PO sebagai COMPLETED.
+     */
+    public function markDone(PurchaseOrder $purchaseOrder) {
+        try {
+            $result = $this->service->markDone($purchaseOrder);
+
+            return back()->with('success', 'Purchase Order telah selesai.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      */
     public function destroy(PurchaseOrder $purchaseOrder) {

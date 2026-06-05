@@ -39,6 +39,8 @@ enum FormStatus: string {
     case ORDERED             = 'ordered';
     case INVITED             = 'invited';
     case PRE_REGISTERED      = 'pre_registered';
+    case OVER_RECEIVED       = 'over_received';
+    case OVER_BILLED         = 'over_billed';
 
     public function label() {
         return __("status.{$this->value}");
