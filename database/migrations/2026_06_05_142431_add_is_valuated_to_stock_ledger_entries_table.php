@@ -9,8 +9,7 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
+    public function up(): void {
         Schema::table('stock_ledger_entries', function (Blueprint $table) {
             $table->boolean('is_valuated')->default(false)->after('change_in_stock_value');
         });
@@ -19,8 +18,7 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-    public function down(): void
-    {
+    public function down(): void {
         Schema::table('stock_ledger_entries', function (Blueprint $table) {
             $table->dropColumn('is_valuated');
         });

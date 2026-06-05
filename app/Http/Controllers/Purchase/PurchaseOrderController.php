@@ -13,6 +13,7 @@ use App\Services\Purchase\PurchaseOrderService;
 use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller {
@@ -183,7 +184,7 @@ class PurchaseOrderController extends Controller {
             $result = $this->service->markDone($purchaseOrder);
 
             return back()->with('success', 'Purchase Order telah selesai.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }
     }

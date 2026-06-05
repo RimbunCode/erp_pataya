@@ -13,6 +13,7 @@ use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Utils;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
@@ -213,11 +214,15 @@ class PurchaseReceiptService {
                 $remainingQty = $quantity;
 
                 foreach ($invoiceItems as $invoiceItem) {
-                    if ($remainingQty <= 0) break;
+                    if ($remainingQty <= 0) {
+                        break;
+                    }
 
                     $rate         = $invoiceItem->rate;
                     $availableQty = $invoiceItem->quantity - $invoiceItem->allocated_qty;
-                    if ($availableQty <= 0) continue;
+                    if ($availableQty <= 0) {
+                        continue;
+                    }
 
                     $allocateQty = min($remainingQty, $availableQty);
 
@@ -351,8 +356,7 @@ class PurchaseReceiptService {
         return $purchaseReceipt;
     }
 
-    private function findInvoiceItemsForPoItem($poItem, PurchaseOrder $purchaseOrder): \Illuminate\Support\Collection
-    {
+    private function findInvoiceItemsForPoItem($poItem, PurchaseOrder $purchaseOrder): Collection {
         $invoiceIds = ModelConnection::where('model_type', PurchaseOrder::class)
             ->where('model_id', $purchaseOrder->id)
             ->where('reference_type', PurchaseInvoice::class)
@@ -366,8 +370,7 @@ class PurchaseReceiptService {
             ->sortBy('purchaseInvoice.date');
     }
 
-    private function updatePurchaseOrderReceiveStatus(PurchaseOrder $purchaseOrder): void
-    {
+    private function updatePurchaseOrderReceiveStatus(PurchaseOrder $purchaseOrder): void {
         $items         = $purchaseOrder->items()->select('quantity', 'received_quantity')->get();
         $totalQty      = $items->sum('quantity');
         $totalReceived = $items->sum('received_quantity');
