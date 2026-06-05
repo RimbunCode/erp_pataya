@@ -52,6 +52,17 @@ Saat mengerjakan spec (termasuk spec dari Kiro di `.kiro/specs/`):
 - **Optional task** ditandai dengan `- [ ]\* <id> ...` — saat user minta mulai implementasi, tanyakan dulu: _"Jalankan required task saja, atau termasuk optional task?"_
 - Ide baru → tambah ke spec dulu (jangan scope creep)
 
+## Git Worktree
+
+Saat menggunakan git worktree (via `EnterWorktree` atau manual), **wajib** pastikan branch aktif sudah up-to-date sebelum membuat worktree:
+
+```bash
+git fetch origin
+git pull origin <nama-branch>
+```
+
+Baru kemudian buat worktree. Melewati langkah ini menyebabkan worktree dibuat dari commit lama sehingga push akan ditolak (non-fast-forward) dan rebase menghasilkan banyak konflik.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 
@@ -282,4 +293,3 @@ This project has domain-specific skills available. You MUST activate the relevan
 - IMPORTANT: Activate `inertia-react-development` when working with Inertia React client-side patterns.
 
 </laravel-boost-guidelines>
-```
