@@ -226,14 +226,22 @@ class PurchaseReceiptService {
 
                     $allocateQty = min($remainingQty, $availableQty);
 
-                    $queue[] = ['rate' => $rate, 'quantity' => $allocateQty];
+                    // 1. Update Stock queue dulu (sle_id null sementara)
+                    $queue[] = [
+                        'rate'            => $rate,
+                        'quantity'        => $allocateQty,
+                        'is_valuated'     => true,
+                        'sle_id'          => null,
+                        'receipt_item_id' => $item->id,
+                    ];
                     $stock->update([
                         'stock_queue' => $queue,
                         'quantity'    => $stock->quantity + $allocateQty,
                     ]);
                     $stock->refresh();
 
-                    StockLedgerEntry::create([
+                    // 2. Buat SLE dengan data Stock yang sudah final
+                    $sle = StockLedgerEntry::create([
                         'item_id'                    => $item->item_id,
                         'warehouse_id'               => $item->target_warehouse_id,
                         'item_unit_id'               => $defaultUom->id,
@@ -249,6 +257,10 @@ class PurchaseReceiptService {
                         'is_valuated'                => true,
                     ]);
 
+                    // 3. Patch queue entry terakhir dengan sle_id
+                    $queue[array_key_last($queue)]['sle_id'] = $sle->id;
+                    $stock->update(['stock_queue' => $queue]);
+
                     $invoiceItem->increment('allocated_qty', $allocateQty);
                     $totalRatesForGL += $rate * $allocateQty;
                     $remainingQty -= $allocateQty;
@@ -256,14 +268,22 @@ class PurchaseReceiptService {
 
                 // Sisa qty over-receipt → SLE pending
                 if ($remainingQty > 0) {
-                    $queue[] = ['rate' => $poItem->rate, 'quantity' => $remainingQty];
+                    // 1. Update Stock queue dulu
+                    $queue[] = [
+                        'rate'            => $poItem->rate,
+                        'quantity'        => $remainingQty,
+                        'is_valuated'     => false,
+                        'sle_id'          => null,
+                        'receipt_item_id' => $item->id,
+                    ];
                     $stock->update([
                         'stock_queue' => $queue,
                         'quantity'    => $stock->quantity + $remainingQty,
                     ]);
                     $stock->refresh();
 
-                    StockLedgerEntry::create([
+                    // 2. Buat SLE dengan data Stock final
+                    $sle = StockLedgerEntry::create([
                         'item_id'                    => $item->item_id,
                         'warehouse_id'               => $item->target_warehouse_id,
                         'item_unit_id'               => $defaultUom->id,
@@ -278,6 +298,10 @@ class PurchaseReceiptService {
                         'referenceable_id'           => $purchaseReceipt->id,
                         'is_valuated'                => false,
                     ]);
+
+                    // 3. Patch queue entry terakhir dengan sle_id
+                    $queue[array_key_last($queue)]['sle_id'] = $sle->id;
+                    $stock->update(['stock_queue' => $queue]);
                 }
 
                 $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
@@ -285,9 +309,14 @@ class PurchaseReceiptService {
 
             } else {
                 // === ALUR-1: Receipt duluan, belum ada Invoice ===
+
+                // 1. Update Stock queue dulu (sle_id null sementara)
                 $queue[] = [
-                    'rate'     => $poItem->rate,
-                    'quantity' => $quantity,
+                    'rate'            => $poItem->rate,
+                    'quantity'        => $quantity,
+                    'is_valuated'     => false,
+                    'sle_id'          => null,
+                    'receipt_item_id' => $item->id,
                 ];
                 $stock->update([
                     'stock_queue' => $queue,
@@ -297,7 +326,8 @@ class PurchaseReceiptService {
                 $stock->updateDetails('decrement', 'incomings', $purchaseOrder->code, $quantity);
                 $stock->refresh();
 
-                StockLedgerEntry::create([
+                // 2. Buat SLE dengan data Stock yang sudah final
+                $sle = StockLedgerEntry::create([
                     'item_id'                    => $item->item_id,
                     'warehouse_id'               => $item->target_warehouse_id,
                     'item_unit_id'               => $defaultUom->id,
@@ -312,6 +342,10 @@ class PurchaseReceiptService {
                     'referenceable_id'           => $purchaseReceipt->id,
                     'is_valuated'                => false,
                 ]);
+
+                // 3. Patch queue entry terakhir dengan sle_id
+                $queue[array_key_last($queue)]['sle_id'] = $sle->id;
+                $stock->update(['stock_queue' => $queue]);
             }
         }
 

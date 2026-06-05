@@ -117,10 +117,7 @@ foreach item in invoice items:
 
 Setiap SLE sudah punya `referenceable` (morph ke PurchaseReceipt). Tapi kita perlu tracking SLE mana yang belum di-valuasi.
 
-**Opsi 1**: Tambah field `is_valuated` (boolean) di StockLedgerEntry — default false, jadi true saat Invoice approve update.
-**Opsi 2**: Gunakan `change_in_stock_value = 0` sebagai penanda — tidak perlu field baru.
-
-**Pilih Opsi 1** — lebih eksplisit. Migration: `$table->boolean('is_valuated')->default(false);`
+**Pilih field `is_valuated`** (boolean, default false) — lebih eksplisit. Jadi `true` saat Invoice approve update SLE.
 
 Untuk mencari SLE yang pending saat Invoice approve:
 
@@ -128,7 +125,31 @@ Untuk mencari SLE yang pending saat Invoice approve:
 PurchaseReceiptItem → referenceable (ke PurchaseReceipt) → SLE dengan referenceable_id = Receipt ID
 ```
 
-Atau lebih praktis: simpan `purchase_receipt_item_id` di SLE, sehingga bisa langsung cari SLE by item.
+### 4c-bis. stock_queue — Format Diperkaya
+
+Setiap entry di `stock_queue` (JSON di tabel `stocks`) kini menyimpan metadata tambahan untuk pencarian yang lebih presisi:
+
+```json
+{
+  "rate": 4500,
+  "quantity": 30,
+  "is_valuated": false,
+  "sle_id": "01JXXXXX",
+  "receipt_item_id": "01JYYYYY"
+}
+```
+
+**Alasan:** Sebelumnya saat Invoice approve (ALUR-1), koreksi queue entry dilakukan heuristik berdasarkan `rate` — rentan salah jika ada 2 batch dengan rate identik. Dengan `sle_id`, lookup menjadi exact match: cari entry dengan `sle_id` = id SLE pending, update `rate` + `is_valuated` langsung.
+
+**Pola pembuatan queue entry (3 langkah):**
+```
+1. Push queue entry sementara dengan sle_id = null
+2. Update Stock (quantity + stock_queue) → refresh → data Stock sudah final
+3. Buat SLE menggunakan data Stock final (quantity_after_transaction, balance_stock_value)
+4. Patch queue entry terakhir: isi sle_id dengan id SLE yang baru dibuat
+```
+
+**`is_valuated` di queue** memungkinkan reporting/frontend membedakan stok yang sudah "final price" (dari invoice) vs masih estimasi rate PO.
 
 ### 4d. Tracking Quantity — Over/Under
 
@@ -164,6 +185,11 @@ PO Item #1: Item A, qty=50, rate=5000
 3. **Warehouse berbeda** antara Receipt → split per warehouse
 4. **Qty over** → qty sisa yang tidak ter-cover source jadi item terpisah dengan rate PO
 
+**Prinsip FK tidak berubah:**
+- Setelah split, `PurchaseInvoiceItem` dan `PurchaseReceiptItem` **tetap** reference ke `purchase_order_item_id` lama (yang sudah di-soft-delete)
+- Item PO baru menyimpan `parent_item_id` → id PO item asli, sehingga user dapat menelusuri history
+- `received_quantity` dan `billed_quantity` per item baru dihitung proporsional dari `source_receipt_item_ids` / `source_invoice_item_ids` masing-masing group
+
 **PurchaseOrderService.syncItems():**
 
 ```
@@ -173,7 +199,8 @@ PO Item #1: Item A, qty=50, rate=5000
 
    a. Untuk setiap PO Item, kumpulkan semua source items (InvoiceItems + ReceiptItems):
       - Group by [rate, tax_id, tax_rate, target_warehouse_id]
-      - Setiap group menjadi: {qty, rate, tax_id, tax_rate, warehouse_id, source_invoice_id?, source_receipt_id?}
+      - Setiap group menjadi: {qty, rate, tax_id, tax_rate, warehouse_id,
+                               source_invoice_item_ids[], source_receipt_item_ids[]}
    
    b. Jika hanya ada 1 group → update PO item biasa (rate/tax/warehouse sesuai group)
    
@@ -184,10 +211,13 @@ PO Item #1: Item A, qty=50, rate=5000
         * rate = rate dari group
         * tax_id/tax_rate = dari group
         * target_warehouse_id = dari group
-        * referenceable → link ke source documents
+        * parent_item_id = id PO item lama (untuk audit trail & history)
+        * received_quantity = SUM qty dari source_receipt_item_ids di group ini
+        * billed_quantity = SUM qty dari source_invoice_item_ids di group ini
+      - FK di InvoiceItems & ReceiptItems TIDAK diubah (tetap ke item lama)
    
    d. Jika ada qty yang tidak ter-cover source manapun (sisa over):
-      - Buat PO item tambahan dengan qty = sisa, rate = rate PO asli
+      - Buat PO item tambahan dengan qty = sisa, rate = rate PO asli, parent_item_id = id lama
 
 4. Hitung ulang amount per item: basic_amount = rate × qty, tax_amount = basic_amount × tax_rate/100
 
@@ -202,8 +232,9 @@ PO Item #1: Item A, qty=50, rate=5000
      "splits": [
        {
          "original_po_item_id": "ulid_lama",
-         "new_po_item_ids": ["ulid_baru_1", "ulid_baru_2"],
-         "reason": "rate_mismatch"
+         "new_po_item_id": "ulid_baru_1",
+         "rate": 4500,
+         "qty": 30
        }
      ]
    }
@@ -276,11 +307,13 @@ markDone(PurchaseOrder):
 
 ### Migration
 
-| File                                                                               | Perubahan                                                                                                              |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `database/migrations/..._add_is_valuated_to_stock_ledger_entries.php`              | Tambah `is_valuated` (boolean, default false) di StockLedgerEntry                                                      |
-| `database/migrations/..._add_allocated_qty_to_purchase_invoice_items.php`          | Tambah `allocated_qty` (decimal, default 0) di PurchaseInvoiceItem — untuk tracking qty yang sudah dialokasikan ke SLE |
-| `database/migrations/..._add_purchase_receipt_item_id_to_stock_ledger_entries.php` | (Optional) Tambah FK ke PurchaseReceiptItem untuk lookup lebih cepat                                                   |
+Semua field baru digabung langsung ke migration `create_*` masing-masing tabel (tidak ada migration `add_*` terpisah) — karena sistem belum production dan akan `migrate:fresh`.
+
+| Tabel (migration create)                                        | Field yang ditambah                                                                                                     |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `create_stock_ledger_entries_table`                             | `is_valuated` boolean default false — tracking apakah SLE sudah tervaluasi dari invoice                                |
+| `create_purchase_invoice_items_table`                           | `allocated_qty` double default 0 — tracking qty yang sudah dialokasikan ke SLE (ALUR-2 FIFO)                           |
+| `create_purchase_order_items_table`                             | `parent_item_id` nullable ULID FK self-referencing + `nullOnDelete()` — audit trail parent-child setelah sync split    |
 
 ### Backend Services
 
@@ -723,12 +756,15 @@ public function markDone(PurchaseOrder $purchaseOrder): array
 
 ## 7. Keputusan Desain Final
 
-| #   | Issue                                   | Keputusan                                                              |
-| --- | --------------------------------------- | ---------------------------------------------------------------------- |
-| 1   | Mapping SLE ke receipt item             | Cari via referenceable (morph ke PurchaseReceipt) — tanpa field baru   |
-| 2   | Multiple invoice rate berbeda           | **Pecah SLE** — qty dialokasikan ke invoice tertua dulu (FIFO by date) |
-| 3   | Sisa qty over (tidak ter-cover invoice) | Valuasi pakai **rate PO**                                              |
-| 4   | Status PO over-receipt/bill             | Tambah status: `OVER_RECEIVED`, `OVER_BILLED`                          |
+| #   | Issue                                      | Keputusan                                                                                                                                  |
+| --- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | Mapping SLE ke receipt item                | Cari via referenceable (morph ke PurchaseReceipt) — tanpa field baru di SLE                                                               |
+| 2   | Multiple invoice rate berbeda              | **Pecah SLE** — qty dialokasikan ke invoice tertua dulu (FIFO by date)                                                                    |
+| 3   | Sisa qty over (tidak ter-cover invoice)    | Valuasi pakai **rate PO**                                                                                                                  |
+| 4   | Status PO over-receipt/bill               | Tambah status: `OVER_RECEIVED`, `OVER_BILLED`                                                                                             |
+| 5   | Koreksi `stock_queue` saat Invoice approve | Lookup by `sle_id` di queue entry (bukan heuristik by rate) — presisi, tidak false-positive jika ada 2 batch rate sama                    |
+| 6   | FK InvoiceItem/ReceiptItem setelah sync    | **Tidak diubah** — tetap ke PO item lama (soft-deleted); item baru simpan `parent_item_id`; qty dihitung dari `source_*_item_ids` per group |
+| 7   | Migration strategy                         | Gabung ke `create_*` (bukan `add_*` terpisah) — sistem belum production, akan `migrate:fresh`                                             |
 
 ## 8. Risiko & Mitigasi
 
@@ -738,7 +774,7 @@ public function markDone(PurchaseOrder $purchaseOrder): array
 | Sync race condition | DB transaction + lockForUpdate |
 | **Sync mengubah rate/pecah item** — GL sudah final berdasarkan rate approval lama | GL tetap pakai rate saat approval; split hanya untuk future accounting, tidak retroaktif |
 | **Multiple source conflict** | Split items per group [rate, tax, warehouse]; setiap group jadi PO item terpisah |
-| **Soft-delete PO item saat split** — referensi dari Receipt/Invoice item ke PO item lama harus diupdate | Saat split, `PurchaseInvoiceItem::whereIn('id', $g['source_invoice_item_ids'])->update(['purchase_order_item_id' => $newItem->id])` dan sama untuk Receipt items |
+| **Soft-delete PO item saat split** — item baru perlu tahu asal-usulnya | Item baru menyimpan `parent_item_id` → id item lama; FK di InvoiceItems/ReceiptItems TIDAK diubah; qty dihitung proporsional dari `source_*_item_ids` per group |
 | **Warehouse mismatch** | Receipt dengan warehouse berbeda → group terpisah → split PO item ke warehouse masing-masing |
 | **Tax rate mismatch** | Invoice dengan tax berbeda → group terpisah → split PO item |
 

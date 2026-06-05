@@ -97,11 +97,14 @@ Tombol **Sync** di halaman Show PO. Fungsi:
 4. Jika >1 group (perbedaan source):
    - **Soft-delete** PO item lama
    - **Create N item baru** sesuai group:
-     - qty = total dari source items di group itu
+     - qty = total dari source items di group itu (proporsional per group)
      - rate/tax/warehouse = dari group
-     - `received_quantity`, `billed_quantity` = sesuai kalkulasi
-5. **Update reference** InvoiceItems & ReceiptItems → `purchase_order_item_id` diarahkan ke PO item baru yang sesuai
+     - `received_quantity`, `billed_quantity` = sum dari `source_receipt_item_ids` / `source_invoice_item_ids` di group tersebut
+     - **`parent_item_id`** = id PO item lama (untuk audit trail)
+5. **InvoiceItems & ReceiptItems TIDAK diubah** — FK `purchase_order_item_id` tetap reference ke PO item lama (asli)
 6. Hitung ulang total amount PO
+
+**Tujuan `parent_item_id`:** User dapat melihat history — PO item asli (soft-deleted) dan item-item hasil pecahan setelah sync, beserta hubungan parent-child di antara keduanya.
 
 **AUDIT TRAIL:** ModelConnection dengan data `{type: "items_sync", splits: [...]}`
 
@@ -166,7 +169,7 @@ Tambah status untuk PurchaseOrder:
 | AC5 | >1 invoice per PO item: SLE split per rate invoice |
 | AC6 | >1 receipt per PO item: received_quantity akumulasi |
 | AC7 | Sync: item PO dipecah sesuai group [rate, tax, warehouse] |
-| AC8 | Sync: InvoiceItems dan ReceiptItems refer ke PO item baru |
+| AC8 | Sync: PO item baru menyimpan `parent_item_id` ke item lama; FK di InvoiceItems/ReceiptItems TIDAK berubah |
 | AC9 | Mark Done: validasi gagal → toast warning |
 | AC10 | Mark Done: validasi sukses → sync + status COMPLETED |
 | AC11 | Over-receipt: status OVER_RECEIVED, tidak ada error |
@@ -178,3 +181,23 @@ Tambah status untuk PurchaseOrder:
 - Tidak mengubah struktur PurchaseInvoice yang sudah ada
 - Status PO tetap backward-compatible (existing status tidak dihapus)
 - SLE tetap polymorphic (referenceable ke PurchaseReceipt)
+- Migration `add_*` tidak dibuat terpisah — field baru digabung ke `create_*` (sistem belum production)
+
+## 6. stock_queue Enrichment
+
+Setiap entry `stock_queue` di tabel `stocks` wajib menyimpan metadata:
+
+```json
+{
+  "rate": 4500,
+  "quantity": 30,
+  "is_valuated": false,
+  "sle_id": "01JXXXXX",
+  "receipt_item_id": "01JYYYYY"
+}
+```
+
+**Acceptance:**
+- AC13: Saat Receipt approve, setiap queue entry mengandung `sle_id`, `is_valuated`, `receipt_item_id`
+- AC14: Saat Invoice approve (ALUR-1), koreksi queue dilakukan via lookup `sle_id` — bukan heuristik by rate
+- AC15: Entry yang sudah tervaluasi memiliki `is_valuated: true` di queue

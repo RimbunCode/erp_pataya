@@ -405,41 +405,28 @@ class PurchaseOrderService {
                             'target_warehouse_id' => $g['warehouse_id'],
                             'received_quantity'   => 0,
                             'billed_quantity'     => 0,
+                            'parent_item_id'      => $parentId,
                         ]);
                         $newItem->id = (string) Str::ulid();
                         $newItem->save();
                         $newItem->refresh();
 
-                        // Update references di Invoice/Receipt items
-                        if (! empty($g['source_invoice_item_ids'])) {
-                            PurchaseInvoiceItem::whereIn('id', $g['source_invoice_item_ids'])
-                                ->update(['purchase_order_item_id' => $newItem->id]);
-                        }
-                        if (! empty($g['source_receipt_item_ids'])) {
-                            PurchaseReceiptItem::whereIn('id', $g['source_receipt_item_ids'])
-                                ->update(['purchase_order_item_id' => $newItem->id]);
-                        }
-
-                        // Hitung ulang received/billed qty
-                        $newReceived = PurchaseReceiptItem::whereIn('purchase_receipt_id', $receiptIds)
-                            ->where('purchase_order_item_id', $newItem->id)
-                            ->sum('quantity');
-                        $newBilled = PurchaseInvoiceItem::whereIn('purchase_invoice_id', $invoiceIds)
-                            ->where('purchase_order_item_id', $newItem->id)
-                            ->sum('quantity');
+                        // Hitung qty proporsional dari source IDs group (FK tidak diubah)
+                        $newReceived = empty($g['source_receipt_item_ids']) ? 0
+                            : PurchaseReceiptItem::whereIn('id', $g['source_receipt_item_ids'])->sum('quantity');
+                        $newBilled = empty($g['source_invoice_item_ids']) ? 0
+                            : PurchaseInvoiceItem::whereIn('id', $g['source_invoice_item_ids'])->sum('quantity');
                         $newItem->update([
                             'received_quantity' => $newReceived,
                             'billed_quantity'   => $newBilled,
                         ]);
 
                         $syncLog[] = [
-                            'action'                => 'split',
-                            'original_po_item_id'   => $parentId,
-                            'new_po_item_id'        => $newItem->id,
-                            'rate'                  => $g['rate'],
-                            'qty'                   => $g['qty'],
-                            'updated_invoice_items' => $g['source_invoice_item_ids'],
-                            'updated_receipt_items' => $g['source_receipt_item_ids'],
+                            'action'              => 'split',
+                            'original_po_item_id' => $parentId,
+                            'new_po_item_id'      => $newItem->id,
+                            'rate'                => $g['rate'],
+                            'qty'                 => $g['qty'],
                         ];
                     }
                 }

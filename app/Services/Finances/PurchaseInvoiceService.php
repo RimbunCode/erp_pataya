@@ -8,6 +8,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
+use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseReceipt;
@@ -365,6 +366,13 @@ class PurchaseInvoiceService {
         $remainingQty = $qty;
         $totalValue   = 0;
 
+        // Pre-load stock untuk koreksi queue (keyed by item_id-warehouse_id)
+        $stocks = Stock::whereIn('item_variant_id', $pendingSLEs->pluck('item_id')->unique())
+            ->whereIn('warehouse_id', $pendingSLEs->pluck('warehouse_id')->unique())
+            ->lockForUpdate()
+            ->get()
+            ->keyBy(fn ($s) => "{$s->item_variant_id}-{$s->warehouse_id}");
+
         foreach ($pendingSLEs as $sle) {
             if ($remainingQty <= 0) {
                 break;
@@ -393,6 +401,31 @@ class PurchaseInvoiceService {
                     'balance_stock_value'   => $rate * $allocateQty,
                     'is_valuated'           => true,
                 ]);
+            }
+
+            // Koreksi stock_queue di Stock: lookup by sle_id → update rate + is_valuated
+            $sleIdToFind = $allocateQty < $sleQty ? $newSle->id : $sle->id;
+            $stockKey    = "{$sle->item_id}-{$sle->warehouse_id}";
+            $stock       = $stocks->get($stockKey);
+            if ($stock) {
+                $queue   = $stock->stock_queue ?? [];
+                $updated = false;
+
+                foreach ($queue as &$entry) {
+                    if (($entry['sle_id'] ?? null) === $sleIdToFind) {
+                        $entry['rate']        = $rate;
+                        $entry['is_valuated'] = true;
+                        $updated              = true;
+                        break;
+                    }
+                }
+                unset($entry);
+
+                if ($updated) {
+                    $stock->update(['stock_queue' => $queue]);
+                    $stock->refresh();
+                    $stocks->put($stockKey, $stock);
+                }
             }
 
             $totalValue += $rate * $allocateQty;

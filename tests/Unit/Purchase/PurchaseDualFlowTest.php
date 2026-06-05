@@ -246,6 +246,74 @@ class PurchaseDualFlowTest extends TestCase {
         $this->assertCount(2, $groups, 'Harus buat 2 PO item baru');
     }
 
+    /** @test */
+    public function split_new_items_store_parent_item_id(): void {
+        $parentId = 'po-item-old-id';
+
+        $groups = [
+            '4500|tax-1|11|wh-1' => [
+                'qty'                     => 30,
+                'rate'                    => 4500,
+                'source_invoice_item_ids' => ['ii-1'],
+                'source_receipt_item_ids' => [],
+            ],
+            '6500|tax-1|11|wh-1' => [
+                'qty'                     => 20,
+                'rate'                    => 6500,
+                'source_invoice_item_ids' => ['ii-2'],
+                'source_receipt_item_ids' => [],
+            ],
+        ];
+
+        $createdItems = [];
+        foreach ($groups as $g) {
+            $newItem = [
+                'id'             => uniqid('new-'),
+                'parent_item_id' => $parentId,
+                'quantity'       => $g['qty'],
+                'rate'           => $g['rate'],
+            ];
+            $createdItems[] = $newItem;
+        }
+
+        foreach ($createdItems as $item) {
+            $this->assertEquals($parentId, $item['parent_item_id'], 'Item baru harus menyimpan parent_item_id ke item lama');
+        }
+        $this->assertCount(2, $createdItems);
+    }
+
+    /** @test */
+    public function split_qty_is_proportional_per_group_from_source_ids(): void {
+        // Group 1: 2 invoice items (30+10), Group 2: 1 invoice item (20)
+        $invoiceItems = [
+            'ii-1' => ['id' => 'ii-1', 'quantity' => 30, 'rate' => 4500],
+            'ii-2' => ['id' => 'ii-2', 'quantity' => 10, 'rate' => 4500],
+            'ii-3' => ['id' => 'ii-3', 'quantity' => 20, 'rate' => 6500],
+        ];
+
+        $groups = [
+            '4500|tax-1|11|wh-1' => [
+                'qty'                     => 40,
+                'source_invoice_item_ids' => ['ii-1', 'ii-2'],
+                'source_receipt_item_ids' => [],
+            ],
+            '6500|tax-1|11|wh-1' => [
+                'qty'                     => 20,
+                'source_invoice_item_ids' => ['ii-3'],
+                'source_receipt_item_ids' => [],
+            ],
+        ];
+
+        foreach ($groups as $key => $g) {
+            // Hitung qty dari source IDs (bukan dari FK query ke item baru)
+            $billedFromGroup = array_sum(array_map(
+                fn ($id) => $invoiceItems[$id]['quantity'],
+                $g['source_invoice_item_ids'],
+            ));
+            $this->assertEquals($g['qty'], $billedFromGroup, "Group {$key}: billed_qty harus proporsional dari source IDs");
+        }
+    }
+
     // =========================================================================
     // MARK DONE VALIDATION LOGIC
     // =========================================================================

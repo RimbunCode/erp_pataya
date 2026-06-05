@@ -142,4 +142,12 @@ class PurchaseOrderItem extends Model {
     public function referenceable() {
         return $this->morphTo();
     }
+
+    public function parentItem() {
+        return $this->belongsTo(PurchaseOrderItem::class, 'parent_item_id');
+    }
+
+    public function childItems() {
+        return $this->hasMany(PurchaseOrderItem::class, 'parent_item_id');
+    }
 }
