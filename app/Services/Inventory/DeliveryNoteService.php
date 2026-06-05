@@ -9,6 +9,8 @@ use App\Models\Finances\Account;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Sales\SalesOrder;
+use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -327,31 +329,37 @@ class DeliveryNoteService {
             }
         }
 
-        $undeliveredItems = $toReference->items()
-            ->leftJoin('item_variants', 'item_variants.id', '=', 'items.item_variant_id')
-            ->where('is_stock_item', true)
-            ->select(['undelivered_quantity', 'quantity'])->get();
-        $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');
-        $sumQuantity           = $undeliveredItems->sum('quantity');
-        if ($countUndeliveredItems == $sumQuantity) {
-            $status = Utils::replaceStatus(
-                $toReference->status,
-                [FormStatus::DELIVERED, FormStatus::PARTIALLY_DELIVERED],
-                FormStatus::TO_DELIVER,
-            );
-        } elseif ($countUndeliveredItems > 0) {
-            $status = Utils::replaceStatus(
-                $toReference->status,
-                FormStatus::TO_DELIVER,
-                FormStatus::PARTIALLY_DELIVERED,
-            );
+        if ($toReference instanceof SalesOrder) {
+            (new SalesOrderService)->updateSalesOrderStatus($toReference);
+            $status = $toReference->status;
         } else {
-            $status = Utils::replaceStatus(
-                $toReference->status,
-                [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED],
-                FormStatus::DELIVERED,
-            );
+            $undeliveredItems = $toReference->items()
+                ->leftJoin('item_variants', 'item_variants.id', '=', 'items.item_variant_id')
+                ->where('is_stock_item', true)
+                ->select(['undelivered_quantity', 'quantity'])->get();
+            $countUndeliveredItems = $undeliveredItems->sum('undelivered_quantity');
+            $sumQuantity           = $undeliveredItems->sum('quantity');
+            if ($countUndeliveredItems == $sumQuantity) {
+                $status = Utils::replaceStatus(
+                    $toReference->status,
+                    [FormStatus::DELIVERED, FormStatus::PARTIALLY_DELIVERED],
+                    FormStatus::TO_DELIVER,
+                );
+            } elseif ($countUndeliveredItems > 0) {
+                $status = Utils::replaceStatus(
+                    $toReference->status,
+                    FormStatus::TO_DELIVER,
+                    FormStatus::PARTIALLY_DELIVERED,
+                );
+            } else {
+                $status = Utils::replaceStatus(
+                    $toReference->status,
+                    [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_DELIVERED],
+                    FormStatus::DELIVERED,
+                );
+            }
         }
+
         if ($isRent) {
             if ($returnAgainst) {
                 $status = \array_filter($status, fn ($s) => $s != FormStatus::IN_RENT);

@@ -1,0 +1,8 @@
+{
+  "specId": "7d3f1a2b-9c4e-4f6a-b1d2-3e4f5a6b7c8d",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Implementasi dua alur Sales Order: SO→DeliveryNote→SalesInvoice dan SO→SalesInvoice→DeliveryNote, termasuk over/under deliver/bill sync (syncItems) dan tombol Mark Done. SLE & GL pada DeliveryNoteService (FIFO COGS) dan SalesInvoiceService (AR/income) DIPERTAHANKAN; SalesInvoice tidak menyentuh SLE; DeliveryNote SLE is_valuated=true",
+  "createdAt": "2026-06-06T00:00:00.000Z",
+  "createdBy": "Kiro"
+}

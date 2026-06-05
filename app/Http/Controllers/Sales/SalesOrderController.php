@@ -157,6 +157,18 @@ class SalesOrderController extends Controller {
         return back();
     }
 
+    public function syncItems(SalesOrder $salesOrder) {
+        $this->service->syncItems($salesOrder);
+
+        return redirect()->back()->with('success', true);
+    }
+
+    public function markDone(SalesOrder $salesOrder) {
+        $this->service->markDone($salesOrder);
+
+        return redirect()->back()->with('success', true);
+    }
+
     /**
      * Remove the specified resource from storage.
      */

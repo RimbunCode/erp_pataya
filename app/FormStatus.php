@@ -41,6 +41,7 @@ enum FormStatus: string {
     case PRE_REGISTERED      = 'pre_registered';
     case OVER_RECEIVED       = 'over_received';
     case OVER_BILLED         = 'over_billed';
+    case OVER_DELIVERED      = 'over_delivered';
 
     public function label() {
         return __("status.{$this->value}");

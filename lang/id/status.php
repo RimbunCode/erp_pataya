@@ -39,4 +39,5 @@ return [
     'ordered'                         => 'Dipesan',
     'pre_registered'                  => 'Prapendaftaran',
     'invited'                         => 'Diundang',
+    'over_delivered'                  => 'Melebihi Pengiriman',
 ];

@@ -245,6 +245,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // / Sales Groups
     // Sales Orders
     Route::resourceDetail('salesOrder', SalesOrderController::class, isSubmmitable: true);
+    Route::post('salesOrders/{salesOrder}/sync-items', [SalesOrderController::class, 'syncItems'])->name('salesOrders.syncItems');
+    Route::post('salesOrders/{salesOrder}/mark-done', [SalesOrderController::class, 'markDone'])->name('salesOrders.markDone');
     // Internal Orders
     Route::resourceDetail('internalOrder', InternalOrderController::class, isSubmmitable: true);
     // / Sales Groups End

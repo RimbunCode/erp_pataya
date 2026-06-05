@@ -39,4 +39,5 @@ return [
     'ordered'                         => 'Ordered',
     'pre_registered'                  => 'Pre-Registered',
     'invited'                         => 'Invited',
+    'over_delivered'                  => 'Over Delivered',
 ];

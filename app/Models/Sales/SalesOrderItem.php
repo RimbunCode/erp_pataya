@@ -136,6 +136,14 @@ class SalesOrderItem extends Model {
         return $this->belongsTo(SalesOrder::class);
     }
 
+    public function parentItem() {
+        return $this->belongsTo(self::class, 'parent_item_id');
+    }
+
+    public function childItems() {
+        return $this->hasMany(self::class, 'parent_item_id');
+    }
+
     public function unit() {
         return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
