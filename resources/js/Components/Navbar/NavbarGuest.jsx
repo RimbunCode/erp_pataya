@@ -5,7 +5,7 @@ import {
   useRegisterModal,
 } from "@/Layouts/GuestLayout";
 import ToggleTheme from "../ToggleTheme";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export default memo(function NavbarGuest({ onLogout }) {
@@ -88,6 +88,29 @@ export default memo(function NavbarGuest({ onLogout }) {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-3 shrink-0">
+          {(primaryRole === "admin" || primaryRole === "content_admin") && (
+            <button
+              onClick={() => {
+                router.get(
+                  window.location.pathname,
+                  { liveEdit: "1" },
+                  { preserveState: true, preserveScroll: true },
+                );
+              }}
+              className="hidden md:flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase border border-primary/30 text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Edit Page
+            </button>
+          )}
           <ToggleTheme />
           {user ? (
             <>
@@ -196,7 +219,7 @@ export default memo(function NavbarGuest({ onLogout }) {
                         </Link>
 
                         <Link
-                          href="/student/profile"
+                          href={route(`${primaryRole}.profile`)}
                           onClick={() => setDropdownOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                         >

@@ -74,6 +74,7 @@ class GuestPageContentService {
                     'topCardSubtitle'    => $this->doc('GLOBAL STANDARDS'),
                     'bottomCardTitle'    => $this->doc('ISO CERTIFIED LMS'),
                     'bottomCardSubtitle' => $this->doc('VERIFIED PROGRAM'),
+                    'banners'            => [],
                 ],
                 'media' => [
                     'heroImageFileId'         => null,
@@ -83,6 +84,7 @@ class GuestPageContentService {
                     'items' => [
                         [
                             'enabled'      => false,
+                            'duration'     => 5000,
                             'title'        => $this->doc('TRAINING PARTNER PROMO'),
                             'description'  => $this->doc('Promosikan program atau partner strategis di area home page.'),
                             'imageFileId'  => null,
@@ -133,6 +135,7 @@ class GuestPageContentService {
                     'primaryCta'   => $this->doc('GET STARTED NOW'),
                     'secondaryCta' => $this->doc('CONTACT US'),
                 ],
+                'customSections' => [],
             ],
             'about' => [
                 'hero' => [
@@ -174,6 +177,7 @@ class GuestPageContentService {
                         $this->doc('Mitra strategis bagi pemerintah, dunia usaha atau mitra kerja, dunia akademik serta masyarakat.'),
                     ],
                 ],
+                'customSections' => [],
             ],
             'verify' => [
                 'title'       => $this->doc('CERTIFICATE VERIFICATION'),
@@ -190,14 +194,17 @@ class GuestPageContentService {
                 ],
                 'contactItems' => [
                     [
+                        'icon'  => 'address',
                         'label' => $this->doc('OFFICE ADDRESS'),
                         'value' => $this->doc("Jl. Bendungan Hilir No.29,\nJakarta Pusat, DKI Jakarta 10210"),
                     ],
                     [
+                        'icon'  => 'phone',
                         'label' => $this->doc('PHONE NUMBER'),
                         'value' => $this->doc('+62 (21) 573-8603'),
                     ],
                     [
+                        'icon'  => 'email',
                         'label' => $this->doc('EMAIL ADDRESS'),
                         'value' => $this->doc('info@inkindo-learning.com'),
                     ],
@@ -227,19 +234,19 @@ class GuestPageContentService {
                 'explore' => [
                     'title' => $this->doc('EXPLORE'),
                     'links' => [
-                        $this->doc('BROWSE TRAININGS'),
-                        $this->doc('CERTIFICATION PATH'),
-                        $this->doc('OUR INSTRUCTORS'),
-                        $this->doc('AFFILIATE PROGRAM'),
+                        ['label' => $this->doc('BROWSE TRAININGS'),   'href' => ''],
+                        ['label' => $this->doc('CERTIFICATION PATH'), 'href' => ''],
+                        ['label' => $this->doc('OUR INSTRUCTORS'),    'href' => ''],
+                        ['label' => $this->doc('AFFILIATE PROGRAM'),  'href' => ''],
                     ],
                 ],
                 'company' => [
                     'title' => $this->doc('COMPANY'),
                     'links' => [
-                        $this->doc('ABOUT INKINDO'),
-                        $this->doc('CAREER OPPORTUNITIES'),
-                        $this->doc('PRIVACY POLICY'),
-                        $this->doc('TERMS OF SERVICE'),
+                        ['label' => $this->doc('ABOUT INKINDO'),         'href' => ''],
+                        ['label' => $this->doc('CAREER OPPORTUNITIES'),  'href' => ''],
+                        ['label' => $this->doc('PRIVACY POLICY'),        'href' => ''],
+                        ['label' => $this->doc('TERMS OF SERVICE'),      'href' => ''],
                     ],
                 ],
                 'contact' => [
@@ -352,6 +359,69 @@ class GuestPageContentService {
                 return $result;
             }
 
+            if ($path === 'home.hero.banners') {
+                $itemTemplate = $this->bannerItemTemplate();
+                $items        = is_array($value) ? array_values($value) : [];
+                $result       = [];
+
+                foreach ($items as $item) {
+                    $result[] = $this->sanitizeValue($item, $itemTemplate, "{$path}.*");
+                }
+
+                return $result;
+            }
+
+            if ($path === 'home.customSections' || $path === 'about.customSections') {
+                $itemTemplate = $this->customSectionItemTemplate();
+                $items        = is_array($value) ? array_values($value) : [];
+                $result       = [];
+
+                foreach ($items as $item) {
+                    $result[] = $this->sanitizeValue($item, $itemTemplate, "{$path}.*");
+                }
+
+                return $result;
+            }
+
+            if ($path === 'about.stats') {
+                $itemTemplate = [
+                    'value' => $this->doc('100+'),
+                    'label' => $this->doc('Label Here'),
+                ];
+                $items  = is_array($value) ? array_values($value) : [];
+                $result = [];
+
+                foreach ($items as $item) {
+                    $result[] = $this->sanitizeValue($item, $itemTemplate, "{$path}.*");
+                }
+
+                if ($result === []) {
+                    $result[] = $this->sanitizeValue(null, $itemTemplate, "{$path}.*");
+                }
+
+                return $result;
+            }
+
+            if ($path === 'contact.contactItems') {
+                $itemTemplate = [
+                    'icon'  => 'phone',
+                    'label' => $this->doc('Label'),
+                    'value' => $this->doc('Value'),
+                ];
+                $items  = is_array($value) ? array_values($value) : [];
+                $result = [];
+
+                foreach ($items as $item) {
+                    $result[] = $this->sanitizeValue($item, $itemTemplate, "{$path}.*");
+                }
+
+                if ($result === []) {
+                    $result[] = $this->sanitizeValue(null, $itemTemplate, "{$path}.*");
+                }
+
+                return $result;
+            }
+
             $result = [];
             foreach ($default as $index => $defaultItem) {
                 $result[] = $this->sanitizeValue($value[$index] ?? null, $defaultItem, "{$path}.{$index}");
@@ -385,6 +455,41 @@ class GuestPageContentService {
         }
 
         return array_keys($value) === range(0, count($value) - 1);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function bannerItemTemplate(): array {
+        return [
+            'mode'               => 'full-edit',
+            'duration'           => 5000,
+            'badge'              => $this->doc('NEW BANNER'),
+            'title'              => $this->doc('YOUR TITLE HERE'),
+            'description'        => $this->doc('Description of the banner content.'),
+            'primaryCtaLabel'    => $this->doc('LEARN MORE'),
+            'secondaryCtaLabel'  => $this->doc('ABOUT US'),
+            'statsLabel'         => $this->doc('10K+ MEMBERS'),
+            'topCardTitle'       => $this->doc('TITLE'),
+            'topCardSubtitle'    => $this->doc('SUBTITLE'),
+            'bottomCardTitle'    => $this->doc('TITLE'),
+            'bottomCardSubtitle' => $this->doc('SUBTITLE'),
+            'imageFileId'        => null,
+            'heroImageFileId'    => null,
+            'redirectUrl'        => '',
+            'imageRatio'         => '16:9',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function customSectionItemTemplate(): array {
+        return [
+            'enabled' => true,
+            'title'   => 'New Section',
+            'content' => $this->doc('Write something here...'),
+        ];
     }
 
     private function hasPreferencesTable(): bool {

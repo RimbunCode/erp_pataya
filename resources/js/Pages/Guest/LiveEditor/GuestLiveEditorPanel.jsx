@@ -9,12 +9,358 @@ import {
 import TiptapFieldEditor from "@/Pages/Admin/LandingPageSettings/components/TiptapFieldEditor";
 import { getByPath } from "@/lib/guestContentDraft";
 import {
-  GUEST_THEME_COLOR_FIELDS,
+  ABOUT_CUSTOM_SECTIONS_PATH,
+  ABOUT_STATS_PATH,
+  CONTACT_ITEMS_PATH,
   getLiveEditorSections,
+  HOME_BANNERS_PATH,
+  HOME_CUSTOM_SECTIONS_PATH,
   HOME_IMAGE_FIELDS,
   HOME_TRUSTED_COMPANIES_PATH,
 } from "@/lib/guestLiveEditorConfig";
+
 import { useGuestLiveEditor } from "./GuestLiveEditorContext";
+
+function BannersEditor() {
+  const {
+    draftContent,
+    setFieldValue,
+    addBanner,
+    removeBanner,
+    _uploadImage,
+    _isUploadingImage,
+  } = useGuestLiveEditor();
+
+  const banners = getByPath(draftContent, HOME_BANNERS_PATH) ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Manage Hero Banners</p>
+        <button
+          type="button"
+          onClick={addBanner}
+          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary-hover"
+        >
+          Add Banner
+        </button>
+      </div>
+
+      {banners.map((_banner, index) => {
+        const prefix = `${HOME_BANNERS_PATH}.${index}`;
+        const mode = getByPath(draftContent, `${prefix}.mode`) ?? "full-edit";
+
+        return (
+          <div
+            key={`banner-${index}`}
+            className="rounded-xl border border-border bg-card p-4 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-black uppercase tracking-widest text-foreground">
+                Banner {index + 1}
+              </p>
+              <button
+                type="button"
+                onClick={() => removeBanner(index)}
+                className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-border hover:bg-background-accent"
+              >
+                Remove
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Mode
+                </label>
+                <select
+                  value={mode}
+                  onChange={(e) =>
+                    setFieldValue(`${prefix}.mode`, e.target.value)
+                  }
+                  className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+                >
+                  <option value="full-edit">Full Edit</option>
+                  <option value="image-only">Image Only</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Duration (ms)
+                </label>
+                <input
+                  type="number"
+                  value={getByPath(draftContent, `${prefix}.duration`) ?? 5000}
+                  onChange={(e) =>
+                    setFieldValue(`${prefix}.duration`, Number(e.target.value))
+                  }
+                  className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+                />
+              </div>
+            </div>
+
+            {mode === "image-only" ? (
+              <div className="space-y-3">
+                <ImageFieldCard
+                  label="Banner Image"
+                  path={`${prefix}.imageFileId`}
+                />
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    Redirect URL
+                  </label>
+                  <input
+                    type="text"
+                    value={
+                      getByPath(draftContent, `${prefix}.redirectUrl`) ?? ""
+                    }
+                    onChange={(e) =>
+                      setFieldValue(`${prefix}.redirectUrl`, e.target.value)
+                    }
+                    className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+                    placeholder="https://..."
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <TiptapFieldEditor
+                  label="Badge"
+                  value={getByPath(draftContent, `${prefix}.badge`)}
+                  onChange={(val) => setFieldValue(`${prefix}.badge`, val)}
+                />
+                <TiptapFieldEditor
+                  label="Title"
+                  value={getByPath(draftContent, `${prefix}.title`)}
+                  onChange={(val) => setFieldValue(`${prefix}.title`, val)}
+                />
+                <TiptapFieldEditor
+                  label="Description"
+                  value={getByPath(draftContent, `${prefix}.description`)}
+                  onChange={(val) =>
+                    setFieldValue(`${prefix}.description`, val)
+                  }
+                />
+                <ImageFieldCard
+                  label="Hero Image"
+                  path={`${prefix}.heroImageFileId`}
+                />
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CustomSectionsEditor({ path }) {
+  const { draftContent, setFieldValue, addCustomSection, removeCustomSection } =
+    useGuestLiveEditor();
+
+  const sections = getByPath(draftContent, path) ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Custom Tiptap Sections</p>
+        <button
+          type="button"
+          onClick={() => addCustomSection(path)}
+          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary-hover"
+        >
+          Add Section
+        </button>
+      </div>
+
+      {sections.map((_section, index) => {
+        const prefix = `${path}.${index}`;
+        return (
+          <div
+            key={`${path}-${index}`}
+            className="rounded-xl border border-border bg-card p-4 space-y-3"
+          >
+            <div className="flex items-center justify-between">
+              <input
+                type="text"
+                value={getByPath(draftContent, `${prefix}.title`) ?? ""}
+                onChange={(e) =>
+                  setFieldValue(`${prefix}.title`, e.target.value)
+                }
+                className="bg-transparent text-xs font-black uppercase tracking-widest text-foreground focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => removeCustomSection(path, index)}
+                className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-border hover:bg-background-accent"
+              >
+                Remove
+              </button>
+            </div>
+
+            <label className="flex items-center gap-2 text-xs text-foreground">
+              <input
+                type="checkbox"
+                checked={Boolean(getByPath(draftContent, `${prefix}.enabled`))}
+                onChange={(e) =>
+                  setFieldValue(`${prefix}.enabled`, e.target.checked)
+                }
+              />
+              Active
+            </label>
+
+            <TiptapFieldEditor
+              label="Tagline"
+              value={getByPath(draftContent, `${prefix}.tagline`)}
+              onChange={(val) => setFieldValue(`${prefix}.tagline`, val)}
+              placeholder="Tagline atau subtitle section..."
+            />
+
+            <TiptapFieldEditor
+              label="Content"
+              value={getByPath(draftContent, `${prefix}.content`)}
+              onChange={(val) => setFieldValue(`${prefix}.content`, val)}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function StatsEditor() {
+  const { draftContent, setFieldValue, addStat, removeStat } =
+    useGuestLiveEditor();
+  const stats = getByPath(draftContent, ABOUT_STATS_PATH) ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Manage Stats</p>
+        <button
+          type="button"
+          onClick={addStat}
+          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary-hover"
+        >
+          Add Stat
+        </button>
+      </div>
+      {stats.map((_stat, index) => (
+        <div
+          key={`stat-${index}`}
+          className="rounded-xl border border-border bg-card p-4 space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-black uppercase tracking-widest text-foreground">
+              Stat {index + 1}
+            </p>
+            <button
+              type="button"
+              onClick={() => removeStat(index)}
+              className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-border hover:bg-background-accent"
+            >
+              Remove
+            </button>
+          </div>
+          <TiptapFieldEditor
+            label="Value"
+            value={getByPath(
+              draftContent,
+              `${ABOUT_STATS_PATH}.${index}.value`,
+            )}
+            onChange={(val) =>
+              setFieldValue(`${ABOUT_STATS_PATH}.${index}.value`, val)
+            }
+          />
+          <TiptapFieldEditor
+            label="Label"
+            value={getByPath(
+              draftContent,
+              `${ABOUT_STATS_PATH}.${index}.label`,
+            )}
+            onChange={(val) =>
+              setFieldValue(`${ABOUT_STATS_PATH}.${index}.label`, val)
+            }
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ContactItemsEditor() {
+  const { draftContent, setFieldValue, addContactItem, removeContactItem } =
+    useGuestLiveEditor();
+  const items = getByPath(draftContent, CONTACT_ITEMS_PATH) ?? [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Contact Information</p>
+        <button
+          type="button"
+          onClick={addContactItem}
+          className="px-3 py-1.5 rounded-md text-xs font-bold uppercase tracking-wider bg-primary text-primary-foreground hover:bg-primary-hover"
+        >
+          Add Item
+        </button>
+      </div>
+      {items.map((_item, index) => (
+        <div
+          key={`contact-${index}`}
+          className="rounded-xl border border-border bg-card p-4 space-y-3"
+        >
+          <div className="flex items-center justify-between">
+            <select
+              value={getByPath(
+                draftContent,
+                `${CONTACT_ITEMS_PATH}.${index}.icon`,
+              )}
+              onChange={(e) =>
+                setFieldValue(
+                  `${CONTACT_ITEMS_PATH}.${index}.icon`,
+                  e.target.value,
+                )
+              }
+              className="bg-transparent text-xs font-black uppercase tracking-widest text-foreground focus:outline-none"
+            >
+              <option value="phone">Phone</option>
+              <option value="email">Email</option>
+              <option value="address">Address</option>
+            </select>
+            <button
+              type="button"
+              onClick={() => removeContactItem(index)}
+              className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider rounded-md border border-border hover:bg-background-accent"
+            >
+              Remove
+            </button>
+          </div>
+          <TiptapFieldEditor
+            label="Label"
+            value={getByPath(
+              draftContent,
+              `${CONTACT_ITEMS_PATH}.${index}.label`,
+            )}
+            onChange={(val) =>
+              setFieldValue(`${CONTACT_ITEMS_PATH}.${index}.label`, val)
+            }
+          />
+          <TiptapFieldEditor
+            label="Value"
+            value={getByPath(
+              draftContent,
+              `${CONTACT_ITEMS_PATH}.${index}.value`,
+            )}
+            onChange={(val) =>
+              setFieldValue(`${CONTACT_ITEMS_PATH}.${index}.value`, val)
+            }
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function ImageFieldCard({ label, path }) {
   const { draftContent, setFieldValue, uploadImage, isUploadingImage } =
@@ -161,6 +507,20 @@ function AdsEditor() {
                 setFieldValue(`${prefix}.ctaLabel`, nextDoc)
               }
             />
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                Duration (ms)
+              </label>
+              <input
+                type="number"
+                value={getByPath(draftContent, `${prefix}.duration`) ?? 5000}
+                onChange={(e) =>
+                  setFieldValue(`${prefix}.duration`, Number(e.target.value))
+                }
+                className="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs text-foreground"
+              />
+            </div>
 
             <div className="space-y-2">
               <label className="text-xs font-bold uppercase tracking-widest text-foreground">
@@ -415,17 +775,6 @@ export default function GuestLiveEditorPanel() {
             >
               Content
             </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("colors")}
-              className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider ${
-                activeTab === "colors"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card border border-border text-foreground"
-              }`}
-            >
-              Colors
-            </button>
             {pageKey === "home" && (
               <>
                 <button
@@ -438,6 +787,28 @@ export default function GuestLiveEditorPanel() {
                   }`}
                 >
                   Images
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("banners")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider ${
+                    activeTab === "banners"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border border-border text-foreground"
+                  }`}
+                >
+                  Banners
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("sections")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider ${
+                    activeTab === "sections"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border border-border text-foreground"
+                  }`}
+                >
+                  Sections
                 </button>
                 <button
                   type="button"
@@ -462,6 +833,45 @@ export default function GuestLiveEditorPanel() {
                   Trusted
                 </button>
               </>
+            )}
+            {pageKey === "about" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("stats")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider ${
+                    activeTab === "stats"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border border-border text-foreground"
+                  }`}
+                >
+                  Stats
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("sections")}
+                  className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider ${
+                    activeTab === "sections"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-card border border-border text-foreground"
+                  }`}
+                >
+                  Sections
+                </button>
+              </>
+            )}
+            {pageKey === "contact" && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("contact")}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider ${
+                  activeTab === "contact"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card border border-border text-foreground"
+                }`}
+              >
+                Info
+              </button>
             )}
           </div>
 
@@ -496,40 +906,6 @@ export default function GuestLiveEditorPanel() {
               </>
             )}
 
-            {activeTab === "colors" && (
-              <div className="space-y-3">
-                {GUEST_THEME_COLOR_FIELDS.map((colorField) => (
-                  <div
-                    key={colorField.path}
-                    className="rounded-xl border border-border bg-card p-3 space-y-2"
-                  >
-                    <label className="text-xs font-black uppercase tracking-wider text-foreground">
-                      {colorField.label}
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={
-                          getByPath(draftContent, colorField.path) ?? "#000000"
-                        }
-                        onChange={(event) =>
-                          setFieldValue(colorField.path, event.target.value)
-                        }
-                      />
-                      <input
-                        type="text"
-                        value={getByPath(draftContent, colorField.path) ?? ""}
-                        onChange={(event) =>
-                          setFieldValue(colorField.path, event.target.value)
-                        }
-                        className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-xs text-foreground"
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {activeTab === "images" && pageKey === "home" && (
               <div className="space-y-3">
                 {HOME_IMAGE_FIELDS.map((imageField) => (
@@ -538,9 +914,23 @@ export default function GuestLiveEditorPanel() {
               </div>
             )}
 
+            {activeTab === "banners" && pageKey === "home" && <BannersEditor />}
+            {activeTab === "sections" && (
+              <CustomSectionsEditor
+                path={
+                  pageKey === "home"
+                    ? HOME_CUSTOM_SECTIONS_PATH
+                    : ABOUT_CUSTOM_SECTIONS_PATH
+                }
+              />
+            )}
             {activeTab === "ads" && pageKey === "home" && <AdsEditor />}
             {activeTab === "trusted" && pageKey === "home" && (
               <TrustedCompaniesEditor />
+            )}
+            {activeTab === "stats" && pageKey === "about" && <StatsEditor />}
+            {activeTab === "contact" && pageKey === "contact" && (
+              <ContactItemsEditor />
             )}
           </div>
         </SheetContent>

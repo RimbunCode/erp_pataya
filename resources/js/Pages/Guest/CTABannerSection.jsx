@@ -25,7 +25,7 @@ export function CTABannerSection({ content = {} }) {
   );
 
   return (
-    <section className="bg-card py-10 px-6">
+    <section className="bg-background py-10 px-6">
       <div className="max-w-5xl mx-auto bg-primary rounded-3xl px-8 py-16 text-center shadow-xl shadow-primary/20">
         <LiveEditableText
           as="h2"

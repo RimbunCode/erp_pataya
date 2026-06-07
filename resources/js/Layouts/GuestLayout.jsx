@@ -3,7 +3,6 @@ import React, {
   forwardRef,
   memo as GuestLayout,
   useContext,
-  useMemo,
   useState,
 } from "react";
 import MasterLayout from "./MasterLayout";
@@ -14,7 +13,6 @@ import { SiteFooter } from "@/Pages/Guest/Footer";
 import RolesSelectionModal from "@/Components/Modals/LoginModal";
 import RegisterModal from "@/Components/Modals/RegisterModal";
 import { router, usePage } from "@inertiajs/react";
-import { buildGuestThemeStyle } from "@/lib/guestTheme";
 import { GuestLiveEditorProvider } from "@/Pages/Guest/LiveEditor/GuestLiveEditorContext";
 import GuestLiveEditorPanel from "@/Pages/Guest/LiveEditor/GuestLiveEditorPanel";
 
@@ -28,6 +26,66 @@ export function useRegisterModal() {
   return useContext(RegisterModalContext);
 }
 
+// Inner wrapper: harus di dalam GuestLiveEditorProvider agar bisa akses context.
+// Theme CSS vars dikelola oleh GuestLiveEditorContext (via useEffect ke :root),
+// baik saat Live Editor aktif maupun tidak — sehingga :root.dark dari appTheme.css
+// tetap berlaku untuk field yang tidak di-override.
+function GuestLayoutInner({
+  className,
+  actions,
+  children,
+  forwardedRef,
+  showLogin,
+  setShowLogin,
+  showRegister,
+  setShowRegister,
+  setShowSearch,
+  handleLogout,
+  ...props
+}) {
+  return (
+    <MasterLayout>
+      <div className="relative mx-auto max-w-full print:hidden bg-background text-foreground">
+        <NavbarGuest
+          actions={actions}
+          setShowSearch={setShowSearch}
+          onLogout={handleLogout}
+        />
+        <div
+          ref={forwardedRef}
+          {...props}
+          className={cn(
+            "relative flex flex-col flex-1 max-h-full p-0 overflow-y-auto",
+            className,
+          )}
+        >
+          {children}
+        </div>
+      </div>
+      <SiteFooter />
+      <GuestLiveEditorPanel />
+      {showLogin && (
+        <RolesSelectionModal
+          onClose={() => setShowLogin(false)}
+          onSwitchToRegister={() => {
+            setShowLogin(false);
+            setShowRegister(true);
+          }}
+        />
+      )}
+      {showRegister && (
+        <RegisterModal
+          onClose={() => setShowRegister(false)}
+          onSwitchToLogin={() => {
+            setShowRegister(false);
+            setShowLogin(true);
+          }}
+        />
+      )}
+    </MasterLayout>
+  );
+}
+
 export default GuestLayout(
   forwardRef(function AppLayout(
     { className, actions, children, ...props },
@@ -39,10 +97,7 @@ export default GuestLayout(
     const [showRegister, setShowRegister] = useState(false);
     const { _setTheme } = useTheme();
     const pageKey = liveEditor?.pageKey ?? "home";
-    const guestThemeStyle = useMemo(
-      () => buildGuestThemeStyle(content),
-      [content],
-    );
+
     React.useEffect(() => {
       const down = (e) => {
         if ((e.key === "k" && (e.metaKey || e.ctrlKey)) || e.key === "/") {
@@ -62,53 +117,27 @@ export default GuestLayout(
       document.addEventListener("keydown", down);
       return () => document.removeEventListener("keydown", down);
     }, []);
+
     const handleLogout = () => router.post("/logout");
+
     return (
       <RolesSelectionModalContext.Provider value={() => setShowLogin(true)}>
         <RegisterModalContext.Provider value={() => setShowRegister(true)}>
           <GuestLiveEditorProvider content={content} pageKey={pageKey}>
-            <MasterLayout>
-              <div
-                className="relative mx-auto max-w-full print:hidden dark:bg-gray-900 bg-background text-foreground"
-                style={guestThemeStyle}
-              >
-                <NavbarGuest
-                  actions={actions}
-                  setShowSearch={setShowSearch}
-                  onLogout={handleLogout}
-                />
-                <div
-                  ref={ref}
-                  {...props}
-                  className={cn(
-                    "relative flex flex-col flex-1 max-h-full p-0 overflow-y-auto",
-                    className,
-                  )}
-                >
-                  {children}
-                </div>
-              </div>
-              <SiteFooter />
-              <GuestLiveEditorPanel />
-              {showLogin && (
-                <RolesSelectionModal
-                  onClose={() => setShowLogin(false)}
-                  onSwitchToRegister={() => {
-                    setShowLogin(false);
-                    setShowRegister(true);
-                  }}
-                />
-              )}
-              {showRegister && (
-                <RegisterModal
-                  onClose={() => setShowRegister(false)}
-                  onSwitchToLogin={() => {
-                    setShowRegister(false);
-                    setShowLogin(true);
-                  }}
-                />
-              )}
-            </MasterLayout>
+            <GuestLayoutInner
+              className={className}
+              actions={actions}
+              forwardedRef={ref}
+              showLogin={showLogin}
+              setShowLogin={setShowLogin}
+              showRegister={showRegister}
+              setShowRegister={setShowRegister}
+              setShowSearch={setShowSearch}
+              handleLogout={handleLogout}
+              {...props}
+            >
+              {children}
+            </GuestLayoutInner>
           </GuestLiveEditorProvider>
         </RegisterModalContext.Provider>
       </RolesSelectionModalContext.Provider>
