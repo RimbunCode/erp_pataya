@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+
     /**
      * Run the migrations.
      */
@@ -12,6 +13,8 @@ return new class extends Migration
         Schema::create('instructor_profiles', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->foreignUlid('user_id')->references('id')->on('users')->cascadeOnDelete();
+            $table->string('bank_name')->nullable();
+            $table->string('bank_account_number')->nullable();
             $table->string('professional_title')->nullable();
             $table->string('expertise')->nullable();
             $table->text('bio')->nullable();

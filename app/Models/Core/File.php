@@ -14,16 +14,15 @@ use Illuminate\Support\Facades\Auth;
 
 class File extends Model {
     use DataTable, HasUlids, SoftDeletes, TreeView;
-
-    protected $guarded = ['id'];
-    protected $casts   = [
+    protected     $guarded            = ['id'];
+    protected     $casts              = [
         'is_public' => 'boolean',
     ];
-    protected $appends                = ['fullname'];
-    public $translateKey              = 'core.file';
+    protected     $appends            = ['fullname'];
+    public        $translateKey       = 'core.file';
     public static $allow_only_creator = true;
-    protected $configColumns          = [
-        'name' => [
+    protected     $configColumns      = [
+        'name'      => [
             'show'  => true,
             'order' => 0,
         ],
@@ -33,7 +32,7 @@ class File extends Model {
         ],
         'folder',
         'user',
-        'path' => [
+        'path'      => [
             'ignore' => true,
         ],
     ];
@@ -59,7 +58,7 @@ class File extends Model {
      */
     public static function uploadFile(mixed $request, string $folderName, callable $onUploadedFile, array $defaultValue = [], ?string $maxFileSize = null) {
         if ($request instanceof UploadedFile) {
-            $folder = File::firstOrCreate([
+            $folder    = File::firstOrCreate([
                 'name'      => $folderName,
                 'mime_type' => 'folder',
             ]);
@@ -82,20 +81,20 @@ class File extends Model {
                 'filesId'   => ['required', 'array'],
                 'filesId.*' => ['required', 'string', 'exists:files,id', $maxFileSize ? "max:$maxFileSize" : ''],
             ]);
-            $files = File::whereIn('id', $validatedData['filesId'])->get();
+            $files         = File::whereIn('id', $validatedData['filesId'])->get();
             $files->each(function ($file) use ($onUploadedFile) {
                 $onUploadedFile($file);
             });
         } elseif ($request->has('files')) {
             $validatedData = $request->validate([
                 'files'      => ['required', 'array'],
-                'files.*'    => ['required', 'file', 'max:10240'],
+                'files.*'    => ['required', 'file', 'max:5120'],
                 'isPublic'   => ['required', 'array'],
                 'isPublic.*' => ['required'],
                 'name'       => ['required', 'array'],
                 'name.*'     => ['required', 'string'],
             ]);
-            $folder = File::firstOrCreate([
+            $folder        = File::firstOrCreate([
                 'name'      => $folderName,
                 'mime_type' => 'folder',
             ]);
