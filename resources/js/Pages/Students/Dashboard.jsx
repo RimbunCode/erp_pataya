@@ -1,6 +1,12 @@
 import MainLayout from "@/Layouts/MainLayout";
 import { Link } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
+import PeriodFilterChart from "@/Components/Charts/PeriodFilterChart";
+
+const ACTIVITY_CONFIG = {
+  enrollment: { label: "Kursus Diikuti", color: "var(--primary)" },
+  progress: { label: "Konten Selesai", color: "#10b981" },
+};
 
 const deadlineTypeConfig = {
   assignment: {
@@ -60,6 +66,8 @@ export default function StudentDashboard({
   hero = {},
   continueLearning = [],
   upcomingDeadlines = [],
+  enrollmentTimeSeries = [],
+  progressTimeSeries = [],
 }) {
   const ongoingCourses = Number(overview.ongoingCourses ?? 0);
   const completedCourses = Number(overview.completedCourses ?? 0);
@@ -70,6 +78,19 @@ export default function StudentDashboard({
 
   const averageProgress = Number(hero.averageProgress ?? 0);
   const resumeCourse = hero.resumeCourse ?? null;
+
+  const activityRawData = (() => {
+    const map = {};
+    enrollmentTimeSeries.forEach(({ date }) => {
+      if (!map[date]) map[date] = { date, enrollment: 0, progress: 0 };
+      map[date].enrollment += 1;
+    });
+    progressTimeSeries.forEach(({ date }) => {
+      if (!map[date]) map[date] = { date, enrollment: 0, progress: 0 };
+      map[date].progress += 1;
+    });
+    return Object.values(map);
+  })();
 
   return (
     <MainLayout title="Learning Dashboard" breadcrumb="Dashboard">
@@ -105,52 +126,57 @@ export default function StudentDashboard({
           </div>
         </div>
 
-        <div
-          className="rounded-3xl p-6 sm:p-8 overflow-hidden relative"
-          style={{
-            background: "linear-gradient(135deg, #2563eb 55%, #1e3a8a 100%)",
-          }}
-        >
-          <div className="absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(circle_at_top_right,_#ffffff_0%,_transparent_45%)]" />
+        {ongoingCourses > 0 && resumeCourse && (
+          <div
+            className="rounded-3xl p-6 sm:p-8 overflow-hidden relative"
+            style={{
+              background: "linear-gradient(135deg, #2563eb 55%, #1e3a8a 100%)",
+            }}
+          >
+            <div className="absolute inset-0 opacity-30 pointer-events-none bg-[radial-gradient(circle_at_top_right,_#ffffff_0%,_transparent_45%)]" />
 
-          <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div className="max-w-xl">
-              <h3 className="text-3xl font-black text-white uppercase tracking-tight leading-tight">
-                {resumeCourse ? "Ready to Continue?" : "Start Your Next Course"}
-              </h3>
-              <p className="text-sm text-blue-100 mt-3 leading-relaxed">
-                {resumeCourse
-                  ? `Resume ${resumeCourse.title} at ${resumeCourse.progress}% completion and keep your streak active.`
-                  : "You do not have an ongoing course yet. Browse the catalogue to begin learning."}
-              </p>
-              <Link
-                href={route("student.courses.index")}
-                className="inline-flex mt-5 px-5 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-white text-primary hover:bg-primary-soft transition-colors"
-              >
-                Resume Learning
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center min-w-[120px]">
-                <p className="text-3xl font-black text-white">
-                  {averageProgress}%
+            <div className="relative z-10 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div className="max-w-xl">
+                <h3 className="text-3xl font-black text-white uppercase tracking-tight leading-tight">
+                  Ready to Continue?
+                </h3>
+                <p className="text-sm text-blue-100 mt-3 leading-relaxed">
+                  Resume{" "}
+                  <span className="font-bold text-white">
+                    {resumeCourse.title}
+                  </span>{" "}
+                  at {resumeCourse.progress}% completion and keep your streak
+                  active.
                 </p>
-                <p className="text-[10px] font-bold tracking-widest text-blue-100 uppercase mt-1">
-                  Avg Progress
-                </p>
+                <Link
+                  href={route("student.courses.index")}
+                  className="inline-flex mt-5 px-5 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl bg-white text-primary hover:bg-primary-soft transition-colors"
+                >
+                  Resume Learning
+                </Link>
               </div>
-              <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center min-w-[120px]">
-                <p className="text-3xl font-black text-white">
-                  {ongoingCourses}
-                </p>
-                <p className="text-[10px] font-bold tracking-widest text-blue-100 uppercase mt-1">
-                  Ongoing
-                </p>
+
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center min-w-[120px]">
+                  <p className="text-3xl font-black text-white">
+                    {averageProgress}%
+                  </p>
+                  <p className="text-[10px] font-bold tracking-widest text-blue-100 uppercase mt-1">
+                    Avg Progress
+                  </p>
+                </div>
+                <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-5 py-4 text-center min-w-[120px]">
+                  <p className="text-3xl font-black text-white">
+                    {ongoingCourses}
+                  </p>
+                  <p className="text-[10px] font-bold tracking-widest text-blue-100 uppercase mt-1">
+                    Ongoing
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <StatCard
@@ -238,6 +264,15 @@ export default function StudentDashboard({
             }
           />
         </div>
+
+        <PeriodFilterChart
+          title="Aktivitas Belajar"
+          rawData={activityRawData}
+          dataKeys={[{ key: "enrollment" }, { key: "progress" }]}
+          chartConfig={ACTIVITY_CONFIG}
+          type="bar"
+          formatValue={(v) => v.toLocaleString("id-ID")}
+        />
 
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
           <div className="xl:col-span-3 bg-card rounded-2xl border border-border shadow-sm overflow-hidden">

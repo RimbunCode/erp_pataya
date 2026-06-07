@@ -13,6 +13,7 @@ use App\Models\Payment;
 use App\Services\Finance\InstructorPayoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -110,6 +111,34 @@ class SystemFinanceController extends Controller {
             })
             ->values();
 
+        $since = Carbon::now()->subYear();
+
+        $allPaymentsForChart = Payment::query()
+            ->whereNotNull('course_id')
+            ->where('verified_at', '>=', $since)
+            ->get(['amount', 'status', 'verified_at', 'created_at']);
+
+        $revenueTimeSeries = $allPaymentsForChart
+            ->filter(fn (Payment $p) => $this->resolveStatus((string) $p->status) === FormStatus::APPROVED->value && $p->verified_at)
+            ->map(fn (Payment $p) => [
+                'date'   => $p->verified_at->toDateString(),
+                'amount' => (float) $p->amount,
+            ])->values()->all();
+
+        $paymentStatusTimeSeries = $allPaymentsForChart
+            ->filter(fn (Payment $p) => $p->verified_at || $p->created_at)
+            ->map(function (Payment $p): array {
+                $resolvedStatus = $this->resolveStatus((string) $p->status);
+                $date           = ($p->verified_at ?? $p->created_at)->toDateString();
+
+                return [
+                    'date'     => $date,
+                    'approved' => $resolvedStatus === FormStatus::APPROVED->value ? 1 : 0,
+                    'pending'  => $resolvedStatus === FormStatus::PENDING->value ? 1 : 0,
+                    'rejected' => $resolvedStatus === FormStatus::REJECTED->value ? 1 : 0,
+                ];
+            })->values()->all();
+
         return Inertia::render('Admin/SystemFinance', [
             'payments'             => $paymentsPayload,
             'payoutRequests'       => $payoutRequestsPayload,
@@ -124,6 +153,8 @@ class SystemFinanceController extends Controller {
                     ->where('status', FormStatus::PAID->value)
                     ->sum('approved_amount'),
             ],
+            'revenueTimeSeries'       => $revenueTimeSeries,
+            'paymentStatusTimeSeries' => $paymentStatusTimeSeries,
         ]);
     }
 

@@ -1,9 +1,11 @@
 import GuestLayout from "@/Layouts/GuestLayout";
+import { getByPath } from "@/lib/guestContentDraft";
 import { getGuestLines, getGuestText } from "@/lib/guestPageContent";
 import {
   LiveEditableText,
   useGuestLiveContent,
 } from "../LiveEditor/GuestLiveEditorContext";
+import TiptapHtmlRenderer from "@/Components/TiptapHtmlRenderer";
 
 const STAT_STYLES = [
   {
@@ -28,8 +30,8 @@ const STAT_STYLES = [
   },
   {
     accent: "from-primary/20 to-primary/10 border-primary/20",
-    iconBg: "bg-primary/20 text-primary-soft",
-    numColor: "text-primary-soft",
+    iconBg: "bg-primary/20 text-primary-soft-foreground",
+    numColor: "text-primary-soft-foreground",
     icon: (
       <svg
         className="w-5 h-5"
@@ -107,24 +109,32 @@ function AboutUsContent({ content = {} }) {
     "INKINDO (Ikatan Nasional Konsultan Indonesia) Learning Center is a hub for engineering excellence and professional development in Indonesia.",
   );
 
-  const stats = [0, 1, 2, 3].map((index) => ({
-    value: getGuestText(
-      effectiveContent,
-      `about.stats.${index}.value`,
-      index === 0 ? "54+" : index === 1 ? "12K+" : index === 2 ? "450+" : "34",
-    ),
-    label: getGuestText(
-      effectiveContent,
-      `about.stats.${index}.label`,
-      index === 0
-        ? "Years of Excellence"
-        : index === 1
-          ? "Certified Professionals"
-          : index === 2
-            ? "Expert Instructors"
-            : "Regional Chapters",
-    ),
-  }));
+  const statsArray = getByPath(effectiveContent, "about.stats");
+  const stats = Array.isArray(statsArray)
+    ? statsArray.map((stat, index) => ({
+        value: getGuestText(effectiveContent, `about.stats.${index}.value`, "100+"),
+        label: getGuestText(effectiveContent, `about.stats.${index}.label`, "Label"),
+      }))
+    : [0, 1, 2, 3].map((index) => ({
+        value: getGuestText(
+          effectiveContent,
+          `about.stats.${index}.value`,
+          index === 0 ? "54+" : index === 1 ? "12K+" : index === 2 ? "450+" : "34",
+        ),
+        label: getGuestText(
+          effectiveContent,
+          `about.stats.${index}.label`,
+          index === 0
+            ? "Years of Excellence"
+            : index === 1
+              ? "Certified Professionals"
+              : index === 2
+                ? "Expert Instructors"
+                : "Regional Chapters",
+        ),
+      }));
+
+  const shouldSlide = stats.length > 4;
 
   const visionTitle = getGuestText(
     effectiveContent,
@@ -154,18 +164,14 @@ function AboutUsContent({ content = {} }) {
   ]);
 
   return (
-    <div className="bg-muted min-h-screen">
-      <section
-        className="relative px-6 pt-32 pb-16"
-        style={{
-          background: "linear-gradient(135deg, #0a0f2e 60%, #1a2a6c 100%)",
-        }}
-      >
+    <div className="bg-background min-h-screen">
+      <section className="relative bg-primary px-6 pt-32 pb-16">
         <div
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 pointer-events-none opacity-20"
           style={{
-            background: "linear-gradient(120deg, transparent 55%, #1e3a8a 55%)",
-            opacity: 0.4,
+            backgroundImage:
+              "linear-gradient(to right, rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.1) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
           }}
         />
 
@@ -173,51 +179,91 @@ function AboutUsContent({ content = {} }) {
           <LiveEditableText
             as="h1"
             path="about.hero.title"
-            className="text-5xl md:text-6xl font-black text-white tracking-tight leading-tight uppercase whitespace-pre-line"
+            className="text-5xl md:text-6xl font-black text-primary-foreground tracking-tight leading-tight uppercase whitespace-pre-line"
           >
             {heroTitle}
           </LiveEditableText>
           <LiveEditableText
             as="p"
             path="about.hero.description"
-            className="mt-6 text-sm md:text-base text-white leading-relaxed max-w-xl mx-auto whitespace-pre-line"
+            className="mt-6 text-sm md:text-base text-primary-foreground/80 leading-relaxed max-w-xl mx-auto whitespace-pre-line"
           >
             {heroDescription}
           </LiveEditableText>
         </div>
 
-        <div className="relative z-10 max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {stats.map((stat, index) => {
-            const style = STAT_STYLES[index] ?? STAT_STYLES[0];
+        {shouldSlide ? (
+          <div className="relative z-10 max-w-5xl mx-auto overflow-hidden">
+            <style>{`
+              @keyframes stats-scroll {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
+              }
+              .stats-scroll-track {
+                width: max-content;
+                animation: stats-scroll 25s linear infinite;
+              }
+            `}</style>
+            <div className="stats-scroll-track flex items-center gap-4">
+              {[...stats, ...stats].map((stat, index) => {
+                const style = STAT_STYLES[index % STAT_STYLES.length];
+                const realIndex = index % stats.length;
 
-            return (
-              <div
-                key={`${stat.label}-${index}`}
-                className={`bg-gradient-to-br ${style.accent} border rounded-2xl px-6 py-8 flex flex-col items-center gap-3 text-center`}
-              >
+                return (
+                  <div
+                    key={`stat-${index}`}
+                    className={`shrink-0 bg-gradient-to-br ${style.accent} border rounded-2xl px-6 py-8 flex flex-col items-center gap-3 text-center w-48`}
+                  >
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${style.iconBg}`}>{style.icon}</div>
+                    <LiveEditableText
+                      as="div"
+                      path={`about.stats.${realIndex}.value`}
+                      className={`text-4xl font-black tracking-tight leading-none ${style.numColor} whitespace-pre-line`}
+                    >
+                      {stat.value}
+                    </LiveEditableText>
+                    <LiveEditableText
+                      as="div"
+                      path={`about.stats.${realIndex}.label`}
+                      className="text-[10px] font-bold tracking-[2px] text-primary-foreground/60 uppercase whitespace-pre-line"
+                    >
+                      {stat.label}
+                    </LiveEditableText>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="relative z-10 max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {stats.map((stat, index) => {
+              const style = STAT_STYLES[index % STAT_STYLES.length];
+
+              return (
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${style.iconBg}`}
+                  key={`stat-${index}`}
+                  className={`bg-gradient-to-br ${style.accent} border rounded-2xl px-6 py-8 flex flex-col items-center gap-3 text-center`}
                 >
-                  {style.icon}
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${style.iconBg}`}>{style.icon}</div>
+                  <LiveEditableText
+                    as="div"
+                    path={`about.stats.${index}.value`}
+                    className={`text-4xl font-black tracking-tight leading-none ${style.numColor} whitespace-pre-line`}
+                  >
+                    {stat.value}
+                  </LiveEditableText>
+                  <LiveEditableText
+                    as="div"
+                    path={`about.stats.${index}.label`}
+                    className="text-[10px] font-bold tracking-[2px] text-white/40 uppercase whitespace-pre-line"
+                  >
+                    {stat.label}
+                  </LiveEditableText>
                 </div>
-                <LiveEditableText
-                  as="div"
-                  path={`about.stats.${index}.value`}
-                  className={`text-4xl font-black tracking-tight leading-none ${style.numColor} whitespace-pre-line`}
-                >
-                  {stat.value}
-                </LiveEditableText>
-                <LiveEditableText
-                  as="div"
-                  path={`about.stats.${index}.label`}
-                  className="text-[10px] font-bold tracking-[2px] text-white/40 uppercase whitespace-pre-line"
-                >
-                  {stat.label}
-                </LiveEditableText>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="py-24 px-6">
@@ -225,7 +271,7 @@ function AboutUsContent({ content = {} }) {
           <div className="group bg-card rounded-3xl p-10 border border-primary/20 shadow-sm border-b-4 border-b-blue-500 hover:bg-muted hover:shadow-md transition-all duration-300">
             <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mb-6">
               <svg
-                className="w-7 h-7 text-white"
+                className="w-7 h-7 text-primary-foreground"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -246,13 +292,13 @@ function AboutUsContent({ content = {} }) {
             <LiveEditableText
               as="p"
               path="about.vision.description"
-              className="text-sm text-black leading-relaxed whitespace-pre-line"
+              className="text-sm text-foreground leading-relaxed whitespace-pre-line"
             >
               {visionDescription}
             </LiveEditableText>
           </div>
 
-          <div className="group bg-card rounded-3xl p-11 border border-purple-100 shadow-sm border-b-4 border-b-purple-500 hover:bg-muted hover:shadow-md transition-all duration-300">
+          <div className="group bg-card rounded-3xl p-11 border border-border shadow-sm border-b-4 border-b-purple-500 hover:bg-muted hover:shadow-md transition-all duration-300">
             <div className="w-14 h-14 bg-purple-600 rounded-2xl flex items-center justify-center mb-6">
               <svg
                 className="w-7 h-7 text-white"
@@ -291,6 +337,36 @@ function AboutUsContent({ content = {} }) {
           </div>
         </div>
       </section>
+
+      {/* Custom Sections */}
+      {(() => {
+        const customSections = getByPath(effectiveContent, "about.customSections");
+        if (!Array.isArray(customSections) || customSections.length === 0) return null;
+
+        return customSections
+          .filter((section) => section?.enabled)
+          .map((section, index) => {
+            const sectionTagline = getByPath(effectiveContent, `about.customSections.${index}.tagline`);
+            const sectionContent = getByPath(effectiveContent, `about.customSections.${index}.content`);
+            return (
+              <section key={`custom-${index}`} className="py-16 px-6 bg-card border-b border-border">
+                <div className="max-w-5xl mx-auto">
+                  <h2 className="text-3xl font-black text-foreground uppercase tracking-wide mb-2">
+                    {section.title || "Custom Section"}
+                  </h2>
+                  <TiptapHtmlRenderer
+                    doc={sectionTagline}
+                    className="text-lg text-muted-foreground mb-6"
+                  />
+                  <TiptapHtmlRenderer
+                    doc={sectionContent}
+                    className="text-foreground leading-relaxed"
+                  />
+                </div>
+              </section>
+            );
+          });
+      })()}
     </div>
   );
 }

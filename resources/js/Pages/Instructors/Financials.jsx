@@ -2,6 +2,11 @@ import { router, usePage } from "@inertiajs/react";
 import { useMemo, useState } from "react";
 import MainLayout from "@/Layouts/MainLayout";
 import { formatRp, STATUS_CFG } from "@/lib/utils";
+import PeriodFilterChart from "@/Components/Charts/PeriodFilterChart";
+
+const EARNING_CONFIG = {
+  amount: { label: "Pendapatan Bersih", color: "var(--primary)" },
+};
 
 const fmtDateTime = (isoString) => {
   if (!isoString) {
@@ -135,6 +140,7 @@ export default function Financials() {
     stats = {},
     mutations = [],
     companyFeePercentage = 0,
+    earningTimeSeries = [],
   } = usePage().props;
   const [requestAmount, setRequestAmount] = useState("");
   const [requestNote, setRequestNote] = useState("");
@@ -184,6 +190,15 @@ export default function Financials() {
             Track account mutation and your payout requests.
           </p>
         </div>
+
+        <PeriodFilterChart
+          title="Tren Pendapatan Bersih"
+          rawData={earningTimeSeries}
+          dataKeys={[{ key: "amount" }]}
+          chartConfig={EARNING_CONFIG}
+          type="area"
+          formatValue={(v) => formatRp(v)}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-card rounded-2xl border border-border shadow-sm p-6">

@@ -14,7 +14,7 @@ class CourseListController extends Controller {
         $user = auth()->user();
 
         $enrollments = $user->enrollments()
-            ->with(['payment', 'course.categories', 'course.creator', 'course.sections.contents'])
+            ->with(['payment', 'course.categories', 'course.creator', 'course.sections.contents.files'])
             ->get();
 
         $activeEnrollments = $enrollments->filter(function ($enrollment) {
@@ -68,11 +68,17 @@ class CourseListController extends Controller {
                         $submission = $submissionsByContent->get($content->id);
 
                         return [
-                            'id'                    => $content->id,
-                            'title'                 => $content->title,
-                            'type'                  => $content->type,
-                            'is_optional'           => $content->is_optional,
-                            'deadline_label'        => $content->deadlineLabel(),
+                            'id'             => $content->id,
+                            'title'          => $content->title,
+                            'type'           => $content->type,
+                            'is_optional'    => $content->is_optional,
+                            'deadline_label' => $content->deadlineLabel(),
+                            'url'            => $content->url,
+                            'files'          => $content->files->map(fn ($file) => [
+                                'id'       => $file->id,
+                                'name'     => $file->name,
+                                'fullname' => $file->fullname,
+                            ])->values()->toArray(),
                             'can_manage_submission' => $content->isSubmissionType() && ! $content->hasDeadlinePassed(),
                             'is_completed'          => $this->courseProgressService->isContentCompleted(
                                 (string) $content->type,
@@ -84,6 +90,9 @@ class CourseListController extends Controller {
                                 'status'       => $submission->status,
                                 'submitted_at' => $submission->submitted_at?->format('d M Y H:i'),
                                 'notes'        => $submission->notes,
+                                'grade'        => $submission->grade,
+                                'feedback'     => $submission->feedback,
+                                'graded_at'    => $submission->graded_at?->format('d M Y H:i'),
                                 'files'        => $submission->files->map(fn ($file) => [
                                     'id'        => $file->id,
                                     'name'      => $file->name,

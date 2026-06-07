@@ -110,6 +110,7 @@ class CourseController extends Controller {
                         'description' => $content->description,
                         'is_optional' => $content->is_optional,
                         'deadline'    => $content->deadlineLabel(),
+                        'url'         => $content->url,
                         'order'       => $content->order,
                     ]),
                 ]),

@@ -1,17 +1,3 @@
-export const GUEST_THEME_COLOR_FIELDS = [
-  { label: "Primary", path: "theme.guest.primary" },
-  { label: "Primary Hover", path: "theme.guest.primaryHover" },
-  { label: "Primary Soft", path: "theme.guest.primarySoft" },
-  {
-    label: "Primary Soft Foreground",
-    path: "theme.guest.primarySoftForeground",
-  },
-  { label: "Foreground", path: "theme.guest.foreground" },
-  { label: "Muted Foreground", path: "theme.guest.mutedForeground" },
-  { label: "Background", path: "theme.guest.background" },
-  { label: "Card", path: "theme.guest.card" },
-];
-
 const SHARED_FOOTER_SECTION = {
   title: "Footer",
   fields: [
@@ -19,22 +5,23 @@ const SHARED_FOOTER_SECTION = {
     { label: "Brand Subtitle", path: "footer.brand.subtitle" },
     { label: "Brand Description", path: "footer.brand.description" },
     { label: "Explore Title", path: "footer.explore.title" },
-    { label: "Explore Link 1", path: "footer.explore.links.0" },
-    { label: "Explore Link 2", path: "footer.explore.links.1" },
-    { label: "Explore Link 3", path: "footer.explore.links.2" },
-    { label: "Explore Link 4", path: "footer.explore.links.3" },
+    { label: "Explore Link 1", path: "footer.explore.links.0.label" },
+    { label: "Explore Link 2", path: "footer.explore.links.1.label" },
+    { label: "Explore Link 3", path: "footer.explore.links.2.label" },
+    { label: "Explore Link 4", path: "footer.explore.links.3.label" },
     { label: "Company Title", path: "footer.company.title" },
-    { label: "Company Link 1", path: "footer.company.links.0" },
-    { label: "Company Link 2", path: "footer.company.links.1" },
-    { label: "Company Link 3", path: "footer.company.links.2" },
-    { label: "Company Link 4", path: "footer.company.links.3" },
+    { label: "Company Link 1", path: "footer.company.links.0.label" },
+    { label: "Company Link 2", path: "footer.company.links.1.label" },
+    { label: "Company Link 3", path: "footer.company.links.2.label" },
+    { label: "Company Link 4", path: "footer.company.links.3.label" },
     { label: "Contact Title", path: "footer.contact.title" },
     { label: "Contact Address", path: "footer.contact.address" },
     { label: "Contact Phone", path: "footer.contact.phone" },
     { label: "Contact Email", path: "footer.contact.email" },
     { label: "Bottom Copyright", path: "footer.bottom.copyright" },
-    { label: "Bottom Help Center", path: "footer.bottom.helpCenter" },
-    { label: "Bottom Sitemap", path: "footer.bottom.sitemap" },
+    { label: "Bottom Link 1", path: "footer.bottom.links.0.label" },
+    { label: "Bottom Link 2", path: "footer.bottom.links.1.label" },
+    { label: "Bottom Link 3", path: "footer.bottom.links.2.label" },
   ],
 };
 
@@ -214,7 +201,6 @@ const PAGE_FIELDS = {
 };
 
 export const HOME_IMAGE_FIELDS = [
-  { label: "Hero Image", path: "home.media.heroImageFileId" },
   {
     label: "Popular Card Image 1",
     path: "home.media.popularCardImageFileIds.0",
@@ -229,8 +215,13 @@ export const HOME_IMAGE_FIELDS = [
   },
 ];
 
+export const HOME_BANNERS_PATH = "home.hero.banners";
 export const HOME_ADS_PATH = "home.ads.items";
 export const HOME_TRUSTED_COMPANIES_PATH = "home.trusted.companies";
+export const HOME_CUSTOM_SECTIONS_PATH = "home.customSections";
+export const ABOUT_CUSTOM_SECTIONS_PATH = "about.customSections";
+export const ABOUT_STATS_PATH = "about.stats";
+export const CONTACT_ITEMS_PATH = "contact.contactItems";
 
 export function getLiveEditorSections(pageKey) {
   const pageSections = PAGE_FIELDS[pageKey] ?? [];

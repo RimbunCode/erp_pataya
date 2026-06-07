@@ -1,9 +1,9 @@
-import { useState, useRef } from "react";
-import { router, useForm } from "@inertiajs/react";
+import { useState } from "react";
+import { router } from "@inertiajs/react";
 import MainLayout from "@/Layouts/MainLayout";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import CheckoutModal from "./Components/CheckoutModal";
-import { cn, formatRp } from "@/lib/utils";
+import CheckoutModal from "@/Components/CheckoutModal";
+import { formatRp } from "@/lib/utils";
 
 function StarRating({ rating = 0, size = "w-4 h-4" }) {
   return (
@@ -73,12 +73,6 @@ function ContentIcon({ type }) {
   );
 }
 
-const contentTypeLabel = {
-  pre_assessment: "Pre Assessment",
-  material: "Materi",
-  assignment: "Tugas",
-};
-
 // ── Section Accordion ──────────────────────────────────────────────────────────
 function SectionAccordion({ section, index, isEnrolled }) {
   const [open, setOpen] = useState(index === 0);
@@ -127,12 +121,12 @@ function SectionAccordion({ section, index, isEnrolled }) {
       >
         {cfg.label}
       </span>
-      {/* Download — hanya jika enrolled dan ada file/url */}
-      {isEnrolled && (content.file_url || content.url) && (
+      {/* Download file — hanya jika enrolled */}
+      {isEnrolled && content.file_url && (
         <a
-          href={content.file_url ?? content.url}
+          href={content.file_url}
           target="_blank"
-          rel="noreferrer"
+          rel="noreferrer noopener"
           className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black tracking-widest uppercase text-primary bg-card border border-primary/30 rounded-lg hover:bg-primary-soft transition-all flex-shrink-0"
         >
           <svg
@@ -151,7 +145,31 @@ function SectionAccordion({ section, index, isEnrolled }) {
           Unduh
         </a>
       )}
-      {/* Lock icon — belum enrolled dan ada file */}
+      {/* External link (video/meeting) — hanya jika enrolled */}
+      {isEnrolled && content.url && (
+        <a
+          href={content.url}
+          target="_blank"
+          rel="noreferrer noopener"
+          className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-black tracking-widest uppercase text-primary bg-card border border-primary/30 rounded-lg hover:bg-primary-soft transition-all flex-shrink-0"
+        >
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+            />
+          </svg>
+          Buka Link
+        </a>
+      )}
+      {/* Lock icon — belum enrolled dan ada file/link */}
       {!isEnrolled && (content.file_url || content.url) && (
         <span className="flex items-center gap-1 text-[9px] font-black text-muted-foreground uppercase tracking-widest flex-shrink-0">
           <svg
@@ -261,12 +279,12 @@ function SectionAccordion({ section, index, isEnrolled }) {
 export default function CoursePreview({
   course,
   isEnrolled = false,
-  isLoggedIn = false,
+  _isLoggedIn = false,
   enrollmentStatus = "",
   rejectionReason = null,
 }) {
   const [activeTab, setActiveTab] = useState("overview");
-  const [openChapter, setOpenChapter] = useState(null);
+  const [_openChapter, _setOpenChapter] = useState(null);
   const [showEnroll, setShowEnroll] = useState(false);
   const [checkoutItems, setCheckoutItems] = useState([]);
   const isPending = enrollmentStatus === "pending";
@@ -945,6 +963,7 @@ export default function CoursePreview({
             setShowEnroll(false);
             router.reload();
           }}
+          skipSuccessScreen
         />
       )}
     </MainLayout>

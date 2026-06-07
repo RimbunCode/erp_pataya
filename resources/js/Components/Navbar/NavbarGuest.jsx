@@ -5,14 +5,12 @@ import {
   useRegisterModal,
 } from "@/Layouts/GuestLayout";
 import ToggleTheme from "../ToggleTheme";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 
 export default memo(function NavbarGuest({ onLogout }) {
   const { auth } = usePage().props;
   const user = auth?.user;
-  const isLoggedIn = !!user;
-  const baseUrl = isLoggedIn ? "/home" : "/guest";
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const openLogin = useRolesSelectionModal();
   const openRegister = useRegisterModal();
@@ -42,7 +40,7 @@ export default memo(function NavbarGuest({ onLogout }) {
   }, [user?.image, user?.updated_at]);
 
   return (
-    <header className="print:hidden sticky top-0 z-50 w-full bg-background border-b border-gray-200 shadow-sm">
+    <header className="print:hidden sticky top-0 z-50 w-full bg-background border-b border-border shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link
@@ -53,14 +51,14 @@ export default memo(function NavbarGuest({ onLogout }) {
             <svg
               xmlns="http://www.w3.org/2000/svg"
               viewBox="0 0 24 24"
-              className="w-5 h-5 text-white"
+              className="w-5 h-5 text-primary-foreground"
               fill="currentColor"
             >
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z" />
             </svg>
           </div>
           <div className="leading-tight">
-            <div className="font-extrabold text-sm tracking-widest text-black dark:text-white uppercase">
+            <div className="font-extrabold text-sm tracking-widest text-foreground uppercase">
               INKINDO JATIM
             </div>
             <div className="text-xs tracking-widest text-primary uppercase font-semibold">
@@ -81,7 +79,7 @@ export default memo(function NavbarGuest({ onLogout }) {
             <Link
               key={item.href}
               href={item.href}
-              className="text-[11px] font-bold tracking-widest text-black dark:text-white hover:text-primary-hover transition-colors uppercase"
+              className="text-[11px] font-bold tracking-widest text-foreground hover:text-primary transition-colors uppercase"
             >
               {item.label}
             </Link>
@@ -90,11 +88,34 @@ export default memo(function NavbarGuest({ onLogout }) {
 
         {/* Auth Buttons */}
         <div className="flex items-center gap-3 shrink-0">
+          {(primaryRole === "admin" || primaryRole === "content_admin") && (
+            <button
+              onClick={() => {
+                router.get(
+                  window.location.pathname,
+                  { liveEdit: "1" },
+                  { preserveState: true, preserveScroll: true },
+                );
+              }}
+              className="hidden md:flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase border border-primary/30 text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+              Edit Page
+            </button>
+          )}
           <ToggleTheme />
           {user ? (
             <>
               {/* Notification bell */}
-              <button className="relative w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:bg-gray-50 transition-colors">
+              <button className="relative w-9 h-9 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-muted transition-colors">
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -116,7 +137,7 @@ export default memo(function NavbarGuest({ onLogout }) {
               <div className="relative">
                 <button
                   onClick={() => setDropdownOpen((v) => !v)}
-                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl hover:bg-muted transition-colors"
                 >
                   <Avatar className="w-9 h-9 rounded-full overflow-hidden bg-primary flex items-center justify-center">
                     <AvatarImage
@@ -125,20 +146,20 @@ export default memo(function NavbarGuest({ onLogout }) {
                       className="w-full h-full object-cover"
                     />
 
-                    <AvatarFallback className="bg-primary text-white text-sm font-black">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-black">
                       {initials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden sm:block">
-                    <p className="text-xs font-bold text-black dark:text-white leading-tight">
+                    <p className="text-xs font-bold text-foreground leading-tight">
                       {user.name}
                     </p>
-                    <p className="text-[9px] font-extrabold tracking-widest text-blue-500 uppercase">
+                    <p className="text-[9px] font-extrabold tracking-widest text-role-label uppercase">
                       {primaryRole}
                     </p>
                   </div>
                   <svg
-                    className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+                    className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -161,13 +182,13 @@ export default memo(function NavbarGuest({ onLogout }) {
                       onClick={() => setDropdownOpen(false)}
                     />
 
-                    <div className="absolute right-0 top-12 z-50 bg-white dark:bg-gray-800 border border-gray-100 rounded-2xl shadow-xl w-52 overflow-hidden">
+                    <div className="absolute right-0 top-12 z-50 w-52 overflow-hidden rounded-2xl border border-border bg-popover text-popover-foreground shadow-xl">
                       {/* User info */}
-                      <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-[10px] font-bold tracking-widest text-gray-400 dark:text-primary-foreground uppercase mb-0.5">
+                      <div className="border-b border-border bg-muted/40 px-4 py-3">
+                        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mb-0.5">
                           Signed in as
                         </p>
-                        <p className="text-sm font-bold text-gray-800 dark:text-primary-foreground truncate">
+                        <p className="text-sm font-bold text-popover-foreground truncate">
                           {user.email}
                         </p>
                       </div>
@@ -177,10 +198,10 @@ export default memo(function NavbarGuest({ onLogout }) {
                         <Link
                           href={dashboardRoute}
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 dark:text-primary-foreground/50 dark:bg-gray-100 hover:bg-gray-50 hover:dark:bg-gray-700 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                         >
                           <svg
-                            className="w-4 h-4 text-gray-400 dark:text-primary-foreground flex-shrink-0"
+                            className="w-4 h-4 flex-shrink-0"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -192,18 +213,18 @@ export default memo(function NavbarGuest({ onLogout }) {
                               d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
                             />
                           </svg>
-                          <span className="text-xs font-extrabold tracking-widest text-gray-700 dark:text-primary-foreground hover:text-primary-600 transition-colors uppercase">
+                          <span className="text-xs font-extrabold tracking-widest uppercase">
                             Dashboard
                           </span>
                         </Link>
 
                         <Link
-                          href="/student/profile"
+                          href={route(`${primaryRole}.profile`)}
                           onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 hover:dark:bg-gray-700 transition-colors"
+                          className="flex items-center gap-3 px-4 py-2.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                         >
                           <svg
-                            className="w-4 h-4 text-gray-400"
+                            className="w-4 h-4 flex-shrink-0"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -215,13 +236,13 @@ export default memo(function NavbarGuest({ onLogout }) {
                               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
                             />
                           </svg>
-                          <span className="text-xs font-extrabold tracking-widest text-gray-700 dark:text-primary-foreground uppercase">
+                          <span className="text-xs font-extrabold tracking-widest uppercase">
                             Profile Settings
                           </span>
                         </Link>
                         <button
                           onClick={onLogout}
-                          className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-red-500 hover:text-red-600 dark:hover:bg-gray-700 transition-all border-t border-border text-left"
+                          className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-bold tracking-widest uppercase text-destructive hover:bg-destructive/10 hover:text-destructive transition-all border-t border-border text-left"
                         >
                           <svg
                             className="w-4 h-4 flex-shrink-0"
@@ -248,13 +269,13 @@ export default memo(function NavbarGuest({ onLogout }) {
             <>
               <button
                 onClick={() => openLogin()}
-                className="text-[11px] border border-primary px-4 py-2 rounded-md hover:bg-primary-soft hover:border-primary-hover font-bold tracking-widest text-black dark:text-white hover:dark:text-blue-300 hover:text-primary-600 transition-colors uppercase cursor-pointer"
+                className="text-[11px] border border-primary px-4 py-2 rounded-md hover:bg-primary-soft hover:border-primary-hover font-bold tracking-widest text-foreground hover:text-primary-soft-foreground transition-colors uppercase cursor-pointer"
               >
                 SIGN IN
               </button>
               <button
                 onClick={() => openRegister()}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold tracking-widest uppercase px-4 py-2 rounded-md transition-colors cursor-pointer"
+                className="bg-primary hover:bg-primary-hover text-primary-foreground text-[11px] font-bold tracking-widest uppercase px-4 py-2 rounded-md transition-colors cursor-pointer"
               >
                 JOIN NOW
               </button>

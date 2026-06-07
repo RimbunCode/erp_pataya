@@ -2,7 +2,7 @@ import MainLayout from "@/Layouts/MainLayout";
 import { usePage, useForm, router } from "@inertiajs/react";
 import { useState, useRef, useEffect } from "react";
 import MyCourseCard from "./Components/MyCourseCard";
-import CheckoutModal from "./Components/CheckoutModal";
+import CheckoutModal from "@/Components/CheckoutModal";
 import UploadDialog2 from "@/Pages/Core/Components/UploadDialog2";
 
 export default function MyCourses() {
@@ -230,6 +230,7 @@ export default function MyCourses() {
             setShowEnroll(false);
             router.reload({ only: ["courses", "pendingCourses"] });
           }}
+          skipSuccessScreen
         />
       )}
     </>

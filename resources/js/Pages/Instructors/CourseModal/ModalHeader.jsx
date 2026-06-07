@@ -8,9 +8,9 @@
  *   step     {number}   - step aktif (1 atau 2)
  *   onClose  {function} - callback tutup modal
  */
-export default function ModalHeader({ isEdit, step, onClose }) {
+export default function ModalHeader({ isEdit, onClose }) {
   return (
-    <div className="p-8 flex-shrink-0">
+    <div className="p-8 pb-6 flex-shrink-0">
       {/* Close button */}
       <button
         onClick={onClose}
@@ -28,7 +28,7 @@ export default function ModalHeader({ isEdit, step, onClose }) {
       </button>
 
       {/* Icon + judul */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center flex-shrink-0">
           <svg
             className="w-5 h-5 text-white"
@@ -48,52 +48,11 @@ export default function ModalHeader({ isEdit, step, onClose }) {
           <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
             {isEdit ? "Edit Course" : "Create New Course"}
           </h3>
-          {!isEdit && (
-            <p className="text-xs text-muted-foreground">
-              Step {step} of 2 —{" "}
-              {step === 1 ? "Course Information" : "Sections & Content"}
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground">
+            {isEdit ? "Update course information" : "Fill in the course information below"}
+          </p>
         </div>
       </div>
-
-      {/* Step indicator (hanya mode create) */}
-      {!isEdit && (
-        <div className="flex items-center gap-2">
-          {[1, 2].map((s) => (
-            <div key={s} className="flex items-center gap-2 flex-1">
-              <div
-                className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-black transition-all
-                  ${step === s
-                    ? "bg-primary text-white shadow-md shadow-primary/20"
-                    : step > s
-                    ? "bg-green-500 text-white"
-                    : "bg-muted text-muted-foreground"
-                  }`}
-              >
-                {step > s ? (
-                  <svg
-                    className="w-3.5 h-3.5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={3}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  s
-                )}
-              </div>
-              {s < 2 && (
-                <div
-                  className={`flex-1 h-0.5 rounded-full ${step > s ? "bg-green-400" : "bg-muted"}`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

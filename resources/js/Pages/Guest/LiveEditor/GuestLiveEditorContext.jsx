@@ -12,15 +12,40 @@ import {
   setByPath,
 } from "@/lib/guestContentDraft";
 import {
+  ABOUT_STATS_PATH,
+  CONTACT_ITEMS_PATH,
   HOME_ADS_PATH,
+  HOME_BANNERS_PATH,
   HOME_TRUSTED_COMPANIES_PATH,
 } from "@/lib/guestLiveEditorConfig";
 
 const GuestLiveEditorContext = createContext(null);
 
+function createDefaultBanner() {
+  return {
+    mode: "full-edit", // 'image-only' | 'full-edit'
+    duration: 5000,
+    badge: textToTiptapDoc("NEW BANNER"),
+    title: textToTiptapDoc("YOUR TITLE HERE"),
+    description: textToTiptapDoc("Description of the banner content."),
+    primaryCtaLabel: textToTiptapDoc("LEARN MORE"),
+    secondaryCtaLabel: textToTiptapDoc("ABOUT US"),
+    statsLabel: textToTiptapDoc("10K+ MEMBERS"),
+    topCardTitle: textToTiptapDoc("TITLE"),
+    topCardSubtitle: textToTiptapDoc("SUBTITLE"),
+    bottomCardTitle: textToTiptapDoc("TITLE"),
+    bottomCardSubtitle: textToTiptapDoc("SUBTITLE"),
+    imageFileId: null,
+    heroImageFileId: null,
+    redirectUrl: "",
+    imageRatio: "16:9",
+  };
+}
+
 function createDefaultAdItem() {
   return {
     enabled: false,
+    duration: 5000,
     title: textToTiptapDoc("TRAINING PARTNER PROMO"),
     description: textToTiptapDoc(
       "Promosikan program atau partner strategis di area home page.",
@@ -29,6 +54,30 @@ function createDefaultAdItem() {
     ctaLabel: textToTiptapDoc("LEARN MORE"),
     url: "",
     openInNewTab: true,
+  };
+}
+
+function createDefaultCustomSection() {
+  return {
+    enabled: true,
+    title: "New Section",
+    tagline: textToTiptapDoc(""),
+    content: textToTiptapDoc("<p>Write something here...</p>"),
+  };
+}
+
+function createDefaultStatItem() {
+  return {
+    value: textToTiptapDoc("100+"),
+    label: textToTiptapDoc("Label Here"),
+  };
+}
+
+function createDefaultContactItem() {
+  return {
+    icon: "phone", // default icon slug
+    label: textToTiptapDoc("Label"),
+    value: textToTiptapDoc("Value"),
   };
 }
 
@@ -179,6 +228,66 @@ export function GuestLiveEditorProvider({
     );
   };
 
+  const addBanner = () => {
+    setDraftContent((previousValue) =>
+      addListItemByPath(
+        previousValue,
+        HOME_BANNERS_PATH,
+        createDefaultBanner(),
+      ),
+    );
+  };
+
+  const removeBanner = (indexToRemove) => {
+    setDraftContent((previousValue) =>
+      removeListItemByPath(previousValue, HOME_BANNERS_PATH, indexToRemove),
+    );
+  };
+
+  const addCustomSection = (path) => {
+    setDraftContent((previousValue) =>
+      addListItemByPath(previousValue, path, createDefaultCustomSection()),
+    );
+  };
+
+  const removeCustomSection = (path, indexToRemove) => {
+    setDraftContent((previousValue) =>
+      removeListItemByPath(previousValue, path, indexToRemove),
+    );
+  };
+
+  const addStat = () => {
+    setDraftContent((previousValue) =>
+      addListItemByPath(
+        previousValue,
+        ABOUT_STATS_PATH,
+        createDefaultStatItem(),
+      ),
+    );
+  };
+
+  const removeStat = (indexToRemove) => {
+    setDraftContent((previousValue) =>
+      removeListItemByPath(previousValue, ABOUT_STATS_PATH, indexToRemove),
+    );
+  };
+
+  const addContactItem = () => {
+    setDraftContent((previousValue) =>
+      addListItemByPath(
+        previousValue,
+        CONTACT_ITEMS_PATH,
+        createDefaultContactItem(),
+      ),
+    );
+  };
+
+  const removeContactItem = (indexToRemove) => {
+    setDraftContent((previousValue) =>
+      removeListItemByPath(previousValue, CONTACT_ITEMS_PATH, indexToRemove),
+    );
+  };
+
   const contextValue = {
     isLiveEditEnabled,
     liveEditor,
@@ -194,10 +303,18 @@ export function GuestLiveEditorProvider({
     setFieldValue,
     handleSave,
     uploadImage,
+    addBanner,
+    removeBanner,
     addAdItem,
     removeAdItem,
     addTrustedCompany,
     removeTrustedCompany,
+    addCustomSection,
+    removeCustomSection,
+    addStat,
+    removeStat,
+    addContactItem,
+    removeContactItem,
   };
 
   return (

@@ -11,6 +11,7 @@ use App\Models\Finance\InstructorPayoutRequest;
 use App\Services\Finance\InstructorPayoutService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -115,6 +116,29 @@ class DashboardController extends Controller {
             ->values()
             ->all();
 
+        $since = Carbon::now()->subYear();
+
+        $earningTimeSeries = InstructorEarning::query()
+            ->where('instructor_id', $user->id)
+            ->where('created_at', '>=', $since)
+            ->get(['instructor_amount', 'created_at'])
+            ->map(fn (InstructorEarning $e) => [
+                'date'   => $e->created_at->toDateString(),
+                'amount' => (float) $e->instructor_amount,
+            ])->values()->all();
+
+        $enrollmentTimeSeries = Enrollment::query()
+            ->where(function (Builder $q): void {
+                $q->where('status', FormStatus::ACTIVE->value)->orWhereNull('status');
+            })
+            ->whereHas('course', fn (Builder $q) => $q->where('created_by', $user->id))
+            ->where('enrolled_at', '>=', $since)
+            ->get(['enrolled_at'])
+            ->map(fn (Enrollment $e) => [
+                'date'  => $e->enrolled_at->toDateString(),
+                'count' => 1,
+            ])->values()->all();
+
         return Inertia::render('Instructors/Dashboard', [
             'overview' => [
                 'totalCourses'     => $courseSummaries->count(),
@@ -127,8 +151,10 @@ class DashboardController extends Controller {
                 'rejectedCourses'        => $courseSummaries->where('status', 'rejected')->count(),
                 'pendingPayoutAmount'    => $pendingPayoutAmount,
             ],
-            'topCourses'        => $topCourses,
-            'recentEnrollments' => $recentEnrollments,
+            'topCourses'           => $topCourses,
+            'recentEnrollments'    => $recentEnrollments,
+            'earningTimeSeries'    => $earningTimeSeries,
+            'enrollmentTimeSeries' => $enrollmentTimeSeries,
         ]);
     }
 

@@ -3,6 +3,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
+import Underline from "@tiptap/extension-underline";
 import { ensureTiptapDoc } from "@/lib/tiptapContent";
 
 function ToolButton({
@@ -54,6 +55,7 @@ export default function TiptapFieldEditor({
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
+      Underline,
     ],
     content: ensureTiptapDoc(value),
     immediatelyRender: false,

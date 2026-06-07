@@ -48,7 +48,7 @@ function VerifyCTAContent({ content = {} }) {
         <div className="flex flex-col items-center gap-7 max-w-lg w-full">
           <div className="w-23 h-23 bg-gradient-to-br from-primary to-primary rounded-2xl flex items-center justify-center shadow-lg shadow-primary/20">
             <svg
-              className="w-18 h-18 text-white"
+              className="w-18 h-18 text-primary-foreground"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -62,7 +62,7 @@ function VerifyCTAContent({ content = {} }) {
             </svg>
           </div>
 
-          <h1 className="text-4xl font-black text-black tracking-tight text-center whitespace-pre-line">
+          <h1 className="text-4xl font-black text-foreground tracking-tight text-center whitespace-pre-line">
             <LiveEditableText as="span" path="verify.title">
               {title}
             </LiveEditableText>
@@ -80,7 +80,7 @@ function VerifyCTAContent({ content = {} }) {
             <LiveEditableText
               as="p"
               path="verify.fieldLabel"
-              className="text-xs font-bold tracking-widest text-black-400 mb-3 uppercase whitespace-pre-line"
+              className="text-xs font-bold tracking-widest text-muted-foreground mb-3 uppercase whitespace-pre-line"
             >
               {fieldLabel}
             </LiveEditableText>
@@ -98,7 +98,7 @@ function VerifyCTAContent({ content = {} }) {
                 className={`px-5 py-3 rounded-xl text-xs font-extrabold tracking-widest uppercase whitespace-nowrap transition-all duration-300
                   ${
                     hasValue
-                      ? "bg-primary text-white hover:bg-primary-hover shadow-md shadow-primary/20 hover:-translate-y-0.5 cursor-pointer"
+                      ? "bg-primary text-primary-foreground hover:bg-primary-hover shadow-md shadow-primary/20 hover:-translate-y-0.5 cursor-pointer"
                       : "bg-muted text-muted-foreground cursor-not-allowed"
                   }`}
               >

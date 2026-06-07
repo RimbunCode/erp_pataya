@@ -3,6 +3,17 @@ import { router, usePage } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
 import { STATUS_CFG, formatRp } from "@/lib/utils";
 import { SettingsIcon } from "lucide-react";
+import PeriodFilterChart from "@/Components/Charts/PeriodFilterChart";
+
+const REVENUE_CONFIG = {
+  amount: { label: "Pendapatan", color: "var(--primary)" },
+};
+
+const PAYMENT_STATUS_CONFIG = {
+  approved: { label: "Disetujui", color: "#10b981" },
+  pending: { label: "Pending", color: "#f59e0b" },
+  rejected: { label: "Ditolak", color: "#ef4444" },
+};
 
 const METHOD_COLOR = {
   "Bank Transfer":
@@ -341,6 +352,8 @@ export default function SystemFinance() {
     companyFeePercentage = 0,
     payoutStats = {},
     flash = {},
+    revenueTimeSeries = [],
+    paymentStatusTimeSeries = [],
   } = usePage().props;
   const [activeTab, setActiveTab] = useState("payments");
 
@@ -778,6 +791,29 @@ export default function SystemFinance() {
                   Manage enrollment payments and instructor payout requests.
                 </p>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              <PeriodFilterChart
+                title="Pendapatan Terverifikasi"
+                rawData={revenueTimeSeries}
+                dataKeys={[{ key: "amount" }]}
+                chartConfig={REVENUE_CONFIG}
+                type="area"
+                formatValue={(v) => formatRp(v)}
+              />
+              <PeriodFilterChart
+                title="Distribusi Status Pembayaran"
+                rawData={paymentStatusTimeSeries}
+                dataKeys={[
+                  { key: "approved" },
+                  { key: "pending" },
+                  { key: "rejected" },
+                ]}
+                chartConfig={PAYMENT_STATUS_CONFIG}
+                type="bar"
+                formatValue={(v) => v.toLocaleString("id-ID")}
+              />
             </div>
 
             <div className="inline-flex border border-[var(--border)] rounded-lg overflow-hidden text-xs font-semibold">

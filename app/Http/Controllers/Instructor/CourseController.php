@@ -66,6 +66,7 @@ class CourseController extends Controller {
                                 'deadline_label' => $content->deadlineLabel(),
                                 'is_optional'    => $content->is_optional,
                                 'order'          => $content->order,
+                                'url'            => $content->url,
                                 'files'          => $content->files,
                             ])
                             ->values(),

@@ -46,8 +46,9 @@ class StudentManagementController extends Controller {
 
         [$completedLookupByUser, $completedAtByUserContent] = $this->buildCompletedContentMaps($studentIds, $contentIds);
         [$submittedLookupByUser, $submittedAtByUserContent] = $this->buildSubmittedContentMaps($studentIds, $contentIds);
+        $submissionsByUserContent                           = $this->buildSubmissionsWithFiles($studentIds, $contentIds);
 
-        $students = $enrollments->map(function ($enrollment) use ($completedLookupByUser, $completedAtByUserContent, $submittedLookupByUser, $submittedAtByUserContent) {
+        $students = $enrollments->map(function ($enrollment) use ($completedLookupByUser, $completedAtByUserContent, $submittedLookupByUser, $submittedAtByUserContent, $submissionsByUserContent) {
             $userId         = (string) $enrollment->user_id;
             $courseContents = $enrollment->course->sections->flatMap->contents;
 
@@ -67,6 +68,29 @@ class StudentManagementController extends Controller {
                 $submittedAtByUserContent[$userId] ?? [],
             );
 
+            $userSubmissions = $submissionsByUserContent[$userId] ?? [];
+            $submissions     = $courseContents
+                ->filter(fn ($content) => $content->isSubmissionType())
+                ->map(function ($content) use ($userSubmissions) {
+                    $contentId  = (string) $content->id;
+                    $submission = $userSubmissions[$contentId] ?? null;
+
+                    return [
+                        'content_id'    => $contentId,
+                        'content_title' => (string) $content->title,
+                        'content_type'  => (string) $content->type,
+                        'submission_id' => $submission ? (string) $submission['id'] : null,
+                        'submitted_at'  => $submission ? $submission['submitted_at'] : null,
+                        'notes'         => $submission ? $submission['notes'] : null,
+                        'grade'         => $submission ? $submission['grade'] : null,
+                        'feedback'      => $submission ? $submission['feedback'] : null,
+                        'graded_at'     => $submission ? $submission['graded_at'] : null,
+                        'files'         => $submission ? $submission['files'] : [],
+                    ];
+                })
+                ->values()
+                ->all();
+
             return [
                 'id'         => (string) $enrollment->id,
                 'name'       => (string) $enrollment->user->name,
@@ -84,6 +108,7 @@ class StudentManagementController extends Controller {
                     $completedLookup,
                     $submittedLookup,
                 ),
+                'submissions' => $submissions,
             ];
         })->values();
 
@@ -197,6 +222,51 @@ class StudentManagementController extends Controller {
         }
 
         return $latestAt;
+    }
+
+    /**
+     * @param  Collection<int, string>  $studentIds
+     * @param  Collection<int, string>  $contentIds
+     * @return array<string, array<string, array<string, mixed>>>
+     */
+    private function buildSubmissionsWithFiles(Collection $studentIds, Collection $contentIds): array {
+        if ($studentIds->isEmpty() || $contentIds->isEmpty()) {
+            return [];
+        }
+
+        $submissions = Submission::query()
+            ->whereIn('user_id', $studentIds)
+            ->whereIn('content_id', $contentIds)
+            ->with('files')
+            ->get(['id', 'user_id', 'content_id', 'notes', 'status', 'grade', 'feedback', 'submitted_at', 'graded_at']);
+
+        $result = [];
+
+        foreach ($submissions as $submission) {
+            if ($submission->files->isEmpty()) {
+                continue;
+            }
+
+            $userId    = (string) $submission->user_id;
+            $contentId = (string) $submission->content_id;
+
+            $result[$userId][$contentId] = [
+                'id'           => (string) $submission->id,
+                'submitted_at' => $submission->submitted_at?->format('d M Y H:i'),
+                'notes'        => $submission->notes,
+                'grade'        => $submission->grade,
+                'feedback'     => $submission->feedback,
+                'graded_at'    => $submission->graded_at?->format('d M Y H:i'),
+                'files'        => $submission->files->map(fn ($file) => [
+                    'id'        => (string) $file->id,
+                    'fullname'  => $file->fullname,
+                    'name'      => $file->name,
+                    'extension' => $file->extension,
+                ])->values()->all(),
+            ];
+        }
+
+        return $result;
     }
 
     private function initials(string $name): string {

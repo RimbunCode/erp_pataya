@@ -89,7 +89,7 @@ class File extends Model {
         } elseif ($request->has('files')) {
             $validatedData = $request->validate([
                 'files'      => ['required', 'array'],
-                'files.*'    => ['required', 'file', 'max:10240'],
+                'files.*'    => ['required', 'file', 'max:5120'],
                 'isPublic'   => ['required', 'array'],
                 'isPublic.*' => ['required'],
                 'name'       => ['required', 'array'],

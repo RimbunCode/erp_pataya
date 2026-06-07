@@ -76,6 +76,63 @@ export function docToPlainText(doc) {
     .trim();
 }
 
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function nodeToHtml(node) {
+  if (!node || typeof node !== "object") return "";
+
+  if (node.type === "text") {
+    let html = escapeHtml(typeof node.text === "string" ? node.text : "");
+    if (Array.isArray(node.marks)) {
+      node.marks.forEach((mark) => {
+        if (mark.type === "bold") html = `<strong>${html}</strong>`;
+        else if (mark.type === "italic") html = `<em>${html}</em>`;
+        else if (mark.type === "underline") html = `<u>${html}</u>`;
+        else if (mark.type === "strike") html = `<s>${html}</s>`;
+        else if (mark.type === "link") {
+          const href = escapeHtml(mark.attrs?.href ?? "");
+          const target = mark.attrs?.target === "_blank" ? ' target="_blank" rel="noopener noreferrer"' : "";
+          html = `<a href="${href}"${target}>${html}</a>`;
+        }
+      });
+    }
+    return html;
+  }
+
+  if (node.type === "hardBreak") return "<br>";
+
+  const inner = Array.isArray(node.content)
+    ? node.content.map(nodeToHtml).join("")
+    : "";
+
+  const align = node.attrs?.textAlign;
+  const style = align && align !== "left" ? ` style="text-align:${align}"` : "";
+
+  switch (node.type) {
+    case "paragraph": return `<p${style}>${inner}</p>`;
+    case "heading": {
+      const level = node.attrs?.level ?? 2;
+      return `<h${level}${style}>${inner}</h${level}>`;
+    }
+    case "bulletList": return `<ul>${inner}</ul>`;
+    case "orderedList": return `<ol>${inner}</ol>`;
+    case "listItem": return `<li>${inner}</li>`;
+    case "blockquote": return `<blockquote>${inner}</blockquote>`;
+    default: return inner;
+  }
+}
+
+export function docToHtml(doc) {
+  const safeDoc = ensureTiptapDoc(doc);
+  return safeDoc.content.map(nodeToHtml).join("");
+}
+
 export function docToLines(doc) {
   const text = docToPlainText(doc);
   if (!text) {

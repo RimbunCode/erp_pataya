@@ -5,8 +5,9 @@ export default function MyCourseInnerSection({
   icon,
   children,
   accent = "blue",
+  defaultOpen = true,
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const accents = {
     blue: {
       bg: "bg-primary-soft",

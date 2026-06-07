@@ -2,6 +2,15 @@ import MainLayout from "@/Layouts/MainLayout";
 import { Link } from "@inertiajs/react";
 import { formatRp } from "@/lib/utils";
 import { statusConfig } from "./Utils/statusConfig";
+import PeriodFilterChart from "@/Components/Charts/PeriodFilterChart";
+
+const EARNING_CONFIG = {
+  amount: { label: "Pendapatan", color: "var(--primary)" },
+};
+
+const ENROLLMENT_CONFIG = {
+  count: { label: "Peserta", color: "#10b981" },
+};
 
 const fallbackBadgeClass =
   "border border-gray-900 text-gray-900 bg-gray-100 dark:border-gray-500 dark:bg-gray-900 dark:text-gray-100";
@@ -58,6 +67,8 @@ export default function InstructorDashboard({
   attention = {},
   topCourses = [],
   recentEnrollments = [],
+  earningTimeSeries = [],
+  enrollmentTimeSeries = [],
 }) {
   const totalCourses = Number(overview.totalCourses ?? 0);
   const publishedCourses = Number(overview.publishedCourses ?? 0);
@@ -227,6 +238,25 @@ export default function InstructorDashboard({
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <PeriodFilterChart
+            title="Tren Pendapatan"
+            rawData={earningTimeSeries}
+            dataKeys={[{ key: "amount" }]}
+            chartConfig={EARNING_CONFIG}
+            type="area"
+            formatValue={(v) => formatRp(v)}
+          />
+          <PeriodFilterChart
+            title="Tren Peserta"
+            rawData={enrollmentTimeSeries}
+            dataKeys={[{ key: "count" }]}
+            chartConfig={ENROLLMENT_CONFIG}
+            type="bar"
+            formatValue={(v) => v.toLocaleString("id-ID")}
+          />
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">

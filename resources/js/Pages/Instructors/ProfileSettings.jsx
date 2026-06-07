@@ -134,6 +134,8 @@ export default function ProfileSettings({ user, profile }) {
     // — from instructor_profiles table —
     professional_title: profile?.professional_title ?? "",
     expertise: profile?.expertise ?? "",
+    bank_name: profile?.bank_name ?? "",
+    bank_account_number: profile?.bank_account_number ?? "",
     socials: profile?.socials ?? [],
     bio: profile?.bio ?? "",
   });
@@ -171,6 +173,8 @@ export default function ProfileSettings({ user, profile }) {
       birthdate: parsedBirthdate,
       professional_title: profile?.professional_title ?? "",
       expertise: profile?.expertise ?? "",
+      bank_name: profile?.bank_name ?? "",
+      bank_account_number: profile?.bank_account_number ?? "",
       socials: profile?.socials ?? [],
       bio: profile?.bio ?? "",
     });
@@ -411,6 +415,32 @@ export default function ProfileSettings({ user, profile }) {
                     value={form.expertise}
                     onChange={handleChange}
                     placeholder="Structural Engineer"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                    Bank Name
+                  </label>
+                  <input
+                    type="text"
+                    name="bank_name"
+                    value={form.bank_name}
+                    onChange={handleChange}
+                    placeholder="BCA / BNI / Mandiri"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                    Bank Account Number
+                  </label>
+                  <input
+                    type="text"
+                    name="bank_account_number"
+                    value={form.bank_account_number}
+                    onChange={handleChange}
+                    placeholder="xxxxxxxx"
                     className={inputClass}
                   />
                 </div>

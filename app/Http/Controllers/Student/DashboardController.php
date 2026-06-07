@@ -9,6 +9,7 @@ use App\Models\Submission;
 use App\Services\CourseProgressService;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -220,6 +221,29 @@ class DashboardController extends Controller {
 
         $resumeCourse = $continueLearning[0] ?? null;
 
+        $since = Carbon::now()->subYear();
+
+        $enrollmentTimeSeries = Enrollment::query()
+            ->where('user_id', $user->id)
+            ->where(function ($q): void {
+                $q->where('status', FormStatus::ACTIVE->value)->orWhereNull('status');
+            })
+            ->where('enrolled_at', '>=', $since)
+            ->get(['enrolled_at'])
+            ->map(fn (Enrollment $e) => [
+                'date'  => $e->enrolled_at->toDateString(),
+                'count' => 1,
+            ])->values()->all();
+
+        $progressTimeSeries = $user->progress()
+            ->where('is_completed', true)
+            ->where('completed_at', '>=', $since)
+            ->get(['completed_at'])
+            ->map(fn ($p) => [
+                'date'  => $p->completed_at->toDateString(),
+                'count' => 1,
+            ])->values()->all();
+
         return Inertia::render('Students/Dashboard', [
             'overview' => [
                 'ongoingCourses'             => (int) $ongoingCourses,
@@ -235,8 +259,10 @@ class DashboardController extends Controller {
                     'progress' => $resumeCourse['progress'],
                 ] : null,
             ],
-            'continueLearning'  => $continueLearning,
-            'upcomingDeadlines' => $upcomingDeadlines,
+            'continueLearning'     => $continueLearning,
+            'upcomingDeadlines'    => $upcomingDeadlines,
+            'enrollmentTimeSeries' => $enrollmentTimeSeries,
+            'progressTimeSeries'   => $progressTimeSeries,
         ]);
     }
 
