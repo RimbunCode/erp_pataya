@@ -5,7 +5,7 @@ import { router, usePage } from "@inertiajs/react";
 import Mainlayout from "@/Layouts/MainLayout";
 import useCart from "@/Hooks/useCart";
 import CartPanel from "./Components/CartPanel";
-import CheckoutModal from "./Components/CheckoutModal";
+import CheckoutModal from "@/Components/CheckoutModal";
 import CourseCard from "./Components/CourseCard";
 import CourseCompare from "./Components/CourseCompare";
 
@@ -265,6 +265,7 @@ export default function CourseCatalogue() {
             setShowPayment(false);
             router.reload();
           }}
+          skipSuccessScreen
         />
       )}
       {compareList.length > 0 && (
