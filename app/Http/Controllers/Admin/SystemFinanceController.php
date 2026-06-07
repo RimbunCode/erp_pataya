@@ -129,7 +129,7 @@ class SystemFinanceController extends Controller {
             ->filter(fn (Payment $p) => $p->verified_at || $p->created_at)
             ->map(function (Payment $p): array {
                 $resolvedStatus = $this->resolveStatus((string) $p->status);
-                $date = ($p->verified_at ?? $p->created_at)->toDateString();
+                $date           = ($p->verified_at ?? $p->created_at)->toDateString();
 
                 return [
                     'date'     => $date,
@@ -140,11 +140,11 @@ class SystemFinanceController extends Controller {
             })->values()->all();
 
         return Inertia::render('Admin/SystemFinance', [
-            'payments'              => $paymentsPayload,
-            'payoutRequests'        => $payoutRequestsPayload,
-            'payoutDelayDays'       => $this->instructorPayoutService->resolvePayoutDelayDays(),
-            'companyFeePercentage'  => $this->instructorPayoutService->resolveCompanyFeePercentage(),
-            'payoutStats'           => [
+            'payments'             => $paymentsPayload,
+            'payoutRequests'       => $payoutRequestsPayload,
+            'payoutDelayDays'      => $this->instructorPayoutService->resolvePayoutDelayDays(),
+            'companyFeePercentage' => $this->instructorPayoutService->resolveCompanyFeePercentage(),
+            'payoutStats'          => [
                 'eligibleBalanceTotal' => $this->instructorPayoutService->calculateGlobalEligibleBalance(),
                 'pendingRequestTotal'  => (float) $payoutRequests
                     ->whereIn('status', ['draft', 'pending', 'approved'])
@@ -153,8 +153,8 @@ class SystemFinanceController extends Controller {
                     ->where('status', FormStatus::PAID->value)
                     ->sum('approved_amount'),
             ],
-            'revenueTimeSeries'        => $revenueTimeSeries,
-            'paymentStatusTimeSeries'  => $paymentStatusTimeSeries,
+            'revenueTimeSeries'       => $revenueTimeSeries,
+            'paymentStatusTimeSeries' => $paymentStatusTimeSeries,
         ]);
     }
 

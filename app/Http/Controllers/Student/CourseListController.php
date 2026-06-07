@@ -68,13 +68,13 @@ class CourseListController extends Controller {
                         $submission = $submissionsByContent->get($content->id);
 
                         return [
-                            'id'                    => $content->id,
-                            'title'                 => $content->title,
-                            'type'                  => $content->type,
-                            'is_optional'           => $content->is_optional,
-                            'deadline_label'        => $content->deadlineLabel(),
-                            'url'                   => $content->url,
-                            'files'                 => $content->files->map(fn ($file) => [
+                            'id'             => $content->id,
+                            'title'          => $content->title,
+                            'type'           => $content->type,
+                            'is_optional'    => $content->is_optional,
+                            'deadline_label' => $content->deadlineLabel(),
+                            'url'            => $content->url,
+                            'files'          => $content->files->map(fn ($file) => [
                                 'id'       => $file->id,
                                 'name'     => $file->name,
                                 'fullname' => $file->fullname,

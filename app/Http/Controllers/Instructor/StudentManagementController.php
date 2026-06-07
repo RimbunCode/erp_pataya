@@ -46,7 +46,7 @@ class StudentManagementController extends Controller {
 
         [$completedLookupByUser, $completedAtByUserContent] = $this->buildCompletedContentMaps($studentIds, $contentIds);
         [$submittedLookupByUser, $submittedAtByUserContent] = $this->buildSubmittedContentMaps($studentIds, $contentIds);
-        $submissionsByUserContent = $this->buildSubmissionsWithFiles($studentIds, $contentIds);
+        $submissionsByUserContent                           = $this->buildSubmissionsWithFiles($studentIds, $contentIds);
 
         $students = $enrollments->map(function ($enrollment) use ($completedLookupByUser, $completedAtByUserContent, $submittedLookupByUser, $submittedAtByUserContent, $submissionsByUserContent) {
             $userId         = (string) $enrollment->user_id;
@@ -92,18 +92,18 @@ class StudentManagementController extends Controller {
                 ->all();
 
             return [
-                'id'          => (string) $enrollment->id,
-                'name'        => (string) $enrollment->user->name,
-                'avatar'      => $this->initials((string) $enrollment->user->name),
-                'image'       => $enrollment->user->image !== null ? (string) $enrollment->user->image : null,
-                'updated_at'  => $enrollment->user->updated_at?->toIso8601String(),
-                'email'       => (string) $enrollment->user->email,
-                'course'      => (string) $enrollment->course->title,
-                'progress'    => $progress,
-                'status'      => $this->courseProgressService->resolveStatusFromProgress($progress),
-                'joinDate'    => $enrollment->enrolled_at->format('d M Y'),
-                'lastActive'  => $lastActiveAt->diffForHumans(),
-                'modules'     => $this->courseProgressService->buildModules(
+                'id'         => (string) $enrollment->id,
+                'name'       => (string) $enrollment->user->name,
+                'avatar'     => $this->initials((string) $enrollment->user->name),
+                'image'      => $enrollment->user->image !== null ? (string) $enrollment->user->image : null,
+                'updated_at' => $enrollment->user->updated_at?->toIso8601String(),
+                'email'      => (string) $enrollment->user->email,
+                'course'     => (string) $enrollment->course->title,
+                'progress'   => $progress,
+                'status'     => $this->courseProgressService->resolveStatusFromProgress($progress),
+                'joinDate'   => $enrollment->enrolled_at->format('d M Y'),
+                'lastActive' => $lastActiveAt->diffForHumans(),
+                'modules'    => $this->courseProgressService->buildModules(
                     $enrollment->course->sections,
                     $completedLookup,
                     $submittedLookup,
@@ -258,9 +258,9 @@ class StudentManagementController extends Controller {
                 'feedback'     => $submission->feedback,
                 'graded_at'    => $submission->graded_at?->format('d M Y H:i'),
                 'files'        => $submission->files->map(fn ($file) => [
-                    'id'       => (string) $file->id,
-                    'fullname' => $file->fullname,
-                    'name'     => $file->name,
+                    'id'        => (string) $file->id,
+                    'fullname'  => $file->fullname,
+                    'name'      => $file->name,
                     'extension' => $file->extension,
                 ])->values()->all(),
             ];
