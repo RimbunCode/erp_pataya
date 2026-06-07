@@ -12,6 +12,12 @@ const DISCOUNT_TYPES = {
  * @param {object|null} course  - Data course yang ada (mode edit), atau null (mode create)
  * @param {function}    onClose - Callback setelah modal ditutup / berhasil submit
  */
+function buildSections(count) {
+  const n = Number.parseInt(count, 10);
+  if (!Number.isFinite(n) || n <= 0) return [];
+  return Array.from({ length: n }, (_, i) => ({ title: `Session ${i + 1}` }));
+}
+
 export function useCourseForm(course = null, onClose) {
   const isEdit = !!course;
 
@@ -46,8 +52,17 @@ export function useCourseForm(course = null, onClose) {
     total_hours: course?.total_hours ?? "",
     total_sessions: course?.total_sessions ?? "",
     certificate_type: course?.certificate_type ?? "",
-    thumbnail: null, // null = tidak berubah; diisi File jika user upload baru
+    thumbnail: null,
+    sections: buildSections(course?.total_sessions ?? ""),
   });
+
+  const handleTotalSessionsChange = (value) => {
+    setData((prev) => ({
+      ...prev,
+      total_sessions: value,
+      sections: buildSections(value),
+    }));
+  };
 
   const handleThumbnailChange = (e) => {
     const file = e.target.files[0];
@@ -69,81 +84,6 @@ export function useCourseForm(course = null, onClose) {
     if (thumbnailRef.current) thumbnailRef.current.value = "";
   };
 
-  // â”€â”€ Step â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [step, setStep] = useState(1);
-
-  // â”€â”€ Sections (hanya dipakai mode create) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const [sections, setSections] = useState([]);
-
-  const goToStep2 = () => {
-    const count = Number.parseInt(data.total_sessions, 10);
-
-    if (!Number.isFinite(count) || count <= 0) {
-      setSections([]);
-      setStep(2);
-      return;
-    }
-
-    setSections(
-      Array.from({ length: count }, (_, i) => ({
-        id: Date.now() + i,
-        title: `Section ${i + 1}`,
-        contents: [],
-      })),
-    );
-    setStep(2);
-  };
-
-  // â”€â”€ Section helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const addSection = () =>
-    setSections((p) => [...p, { id: Date.now(), title: "", contents: [] }]);
-
-  const removeSection = (id) =>
-    setSections((p) => p.filter((s) => s.id !== id));
-
-  const updateSection = (id, value) =>
-    setSections((p) =>
-      p.map((s) => (s.id === id ? { ...s, title: value } : s)),
-    );
-
-  const addContent = (sid) =>
-    setSections((p) =>
-      p.map((s) =>
-        s.id === sid
-          ? {
-              ...s,
-              contents: [
-                ...s.contents,
-                { id: Date.now(), title: "", type: "material" },
-              ],
-            }
-          : s,
-      ),
-    );
-
-  const removeContent = (sid, cid) =>
-    setSections((p) =>
-      p.map((s) =>
-        s.id === sid
-          ? { ...s, contents: s.contents.filter((c) => c.id !== cid) }
-          : s,
-      ),
-    );
-
-  const updateContent = (sid, cid, field, value) =>
-    setSections((p) =>
-      p.map((s) =>
-        s.id === sid
-          ? {
-              ...s,
-              contents: s.contents.map((c) =>
-                c.id === cid ? { ...c, [field]: value } : c,
-              ),
-            }
-          : s,
-      ),
-    );
-
   const handleSubmit = () => {
     if (isEdit) {
       // Submit via useForm agar errors & processing tersinkron otomatis.
@@ -163,22 +103,15 @@ export function useCourseForm(course = null, onClose) {
         onFinish: () => transform((currentData) => currentData),
       });
     } else {
-      // Mode create: POST dengan sections.
-      const cleanedSections = sections.map(({ title, contents }) => ({
-        title,
-        contents: contents.map(({ title, type }) => ({ title, type })),
-      }));
-
       transform((currentData) => ({
         ...currentData,
-        sections: cleanedSections,
+        sections: buildSections(currentData.total_sessions),
       }));
-
       post(route("instructor.classes.store"), {
         onSuccess: onClose,
         preserveScroll: true,
         forceFormData: true,
-        onFinish: () => transform((currentData) => currentData),
+        onFinish: () => transform((d) => d),
       });
     }
   };
@@ -191,19 +124,12 @@ export function useCourseForm(course = null, onClose) {
     data.level &&
     data.category;
   return {
-    // mode
     isEdit,
-    // form
     data,
     setData,
     processing,
     errors,
-    // step
-    step,
-    setStep,
-    goToStep2,
     isStep1Complete,
-    // thumbnail
     DEFAULT_THUMBNAIL,
     thumbnailRef,
     thumbnailPreview,
@@ -212,15 +138,7 @@ export function useCourseForm(course = null, onClose) {
     discountType,
     onDiscountTypeChange: handleDiscountTypeChange,
     discountPrefix: discountType === DISCOUNT_TYPES.percentage ? "%" : "Rp",
-    // sections
-    sections,
-    addSection,
-    removeSection,
-    updateSection,
-    addContent,
-    removeContent,
-    updateContent,
-    // submit
+    handleTotalSessionsChange,
     handleSubmit,
   };
 }

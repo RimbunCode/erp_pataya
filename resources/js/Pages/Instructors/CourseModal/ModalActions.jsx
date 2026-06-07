@@ -13,12 +13,9 @@
  */
 export default function ModalActions({
   isEdit,
-  step,
   isStep1Complete,
   processing,
   onClose,
-  onBack,
-  onNext,
   onSubmit,
 }) {
   const btnBase =
@@ -51,40 +48,16 @@ export default function ModalActions({
     );
   }
 
-  // Mode create step 1
-  if (step === 1) {
-    return (
-      <div className="flex gap-3 mt-6">
-        <button onClick={onClose} className={btnSecondary}>
-          Cancel
-        </button>
-        <button
-          disabled={!isStep1Complete}
-          onClick={onNext}
-          className={isStep1Complete ? btnPrimary : btnDisabled}
-        >
-          Next Step
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
-    );
-  }
-
-  // Mode create step 2
+  // Mode create
   return (
     <div className="flex gap-3 mt-6">
-      <button onClick={onBack} className={btnSecondary}>
-        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-        Back
+      <button onClick={onClose} className={btnSecondary}>
+        Cancel
       </button>
       <button
+        disabled={!isStep1Complete || processing}
         onClick={onSubmit}
-        disabled={processing}
-        className={`${btnPrimary} disabled:opacity-60 disabled:cursor-not-allowed`}
+        className={isStep1Complete ? `${btnPrimary} disabled:opacity-60 disabled:cursor-not-allowed` : btnDisabled}
       >
         {processing ? "Saving..." : "Create Course"}
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

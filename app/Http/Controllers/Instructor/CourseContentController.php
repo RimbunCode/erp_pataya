@@ -18,6 +18,7 @@ class CourseContentController extends Controller {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'type'  => 'required|in:pre_assessment,material,assignment',
+            'url'   => 'nullable|url|max:2048',
         ]);
 
         $order = $section->contents()->max('order') + 1;
@@ -25,6 +26,7 @@ class CourseContentController extends Controller {
         $section->contents()->create([
             'title' => $validated['title'],
             'type'  => $validated['type'],
+            'url'   => $validated['url'] ?? null,
             'order' => $order,
         ]);
 
@@ -38,6 +40,7 @@ class CourseContentController extends Controller {
             'description' => 'sometimes|nullable|string',
             'deadline'    => 'sometimes|nullable|date',
             'is_optional' => 'sometimes|boolean',
+            'url'         => 'sometimes|nullable|url|max:2048',
         ]);
 
         if (array_key_exists('deadline', $validated)) {

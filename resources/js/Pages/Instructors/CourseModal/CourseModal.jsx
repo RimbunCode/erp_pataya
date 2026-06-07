@@ -1,7 +1,6 @@
 import { useCourseForm } from "./hooks/useCourseForm";
 import ModalHeader from "./ModalHeader";
 import Step1Form from "./Step1Form";
-import Step2Sections from "./Step2Sections";
 import ModalActions from "./ModalActions";
 
 /**
@@ -34,9 +33,6 @@ export default function CourseModal({
     setData,
     processing,
     errors,
-    step,
-    setStep,
-    goToStep2,
     isStep1Complete,
     DEFAULT_THUMBNAIL,
     thumbnailRef,
@@ -46,13 +42,7 @@ export default function CourseModal({
     discountType,
     onDiscountTypeChange,
     discountPrefix,
-    sections,
-    addSection,
-    removeSection,
-    updateSection,
-    addContent,
-    removeContent,
-    updateContent,
+    handleTotalSessionsChange,
     handleSubmit,
   } = useCourseForm(course, onClose);
 
@@ -68,57 +58,38 @@ export default function CourseModal({
         {/* Accent bar */}
         <div className="h-1.5 w-full bg-gradient-to-r from-primary to-indigo-500 flex-shrink-0" />
 
-        {/* Header + step indicator */}
-        <ModalHeader isEdit={isEdit} step={step} onClose={onClose} />
+        {/* Header */}
+        <ModalHeader isEdit={isEdit} onClose={onClose} />
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-8 pb-8">
-          {/* Step 1 — selalu tampil di mode edit; tampil di step 1 mode create */}
-          {(isEdit || step === 1) && (
-            <Step1Form
-              data={data}
-              setData={setData}
-              errors={errors}
-              categories={categories}
-              thumbnailRef={thumbnailRef}
-              thumbnailPreview={thumbnailPreview}
-              // Ada thumbnail jika: preview baru ada, ATAU mode edit masih pakai existing
-              // (belum dihapus, ditandai dengan data.thumbnail !== "delete")
-              hasThumbnail={
-                thumbnailPreview !== null ||
-                (isEdit && !!course.thumbnail && data.thumbnail !== "delete")
-              }
-              discountType={discountType}
-              onDiscountTypeChange={onDiscountTypeChange}
-              discountPrefix={discountPrefix}
-              DEFAULT_THUMBNAIL={DEFAULT_THUMBNAIL}
-              onThumbnailChange={handleThumbnailChange}
-              onRemoveThumbnail={removeThumbnail}
-            />
-          )}
-
-          {/* Step 2 — hanya mode create */}
-          {!isEdit && step === 2 && (
-            <Step2Sections
-              sections={sections}
-              onAddSection={addSection}
-              onRemoveSection={removeSection}
-              onUpdateSection={updateSection}
-              onAddContent={addContent}
-              onRemoveContent={removeContent}
-              onUpdateContent={updateContent}
-            />
-          )}
+          <Step1Form
+            data={data}
+            setData={setData}
+            errors={errors}
+            categories={categories}
+            thumbnailRef={thumbnailRef}
+            thumbnailPreview={thumbnailPreview}
+            hasThumbnail={
+              thumbnailPreview !== null ||
+              (isEdit && !!course.thumbnail && data.thumbnail !== "delete")
+            }
+            discountType={discountType}
+            onDiscountTypeChange={onDiscountTypeChange}
+            discountPrefix={discountPrefix}
+            DEFAULT_THUMBNAIL={DEFAULT_THUMBNAIL}
+            onThumbnailChange={handleThumbnailChange}
+            onRemoveThumbnail={removeThumbnail}
+            onTotalSessionsChange={!isEdit ? handleTotalSessionsChange : null}
+            sections={!isEdit ? data.sections : null}
+          />
 
           {/* Actions */}
           <ModalActions
             isEdit={isEdit}
-            step={step}
             isStep1Complete={isStep1Complete}
             processing={processing}
             onClose={onClose}
-            onBack={() => setStep(1)}
-            onNext={goToStep2}
             onSubmit={handleSubmit}
           />
         </div>

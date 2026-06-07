@@ -46,10 +46,12 @@ class ProfileController extends Controller {
         $user->instructorProfile()->updateOrCreate(
             ['user_id' => $user->id],
             [
-                'professional_title' => $request->professional_title,
-                'expertise'          => $request->expertise,
-                'bio'                => $request->bio,
-                'socials'            => $request->socials ?? [],
+                'professional_title'  => $request->professional_title,
+                'expertise'           => $request->expertise,
+                'bank_name'           => $request->bank_name,
+                'bank_account_number' => $request->bank_account_number,
+                'bio'                 => $request->bio,
+                'socials'             => $request->socials ?? [],
             ],
         );
 

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { format as dateFnsFormat } from "date-fns";
 import { router } from "@inertiajs/react";
 import { Button } from "@/Components/ui/button";
 import {
@@ -13,9 +14,20 @@ import UploadDialog2 from "../../Core/Components/UploadDialog2";
 import CourseDetailTypeIcon from "./CourseDetailTypeIcon";
 import DatetimePicker from "@/Components/DatetimePicker";
 
+function detectLinkType(url) {
+  if (/youtube\.com|youtu\.be/.test(url)) return "YouTube";
+  if (/zoom\.us/.test(url)) return "Zoom";
+  if (/meet\.google\.com/.test(url)) return "Google Meet";
+  if (/teams\.microsoft\.com/.test(url)) return "Teams";
+  if (/vimeo\.com/.test(url)) return "Vimeo";
+  return "Link";
+}
+
 export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
   const [editing, setEditing] = useState(false);
   const [deadline, setDeadline] = useState(content.deadline ?? "");
+  const [url, setUrl] = useState(content.url ?? "");
+  const [editingUrl, setEditingUrl] = useState(false);
   const uploadDialogRef = useRef();
   const [title, setTitle] = useState(content.title);
 
@@ -33,6 +45,19 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
       { deadline: deadline || null },
       { preserveScroll: true },
     );
+  };
+
+  const saveUrl = () => {
+    router.patch(
+      route("instructor.classes.sections.contents.update", content.id),
+      { url: url.trim() || null },
+      { onSuccess: () => setEditingUrl(false), preserveScroll: true },
+    );
+  };
+
+  const cancelUrl = () => {
+    setUrl(content.url ?? "");
+    setEditingUrl(false);
   };
 
   const removeFile = useCallback(
@@ -92,7 +117,13 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
                   <div className="mt-1.5 flex items-center gap-2">
                     <DatetimePicker
                       value={deadline}
-                      onValueChange={(event) => setDeadline(event.target.value)}
+                      onValueChange={(val) =>
+                        setDeadline(
+                          val instanceof Date
+                            ? dateFnsFormat(val, "yyyy-MM-dd'T'HH:mm")
+                            : "",
+                        )
+                      }
                       className="bg-card border border-border rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <button
@@ -109,33 +140,94 @@ export default function CourseDetailContentRow({ content, onDelete, typeCfg }) {
                     )}
                   </div>
                 )}
-                {content.url && (
-                  <a
-                    href={content.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-black text-primary uppercase tracking-widest flex items-center gap-1.5 mt-1.5 hover:text-primary"
-                  >
-                    <svg
-                      className="w-3 h-3"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
+
+                {/* URL section */}
+                {editingUrl ? (
+                  <div className="mt-2 flex items-center gap-2">
+                    <input
+                      autoFocus
+                      type="url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveUrl();
+                        if (e.key === "Escape") cancelUrl();
+                      }}
+                      placeholder="https://zoom.us/j/... atau https://youtu.be/..."
+                      className="flex-1 bg-card border border-primary/35 rounded-lg px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveUrl}
+                      className="text-[10px] font-black tracking-widest uppercase px-2 py-1 rounded-md bg-primary text-white hover:bg-primary-hover transition-all"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
-                      />
-                    </svg>
-                    External Link
-                  </a>
-                )}
+                      Simpan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={cancelUrl}
+                      className="text-[10px] font-semibold uppercase tracking-widest px-2 py-1 rounded-md border border-border text-muted-foreground hover:bg-muted transition-all"
+                    >
+                      Batal
+                    </button>
+                  </div>
+                ) : content.url ? (
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <a
+                      href={content.url}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-widest uppercase text-primary bg-card border border-primary/30 rounded-lg px-2.5 py-1 hover:bg-primary hover:text-white transition-all"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                        />
+                      </svg>
+                      {detectLinkType(content.url)}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => setEditingUrl(true)}
+                      className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Edit
+                    </button>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+            {!editingUrl && !content.url && (
+              <button
+                onClick={() => setEditingUrl(true)}
+                title="Tambah Link"
+                className="w-7 h-7 flex items-center justify-center rounded-lg bg-card border border-border text-muted-foreground hover:text-primary hover:border-primary/35 transition-all"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                  />
+                </svg>
+              </button>
+            )}
             <button
               onClick={() => uploadDialogRef.current?.open()}
               title="Upload / Link"

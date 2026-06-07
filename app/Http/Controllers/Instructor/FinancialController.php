@@ -9,6 +9,7 @@ use App\Models\Finance\InstructorPayoutRequest;
 use App\Services\Finance\InstructorPayoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -92,6 +93,17 @@ class FinancialController extends Controller {
             })
             ->values();
 
+        $since = Carbon::now()->subYear();
+
+        $earningTimeSeries = InstructorEarning::query()
+            ->where('instructor_id', $user->id)
+            ->where('created_at', '>=', $since)
+            ->get(['instructor_amount', 'created_at'])
+            ->map(fn (InstructorEarning $e) => [
+                'date'   => $e->created_at->toDateString(),
+                'amount' => (float) $e->instructor_amount,
+            ])->values()->all();
+
         return Inertia::render('Instructors/Financials', [
             'stats' => [
                 'availableBalance' => (float) $eligibleBalance,
@@ -101,6 +113,7 @@ class FinancialController extends Controller {
             'companyFeePercentage' => $companyFeePercentage,
             'mutations'            => $mutations,
             'payouts'              => $payouts,
+            'earningTimeSeries'    => $earningTimeSeries,
         ]);
     }
 
