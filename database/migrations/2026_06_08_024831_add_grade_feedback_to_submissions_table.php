@@ -6,8 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up(): void
-    {
+    public function up(): void {
         Schema::table('submissions', function (Blueprint $table) {
             $table->unsignedTinyInteger('grade')->nullable()->after('status');
             $table->text('feedback')->nullable()->after('grade');
@@ -15,8 +14,7 @@ return new class extends Migration
         });
     }
 
-    public function down(): void
-    {
+    public function down(): void {
         Schema::table('submissions', function (Blueprint $table) {
             $table->dropColumn(['grade', 'feedback', 'graded_at']);
         });

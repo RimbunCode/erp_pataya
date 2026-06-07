@@ -9,8 +9,7 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
+    public function up(): void {
         Schema::table('course_contents', function (Blueprint $table) {
             $table->string('url')->nullable()->after('description');
         });
@@ -19,8 +18,7 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-    public function down(): void
-    {
+    public function down(): void {
         Schema::table('course_contents', function (Blueprint $table) {
             $table->dropColumn('url');
         });

@@ -45,7 +45,7 @@ class DashboardController extends Controller {
         $recentPayments  = [];
 
         if ($isFinance) {
-            $totalRevenue   = (float) Payment::where('status', FormStatus::APPROVED->value)->sum('amount');
+            $totalRevenue    = (float) Payment::where('status', FormStatus::APPROVED->value)->sum('amount');
             $pendingPayments = Payment::where('status', FormStatus::PENDING->value)->count();
             $pendingPayouts  = InstructorPayoutRequest::whereIn('status', ['pending', 'approved'])->count();
 
@@ -56,18 +56,18 @@ class DashboardController extends Controller {
                 ->limit(6)
                 ->get(['id', 'user_id', 'course_id', 'amount', 'status', 'created_at'])
                 ->map(fn (Payment $p) => [
-                    'id'           => (string) $p->id,
-                    'studentName'  => (string) ($p->user?->name ?? '-'),
-                    'courseName'   => (string) ($p->course?->title ?? '-'),
-                    'amount'       => (float) $p->amount,
-                    'status'       => (string) $p->status,
-                    'submittedAt'  => $p->created_at?->toIso8601String(),
+                    'id'          => (string) $p->id,
+                    'studentName' => (string) ($p->user?->name ?? '-'),
+                    'courseName'  => (string) ($p->course?->title ?? '-'),
+                    'amount'      => (float) $p->amount,
+                    'status'      => (string) $p->status,
+                    'submittedAt' => $p->created_at?->toIso8601String(),
                 ])->values()->all();
         }
 
         // --- Stats course ---
-        $pendingApprovals  = null;
-        $recentApprovals   = [];
+        $pendingApprovals = null;
+        $recentApprovals  = [];
 
         if ($isCourseAdmin) {
             $pendingApprovals = CoursePublishRequest::where('status', FormStatus::PENDING->value)->count();
