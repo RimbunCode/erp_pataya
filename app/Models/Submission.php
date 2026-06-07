@@ -15,6 +15,7 @@ class Submission extends Model {
     protected $guarded = ['id'];
     protected $casts   = [
         'submitted_at' => 'datetime',
+        'graded_at'    => 'datetime',
     ];
 
     public function user(): BelongsTo {

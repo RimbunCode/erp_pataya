@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   avatarColors,
   statusCfg,
@@ -6,25 +6,38 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { XIcon } from "lucide-react";
-export default function StudentManagementModal({ student, index, onClose }) {
-  const avatarSource = useMemo(() => {
-    if (!student?.image) {
-      return null;
-    }
+import StudentFullReport from "./StudentFullReport";
 
+export default function StudentManagementModal({ student, index, onClose }) {
+  const [showReport, setShowReport] = useState(false);
+
+  const avatarSource = useMemo(() => {
+    if (!student?.image) return null;
     const updatedAtTimestamp = student.updated_at
       ? new Date(student.updated_at).getTime()
       : null;
     const cacheBuster = Number.isFinite(updatedAtTimestamp)
       ? `?v=${updatedAtTimestamp}`
       : "";
-
     return route("files.preview", student.avatar) + cacheBuster;
   }, [student?.avatar, student?.updated_at]);
-  if (!student) {
-    return null;
+
+  if (!student) return null;
+
+  if (showReport) {
+    return (
+      <StudentFullReport
+        student={student}
+        index={index}
+        onClose={() => {
+          setShowReport(false);
+          onClose();
+        }}
+        onBack={() => setShowReport(false)}
+      />
+    );
   }
-  console.log("student data:", student);
+
   const cfg = statusCfg[student.status] ?? statusCfg.PENDING;
   const color = avatarColors[index % avatarColors.length];
   const modules = student.modules ?? [];
@@ -41,6 +54,11 @@ export default function StudentManagementModal({ student, index, onClose }) {
         ? "bg-gray-300"
         : "bg-primary";
 
+  const handleClose = () => {
+    setShowReport(false);
+    onClose();
+  };
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-6"
@@ -48,7 +66,7 @@ export default function StudentManagementModal({ student, index, onClose }) {
         backdropFilter: "blur(6px)",
         backgroundColor: "rgba(15,23,42,0.45)",
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="bg-card rounded-3xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]"
@@ -56,7 +74,7 @@ export default function StudentManagementModal({ student, index, onClose }) {
       >
         <div className="bg-gray-900 px-7 pt-7 pb-10 relative flex-shrink-0 rounded-t-3xl">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-xl bg-card/10 text-white/60 hover:bg-card/20 hover:text-white transition-all"
           >
             <XIcon className="size-5" />
@@ -66,8 +84,7 @@ export default function StudentManagementModal({ student, index, onClose }) {
             <div
               className={`w-14 h-14 rounded-2xl ${color} flex items-center justify-center text-white text-lg font-black flex-shrink-0`}
             >
-              {/* Hapus bg-muted, perbaiki ukuran dari w-16 → w-14 */}
-              <Avatar className="w-14 h-14 rounded-xl overflow-hidden shrink-0, border border-muted dark:border-white">
+              <Avatar className="w-14 h-14 rounded-xl overflow-hidden shrink-0 border border-muted dark:border-white">
                 {avatarSource ? (
                   <AvatarImage
                     src={avatarSource}
@@ -75,7 +92,6 @@ export default function StudentManagementModal({ student, index, onClose }) {
                     className={cn("transition-[filter] group-hover:blur-sm")}
                   />
                 ) : null}
-                {/* ✅ Tambah warna background + text putih ke fallback */}
                 <AvatarFallback
                   className={`rounded-xl ${color} text-white text-lg font-black`}
                 >
@@ -219,11 +235,15 @@ export default function StudentManagementModal({ student, index, onClose }) {
             )}
           </div>
         </div>
+
         <div className="flex gap-3 px-7 py-4 border-t border-border flex-shrink-0">
-          <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-border hover:text-foreground transition-all">
+          <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase border-2 border-border rounded-xl text-muted-foreground hover:border-foreground/30 hover:text-foreground transition-all">
             Send Message
           </button>
-          <button className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20">
+          <button
+            onClick={() => setShowReport(true)}
+            className="flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase bg-primary text-white rounded-xl hover:bg-primary-hover transition-all shadow-md shadow-primary/20"
+          >
             View Full Report
           </button>
         </div>

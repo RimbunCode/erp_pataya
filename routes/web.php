@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\Admin\CourseApprovalController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\CourseCategoryController;
 use App\Http\Controllers\Admin\LandingPageSettingController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Instructor\DashboardController as InstructorDashboardCo
 use App\Http\Controllers\Instructor\FinancialController as InstructorFinancialController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
 use App\Http\Controllers\Instructor\StudentManagementController;
+use App\Http\Controllers\Instructor\SubmissionController as InstructorSubmissionController;
 use App\Http\Controllers\ModelController;
 use App\Http\Controllers\Student\CartController;
 use App\Http\Controllers\Student\CourseController as StudentCourseController;
@@ -127,6 +129,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/contents/{content}/files/{file}', [CourseContentController::class, 'destroyFile'])->name('sections.contents.files.destroy');
         });
         Route::get('/students', [StudentManagementController::class, 'index'])->name('students');
+        Route::patch('/enrollments/{enrollment}/submissions/{submission}/grade', [InstructorSubmissionController::class, 'grade'])->name('enrollments.submissions.grade');
         Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('growth');
         Route::get('/financial', [InstructorFinancialController::class, 'index'])->name('financial');
         Route::post('/financial/payout-requests', [InstructorFinancialController::class, 'storePayoutRequest'])->name('financial.payout-requests.store');
@@ -145,7 +148,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     Route::middleware(['role:admin'])->prefix('/admin')->name('admin.')->group(function () {
-        Route::get('/dashboard', fn () => inertia('Admin/Dashboard'))->name('dashboard');
+        Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
 
         Route::middleware(['admin.permission:course_admin,super_admin'])->group(function () {
             Route::get('/approvals', [CourseApprovalController::class, 'index'])->name('approval');
