@@ -1,5 +1,4 @@
 import "../css/app.css";
-import "quill/dist/quill.core.css";
 import "./bootstrap";
 
 import { createRoot, hydrateRoot } from "react-dom/client";

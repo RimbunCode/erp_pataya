@@ -93,7 +93,13 @@ function NestedApproverFormTable({ value, onChange, disabled, readOnly }) {
   );
 }
 
-function StepFormDialog({ getColumn, data: rowData, setData: setRowData, disabled, readOnly }) {
+function StepFormDialog({
+  getColumn,
+  data: rowData,
+  setData: setRowData,
+  disabled,
+  readOnly,
+}) {
   return (
     <div className="grid gap-y-3 pt-2">
       {getColumn("is_advanced")}
@@ -196,8 +202,6 @@ function Form() {
     ];
   }, []);
 
-  const stepForm = useMemo(() => StepFormDialog, []);
-
   return (
     <>
       <FormPageContent value="detail">
@@ -252,7 +256,7 @@ function Form() {
           columns={stepColumns}
           value={data.steps}
           onValueChange={(val) => setData("steps", val)}
-          form={stepForm}
+          form={<StepFormDialog />}
         />
       </FormPageContent>
     </>

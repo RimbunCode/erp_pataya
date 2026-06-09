@@ -26,11 +26,11 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected $permissions;
-    protected $modelPermissions;
-    protected $onlyCreator = false;
+    protected        $permissions;
+    protected        $modelPermissions;
+    protected        $onlyCreator      = false;
     protected string $lang;
-    protected bool $ignorePermission = false;
+    protected bool   $ignorePermission = false;
 
     /**
      * Summary of setBreadcrumbs
@@ -99,10 +99,6 @@ abstract class Controller {
         return null;
     }
 
-    private function _matchMethodWithPermission(string $method) {
-        return \in_array($method, ['addComment', 'addTag', 'addFile', 'removeFile', 'removeComment', 'removeTag']);
-    }
-
     public function __construct(Request $request, ?string $model = null) {
         if (! $model) {
             return;
@@ -129,43 +125,48 @@ abstract class Controller {
                         abort(403);
                     }
                     $keyPermission = match ($method) {
-                        'index'   => 'select',
-                        'create'  => 'create',
-                        'store'   => 'create',
-                        'show'    => 'read',
-                        'update'  => 'write',
-                        'destroy' => 'delete',
-                        'import'  => 'import',
-                        'export'  => 'export',
-                        'share'   => 'share',
-                        'submit'  => 'submit',
-                        'cancel'  => 'cancel',
-                        'print'   => 'print',
-                        'amend'   => 'amend',
-                        default   => $this->enforcePermission($method),
+                        'index'     => 'select',
+                        'create'    => 'create',
+                        'store'     => 'create',
+                        'show'      => 'read',
+                        'update'    => 'write',
+                        'destroy'   => 'delete',
+                        'import'    => 'import',
+                        'export'    => 'export',
+                        'share'     => 'share',
+                        'submit'    => 'submit',
+                        'cancel'    => 'cancel',
+                        'print'     => 'print',
+                        'amend'     => 'amend',
+                        'addComment',
+                        'editComment',
+                        'addTag',
+                        'addFile',
+                        'removeFile',
+                        'removeComment',
+                        'removeTag' => 'read',
+                        default     => $this->enforcePermission($method),
                     };
-                    if (! $this->_matchMethodWithPermission($method)) {
-                        if ($keyPermission) {
-                            $this->onlyCreator = $this->guard($keyPermission, 0);
-                            $request->merge(['onlyCreator' => $this->onlyCreator ?? false]);
+                    if ($keyPermission) {
+                        $this->onlyCreator = $this->guard($keyPermission, 0);
+                        $request->merge(['onlyCreator' => $this->onlyCreator ?? false]);
 
-                            foreach ($currentRoute->parameters() as $value) {
-                                if (\is_string($value)) {
-                                    continue;
-                                }
-                                if (\get_class($value) === $this->model) {
-                                    $data = $value;
-                                }
+                        foreach ($currentRoute->parameters() as $value) {
+                            if (\is_string($value)) {
+                                continue;
                             }
-                            if (isset($data)) {
-                                $allowed = $this->onlyCreator ? $data?->created_by_id == $request->user()->id : true;
-                                if (! $allowed) {
-                                    abort(403);
-                                }
+                            if (\get_class($value) === $this->model) {
+                                $data = $value;
                             }
-                        } else {
-                            abort(403);
                         }
+                        if (isset($data)) {
+                            $allowed = $this->onlyCreator ? $data?->created_by_id == $request->user()->id : true;
+                            if (! $allowed) {
+                                abort(403);
+                            }
+                        }
+                    } else {
+                        abort(403);
                     }
                 }
             }
@@ -196,6 +197,22 @@ abstract class Controller {
             'loggable_type' => $this->model,
             'type'          => 'comment',
             'activity'      => $request->comment,
+            'comment_json'  => $request->comment_json,
+        ]);
+
+        return back();
+    }
+
+    public function editComment(CommentRequest $request, $param, Log $id) {
+        if ($id->user_id != $request->user()->id || $id->type != 'comment') {
+            return back()->with('alert', [
+                'message' => 'Failed to edit comment',
+            ]);
+        }
+
+        $id->update([
+            'activity'     => $request->comment,
+            'comment_json' => $request->comment_json,
         ]);
 
         return back();
@@ -281,7 +298,7 @@ abstract class Controller {
                 ->where('fileable_type', $this->model)
                 ->where('file_id', $id->id)->delete();
         } catch (Exception $e) {
-            dd($e);
+            // dd($e);
         }
 
         return back();

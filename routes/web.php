@@ -81,6 +81,7 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
         Route::delete("/{{$name}}", 'destroy')->name("$uri.destroy");
 
         Route::post("/{{$name}}/comment", 'addComment')->name("$uri.addComment");
+        Route::put("/{{$name}}/comment/{id}", 'editComment')->name("$uri.editComment");
         Route::delete("/{{$name}}/comment/{id}", 'removeComment')->name("$uri.removeComment");
 
         Route::post("/{{$name}}/tag", 'addTag')->name("$uri.addTag");

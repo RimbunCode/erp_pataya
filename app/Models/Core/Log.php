@@ -15,9 +15,11 @@ class Log extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'activity'    => LogContent::class,
-        'data_before' => Json::class,
-        'data_after'  => Json::class,
+        'activity'     => LogContent::class,
+        'data_before'  => Json::class,
+        'data_after'   => Json::class,
+        'comment_json' => 'array',
+        'edited_at'    => 'datetime',
     ];
     protected $with    = ['user'];
     protected $appends = ['code'];
