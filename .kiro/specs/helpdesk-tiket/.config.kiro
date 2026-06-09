@@ -1,0 +1,6 @@
+{
+  "specId": "844bdc21-ff68-4835-ac93-07f2444ce3a6",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fitur Tiket (Helpdesk) pada module baru Helpdesk — mencakup pembuatan tiket, tracking status, assignment, progress, TiptapEditor untuk content, dan TiketResponse sebagai history update/balasan tiket."
+}
