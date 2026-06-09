@@ -3,6 +3,9 @@
 namespace Tests\Feature\Core;
 
 use App\FormStatus;
+use App\Http\Middleware\AppMiddleware;
+use App\Http\Middleware\EnsureUserIsOnboarded;
+use App\Http\Middleware\LanguageMiddleware;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model as AppModel;
@@ -361,9 +364,9 @@ class ApprovalAutoApproveTest extends TestCase {
         // approverA approve via HTTP
         $this->actingAs($approverA)
             ->withoutMiddleware([
-                \App\Http\Middleware\AppMiddleware::class,
-                \App\Http\Middleware\EnsureUserIsOnboarded::class,
-                \App\Http\Middleware\LanguageMiddleware::class,
+                AppMiddleware::class,
+                EnsureUserIsOnboarded::class,
+                LanguageMiddleware::class,
             ])
             ->postJson(route('approvalInstances.decision', $step->id), [
                 'decision' => 'approve',
@@ -433,9 +436,9 @@ class ApprovalAutoApproveTest extends TestCase {
         // approverA reject via HTTP (bypass onboarding/app/language middleware)
         $this->actingAs($approverA)
             ->withoutMiddleware([
-                \App\Http\Middleware\AppMiddleware::class,
-                \App\Http\Middleware\EnsureUserIsOnboarded::class,
-                \App\Http\Middleware\LanguageMiddleware::class,
+                AppMiddleware::class,
+                EnsureUserIsOnboarded::class,
+                LanguageMiddleware::class,
             ])
             ->postJson(route('approvalInstances.decision', $step->id), [
                 'decision' => 'reject',

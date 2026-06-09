@@ -225,7 +225,7 @@ class ApprovalInstanceController extends Controller {
             }
             $isApproved = match ($step->status) {
                 FormStatus::PENDING, FormStatus::SKIPPED => false,
-                FormStatus::APPROVED => true,
+                FormStatus::APPROVED                     => true,
             };
         }
 
