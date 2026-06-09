@@ -20,6 +20,7 @@ class Tiket extends Model {
         'due_date'   => 'datetime',
         'end_date'   => 'datetime',
     ];
+    public static string $alias    = 'Tiket';
     public string $formComponent   = 'Helpdesk/Tikets/Form';
     public string $translateKey    = 'helpdesk.tiket';
     public string $keyBreadcrumb   = 'subject';
