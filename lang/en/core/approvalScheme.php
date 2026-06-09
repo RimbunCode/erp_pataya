@@ -44,6 +44,9 @@ return [
             'status'            => 'Status',
             'approval_instance' => 'Approval Instance',
             'notes'             => 'Notes',
+            'is_advanced'       => 'Advance',
+            'is_advanced_label' => 'Multiple Approvers',
+            'approvers'         => 'Approvers',
         ],
     ],
 ];

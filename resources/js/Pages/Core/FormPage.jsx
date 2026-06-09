@@ -1262,25 +1262,14 @@ const FormPage = memo(
 //   }),
 // );
 
-const ApprovalItem = memo(function ApprovalItem({
-  id,
-  approver,
-  approver_type,
+const ApprovalActedByDetail = memo(function ApprovalActedByDetail({
   acted_by,
   acted_at,
   notes,
-  status,
 }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const lang = usePage().props?.lang;
-  const [open, setOpen] = useState(false);
-
-  const hasDetail = !(
-    status == "waiting" ||
-    status == "pending" ||
-    status == "skipped"
-  );
 
   const alias = acted_by?.name
     ?.split(" ")
@@ -1289,10 +1278,72 @@ const ApprovalItem = memo(function ApprovalItem({
     ?.join("");
 
   return (
+    <div className="text-sm space-y-1.5 mt-1">
+      <p className="truncate">
+        {t("core.approvalScheme.steps.columns.acted_by")} :
+      </p>
+      <p className="truncate flex items-center gap-x-2 w-full">
+        <Avatar className="rounded-full h-max size-10">
+          {acted_by?.image && (
+            <AvatarImage
+              src={
+                route("files.preview", acted_by?.image) +
+                `?v=${new Date(acted_by?.updated_at).getTime()}`
+              }
+              alt={acted_by?.name}
+            />
+          )}
+          <AvatarFallback className="text-xl font-semibold rounded-lg">
+            {alias}
+          </AvatarFallback>
+        </Avatar>
+        <span>{acted_by?.name}</span>
+        <span>●</span>
+        <span>
+          {format(new TZDate(acted_at, "UTC"), "PPPp", {
+            locale: getLocaleDate(lang),
+          })}
+        </span>
+      </p>
+
+      {notes && (
+        <div className="rounded-lg border-muted-foreground/30 mt-2 border">
+          <p className="truncate border-b border-muted-foreground/30 px-2 pt-2 pb-1 font-semibold">
+            {t("core.approvalScheme.steps.columns.notes")}
+          </p>
+          <p className="p-2 w-full text-wrap wrap-break-word text-justify">
+            {notes}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+const ApprovalItem = memo(function ApprovalItem({
+  id,
+  approver,
+  approver_type,
+  acted_by,
+  acted_at,
+  notes,
+  status,
+  is_advanced,
+  approvers,
+}) {
+  const { t } = useLaravelReactI18n();
+  const [open, setOpen] = useState(false);
+
+  const hasDetail = !(
+    status == "waiting" ||
+    status == "pending" ||
+    status == "skipped"
+  );
+
+  return (
     <li key={id} className="mb-3 first:mt-2 ms-6">
       <div
         className={cn(
-          // type == "log" ? "bg-inherit" : "bg-muted border-[3px]",
           "p-2 -mt-1.5 size-[34px] -inset-s-[18px] border-muted flex justify-center items-center absolute rounded-full",
         )}
       >
@@ -1314,55 +1365,79 @@ const ApprovalItem = memo(function ApprovalItem({
           {hasDetail && (
             <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
           )}
-          <p className="text-sm font-normal leading-none ">
-            <span className="capitalize">{approver_type + ": "}</span>
-            <span>{convertTemplateLink(approver)}</span>
+          <p className="text-sm font-normal leading-none">
+            {is_advanced ? (
+              <span className="font-medium">
+                {t("core.approvalScheme.steps.columns.is_advanced_label")}
+              </span>
+            ) : (
+              <>
+                <span className="capitalize">{approver_type + ": "}</span>
+                <span>{convertTemplateLink(approver)}</span>
+              </>
+            )}
             <BadgeStatus className="ml-2" status={status} />
           </p>
         </CollapsibleTrigger>
-        {hasDetail && (
-          <CollapsibleContent asChild>
-            <div className="ml-6 w-[calc(100%-calc(var(--spacing,0.25)*6))] text-sm space-y-1.5 mt-1">
-              <p className="truncate">
-                {t("core.approvalScheme.steps.columns.acted_by")} :
-              </p>
-              <p className="truncate flex items-center gap-x-2 w-full">
-                <Avatar className="rounded-full h-max size-10">
-                  {acted_by?.image && (
-                    <AvatarImage
-                      src={
-                        route("files.preview", acted_by?.image) +
-                        `?v=${new Date(acted_by?.updated_at).getTime()}`
-                      }
-                      alt={acted_by?.name}
-                    />
-                  )}
-                  <AvatarFallback className="text-xl font-semibold rounded-lg">
-                    {alias}
-                  </AvatarFallback>
-                </Avatar>
-                <span>{acted_by?.name}</span>
-                <span>●</span>
-                <span>
-                  {format(new TZDate(acted_at, "UTC"), "PPPp", {
-                    locale: getLocaleDate(lang),
-                  })}
-                </span>
-              </p>
-
-              {notes && (
-                <div className="rounded-lg border-muted-foreground/30 mt-2 border">
-                  <p className="truncate border-b border-muted-foreground/30 px-2 pt-2 pb-1 font-semibold">
-                    {t("core.approvalScheme.steps.columns.notes")}
-                  </p>
-                  <p className="p-2 w-full text-wrap wrap-break-word text-justify">
-                    {notes}
-                  </p>
-                </div>
-              )}
-            </div>
-          </CollapsibleContent>
-        )}
+        <CollapsibleContent asChild>
+          <div className="ml-6 w-[calc(100%-calc(var(--spacing,0.25)*6))]">
+            {is_advanced && approvers && approvers.length > 0 ? (
+              <ul className="mt-2 space-y-2">
+                {approvers.map((childApprover) => {
+                  const childHasDetail = !(
+                    childApprover.status == "waiting" ||
+                    childApprover.status == "pending" ||
+                    childApprover.status == "skipped"
+                  );
+                  return (
+                    <li
+                      key={childApprover.id}
+                      className="border-l-2 border-muted pl-3"
+                    >
+                      <p className="text-sm">
+                        <span className="capitalize">
+                          {childApprover.approver_type + ": "}
+                        </span>
+                        <span>
+                          {convertTemplateLink(childApprover.approver)}
+                        </span>
+                        <BadgeStatus
+                          className="ml-2"
+                          status={childApprover.status}
+                        />
+                      </p>
+                      {childHasDetail && (
+                        <ApprovalActedByDetail
+                          acted_by={childApprover.acted_by}
+                          acted_at={childApprover.acted_at}
+                          notes={null}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              hasDetail && (
+                <ApprovalActedByDetail
+                  acted_by={acted_by}
+                  acted_at={acted_at}
+                  notes={notes}
+                />
+              )
+            )}
+            {hasDetail && is_advanced && notes && (
+              <div className="rounded-lg border-muted-foreground/30 mt-2 border">
+                <p className="truncate border-b border-muted-foreground/30 px-2 pt-2 pb-1 font-semibold text-sm">
+                  {t("core.approvalScheme.steps.columns.notes")}
+                </p>
+                <p className="p-2 w-full text-wrap wrap-break-word text-justify text-sm">
+                  {notes}
+                </p>
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
       </Collapsible>
     </li>
   );

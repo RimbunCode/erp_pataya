@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -33,7 +34,9 @@ return new class extends Migration
             $table->index(['target_model_type', 'target_model_id']);
             $table->index(['source_model_type', 'source_model_id']);
             $table->index('owner_id');
-            $table->fullText(['title', 'subtitle', 'search_text'], 'commands_fulltext_search');
+            if (DB::getDriverName() !== 'sqlite') {
+                $table->fullText(['title', 'subtitle', 'search_text'], 'commands_fulltext_search');
+            }
         });
     }
 
