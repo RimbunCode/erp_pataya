@@ -6,13 +6,16 @@ use App\Models\Core\Branch;
 use App\Models\Model;
 use App\Models\User\User;
 use App\Traits\DataTable;
+use Database\Factories\Helpdesk\TiketFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Tiket extends Model {
-    use DataTable, HasUlids, SoftDeletes;
+    /** @use HasFactory<TiketFactory> */
+    use DataTable, HasFactory, HasUlids, SoftDeletes;
 
     protected $guarded = ['id'];
     protected $casts   = [
