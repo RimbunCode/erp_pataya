@@ -110,7 +110,7 @@ class TiketTest extends TestCase {
         $mock = $this->mockService();
         $mock->shouldReceive('update')
             ->once()
-            ->andReturnUsing(function (Tiket $t, array $data) use ($tiket) {
+            ->andReturnUsing(function (Tiket $_t, array $data) use ($tiket) {
                 $tiket->update([
                     'status'   => $data['status'],
                     'progress' => $data['progress'],
@@ -193,17 +193,17 @@ class TiketTest extends TestCase {
         $mock->shouldReceive('updateTiket')
             ->once()
             ->withArgs(fn ($arg) => $arg->id === $tiket->id)
-            ->andReturnUsing(function (Tiket $t, array $data) {
+            ->andReturnUsing(function (Tiket $model, array $data) {
                 $assignToId = $data['assign_to']['id'] ?? null;
 
-                $t->update([
+                $model->update([
                     'assign_to_id' => $assignToId,
                     'status'       => $data['status'],
                     'progress'     => $data['progress'],
                 ]);
 
                 return TiketResponse::create([
-                    'tiket_id'     => $t->id,
+                    'tiket_id'     => $model->id,
                     'user_id'      => $this->user->id,
                     'assign_to_id' => $assignToId,
                     'status'       => $data['status'],
