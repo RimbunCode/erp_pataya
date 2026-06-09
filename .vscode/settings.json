@@ -4,6 +4,7 @@
   "Laravel.phpEnvironment": "herd",
   "Laravel.pint.runOnSave": false,
   "[php]": {
+    "editor.tabSize": 4,
     "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
   },
   "php.inlayHints.types.variable": true,
@@ -81,6 +82,7 @@
   "php.format.rules.openBraceOnNewLineForLambdas": false,
   "php.format.rules.openBraceOnNewLineForNamespaces": false,
   "php.format.rules.openBraceOnNewLineForTypes": false,
+  "php.format.rules.indentSize": 4,
   "files.associations": {
     ".env*": "dotenv",
     "*.css": "tailwindcss"
