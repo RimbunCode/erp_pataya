@@ -85,6 +85,7 @@
     "@tiptap/react": "^3.26.0",
     "@tiptap/starter-kit": "^3.26.0",
     "@tiptap/suggestion": "^3.26.0",
+    "@tiptap/extension-image": "^3.26.0",
     "buffer": "^6.0.3",
     "change-case": "^5.4.4",
     "class-variance-authority": "^0.7.1",

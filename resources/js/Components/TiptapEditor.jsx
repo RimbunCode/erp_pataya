@@ -16,6 +16,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  ImageIcon,
   Italic,
   Link as LinkIcon,
   List,
@@ -34,6 +35,7 @@ import React, {
   useRef,
 } from "react";
 
+import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Mention from "@tiptap/extension-mention";
 import StarterKit from "@tiptap/starter-kit";
@@ -68,7 +70,7 @@ function ToolbarDivider() {
   return <div className="w-px h-5 bg-border mx-0.5 shrink-0" />;
 }
 
-function MenuBar({ editor }) {
+function MenuBar({ editor, imageUploadUrl, handleImageUpload, fileInputRef }) {
   if (!editor) return null;
 
   const setLink = () => {
@@ -247,6 +249,30 @@ function MenuBar({ editor }) {
       >
         <RemoveFormatting className="size-3.5" />
       </ToolbarButton>
+
+      {/* Image Upload */}
+      {imageUploadUrl && (
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImageUpload(file);
+              e.target.value = "";
+            }}
+          />
+          <ToolbarDivider />
+          <ToolbarButton
+            onClick={() => fileInputRef.current?.click()}
+            title="Insert Image"
+          >
+            <ImageIcon size={14} />
+          </ToolbarButton>
+        </>
+      )}
     </div>
   );
 }
@@ -336,10 +362,19 @@ function buildMentionSuggestion(mentionSourceRef) {
 }
 
 const TiptapEditor = forwardRef(function TiptapEditor(
-  { value, onValueChange, placeholder, className, mentionSource, scrollable },
+  {
+    value,
+    onValueChange,
+    placeholder,
+    className,
+    mentionSource,
+    scrollable,
+    imageUploadUrl,
+  },
   ref,
 ) {
   const isUpdatingRef = useRef(false);
+  const fileInputRef = useRef(null);
   // Keep mentionSource in a ref so buildMentionSuggestion can read latest value
   // without needing to recreate the extension on every render.
   const mentionSourceRef = useRef(mentionSource);
@@ -351,6 +386,7 @@ const TiptapEditor = forwardRef(function TiptapEditor(
     extensions: [
       StarterKit,
       Underline,
+      Image.configure({ inline: false, allowBase64: false }),
       TextAlign.configure({
         types: ["heading", "paragraph"],
         alignments: ["left", "center", "right", "justify"],
@@ -396,6 +432,27 @@ const TiptapEditor = forwardRef(function TiptapEditor(
     },
   });
 
+  const handleImageUpload = async (file) => {
+    if (!imageUploadUrl || !file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const csrfToken =
+        document.querySelector('meta[name="csrf-token"]')?.content ?? "";
+      const res = await fetch(imageUploadUrl, {
+        method: "POST",
+        headers: { "X-CSRF-TOKEN": csrfToken },
+        body: formData,
+      });
+      const json = await res.json();
+      if (json.url) {
+        editor.chain().focus().setImage({ src: json.url }).run();
+      }
+    } catch (e) {
+      console.error("Image upload failed", e);
+    }
+  };
+
   // Sync controlled value → editor content
   useEffect(() => {
     if (!editor || editor.isDestroyed) return;
@@ -423,7 +480,12 @@ const TiptapEditor = forwardRef(function TiptapEditor(
         className,
       )}
     >
-      <MenuBar editor={editor} />
+      <MenuBar
+        editor={editor}
+        imageUploadUrl={imageUploadUrl}
+        handleImageUpload={handleImageUpload}
+        fileInputRef={fileInputRef}
+      />
       <EditorContent
         editor={editor}
         className={scrollable ? "flex-1 min-h-0 overflow-y-auto" : undefined}
