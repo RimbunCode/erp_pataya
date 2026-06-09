@@ -28,12 +28,12 @@ function Form() {
     <>
       <FormPageContent
         value="detail"
-        title={t("helpdesk.tiket.detail")}
+        title={t("helpdesk.tiket.fields.type")}
       >
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
           <div className="flex flex-col gap-y-4">
             <FormInput
-              label={t("helpdesk.tiket.columns.type")}
+              label={t("helpdesk.tiket.fields.type")}
               name="type"
             >
               <Select
@@ -44,7 +44,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.columns.priority")}
+              label={t("helpdesk.tiket.fields.priority")}
               name="priority"
             >
               <Select
@@ -55,7 +55,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.columns.status")}
+              label={t("helpdesk.tiket.fields.status")}
               name="status"
             >
               <Select
@@ -66,7 +66,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.columns.progress")}
+              label={`${t("helpdesk.tiket.fields.progress")} (${data.progress ?? 0}%)`}
               name="progress"
             >
               <Slider
@@ -74,13 +74,14 @@ function Form() {
                 onValueChange={([v]) => setData("progress", v)}
                 min={0}
                 max={100}
-                step={1}
+                step={5}
+                className="mt-2"
               />
             </FormInput>
           </div>
           <div className="flex flex-col gap-y-4">
             <FormInput
-              label={t("helpdesk.tiket.columns.assign_to")}
+              label={t("helpdesk.tiket.fields.assign_to")}
               name="assign_to"
             >
               <UserLinkModel
@@ -89,7 +90,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.columns.start_date")}
+              label={t("helpdesk.tiket.fields.start_date")}
               name="start_date"
             >
               <DatetimePicker
@@ -99,7 +100,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.columns.due_date")}
+              label={t("helpdesk.tiket.fields.due_date")}
               name="due_date"
             >
               <DatetimePicker
@@ -109,7 +110,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.columns.end_date")}
+              label={t("helpdesk.tiket.fields.end_date")}
               name="end_date"
             >
               <DatetimePicker
@@ -123,11 +124,12 @@ function Form() {
       </FormPageContent>
       <FormPageContent
         value="subject"
-        title={t("helpdesk.tiket.columns.subject")}
+        title={t("helpdesk.tiket.fields.subject")}
       >
         <FormInput
-          label={t("helpdesk.tiket.columns.subject")}
+          label={t("helpdesk.tiket.fields.subject")}
           name="subject"
+          required
         >
           <Input
             type="text"
@@ -138,10 +140,10 @@ function Form() {
       </FormPageContent>
       <FormPageContent
         value="content"
-        title={t("helpdesk.tiket.columns.content")}
+        title={t("helpdesk.tiket.fields.content")}
       >
         <FormInput
-          label={t("helpdesk.tiket.columns.content")}
+          label={t("helpdesk.tiket.fields.content")}
           name="content"
         >
           <TiptapEditor
