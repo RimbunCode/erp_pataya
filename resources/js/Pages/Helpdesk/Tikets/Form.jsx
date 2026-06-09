@@ -9,6 +9,7 @@ import { Slider } from "@/Components/ui/slider";
 import TiptapEditor from "@/Components/TiptapEditor";
 import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
 const TYPE_OPTIONS = ["bug_problem", "task", "question", "other"];
 const PRIORITY_OPTIONS = ["low", "medium", "high", "critical"];
@@ -23,6 +24,10 @@ function Form() {
     progress: 0,
     start_date: new Date(),
   });
+  const tiket = usePage().props.tiket;
+  const imageUploadUrl = tiket
+    ? window.route("tikets.addFile", tiket.id)
+    : null;
 
   return (
     <>
@@ -149,6 +154,7 @@ function Form() {
           <TiptapEditor
             value={data.content}
             onValueChange={(json, html) => setData("content", html)}
+            imageUploadUrl={imageUploadUrl}
           />
         </FormInput>
       </FormPageContent>
