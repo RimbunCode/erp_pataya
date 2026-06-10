@@ -2,14 +2,14 @@
 
 namespace Database\Factories\Helpdesk;
 
-use App\Models\Helpdesk\Tiket;
+use App\Models\Helpdesk\Ticket;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends Factory<Tiket>
+ * @extends Factory<Ticket>
  */
-class TiketFactory extends Factory {
+class TicketFactory extends Factory {
     /**
      * Define the model's default state.
      *

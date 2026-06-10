@@ -3,64 +3,64 @@
 namespace App\Services\Helpdesk;
 
 use App\Models\Core\FormatingSeries;
-use App\Models\Helpdesk\Tiket;
-use App\Models\Helpdesk\TiketResponse;
+use App\Models\Helpdesk\Ticket;
+use App\Models\Helpdesk\TicketResponse;
 use Illuminate\Support\Facades\Auth;
 
-class TiketService {
-    public function create(array $data): Tiket {
-        $data['code']          = FormatingSeries::generate(Tiket::class, $data);
+class TicketService {
+    public function create(array $data): Ticket {
+        $data['code']          = FormatingSeries::generate(Ticket::class, $data);
         $data['created_by_id'] = Auth::id();
         $data['assign_to_id']  = $data['assign_to']['id'] ?? null;
         $data['start_date']    = $data['start_date'] ?? now();
 
-        $tiket = Tiket::create($data);
-        $tiket->logForCreated();
+        $ticket = Ticket::create($data);
+        $ticket->logForCreated();
 
-        return $tiket;
+        return $ticket;
     }
 
-    public function update(Tiket $tiket, array $data): Tiket {
+    public function update(Ticket $ticket, array $data): Ticket {
         $data['assign_to_id'] = $data['assign_to']['id'] ?? null;
 
-        $tiket->update($data);
-        $tiket->logForUpdated();
+        $ticket->update($data);
+        $ticket->logForUpdated();
 
-        return $tiket;
+        return $ticket;
     }
 
-    public function markDone(Tiket $tiket): Tiket {
-        $tiket->update([
+    public function markDone(Ticket $ticket): Ticket {
+        $ticket->update([
             'status'   => 'done',
             'progress' => 100,
             'end_date' => now(),
         ]);
 
-        TiketResponse::create([
-            'tiket_id'     => $tiket->id,
+        TicketResponse::create([
+            'ticket_id'    => $ticket->id,
             'user_id'      => Auth::id(),
-            'assign_to_id' => $tiket->assign_to_id,
+            'assign_to_id' => $ticket->assign_to_id,
             'status'       => 'done',
             'progress'     => 100,
             'end_date'     => now(),
         ]);
 
-        $tiket->logForUpdated();
+        $ticket->logForUpdated();
 
-        return $tiket;
+        return $ticket;
     }
 
-    public function updateTiket(Tiket $tiket, array $data): TiketResponse {
+    public function updateTicket(Ticket $ticket, array $data): TicketResponse {
         $assignToId = $data['assign_to']['id'] ?? null;
 
-        $tiket->update([
+        $ticket->update([
             'assign_to_id' => $assignToId,
             'status'       => $data['status'],
             'progress'     => $data['progress'],
         ]);
 
-        $response = TiketResponse::create([
-            'tiket_id'     => $tiket->id,
+        $response = TicketResponse::create([
+            'ticket_id'    => $ticket->id,
             'user_id'      => Auth::id(),
             'assign_to_id' => $assignToId,
             'status'       => $data['status'],
@@ -69,7 +69,7 @@ class TiketService {
             'end_date'     => $data['end_date'] ?? null,
         ]);
 
-        $tiket->logForUpdated();
+        $ticket->logForUpdated();
 
         return $response;
     }

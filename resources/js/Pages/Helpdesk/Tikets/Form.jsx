@@ -24,54 +24,48 @@ function Form() {
     progress: 0,
     start_date: new Date(),
   });
-  const tiket = usePage().props.tiket;
-  const imageUploadUrl = tiket
-    ? window.route("tikets.addFile", tiket.id)
+  const ticket = usePage().props.ticket;
+  const imageUploadUrl = ticket
+    ? window.route("tickets.addFile", ticket.id)
     : null;
 
   return (
     <>
-      <FormPageContent
-        value="detail"
-        title={t("helpdesk.tiket.fields.type")}
-      >
+      <FormPageContent value="detail" title={t("helpdesk.ticket.columns.type")}>
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
           <div className="flex flex-col gap-y-4">
-            <FormInput
-              label={t("helpdesk.tiket.fields.type")}
-              name="type"
-            >
+            <FormInput label={t("helpdesk.ticket.columns.type")} name="type">
               <Select
                 value={data.type}
                 onValueChange={(val) => setData("type", val)}
                 options={TYPE_OPTIONS}
-                optionTrans="helpdesk.tiket.type.options"
+                optionTrans="helpdesk.ticket.type.options"
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.fields.priority")}
+              label={t("helpdesk.ticket.columns.priority")}
               name="priority"
             >
               <Select
                 value={data.priority}
                 onValueChange={(val) => setData("priority", val)}
                 options={PRIORITY_OPTIONS}
-                optionTrans="helpdesk.tiket.priority.options"
+                optionTrans="helpdesk.ticket.priority.options"
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.fields.status")}
+              label={t("helpdesk.ticket.columns.status")}
               name="status"
             >
               <Select
                 value={data.status}
                 onValueChange={(val) => setData("status", val)}
                 options={STATUS_OPTIONS}
-                optionTrans="helpdesk.tiket.status.options"
+                optionTrans="helpdesk.ticket.status.options"
               />
             </FormInput>
             <FormInput
-              label={`${t("helpdesk.tiket.fields.progress")} (${data.progress ?? 0}%)`}
+              label={`${t("helpdesk.ticket.columns.progress")} (${data.progress ?? 0}%)`}
               name="progress"
             >
               <Slider
@@ -86,7 +80,7 @@ function Form() {
           </div>
           <div className="flex flex-col gap-y-4">
             <FormInput
-              label={t("helpdesk.tiket.fields.assign_to")}
+              label={t("helpdesk.ticket.columns.assign_to")}
               name="assign_to"
             >
               <UserLinkModel
@@ -95,7 +89,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.fields.start_date")}
+              label={t("helpdesk.ticket.columns.start_date")}
               name="start_date"
             >
               <DatetimePicker
@@ -105,7 +99,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.fields.due_date")}
+              label={t("helpdesk.ticket.columns.due_date")}
               name="due_date"
             >
               <DatetimePicker
@@ -115,7 +109,7 @@ function Form() {
               />
             </FormInput>
             <FormInput
-              label={t("helpdesk.tiket.fields.end_date")}
+              label={t("helpdesk.ticket.columns.end_date")}
               name="end_date"
             >
               <DatetimePicker
@@ -129,10 +123,10 @@ function Form() {
       </FormPageContent>
       <FormPageContent
         value="subject"
-        title={t("helpdesk.tiket.fields.subject")}
+        title={t("helpdesk.ticket.columns.subject")}
       >
         <FormInput
-          label={t("helpdesk.tiket.fields.subject")}
+          label={t("helpdesk.ticket.columns.subject")}
           name="subject"
           required
         >
@@ -145,12 +139,9 @@ function Form() {
       </FormPageContent>
       <FormPageContent
         value="content"
-        title={t("helpdesk.tiket.fields.content")}
+        title={t("helpdesk.ticket.columns.content")}
       >
-        <FormInput
-          label={t("helpdesk.tiket.fields.content")}
-          name="content"
-        >
+        <FormInput label={t("helpdesk.ticket.columns.content")} name="content">
           <TiptapEditor
             value={data.content}
             onValueChange={(json, html) => setData("content", html)}

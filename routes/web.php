@@ -23,7 +23,7 @@ use App\Http\Controllers\Finances\PaymentTermTemplateController;
 use App\Http\Controllers\Finances\PurchaseInvoiceController;
 use App\Http\Controllers\Finances\SalesInvoiceController;
 use App\Http\Controllers\Finances\TaxesController;
-use App\Http\Controllers\Helpdesk\TiketController;
+use App\Http\Controllers\Helpdesk\TicketController;
 use App\Http\Controllers\Inventory\AttributeController;
 use App\Http\Controllers\Inventory\CategoryController;
 use App\Http\Controllers\Inventory\DeliveryNoteController;
@@ -245,10 +245,10 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // / Service Group End
 
     // / Helpdesk Group
-    // Tiket
-    Route::resourceDetail('tiket', TiketController::class);
-    Route::put('/tikets/{tiket}/markDone', [TiketController::class, 'markDone'])->name('tikets.markDone');
-    Route::put('/tikets/{tiket}/updateTiket', [TiketController::class, 'updateTiket'])->name('tikets.updateTiket');
+    // Ticket
+    Route::resourceDetail('ticket', TicketController::class);
+    Route::put('/tickets/{ticket}/markDone', [TicketController::class, 'markDone'])->name('tickets.markDone');
+    Route::put('/tickets/{ticket}/updateTicket', [TicketController::class, 'updateTicket'])->name('tickets.updateTicket');
     // / Helpdesk Group End
 
     // / Sales Groups

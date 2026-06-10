@@ -4,7 +4,7 @@ namespace App\Http\Requests\Helpdesk;
 
 use App\Http\Requests\BaseFormRequest;
 
-class TiketResponseRequest extends BaseFormRequest {
+class TicketResponseRequest extends BaseFormRequest {
     public function authorize(): bool {
         return true;
     }

@@ -6,53 +6,52 @@ use App\Models\Core\Branch;
 use App\Models\Model;
 use App\Models\User\User;
 use App\Traits\DataTable;
-use Database\Factories\Helpdesk\TiketFactory;
+use Database\Factories\Helpdesk\TicketFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Tiket extends Model {
-    /** @use HasFactory<TiketFactory> */
+class Ticket extends Model {
+    /** @use HasFactory<TicketFactory> */
     use DataTable, HasFactory, HasUlids, SoftDeletes;
-
-    protected $guarded = ['id'];
-    protected $casts   = [
+    protected            $guarded       = ['id'];
+    protected            $casts         = [
         'start_date' => 'datetime',
         'due_date'   => 'datetime',
         'end_date'   => 'datetime',
     ];
-    public static string $alias    = 'Tiket';
-    public string $formComponent   = 'Helpdesk/Tikets/Form';
-    public string $translateKey    = 'helpdesk.tiket';
-    public string $keyBreadcrumb   = 'subject';
-    protected array $configColumns = [
-        'code' => [
+    public static string $alias         = 'Ticket';
+    public string        $formComponent = 'Helpdesk/Tickets/Form';
+    public string        $translateKey  = 'helpdesk.ticket';
+    public string        $keyBreadcrumb = 'subject';
+    protected array      $configColumns = [
+        'code'       => [
             'show'  => true,
             'order' => 0,
         ],
-        'type' => [
+        'type'       => [
             'show'  => true,
             'order' => 1,
         ],
-        'subject' => [
+        'subject'    => [
             'show'  => true,
             'order' => 2,
         ],
-        'status' => [
+        'status'     => [
             'show'  => true,
             'order' => 3,
         ],
-        'progress' => [
+        'progress'   => [
             'show'  => true,
             'order' => 4,
         ],
-        'priority' => [
+        'priority'   => [
             'show'  => true,
             'order' => 5,
         ],
-        'assign_to' => [
+        'assign_to'  => [
             'show'  => true,
             'order' => 6,
         ],
@@ -65,7 +64,7 @@ class Tiket extends Model {
             'show'  => false,
             'order' => 8,
         ],
-        'due_date' => [
+        'due_date'   => [
             'type'  => 'date',
             'show'  => false,
             'order' => 9,
@@ -85,6 +84,6 @@ class Tiket extends Model {
     }
 
     public function responses(): HasMany {
-        return $this->hasMany(TiketResponse::class)->orderByDesc('created_at');
+        return $this->hasMany(TicketResponse::class)->orderByDesc('created_at');
     }
 }

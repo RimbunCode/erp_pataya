@@ -8,16 +8,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class TiketResponse extends Model {
+class TicketResponse extends Model {
     use HasUlids, SoftDeletes;
-
     protected $guarded = ['id'];
     protected $casts   = [
         'end_date' => 'datetime',
     ];
 
-    public function tiket(): BelongsTo {
-        return $this->belongsTo(Tiket::class);
+    public function ticket(): BelongsTo {
+        return $this->belongsTo(Ticket::class);
     }
 
     public function user(): BelongsTo {

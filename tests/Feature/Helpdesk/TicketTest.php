@@ -2,19 +2,17 @@
 
 namespace Tests\Feature\Helpdesk;
 
-use App\Models\Helpdesk\Tiket;
-use App\Models\Helpdesk\TiketResponse;
+use App\Models\Helpdesk\Ticket;
+use App\Models\Helpdesk\TicketResponse;
 use App\Models\User\User;
-use App\Services\Helpdesk\TiketService;
+use App\Services\Helpdesk\TicketService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
 
-class TiketTest extends TestCase {
+class TicketTest extends TestCase {
     use RefreshDatabase;
-
     private User $user;
-
     /** @var array<string, mixed> */
     private array $sessionData;
 
@@ -23,7 +21,7 @@ class TiketTest extends TestCase {
 
         $this->user = User::factory()->create();
 
-        // Build session data with the required permissions for the Tiket model.
+        // Build session data with the required permissions for the Ticket model.
         // The Controller reads session('permissions')[ModelClass][level] to authorize
         // each action. The `lang` middleware requires the 'lang' cookie, so we add
         // it via withCookie on every request instead.
@@ -31,11 +29,11 @@ class TiketTest extends TestCase {
         // session('permissions_version') matches the DB-resolved version.
         // For a user with no roles the version resolves to '0|0|0|0'.
         $this->sessionData = [
-            'permissions' => [
-                Tiket::class => [
+            'permissions'         => [
+                Ticket::class => [
                     0 => [
                         [
-                            'model'        => Tiket::class,
+                            'model'        => Ticket::class,
                             'level'        => 0,
                             'only_creator' => false,
                             'permissions'  => [
@@ -62,13 +60,13 @@ class TiketTest extends TestCase {
     }
 
     /**
-     * Build the mocked TiketService and bind it in the container.
+     * Build the mocked TicketService and bind it in the container.
      *
-     * @return Mockery\MockInterface&TiketService
+     * @return Mockery\MockInterface&TicketService
      */
     private function mockService(): Mockery\MockInterface {
-        $mock = Mockery::mock(TiketService::class);
-        $this->app->instance(TiketService::class, $mock);
+        $mock = Mockery::mock(TicketService::class);
+        $this->app->instance(TicketService::class, $mock);
 
         return $mock;
     }
@@ -83,16 +81,16 @@ class TiketTest extends TestCase {
             ->actingAs($this->user);
     }
 
-    public function test_can_create_tiket(): void {
-        $tiket = Tiket::factory()->create();
+    public function test_can_create_ticket(): void {
+        $ticket = Ticket::factory()->create();
 
         $mock = $this->mockService();
         $mock->shouldReceive('create')
             ->once()
-            ->andReturn($tiket);
+            ->andReturn($ticket);
 
         $response = $this->authenticatedRequest()
-            ->post(route('tikets.store'), [
+            ->post(route('tickets.store'), [
                 'type'     => 'bug_problem',
                 'priority' => 'high',
                 'subject'  => 'Something is broken',
@@ -101,26 +99,26 @@ class TiketTest extends TestCase {
                 'progress' => 0,
             ]);
 
-        $response->assertRedirect(route('tikets.show', $tiket));
+        $response->assertRedirect(route('tickets.show', $ticket));
     }
 
-    public function test_can_update_tiket(): void {
-        $tiket = Tiket::factory()->create();
+    public function test_can_update_ticket(): void {
+        $ticket = Ticket::factory()->create();
 
         $mock = $this->mockService();
         $mock->shouldReceive('update')
             ->once()
-            ->andReturnUsing(function (Tiket $_t, array $data) use ($tiket) {
-                $tiket->update([
+            ->andReturnUsing(function (Ticket $_t, array $data) use ($ticket) {
+                $ticket->update([
                     'status'   => $data['status'],
                     'progress' => $data['progress'],
                 ]);
 
-                return $tiket;
+                return $ticket;
             });
 
         $response = $this->authenticatedRequest()
-            ->put(route('tikets.update', $tiket), [
+            ->put(route('tickets.update', $ticket), [
                 'type'      => 'task',
                 'priority'  => 'medium',
                 'subject'   => 'Updated subject',
@@ -131,13 +129,13 @@ class TiketTest extends TestCase {
 
         $response->assertRedirect();
 
-        $tiket->refresh();
-        $this->assertSame('in_progress', $tiket->status);
-        $this->assertSame(50, (int) $tiket->progress);
+        $ticket->refresh();
+        $this->assertSame('in_progress', $ticket->status);
+        $this->assertSame(50, (int) $ticket->progress);
     }
 
     public function test_mark_done_sets_status_progress_end_date(): void {
-        $tiket = Tiket::factory()->create([
+        $ticket = Ticket::factory()->create([
             'status'   => 'in_progress',
             'progress' => 50,
             'end_date' => null,
@@ -146,16 +144,16 @@ class TiketTest extends TestCase {
         $mock = $this->mockService();
         $mock->shouldReceive('markDone')
             ->once()
-            ->withArgs(fn ($arg) => $arg->id === $tiket->id)
-            ->andReturnUsing(function (Tiket $t) {
+            ->withArgs(fn ($arg) => $arg->id === $ticket->id)
+            ->andReturnUsing(function (Ticket $t) {
                 $t->update([
                     'status'   => 'done',
                     'progress' => 100,
                     'end_date' => now(),
                 ]);
 
-                TiketResponse::create([
-                    'tiket_id'     => $t->id,
+                TicketResponse::create([
+                    'ticket_id'    => $t->id,
                     'user_id'      => $this->user->id,
                     'assign_to_id' => null,
                     'status'       => 'done',
@@ -167,33 +165,33 @@ class TiketTest extends TestCase {
             });
 
         $response = $this->authenticatedRequest()
-            ->put(route('tikets.markDone', $tiket));
+            ->put(route('tickets.markDone', $ticket));
 
         $response->assertRedirect();
 
-        $tiket->refresh();
-        $this->assertSame('done', $tiket->status);
-        $this->assertSame(100, (int) $tiket->progress);
-        $this->assertNotNull($tiket->end_date);
+        $ticket->refresh();
+        $this->assertSame('done', $ticket->status);
+        $this->assertSame(100, (int) $ticket->progress);
+        $this->assertNotNull($ticket->end_date);
 
-        $this->assertDatabaseHas('tiket_responses', [
-            'tiket_id' => $tiket->id,
-            'status'   => 'done',
-            'progress' => 100,
+        $this->assertDatabaseHas('ticket_responses', [
+            'ticket_id' => $ticket->id,
+            'status'    => 'done',
+            'progress'  => 100,
         ]);
     }
 
-    public function test_update_tiket_creates_response_and_updates_tiket(): void {
-        $tiket = Tiket::factory()->create([
+    public function test_update_ticket_creates_response_and_updates_ticket(): void {
+        $ticket = Ticket::factory()->create([
             'status'   => 'new',
             'progress' => 0,
         ]);
 
         $mock = $this->mockService();
-        $mock->shouldReceive('updateTiket')
+        $mock->shouldReceive('updateTicket')
             ->once()
-            ->withArgs(fn ($arg) => $arg->id === $tiket->id)
-            ->andReturnUsing(function (Tiket $model, array $data) {
+            ->withArgs(fn ($arg) => $arg->id === $ticket->id)
+            ->andReturnUsing(function (Ticket $model, array $data) {
                 $assignToId = $data['assign_to']['id'] ?? null;
 
                 $model->update([
@@ -202,8 +200,8 @@ class TiketTest extends TestCase {
                     'progress'     => $data['progress'],
                 ]);
 
-                return TiketResponse::create([
-                    'tiket_id'     => $model->id,
+                return TicketResponse::create([
+                    'ticket_id'    => $model->id,
                     'user_id'      => $this->user->id,
                     'assign_to_id' => $assignToId,
                     'status'       => $data['status'],
@@ -214,7 +212,7 @@ class TiketTest extends TestCase {
             });
 
         $response = $this->authenticatedRequest()
-            ->put(route('tikets.updateTiket', $tiket), [
+            ->put(route('tickets.updateTicket', $ticket), [
                 'status'    => 'in_progress',
                 'progress'  => 30,
                 'content'   => '<p>Working on it.</p>',
@@ -223,25 +221,25 @@ class TiketTest extends TestCase {
 
         $response->assertRedirect();
 
-        $tiket->refresh();
-        $this->assertSame('in_progress', $tiket->status);
-        $this->assertSame(30, (int) $tiket->progress);
+        $ticket->refresh();
+        $this->assertSame('in_progress', $ticket->status);
+        $this->assertSame(30, (int) $ticket->progress);
 
-        $this->assertDatabaseHas('tiket_responses', [
-            'tiket_id' => $tiket->id,
-            'status'   => 'in_progress',
-            'progress' => 30,
+        $this->assertDatabaseHas('ticket_responses', [
+            'ticket_id' => $ticket->id,
+            'status'    => 'in_progress',
+            'progress'  => 30,
         ]);
     }
 
-    public function test_can_delete_tiket(): void {
-        $tiket = Tiket::factory()->create();
+    public function test_can_delete_ticket(): void {
+        $ticket = Ticket::factory()->create();
 
         $response = $this->authenticatedRequest()
-            ->delete(route('tikets.destroy', $tiket));
+            ->delete(route('tickets.destroy', $ticket));
 
-        $response->assertRedirect(route('tikets.index'));
+        $response->assertRedirect(route('tickets.index'));
 
-        $this->assertSoftDeleted('tikets', ['id' => $tiket->id]);
+        $this->assertSoftDeleted('tickets', ['id' => $ticket->id]);
     }
 }

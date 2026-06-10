@@ -2,68 +2,72 @@
 
 ## Task 1: Setup Module Helpdesk — Model & Migration
 
-- [ ] 1.1 Buat migration `create_tikets_table` (ulid PK, code, type, priority, subject, content, status, progress, assign_to_id, created_by_id, branch_id, start_date, due_date, end_date, timestamps, softDeletes)
-- [ ] 1.2 Buat migration `create_tiket_responses_table` (ulid PK, tiket_id, user_id, assign_to_id, status, progress, content, end_date, timestamps, softDeletes)
-- [ ] 1.3 Buat model `app/Models/Helpdesk/Tiket.php` (DataTable, HasUlids, SoftDeletes, $formComponent, $alias, $translateKey, $keyBreadcrumb, $configColumns, relations: assignTo, createdBy, branch, responses)
-- [ ] 1.4 Buat model `app/Models/Helpdesk/TiketResponse.php` (HasUlids, SoftDeletes, relations: tiket, user, assignTo)
+- [ ] 1.1 Buat migration `create_tickets_table` (ulid PK, code, type, priority, subject, content, status, progress, assign_to_id, created_by_id, branch_id, start_date, due_date, end_date, timestamps, softDeletes)
+- [ ] 1.2 Buat migration `create_ticket_responses_table` (ulid PK, ticket_id, user_id, assign_to_id, status, progress, content, end_date, timestamps, softDeletes)
+- [ ] 1.3 Buat model `app/Models/Helpdesk/Ticket.php` (DataTable, HasUlids, SoftDeletes, $formComponent, $alias, $translateKey, $keyBreadcrumb, $configColumns, relations: assignTo, createdBy, branch, responses)
+- [ ] 1.4 Buat model `app/Models/Helpdesk/TicketResponse.php` (HasUlids, SoftDeletes, relations: ticket, user, assignTo)
 - [ ] 1.5 Jalankan `php artisan migrate`
 
 **Files berubah:**
-- `database/migrations/..._create_tikets_table.php` (create)
-- `database/migrations/..._create_tiket_responses_table.php` (create)
-- `app/Models/Helpdesk/Tiket.php` (create)
-- `app/Models/Helpdesk/TiketResponse.php` (create)
+
+- `database/migrations/..._create_tickets_table.php` (create)
+- `database/migrations/..._create_ticket_responses_table.php` (create)
+- `app/Models/Helpdesk/Ticket.php` (create)
+- `app/Models/Helpdesk/TicketResponse.php` (create)
 
 ---
 
 ## Task 2: Backend — Request, Service, Controller
 
-- [ ] 2.1 Buat `app/Http/Requests/Helpdesk/TiketRequest.php` (extend BaseFormRequest, validasi semua field Tiket)
-- [ ] 2.2 Buat `app/Http/Requests/Helpdesk/TiketResponseRequest.php` (validasi assign_to_id, status, progress, content, end_date)
-- [ ] 2.3 Buat `app/Services/Helpdesk/TiketService.php` (method: create, update, markDone, updateTiket) — lihat `WorkOrderService` sebagai referensi
-- [ ] 2.4 Buat `app/Http/Controllers/Helpdesk/TiketController.php` (index, store, show, update, destroy, markDone, updateTiket) — inject TiketService, extend Controller
+- [ ] 2.1 Buat `app/Http/Requests/Helpdesk/TicketRequest.php` (extend BaseFormRequest, validasi semua field Ticket)
+- [ ] 2.2 Buat `app/Http/Requests/Helpdesk/TicketResponseRequest.php` (validasi assign_to_id, status, progress, content, end_date)
+- [ ] 2.3 Buat `app/Services/Helpdesk/TicketService.php` (method: create, update, markDone, updateTicket) — lihat `WorkOrderService` sebagai referensi
+- [ ] 2.4 Buat `app/Http/Controllers/Helpdesk/TicketController.php` (index, store, show, update, destroy, markDone, updateTicket) — inject TicketService, extend Controller
 - [ ] 2.5 Tambah route di `routes/web.php`:
-  - `Route::resourceDetail('tiket', TiketController::class);`
-  - `Route::put('/tikets/{tiket}/markDone', [TiketController::class, 'markDone'])->name('tikets.markDone');`
-  - `Route::put('/tikets/{tiket}/updateTiket', [TiketController::class, 'updateTiket'])->name('tikets.updateTiket');`
-- [ ] 2.6 Tambah FormatingSeries seed untuk Tiket (jika ada seeder, atau buat manual via tinker)
+  - `Route::resourceDetail('ticket', TicketController::class);`
+  - `Route::put('/tickets/{ticket}/markDone', [TicketController::class, 'markDone'])->name('tickets.markDone');`
+  - `Route::put('/tickets/{ticket}/updateTicket', [TicketController::class, 'updateTicket'])->name('tickets.updateTicket');`
+- [ ] 2.6 Tambah FormatingSeries seed untuk Ticket (jika ada seeder, atau buat manual via tinker)
 
 **Files berubah:**
-- `app/Http/Requests/Helpdesk/TiketRequest.php` (create)
-- `app/Http/Requests/Helpdesk/TiketResponseRequest.php` (create)
-- `app/Services/Helpdesk/TiketService.php` (create)
-- `app/Http/Controllers/Helpdesk/TiketController.php` (create)
+
+- `app/Http/Requests/Helpdesk/TicketRequest.php` (create)
+- `app/Http/Requests/Helpdesk/TicketResponseRequest.php` (create)
+- `app/Services/Helpdesk/TicketService.php` (create)
+- `app/Http/Controllers/Helpdesk/TicketController.php` (create)
 - `routes/web.php` (modify)
 
 ---
 
 ## Task 3: i18n — File Translasi
 
-- [ ] 3.1 Buat `lang/en/helpdesk/tiket.php` (semua keys: fields, type options, priority options, status options, actions, dialogs, responses)
-- [ ] 3.2 Buat `lang/id/helpdesk/tiket.php` (terjemahan Bahasa Indonesia)
+- [ ] 3.1 Buat `lang/en/helpdesk/ticket.php` (semua keys: fields, type options, priority options, status options, actions, dialogs, responses)
+- [ ] 3.2 Buat `lang/id/helpdesk/ticket.php` (terjemahan Bahasa Indonesia)
 
 **Files berubah:**
-- `lang/en/helpdesk/tiket.php` (create)
-- `lang/id/helpdesk/tiket.php` (create)
+
+- `lang/en/helpdesk/ticket.php` (create)
+- `lang/id/helpdesk/ticket.php` (create)
 
 ---
 
 ## Task 4: Frontend — Index Page (DataTable2)
 
-- [ ] 4.1 Buat `resources/js/Pages/Helpdesk/Tikets/Index.jsx`
+- [ ] 4.1 Buat `resources/js/Pages/Helpdesk/Tickets/Index.jsx`
   - Import DataTable2 dari `@/Pages/Core/DataTable2`
   - Kolom: code (link ke show), type (badge), subject, status (BadgeStatus), progress (%), priority, assign_to, start_date, due_date
   - Bulk delete support
-- [ ] 4.2 Pastikan controller `index()` mengembalikan `Inertia::render('Helpdesk/Tikets/Index')`
+- [ ] 4.2 Pastikan controller `index()` mengembalikan `Inertia::render('Helpdesk/Tickets/Index')`
 
 **Files berubah:**
-- `resources/js/Pages/Helpdesk/Tikets/Index.jsx` (create)
+
+- `resources/js/Pages/Helpdesk/Tickets/Index.jsx` (create)
 
 ---
 
 ## Task 5: Frontend — Form Component
 
-- [ ] 5.1 Buat `resources/js/Pages/Helpdesk/Tikets/Form.jsx`
+- [ ] 5.1 Buat `resources/js/Pages/Helpdesk/Tickets/Form.jsx`
   - Gunakan `useFormPage` untuk data, setData, disabled
   - Layout 2 kolom kiri-kanan:
     - Kiri: Type (Select), Priority (Select), Status (Select), Progress (Slider)
@@ -73,7 +77,8 @@
   - Gunakan `FormInput` wrapper untuk setiap field
 
 **Files berubah:**
-- `resources/js/Pages/Helpdesk/Tikets/Form.jsx` (create)
+
+- `resources/js/Pages/Helpdesk/Tickets/Form.jsx` (create)
 
 ---
 
@@ -87,55 +92,59 @@
   - Jika tidak ada `imageUploadUrl`, toolbar image tetap ada tapi insert by URL saja
 
 **Files berubah:**
+
 - `resources/js/Components/TiptapEditor.jsx` (modify)
 
 ---
 
-## Task 7: Frontend — Show Page + TiketResponseList
+## Task 7: Frontend — Show Page + TicketResponseList
 
-- [ ] 7.1 Buat `resources/js/Pages/Helpdesk/Tikets/Show.jsx`
-  - Wrap dengan `FormPage` (name="tiket", disabled saat status=done)
+- [ ] 7.1 Buat `resources/js/Pages/Helpdesk/Tickets/Show.jsx`
+  - Wrap dengan `FormPage` (name="ticket", disabled saat status=done)
   - Render `<Form />`
-  - `controls` callback: tampilkan [Mark Done] dan [Update Tiket] saat status != 'done'
-  - State: `markDoneOpen`, `updateTiketOpen`, `loading`
-  - Handler `handleMarkDone`: router.put ke `tikets.markDone`
+  - `controls` callback: tampilkan [Mark Done] dan [Update Ticket] saat status != 'done'
+  - State: `markDoneOpen`, `updateTicketOpen`, `loading`
+  - Handler `handleMarkDone`: router.put ke `tickets.markDone`
   - Dialog Mark Done: konfirmasi sederhana
-  - AlertDialog Update Tiket: form dengan Assign To + tombol "Assign to Creator" (muncul jika user != creator) + Status + Progress + End Date + TiptapEditor(content) + imageUploadUrl
+  - AlertDialog Update Ticket: form dengan Assign To + tombol "Assign to Creator" (muncul jika user != creator) + Status + Progress + End Date + TiptapEditor(content) + imageUploadUrl
 
-- [ ] 7.2 Buat komponen `TiketResponseList` inline di Show.jsx (atau file terpisah jika kompleks):
-  - Render list TiketResponse dari prop `tiket.responses`
+- [ ] 7.2 Buat komponen `TicketResponseList` inline di Show.jsx (atau file terpisah jika kompleks):
+  - Render list TicketResponse dari prop `ticket.responses`
   - Setiap item: avatar/nama user, tanggal, badge status, progress bar, content (rendered HTML), assignee
   - Urutkan terbaru di atas
 
 **Files berubah:**
-- `resources/js/Pages/Helpdesk/Tikets/Show.jsx` (create)
+
+- `resources/js/Pages/Helpdesk/Tickets/Show.jsx` (create)
 
 ---
 
 ## Task 8: Permission Seeder
 
 - [ ] 8.1 Buat/update permission seeder untuk menambah record:
-  - `module` = 'Helpdesk', `name` = 'Tiket', `model` = 'App\Models\Helpdesk\Tiket'
+  - `module` = 'Helpdesk', `name` = 'Ticket', `model` = 'App\Models\Helpdesk\Ticket'
   - `permissions` = `{ "select": true, "create": true, "read": true, "write": true, "delete": true }`
   - `is_submitable` = false
 - [ ] 8.2 Jalankan seeder atau insert manual
 
 **Files berubah:**
+
 - Permission seeder file yang ada (modify)
 
 ---
 
 ## Task 9: Testing
 
-- [ ] 9.1 Buat Feature test `tests/Feature/Helpdesk/TiketTest.php`:
-  - Test create tiket (store)
-  - Test update tiket
+- [ ] 9.1 Buat Feature test `tests/Feature/Helpdesk/TicketTest.php`:
+  - Test create ticket (store)
+  - Test update ticket
   - Test markDone (status=done, progress=100, end_date set)
-  - Test updateTiket (response dibuat, tiket diupdate)
+  - Test updateTicket (response dibuat, ticket diupdate)
   - Test destroy
   - Test unauthorized access (403)
-- [ ] 9.2 Jalankan `php artisan test --compact tests/Feature/Helpdesk/TiketTest.php`
+- [ ] 9.2 Jalankan `php artisan test --compact tests/Feature/Helpdesk/TicketTest.php`
 - [ ] 9.3 Jalankan `vendor/bin/pint --dirty --format agent`
 
 **Files berubah:**
-- `tests/Feature/Helpdesk/TiketTest.php` (create)
+
+- `tests/Feature/Helpdesk/TicketTest.php` (create)
