@@ -10,20 +10,32 @@ import Select from "@/Components/Select";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 
 const approverTypeOptions = ["role", "user"];
 
 function ApproverSummaryText({ approvers }) {
+  const { t } = useLaravelReactI18n();
   if (!approvers || approvers.length === 0)
     return <span className="text-muted-foreground text-xs">—</span>;
-  const parts = approvers
-    .filter((a) => a?.approver_type && a?.approver)
-    .map((a) => `"${a.approver_type}:${a.approver?.name ?? a.approver?.id}"`)
-    .join(", ");
+
   return (
-    <div className="px-2 py-1 text-xs leading-snug">
-      <span className="font-medium">Multiple</span>
-      {parts ? `: ${parts}` : ""}
+    <div className="px-2 py-1 text-xs leading-snug grid grid-cols-[auto_minmax(0,1fr)] w-full">
+      {approvers?.map((approver) => {
+        return (
+          <div
+            key={approver.id}
+            className="grid col-span-full grid-cols-subgrid gap-x-2"
+          >
+            <span>
+              {t(
+                `core.approvalScheme.steps.columns.approver_type.options.${approver.approver_type}`,
+              )}
+            </span>
+            <span>: {convertTemplateLink(approver.approver)}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -77,44 +89,46 @@ function NestedApproverFormTable({ value, onChange, disabled, readOnly }) {
   );
 
   return (
-    <div className="mt-2">
-      <p className="text-sm font-medium mb-1">
-        {t("core.approvalScheme.steps.columns.approvers")}
-      </p>
-      <FormTable
-        name="ApprovalSchemeNestedApprovers"
-        columns={nestedColumns}
-        value={value}
-        onValueChange={onChange}
-        disabled={disabled}
-        readOnly={readOnly}
-      />
-    </div>
+    <FormTable
+      name="ApprovalSchemeNestedApprovers"
+      label={t("core.approvalScheme.steps.columns.approvers")}
+      className="mt-2"
+      columns={nestedColumns}
+      value={value}
+      onValueChange={onChange}
+      disabled={disabled}
+      readOnly={readOnly}
+    />
   );
 }
 
 function StepFormDialog({
   getColumn,
-  data: rowData,
-  setData: setRowData,
+  data: data,
+  setData: setData,
   disabled,
   readOnly,
 }) {
+  const { t } = useLaravelReactI18n();
   return (
-    <div className="grid gap-y-3 pt-2">
-      {getColumn("is_advanced")}
-      {rowData?.is_advanced ? (
+    <div className="p-4 grid grid-cols-1 gap-y-3">
+      <FormCheckbox
+        checked={data.is_advanced}
+        onCheckedChange={(val) => setData("is_advanced", val)}
+        label={t("core.approvalScheme.steps.columns.is_advanced")}
+      />
+      {data?.is_advanced ? (
         <NestedApproverFormTable
-          value={rowData?.approvers ?? []}
-          onChange={(val) => setRowData("approvers", val)}
+          value={data?.approvers ?? []}
+          onChange={(val) => setData("approvers", val)}
           disabled={disabled}
           readOnly={readOnly}
         />
       ) : (
-        <>
+        <div className="grid grid-cols-2 gap-x-4 pt-2">
           {getColumn("approver_type")}
           {getColumn("approver")}
-        </>
+        </div>
       )}
     </div>
   );
@@ -155,8 +169,8 @@ function Form() {
         cell({ data, setData, dataRow, attributes }) {
           if (dataRow?.is_advanced) {
             return (
-              <span className="px-2 text-xs text-muted-foreground">
-                Multiple
+              <span className="px-2 text-xs text-muted-foreground w-full">
+                {t("core.approvalScheme.steps.columns.is_advanced_label")}
               </span>
             );
           }
@@ -200,7 +214,7 @@ function Form() {
         },
       },
     ];
-  }, []);
+  }, [t]);
 
   return (
     <>

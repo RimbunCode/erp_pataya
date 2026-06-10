@@ -1129,6 +1129,10 @@ export default memo(
     const MyDialogDescription = submitable
       ? AlertDialogDescription
       : DialogDescription;
+
+    const currentRowData = useMemo(() => {
+      return (submitable ? currentData : currentRow) ?? {};
+    }, [currentData, currentRow, submitable]);
     return (
       <>
         <div
@@ -1440,7 +1444,7 @@ export default memo(
                   showHeader={false}
                   errors={{}}
                   fieldNameTrans={""}
-                  data={(submitable ? currentData : currentRow) ?? {}}
+                  data={currentRowData ?? {}}
                   setData={(...args) =>
                     submitable
                       ? updateDataCurrent(...args)
@@ -1448,8 +1452,28 @@ export default memo(
                   }
                 >
                   {typeof form === "function"
-                    ? form({ getColumn })
-                    : React.cloneElement(form, { getColumn })}
+                    ? form({
+                        getColumn,
+                        data: currentRowData,
+                        setData(...args) {
+                          submitable
+                            ? updateDataCurrent(...args)
+                            : updateData(currentIndex, ...args);
+                        },
+                        readOnly,
+                        disabled,
+                      })
+                    : React.cloneElement(form, {
+                        getColumn,
+                        data: currentRowData,
+                        setData(...args) {
+                          submitable
+                            ? updateDataCurrent(...args)
+                            : updateData(currentIndex, ...args);
+                        },
+                        readOnly,
+                        disabled,
+                      })}
                 </FormChildren>
               ) : (
                 <div
