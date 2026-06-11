@@ -2,6 +2,8 @@
 
 namespace App\Services\Core;
 
+use App\Models\Core\File;
+use App\Models\Core\Fileable;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +12,7 @@ use Illuminate\Http\Request;
 class BufferedAttachmentService {
     public static function attach(Model $model, Request $request): void {
         static::attachTags($model, $request);
+        static::attachFiles($model, $request);
     }
 
     protected static function attachTags(Model $model, Request $request): void {
@@ -34,5 +37,19 @@ class BufferedAttachmentService {
                 'tag_id'        => $tagModel->id,
             ]);
         }
+    }
+
+    protected static function attachFiles(Model $model, Request $request): void {
+        if (! $request->hasFile('files') && ! $request->has('filesId')) {
+            return;
+        }
+        preg_match('/[^\\\\]+$/', get_class($model), $folderName);
+        File::uploadFile($request, $folderName[0], function ($file) use ($model) {
+            Fileable::firstOrCreate([
+                'fileable_id'   => $model->id,
+                'fileable_type' => get_class($model),
+                'file_id'       => $file->id,
+            ]);
+        });
     }
 }

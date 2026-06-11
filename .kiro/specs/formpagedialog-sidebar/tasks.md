@@ -23,14 +23,14 @@ _Requirements: 5.1, 5.3, 6.1_
 
 ## Task 2: BufferedAttachmentService — attach files + DataTable hook
 
-- [ ] 2.1 Tulis test gagal `test_attaches_buffered_files` + `test_no_buffer_produces_no_side_effects` (`UploadedFile::fake`, `Storage::fake`)
-- [ ] 2.2 Jalankan, pastikan gagal (`fileables` kosong)
-- [ ] 2.3 Tambah `attachFiles` ke service (`File::uploadFile` + `Fileable::firstOrCreate`), update `attach()`
-- [ ] 2.4 Jalankan test files+no-buffer, pastikan lulus
-- [ ] 2.5 Pasang hook `static::created` di `bootDataTable()` (guard `app()->bound('request')` + `hasAny`/`hasFile`)
-- [ ] 2.6 Tulis test `test_datatable_hook_auto_attaches_on_create` + `test_factory_create_without_request_buffer_is_safe`
-- [ ] 2.7 Jalankan seluruh file test (5 test), pastikan lulus
-- [ ] 2.8 Commit
+- [x] 2.1 Tulis test gagal `test_attaches_buffered_files` + `test_no_buffer_produces_no_side_effects` (`UploadedFile::fake`, `Storage::fake`)
+- [x] 2.2 Jalankan, pastikan gagal (`fileables` kosong)
+- [x] 2.3 Tambah `attachFiles` ke service (`File::uploadFile` + `Fileable::firstOrCreate`), update `attach()`
+- [x] 2.4 Jalankan test files+no-buffer, pastikan lulus
+- [x] 2.5 Pasang hook `static::created` di `bootDataTable()` (guard `app()->bound('request')` + `hasAny`/`hasFile`)
+- [x] 2.6 Tulis test `test_datatable_hook_auto_attaches_on_create` + `test_factory_create_without_request_buffer_is_safe`
+- [x] 2.7 Jalankan seluruh file test (5 test), pastikan lulus
+- [x] 2.8 Commit
 
 **Files berubah:**
 
@@ -123,3 +123,4 @@ _Requirements: semua (validasi)_
 
 - Edit-mode `FormPage` (Attachments/Tags instant-persist) **tidak boleh berubah perilakunya** — semua cabang baru di belakang `isCreate`.
 - Lint/Pint hanya di akhir (Task 7), bukan per-task.
+- **Test shim:** model `File` (`use TreeView`) butuh kolom `user_id`/`parent_id`/`lft`/`rgt`/`depth` yang di prod ditambah via command init (bukan migration). Test `setUp` men-shim kolom ini pada tabel `files` agar `File::create` jalan di SQLite — sama pola seperti shim `is_example`.

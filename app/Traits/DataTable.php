@@ -50,6 +50,17 @@ trait DataTable {
                     'deleted_at' => now(),
                 ]);
         });
+
+        static::created(function ($model) {
+            if (! app()->bound('request')) {
+                return;
+            }
+            $request = request();
+            if (! $request->hasAny(['buffered_tags', 'buffered_files']) && ! $request->hasFile('files')) {
+                return;
+            }
+            \App\Services\Core\BufferedAttachmentService::attach($model, $request);
+        });
     }
 
     public function fillForUpdate(array $attributes, bool $fillOnly = false) {
