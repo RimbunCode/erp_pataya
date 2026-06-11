@@ -724,13 +724,21 @@ const FormPage = memo(
         }
 
         if (isCreate) {
+          // Sertakan buffer sidebar create: tags (buffered_tags) & file draft
+          // (filesId). File sudah ter-upload sebagai draft, kirim id saja.
+          const files = Array.isArray(data?.files) ? data.files : [];
+          form.transform((payload) => ({
+            ...payload,
+            filesId: files.map((f) => f.id).filter(Boolean),
+          }));
           post(route(`${pluralize.plural(name ?? "")}.store`));
           return;
         }
 
+        form.transform((payload) => payload);
         put(route(`${pluralize.plural(name ?? "")}.update`, defaultData.id));
       },
-      [route, name, isCreate, defaultData, data],
+      [route, name, isCreate, defaultData, data, form],
     );
     const [showAlertBeforeSubmit, setShowAlertBeforeSubmit] = useState(false);
     const [showAlertBeforeCancel, setShowAlertBeforeCancel] = useState(false);
@@ -1093,7 +1101,28 @@ const FormPage = memo(
               "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
             )}
           >
-            {!isCreate && (
+            {isCreate ? (
+              // Mode create: sidebar (Attachments/Tags dual-mode) butuh context
+              // isCreate=true karena SidebarChildren sibling di luar provider
+              // FormChildren. Connections/amended_from di-skip (butuh record).
+              <FormPageProvider
+                isCreate={true}
+                disabled={disabled}
+                errors={errors}
+                fieldNameTrans={fieldNameTrans}
+                defaultData={null}
+                data={data}
+                setData={setData}
+                form={form}
+              >
+                <SidebarChildren
+                  content={sidebarContent}
+                  hasConnections={false}
+                  submitable={false}
+                  defaultData={null}
+                />
+              </FormPageProvider>
+            ) : (
               <SidebarChildren
                 content={sidebarContent}
                 hasConnections={
