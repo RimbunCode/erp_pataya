@@ -1,13 +1,13 @@
 <?php
 
 return [
-    'new'              => 'New Ticket',
-    'title'            => 'Helpdesk Tickets',
-    'add'              => 'New Ticket',
-    'name'             => 'Ticket',
-    'edit'             => 'Edit Ticket',
+    'new'   => 'New Ticket',
+    'title' => 'Helpdesk Tickets',
+    'add'   => 'New Ticket',
+    'name'  => 'Ticket',
+    'edit'  => 'Edit Ticket',
 
-    'columns'          => [
+    'columns' => [
         'code'       => 'Code',
         'type'       => 'Type',
         'priority'   => 'Priority',
@@ -22,7 +22,7 @@ return [
         'end_date'   => 'End Date',
     ],
 
-    'type'             => [
+    'type' => [
         'options' => [
             'bug_problem' => 'Bug / Problem',
             'task'        => 'Task',
@@ -31,7 +31,7 @@ return [
         ],
     ],
 
-    'priority'         => [
+    'priority' => [
         'options' => [
             'low'      => 'Low',
             'medium'   => 'Medium',
@@ -40,7 +40,7 @@ return [
         ],
     ],
 
-    'status'           => [
+    'status' => [
         'options' => [
             'new'         => 'New',
             'in_progress' => 'In Progress',
@@ -50,7 +50,7 @@ return [
         ],
     ],
 
-    'actions'          => [
+    'actions' => [
         'mark_done'         => 'Mark Done',
         'update_ticket'     => 'Update Ticket',
         'assign_to_creator' => 'Assign to Creator',
@@ -62,13 +62,13 @@ return [
         'confirm'     => 'Mark Done',
     ],
 
-    'update_dialog'    => [
+    'update_dialog' => [
         'title'       => 'Update Ticket',
         'description' => 'Add a reply or update to this ticket. Changes to Assign To, Status, and Progress will be applied to the ticket.',
         'confirm'     => 'Save Update',
     ],
 
-    'responses'        => [
+    'responses' => [
         'title' => 'Ticket History',
         'empty' => 'No yet.',
     ],

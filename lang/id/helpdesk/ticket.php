@@ -1,10 +1,10 @@
 <?php
 
 return [
-    'new'              => 'Ticket Baru',
-    'edit'             => 'Edit Ticket',
+    'new'  => 'Ticket Baru',
+    'edit' => 'Edit Ticket',
 
-    'columns'          => [
+    'columns' => [
         'code'       => 'Kode',
         'type'       => 'Tipe',
         'priority'   => 'Prioritas',
@@ -19,7 +19,7 @@ return [
         'end_date'   => 'Tanggal Selesai',
     ],
 
-    'type'             => [
+    'type' => [
         'options' => [
             'bug_problem' => 'Bug / Masalah',
             'task'        => 'Tugas',
@@ -28,7 +28,7 @@ return [
         ],
     ],
 
-    'priority'         => [
+    'priority' => [
         'options' => [
             'low'      => 'Rendah',
             'medium'   => 'Sedang',
@@ -37,7 +37,7 @@ return [
         ],
     ],
 
-    'status'           => [
+    'status' => [
         'options' => [
             'new'         => 'Baru',
             'in_progress' => 'Sedang Dikerjakan',
@@ -47,7 +47,7 @@ return [
         ],
     ],
 
-    'actions'          => [
+    'actions' => [
         'mark_done'         => 'Tandai Selesai',
         'update_ticket'     => 'Update Ticket',
         'assign_to_creator' => 'Tugaskan ke Pembuat',
@@ -59,13 +59,13 @@ return [
         'confirm'     => 'Tandai Selesai',
     ],
 
-    'update_dialog'    => [
+    'update_dialog' => [
         'title'       => 'Update Ticket',
         'description' => 'Tambahkan balasan atau pembaruan untuk ticket ini. Perubahan pada Ditugaskan Ke, Status, dan Progres akan diterapkan ke ticket.',
         'confirm'     => 'Simpan Pembaruan',
     ],
 
-    'responses'        => [
+    'responses' => [
         'title' => 'Riwayat Tickets',
         'empty' => 'Belum ada.',
     ],

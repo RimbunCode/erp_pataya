@@ -15,49 +15,50 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Ticket extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes;
-    protected               $guarded            = ['id'];
-    protected               $casts              = [
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'status'     => FormStatusCast::class,
         'start_date' => 'datetime',
         'due_date'   => 'datetime',
         'end_date'   => 'datetime',
     ];
-    public static string    $alias              = 'Ticket';
-    public string           $formComponent      = 'Helpdesk/Tickets/Form';
-    public string           $translateKey       = 'helpdesk.ticket';
-    public string           $keyBreadcrumb      = 'subject';
-    protected static string $defaultFormatCode  = '#@[yy]/@[iiii]';
-    protected static        $generateCodeSeries = true;
-    protected array         $configColumns      = [
-        'code'       => [
+    public static string $alias                = 'Ticket';
+    public string $formComponent               = 'Helpdesk/Tickets/Form';
+    public string $translateKey                = 'helpdesk.ticket';
+    public string $keyBreadcrumb               = 'subject';
+    protected static string $defaultFormatCode = '#@[yy]/@[iiii]';
+    protected static $generateCodeSeries       = true;
+    protected array $configColumns             = [
+        'code' => [
             'isLink' => true,
             'show'   => true,
             'order'  => 0,
         ],
-        'type'       => [
+        'type' => [
             'valueTrans' => 'helpdesk.ticket.type.options',
             'show'       => true,
             'order'      => 1,
         ],
-        'subject'    => [
+        'subject' => [
             'show'  => true,
             'order' => 2,
         ],
-        'status'     => [
+        'status' => [
             'valueTrans' => 'helpdesk.ticket.status.options',
             'show'       => true,
             'order'      => 3,
         ],
-        'progress'   => [
+        'progress' => [
             'show'  => true,
             'order' => 4,
         ],
-        'priority'   => [
+        'priority' => [
             'valueTrans' => 'helpdesk.ticket.priority.options',
             'show'       => true,
             'order'      => 5,
         ],
-        'assign_to'  => [
+        'assign_to' => [
             'show'  => true,
             'order' => 6,
         ],
@@ -70,13 +71,13 @@ class Ticket extends Model {
             'show'  => false,
             'order' => 8,
         ],
-        'due_date'   => [
+        'due_date' => [
             'type'  => 'date',
             'show'  => false,
             'order' => 9,
         ],
     ];
-    public bool             $canDelete          = false;
+    public bool $canDelete = false;
 
     public static function templateLink(): string {
         return ':code - :subject';
