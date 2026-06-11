@@ -45,6 +45,10 @@ class BufferedAttachmentService {
         }
         preg_match('/[^\\\\]+$/', get_class($model), $folderName);
         File::uploadFile($request, $folderName[0], function ($file) use ($model) {
+            // File draft (di-upload saat create) di-finalkan saat attach.
+            if ($file->is_draft) {
+                $file->update(['is_draft' => false]);
+            }
             Fileable::firstOrCreate([
                 'fileable_id'   => $model->id,
                 'fileable_type' => get_class($model),

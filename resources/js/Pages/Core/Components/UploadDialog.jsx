@@ -14,8 +14,11 @@ import FileItem from "./FileItem";
 import Library from "@/Pages/Core/Components/Library/Library";
 import { Progress } from "@/Components/ui/progress";
 import { Transition } from "@headlessui/react";
+import axios from "axios";
 import { router } from "@inertiajs/react";
+import { toast } from "sonner";
 import { useIsMobile } from "@/Hooks/use-mobile";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function UploadDialog({
   onClose,
@@ -25,6 +28,8 @@ function UploadDialog({
   options: { route: routeProp, ...optionsProp } = {},
 }) {
   const isMobile = useIsMobile();
+  const { t } = useLaravelReactI18n();
+  const route = window.route;
   const [menu, setMenu] = useState("home");
   const [files, setFiles] = useState([]);
   const [hover, setHover] = useState(false);
@@ -83,20 +88,48 @@ function UploadDialog({
     }
   }, []);
 
-  const onAttach = useCallback((menu, files) => {
-    if (onBuffer && menu === "home") {
-      onBuffer(
-        files.map((f) => ({
-          id: f.id,
-          name: f.name || f.file?.name,
-          file: f.file,
-        })),
-      );
-      setFiles([]);
-      onClose();
-      return;
-    }
-    const formData = new FormData();
+  const onAttach = useCallback(
+    (menu, files) => {
+      // Mode create (onBuffer): upload draft langsung ke files.store, simpan
+      // {id,name} di buffer. Saat form disubmit, filesId[] dikirim untuk attach.
+      if (onBuffer) {
+        const formData = new FormData();
+        if (menu == "library") {
+          [...files].forEach((id) => formData.append(`filesId[]`, id));
+        } else {
+          files.forEach((file, index) => {
+            formData.append(`files[${index}]`, file.file);
+            formData.append(`isPublic[${index}]`, file.isPublic ?? false);
+            formData.append(`name[${index}]`, file.name || file.file.name);
+          });
+        }
+        setProgress({ progress: 0 });
+        axios
+          .post(route("files.store"), formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (e) => {
+              setProgress({
+                progress: e.total ? e.loaded / e.total : 0,
+                loaded: e.loaded,
+                total: e.total,
+              });
+            },
+          })
+          .then((res) => {
+            const uploaded = Array.isArray(res.data) ? res.data : [];
+            onBuffer(uploaded);
+            toast.success(t("core.form.upload_success"));
+            setFiles([]);
+            onClose();
+            setProgress(false);
+          })
+          .catch(() => {
+            toast.error(t("core.form.upload_failed"));
+            setProgress(false);
+          });
+        return;
+      }
+      const formData = new FormData();
     if (menu == "library") {
       files.forEach((id) => {
         formData.append(`filesId[]`, id);
@@ -128,7 +161,9 @@ function UploadDialog({
         setProgress(false);
       },
     });
-  }, [onBuffer]);
+    },
+    [onBuffer, onClose, optionsProp, routeProp],
+  );
 
   const getMenu = () => {
     switch (menu) {

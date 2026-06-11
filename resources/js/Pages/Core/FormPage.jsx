@@ -1766,20 +1766,17 @@ const FormPageDialog = memo(
       if (disabled) return;
       if (!name) return;
       const pluralized = routeName ?? `${pluralize.plural(name ?? "")}.store`;
+      // File sudah ter-upload sebagai draft (punya id). Submit cukup kirim
+      // filesId[] → File::uploadFile cabang filesId → Fileable dibuat &
+      // is_draft di-clear. form.transform agar tak memutasi data reaktif.
       const files = Array.isArray(data?.files) ? data.files : [];
-      // Bentuk payload files sejajar (files[]/isPublic[]/name[]) sesuai File::uploadFile.
-      // form.transform mengubah payload saat kirim tanpa memutasi data reaktif,
-      // mencegah File object (tak serializable) bocor ke draft localStorage.
       form.transform((payload) => ({
         ...payload,
-        files: files.map((f) => f.file),
-        isPublic: files.map((f) => f.isPublic ?? false),
-        name: files.map((f) => f.name || f.file?.name),
+        filesId: files.map((f) => f.id).filter(Boolean),
       }));
       submit(method, route(pluralized, routeParams), {
         preserveState: true,
         preserveUrl: false,
-        forceFormData: files.length > 0,
         onSuccess: () => {
           _setData(defaultValue ?? {});
           setOpen(false);
@@ -1840,8 +1837,7 @@ const FormPageDialog = memo(
                   // Sidebar di-absolute-kan mengisi area padding itu.
                   hasSidebar &&
                     "lg:relative lg:transition-[padding] lg:duration-200",
-                  hasSidebar &&
-                    (sidebarOpen ? "lg:pr-[19rem]" : "lg:pr-0"),
+                  hasSidebar && (sidebarOpen ? "lg:pr-[19rem]" : "lg:pr-0"),
                 )}
               >
                 <div className="min-w-0">
@@ -1903,7 +1899,7 @@ const FormPageDialog = memo(
                         "border-t pt-4 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-4",
                         // SidebarChildren bawa class grid FormPage (lg:sticky/col-start)
                         // yang tak relevan di dialog — netralkan via wrapper.
-                        "[&>div]:!static [&>div]:!top-auto [&>div]:!max-w-none [&>div]:!col-auto [&>div]:!row-auto",
+                        "[&>div]:static! [&>div]:top-auto! [&>div]:max-w-none! [&>div]:col-auto! [&>div]:row-auto!",
                         // Mobile (<lg): SELALU tampil (toggle disembunyikan).
                         // ≥lg: ikut sidebarOpen — slide+fade keluar saat tutup.
                         sidebarOpen

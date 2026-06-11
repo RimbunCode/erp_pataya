@@ -9,6 +9,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\User\Permission;
+use App\Services\Core\BufferedAttachmentService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -56,10 +57,13 @@ trait DataTable {
                 return;
             }
             $request = request();
-            if (! $request->hasAny(['buffered_tags', 'buffered_files']) && ! $request->hasFile('files')) {
+            if (
+                ! $request->hasAny(['buffered_tags', 'buffered_files', 'filesId'])
+                && ! $request->hasFile('files')
+            ) {
                 return;
             }
-            \App\Services\Core\BufferedAttachmentService::attach($model, $request);
+            BufferedAttachmentService::attach($model, $request);
         });
     }
 

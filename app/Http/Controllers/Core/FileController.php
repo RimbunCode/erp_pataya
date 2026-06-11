@@ -43,33 +43,14 @@ class FileController extends Controller {
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
-        if ($request->has('files')) {
-            $validatedData = $request->validate([
-                'files'      => ['required', 'array'],
-                'files.*'    => ['required', 'file', 'max:10240'],
-                'isGlobal'   => ['required', 'array'],
-                'isGlobal.*' => ['required'],
-                'name'       => ['required', 'array'],
-                'name.*'     => ['required', 'string'],
-            ]);
-            $validatedData['files'];
-        } else {
-            $validatedData = $request->validate([
-                'file.*'     => ['required', 'file', 'max:10240'],
-                'isGlobal.*' => ['required'],
-                'name.*'     => ['required', 'string'],
-            ]);
-        }
-        if (! Utils::isInertiaRequest($request)) {
-        }
-        // try {
-        //   $file = $request->validate([
-        //     'file' => ['required', 'file', 'max:10240'],
-        //   ]);
-        //   dd($file);
-        // } catch (\Throwable $th) {
-        //   //throw $th;
-        // }
+        $uploaded = [];
+        DB::beginTransaction();
+        File::uploadFile($request, 'drafts', function ($file) use (&$uploaded) {
+            $uploaded[] = ['id' => $file->id, 'name' => $file->name];
+        }, ['is_draft' => true]);
+        DB::commit();
+
+        return response()->json($uploaded);
     }
 
     /**
