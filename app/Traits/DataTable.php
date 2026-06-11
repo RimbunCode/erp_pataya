@@ -56,6 +56,12 @@ trait DataTable {
             if (! app()->bound('request')) {
                 return;
             }
+            // Jangan attach ke entitas attachment itu sendiri. File use DataTable;
+            // tanpa guard ini, membuat File saat request punya `files`/`filesId`
+            // akan memicu attach → uploadFile → buat File lagi → rekursi tak henti.
+            if ($model instanceof File) {
+                return;
+            }
             $request = request();
             if (
                 ! $request->hasAny(['buffered_tags', 'buffered_files', 'filesId'])

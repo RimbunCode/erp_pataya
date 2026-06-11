@@ -73,6 +73,37 @@ class FileDraftUploadTest extends TestCase {
         $this->assertSame('doc', $file->name);
     }
 
+    public function test_creating_file_with_files_in_request_does_not_recurse(): void {
+        // File use DataTable. Tanpa guard, membuat File saat request punya
+        // `files` memicu rekursi tak henti (created hook → attach → uploadFile
+        // → File baru → hook...). Guard harus mencegahnya & tak attach ke File.
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $request = Request::create('/files', 'POST', [
+            'isPublic' => ['false'],
+            'name'     => ['doc'],
+        ], [], [
+            'files' => [UploadedFile::fake()->create('doc.pdf', 10)],
+        ]);
+        $request->setUserResolver(fn () => $user);
+        $this->app->instance('request', $request);
+
+        $file = File::create([
+            'name'      => 'standalone',
+            'path'      => 'files/s.pdf',
+            'extension' => 'pdf',
+            'mime_type' => 'application/pdf',
+            'is_draft'  => true,
+            'user_id'   => $user->id,
+        ]);
+
+        $this->assertNotNull($file->id);
+        // Tak ada Fileable yang menempel pada File itu sendiri.
+        $this->assertDatabaseMissing('fileables', ['fileable_id' => $file->id]);
+    }
+
     public function test_attaching_draft_file_via_files_id_clears_is_draft(): void {
         $user = User::factory()->create();
         $this->actingAs($user);

@@ -43,12 +43,13 @@ class FileController extends Controller {
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
+        // TreeView (File use TreeView) sudah membungkus tiap create dalam
+        // transaksi + lockForUpdate sendiri. Membungkus lagi dengan transaksi
+        // luar menahan lock lama → deadlock/timeout. Biarkan per-create atomik.
         $uploaded = [];
-        DB::beginTransaction();
         File::uploadFile($request, 'drafts', function ($file) use (&$uploaded) {
             $uploaded[] = ['id' => $file->id, 'name' => $file->name];
-        }, ['is_draft' => true]);
-        DB::commit();
+        }, ['is_draft' => true], useFolder: false);
 
         return response()->json($uploaded);
     }
