@@ -6,11 +6,11 @@
 
 ## Task 1: BufferedAttachmentService — attach tags
 
-- [ ] 1.1 Tulis test gagal `test_attaches_existing_and_new_buffered_tags` (model `Unit`, shim `is_example`, `RefreshDatabase`)
-- [ ] 1.2 Jalankan, pastikan gagal (`class not found`)
-- [ ] 1.3 Buat `BufferedAttachmentService::attach` + `attachTags` (resolve/`Tag::firstOrCreate` → `Taggable::firstOrCreate`)
-- [ ] 1.4 Jalankan test, pastikan lulus
-- [ ] 1.5 Commit
+- [x] 1.1 Tulis test gagal `test_attaches_existing_and_new_buffered_tags` (model `Unit`, shim `is_example`, `RefreshDatabase`)
+- [x] 1.2 Jalankan, pastikan gagal (`class not found`)
+- [x] 1.3 Buat `BufferedAttachmentService::attach` + `attachTags` (resolve/`Tag::firstOrCreate` → `Taggable::firstOrCreate`)
+- [x] 1.4 Jalankan test, pastikan lulus
+- [x] 1.5 Commit
 
 **Files berubah:**
 
@@ -122,5 +122,4 @@ _Requirements: semua (validasi)_
 ## Catatan
 
 - Edit-mode `FormPage` (Attachments/Tags instant-persist) **tidak boleh berubah perilakunya** — semua cabang baru di belakang `isCreate`.
-- **Jangan sentuh** `UnitController.php:81` (`dd($data)`, bug pre-existing di luar scope).
 - Lint/Pint hanya di akhir (Task 7), bukan per-task.
