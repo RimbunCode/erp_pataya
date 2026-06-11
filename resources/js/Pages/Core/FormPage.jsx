@@ -17,10 +17,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import {
   ChevronDownIcon,
+  PanelRightIcon,
   PrinterIcon,
   SaveIcon,
   Trash2Icon,
 } from "lucide-react";
+import { Sidebar, SidebarProvider } from "@/Components/ui/sidebar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -1641,12 +1643,15 @@ const FormPageDialog = memo(
       routeName,
       routeParams,
       ignoreDraft = false,
+      sidebarContent = false,
     },
     ref,
   ) {
     const { t } = useLaravelReactI18n();
     const route = window.route;
     const [open, setOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const hasSidebar = sidebarContent !== false;
     useImperativeHandle(
       ref,
       () => ({
@@ -1758,9 +1763,20 @@ const FormPageDialog = memo(
       if (disabled) return;
       if (!name) return;
       const pluralized = routeName ?? `${pluralize.plural(name ?? "")}.store`;
+      const files = Array.isArray(data?.files) ? data.files : [];
+      // Bentuk payload files sejajar (files[]/isPublic[]/name[]) sesuai File::uploadFile.
+      // form.transform mengubah payload saat kirim tanpa memutasi data reaktif,
+      // mencegah File object (tak serializable) bocor ke draft localStorage.
+      form.transform((payload) => ({
+        ...payload,
+        files: files.map((f) => f.file),
+        isPublic: files.map((f) => f.isPublic ?? false),
+        name: files.map((f) => f.name || f.file?.name),
+      }));
       submit(method, route(pluralized, routeParams), {
         preserveState: true,
         preserveUrl: false,
+        forceFormData: files.length > 0,
         onSuccess: () => {
           _setData(defaultValue ?? {});
           setOpen(false);
@@ -1769,7 +1785,13 @@ const FormPageDialog = memo(
     };
     return (
       <AlertDialog open={open}>
-        <AlertDialogContent className={cn(className, "py-0 overflow-hidden")}>
+        <AlertDialogContent
+          className={cn(
+            className,
+            "py-0 overflow-hidden transition-[max-width] duration-200",
+            hasSidebar && sidebarOpen && "max-w-3xl!",
+          )}
+        >
           <TooltipProvider>
             <form
               ref={formRef}
@@ -1791,40 +1813,92 @@ const FormPageDialog = memo(
                     </span>
                   )}
                   {badge}
+                  {hasSidebar && (
+                    <button
+                      type="button"
+                      onClick={() => setSidebarOpen((v) => !v)}
+                      className="ml-auto p-1 rounded hover:bg-muted"
+                      aria-label="Toggle sidebar"
+                    >
+                      <PanelRightIcon className="size-4" />
+                    </button>
+                  )}
                 </AlertDialogTitle>
                 <AlertDialogDescription className="sr-only"></AlertDialogDescription>
               </AlertDialogHeader>
-              <div className="overflow-y-auto">
-                {errors && Object.keys(errors).length > 0 && (
-                  <div className="flex-col w-full mt-4 alert error">
-                    <h3 className="text-base font-semibold">
-                      {t("core.form.errors.title")}
-                    </h3>
-                    <ul className="block pl-5">
-                      {Object.entries(errors).map(([key, value]) => (
-                        <li key={key} className="list-disc">
-                          {fieldNameTrans
-                            ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                            : value}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+              <div
+                className={cn(
+                  "overflow-y-auto",
+                  hasSidebar &&
+                    "grid gap-4 transition-[grid-template-columns] duration-200",
+                  hasSidebar &&
+                    (sidebarOpen
+                      ? "grid-cols-[1fr_18rem]"
+                      : "grid-cols-[1fr_0rem]"),
                 )}
-                <FormChildren
-                  isCreate={true}
-                  disabled={disabled}
-                  defaultMenu={defaultMenu}
-                  className={className}
-                  showHeader={false}
-                  errors={errors}
-                  fieldNameTrans={fieldNameTrans}
-                  data={data}
-                  setData={setData}
-                  form={form}
-                >
-                  {children}
-                </FormChildren>
+              >
+                <div className="min-w-0">
+                  {errors && Object.keys(errors).length > 0 && (
+                    <div className="flex-col w-full mt-4 alert error">
+                      <h3 className="text-base font-semibold">
+                        {t("core.form.errors.title")}
+                      </h3>
+                      <ul className="block pl-5">
+                        {Object.entries(errors).map(([key, value]) => (
+                          <li key={key} className="list-disc">
+                            {fieldNameTrans
+                              ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                              : value}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <FormChildren
+                    isCreate={true}
+                    disabled={disabled}
+                    defaultMenu={defaultMenu}
+                    className={className}
+                    showHeader={false}
+                    errors={errors}
+                    fieldNameTrans={fieldNameTrans}
+                    data={data}
+                    setData={setData}
+                    form={form}
+                  >
+                    {children}
+                  </FormChildren>
+                </div>
+                {hasSidebar && (
+                  <FormPageProvider
+                    isCreate={true}
+                    disabled={disabled}
+                    errors={errors}
+                    fieldNameTrans={fieldNameTrans}
+                    defaultData={null}
+                    data={data}
+                    setData={setData}
+                    form={form}
+                  >
+                    <SidebarProvider
+                      open={sidebarOpen}
+                      onOpenChange={setSidebarOpen}
+                      className="min-h-0 w-auto overflow-hidden"
+                    >
+                      <Sidebar
+                        collapsible="none"
+                        className="w-full bg-transparent border-l pl-4 overflow-y-auto"
+                      >
+                        <SidebarChildren
+                          content={sidebarContent}
+                          submitable={false}
+                          defaultData={null}
+                          hasConnections={false}
+                        />
+                      </Sidebar>
+                    </SidebarProvider>
+                  </FormPageProvider>
+                )}
               </div>
               <AlertDialogFooter className="pb-6 mt-4">
                 <AlertDialogCancel

@@ -78,7 +78,7 @@ _Requirements: 3.1, 3.3, 3.4_
 
 ## Task 5: SidebarChildren — verifikasi aman di create
 
-- [ ] 5.1 Tinjau `SidebarChildren` (`FormPage.jsx:1474-1581`): default content (`Attachments`+`Tags`) tidak bergantung `defaultData`; blok `amended_from`/`hasConnections` ber-guard truthy. **Tidak ada perubahan kode** — verifikasi saja.
+- [x] 5.1 Tinjau `SidebarChildren` (`FormPage.jsx:1474-1581`): default content (`Attachments`+`Tags`) tidak bergantung `defaultData`; blok `amended_from`/`hasConnections` ber-guard truthy. **Tidak ada perubahan kode** — verifikasi saja. ✓ Confirmed: `defaultSidebarChildren` hanya render `<Attachments/>`+`<Tags/>`; `amended_from` guard `submitable && defaultData?.amended_from_id`; `hasConnections` guard falsy → aman di create.
 
 **Files berubah:** — (tidak ada)
 
@@ -88,13 +88,13 @@ _Requirements: 2.4_
 
 ## Task 6: FormPageDialog — sidebar collapsible + kirim buffer
 
-- [ ] 6.1 Tambah prop `sidebarContent = false`, state `sidebarOpen`, `hasSidebar`; import `SidebarProvider`, `Sidebar`, `PanelRightIcon`
-- [ ] 6.2 Lebarkan `AlertDialogContent` (`max-w-3xl`) + grid kondisional `[1fr_18rem]`⇄`[1fr_0rem]` dgn transition
-- [ ] 6.3 Render kolom kanan: `SidebarProvider` + `Sidebar collapsible="none"` + `SidebarChildren` (`submitable=false`, `defaultData=null`, `hasConnections=false`)
-- [ ] 6.4 Tombol toggle `PanelRightIcon` di `AlertDialogTitle`
-- [ ] 6.5 `_onSubmit`: `form.transform()` membentuk payload `{...data, files:[File], isPublic:[], name:[]}`, `forceFormData` bila ada file
-- [ ] 6.6 `npm run build`, pastikan sukses
-- [ ] 6.7 Commit
+- [x] 6.1 Tambah prop `sidebarContent = false`, state `sidebarOpen`, `hasSidebar`; import `SidebarProvider`, `Sidebar`, `PanelRightIcon`
+- [x] 6.2 Lebarkan `AlertDialogContent` (`max-w-3xl`) + grid kondisional `[1fr_18rem]`⇄`[1fr_0rem]` dgn transition
+- [x] 6.3 Render kolom kanan: `FormPageProvider` (isCreate=true, data/setData/form) → `SidebarProvider` + `Sidebar collapsible="none"` + `SidebarChildren`. **Penting:** provider terpisah karena sidebar sibling FormChildren (di luar provider internal FormChildren)
+- [x] 6.4 Tombol toggle `PanelRightIcon` di `AlertDialogTitle`
+- [x] 6.5 `_onSubmit`: `form.transform()` membentuk payload `{...payload, files:[File], isPublic:[], name:[]}`, `forceFormData` bila ada file
+- [x] 6.6 `npm run build`, pastikan sukses
+- [x] 6.7 Commit
 
 **Files berubah:**
 
@@ -123,4 +123,5 @@ _Requirements: semua (validasi)_
 
 - Edit-mode `FormPage` (Attachments/Tags instant-persist) **tidak boleh berubah perilakunya** — semua cabang baru di belakang `isCreate`.
 - Lint/Pint hanya di akhir (Task 7), bukan per-task.
+- **Known limitation (Task 6):** `form.transform` melindungi payload submit, tapi autosave draft men-serialize `form.data` mentah. File object di `data.files` tak serializable → hilang dari draft localStorage (tag buffer aman karena serializable). Tidak crash; user re-upload bila lanjut dari draft. Fix penuh (exclude `files` dari draft fingerprint) di luar scope.
 - **Test shim:** model `File` (`use TreeView`) butuh kolom `user_id`/`parent_id`/`lft`/`rgt`/`depth` yang di prod ditambah via command init (bukan migration). Test `setUp` men-shim kolom ini pada tabel `files` agar `File::create` jalan di SQLite — sama pola seperti shim `is_example`.
