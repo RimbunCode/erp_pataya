@@ -60,12 +60,12 @@ _Requirements: 3.1, 3.2, 3.4, 3.5_
 
 ## Task 4: Attachments + UploadDialog — dual-mode (create buffer)
 
-- [ ] 4.1 `Attachments`: import `useFormPage`; sumber `attachments` by mode (`data.files` saat create)
-- [ ] 4.2 `Attachments`: cabangkan `removeFile` (create = filter buffer)
-- [ ] 4.3 `UploadDialog`: tambah prop `onBuffer`; di `onAttach` push ke buffer alih-alih `router.post`
-- [ ] 4.4 `Attachments`: pasang `onBuffer` ke `UploadDialog` saat create
-- [ ] 4.5 `npm run build`, pastikan sukses
-- [ ] 4.6 Commit
+- [x] 4.1 `Attachments`: import `useFormPage`; sumber `attachments` by mode (`data.files` saat create)
+- [x] 4.2 `Attachments`: cabangkan `removeFile` (create = filter buffer)
+- [x] 4.3 `UploadDialog`: tambah prop `onBuffer`; di `onAttach` push ke buffer alih-alih `router.post`
+- [x] 4.4 `Attachments`: pasang `onBuffer` ke `UploadDialog` saat create
+- [x] 4.5 `npm run build`, pastikan sukses
+- [x] 4.6 Commit
 
 **Files berubah:**
 

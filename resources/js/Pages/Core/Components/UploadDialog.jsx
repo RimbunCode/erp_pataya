@@ -21,6 +21,7 @@ function UploadDialog({
   onClose,
   single = false,
   imageOnly = false,
+  onBuffer = null,
   options: { route: routeProp, ...optionsProp } = {},
 }) {
   const isMobile = useIsMobile();
@@ -83,6 +84,18 @@ function UploadDialog({
   }, []);
 
   const onAttach = useCallback((menu, files) => {
+    if (onBuffer && menu === "home") {
+      onBuffer(
+        files.map((f) => ({
+          id: f.id,
+          name: f.name || f.file?.name,
+          file: f.file,
+        })),
+      );
+      setFiles([]);
+      onClose();
+      return;
+    }
     const formData = new FormData();
     if (menu == "library") {
       files.forEach((id) => {
@@ -115,7 +128,7 @@ function UploadDialog({
         setProgress(false);
       },
     });
-  }, []);
+  }, [onBuffer]);
 
   const getMenu = () => {
     switch (menu) {

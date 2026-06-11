@@ -13,25 +13,43 @@ import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
 import UploadDialog from "./UploadDialog";
 import { cn } from "@/lib/utils";
+import { useFormPage } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default memo(function Attachments() {
   const route = window.route;
   const { t } = useLaravelReactI18n();
-  const attachments = usePage().props.attachments;
+  // Sidebar bisa dirender di luar FormPageContext → context bisa undefined,
+  // fallback ke edit-mode (isCreate falsy).
+  const { isCreate, data, setData } = useFormPage() ?? {};
+  const propAttachments = usePage().props.attachments;
+  const bufferedFiles = data?.files ?? [];
+  const attachments = isCreate
+    ? bufferedFiles.map((f, i) => ({ id: f.id ?? i, name: f.name || f.file?.name }))
+    : propAttachments;
   const [openAttachment, setOpenAttachment] = useState(false);
 
-  const removeFile = useCallback((id) => {
-    const currentPath = window.location.pathname.replace(/\/$/, "");
-    const currentQueryString = window.location.search;
-    const basePath = `${currentPath}/file`;
-    router.delete(`${basePath}/${id}${currentQueryString}`, {
-      reset: ["attachments"],
-      preserveScroll: true,
-      preserveState: true,
-      replace: true,
-    });
-  }, []);
+  const removeFile = useCallback(
+    (id) => {
+      if (isCreate) {
+        setData(
+          "files",
+          (data?.files ?? []).filter((f) => (f.id ?? null) !== id),
+        );
+        return;
+      }
+      const currentPath = window.location.pathname.replace(/\/$/, "");
+      const currentQueryString = window.location.search;
+      const basePath = `${currentPath}/file`;
+      router.delete(`${basePath}/${id}${currentQueryString}`, {
+        reset: ["attachments"],
+        preserveScroll: true,
+        preserveState: true,
+        replace: true,
+      });
+    },
+    [isCreate, data, setData],
+  );
   return (
     <>
       <div className="flex w-full items-center gap-2 rounded-md py-2 text-left outline-none  [&>svg]:size-4 [&>svg]:shrink-0 h-8 text-base ">
@@ -51,6 +69,11 @@ export default memo(function Attachments() {
           </DialogTrigger>
           <UploadDialog
             open={openAttachment}
+            onBuffer={
+              isCreate
+                ? (items) => setData("files", [...(data?.files ?? []), ...items])
+                : null
+            }
             onClose={() => {
               setOpenAttachment(false);
             }}
