@@ -15,12 +15,7 @@ Input dari user: $ARGUMENTS
 - Baca semua file yang ada: `.config.kiro` (jika ada), `requirements.md`, `design.md`
 - Jika design.md belum ada, ingatkan user bahwa design sebaiknya dibuat dulu
 
-### 2. Deteksi asal spec
-
-Cek apakah ada `.config.kiro` — jika ada, gunakan format Kiro (numerik hierarkis).
-Jika tidak ada, tanya user apakah ingin format Kiro atau format simple (T01/T02).
-
-### 3A. Format Kiro (jika .config.kiro ada atau user pilih Kiro)
+### 2. Format Kiro (jika .config.kiro ada atau user pilih Kiro)
 
 ````markdown
 # Implementation Plan: <Nama Spec>
@@ -75,43 +70,7 @@ komponen yang berubah, dan apa yang TIDAK berubah.]
 ```
 ````
 
-### 3B. Format Simple (tanpa .config.kiro)
-
-```markdown
-# Tasks: <Nama Spec>
-
-> Spec: `.kiro/specs/<nama>/spec.md`
-> Status: 0 / N tasks selesai
-
-## Status Legend
-
-- [ ] belum dikerjakan
-- [~] antrian (queued)
-- [-] sedang dikerjakan (in progress)
-- [x] selesai
-
----
-
-## Phase 1: <Setup & Foundation>
-
-> [Tujuan phase]
-
-- [ ] **T01** — [Deskripsi task spesifik]
-  - File: `path/to/file`
-  - Detail: [apa yang dilakukan]
-
-- [ ] **T02** — [Deskripsi]
-  - File: `...`
-  - Depends on: T01
-
----
-
-## Phase 2: <Core Implementation>
-
-...
-```
-
-### 4. Prinsip task yang baik (berlaku kedua format)
+### 3. Prinsip task yang baik
 
 - **Atomik**: satu task = satu perubahan yang bisa di-commit
 - **Spesifik**: sebutkan file atau fungsi yang terpengaruh
@@ -121,7 +80,7 @@ komponen yang berubah, dan apa yang TIDAK berubah.]
 - **Checkpoint**: setiap N group ada validasi "ensure tests pass"
 - **Optional task**: gunakan `- [ ]\* <id> <deskripsi>` untuk task yang tidak wajib dikerjakan
 
-### 5. Setelah menulis, tampilkan summary
+### 4. Setelah menulis, tampilkan summary
 
 ```
 ✅ tasks.md sudah dibuat! (format: Kiro | Simple)
@@ -133,7 +92,7 @@ komponen yang berubah, dan apa yang TIDAK berubah.]
 Katakan "kerjakan task pertama" atau "mulai dari 1.1" untuk memulai.
 ```
 
-### 6. Saat user minta mulai implementasi
+### 5. Saat user minta mulai implementasi
 
 - Cek apakah ada task optional (`[ ]\*`) — jika ada, **tanyakan dulu**: _"Jalankan required task saja, atau termasuk optional task?"_
 - Baca task berikutnya yang `[ ]` atau `[~]` (dan `[ ]\*` jika user pilih termasuk optional)
