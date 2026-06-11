@@ -1786,12 +1786,17 @@ const FormPageDialog = memo(
       <AlertDialog open={open}>
         <AlertDialogContent
           className={cn(
-            className,
             "py-0 overflow-hidden transition-[max-width,width] duration-200",
-            // Saat sidebar buka, lebarkan dialog ke ~95vw (melebar; tetap jika
-            // call-site sudah mendekati lebar layar). Jangan paksa max-w kecil
-            // agar tidak mengecil dari className call-site (mis. max-w-6xl).
-            hasSidebar && sidebarOpen && "w-[95vw]! max-w-[95vw]!",
+            // Lebar dasar dari call-site (mis. max-w-6xl). Selalu dipakai sebagai
+            // baseline; di mobile (<lg) inilah satu-satunya constraint sehingga
+            // sidebar yang di-stack tidak membuat dialog melar.
+            className,
+            // Sidebar buka di ≥lg: dialog shrink-to-fit konten (form + sidebar),
+            // di-clamp 95vw, menimpa max-w call-site. Lebar form dipindah ke
+            // kolom-form agar form tak menyusut saat sidebar muncul.
+            hasSidebar &&
+              sidebarOpen &&
+              "lg:w-fit lg:max-w-[95vw]!",
           )}
         >
           <TooltipProvider>
@@ -1831,15 +1836,26 @@ const FormPageDialog = memo(
               <div
                 className={cn(
                   "overflow-y-auto",
+                  // Mobile (<lg): selalu 1 kolom → sidebar stack di bawah form.
+                  // Hanya di ≥lg sidebar berdampingan (form_18rem ⇄ form_0).
                   hasSidebar &&
-                    "grid gap-4 transition-[grid-template-columns] duration-200",
+                    "grid grid-cols-1 gap-4 lg:transition-[grid-template-columns] lg:duration-200",
                   hasSidebar &&
                     (sidebarOpen
-                      ? "grid-cols-[1fr_18rem]"
-                      : "grid-cols-[1fr_0rem]"),
+                      ? "lg:grid-cols-[1fr_18rem]"
+                      : "lg:grid-cols-[1fr_0rem]"),
                 )}
               >
-                <div className="min-w-0">
+                <div
+                  className={cn(
+                    "min-w-0",
+                    // Saat sidebar berdampingan (≥lg), kolom form memegang lebar
+                    // call-site agar form tak menyusut. w-screen di-clamp grid.
+                    hasSidebar &&
+                      sidebarOpen &&
+                      cn("lg:w-[88vw]", className),
+                  )}
+                >
                   {errors && Object.keys(errors).length > 0 && (
                     <div className="flex-col w-full mt-4 alert error">
                       <h3 className="text-base font-semibold">
@@ -1887,13 +1903,17 @@ const FormPageDialog = memo(
                   >
                     <div
                       className={cn(
-                        "min-w-0 h-fit border-l pl-4 transition-opacity duration-200",
+                        "min-w-0 h-fit transition-opacity duration-200",
+                        // Mobile (<lg): border atas (sidebar di bawah form).
+                        // ≥lg: border kiri (sidebar di samping form).
+                        "border-t pt-4 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-4",
                         // SidebarChildren bawa class grid FormPage (lg:sticky/col-start)
                         // yang tak relevan di dialog — netralkan via wrapper.
                         "[&>div]:!static [&>div]:!top-auto [&>div]:!max-w-none [&>div]:!col-auto [&>div]:!row-auto",
+                        // Saat tutup di ≥lg, sembunyikan (kolom menyusut ke 0).
                         sidebarOpen
                           ? "opacity-100"
-                          : "opacity-0 pointer-events-none",
+                          : "lg:opacity-0 lg:pointer-events-none hidden lg:block",
                       )}
                     >
                       <SidebarChildren
