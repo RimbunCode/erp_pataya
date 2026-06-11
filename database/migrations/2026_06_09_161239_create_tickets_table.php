@@ -5,7 +5,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-
     public function up(): void {
         Schema::create('tickets', function (Blueprint $table) {
             $table->ulid('id')->primary();
@@ -13,7 +12,6 @@ return new class extends Migration
             $table->string('type'); // bug_problem, task, question, other
             $table->string('priority')->default('medium'); // low, medium, high, critical
             $table->string('subject');
-            $table->longText('content')->nullable();
             $table->string('status')->default('new'); // new, in_progress, on_hold, resolved, done
             $table->tinyInteger('progress')->default(0); // 0-100
             $table->foreignUlid('assign_to_id')->nullable()->references('id')->on('users')->nullOnDelete();

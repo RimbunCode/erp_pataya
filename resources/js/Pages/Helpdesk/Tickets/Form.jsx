@@ -17,12 +17,11 @@ const STATUS_OPTIONS = ["new", "in_progress", "on_hold", "resolved", "done"];
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData } = useFormPage({
+  const { data, setData, defaultData } = useFormPage({
     type: "task",
     priority: "medium",
     status: "new",
     progress: 0,
-    start_date: new Date(),
   });
   const ticket = usePage().props.ticket;
   const imageUploadUrl = ticket
@@ -31,10 +30,16 @@ function Form() {
 
   return (
     <>
-      <FormPageContent value="detail" title={t("helpdesk.ticket.columns.type")}>
-        <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <div className="flex flex-col gap-y-4">
-            <FormInput label={t("helpdesk.ticket.columns.type")} name="type">
+      {/* Grup 1: Informasi Tiket */}
+      <FormPageContent value="detail">
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Kolom kiri: Tipe, Prioritas, Status, Progress */}
+          <div className="flex flex-col gap-4">
+            <FormInput
+              label={t("helpdesk.ticket.columns.type")}
+              name="type"
+              required
+            >
               <Select
                 value={data.type}
                 onValueChange={(val) => setData("type", val)}
@@ -42,9 +47,11 @@ function Form() {
                 optionTrans="helpdesk.ticket.type.options"
               />
             </FormInput>
+
             <FormInput
               label={t("helpdesk.ticket.columns.priority")}
               name="priority"
+              required
             >
               <Select
                 value={data.priority}
@@ -53,17 +60,29 @@ function Form() {
                 optionTrans="helpdesk.ticket.priority.options"
               />
             </FormInput>
+
             <FormInput
               label={t("helpdesk.ticket.columns.status")}
               name="status"
+              required
             >
               <Select
                 value={data.status}
-                onValueChange={(val) => setData("status", val)}
+                onValueChange={(val) => {
+                  setData({
+                    ...data,
+                    status: val,
+                    progress:
+                      val === "done" && (data.progress ?? 0) < 100
+                        ? 100
+                        : (data.progress ?? 0),
+                  });
+                }}
                 options={STATUS_OPTIONS}
                 optionTrans="helpdesk.ticket.status.options"
               />
             </FormInput>
+
             <FormInput
               label={`${t("helpdesk.ticket.columns.progress")} (${data.progress ?? 0}%)`}
               name="progress"
@@ -78,19 +97,24 @@ function Form() {
               />
             </FormInput>
           </div>
-          <div className="flex flex-col gap-y-4">
+
+          {/* Kolom kanan: Assign To, Start Date, Due Date */}
+          <div className="flex flex-col gap-4">
             <FormInput
               label={t("helpdesk.ticket.columns.assign_to")}
               name="assign_to"
+              required
             >
               <UserLinkModel
                 value={data.assign_to}
                 onValueChange={(val) => setData("assign_to", val)}
               />
             </FormInput>
+
             <FormInput
               label={t("helpdesk.ticket.columns.start_date")}
               name="start_date"
+              required
             >
               <DatetimePicker
                 type="datetime"
@@ -98,6 +122,7 @@ function Form() {
                 onValueChange={(val) => setData("start_date", val)}
               />
             </FormInput>
+
             <FormInput
               label={t("helpdesk.ticket.columns.due_date")}
               name="due_date"
@@ -108,47 +133,42 @@ function Form() {
                 onValueChange={(val) => setData("due_date", val)}
               />
             </FormInput>
-            <FormInput
-              label={t("helpdesk.ticket.columns.end_date")}
-              name="end_date"
-            >
-              <DatetimePicker
-                type="datetime"
-                value={data.end_date}
-                onValueChange={(val) => setData("end_date", val)}
-              />
-            </FormInput>
           </div>
         </div>
       </FormPageContent>
-      <FormPageContent
-        value="subject"
-        title={t("helpdesk.ticket.columns.subject")}
-      >
-        <FormInput
-          label={t("helpdesk.ticket.columns.subject")}
-          name="subject"
-          required
-        >
-          <Input
-            type="text"
-            value={data.subject ?? ""}
-            onChange={(e) => setData("subject", e.target.value)}
-          />
-        </FormInput>
-      </FormPageContent>
-      <FormPageContent
-        value="content"
-        title={t("helpdesk.ticket.columns.content")}
-      >
-        <FormInput label={t("helpdesk.ticket.columns.content")} name="content">
-          <TiptapEditor
-            value={data.content}
-            onValueChange={(json, html) => setData("content", html)}
-            imageUploadUrl={imageUploadUrl}
-          />
-        </FormInput>
-      </FormPageContent>
+
+      {/* Grup 2: Subjek & Konten (digabung) */}
+      {!defaultData && (
+        <FormPageContent value="detail">
+          <div className="flex flex-col gap-4">
+            <FormInput
+              label={t("helpdesk.ticket.columns.subject")}
+              name="subject"
+              required
+            >
+              <Input
+                type="text"
+                value={data.subject ?? ""}
+                onChange={(e) => setData("subject", e.target.value)}
+              />
+            </FormInput>
+
+            <FormInput
+              label={t("helpdesk.ticket.columns.content")}
+              name="content"
+            >
+              <TiptapEditor
+                value={data.content_json ?? data.content}
+                onValueChange={(json, html) => {
+                  setData("content", html);
+                  setData("content_json", json);
+                }}
+                imageUploadUrl={imageUploadUrl}
+              />
+            </FormInput>
+          </div>
+        </FormPageContent>
+      )}
     </>
   );
 }

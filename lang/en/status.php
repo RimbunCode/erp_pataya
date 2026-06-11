@@ -40,4 +40,8 @@ return [
     'pre_registered'                  => 'Pre-Registered',
     'invited'                         => 'Invited',
     'over_delivered'                  => 'Over Delivered',
+    'new'                             => 'New',
+    'on_hold'                         => 'On Hold',
+    'resolved'                        => 'Resolved',
+    'done'                            => 'Done',
 ];

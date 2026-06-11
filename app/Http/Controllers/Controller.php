@@ -26,11 +26,11 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
-    protected        $permissions;
-    protected        $modelPermissions;
-    protected        $onlyCreator      = false;
+    protected $permissions;
+    protected $modelPermissions;
+    protected $onlyCreator = false;
     protected string $lang;
-    protected bool   $ignorePermission = false;
+    protected bool $ignorePermission = false;
 
     /**
      * Summary of setBreadcrumbs
@@ -57,7 +57,7 @@ abstract class Controller {
                 }
                 if ($key == 0) {
                     $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? '') . '.title', 'link' => route("{$model->route}.index")];
-                    $name          = Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
+                    $name          = $model->templateLink ? Utils::convertTemplateLink($model) : Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
                     $breadcrumbs[] = ($key == (count($models) - 1)) ?
                         ['name' => $name] :
                         ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
@@ -125,19 +125,19 @@ abstract class Controller {
                         abort(403);
                     }
                     $keyPermission = match ($method) {
-                        'index'     => 'select',
-                        'create'    => 'create',
-                        'store'     => 'create',
-                        'show'      => 'read',
-                        'update'    => 'write',
-                        'destroy'   => 'delete',
-                        'import'    => 'import',
-                        'export'    => 'export',
-                        'share'     => 'share',
-                        'submit'    => 'submit',
-                        'cancel'    => 'cancel',
-                        'print'     => 'print',
-                        'amend'     => 'amend',
+                        'index'   => 'select',
+                        'create'  => 'create',
+                        'store'   => 'create',
+                        'show'    => 'read',
+                        'update'  => 'write',
+                        'destroy' => 'delete',
+                        'import'  => 'import',
+                        'export'  => 'export',
+                        'share'   => 'share',
+                        'submit'  => 'submit',
+                        'cancel'  => 'cancel',
+                        'print'   => 'print',
+                        'amend'   => 'amend',
                         'addComment',
                         'editComment',
                         'addTag',

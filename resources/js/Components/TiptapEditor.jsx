@@ -43,6 +43,8 @@ import TextAlign from "@tiptap/extension-text-align";
 import TiptapMentionList from "./TiptapMentionList";
 import Underline from "@tiptap/extension-underline";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function ToolbarButton({ onClick, active, disabled, title, children }) {
   return (
@@ -373,6 +375,7 @@ const TiptapEditor = forwardRef(function TiptapEditor(
   },
   ref,
 ) {
+  const { t } = useLaravelReactI18n();
   const isUpdatingRef = useRef(false);
   const fileInputRef = useRef(null);
   // Keep mentionSource in a ref so buildMentionSuggestion can read latest value
@@ -447,9 +450,13 @@ const TiptapEditor = forwardRef(function TiptapEditor(
       const json = await res.json();
       if (json.url) {
         editor.chain().focus().setImage({ src: json.url }).run();
+        toast.success(t("core.upload_file.image_upload_success"));
+      } else {
+        toast.error(t("core.upload_file.image_upload_error"));
       }
     } catch (e) {
       console.error("Image upload failed", e);
+      toast.error(t("core.upload_file.image_upload_error"));
     }
   };
 

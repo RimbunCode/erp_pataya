@@ -40,4 +40,8 @@ return [
     'pre_registered'                  => 'Prapendaftaran',
     'invited'                         => 'Diundang',
     'over_delivered'                  => 'Melebihi Pengiriman',
+    'new'                             => 'Baru',
+    'on_hold'                         => 'Ditunda',
+    'resolved'                        => 'Terselesaikan',
+    'done'                            => 'Selesai',
 ];

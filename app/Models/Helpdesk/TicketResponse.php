@@ -10,9 +10,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TicketResponse extends Model {
     use HasUlids, SoftDeletes;
+
     protected $guarded = ['id'];
     protected $casts   = [
-        'end_date' => 'datetime',
+        'start_date'   => 'datetime',
+        'due_date'     => 'datetime',
+        'end_date'     => 'datetime',
+        'content_json' => 'array',
     ];
 
     public function ticket(): BelongsTo {

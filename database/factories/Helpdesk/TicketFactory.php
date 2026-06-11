@@ -21,7 +21,6 @@ class TicketFactory extends Factory {
             'type'          => fake()->randomElement(['bug_problem', 'task', 'question', 'other']),
             'priority'      => fake()->randomElement(['low', 'medium', 'high', 'critical']),
             'subject'       => fake()->sentence(5),
-            'content'       => '<p>' . fake()->paragraph() . '</p>',
             'status'        => 'new',
             'progress'      => 0,
             'assign_to_id'  => null,

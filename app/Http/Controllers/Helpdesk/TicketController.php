@@ -45,10 +45,11 @@ class TicketController extends Controller {
 
     public function show(Ticket $ticket) {
         $this->setBreadcrumbs($ticket);
+        $ticket->showDetail();
 
         return Inertia::render('Helpdesk/Tickets/Show', [
             'ticket' => function () use ($ticket) {
-                $ticket->load(['assignTo', 'createdBy', 'responses.user', 'responses.assignTo']);
+                $ticket->loadRelations();
 
                 return $ticket;
             },
@@ -77,7 +78,7 @@ class TicketController extends Controller {
         $this->service->markDone($ticket);
         DB::commit();
 
-        return back();
+        return redirect()->route('tickets.show', $ticket);
     }
 
     public function updateTicket(TicketResponseRequest $request, Ticket $ticket) {
@@ -85,6 +86,6 @@ class TicketController extends Controller {
         $this->service->updateTicket($ticket, $request->validated());
         DB::commit();
 
-        return back();
+        return redirect()->route('tickets.show', $ticket);
     }
 }

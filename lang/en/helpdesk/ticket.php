@@ -2,6 +2,9 @@
 
 return [
     'new'              => 'New Ticket',
+    'title'            => 'Helpdesk Tickets',
+    'add'              => 'New Ticket',
+    'name'             => 'Ticket',
     'edit'             => 'Edit Ticket',
 
     'columns'          => [
@@ -66,7 +69,7 @@ return [
     ],
 
     'responses'        => [
-        'title' => 'Response History',
-        'empty' => 'No responses yet.',
+        'title' => 'Ticket History',
+        'empty' => 'No yet.',
     ],
 ];

@@ -7,29 +7,34 @@ use App\Models\Helpdesk\TicketResponse;
 use App\Models\User\User;
 use App\Services\Helpdesk\TicketService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Tests\TestCase;
 
 class TicketTest extends TestCase {
     use RefreshDatabase;
+
     private User $user;
+
     /** @var array<string, mixed> */
     private array $sessionData;
 
     protected function setUp(): void {
         parent::setUp();
 
+        // is_example ditambahkan via seeder/initPermissions di prod, bukan migration.
+        // Tambahkan ke semua tabel agar global scope HasExampleData tidak error di SQLite.
+        foreach (Schema::getTables() as $tableInfo) {
+            $table = $tableInfo['name'];
+            if (! Schema::hasColumn($table, 'is_example')) {
+                Schema::table($table, fn ($t) => $t->boolean('is_example')->default(false));
+            }
+        }
+
         $this->user = User::factory()->create();
 
-        // Build session data with the required permissions for the Ticket model.
-        // The Controller reads session('permissions')[ModelClass][level] to authorize
-        // each action. The `lang` middleware requires the 'lang' cookie, so we add
-        // it via withCookie on every request instead.
-        // The AppMiddleware overwrites session('permissions') unless
-        // session('permissions_version') matches the DB-resolved version.
-        // For a user with no roles the version resolves to '0|0|0|0'.
         $this->sessionData = [
-            'permissions'         => [
+            'permissions' => [
                 Ticket::class => [
                     0 => [
                         [
@@ -91,12 +96,13 @@ class TicketTest extends TestCase {
 
         $response = $this->authenticatedRequest()
             ->post(route('tickets.store'), [
-                'type'     => 'bug_problem',
-                'priority' => 'high',
-                'subject'  => 'Something is broken',
-                'content'  => '<p>Detailed description</p>',
-                'status'   => 'new',
-                'progress' => 0,
+                'type'       => 'bug_problem',
+                'priority'   => 'high',
+                'subject'    => 'Something is broken',
+                'status'     => 'new',
+                'progress'   => 0,
+                'assign_to'  => ['id' => $this->user->id],
+                'start_date' => now()->toDateTimeString(),
             ]);
 
         $response->assertRedirect(route('tickets.show', $ticket));
@@ -119,18 +125,19 @@ class TicketTest extends TestCase {
 
         $response = $this->authenticatedRequest()
             ->put(route('tickets.update', $ticket), [
-                'type'      => 'task',
-                'priority'  => 'medium',
-                'subject'   => 'Updated subject',
-                'status'    => 'in_progress',
-                'progress'  => 50,
-                'assign_to' => null,
+                'type'       => 'task',
+                'priority'   => 'medium',
+                'subject'    => 'Updated subject',
+                'status'     => 'in_progress',
+                'progress'   => 50,
+                'assign_to'  => ['id' => $this->user->id],
+                'start_date' => now()->toDateTimeString(),
             ]);
 
         $response->assertRedirect();
 
         $ticket->refresh();
-        $this->assertSame('in_progress', $ticket->status);
+        $this->assertSame('in_progress', $ticket->status->value);
         $this->assertSame(50, (int) $ticket->progress);
     }
 
@@ -156,6 +163,9 @@ class TicketTest extends TestCase {
                     'ticket_id'    => $t->id,
                     'user_id'      => $this->user->id,
                     'assign_to_id' => null,
+                    'type'         => $t->type,
+                    'priority'     => $t->priority,
+                    'subject'      => $t->subject,
                     'status'       => 'done',
                     'progress'     => 100,
                     'end_date'     => now(),
@@ -170,7 +180,7 @@ class TicketTest extends TestCase {
         $response->assertRedirect();
 
         $ticket->refresh();
-        $this->assertSame('done', $ticket->status);
+        $this->assertSame('done', $ticket->status->value);
         $this->assertSame(100, (int) $ticket->progress);
         $this->assertNotNull($ticket->end_date);
 
@@ -196,33 +206,47 @@ class TicketTest extends TestCase {
 
                 $model->update([
                     'assign_to_id' => $assignToId,
+                    'type'         => $data['type'],
+                    'priority'     => $data['priority'],
+                    'subject'      => $data['subject'],
                     'status'       => $data['status'],
                     'progress'     => $data['progress'],
+                    'start_date'   => $data['start_date'],
+                    'due_date'     => $data['due_date'] ?? null,
                 ]);
 
                 return TicketResponse::create([
                     'ticket_id'    => $model->id,
                     'user_id'      => $this->user->id,
                     'assign_to_id' => $assignToId,
+                    'type'         => $data['type'],
+                    'priority'     => $data['priority'],
+                    'subject'      => $data['subject'],
                     'status'       => $data['status'],
                     'progress'     => $data['progress'],
+                    'start_date'   => $data['start_date'],
+                    'due_date'     => $data['due_date'] ?? null,
                     'content'      => $data['content'] ?? null,
-                    'end_date'     => $data['end_date'] ?? null,
+                    'content_json' => $data['content_json'] ?? null,
                 ]);
             });
 
         $response = $this->authenticatedRequest()
             ->put(route('tickets.updateTicket', $ticket), [
-                'status'    => 'in_progress',
-                'progress'  => 30,
-                'content'   => '<p>Working on it.</p>',
-                'assign_to' => null,
+                'type'       => 'bug_problem',
+                'priority'   => 'high',
+                'subject'    => 'Updated subject',
+                'status'     => 'in_progress',
+                'progress'   => 30,
+                'content'    => '<p>Working on it.</p>',
+                'assign_to'  => ['id' => $this->user->id],
+                'start_date' => now()->toDateTimeString(),
             ]);
 
         $response->assertRedirect();
 
         $ticket->refresh();
-        $this->assertSame('in_progress', $ticket->status);
+        $this->assertSame('in_progress', $ticket->status->value);
         $this->assertSame(30, (int) $ticket->progress);
 
         $this->assertDatabaseHas('ticket_responses', [
@@ -232,14 +256,13 @@ class TicketTest extends TestCase {
         ]);
     }
 
-    public function test_can_delete_ticket(): void {
+    public function test_delete_ticket_is_forbidden(): void {
         $ticket = Ticket::factory()->create();
 
         $response = $this->authenticatedRequest()
             ->delete(route('tickets.destroy', $ticket));
 
-        $response->assertRedirect(route('tickets.index'));
-
-        $this->assertSoftDeleted('tickets', ['id' => $ticket->id]);
+        $response->assertSessionHasErrors('delete');
+        $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
     }
 }

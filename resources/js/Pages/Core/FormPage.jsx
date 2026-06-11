@@ -658,7 +658,7 @@ const FormPage = memo(
       disabled: _disabled,
       isCreate = false,
       fieldNameTrans,
-      title,
+      title: _title,
       badge,
       controls,
       defaultMenu,
@@ -684,8 +684,19 @@ const FormPage = memo(
     const prints = usePage().props.prints ?? [];
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
     const user = usePage().props.auth.user;
-    const { model } = usePage().props;
+    const { model, translateKey } = usePage().props;
     const { can } = usePermission(model);
+    const title = useMemo(() => {
+      return (
+        _title ??
+        (isCreate
+          ? translateKey && t(`${translateKey}.new`)
+          : defaultData.templateLink
+            ? convertTemplateLink(defaultData)
+            : (defaultData.code ?? defaultData.name)) ??
+        ""
+      );
+    }, [_title, defaultData, isCreate, translateKey]);
     const {
       data,
       setData: _setData,
@@ -1628,6 +1639,7 @@ const FormPageDialog = memo(
       badge,
       method = "post",
       routeName,
+      routeParams,
       ignoreDraft = false,
     },
     ref,
@@ -1746,7 +1758,7 @@ const FormPageDialog = memo(
       if (disabled) return;
       if (!name) return;
       const pluralized = routeName ?? `${pluralize.plural(name ?? "")}.store`;
-      submit(method, route(pluralized), {
+      submit(method, route(pluralized, routeParams), {
         preserveState: true,
         preserveUrl: false,
         onSuccess: () => {

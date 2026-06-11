@@ -66,7 +66,7 @@ return [
     ],
 
     'responses'        => [
-        'title' => 'Riwayat Respons',
-        'empty' => 'Belum ada respons.',
+        'title' => 'Riwayat Tickets',
+        'empty' => 'Belum ada.',
     ],
 ];
