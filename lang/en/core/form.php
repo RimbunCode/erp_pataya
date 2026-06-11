@@ -44,6 +44,8 @@ return [
     'attachments_and_tags' => 'Attachments and Tags',
     'upload_success'       => 'File uploaded successfully',
     'upload_failed'        => 'Failed to upload file',
+    'uploading'            => 'Uploading...',
+    'saving'               => 'Saving...',
     'not_saved'            => 'Not Saved',
     'save'                 => 'Save',
     'save_and_submit'      => 'Save and Submit',

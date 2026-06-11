@@ -11,6 +11,7 @@ import { checkFileType, cn, formatBytes, generateRandom } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import FileItem from "./FileItem";
+import LoadingIcon from "@/Components/LoadingIcon";
 import Library from "@/Pages/Core/Components/Library/Library";
 import { Progress } from "@/Components/ui/progress";
 import { Transition } from "@headlessui/react";
@@ -34,6 +35,8 @@ function UploadDialog({
   const [files, setFiles] = useState([]);
   const [hover, setHover] = useState(false);
   const [progress, setProgress] = useState(false);
+  // true selama request upload in-flight (termasuk delay backend setelah 100%).
+  const [uploading, setUploading] = useState(false);
   const [checklistFile, setChecklistFile] = useState(new Set());
   const libraryRef = useRef();
   const id = useId();
@@ -104,6 +107,7 @@ function UploadDialog({
           });
         }
         setProgress({ progress: 0 });
+        setUploading(true);
         axios
           .post(route("files.store"), formData, {
             headers: { "Content-Type": "multipart/form-data" },
@@ -122,10 +126,12 @@ function UploadDialog({
             setFiles([]);
             onClose();
             setProgress(false);
+            setUploading(false);
           })
           .catch(() => {
             toast.error(t("core.form.upload_failed"));
             setProgress(false);
+            setUploading(false);
           });
         return;
       }
@@ -321,20 +327,38 @@ function UploadDialog({
       }
     }
   };
+  // Setelah upload 100%, backend masih menyimpan/mencatat ke tabel files
+  // (ada delay). Tampilkan indikator "saving" & kunci interaksi.
+  const isSaving = uploading && (progress?.progress ?? 0) >= 1;
   return (
     <DialogContent className="max-w-xl overflow-hidden!">
       <DialogHeader className="pb-2 border-b">
         <DialogTitle>Upload</DialogTitle>
         <DialogDescription className="sr-only"></DialogDescription>
       </DialogHeader>
-      {getMenu()}
+      {/* Saat upload berlangsung, kunci konten agar tak ada klik tak sengaja. */}
+      <div
+        className={cn(
+          "transition-opacity",
+          uploading && "pointer-events-none opacity-60 select-none",
+        )}
+      >
+        {getMenu()}
+      </div>
       {progress && (
         <div className="flex items-center w-full text-xs text-muted-foreground">
           <Progress value={progress.progress * 100} className="h-2!" />
           <p className="mx-3 text-nowrap">
             ({formatBytes(progress.loaded)} / {formatBytes(progress.total)})
           </p>
-          <p>{(progress.progress * 100).toFixed(1)}%</p>
+          {isSaving ? (
+            <span className="flex items-center text-nowrap gap-x-1.5">
+              <LoadingIcon className="size-3.5" />
+              {t("core.form.saving")}
+            </span>
+          ) : (
+            <p>{(progress.progress * 100).toFixed(1)}%</p>
+          )}
         </div>
       )}
       <DialogFooter
@@ -352,7 +376,11 @@ function UploadDialog({
                 variant="secondary"
                 size="sm"
                 asChild
-                className="cursor-pointer"
+                disabled={uploading}
+                className={cn(
+                  "cursor-pointer",
+                  uploading && "pointer-events-none opacity-50",
+                )}
               >
                 <label htmlFor={id}>Browse</label>
               </Button>
@@ -383,14 +411,20 @@ function UploadDialog({
         )}
         <Button
           disabled={
-            menu == "home" ? files.length <= 0 : checklistFile.size <= 0
+            uploading ||
+            (menu == "home" ? files.length <= 0 : checklistFile.size <= 0)
           }
           size="sm"
           onClick={() =>
             onAttach(menu, menu == "library" ? checklistFile : files)
           }
         >
-          Attach
+          {uploading && <LoadingIcon className="size-4" />}
+          {isSaving
+            ? t("core.form.saving")
+            : uploading
+              ? t("core.form.uploading")
+              : "Attach"}
         </Button>
       </DialogFooter>
     </DialogContent>

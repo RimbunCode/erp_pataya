@@ -44,6 +44,8 @@ return [
     'attachments_and_tags' => 'Lampiran dan Tag',
     'upload_success'       => 'File berhasil diunggah',
     'upload_failed'        => 'Gagal mengunggah file',
+    'uploading'            => 'Mengunggah...',
+    'saving'               => 'Menyimpan...',
     'not_saved'            => 'Belum Disimpan',
     'save'                 => 'Simpan',
     'save_and_submit'      => 'Simpan dan Ajukan',
