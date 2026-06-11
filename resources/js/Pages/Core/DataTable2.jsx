@@ -560,14 +560,17 @@ export default memo(
                   data.data.map((x) => {
                     const item = templateItem?.({
                       dataRow: x,
-                      deleteItem: deleteItem(
-                        `${pluralize.plural(name ?? "")}.destroy`,
-                        x.id,
-                        {
-                          usePasswordConfirmation:
-                            usePasswordConfirmationForDelete,
-                        },
-                      ),
+                      // Pass closure — JANGAN panggil deleteItem() saat render
+                      // (memicu setState store DeleteDialog selama render).
+                      deleteItem: () =>
+                        deleteItem(
+                          `${pluralize.plural(name ?? "")}.destroy`,
+                          x.id,
+                          {
+                            usePasswordConfirmation:
+                              usePasswordConfirmationForDelete,
+                          },
+                        ),
                     });
                     if (!item) return null;
                     return cloneElement(item, { key: x.id, ...item.props });
