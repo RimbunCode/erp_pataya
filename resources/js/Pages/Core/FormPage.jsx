@@ -22,7 +22,6 @@ import {
   SaveIcon,
   Trash2Icon,
 } from "lucide-react";
-import { Sidebar, SidebarProvider } from "@/Components/ui/sidebar";
 import {
   Collapsible,
   CollapsibleContent,
@@ -1643,7 +1642,7 @@ const FormPageDialog = memo(
       routeName,
       routeParams,
       ignoreDraft = false,
-      sidebarContent = false,
+      sidebarContent,
     },
     ref,
   ) {
@@ -1847,7 +1846,10 @@ const FormPageDialog = memo(
                         {Object.entries(errors).map(([key, value]) => (
                           <li key={key} className="list-disc">
                             {fieldNameTrans
-                              ? value.replace(key, t(`${fieldNameTrans}.${key}`))
+                              ? value.replace(
+                                  key,
+                                  t(`${fieldNameTrans}.${key}`),
+                                )
                               : value}
                           </li>
                         ))}
@@ -1880,23 +1882,24 @@ const FormPageDialog = memo(
                     setData={setData}
                     form={form}
                   >
-                    <SidebarProvider
-                      open={sidebarOpen}
-                      onOpenChange={setSidebarOpen}
-                      className="min-h-0 w-auto overflow-hidden"
+                    <div
+                      className={cn(
+                        "min-w-0 h-fit border-l pl-4 transition-opacity duration-200",
+                        // SidebarChildren bawa class grid FormPage (lg:sticky/col-start)
+                        // yang tak relevan di dialog — netralkan via wrapper.
+                        "[&>div]:!static [&>div]:!top-auto [&>div]:!max-w-none [&>div]:!col-auto [&>div]:!row-auto",
+                        sidebarOpen
+                          ? "opacity-100"
+                          : "opacity-0 pointer-events-none",
+                      )}
                     >
-                      <Sidebar
-                        collapsible="none"
-                        className="w-full bg-transparent border-l pl-4 overflow-y-auto"
-                      >
-                        <SidebarChildren
-                          content={sidebarContent}
-                          submitable={false}
-                          defaultData={null}
-                          hasConnections={false}
-                        />
-                      </Sidebar>
-                    </SidebarProvider>
+                      <SidebarChildren
+                        content={sidebarContent}
+                        submitable={false}
+                        defaultData={null}
+                        hasConnections={false}
+                      />
+                    </div>
                   </FormPageProvider>
                 )}
               </div>
