@@ -106,12 +106,12 @@ _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 4.1, 4.2, 4.3_
 
 ## Task 7: Verifikasi end-to-end + full suite (CHECKPOINT)
 
-- [ ] 7.1 Pasang sementara `sidebarContent={undefined}` di satu call-site dialog existing (mis. `Users/ManageUsers/Show.jsx:126`) untuk smoke test (jangan commit)
-- [ ] 7.2 Minta user `npm run dev`: cek sidebar tampil/melebar, toggle animasi, tag buffer (tanpa network), file buffer (tanpa upload langsung), submit → record + `taggables`/`fileables` ter-attach
-- [ ] 7.3 Revert call-site smoke test
-- [ ] 7.4 Full backend suite `php artisan test --compact`
-- [ ] 7.5 `vendor/bin/pint --dirty --format agent`
-- [ ] 7.6 Commit akhir bila ada perubahan format
+- [ ] 7.1 Pasang sementara `sidebarContent={undefined}` di satu call-site dialog existing (mis. `Users/ManageUsers/Show.jsx:126`) untuk smoke test (jangan commit) — **butuh user (manual UI)**
+- [ ] 7.2 Minta user `npm run dev`: cek sidebar tampil/melebar, toggle animasi, tag buffer (tanpa network), file buffer (tanpa upload langsung), submit → record + `taggables`/`fileables` ter-attach — **butuh user (manual UI)**
+- [ ] 7.3 Revert call-site smoke test — **butuh user**
+- [x] 7.4 Full backend suite: 251 passed, 48 failed. **Semua 48 fail pre-existing** (infra SQLite `formating_series.is_example` dll) — diverifikasi via `git stash` (test fail tanpa perubahan ini). 0 fail terkait service/hook. Test fitur (5) + Unit (3) = 8 passed bersama.
+- [x] 7.5 `vendor/bin/pint --dirty --format agent` → `{"result":"pass"}`
+- [ ] 7.6 Commit akhir (tak ada perubahan format; commit setelah smoke test user)
 
 **Files berubah:** — (verifikasi; format saja)
 
