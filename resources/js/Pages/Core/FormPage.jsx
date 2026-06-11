@@ -1787,8 +1787,11 @@ const FormPageDialog = memo(
         <AlertDialogContent
           className={cn(
             className,
-            "py-0 overflow-hidden transition-[max-width] duration-200",
-            hasSidebar && sidebarOpen && "max-w-3xl!",
+            "py-0 overflow-hidden transition-[max-width,width] duration-200",
+            // Saat sidebar buka, lebarkan dialog ke ~95vw (melebar; tetap jika
+            // call-site sudah mendekati lebar layar). Jangan paksa max-w kecil
+            // agar tidak mengecil dari className call-site (mis. max-w-6xl).
+            hasSidebar && sidebarOpen && "w-[95vw]! max-w-[95vw]!",
           )}
         >
           <TooltipProvider>
