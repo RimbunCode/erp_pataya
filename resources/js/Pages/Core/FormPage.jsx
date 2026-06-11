@@ -1692,6 +1692,10 @@ const FormPageDialog = memo(
       }
       reset();
     }, [open, ignoreDraft]);
+    // Setiap dialog dibuka, sidebar default terbuka.
+    useEffect(() => {
+      if (open) setSidebarOpen(true);
+    }, [open]);
 
     const setData = useCallback(
       (...args) => {
@@ -1818,10 +1822,11 @@ const FormPageDialog = memo(
                     <button
                       type="button"
                       onClick={() => setSidebarOpen((v) => !v)}
-                      className="ml-auto p-1 rounded hover:bg-muted"
-                      aria-label="Toggle sidebar"
+                      className="items-center hidden gap-2 px-2 py-1 ml-auto text-sm font-normal rounded lg:flex text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label={t("core.form.attachments_and_tags")}
                     >
                       <PanelRightIcon className="size-4" />
+                      <span>{t("core.form.attachments_and_tags")}</span>
                     </button>
                   )}
                 </AlertDialogTitle>
@@ -1899,10 +1904,11 @@ const FormPageDialog = memo(
                         // SidebarChildren bawa class grid FormPage (lg:sticky/col-start)
                         // yang tak relevan di dialog — netralkan via wrapper.
                         "[&>div]:!static [&>div]:!top-auto [&>div]:!max-w-none [&>div]:!col-auto [&>div]:!row-auto",
-                        // Buka: tampil. Tutup: mobile disembunyikan; ≥lg slide keluar.
+                        // Mobile (<lg): SELALU tampil (toggle disembunyikan).
+                        // ≥lg: ikut sidebarOpen — slide+fade keluar saat tutup.
                         sidebarOpen
                           ? "lg:translate-x-0 lg:opacity-100"
-                          : "hidden lg:block lg:translate-x-full lg:opacity-0 lg:pointer-events-none",
+                          : "lg:translate-x-full lg:opacity-0 lg:pointer-events-none",
                       )}
                     >
                       <SidebarChildren

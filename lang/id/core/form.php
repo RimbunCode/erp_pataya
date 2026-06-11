@@ -41,6 +41,7 @@ return [
     'comment_placeholder' => 'Ketik komentar... gunakan @ untuk menyebut seseorang',
     'attachments'         => 'Lampiran',
     'tags'                => 'Tag',
+    'attachments_and_tags' => 'Lampiran dan Tag',
     'not_saved'           => 'Belum Disimpan',
     'save'                => 'Simpan',
     'save_and_submit'     => 'Simpan dan Ajukan',

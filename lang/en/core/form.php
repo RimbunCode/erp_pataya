@@ -41,6 +41,7 @@ return [
     'comment_placeholder' => 'Type a comment... use @ to mention someone',
     'attachments'         => 'Attachments',
     'tags'                => 'Tags',
+    'attachments_and_tags' => 'Attachments and Tags',
     'not_saved'           => 'Not Saved',
     'save'                => 'Save',
     'save_and_submit'     => 'Save and Submit',
