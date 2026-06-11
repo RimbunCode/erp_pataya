@@ -17,6 +17,7 @@ import LoadingIcon from "@/Components/LoadingIcon";
 import QueryString from "qs";
 import axios from "axios";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useFormPage } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function Tags() {
@@ -25,6 +26,10 @@ function Tags() {
   const inputRef = useRef();
   const [tags, setTags] = useState([]);
   const { tags: _tags } = usePage().props;
+  // SidebarChildren bisa dirender di luar FormPageContext (sidebar FormPage),
+  // jadi context bisa undefined → fallback ke edit-mode (isCreate falsy).
+  const { isCreate, data, setData } = useFormPage() ?? {};
+  const bufferedTags = data?.buffered_tags ?? [];
   const [search, setSearch] = useState("");
   const [listTags, setListTags] = useState([]);
   const [open, setOpen] = useState();
@@ -34,8 +39,8 @@ function Tags() {
   const currentQueryString = window.location.search;
   const basePath = `${currentPath}/tag`;
   useEffect(() => {
-    setTags(_tags ?? []);
-  }, [_tags]);
+    setTags(isCreate ? bufferedTags : (_tags ?? []));
+  }, [_tags, isCreate, JSON.stringify(bufferedTags)]);
 
   useEffect(() => {
     if (!showSearch) {
@@ -47,6 +52,17 @@ function Tags() {
 
   const addTag = (tag) => {
     if (tags.findIndex((t) => t.name == tag.name) >= 0) {
+      setSearch("");
+      setShowSearch(false);
+      return;
+    }
+    if (isCreate) {
+      const next = [
+        ...bufferedTags,
+        { id: tag.id, name: tag.name, isNew: tag.isNew },
+      ];
+      setData("buffered_tags", next);
+      setTags(next);
       setSearch("");
       setShowSearch(false);
       return;
@@ -68,6 +84,12 @@ function Tags() {
   };
 
   const removeTag = (id) => {
+    if (isCreate) {
+      const next = bufferedTags.filter((t) => t.id !== id);
+      setData("buffered_tags", next);
+      setTags(next);
+      return;
+    }
     router.delete(`${basePath}/${id}${currentQueryString}`, {
       reset: ["tags"],
       preserveScroll: true,

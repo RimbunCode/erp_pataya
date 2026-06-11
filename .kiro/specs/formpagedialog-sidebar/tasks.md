@@ -44,11 +44,11 @@ _Requirements: 5.2, 5.3, 5.4, 5.5, 6.2, 6.3, 6.4, 6.5_
 
 ## Task 3: Tags — dual-mode (create buffer)
 
-- [ ] 3.1 Import `useFormPage`; ambil `{ isCreate, data, setData }` + `bufferedTags`
-- [ ] 3.2 Pilih sumber tags by mode (`isCreate ? bufferedTags : _tags`)
-- [ ] 3.3 Cabangkan `addTag`/`removeTag` (create mutasi `data.buffered_tags`; edit tetap `router`)
-- [ ] 3.4 `npm run build`, pastikan sukses
-- [ ] 3.5 Commit
+- [x] 3.1 Import `useFormPage`; ambil `{ isCreate, data, setData }` + `bufferedTags` (guard `?? {}` — sidebar bisa di luar context)
+- [x] 3.2 Pilih sumber tags by mode (`isCreate ? bufferedTags : _tags`)
+- [x] 3.3 Cabangkan `addTag`/`removeTag` (create mutasi `data.buffered_tags`; edit tetap `router`)
+- [x] 3.4 `npm run build`, pastikan sukses (pakai `NODE_OPTIONS=--max-old-space-size=4096`)
+- [x] 3.5 Commit
 
 **Files berubah:**
 
