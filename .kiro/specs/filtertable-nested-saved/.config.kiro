@@ -1,0 +1,6 @@
+{
+  "specId": "4e82d4ae-4963-4ca0-af0e-4ec02b315188",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Rework FilterTable2 (DataTable2) nested filter ala Odoo agar berfungsi end-to-end: nested AND/OR, value-input context-aware per type+operator, transport via saved filter (?fid=, hybrid ephemeral+named, listing private/by-id terbuka), evaluator query backend (FilterEvaluator) yang aman & reusable, dan FilterBuilder presentational yang reusable untuk SelectModel."
+}
