@@ -33,7 +33,9 @@ return Application::configure(dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->encryptCookies(except: ['theme']);
+        // Cookie yang di-set dari sisi klien (JS) disimpan plaintext, jadi
+        // dikecualikan dari enkripsi agar `$request->cookie()` membaca nilai mentah.
+        $middleware->encryptCookies(except: ['theme', 'datatable_show', 'datatable_columns']);
 
         $middleware->web(append: [
             HandleTheme::class,

@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Inertia\Inertia;
 
 class DataTableScope implements Scope {
@@ -37,8 +38,17 @@ class DataTableScope implements Scope {
             $nameOfTable  = $query->toBase()->from;
             $query->addSelect("$nameOfTable.*");
             $defaultShow = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
-            $show        = (int) ($_COOKIE['datatable_show'] ?? $defaultShow);
-            $show        = $show <= 0 ? 25 : $show;
+            // Prioritas: query param `show` > cookie `datatable_show` > default preference.
+            $showFromQuery = $request->input('show');
+            $show          = (int) ($showFromQuery ?? $request->cookie('datatable_show') ?? $defaultShow);
+            $show          = $show <= 0 ? 25 : $show;
+            // Kalau `show` datang dari query param, persist ke cookie pada path yang
+            // diakses agar konsisten di kunjungan berikutnya tanpa query param.
+            if ($showFromQuery !== null) {
+                Cookie::queue(
+                    Cookie::make('datatable_show', (string) $show, 60 * 24 * 7, '/' . ltrim($request->path(), '/')),
+                );
+            }
             // Sort
             $sort          = $request->input('sort', '-created_at');
             $sortArr       = explode('-', $sort);

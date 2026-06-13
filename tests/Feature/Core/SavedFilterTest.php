@@ -158,6 +158,69 @@ class SavedFilterTest extends TestCase {
         $this->assertCount(2, $result['data']->items());
     }
 
+    public function test_show_uses_query_param(): void {
+        $this->makeUser();
+
+        $request = Request::create('/x', 'GET', ['show' => 10], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+
+        $this->assertSame(10, $result['data']->perPage());
+    }
+
+    public function test_show_query_param_overrides_cookie(): void {
+        $this->makeUser();
+
+        $request = Request::create('/x', 'GET', ['show' => 10], cookies: ['datatable_show' => '50'], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+
+        // query param menang atas cookie
+        $this->assertSame(10, $result['data']->perPage());
+    }
+
+    public function test_show_falls_back_to_cookie(): void {
+        $this->makeUser();
+
+        $request = Request::create('/x', 'GET', [], cookies: ['datatable_show' => '50'], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+
+        $this->assertSame(50, $result['data']->perPage());
+    }
+
+    public function test_show_invalid_value_clamps_to_default(): void {
+        $this->makeUser();
+
+        // nilai <= 0 di-clamp ke 25
+        $request = Request::create('/x', 'GET', ['show' => 0], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+
+        $this->assertSame(25, $result['data']->perPage());
+    }
+
+    public function test_show_from_query_param_persists_cookie(): void {
+        $this->makeUser();
+
+        $request = Request::create('/records', 'GET', ['show' => 10], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        FilterScopeRecord::dataTable($request);
+
+        $cookie = collect(Cookie::getQueuedCookies())
+            ->first(fn ($c) => $c->getName() === 'datatable_show');
+
+        $this->assertNotNull($cookie, 'cookie datatable_show harus di-queue saat show dari query param');
+        $this->assertSame('10', $cookie->getValue());
+        $this->assertSame('/records', $cookie->getPath());
+    }
+
+    public function test_show_from_cookie_does_not_requeue(): void {
+        $this->makeUser();
+
+        // tanpa query param → cookie tidak perlu di-set ulang
+        $request = Request::create('/records', 'GET', [], cookies: ['datatable_show' => '50'], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        FilterScopeRecord::dataTable($request);
+
+        $cookie = collect(Cookie::getQueuedCookies())->first(fn ($c) => $c->getName() === 'datatable_show');
+        $this->assertNull($cookie);
+    }
+
     public function test_update_promotes_to_named_owner_only(): void {
         $owner = $this->makeUser();
         $saved = SavedFilter::create([

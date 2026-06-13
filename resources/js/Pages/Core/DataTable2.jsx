@@ -47,7 +47,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { cn, getCookieByName, setCookie } from "@/lib/utils";
+import { cn, getCookieByName } from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable2 from "@/Components/Table/Filter/FilterTable2";
@@ -157,11 +157,32 @@ export default memo(
     const { data, defaultSort, dataTableColumns, translateKey, model, name } =
       usePage().props;
     const { can } = usePermission(model);
+    const { num_per_page: numPerPage, per_page_options: perPageOptions } =
+      usePage().props?.preferences ?? {
+        num_per_page: 25,
+        per_page_options: [25, 50, 100],
+      };
+    // `show` dibaca dengan prioritas: query param `?show` > cookie > preference.
+    // Disimpan di `options` agar ikut ke URL & memicu reload otomatis.
+    const initialShow =
+      query?.show ?? getCookieByName("datatable_show") ?? numPerPage;
     const [options, setOptions] = useState({
       sort: query?.sort ?? defaultSort,
       fid: query?.fid ?? null,
       page: query?.page ?? 1,
+      show: initialShow,
     });
+    const show = options.show;
+    // Kalau `show` (mis. dari query param) tak ada di daftar preference, paksa
+    // tambahkan ke daftar (frontend saja) agar Select punya item yang cocok.
+    const effectivePerPageOptions = useMemo(() => {
+      const showNum = Number(show);
+      const base = perPageOptions.map(Number);
+      if (!Number.isNaN(showNum) && !base.includes(showNum)) {
+        base.push(showNum);
+      }
+      return base.sort((a, b) => a - b);
+    }, [perPageOptions, show]);
     // Tree filter aktif (untuk seed builder). TIDAK ikut ke URL — hanya `fid`.
     const [filterTree, setFilterTree] = useState(null);
     const { user } = usePage().props.auth;
@@ -365,21 +386,10 @@ export default memo(
         persistFilterTree(nextTree);
       },
     }));
-    const { num_per_page: numPerPage, per_page_options: perPageOptions } =
-      usePage().props?.preferences ?? {
-        num_per_page: 25,
-        per_page_options: [25, 50, 100],
-      };
-    const [show, setShow] = useState(
-      getCookieByName("datatable_show") ?? numPerPage,
-    );
     const setShowNumber = useCallback((value) => {
-      setShow(value);
-      setCookie("datatable_show", value, {
-        days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      });
+      // Update `options.show` → ikut ke URL (?show=) → backend persist cookie
+      // `datatable_show` pada path ini. Reset ke page 1 agar tak out-of-range.
+      setOptions((prev) => ({ ...prev, show: value, page: 1 }));
     }, []);
     const title = t(`${translateKey}.title`);
     return (
@@ -421,7 +431,7 @@ export default memo(
                                 value={`${show}`}
                                 onValueChange={(val) => setShowNumber(val)}
                               >
-                                {perPageOptions.map((x) => (
+                                {effectivePerPageOptions.map((x) => (
                                   <DropdownMenuRadioItem
                                     key={x}
                                     value={x.toString()}
@@ -634,7 +644,6 @@ export default memo(
                 actions={actions}
                 columns={mapColumns}
                 data={data.data}
-                totalPages={data.total}
                 options={options}
                 setSort={setSort}
                 resetSorting={resetSorting}
@@ -643,9 +652,7 @@ export default memo(
             )}
             <div
               className={cn(
-                !isMobile || Math.floor(data.total / show) + 1 > 1
-                  ? "flex"
-                  : "hidden",
+                !isMobile || (data.last_page ?? 1) > 1 ? "flex" : "hidden",
                 " justify-between px-4 py-4 border-t border-muted-foreground/25 gap-x-4",
               )}
             >
@@ -660,7 +667,7 @@ export default memo(
                       <SelectValue placeholder="Show"></SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {perPageOptions.map((x) => (
+                      {effectivePerPageOptions.map((x) => (
                         <SelectItem key={x} value={x.toString()}>
                           {x}
                         </SelectItem>
@@ -670,8 +677,8 @@ export default memo(
                 </div>
               )}
               <Pagination
-                currentPage={options.page}
-                totalPages={Math.floor(data.total / show) + 1}
+                currentPage={Number(options.page)}
+                totalPages={data.last_page ?? 1}
                 onPageChanged={(page) => setOptions({ ...options, page })}
                 className="justify-end"
               />
