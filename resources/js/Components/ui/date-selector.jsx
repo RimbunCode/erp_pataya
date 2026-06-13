@@ -12,20 +12,18 @@ import {
   addMonths,
   format,
   isBefore,
-  parse,
   setHours,
   setMinutes,
   setMonth as setMonthFns,
   setYear as setYearFns,
   subMonths,
 } from "date-fns";
-import { ChevronLeftIcon, ChevronRightIcon, XIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { Button } from "@/Components/ui/button";
-import { Input } from "@/Components/ui/input";
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import {
   Select,
@@ -444,7 +442,11 @@ export function useDateSelector({
   // jika tidak akan memicu emit tiap render → "Maximum update depth exceeded".
   const lastChangeRef = useRef(null);
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  // Update ref di effect, BUKAN saat render (React 19 melarang mutasi ref
+  // selama render — "Cannot update ref during render").
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
   useEffect(() => {
     const serialized = JSON.stringify(currentValue);
     if (serialized === lastChangeRef.current) return;
@@ -630,7 +632,8 @@ const DateSelectorDayPicker = memo(function DateSelectorDayPicker({
     weekday: "text-muted-foreground w-9 font-normal text-[0.8rem]",
     week: "flex w-full justify-center mt-0.5",
     day: "h-9 w-9 text-center text-sm p-0 relative flex items-center justify-center [&:has([aria-selected].day-range-end.day-range-start)]:rounded-full! [&:has([aria-selected].day-range-end)]:rounded-r-full [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-full last:[&:has([aria-selected])]:rounded-r-full focus-within:relative focus-within:z-20",
-    day_button: "size-9 rounded-md p-0 font-normal aria-selected:opacity-100",
+    day_button:
+      "size-9 rounded-md p-0 font-normal aria-selected:opacity-100 cursor-pointer",
     today:
       "border bg-muted border-muted-foreground [&:not([data-selected=true])]:rounded-full",
     outside:
@@ -648,7 +651,7 @@ const DateSelectorDayPicker = memo(function DateSelectorDayPicker({
     <div className={cn("w-full", className)}>
       {/* Header: bulan & tahun dapat dipilih + navigasi prev/next. */}
       <div className="flex items-center justify-between mb-1">
-        <div className="text-md font-bold ms-2 flex items-center">
+        <div className="text-md font-bold ms-2 flex items-center [&_button]:cursor-pointer">
           <button
             type="button"
             className="hover:underline"
@@ -1080,8 +1083,6 @@ function DaySelectorTimePicker({ value, onChange, scrollTick }) {
  *   bila `value.operator` kosong.
  * @param {DateSelectorValue["operator"]} [props.presetMode] Kunci operator ke nilai ini
  *   (sembunyikan dropdown Condition); menimpa `filterType`.
- * @param {boolean} [props.showInput=true] Tampilkan input ringkasan internal + parsing.
- *   Set `false` saat dibungkus Popover wrapper (wrapper yang urus input/ringkasan).
  * @param {boolean} [props.showTwoMonths=true] Tampilkan dua bulan berdampingan di calendar.
  * @param {string} [props.label] Label opsional di atas komponen.
  * @param {string} [props.className] Kelas tambahan untuk container root.
@@ -1092,9 +1093,6 @@ function DaySelectorTimePicker({ value, onChange, scrollTick }) {
  * @param {number} [props.maxYear] Batas atas tahun (override `yearRange` bila bersama `minYear`).
  * @param {Partial<typeof DEFAULT_DATE_SELECTOR_I18N>} [props.i18n] Override teks i18n
  *   (label operator/periode, nama bulan/kuartal/semester, dll).
- * @param {string} [props.inputHint] Hint di bawah input internal (saat `showInput`).
- * @param {string} [props.dayDateFormat="MM/dd/yyyy"] Format tampilan tanggal (period=day).
- * @param {string[]} [props.dayDateFormats] Format tambahan yang diterima saat parsing input.
  * @param {0|1|2|3|4|5|6} [props.weekStartsOn] Hari awal pekan (0=Minggu).
  * @param {boolean} [props.withTime=false] Aktifkan time picker (lihat aturan di atas).
  * @returns {JSX.Element}
@@ -1107,7 +1105,6 @@ export function DateSelector({
   defaultPeriodType = "day",
   defaultFilterType = "is",
   presetMode,
-  showInput = true,
   showTwoMonths = true,
   label,
   className,
@@ -1116,9 +1113,6 @@ export function DateSelector({
   minYear,
   maxYear,
   i18n: i18nOverride,
-  inputHint,
-  dayDateFormat = "MM/dd/yyyy",
-  dayDateFormats,
   weekStartsOn,
   withTime = false,
 }) {
@@ -1163,14 +1157,12 @@ export function DateSelector({
     hoverDate,
     hoverPeriod,
     years,
-    currentValue,
     setPeriodType,
     setFilterType,
     setSelectedDate,
     setCalendarMonth,
     setHoverDate,
     setHoverPeriod,
-    clearSelection,
     handleDayClick,
     handlePeriodSelect,
     handleYearSelect,
@@ -1187,101 +1179,6 @@ export function DateSelector({
   // selectedYear/value, sehingga effect scroll (deps berbasis nilai) tak fire.
   // Bump counter ini agar effect re-run tanpa peduli nilai berubah atau tidak.
   const [scrollTick, setScrollTick] = useState(0);
-
-  // Input internal hanya relevan saat showInput; di konteks filter showInput=false
-  // sehingga kalkulasi ini di-skip (perf: hindari render ekstra).
-  const displayValue = useMemo(
-    () =>
-      showInput ? formatDateValue(currentValue, mergedI18n, dayDateFormat) : "",
-    [showInput, currentValue, mergedI18n, dayDateFormat],
-  );
-  const [inputValue, setInputValue] = useState(displayValue);
-  const [isInputFocused, setIsInputFocused] = useState(false);
-
-  useEffect(() => {
-    if (!showInput) return;
-    if (!isInputFocused) setInputValue(displayValue);
-  }, [showInput, displayValue, isInputFocused]);
-
-  const dateFormats = useMemo(() => {
-    if (dayDateFormats && dayDateFormats.length > 0) {
-      const formats = [...dayDateFormats];
-      if (!formats.includes(dayDateFormat)) formats.unshift(dayDateFormat);
-      return formats;
-    }
-    const defaultFormats = [
-      dayDateFormat,
-      "dd/MM/yyyy",
-      "yyyy-MM-dd",
-      "MM-dd-yyyy",
-      "dd-MM-yyyy",
-    ];
-    return Array.from(new Set(defaultFormats));
-  }, [dayDateFormat, dayDateFormats]);
-
-  const parseInputValue = useCallback(
-    (text) => {
-      if (!text.trim()) return null;
-      const trimmed = text.trim();
-
-      const yearMatch = trimmed.match(/^\d{4}$/);
-      if (yearMatch) {
-        const year = parseInt(yearMatch[0], 10);
-        if (year >= 1900 && year <= 2100) {
-          return { period: "year", operator: presetMode ?? filterType, year };
-        }
-      }
-
-      const quarterMatch = trimmed.match(/^Q([1-4])(?:\s+(\d{4}))?$/i);
-      if (quarterMatch) {
-        const quarter = parseInt(quarterMatch[1], 10) - 1;
-        const year = quarterMatch[2]
-          ? parseInt(quarterMatch[2], 10)
-          : new Date().getFullYear();
-        if (year >= 1900 && year <= 2100) {
-          return {
-            period: "quarter",
-            operator: presetMode ?? filterType,
-            year,
-            quarter,
-          };
-        }
-      }
-
-      for (const dateFormat of dateFormats) {
-        try {
-          const parsed = parse(trimmed, dateFormat, new Date());
-          if (!isNaN(parsed.getTime())) {
-            return {
-              period: "day",
-              operator: presetMode ?? filterType,
-              startDate: parsed,
-            };
-          }
-        } catch {
-          // lanjut format berikutnya
-        }
-      }
-
-      return null;
-    },
-    [filterType, presetMode, dateFormats],
-  );
-
-  const handleInputChange = useCallback(
-    (e) => {
-      const newValue = e.target.value;
-      setInputValue(newValue);
-      const parsed = parseInputValue(newValue);
-      if (parsed) onChange?.(parsed);
-    },
-    [onChange, parseInputValue],
-  );
-
-  const handleInputBlur = useCallback(() => {
-    setIsInputFocused(false);
-    if (!parseInputValue(inputValue)) setInputValue(displayValue);
-  }, [inputValue, displayValue, parseInputValue]);
 
   return (
     <DateSelectorContext.Provider value={contextValue}>
@@ -1341,35 +1238,6 @@ export function DateSelector({
             {mergedI18n.todayLabels?.[periodType] ?? mergedI18n.today}
           </Button>
         </div>
-        {showInput && (
-          <div className="relative">
-            <Input
-              type="text"
-              value={inputHint ? inputValue : displayValue}
-              readOnly={!inputHint}
-              placeholder={
-                isInputFocused && inputHint ? inputHint : mergedI18n.placeholder
-              }
-              onFocus={() => setIsInputFocused(true)}
-              onBlur={handleInputBlur}
-              onChange={handleInputChange}
-            />
-            {(inputHint ? inputValue : displayValue) && (
-              <button
-                type="button"
-                onClick={clearSelection}
-                className={cn(
-                  "absolute end-2.5 top-1/2 size-4 -translate-y-1/2 cursor-pointer rounded-xs",
-                  "opacity-70 transition-opacity hover:opacity-100",
-                  "ring-offset-background focus:ring-ring focus:ring-2 focus:ring-offset-2 focus:outline-none",
-                )}
-              >
-                <XIcon className="size-4" />
-              </button>
-            )}
-          </div>
-        )}
-
         {periodType === "day" ? (
           <div className="w-full pb-1">
             <DateSelectorDayPicker

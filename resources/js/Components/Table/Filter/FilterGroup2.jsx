@@ -30,7 +30,7 @@ function FilterGroup2({ id }) {
       )}
     >
       <Select
-        className="w-32"
+        className="w-72"
         value={filter.k ?? "and"}
         optionTrans="core.datatable.filter.group.options"
         options={["and", "or"]}

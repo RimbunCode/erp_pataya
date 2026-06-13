@@ -3,7 +3,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/Components/ui/popover";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/Components/ui/button";
 import { DateSelector as ReuiDateSelector } from "@/Components/ui/date-selector";
@@ -27,6 +27,12 @@ import { usePage } from "@inertiajs/react";
  *   operator: is | after | on-or-after | before | on-or-before | between
  *   period  : day | month | quarter | half-year | year
  *   *Date diserialisasi ke ISO string (filter tree disimpan JSON).
+ *
+ * Props rentang tahun diteruskan ke panel reui:
+ *   yearRange — jumlah/span tahun (lihat ui/date-selector)
+ *   baseYear  — tahun pusat daftar (default: tahun ini)
+ *   minYear   — batas bawah (default 1975)
+ *   maxYear   — batas atas (default tahun ini)
  */
 
 // ISO string → Date.
@@ -49,7 +55,15 @@ const OPERATOR_SYMBOLS = [
   { sym: "=", op: "is" },
 ];
 
-export default function DateSelector({ type = "date", value, onValueChange }) {
+export default function DateSelector({
+  type = "date",
+  value,
+  onValueChange,
+  yearRange,
+  baseYear,
+  minYear,
+  maxYear = new Date().getFullYear(),
+}) {
   const { t } = useLaravelReactI18n();
   const lang = usePage().props.lang;
   const dateLocale = useMemo(() => getLocaleDate(lang), [lang]);
@@ -114,9 +128,12 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
   );
 
   // -- Display ringkasan -------------------------------------------------
+  // `showTime` dimatikan untuk operator range (between) pada period=day —
+  // batas range = seluruh hari, jam tak relevan di ringkasan.
   const formatPeriod = useCallback(
-    (v, useEnd) => {
-      const dateFmt = isDatetime ? "dd MMMM yyyy HH:mm" : "dd MMMM yyyy";
+    (v, useEnd, showTime = true) => {
+      const dateFmt =
+        isDatetime && showTime ? "dd MMMM yyyy HH:mm" : "dd MMMM yyyy";
       switch (v.period) {
         case "day": {
           const d = toDate(useEnd ? v.endDate : v.startDate);
@@ -162,8 +179,11 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
     (v) => {
       if (!v || !v.period || !v.operator) return "";
       if (v.operator === "between") {
-        const a = formatPeriod(v, false);
-        const b = formatPeriod(v, true);
+        // Range belum lengkap (end belum dipilih) → tampilkan start - start
+        // sebagai preview. Range hari → tanpa jam (batas = seluruh hari).
+        const filled = completeRange(v);
+        const a = formatPeriod(filled, false, false);
+        const b = formatPeriod(filled, true, false);
         return a && b ? `${a} - ${b}` : a || b;
       }
       const label = i18nLabels.operators[v.operator] ?? "";
@@ -301,9 +321,39 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
 
   const lastEmitted = useRef(null);
 
+  // Echo lokal nilai terakhir yang di-emit panel reui. Dipakai agar input
+  // ringkasan ter-update SEKETIKA saat memilih di calendar — tanpa menunggu
+  // round-trip prop `value` dari parent (yang bisa tertunda / tak memicu render).
+  const [localValue, setLocalValue] = useState(initialValue ?? value);
+
+  // Sinkronkan echo lokal saat prop value berubah dari luar (reset / reload ?fid=).
+  const lastValueRef = useRef(JSON.stringify(value ?? null));
+  useEffect(() => {
+    const serialized = JSON.stringify(value ?? null);
+    if (serialized !== lastValueRef.current) {
+      lastValueRef.current = serialized;
+      setLocalValue(value);
+    }
+  }, [value]);
+
+  // Value untuk panel reui — diturunkan dari echo lokal terbaru (ISO→Date).
+  // PopoverContent Radix meng-unmount isinya saat tertutup, jadi reui remount
+  // tiap dibuka & hydrate ulang dari prop value. Memberi localValue (bukan
+  // initialValue mount-once) memastikan pilihan terakhir tetap muncul saat
+  // popover dibuka lagi. reui punya loop-guard JSON sendiri → aman.
+  const reuiValue = useMemo(() => {
+    if (!localValue) return undefined;
+    return {
+      ...localValue,
+      startDate: toDate(localValue.startDate),
+      endDate: toDate(localValue.endDate),
+    };
+  }, [localValue]);
+
   const emit = useCallback(
     (next) => {
       if (!next) {
+        setLocalValue(null);
         if (lastEmitted.current !== null) {
           lastEmitted.current = null;
           onValueChange?.(null);
@@ -323,6 +373,8 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
       if (next.startDate) payload.startDate = toISO(toDate(next.startDate));
       if (next.endDate) payload.endDate = toISO(toDate(next.endDate));
 
+      setLocalValue(payload);
+
       const serialized = JSON.stringify(payload);
       if (serialized === lastEmitted.current) return;
       lastEmitted.current = serialized;
@@ -331,8 +383,15 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
     [onValueChange],
   );
 
-  // -- Input ringkasan (controlled saat tertutup) ------------------------
-  const summary = useMemo(() => formatSummary(value), [formatSummary, value]);
+  // -- Input ringkasan ----------------------------------------------------
+  // Display SELALU mengikuti `summary` (echo realtime dari pilihan calendar),
+  // KECUALI saat user sedang mengetik manual (`editing`). `editing` hanya aktif
+  // saat ada perubahan teks (onChange), BUKAN saat fokus — fokus dipakai untuk
+  // membuka popover, dan tak boleh membekukan display ke draft basi.
+  const summary = useMemo(
+    () => formatSummary(localValue),
+    [formatSummary, localValue],
+  );
   const [draft, setDraft] = useState(summary);
   const [editing, setEditing] = useState(false);
   const displayText = editing ? draft : summary;
@@ -343,20 +402,32 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
     setEditing(false);
   };
 
+  // Saat popover dibuka/ditutup, keluar mode edit agar display kembali ke
+  // `summary` (live) dan tak ada commit draft basi yang menghapus pilihan.
+  // Saat DITUTUP dengan range belum lengkap (between tanpa end), kunci end =
+  // start agar value tetap valid (toRange = fromRange).
+  const handleOpenChange = (next) => {
+    setOpen(next);
+    setEditing(false);
+    if (!next) {
+      const filled = completeRange(localValue);
+      if (filled && filled !== localValue) emit(filled);
+    }
+  };
+
   return (
     <div className="m-1">
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         {/* PopoverTrigger membungkus SATU element <div> (bukan Input) agar
             anchor floating-ui valid — pola DatetimePicker. */}
         <PopoverTrigger asChild>
           <div className="flex items-center bg-muted overflow-hidden border rounded-md border-input cursor-text focus-within:ring-1 focus-within:ring-ring">
             <Input
               value={displayText}
-              onFocus={() => {
+              onChange={(e) => {
                 setEditing(true);
-                setDraft(summary);
+                setDraft(e.target.value);
               }}
-              onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -365,7 +436,9 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
                 }
               }}
               onBlur={(e) => {
-                if (!open) commitDraft(e.target.value);
+                // Commit hanya bila user benar-benar mengetik (editing) dan
+                // popover sudah tertutup (blur bukan akibat membuka popover).
+                if (editing && !open) commitDraft(e.target.value);
               }}
               placeholder={t("core.datatable.filter.dateselector.placeholder")}
               className={cn(
@@ -382,6 +455,7 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
                   e.stopPropagation();
                   emit(null);
                   setDraft("");
+                  setEditing(false);
                 }}
               >
                 <XIcon className="size-3" />
@@ -396,14 +470,15 @@ export default function DateSelector({ type = "date", value, onValueChange }) {
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <ReuiDateSelector
-            value={initialValue}
+            value={reuiValue}
             onChange={emit}
             i18n={reuiI18n}
-            showInput={false}
             showTwoMonths={false}
             withTime={isDatetime}
-            minYear={1975}
-            maxYear={new Date().getFullYear()}
+            yearRange={yearRange}
+            baseYear={baseYear}
+            minYear={minYear}
+            maxYear={maxYear}
           />
         </PopoverContent>
       </Popover>
@@ -417,4 +492,33 @@ function subValue(token) {
   if (token.period === "quarter") return token.quarter;
   if (token.period === "half-year") return token.halfYear;
   return 0;
+}
+
+/**
+ * Lengkapi range between yang belum punya end → end = start.
+ * - day  : endDate = startDate
+ * - lain : rangeEnd = rangeStart (atap dari year + unit index)
+ * Mengembalikan objek baru (tak memutasi input). Bila bukan between atau end
+ * sudah ada, kembalikan apa adanya.
+ */
+function completeRange(v) {
+  if (!v || v.operator !== "between") return v;
+
+  if (v.period === "day") {
+    if (v.startDate && !v.endDate) {
+      return { ...v, endDate: v.startDate };
+    }
+    return v;
+  }
+
+  // Non-day: pastikan rangeStart & rangeEnd terisi.
+  const start =
+    v.rangeStart ??
+    (v.year != null
+      ? { year: v.year, value: subValue({ period: v.period, ...v }) }
+      : undefined);
+  if (start && !v.rangeEnd) {
+    return { ...v, rangeStart: start, rangeEnd: start };
+  }
+  return v;
 }
