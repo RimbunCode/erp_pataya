@@ -41,6 +41,7 @@ import {
   forwardRef,
   memo,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -58,6 +59,11 @@ import QueryString from "qs";
 import React from "react";
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import Table2 from "@/Components/Table/Table2";
+import axios from "axios";
+import {
+  createFilterGroup,
+  createFilterItem,
+} from "@/Hooks/useNestedFilters";
 import pluralize from "pluralize";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -153,9 +159,11 @@ export default memo(
     const { can } = usePermission(model);
     const [options, setOptions] = useState({
       sort: query?.sort ?? defaultSort,
-      f: query?.f ?? [],
+      fid: query?.fid ?? null,
       page: query?.page ?? 1,
     });
+    // Tree filter aktif (untuk seed builder). TIDAK ikut ke URL — hanya `fid`.
+    const [filterTree, setFilterTree] = useState(null);
     const { user } = usePage().props.auth;
     const dialogRef = useRef();
 
@@ -300,23 +308,61 @@ export default memo(
 
       return () => clearTimeout(reloadData);
     }, [options]);
-    const onApplyFilters = useCallback((filters) => {
-      setOptions((prev) => {
-        return { ...prev, f: filters };
-      });
+    // Seed builder dari `?fid=` saat load awal: ambil tree dari saved filter.
+    useEffect(() => {
+      const fid = query?.fid;
+      if (!fid || filterTree) return;
+      axios
+        .get(window.route("saved-filters.index"), { params: { model } })
+        .then((res) => {
+          const list = res.data?.data ?? res.data ?? [];
+          const found = list.find((x) => x.id === fid);
+          if (found?.filter) setFilterTree(found.filter);
+        })
+        .catch(() => {});
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+    // Simpan tree sebagai saved filter ephemeral → dapat `fid` → navigasi.
+    // Tree kosong → bersihkan filter (drop fid).
+    const persistFilterTree = useCallback(
+      async (tree) => {
+        const hasItems = tree && Object.keys(tree.root?.c ?? {}).length > 0;
+        if (!hasItems) {
+          setFilterTree(null);
+          setOptions((prev) => ({ ...prev, fid: null }));
+          return;
+        }
+        try {
+          const res = await axios.post(window.route("saved-filters.store"), {
+            model,
+            filter: tree,
+          });
+          setFilterTree(tree);
+          setOptions((prev) => ({ ...prev, fid: res.data?.id ?? null }));
+        } catch (error) {
+          console.error(error);
+        }
+      },
+      [model],
+    );
+
+    const onApplyFilters = useCallback(
+      (tree) => {
+        persistFilterTree(tree);
+      },
+      [persistFilterTree],
+    );
+
     useImperativeHandle(ref, () => ({
       addFilter(key, operator, value) {
-        const filters = options.f;
-        value = value.toString();
-        if (
-          filters.find(
-            (x) => x[0] === key && x[1] === operator && x[2] === value,
-          )
-        )
-          return;
-        filters.push([key, operator, value]);
-        setOptions((prev) => ({ ...prev, f: filters }));
+        // Filter cepat (mis. klik cell): bangun item baru, gabung ke tree aktif.
+        const item = createFilterItem({ k: key, o: operator, v: value });
+        const root = filterTree?.root ?? createFilterGroup({});
+        const id = `${Date.now()}`;
+        const nextTree = {
+          root: { ...root, c: { ...(root.c ?? {}), [id]: item } },
+        };
+        persistFilterTree(nextTree);
       },
     }));
     const { num_per_page: numPerPage, per_page_options: perPageOptions } =
@@ -359,7 +405,9 @@ export default memo(
                       <FilterTable2
                         columns={mapColumns}
                         onApply={onApplyFilters}
-                        initialFilters={options.f}
+                        initialFilters={filterTree}
+                        model={model}
+                        activeFid={options.fid}
                         isMobile={true}
                       />
                       {isMobile && (
@@ -466,18 +514,18 @@ export default memo(
                   <FilterTable2
                     columns={mapColumns}
                     onApply={onApplyFilters}
-                    initialFilters={options.f}
+                    initialFilters={filterTree}
+                    model={model}
+                    activeFid={options.fid}
                   />
-                  {Object.keys(options.f).length > 0 && (
+                  {options.fid && (
                     <Button
                       className="py-0! h-8 px-2! rounded-l-none"
                       variant="secondary"
-                      onClick={() =>
-                        setOptions({
-                          ...options,
-                          f: [],
-                        })
-                      }
+                      onClick={() => {
+                        setFilterTree(null);
+                        setOptions((prev) => ({ ...prev, fid: null }));
+                      }}
                     >
                       <X />
                     </Button>
