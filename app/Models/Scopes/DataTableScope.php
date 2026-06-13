@@ -3,6 +3,8 @@
 namespace App\Models\Scopes;
 
 use App\Models\Core\Preference;
+use App\Models\Core\SavedFilter;
+use App\Services\Core\FilterEvaluator;
 use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -70,44 +72,15 @@ class DataTableScope implements Scope {
                     'dataTableColumns' => $dataTableColumns,
                 ];
             }
-            // Filter
-            if ($request->has('f')) {
-                $filter = $request->input('f');
-                $query->where(function (Builder $query) use ($filter, $nameOfTable) {
-                    foreach ($filter as $key => $payload) {
-                        $keyQuery = $this->isTableIncluded($payload[0]) ? $payload[0] : "$nameOfTable.$payload[0]";
-                        $operator = $payload[1];
-                        $value    = match ($payload[2]) {
-                            'true'  => true,
-                            'false' => false,
-                            default => $payload[2],
-                        };
-                        if (in_array($operator, ['in', '!in'])) {
-                            $values = array_map(function ($val) {
-                                return trim($val);
-                            }, explode(',', $value));
-                            $query->whereIn($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
-                        } elseif (in_array($operator, ['between', '!between'])) {
-                            if (is_array($value) && count($value) == 2) {
-                                $query->whereBetween($keyQuery, \array_values($value), $key <= 0 ? 'and' : 'or', $operator == '!like');
-                            } else {
-                                $values = array_map(function ($val) {
-                                    return trim($val);
-                                }, explode(',', $value));
-                                $query->whereBetween($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
-                            }
-                        } else {
-                            $operator = match ($payload[1]) {
-                                'eq'    => '=',
-                                '!eq'   => '!=',
-                                'like'  => 'like',
-                                '!like' => 'not like',
-                                default => $payload[1],
-                            };
-                            $query->where($keyQuery, $operator, $value, $key <= 0 ? 'and' : 'or');
-                        }
-                    }
-                });
+            // Filter — saved filter (nested tree) via ?fid=<id>.
+            // Akses by-id terbuka (tanpa cek owner); cocokkan model halaman.
+            if ($request->filled('fid')) {
+                $saved      = SavedFilter::find($request->input('fid'));
+                $modelClass = \get_class($query->getModel());
+                if ($saved && $saved->model === $modelClass) {
+                    (new FilterEvaluator($dataTableColumns))
+                        ->apply($query, $saved->filter ?? []);
+                }
             }
             if ($isSubmitable) {
                 $query->where(function (Builder $query) use ($request) {

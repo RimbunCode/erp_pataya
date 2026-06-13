@@ -13,6 +13,7 @@ use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\PrintTemplateController;
+use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\Finances\AccountController;
@@ -118,6 +119,15 @@ Route::get('/model/{model}', [ModelController::class, 'columns'])
     ->where('model', '.*')
     ->middleware(middleware: ['auth'])
     ->name('model.columns');
+// Saved filters (FilterTable transport via ?fid=)
+Route::middleware(['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->group(function () {
+        Route::get('/saved-filters', [SavedFilterController::class, 'index'])->name('saved-filters.index');
+        Route::post('/saved-filters', [SavedFilterController::class, 'store'])->name('saved-filters.store');
+        Route::patch('/saved-filters/{savedFilter}', [SavedFilterController::class, 'update'])->name('saved-filters.update');
+        Route::delete('/saved-filters/{savedFilter}', [SavedFilterController::class, 'destroy'])->name('saved-filters.destroy');
+    });
 Route::post('/api/html/sanitize', HtmlSanitizeController::class)
     ->middleware(middleware: ['auth'])
     ->withoutMiddleware([HandleInertiaRequests::class])
