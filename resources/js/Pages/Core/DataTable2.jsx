@@ -60,18 +60,15 @@ import React from "react";
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import Table2 from "@/Components/Table/Table2";
 import axios from "axios";
-import {
-  createFilterGroup,
-  createFilterItem,
-} from "@/Hooks/useNestedFilters";
+import { createFilterGroup, createFilterItem } from "@/Hooks/useNestedFilters";
 import pluralize from "pluralize";
+import { toast } from "sonner";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import usePermission from "@/Hooks/usePermission";
 
-const DATATABLE_COLUMNS_EXPIRED = 7; //days
 /**
  * @namespace DataTable
  */
@@ -329,16 +326,16 @@ export default memo(
 
       return () => clearTimeout(reloadData);
     }, [options]);
-    // Seed builder dari `?fid=` saat load awal: ambil tree dari saved filter.
+    // Seed builder dari `?fid=` saat load awal: ambil tree dari saved filter
+    // by-id (termasuk ephemeral) agar filter aktif termuat saat builder dibuka.
+    // `saved-filters.index` tidak dipakai karena hanya mengembalikan named filter.
     useEffect(() => {
       const fid = query?.fid;
       if (!fid || filterTree) return;
       axios
-        .get(window.route("saved-filters.index"), { params: { model } })
+        .get(window.route("saved-filters.show", { savedFilter: fid }))
         .then((res) => {
-          const list = res.data?.data ?? res.data ?? [];
-          const found = list.find((x) => x.id === fid);
-          if (found?.filter) setFilterTree(found.filter);
+          if (res.data?.filter) setFilterTree(res.data.filter);
         })
         .catch(() => {});
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -360,16 +357,27 @@ export default memo(
           });
           setFilterTree(tree);
           setOptions((prev) => ({ ...prev, fid: res.data?.id ?? null }));
+          toast.success(t("core.datatable.filter.save.success"));
         } catch (error) {
           console.error(error);
+          // 422 = tidak ada filter valid setelah cleaning backend.
+          const message =
+            error?.response?.status === 422
+              ? (error.response.data?.errors?.filter?.[0] ??
+                t("core.datatable.filter.validation.empty_tree"))
+              : t("core.datatable.filter.save.error");
+          toast.error(message);
+          // Re-throw agar pemanggil (FilterTable2) tahu save gagal & dialog
+          // tetap terbuka untuk perbaikan.
+          throw error;
         }
       },
-      [model],
+      [model, t],
     );
 
     const onApplyFilters = useCallback(
       (tree) => {
-        persistFilterTree(tree);
+        return persistFilterTree(tree);
       },
       [persistFilterTree],
     );
@@ -383,7 +391,9 @@ export default memo(
         const nextTree = {
           root: { ...root, c: { ...(root.c ?? {}), [id]: item } },
         };
-        persistFilterTree(nextTree);
+        // Quick filter (klik cell) tak punya dialog — telan error (toast
+        // sudah ditampilkan di persistFilterTree).
+        persistFilterTree(nextTree).catch(() => {});
       },
     }));
     const setShowNumber = useCallback((value) => {

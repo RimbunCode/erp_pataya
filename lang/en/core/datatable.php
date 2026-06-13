@@ -38,8 +38,8 @@ return [
             'disabled_single_item' => 'At least one filter is required.',
         ],
         'depth_warning' => [
-            'banner'  => 'Some groups are nested deeper than :max levels. Consider simplifying for readability.',
-            'branch'  => 'This will nest deeper than :max levels. Consider simplifying.',
+            'banner' => 'Some groups are nested deeper than :max levels. Consider simplifying for readability.',
+            'branch' => 'This will nest deeper than :max levels. Consider simplifying.',
         ],
         'operator' => [
             'set'                 => 'Set',
@@ -102,6 +102,22 @@ return [
             'save'             => 'Save Filter',
             'list'             => 'Saved Filters:',
             'name_placeholder' => 'Filter name',
+        ],
+        'validation' => [
+            'invalid'           => 'Some filters are incomplete or invalid. Please fix the highlighted ones.',
+            'value_required'    => 'Value is required.',
+            'value_numeric'     => 'Value must be a number.',
+            'value_time'        => 'Time format must be HH:MM.',
+            'value_date'        => 'Invalid date.',
+            'range_two'         => 'Fill in both range values.',
+            'select_one'        => 'Select at least one value.',
+            'relation_required' => 'Select a related record.',
+            'period_incomplete' => 'Complete the period.',
+            'empty_tree'        => 'No valid filter to save.',
+        ],
+        'save' => [
+            'success' => 'Filter applied.',
+            'error'   => 'Failed to save filter.',
         ],
     ],
     'sorting' => [

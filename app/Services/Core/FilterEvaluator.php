@@ -41,8 +41,12 @@ class FilterEvaluator {
         'formStatuses' => ['has', '!has', 'in', '!in'],
     ];
 
+    private FilterColumnResolver $resolver;
+
     /** @param array<string,array<string,mixed>> $columns hasil Model::getColumns(), keyed by name */
-    public function __construct(private array $columns) {}
+    public function __construct(private array $columns) {
+        $this->resolver = new FilterColumnResolver($columns);
+    }
 
     /**
      * Terapkan filter tree ke query. Chainable, tidak mengeksekusi.
@@ -103,7 +107,7 @@ class FilterEvaluator {
             return;
         }
 
-        $column = $this->resolveColumn($key);
+        $column = $this->resolveColumn($key, $value);
         if ($column === null || ($column['searchable'] ?? true) === false) {
             return; // whitelist kolom
         }
@@ -415,46 +419,14 @@ class FilterEvaluator {
     // ---- Column resolution ----------------------------------------------
 
     /**
-     * Resolusi kolom (dukung dot-notation relasi "permission.name").
+     * Resolusi kolom (dukung dot-notation relasi "category.type") dengan
+     * lazy-load kolom anak relasi via FilterColumnResolver. `$value` dipakai
+     * untuk relasi morph (ambil FQCN dari value.type).
      *
      * @return array<string,mixed>|null
      */
-    private function resolveColumn(string $key): ?array {
-        if (isset($this->columns[$key])) {
-            return $this->columns[$key];
-        }
-
-        // dot-notation: telusuri ke nested columns relasi
-        if (str_contains($key, '.')) {
-            $segments = explode('.', $key);
-            $cols     = $this->columns;
-            $column   = null;
-            foreach ($segments as $segment) {
-                $column = $cols[$segment] ?? $this->findByName($cols, $segment);
-                if ($column === null) {
-                    return null;
-                }
-                $cols = $column['columns'] ?? [];
-            }
-
-            return $column;
-        }
-
-        return $this->findByName($this->columns, $key);
-    }
-
-    /**
-     * @param  array<string,mixed>  $cols
-     * @return array<string,mixed>|null
-     */
-    private function findByName(array $cols, string $name): ?array {
-        foreach ($cols as $col) {
-            if (is_array($col) && ($col['name'] ?? null) === $name) {
-                return $col;
-            }
-        }
-
-        return null;
+    private function resolveColumn(string $key, mixed $value = null): ?array {
+        return $this->resolver->resolve($key, $value);
     }
 
     private function isOperatorValid(array $column, string $op): bool {

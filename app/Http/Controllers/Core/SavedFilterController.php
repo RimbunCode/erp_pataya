@@ -24,6 +24,29 @@ class SavedFilterController extends Controller {
     }
 
     /**
+     * Ambil sebuah saved filter berdasarkan id (termasuk ephemeral) untuk
+     * men-seed builder. Akses by-id terbuka — SELARAS dengan ?fid= pada
+     * DataTableScope yang sudah membolehkan share-link lintas user: user lain
+     * boleh memakai tree sebagai titik awal lalu Apply/Save → store membuat row
+     * BARU milik mereka (user_id requester), filter asal tak tersentuh.
+     *
+     * Mitigasi IDOR: `name` (label pribadi yang diberi pemilik) hanya
+     * dikembalikan ke owner; non-owner hanya menerima `filter` (tree) & `model`
+     * yang efeknya memang sudah terekspos via ?fid=. Id berupa ULID (128-bit)
+     * sehingga enumerasi tidak praktis.
+     */
+    public function show(Request $request, SavedFilter $savedFilter): JsonResponse {
+        $isOwner = $savedFilter->user_id === $request->user()->id;
+
+        return response()->json([
+            'id'     => $savedFilter->id,
+            'model'  => $savedFilter->model,
+            'name'   => $isOwner ? $savedFilter->name : null,
+            'filter' => $savedFilter->filter,
+        ]);
+    }
+
+    /**
      * Buat filter ad-hoc (ephemeral). URL halaman akan memakai ?fid=<id>.
      */
     public function store(StoreSavedFilterRequest $request): JsonResponse {

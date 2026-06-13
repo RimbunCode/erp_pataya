@@ -17,9 +17,12 @@ import useNestedFilters, {
 import { Button } from "../../ui/button";
 import { FilterBuilderBody } from "./FilterBuilder";
 import { Input } from "../../ui/input";
+import LoadingIcon from "@/Components/LoadingIcon";
 import axios from "axios";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { validateTree } from "./filterValidation";
 
 /**
  * FilterTable2 — pembungkus AlertDialog + saved-filter di sekitar FilterBuilder.
@@ -81,6 +84,7 @@ function FilterTable({
             onSaved={onSaved}
             isMobile={isMobile}
             open={open}
+            setOpen={setOpen}
           />
         </AlertDialogContent>
       </AlertDialog>
@@ -98,14 +102,42 @@ function FilterTableContent({
   onSaved,
   isMobile,
   open,
+  setOpen,
 }) {
   const { t } = useLaravelReactI18n();
-  const { filters, setFromInitial } = useNestedFilters();
+  const { columns, filters, setErrors, clearErrors, setFromInitial } =
+    useNestedFilters();
+  const [applying, setApplying] = useState(false);
 
-  const applyFilters = () => {
-    // Kirim tree utuh — bukan array datar — agar struktur AND/OR & nesting utuh.
-    // AlertDialogAction menutup dialog otomatis setelah handler ini.
-    onApply?.(filters);
+  // Validasi frontend dulu, lalu kirim tree utuh ke parent (async save).
+  // AlertDialogAction auto-close — kita selalu preventDefault dan mengontrol
+  // penutupan dialog secara manual via setOpen agar:
+  //  - invalid → dialog tetap terbuka + highlight error + toast
+  //  - sukses  → dialog ditutup setelah save selesai
+  //  - gagal   → dialog tetap terbuka (toast error dari caller)
+  const applyFilters = async (e) => {
+    e?.preventDefault?.();
+    if (applying) return;
+
+    const { valid, errors } = validateTree(filters, columns);
+    if (!valid) {
+      setErrors(errors);
+      toast.error(t("core.datatable.filter.validation.invalid"));
+      return;
+    }
+
+    clearErrors();
+    setApplying(true);
+    try {
+      // Kirim tree utuh — bukan array datar — agar struktur AND/OR & nesting utuh.
+      await onApply?.(filters);
+      setOpen?.(false);
+    } catch {
+      // Caller (DataTable2.persistFilterTree) sudah menampilkan toast error.
+      // Dialog dibiarkan terbuka agar user dapat memperbaiki.
+    } finally {
+      setApplying(false);
+    }
   };
 
   // Sinkronkan tree dari parent saat dialog dibuka.
@@ -155,7 +187,9 @@ function FilterTableContent({
             size="md"
             className="h-8 px-2!"
             onClick={applyFilters}
+            disabled={applying}
           >
+            {applying && <LoadingIcon className="size-4" />}
             {t("core.datatable.filter.apply_filters")}
           </AlertDialogAction>
         </div>

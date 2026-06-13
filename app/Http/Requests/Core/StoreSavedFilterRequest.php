@@ -3,8 +3,10 @@
 namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Services\Core\FilterTreeCleaner;
 use App\Traits\DataTable;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Validation\ValidationException;
 
 class StoreSavedFilterRequest extends BaseFormRequest {
     public function authorize(): bool {
@@ -20,6 +22,28 @@ class StoreSavedFilterRequest extends BaseFormRequest {
             'filter' => ['required', 'array'],
             'name'   => ['nullable', 'string', 'max:255'],
         ];
+    }
+
+    /**
+     * Setelah rules dasar lolos: bersihkan filter tree (drop item invalid,
+     * collapse grup kosong) lalu pastikan masih ada filter valid. Tree bersih
+     * disimpan kembali agar controller menyimpan versi yang sudah dibersihkan.
+     */
+    protected function passedValidation(): void {
+        /** @var class-string $modelClass */
+        $modelClass = $this->input('model');
+        $columns    = $modelClass::getColumns(1);
+
+        $cleaner = new FilterTreeCleaner($columns);
+        $cleaned = $cleaner->clean((array) $this->input('filter'));
+
+        if (! $cleaner->hasValidItems($cleaned)) {
+            throw ValidationException::withMessages([
+                'filter' => __('core.datatable.filter.validation.empty_tree'),
+            ]);
+        }
+
+        $this->merge(['filter' => $cleaned]);
     }
 
     /**

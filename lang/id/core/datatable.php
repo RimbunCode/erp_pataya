@@ -38,8 +38,8 @@ return [
             'disabled_single_item' => 'Minimal satu filter harus ada.',
         ],
         'depth_warning' => [
-            'banner'  => 'Beberapa grup tersarang lebih dalam dari :max level. Pertimbangkan untuk menyederhanakan agar mudah dibaca.',
-            'branch'  => 'Ini akan tersarang lebih dalam dari :max level. Pertimbangkan untuk menyederhanakan.',
+            'banner' => 'Beberapa grup tersarang lebih dalam dari :max level. Pertimbangkan untuk menyederhanakan agar mudah dibaca.',
+            'branch' => 'Ini akan tersarang lebih dalam dari :max level. Pertimbangkan untuk menyederhanakan.',
         ],
         'operator' => [
             'set'                 => 'Diisi',
@@ -102,6 +102,22 @@ return [
             'save'             => 'Simpan Filter',
             'list'             => 'Filter Tersimpan:',
             'name_placeholder' => 'Nama filter',
+        ],
+        'validation' => [
+            'invalid'           => 'Beberapa filter belum lengkap atau tidak valid. Perbaiki yang ditandai.',
+            'value_required'    => 'Nilai wajib diisi.',
+            'value_numeric'     => 'Nilai harus berupa angka.',
+            'value_time'        => 'Format waktu harus HH:MM.',
+            'value_date'        => 'Tanggal tidak valid.',
+            'range_two'         => 'Isi kedua nilai rentang.',
+            'select_one'        => 'Pilih minimal satu nilai.',
+            'relation_required' => 'Pilih data terkait.',
+            'period_incomplete' => 'Lengkapi periode.',
+            'empty_tree'        => 'Tidak ada filter valid untuk disimpan.',
+        ],
+        'save' => [
+            'success' => 'Filter diterapkan.',
+            'error'   => 'Gagal menyimpan filter.',
         ],
     ],
     'sorting' => [

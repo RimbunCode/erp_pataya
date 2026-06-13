@@ -124,6 +124,7 @@ Route::middleware(['auth'])
     ->withoutMiddleware([HandleInertiaRequests::class])
     ->group(function () {
         Route::get('/saved-filters', [SavedFilterController::class, 'index'])->name('saved-filters.index');
+        Route::get('/saved-filters/{savedFilter}', [SavedFilterController::class, 'show'])->name('saved-filters.show');
         Route::post('/saved-filters', [SavedFilterController::class, 'store'])->name('saved-filters.store');
         Route::patch('/saved-filters/{savedFilter}', [SavedFilterController::class, 'update'])->name('saved-filters.update');
         Route::delete('/saved-filters/{savedFilter}', [SavedFilterController::class, 'destroy'])->name('saved-filters.destroy');

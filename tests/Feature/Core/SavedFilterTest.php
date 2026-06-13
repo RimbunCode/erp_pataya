@@ -11,6 +11,7 @@ use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -104,6 +105,99 @@ class SavedFilterTest extends TestCase {
             'model'  => 'App\\Models\\NotAModel',
             'filter' => $this->sampleTree(),
         ])->assertStatus(422);
+    }
+
+    public function test_store_drops_invalid_items_and_keeps_valid(): void {
+        $user = $this->makeUser();
+
+        // i1 valid (name matches), i2 invalid (operator kosong → di-drop).
+        $res = $this->actingAs($user)->postJson('/saved-filters', [
+            'model'  => FilterScopeRecord::class,
+            'filter' => ['root' => ['k' => 'and', 'c' => [
+                'i1' => ['k' => 'name', 'o' => 'matches', 'v' => 'Apple'],
+                'i2' => ['k' => 'name', 'o' => '', 'v' => ''],
+            ]]],
+        ]);
+
+        $res->assertOk();
+        $saved    = SavedFilter::find($res->json('id'));
+        $children = $saved->filter['root']['c'];
+        $this->assertCount(1, $children, 'item invalid harus ter-drop');
+        $this->assertSame('matches', reset($children)['o']);
+    }
+
+    public function test_store_rejects_when_no_valid_items_remain(): void {
+        $user = $this->makeUser();
+
+        // Semua item tak lengkap → tree kosong setelah clean → 422.
+        $this->actingAs($user)->postJson('/saved-filters', [
+            'model'  => FilterScopeRecord::class,
+            'filter' => ['root' => ['k' => 'and', 'c' => [
+                'i1' => ['k' => 'name', 'o' => 'matches', 'v' => ''],
+                'i2' => ['k' => '', 'o' => '', 'v' => ''],
+            ]]],
+        ])->assertStatus(422)->assertJsonValidationErrors(['filter']);
+    }
+
+    public function test_store_collapses_empty_group(): void {
+        $user = $this->makeUser();
+
+        // Grup g1 berisi hanya item invalid → grup kosong → di-drop; i1 tetap.
+        $res = $this->actingAs($user)->postJson('/saved-filters', [
+            'model'  => FilterScopeRecord::class,
+            'filter' => ['root' => ['k' => 'and', 'c' => [
+                'i1' => ['k' => 'name', 'o' => 'matches', 'v' => 'Apple'],
+                'g1' => ['k' => 'or', 'c' => [
+                    'i2' => ['k' => 'name', 'o' => '', 'v' => ''],
+                ]],
+            ]]],
+        ]);
+
+        $res->assertOk();
+        $saved    = SavedFilter::find($res->json('id'));
+        $children = $saved->filter['root']['c'];
+        $this->assertCount(1, $children, 'grup kosong harus ter-drop');
+        $this->assertArrayNotHasKey('g1', $children);
+    }
+
+    public function test_show_returns_ephemeral_filter_by_id(): void {
+        $user  = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id'  => $user->id,
+            'model'    => ApprovalScheme::class,
+            'filter'   => $this->sampleTree('Apple'),
+            'is_saved' => false, // ephemeral
+        ]);
+
+        $this->actingAs($user)
+            ->getJson("/saved-filters/{$saved->id}")
+            ->assertOk()
+            ->assertJsonPath('id', $saved->id)
+            ->assertJsonPath('filter.root.c.i1.v', 'Apple');
+    }
+
+    public function test_show_allows_non_owner_filter_but_hides_name(): void {
+        $owner = $this->makeUser();
+        $other = $this->makeUser();
+        $saved = SavedFilter::create([
+            'user_id'  => $owner->id,
+            'model'    => ApprovalScheme::class,
+            'filter'   => $this->sampleTree('Apple'),
+            'name'     => 'Privat Owner',
+            'is_saved' => true,
+        ]);
+
+        // Share-link lintas user: non-owner boleh memuat tree (untuk dipakai
+        // sebagai awalan), tapi `name` (label pribadi) disembunyikan.
+        $this->actingAs($other)->getJson("/saved-filters/{$saved->id}")
+            ->assertOk()
+            ->assertJsonPath('filter.root.c.i1.v', 'Apple')
+            ->assertJsonPath('name', null);
+
+        // Owner tetap melihat name.
+        $this->actingAs($owner)->getJson("/saved-filters/{$saved->id}")
+            ->assertOk()
+            ->assertJsonPath('name', 'Privat Owner');
     }
 
     public function test_fid_filters_index_results(): void {

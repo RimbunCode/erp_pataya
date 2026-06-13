@@ -26,12 +26,14 @@ function FilterItem2({ id, depth = 0 }) {
   const {
     columns,
     filters,
+    errors,
     updateItem,
     wrapItemWithGroup,
     removeNode,
     getCachedChildren,
     setCachedChildren,
   } = useNestedFilters();
+  const errorKey = errors?.[id];
   const f = getNodeById(filters, id);
   const filter = f
     ? {
@@ -183,7 +185,13 @@ function FilterItem2({ id, depth = 0 }) {
   }, [operators]);
   if (!isValidFilter) return null;
   return (
-    <div className="grid grid-cols-subgrid col-span-full items-start pb-2">
+    <div
+      className={cn(
+        "grid grid-cols-subgrid col-span-full items-start pb-2",
+        errorKey &&
+          "rounded-md ring-1 ring-destructive/60 bg-destructive/5 p-1 -m-1",
+      )}
+    >
       <NestedSelect
         options={columnOptions}
         value={filter.key}
@@ -262,6 +270,11 @@ function FilterItem2({ id, depth = 0 }) {
           </TooltipContent>
         )}
       </Tooltip>
+      {errorKey && (
+        <p className="col-span-full text-destructive text-xs pt-0.5">
+          {t(errorKey)}
+        </p>
+      )}
     </div>
   );
 }

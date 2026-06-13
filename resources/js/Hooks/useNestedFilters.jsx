@@ -403,19 +403,45 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
   const [filters, setFilters] = useState(() =>
     normalizeInitialFilters(initialFilters),
   );
+  // Error validasi per itemId ({ [id]: messageKey }) untuk highlight di
+  // FilterItem2. Diisi saat Apply gagal; dibersihkan saat item diubah/dihapus.
+  const [errors, setErrorsState] = useState({});
   const columnChildrenCacheRef = useRef({});
 
   useEffect(() => {
     columnChildrenCacheRef.current = {};
   }, [columns]);
 
-  const setFromInitial = useCallback((value) => {
-    setFilters(normalizeInitialFilters(value));
+  const setErrors = useCallback((next) => {
+    setErrorsState(next ?? {});
   }, []);
+
+  const clearErrors = useCallback(() => {
+    setErrorsState({});
+  }, []);
+
+  /** Hapus error satu item (dipakai saat item itu diedit). */
+  const clearErrorFor = useCallback((id) => {
+    setErrorsState((prev) => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  const setFromInitial = useCallback(
+    (value) => {
+      setFilters(normalizeInitialFilters(value));
+      clearErrors();
+    },
+    [clearErrors],
+  );
 
   const resetFilters = useCallback(() => {
     setFilters(normalizeFiltersState());
-  }, []);
+    clearErrors();
+  }, [clearErrors]);
 
   const updateGroupKey = useCallback((id, key) => {
     setFilters((state) =>
@@ -426,14 +452,19 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
     );
   }, []);
 
-  const updateItem = useCallback((id, payload) => {
-    setFilters((state) =>
-      updateNodeById(state, id, (node) => {
-        if (isGroupNode(node)) return node;
-        return { ...node, ...payload };
-      }),
-    );
-  }, []);
+  const updateItem = useCallback(
+    (id, payload) => {
+      setFilters((state) =>
+        updateNodeById(state, id, (node) => {
+          if (isGroupNode(node)) return node;
+          return { ...node, ...payload };
+        }),
+      );
+      // Item disentuh → buang error-nya agar pesan inline hilang saat diperbaiki.
+      clearErrorFor(id);
+    },
+    [clearErrorFor],
+  );
 
   const addItemToGroup = useCallback((groupId) => {
     setFilters((state) => addNodeToGroup(state, groupId, createFilterItem()));
@@ -473,16 +504,20 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
     });
   }, []);
 
-  const removeNode = useCallback((id) => {
-    setFilters((state) => {
-      const node = getNodeById(state, id);
-      // Cegah hapus satu-satunya item di root (minimal 1 filter harus ada).
-      if (node && !isGroupNode(node) && isOnlyChildOfRoot(state, id)) {
-        return state;
-      }
-      return normalizeFiltersState(removeNodeById(state, id));
-    });
-  }, []);
+  const removeNode = useCallback(
+    (id) => {
+      setFilters((state) => {
+        const node = getNodeById(state, id);
+        // Cegah hapus satu-satunya item di root (minimal 1 filter harus ada).
+        if (node && !isGroupNode(node) && isOnlyChildOfRoot(state, id)) {
+          return state;
+        }
+        return normalizeFiltersState(removeNodeById(state, id));
+      });
+      clearErrorFor(id);
+    },
+    [clearErrorFor],
+  );
 
   const getCachedChildren = useCallback((path) => {
     if (!path) return undefined;
@@ -500,6 +535,9 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
     () => ({
       columns,
       filters,
+      errors,
+      setErrors,
+      clearErrors,
       setFromInitial,
       resetFilters,
       updateGroupKey,
@@ -514,6 +552,9 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
     [
       columns,
       filters,
+      errors,
+      setErrors,
+      clearErrors,
       setFromInitial,
       resetFilters,
       updateGroupKey,
