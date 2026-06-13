@@ -1,11 +1,13 @@
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "../../ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "../../ui/alert-dialog";
 import { Bookmark, BookmarkCheck, Filter, Trash2 } from "lucide-react";
 import { memo, useCallback, useEffect, useState } from "react";
 import useNestedFilters, {
@@ -20,7 +22,9 @@ import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 /**
- * FilterTable2 — pembungkus Dialog + saved-filter di sekitar FilterBuilder.
+ * FilterTable2 — pembungkus AlertDialog + saved-filter di sekitar FilterBuilder.
+ * AlertDialog dipakai (bukan Dialog) agar klik overlay tidak menutup dialog —
+ * mencegah kehilangan susunan filter karena misclick. Escape tetap menutup.
  *
  * Props:
  *   columns       : peta kolom (getColumns)
@@ -45,8 +49,8 @@ function FilterTable({
 
   return (
     <NestedFiltersProvider initialFilters={initialFilters} columns={columns}>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogTrigger asChild>
           {isMobile ? (
             <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
               <Filter />
@@ -63,9 +67,10 @@ function FilterTable({
               {t("core.datatable.filter.filter")}
             </Button>
           )}
-        </DialogTrigger>
-        <DialogContent
+        </AlertDialogTrigger>
+        <AlertDialogContent
           forceAsDialog
+          onInteractOutside={(e) => e.preventDefault()}
           className="flex flex-col max-w-full md:max-w-(--breakpoint-xl) w-full h-auto max-h-[92svh] overflow-hidden"
         >
           <FilterTableContent
@@ -76,10 +81,9 @@ function FilterTable({
             onSaved={onSaved}
             isMobile={isMobile}
             open={open}
-            setOpen={setOpen}
           />
-        </DialogContent>
-      </Dialog>
+        </AlertDialogContent>
+      </AlertDialog>
     </NestedFiltersProvider>
   );
 }
@@ -94,15 +98,14 @@ function FilterTableContent({
   onSaved,
   isMobile,
   open,
-  setOpen,
 }) {
   const { t } = useLaravelReactI18n();
   const { filters, setFromInitial } = useNestedFilters();
 
   const applyFilters = () => {
     // Kirim tree utuh — bukan array datar — agar struktur AND/OR & nesting utuh.
+    // AlertDialogAction menutup dialog otomatis setelah handler ini.
     onApply?.(filters);
-    setOpen(false);
   };
 
   // Sinkronkan tree dari parent saat dialog dibuka.
@@ -113,14 +116,14 @@ function FilterTableContent({
 
   return (
     <>
-      <DialogHeader className="border-b border-muted-foreground/30">
-        <DialogTitle className="pb-2 ">
+      <AlertDialogHeader className="border-b border-muted-foreground/30">
+        <AlertDialogTitle className="pb-2 ">
           {t("core.datatable.filter.filter")}
-        </DialogTitle>
-        <DialogDescription className="sr-only">
+        </AlertDialogTitle>
+        <AlertDialogDescription className="sr-only">
           {t("core.datatable.filter.filter")}
-        </DialogDescription>
-      </DialogHeader>
+        </AlertDialogDescription>
+      </AlertDialogHeader>
 
       {model && (
         <SavedFilterBar
@@ -131,16 +134,11 @@ function FilterTableContent({
         />
       )}
 
-      <div
-        className={cn(
-          !isMobile && "max-h-[92%]",
-          "flex-1 overflow-y-auto mb-4",
-        )}
-      >
+      <div className={cn(!isMobile && "max-h-[92%]", "flex flex-1 min-h-0")}>
         <FilterBuilderBody />
       </div>
 
-      <div className="flex items-center justify-between py-2 border-t gap-x-6 border-muted-foreground/50">
+      <div className="flex items-center justify-between pt-4 border-t gap-x-6 border-muted-foreground/50">
         {model && (
           <SaveFilterControl
             model={model}
@@ -150,9 +148,16 @@ function FilterTableContent({
           />
         )}
         <div className="flex gap-x-2 ml-auto">
-          <Button className="h-8 px-2!" onClick={applyFilters}>
+          <AlertDialogCancel size="md" className="h-8 px-2! mt-0">
+            {t("core.datatable.filter.cancel")}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            size="md"
+            className="h-8 px-2!"
+            onClick={applyFilters}
+          >
             {t("core.datatable.filter.apply_filters")}
-          </Button>
+          </AlertDialogAction>
         </div>
       </div>
     </>

@@ -1,6 +1,8 @@
-import { Plus } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { useEffect, useRef } from "react";
 import useNestedFilters, {
+  getMaxDepth,
+  MAX_NESTED_DEPTH,
   NestedFiltersProvider,
 } from "@/Hooks/useNestedFilters";
 
@@ -26,7 +28,11 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 export default function FilterBuilder({ columns, value, onChange, className }) {
   return (
     <NestedFiltersProvider initialFilters={value} columns={columns}>
-      <FilterBuilderBody value={value} onChange={onChange} className={className} />
+      <FilterBuilderBody
+        value={value}
+        onChange={onChange}
+        className={className}
+      />
     </NestedFiltersProvider>
   );
 }
@@ -61,28 +67,32 @@ export function FilterBuilderBody({ value, onChange, className }) {
     }
   }, [value, filters, setFromInitial]);
 
+  const hasDeepNesting = getMaxDepth(filters) >= MAX_NESTED_DEPTH;
+
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-1 flex-col gap-2 min-h-0">
+      {hasDeepNesting && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-500/40 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:bg-amber-950/30 dark:text-amber-400">
+          <AlertTriangle className="size-4 shrink-0" />
+          <span>
+            {t("core.datatable.filter.depth_warning.banner", {
+              max: MAX_NESTED_DEPTH,
+            })}
+          </span>
+        </div>
+      )}
       <div
+        style={{ "--row-h": "2.625rem" }}
         className={cn(
-          "grid max-w-full flex-1 overflow-y-auto grid-cols-[auto_max-content_auto_max-content] gap-y-2 gap-x-4 [&>div.grid:first-child]:border-t-0 [&>div.grid:first-child]:pt-0 [&>div.grid]:pt-2 [&>div.grid]:border-t [&>div.grid]:border-muted-foreground/30",
+          "grid max-w-full flex-1 min-h-0 overflow-y-auto grid-cols-[auto_max-content_auto_max-content_max-content_max-content] gap-y-2 gap-x-4 [&>div.grid:first-child]:border-t-0 [&>div.grid:first-child]:pt-0 [&>div.grid]:pt-2 [&>div.grid]:border-t [&>div.grid]:border-muted-foreground/30",
           className,
         )}
       >
         {Object.entries(filters).map(([id]) => (
-          <FilterGroup2 key={id} id={id} />
+          <FilterGroup2 key={id} id={id} depth={0} />
         ))}
       </div>
-      <div className="flex items-center justify-between gap-x-6">
-        <Button
-          variant="outline"
-          className="h-8 px-2!"
-          type="button"
-          onClick={() => addItemToGroup("root")}
-        >
-          <Plus />
-          {t("core.datatable.filter.add_filter")}
-        </Button>
+      <div className="flex items-center justify-end gap-x-6">
         <Button
           variant="secondary"
           className="h-8 px-2!"

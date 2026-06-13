@@ -307,7 +307,7 @@ const Select = memo(
                               dangerouslySetInnerHTML={{
                                 __html: highlightItem(
                                   option.label,
-                                  search ?? "",
+                                  isDirty ? (search ?? "") : "",
                                 ),
                               }}
                             />

@@ -12,6 +12,7 @@ return [
         'add_filter'    => 'Add Filter',
         'clear_filters' => 'Clear Filters',
         'apply_filters' => 'Apply Filters',
+        'cancel'        => 'Cancel',
         'select_column' => 'Select Column',
         'column'        => [
             'all_columns'        => 'All Columns',
@@ -25,6 +26,20 @@ return [
         'group.options'   => [
             'and' => 'Match All',
             'or'  => 'Match Any',
+        ],
+        'branch' => [
+            'label'                 => 'Branch into group',
+            'disabled_single_item'  => 'Cannot branch the only filter. Add another filter first.',
+            'disabled_single_group' => 'Cannot branch a group with only one filter. Add another filter first.',
+        ],
+        'delete' => [
+            'label'                => 'Delete',
+            'disabled_root_group'  => 'The root group cannot be deleted.',
+            'disabled_single_item' => 'At least one filter is required.',
+        ],
+        'depth_warning' => [
+            'banner'  => 'Some groups are nested deeper than :max levels. Consider simplifying for readability.',
+            'branch'  => 'This will nest deeper than :max levels. Consider simplifying.',
         ],
         'operator' => [
             'set'                 => 'Set',

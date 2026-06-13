@@ -12,6 +12,7 @@ return [
         'add_filter'    => 'Tambah Filter',
         'clear_filters' => 'Hapus Semua Filter',
         'apply_filters' => 'Terapkan Filter',
+        'cancel'        => 'Batal',
         'select_column' => 'Pilih Kolom',
         'column'        => [
             'all_columns'        => 'Semua Kolom',
@@ -25,6 +26,20 @@ return [
         'group.options'   => [
             'and' => 'Cocokkan Semua (AND)',
             'or'  => 'Cocokkan Salah Satu (OR)',
+        ],
+        'branch' => [
+            'label'                 => 'Pisah jadi grup',
+            'disabled_single_item'  => 'Tidak bisa memisah filter tunggal. Tambah filter lain dulu.',
+            'disabled_single_group' => 'Tidak bisa memisah grup yang hanya berisi satu filter. Tambah filter lain dulu.',
+        ],
+        'delete' => [
+            'label'                => 'Hapus',
+            'disabled_root_group'  => 'Grup utama tidak bisa dihapus.',
+            'disabled_single_item' => 'Minimal satu filter harus ada.',
+        ],
+        'depth_warning' => [
+            'banner'  => 'Beberapa grup tersarang lebih dalam dari :max level. Pertimbangkan untuk menyederhanakan agar mudah dibaca.',
+            'branch'  => 'Ini akan tersarang lebih dalam dari :max level. Pertimbangkan untuk menyederhanakan.',
         ],
         'operator' => [
             'set'                 => 'Diisi',

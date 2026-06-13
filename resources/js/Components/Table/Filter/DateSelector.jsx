@@ -416,73 +416,71 @@ export default function DateSelector({
   };
 
   return (
-    <div className="m-1">
-      <Popover open={open} onOpenChange={handleOpenChange}>
-        {/* PopoverTrigger membungkus SATU element <div> (bukan Input) agar
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      {/* PopoverTrigger membungkus SATU element <div> (bukan Input) agar
             anchor floating-ui valid — pola DatetimePicker. */}
-        <PopoverTrigger asChild>
-          <div className="flex items-center bg-muted overflow-hidden border rounded-md border-input cursor-text focus-within:ring-1 focus-within:ring-ring">
-            <Input
-              value={displayText}
-              onChange={(e) => {
-                setEditing(true);
-                setDraft(e.target.value);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  commitDraft(e.currentTarget.value);
-                  setOpen(false);
-                }
-              }}
-              onBlur={(e) => {
-                // Commit hanya bila user benar-benar mengetik (editing) dan
-                // popover sudah tertutup (blur bukan akibat membuka popover).
-                if (editing && !open) commitDraft(e.target.value);
-              }}
-              placeholder={t("core.datatable.filter.dateselector.placeholder")}
-              className={cn(
-                "h-8 w-full bg-inherit! border-0! rounded-none! focus-visible:ring-0! focus-visible:ring-offset-0!",
-              )}
-            />
-            {summary && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-6 mr-1"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  emit(null);
-                  setDraft("");
-                  setEditing(false);
-                }}
-              >
-                <XIcon className="size-3" />
-              </Button>
+      <PopoverTrigger asChild>
+        <div className="flex items-center bg-muted overflow-hidden border rounded-md border-input cursor-text focus-within:ring-1 focus-within:ring-ring">
+          <Input
+            value={displayText}
+            onChange={(e) => {
+              setEditing(true);
+              setDraft(e.target.value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commitDraft(e.currentTarget.value);
+                setOpen(false);
+              }
+            }}
+            onBlur={(e) => {
+              // Commit hanya bila user benar-benar mengetik (editing) dan
+              // popover sudah tertutup (blur bukan akibat membuka popover).
+              if (editing && !open) commitDraft(e.target.value);
+            }}
+            placeholder={t("core.datatable.filter.dateselector.placeholder")}
+            className={cn(
+              "h-8 w-full bg-inherit! border-0! rounded-none! focus-visible:ring-0! focus-visible:ring-offset-0!",
             )}
-          </div>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          side="bottom"
-          className="w-auto p-2"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <ReuiDateSelector
-            value={reuiValue}
-            onChange={emit}
-            i18n={reuiI18n}
-            showTwoMonths={false}
-            withTime={isDatetime}
-            yearRange={yearRange}
-            baseYear={baseYear}
-            minYear={minYear}
-            maxYear={maxYear}
           />
-        </PopoverContent>
-      </Popover>
-    </div>
+          {summary && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-6 mr-1"
+              onClick={(e) => {
+                e.stopPropagation();
+                emit(null);
+                setDraft("");
+                setEditing(false);
+              }}
+            >
+              <XIcon className="size-3" />
+            </Button>
+          )}
+        </div>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="bottom"
+        className="w-auto p-2"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <ReuiDateSelector
+          value={reuiValue}
+          onChange={emit}
+          i18n={reuiI18n}
+          showTwoMonths={false}
+          withTime={isDatetime}
+          yearRange={yearRange}
+          baseYear={baseYear}
+          minYear={minYear}
+          maxYear={maxYear}
+        />
+      </PopoverContent>
+    </Popover>
   );
 }
 

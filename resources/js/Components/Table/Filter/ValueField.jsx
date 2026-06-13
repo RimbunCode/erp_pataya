@@ -55,23 +55,27 @@ export default function ValueField({ column, operator, value, onChange }) {
   switch (valueInput) {
     case "text":
       return (
-        <Input
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          className="m-1"
-        />
+        <Input value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
       );
 
     case "currency":
       return (
-        <CurrencyInput value={value} onValueChange={onChange} className="m-1" />
+        <CurrencyInput
+          className="text-left"
+          value={value}
+          onValueChange={onChange}
+        />
       );
 
     case "currency2":
       return (
         <RangePair
           render={(v, set) => (
-            <CurrencyInput value={v} onValueChange={set} className="m-1" />
+            <CurrencyInput
+              className="text-left"
+              value={v}
+              onValueChange={set}
+            />
           )}
           value={value}
           onChange={onChange}
@@ -84,7 +88,7 @@ export default function ValueField({ column, operator, value, onChange }) {
           type="time"
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
-          className="m-1 w-32"
+          className="w-32"
         />
       );
 
@@ -96,7 +100,7 @@ export default function ValueField({ column, operator, value, onChange }) {
               type="time"
               value={v ?? ""}
               onChange={(e) => set(e.target.value)}
-              className="m-1 w-32"
+              className="w-32"
             />
           )}
           value={value}
@@ -106,7 +110,7 @@ export default function ValueField({ column, operator, value, onChange }) {
 
     case "checkbox":
       return (
-        <div className="m-1 flex items-center">
+        <div className="flex items-center">
           <Checkbox
             checked={value === true || value === "true"}
             onChange={(e) => onChange(e.target.checked)}
@@ -123,7 +127,6 @@ export default function ValueField({ column, operator, value, onChange }) {
           placeholder={t("core.datatable.filter.select_value", {
             name: column?.title ?? "",
           })}
-          className="m-1"
         />
       );
 
@@ -136,7 +139,6 @@ export default function ValueField({ column, operator, value, onChange }) {
             value={Array.isArray(value) ? value : []}
             onValueChange={onChange}
             options={options}
-            className="m-1"
           />
         );
       }
@@ -159,7 +161,6 @@ export default function ValueField({ column, operator, value, onChange }) {
           model={column?.related}
           value={value ?? null}
           onValueChange={(rec) => onChange(rec ?? null)}
-          className="m-1"
         />
       );
 
@@ -207,11 +208,7 @@ export default function ValueField({ column, operator, value, onChange }) {
 
     default:
       return (
-        <Input
-          value={value ?? ""}
-          onChange={(e) => onChange(e.target.value)}
-          className="m-1"
-        />
+        <Input value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
       );
   }
 }
@@ -258,7 +255,7 @@ function MultiGrow({ value, onChange, render, isFilled }) {
   };
 
   return (
-    <div className="m-1 flex flex-col gap-1">
+    <div className="flex flex-col gap-1">
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-1">
           <div className="flex-1">{render(item, (v) => setAt(i, v))}</div>
@@ -287,7 +284,7 @@ function MorphField({ column, value, onChange }) {
   const morphType = value?.type ?? null;
 
   return (
-    <div className="m-1 flex items-center gap-1">
+    <div className="flex items-center gap-1">
       <PermissionLinkModel
         value={value?.typeRecord ?? (morphType ? { id: morphType } : null)}
         onValueChange={(rec) =>

@@ -157,6 +157,27 @@ const findParentId = (nodes, targetId, parentId = null) => {
   return undefined;
 };
 
+const isOnlyChildOfRoot = (filters, targetId) => {
+  const root = filters?.root;
+  if (!root || !isGroupNode(root)) return false;
+
+  const rootChildren = root[GROUP_CHILDREN] ?? {};
+  const childIds = Object.keys(rootChildren);
+  return childIds.length === 1 && childIds[0] === targetId;
+};
+
+const canWrapGroup = (filters, groupId) => {
+  const node = getNodeById(filters, groupId);
+  if (!node || !isGroupNode(node)) return false;
+
+  // Root hanya boleh di-wrap bila punya lebih dari 1 child.
+  if (groupId === "root") {
+    return Object.keys(node[GROUP_CHILDREN] ?? {}).length > 1;
+  }
+
+  return true;
+};
+
 const updateNodeById = (nodes, targetId, updater) => {
   let updated = false;
   const result = {};
@@ -290,10 +311,22 @@ function collapseSingleChildGroups(filters) {
     return filters;
   }
 
+  let rootKey = filters.root[GROUP_KEY] ?? "and";
+  let rootChildren = collapseChildren(filters.root[GROUP_CHILDREN]);
+
+  let entries = Object.entries(rootChildren);
+  while (entries.length === 1 && isGroupNode(entries[0][1])) {
+    const onlyGroup = entries[0][1];
+    rootKey = onlyGroup[GROUP_KEY] ?? rootKey;
+    rootChildren = onlyGroup[GROUP_CHILDREN];
+    entries = Object.entries(rootChildren);
+  }
+
   return {
     root: {
       ...filters.root,
-      [GROUP_CHILDREN]: collapseChildren(filters.root[GROUP_CHILDREN]),
+      [GROUP_KEY]: rootKey,
+      [GROUP_CHILDREN]: rootChildren,
     },
   };
 }
@@ -330,6 +363,38 @@ const flattenFilters = (nodes) => {
 
   walk(nodes);
   return results;
+};
+
+// Kedalaman nesting yang dianggap wajar. Group pada depth >= nilai ini memicu
+// peringatan (tetap diizinkan, tidak diblokir). Root = depth 0.
+const MAX_NESTED_DEPTH = 3;
+
+/**
+ * Kedalaman group terdalam DI BAWAH `node` (termasuk node itu sendiri),
+ * dihitung secara absolut dari `baseDepth`. Mis. node pada depth 1 dengan
+ * cucu group menghasilkan 3. Dipakai untuk peringatan retrospektif per-node.
+ */
+const getSubtreeMaxDepth = (node, baseDepth = 0) => {
+  if (!node || !isGroupNode(node)) return baseDepth;
+
+  let max = baseDepth;
+  for (const child of Object.values(node[GROUP_CHILDREN] ?? {})) {
+    if (isGroupNode(child)) {
+      max = Math.max(max, getSubtreeMaxDepth(child, baseDepth + 1));
+    }
+  }
+  return max;
+};
+
+/**
+ * Telusur seluruh tree dan kembalikan kedalaman group terdalam. Root = 0,
+ * tiap group nested menambah 1. Dipakai untuk peringatan global.
+ */
+const getMaxDepth = (filters) => {
+  const root = filters?.root;
+  if (!root || !isGroupNode(root)) return 0;
+
+  return getSubtreeMaxDepth(root, 0);
 };
 
 const NestedFiltersContext = createContext(null);
@@ -374,24 +439,22 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
     setFilters((state) => addNodeToGroup(state, groupId, createFilterItem()));
   }, []);
 
-  const addGroupToGroup = useCallback((groupId) => {
-    setFilters((state) =>
-      addNodeToGroup(
-        state,
-        groupId,
-        createFilterGroup({
-          [createId()]: createFilterItem(),
-          [createId()]: createFilterItem(),
-        }),
-      ),
-    );
-  }, []);
-
-  const addSiblingItem = useCallback((id) => {
+  const wrapGroupWithGroup = useCallback((groupId) => {
     setFilters((state) => {
-      const parentId = findParentId(state, id);
-      if (!parentId) return state;
-      return addNodeToGroup(state, parentId, createFilterItem());
+      const node = getNodeById(state, groupId);
+      if (!node || !isGroupNode(node)) return state;
+      if (!canWrapGroup(state, groupId)) return state;
+
+      const children = {
+        [createId()]: node,
+        [createId()]: createFilterItem(),
+      };
+
+      if (groupId === "root") {
+        return { root: createFilterGroup(children) };
+      }
+
+      return replaceNodeById(state, groupId, createFilterGroup(children));
     });
   }, []);
 
@@ -399,6 +462,7 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
     setFilters((state) => {
       const node = getNodeById(state, id);
       if (!node || isGroupNode(node)) return state;
+      if (isOnlyChildOfRoot(state, id)) return state;
 
       const children = {
         [createId()]: normalizeItem(node),
@@ -410,7 +474,14 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
   }, []);
 
   const removeNode = useCallback((id) => {
-    setFilters((state) => normalizeFiltersState(removeNodeById(state, id)));
+    setFilters((state) => {
+      const node = getNodeById(state, id);
+      // Cegah hapus satu-satunya item di root (minimal 1 filter harus ada).
+      if (node && !isGroupNode(node) && isOnlyChildOfRoot(state, id)) {
+        return state;
+      }
+      return normalizeFiltersState(removeNodeById(state, id));
+    });
   }, []);
 
   const getCachedChildren = useCallback((path) => {
@@ -434,8 +505,7 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
       updateGroupKey,
       updateItem,
       addItemToGroup,
-      addGroupToGroup,
-      addSiblingItem,
+      wrapGroupWithGroup,
       wrapItemWithGroup,
       removeNode,
       getCachedChildren,
@@ -449,8 +519,7 @@ function NestedFiltersProvider({ initialFilters, columns, children }) {
       updateGroupKey,
       updateItem,
       addItemToGroup,
-      addGroupToGroup,
-      addSiblingItem,
+      wrapGroupWithGroup,
       wrapItemWithGroup,
       removeNode,
       getCachedChildren,
@@ -477,9 +546,14 @@ function useNestedFilters() {
 export {
   createFilterGroup,
   createFilterItem,
+  canWrapGroup,
   flattenFilters,
+  getMaxDepth,
+  getSubtreeMaxDepth,
   getNodeById,
   isGroupNode,
+  isOnlyChildOfRoot,
+  MAX_NESTED_DEPTH,
   normalizeFiltersState,
   NestedFiltersProvider,
 };

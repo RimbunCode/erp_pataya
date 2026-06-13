@@ -1,25 +1,32 @@
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { Trash2Icon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import useNestedFilters, {
   getNodeById,
   isGroupNode,
+  isOnlyChildOfRoot,
+  MAX_NESTED_DEPTH,
 } from "@/Hooks/useNestedFilters";
 
 import { Button } from "@/Components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 import NestedSelect from "@/Components/NestedSelect";
 import { RiGitMergeLine } from "@remixicon/react";
 import Select from "@/Components/Select";
 import ValueField from "./ValueField";
 import axios from "axios";
+import { cn } from "@/lib/utils";
 import { columnHasOptions, getOperators } from "./operators";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-function FilterItem2({ id }) {
+function FilterItem2({ id, depth = 0 }) {
   const {
     columns,
     filters,
     updateItem,
-    addSiblingItem,
     wrapItemWithGroup,
     removeNode,
     getCachedChildren,
@@ -93,6 +100,10 @@ function FilterItem2({ id }) {
   }, [columns, buildColumnNode, toArrayColumns, cacheVersion]);
 
   const isValidFilter = Boolean(filter && !isGroupNode(filter));
+  const isOnlyChild = isOnlyChildOfRoot(filters, id);
+  // Branch item membungkusnya dalam group baru pada depth + 1 (slot child parent).
+  // Hanya berdasar posisi: item di group dangkal tetap normal.
+  const branchWillBeTooDeep = depth + 1 >= MAX_NESTED_DEPTH;
   const selectedColumn = useMemo(() => {
     if (!filter?.key) return null;
     return findNodeByValue(columnOptions, filter.key);
@@ -172,13 +183,13 @@ function FilterItem2({ id }) {
   }, [operators]);
   if (!isValidFilter) return null;
   return (
-    <div className="grid grid-cols-subgrid col-span-full items-start">
+    <div className="grid grid-cols-subgrid col-span-full items-start pb-2">
       <NestedSelect
         options={columnOptions}
         value={filter.key}
         onValueChange={onColumnChanged}
         placeholder={t("core.datatable.filter.select_column")}
-        className="m-1 min-w-[12rem]"
+        className="min-w-[12rem]"
         fetchChildren={fetchRelationColumns}
       />
       <Select
@@ -188,7 +199,6 @@ function FilterItem2({ id }) {
         optionTrans="core.datatable.filter.operator"
         options={operatorOptions}
         placeholder={t("core.datatable.filter.select_operator")}
-        className="m-1"
       />
       <ValueField
         column={selectedColumn}
@@ -196,32 +206,62 @@ function FilterItem2({ id }) {
         value={filter.value}
         onChange={onValueChanged}
       />
-      <div className="flex gap-x-1 pr-2 col-start-4">
-        <Button
-          size="icon"
-          variant="ghost"
-          type="button"
-          onClick={() => addSiblingItem(id)}
-        >
-          <PlusIcon />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          type="button"
-          onClick={() => wrapItemWithGroup(id)}
-        >
-          <RiGitMergeLine />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          type="button"
-          onClick={() => removeNode(id)}
-        >
-          <Trash2Icon />
-        </Button>
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            className={cn(
+              "col-start-5",
+              isOnlyChild && "opacity-50 cursor-not-allowed",
+              !isOnlyChild &&
+                branchWillBeTooDeep &&
+                "text-amber-600 hover:text-amber-700 dark:text-amber-400",
+            )}
+            size="icon"
+            variant="ghost"
+            type="button"
+            aria-disabled={isOnlyChild}
+            onClick={() => {
+              if (isOnlyChild) return;
+              wrapItemWithGroup(id);
+            }}
+          >
+            <RiGitMergeLine />
+          </Button>
+        </TooltipTrigger>
+        {isOnlyChild ? (
+          <TooltipContent>
+            {t("core.datatable.filter.branch.disabled_single_item")}
+          </TooltipContent>
+        ) : branchWillBeTooDeep ? (
+          <TooltipContent>
+            {t("core.datatable.filter.depth_warning.branch", {
+              max: MAX_NESTED_DEPTH,
+            })}
+          </TooltipContent>
+        ) : null}
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            className={cn(isOnlyChild && "opacity-50 cursor-not-allowed")}
+            size="icon"
+            variant="ghost"
+            type="button"
+            aria-disabled={isOnlyChild}
+            onClick={() => {
+              if (isOnlyChild) return;
+              removeNode(id);
+            }}
+          >
+            <Trash2Icon />
+          </Button>
+        </TooltipTrigger>
+        {isOnlyChild && (
+          <TooltipContent>
+            {t("core.datatable.filter.delete.disabled_single_item")}
+          </TooltipContent>
+        )}
+      </Tooltip>
     </div>
   );
 }
