@@ -294,31 +294,35 @@ export default memo(
         },
       );
     }, [options]);
-    const optionsSort = (options.sort ?? "").split("-");
-    const optionsSortKey = optionsSort[optionsSort.length - 1];
-    const optionsSortOrder = optionsSort[0] === optionsSortKey ? "asc" : "desc";
+    // Konvensi sort: prefix `-` = descending, tanpa prefix = ascending.
+    // Parse via startsWith agar key ber-dash / nested (`rel.col`) tetap utuh.
+    const parseSort = (sortStr) => {
+      const raw = sortStr ?? "";
+      const order = raw.startsWith("-") ? "desc" : "asc";
+      const key = order === "desc" ? raw.slice(1) : raw;
+      return { key, order };
+    };
+    const { key: optionsSortKey, order: optionsSortOrder } = parseSort(
+      options.sort,
+    );
 
     const resetSorting = useCallback(() => {
-      setOptions({
-        ...options,
-        sort: defaultSort,
+      // Functional update agar tak menelan page/fid/show dari closure stale.
+      setOptions((prev) => ({ ...prev, sort: defaultSort, page: 1 }));
+    }, [defaultSort]);
+    const setSort = useCallback((name, sort) => {
+      setOptions((prev) => {
+        const { key, order: prevOrder } = parseSort(prev.sort);
+        // Tanpa argumen `sort`: toggle asc↔desc kolom yang sama.
+        const order =
+          sort ?? (key === name && prevOrder === "asc" ? "desc" : "asc");
+        return {
+          ...prev,
+          sort: `${order === "asc" ? "" : "-"}${name}`,
+          page: 1,
+        };
       });
     }, []);
-    const setSort = useCallback(
-      (name, sort) => {
-        const order =
-          sort ??
-          (optionsSortKey == name && optionsSortOrder == "asc"
-            ? "desc"
-            : "asc");
-
-        setOptions({
-          ...options,
-          sort: order ? `${order == "asc" ? "" : "-"}${name}` : null,
-        });
-      },
-      [options.sort],
-    );
     useDidMountEffect(() => {
       const reloadData = setTimeout(() => {
         loadData();
@@ -338,7 +342,6 @@ export default memo(
           if (res.data?.filter) setFilterTree(res.data.filter);
         })
         .catch(() => {});
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
     // Simpan tree sebagai saved filter ephemeral → dapat `fid` → navigasi.
     // Tree kosong → bersihkan filter (drop fid).

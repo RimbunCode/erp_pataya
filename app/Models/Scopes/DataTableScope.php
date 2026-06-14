@@ -49,12 +49,12 @@ class DataTableScope implements Scope {
                     Cookie::make('datatable_show', (string) $show, 60 * 24 * 7, '/' . ltrim($request->path(), '/')),
                 );
             }
-            // Sort
+            // Sort — konvensi: prefix `-` = descending, tanpa prefix = ascending.
+            // Parse via str_starts_with agar key ber-dash / nested tetap utuh.
             $sort          = $request->input('sort', '-created_at');
-            $sortArr       = explode('-', $sort);
-            $sortKey       = end($sortArr);
+            $sortDirection = \str_starts_with($sort, '-') ? 'desc' : 'asc';
+            $sortKey       = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
             $sortKey       = $this->isTableIncluded($sortKey) ? $sortKey : "$nameOfTable.$sortKey";
-            $sortDirection = $sortArr[0] === $sortKey ? 'asc' : 'desc';
             $query         = $query->orderBy($sortKey, $sortDirection);
 
             $relations = [];

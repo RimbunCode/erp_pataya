@@ -315,6 +315,46 @@ class SavedFilterTest extends TestCase {
         $this->assertNull($cookie);
     }
 
+    public function test_sort_ascending_orders_by_key(): void {
+        $this->makeUser();
+        $this->seedScopeRecords(); // s1=Apple, s2=Banana
+
+        $request = Request::create('/x', 'GET', ['sort' => 'name'], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+        $ids     = collect($result['data']->items())->pluck('id')->all();
+
+        // asc by name → Apple (s1) dulu, lalu Banana (s2)
+        $this->assertSame(['s1', 's2'], $ids);
+    }
+
+    public function test_sort_descending_with_dash_prefix(): void {
+        $this->makeUser();
+        $this->seedScopeRecords();
+
+        $request = Request::create('/x', 'GET', ['sort' => '-name'], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+        $ids     = collect($result['data']->items())->pluck('id')->all();
+
+        // desc by name → Banana (s2) dulu, lalu Apple (s1)
+        $this->assertSame(['s2', 's1'], $ids);
+    }
+
+    public function test_sort_defaults_to_created_at_desc(): void {
+        $this->makeUser();
+        // s1 dibuat lebih dulu (created_at lebih lama), s2 lebih baru.
+        FilterScopeRecord::insert([
+            ['id' => 's1', 'name' => 'Apple', 'is_example' => false, 'created_at' => now()->subMinute(), 'updated_at' => now()],
+            ['id' => 's2', 'name' => 'Banana', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // tanpa ?sort= → default `-created_at` (desc) → s2 (terbaru) dulu
+        $request = Request::create('/x', 'GET', [], server: ['HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest']);
+        $result  = FilterScopeRecord::dataTable($request);
+        $ids     = collect($result['data']->items())->pluck('id')->all();
+
+        $this->assertSame(['s2', 's1'], $ids);
+    }
+
     public function test_update_promotes_to_named_owner_only(): void {
         $owner = $this->makeUser();
         $saved = SavedFilter::create([
