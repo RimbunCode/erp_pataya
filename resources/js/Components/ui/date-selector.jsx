@@ -18,7 +18,7 @@ import {
   setYear as setYearFns,
   subMonths,
 } from "date-fns";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronLeftIcon, ChevronRightIcon, Clock } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 
 import { useIsMobile } from "@/Hooks/use-mobile";
@@ -597,11 +597,26 @@ const DateSelectorDayPicker = memo(function DateSelectorDayPicker({
   years,
   showTwoMonths = true,
   weekStartsOn,
+  withTime = false,
+  timeValue,
+  onTimeChange,
+  scrollTick,
   className,
 }) {
   const { i18n } = useDateSelectorContext();
   const isMobile = useIsMobile();
   const [picker, setPicker] = useState(null); // null | "month" | "year"
+  const [timeOpen, setTimeOpen] = useState(false);
+
+  // Ringkasan HH:mm untuk trigger di header (basis: tanggal terpilih / sekarang).
+  const timeBase = timeValue instanceof Date ? timeValue : new Date();
+  const timeLabel = `${`${timeBase.getHours()}`.padStart(2, "0")}:${`${timeBase.getMinutes()}`.padStart(2, "0")}`;
+
+  // Buka time → tutup picker bulan/tahun (overlay sama, tak boleh tumpang).
+  const toggleTime = () => {
+    setPicker(null);
+    setTimeOpen((v) => !v);
+  };
 
   const selected = isRange
     ? selectedDate && selectedEndDate
@@ -667,23 +682,42 @@ const DateSelectorDayPicker = memo(function DateSelectorDayPicker({
             {currentMonth.getFullYear()}
           </button>
         </div>
-        <div className={cn("flex space-x-2", picker && "invisible")}>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onMonthChange?.(subMonths(currentMonth, 1))}
-          >
-            <ChevronLeftIcon />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            onClick={() => onMonthChange?.(addMonths(currentMonth, 1))}
-          >
-            <ChevronRightIcon />
-          </Button>
+        <div className="flex items-center space-x-1">
+          {/* Trigger time: ringkas HH:mm di header, buka panel overlay. */}
+          {withTime && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-expanded={timeOpen}
+              className={cn(
+                "h-7 gap-1 px-2 font-normal",
+                timeOpen && SELECTED_ITEM_CLASS,
+              )}
+              onClick={toggleTime}
+            >
+              <Clock className="size-3.5" />
+              {timeLabel}
+            </Button>
+          )}
+          <div className={cn("flex space-x-2", picker && "invisible")}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onMonthChange?.(subMonths(currentMonth, 1))}
+            >
+              <ChevronLeftIcon />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={() => onMonthChange?.(addMonths(currentMonth, 1))}
+            >
+              <ChevronRightIcon />
+            </Button>
+          </div>
         </div>
       </div>
       <div className="relative">
@@ -721,6 +755,14 @@ const DateSelectorDayPicker = memo(function DateSelectorDayPicker({
               onMonthChange?.(d);
               setPicker(next);
             }}
+            className="absolute inset-0"
+          />
+        )}
+        {withTime && timeOpen && (
+          <DaySelectorTimePicker
+            value={timeValue}
+            onChange={onTimeChange}
+            scrollTick={scrollTick}
             className="absolute inset-0"
           />
         )}
@@ -965,7 +1007,14 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const MINUTES = Array.from({ length: 60 }, (_, i) => i);
 
 // Kolom waktu (jam / menit). Di luar komponen agar tak remount tiap render.
-function TimeColumn({ items, selected, onSelect, label, scrollTick }) {
+function TimeColumn({
+  items,
+  selected,
+  onSelect,
+  label,
+  scrollTick,
+  heightClass = "h-36",
+}) {
   const selectedRef = useRef(null);
   useEffect(() => {
     const id = setTimeout(() => {
@@ -980,7 +1029,7 @@ function TimeColumn({ items, selected, onSelect, label, scrollTick }) {
   return (
     <div className="flex flex-col">
       <p className="h-6 text-center text-xs text-muted-foreground">{label}</p>
-      <ScrollArea className="h-36 w-14">
+      <ScrollArea className={cn("w-14", heightClass)}>
         <div className="flex flex-col items-stretch pe-2">
           {items.map((v) => (
             <div key={v} ref={v === selected ? selectedRef : undefined}>
@@ -1003,7 +1052,12 @@ function TimeColumn({ items, selected, onSelect, label, scrollTick }) {
   );
 }
 
-function DaySelectorTimePicker({ value, onChange, scrollTick }) {
+/**
+ * DaySelectorTimePicker — panel pilih HH:mm. Dipakai sebagai overlay absolute di
+ * area calendar (dibuka dari trigger time di header), jadi tinggi mengisi penuh
+ * (`h-full`) agar tak menambah tinggi vertikal popup.
+ */
+function DaySelectorTimePicker({ value, onChange, scrollTick, className }) {
   const base = value instanceof Date ? value : new Date();
   const hour = base.getHours();
   const minute = base.getMinutes();
@@ -1014,17 +1068,15 @@ function DaySelectorTimePicker({ value, onChange, scrollTick }) {
     onChange(setMinutes(value instanceof Date ? value : new Date(), m));
 
   return (
-    <div className="mt-2 border-t pt-2">
-      <p className="mb-1 text-center text-sm font-medium">
-        {`${hour}`.padStart(2, "0")}:{`${minute}`.padStart(2, "0")}
-      </p>
-      <div className="flex justify-center gap-2">
+    <div className={cn("flex flex-col bg-popover", className)}>
+      <div className="flex grow justify-center gap-2 overflow-hidden">
         <TimeColumn
           items={HOURS}
           selected={hour}
           onSelect={setHour}
           label="HH"
           scrollTick={scrollTick}
+          heightClass="h-full"
         />
         <TimeColumn
           items={MINUTES}
@@ -1032,6 +1084,7 @@ function DaySelectorTimePicker({ value, onChange, scrollTick }) {
           onSelect={setMinute}
           label="mm"
           scrollTick={scrollTick}
+          heightClass="h-full"
         />
       </div>
     </div>
@@ -1252,17 +1305,14 @@ export function DateSelector({
               years={years}
               showTwoMonths={showTwoMonths}
               weekStartsOn={weekStartsOn}
+              withTime={showTimePicker}
+              timeValue={selectedDate}
+              scrollTick={scrollTick}
+              onTimeChange={(next) => {
+                setSelectedDate(next);
+                setCalendarMonth(next);
+              }}
             />
-            {showTimePicker && (
-              <DaySelectorTimePicker
-                value={selectedDate}
-                scrollTick={scrollTick}
-                onChange={(next) => {
-                  setSelectedDate(next);
-                  setCalendarMonth(next);
-                }}
-              />
-            )}
           </div>
         ) : (
           <div className="-mr-3 w-full">
