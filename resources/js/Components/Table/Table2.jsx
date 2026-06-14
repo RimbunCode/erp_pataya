@@ -53,6 +53,21 @@ import usePermission from "@/Hooks/usePermission";
 
 export const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
+
+// Nama cookie unik per-path agar tidak bentrok antar-halaman. Path-scoping cookie
+// (nama sama beda path) rapuh: `document.cookie` tak mengekspos path sehingga
+// browser tertentu (mis. Edge) bisa mengembalikan cookie path lain. Maka isolasi
+// dilakukan lewat NAMA (suffix path ter-sanitize), bukan path cookie.
+// Sanitizer HARUS identik dengan sisi backend (DataTableScope::datatableColumnsCookieKey):
+//   trim slash → lowercase → ganti karakter non-alnum jadi "_".
+export const datatableColumnsCookieKey = (pathname) => {
+  const slug = String(pathname ?? "")
+    .replace(/^\/+|\/+$/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return slug ? `${DATATABLE_COLUMNS_KEY}_${slug}` : DATATABLE_COLUMNS_KEY;
+};
 export const convertColWidth = (colWidth) => {
   if (colWidth) {
     switch (colWidth) {
@@ -72,7 +87,11 @@ export const convertColWidth = (colWidth) => {
 export const createHeaders = (headers, ignoreCookie = false) => {
   const columnsFromCookie = ignoreCookie
     ? null
-    : JSON.parse(getCookieByName(DATATABLE_COLUMNS_KEY) || "null");
+    : JSON.parse(
+        getCookieByName(
+          datatableColumnsCookieKey(window.location.pathname),
+        ) || "null",
+      );
   // const newHeaders = { ...headers };
   Object.values(headers).forEach((col) => {
     const colFromCookie = ignoreCookie ? null : columnsFromCookie?.[col.name];
@@ -424,15 +443,18 @@ const Table2 = forwardRef(function Table2(
         order: index,
       };
     });
-    // Cookie di-scope ke path halaman saat ini (mis. /items) — isolasi preferensi
-    // kolom antar-halaman lewat path cookie, bukan suffix nama. Browser hanya
-    // mengirim cookie ini pada request ke path yang cocok, jadi backend membaca
-    // preferensi yang relevan untuk halaman tsb.
-    setCookie(DATATABLE_COLUMNS_KEY, JSON.stringify(newShowedColumns), {
-      days: DATATABLE_COLUMNS_EXPIRED,
-      path: window.location.pathname,
-      sameSite: "lax",
-    });
+    // Nama cookie unik per-path (suffix path ter-sanitize) → isolasi antar-halaman
+    // tanpa bergantung path-scoping yang rapuh di sebagian browser. path:"/" agar
+    // cookie pasti terkirim ke request halaman ybs (nama yang membedakan, bukan path).
+    setCookie(
+      datatableColumnsCookieKey(window.location.pathname),
+      JSON.stringify(newShowedColumns),
+      {
+        days: DATATABLE_COLUMNS_EXPIRED,
+        path: "/",
+        sameSite: "lax",
+      },
+    );
   }, [showedColumns]);
   const mouseMove = useCallback(
     (e) => {
@@ -696,7 +718,10 @@ const Table2 = forwardRef(function Table2(
             }}
             onReset={() => {
               if (!skipCookie) {
-                removeCookie(DATATABLE_COLUMNS_KEY, window.location.pathname);
+                removeCookie(
+                  datatableColumnsCookieKey(window.location.pathname),
+                  "/",
+                );
               }
               router.reload();
               setOpenColumnsFilter(false);

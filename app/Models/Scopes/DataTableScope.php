@@ -31,13 +31,29 @@ class DataTableScope implements Scope {
         return preg_match('/^\w+\.\w+$/', $columnReference);
     }
 
+    /**
+     * Nama cookie kolom DataTable, unik per-path. HARUS identik dengan sanitizer
+     * frontend (Table2.jsx `datatableColumnsCookieKey`): trim slash → lowercase →
+     * ganti karakter non-alnum jadi "_". `$request->path()` sudah tanpa leading
+     * slash & query string.
+     */
+    private function datatableColumnsCookieKey(string $path): string {
+        $slug = \trim($path, '/');
+        $slug = \strtolower($slug);
+        $slug = \preg_replace('/[^a-z0-9]+/', '_', $slug);
+        $slug = \trim($slug, '_');
+
+        return $slug !== '' ? 'datatable_columns_' . $slug : 'datatable_columns';
+    }
+
     protected function addDataTable(Builder $builder) {
         $builder->macro('dataTable', function (Builder $query, Request $request, ?array $showedColumns = null) {
             $dataTableColumns = \get_class($query->getModel())::getColumns(1);
             // Kolom visible dari cookie (standar Laravel; plaintext krn dikecualikan
-            // dari enkripsi di bootstrap/app.php). Hanya himpunan nama yang dipakai —
-            // width & order diabaikan (urusan frontend). Kosong/invalid → null (default config).
-            $cookieRaw   = $request->cookie('datatable_columns');
+            // dari enkripsi di bootstrap/app.php). Nama cookie unik per-path (suffix
+            // path ter-sanitize) agar tak bentrok antar-halaman di sebagian browser.
+            // Hanya himpunan nama kolom yang dipakai — width & order diabaikan (frontend).
+            $cookieRaw   = $request->cookie($this->datatableColumnsCookieKey($request->path()));
             $visibleKeys = \is_string($cookieRaw)
                 ? \array_keys(\json_decode($cookieRaw, true) ?: [])
                 : null;

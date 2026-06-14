@@ -127,9 +127,20 @@ class DataTableAdaptiveFetchTest extends TestCase {
     }
 
     private function ajax(array $query = [], array $cookies = []): Request {
-        return Request::create('/x', 'GET', $query, $cookies, server: [
+        return Request::create('/items', 'GET', $query, $cookies, server: [
             'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest',
         ]);
+    }
+
+    /**
+     * Cookie kolom dgn nama sesuai sanitizer per-path. Path test = /items →
+     * key datatable_columns_items.
+     *
+     * @param  array<string, mixed>  $cols
+     * @return array<string, string>
+     */
+    private function dtCookie(array $cols): array {
+        return ['datatable_columns_items' => json_encode($cols)];
     }
 
     public function test_hidden_relation_not_eager_loaded_when_cookie_excludes_it(): void {

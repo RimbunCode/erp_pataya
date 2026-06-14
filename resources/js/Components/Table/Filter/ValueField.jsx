@@ -200,8 +200,8 @@ export default function ValueField({ column, operator, value, onChange }) {
         <DateSelector
           type={column?.type === "datetime" ? "datetime" : "date"}
           value={value}
-          yearRange={10}
-          maxYear={new Date().getFullYear()}
+          yearRange={12}
+          maxYear={new Date().getFullYear() + 2}
           onValueChange={onChange}
         />
       );

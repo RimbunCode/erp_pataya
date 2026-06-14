@@ -1,9 +1,11 @@
 import {
   createContext,
+  forwardRef,
   memo,
   useCallback,
   useContext,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -112,7 +114,7 @@ export const DEFAULT_DATE_SELECTOR_I18N = {
   rangePlaceholder: "Select date range...",
 };
 
-const DateSelectorContext = createContext({
+export const DateSelectorContext = createContext({
   i18n: DEFAULT_DATE_SELECTOR_I18N,
   variant: "outline",
   size: "default",
@@ -585,191 +587,247 @@ const DateSelectorPeriodTabs = memo(function DateSelectorPeriodTabs({
   );
 });
 
-const DateSelectorDayPicker = memo(function DateSelectorDayPicker({
-  currentMonth,
-  onMonthChange,
-  selectedDate,
-  selectedEndDate,
-  onDayClick,
-  isRange,
-  onDayHover,
-  hoverDate,
-  years,
-  showTwoMonths = true,
-  weekStartsOn,
-  withTime = false,
-  timeValue,
-  onTimeChange,
-  scrollTick,
-  className,
-}) {
-  const { i18n } = useDateSelectorContext();
-  const isMobile = useIsMobile();
-  const [picker, setPicker] = useState(null); // null | "month" | "year"
-  const [timeOpen, setTimeOpen] = useState(false);
-
-  // Ringkasan HH:mm untuk trigger di header (basis: tanggal terpilih / sekarang).
-  const timeBase = timeValue instanceof Date ? timeValue : new Date();
-  const timeLabel = `${`${timeBase.getHours()}`.padStart(2, "0")}:${`${timeBase.getMinutes()}`.padStart(2, "0")}`;
-
-  // Buka time → tutup picker bulan/tahun (overlay sama, tak boleh tumpang).
-  const toggleTime = () => {
-    setPicker(null);
-    setTimeOpen((v) => !v);
-  };
-
-  const selected = isRange
-    ? selectedDate && selectedEndDate
-      ? { from: selectedDate, to: selectedEndDate }
-      : selectedDate
-        ? { from: selectedDate, to: hoverDate || selectedDate }
-        : undefined
-    : selectedDate;
-
-  const formatters = {
-    formatWeekdayName: (date) => {
-      const dayIndex = date.getDay();
-      return i18n.weekdaysShort[dayIndex] || i18n.weekdays[dayIndex];
+export const DateSelectorDayPicker = memo(
+  forwardRef(function DateSelectorDayPicker(
+    {
+      currentMonth,
+      onMonthChange,
+      selectedDate,
+      selectedEndDate,
+      selectedDates,
+      onDayClick,
+      isRange,
+      mode,
+      onDayHover,
+      hoverDate,
+      years,
+      showTwoMonths = true,
+      weekStartsOn,
+      withTime = false,
+      timeValue,
+      onTimeChange,
+      minDate,
+      maxDate,
+      scrollTick,
+      className,
     },
-  };
+    ref,
+  ) {
+    const { i18n } = useDateSelectorContext();
+    const isMobile = useIsMobile();
+    const [picker, setPicker] = useState(null); // null | "month" | "year"
+    const [timeOpen, setTimeOpen] = useState(false);
 
-  // classNames diselaraskan dengan DatetimePicker agar gaya calendar identik.
-  const dayPickerClassNames = {
-    dropdowns: "flex w-full gap-2",
-    months: "flex w-full h-fit",
-    month: "flex flex-col w-full",
-    month_caption: "hidden",
-    button_previous: "hidden",
-    button_next: "hidden",
-    month_grid: "w-full border-collapse",
-    // Grid rapat (tanpa gap) agar rentang menyambung; hari square (w-9 h-9).
-    weekdays: "flex justify-center mt-2",
-    weekday: "text-muted-foreground w-9 font-normal text-[0.8rem]",
-    week: "flex w-full justify-center mt-0.5",
-    day: "h-9 w-9 text-center text-sm p-0 relative flex items-center justify-center [&:has([aria-selected].day-range-end.day-range-start)]:rounded-full! [&:has([aria-selected].day-range-end)]:rounded-r-full [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-full last:[&:has([aria-selected])]:rounded-r-full focus-within:relative focus-within:z-20",
-    day_button:
-      "size-9 rounded-md p-0 font-normal aria-selected:opacity-100 cursor-pointer",
-    today:
-      "border bg-muted border-muted-foreground [&:not([data-selected=true])]:rounded-full",
-    outside:
-      "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
-    disabled: "text-muted-foreground opacity-50",
-    selected:
-      "bg-foreground! text-background! border-none! hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background [&:not(.day-range-start):not(.day-range-middle):not(.day-range-end)]:rounded-full",
-    range_start: "day-range-start rounded-l-full",
-    range_middle: "day-range-middle rounded-none!",
-    range_end: "day-range-end rounded-r-full",
-    hidden: "invisible",
-  };
+    useImperativeHandle(ref, () => ({
+      resetOverlays: () => {
+        setPicker(null);
+        setTimeOpen(false);
+      },
+    }));
 
-  return (
-    <div className={cn("w-full", className)}>
-      {/* Header: bulan & tahun dapat dipilih + navigasi prev/next. */}
-      <div className="flex items-center justify-between mb-1">
-        <div className="text-md font-bold ms-2 flex items-center [&_button]:cursor-pointer">
-          <button
-            type="button"
-            className="hover:underline"
-            onClick={() => setPicker(picker === "month" ? null : "month")}
-          >
-            {i18n.months[currentMonth.getMonth()]}
-          </button>
-          <button
-            type="button"
-            className="ms-1 hover:underline"
-            onClick={() => setPicker(picker === "year" ? null : "year")}
-          >
-            {currentMonth.getFullYear()}
-          </button>
-        </div>
-        <div className="flex items-center space-x-1">
-          {/* Trigger time: ringkas HH:mm di header, buka panel overlay. */}
-          {withTime && (
-            <Button
+    // Ringkasan HH:mm untuk trigger di header (basis: tanggal terpilih / sekarang).
+    const timeBase = timeValue instanceof Date ? timeValue : new Date();
+    const timeLabel = `${`${timeBase.getHours()}`.padStart(2, "0")}:${`${timeBase.getMinutes()}`.padStart(2, "0")}`;
+
+    // Buka time → tutup picker bulan/tahun (overlay sama, tak boleh tumpang).
+    const toggleTime = () => {
+      setPicker(null);
+      setTimeOpen((v) => !v);
+    };
+
+    const effectiveMode = mode ?? (isRange ? "range" : "single");
+
+    const selected =
+      effectiveMode === "multiple"
+        ? selectedDates
+        : isRange
+          ? selectedDate && selectedEndDate
+            ? { from: selectedDate, to: selectedEndDate }
+            : selectedDate
+              ? { from: selectedDate, to: hoverDate || selectedDate }
+              : undefined
+          : selectedDate;
+
+    const formatters = {
+      formatWeekdayName: (date) => {
+        const dayIndex = date.getDay();
+        return i18n.weekdaysShort[dayIndex] || i18n.weekdays[dayIndex];
+      },
+    };
+
+    // classNames diselaraskan dengan DatetimePicker agar gaya calendar identik.
+    const dayPickerClassNames = {
+      dropdowns: "flex w-full gap-2",
+      months: "flex w-full h-fit",
+      month: "flex flex-col w-full",
+      month_caption: "hidden",
+      button_previous: "hidden",
+      button_next: "hidden",
+      month_grid: "w-full border-collapse",
+      // Grid rapat (tanpa gap) agar rentang menyambung; hari square (w-9 h-9).
+      weekdays: "flex justify-center mt-2",
+      weekday: "text-muted-foreground w-9 font-normal text-[0.8rem]",
+      week: "flex w-full justify-center mt-0.5",
+      day: "h-9 w-9 text-center text-sm p-0 relative flex items-center justify-center [&:has([aria-selected].day-range-end.day-range-start)]:rounded-full! [&:has([aria-selected].day-range-end)]:rounded-r-full [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-full last:[&:has([aria-selected])]:rounded-r-full focus-within:relative focus-within:z-20",
+      day_button:
+        "size-9 rounded-md p-0 font-normal aria-selected:opacity-100 cursor-pointer",
+      today:
+        "border bg-muted border-muted-foreground [&:not([data-selected=true])]:rounded-full",
+      outside:
+        "day-outside text-muted-foreground opacity-50 aria-selected:bg-accent/50 aria-selected:text-muted-foreground aria-selected:opacity-30",
+      disabled: "text-muted-foreground opacity-50",
+      selected:
+        "bg-foreground! text-background! border-none! hover:bg-foreground hover:text-background focus:bg-foreground focus:text-background [&:not(.day-range-start):not(.day-range-middle):not(.day-range-end)]:rounded-full",
+      range_start: "day-range-start rounded-l-full",
+      range_middle: "day-range-middle rounded-none!",
+      range_end: "day-range-end rounded-r-full",
+      hidden: "invisible",
+    };
+
+    return (
+      <div className={cn("w-full", className)}>
+        {/* Header: bulan & tahun dapat dipilih + navigasi prev/next. */}
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-md font-bold ms-2 flex items-center [&_button]:cursor-pointer">
+            <button
               type="button"
-              variant="ghost"
-              size="sm"
-              aria-expanded={timeOpen}
-              className={cn(
-                "h-7 gap-1 px-2 font-normal",
-                timeOpen && SELECTED_ITEM_CLASS,
-              )}
-              onClick={toggleTime}
+              className="hover:underline"
+              onClick={() => {
+                setTimeOpen(false);
+                setPicker(picker === "month" ? null : "month");
+              }}
             >
-              <Clock className="size-3.5" />
-              {timeLabel}
-            </Button>
-          )}
-          <div className={cn("flex space-x-2", picker && "invisible")}>
-            <Button
+              {i18n.months[currentMonth.getMonth()]}
+            </button>
+            <button
               type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onMonthChange?.(subMonths(currentMonth, 1))}
+              className="ms-1 hover:underline"
+              onClick={() => {
+                setTimeOpen(false);
+                setPicker(picker === "year" ? null : "year");
+              }}
             >
-              <ChevronLeftIcon />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={() => onMonthChange?.(addMonths(currentMonth, 1))}
-            >
-              <ChevronRightIcon />
-            </Button>
+              {currentMonth.getFullYear()}
+            </button>
+          </div>
+          <div className="flex items-center space-x-1">
+            {/* Trigger time: ringkas HH:mm di header, buka panel overlay. */}
+            {withTime && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-expanded={timeOpen}
+                className={cn(
+                  "h-7 gap-1 px-2 font-normal",
+                  timeOpen && SELECTED_ITEM_CLASS,
+                )}
+                onClick={toggleTime}
+              >
+                <Clock className="size-3.5" />
+                {timeLabel}
+              </Button>
+            )}
+            <div className={cn("flex space-x-2", picker && "invisible")}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onMonthChange?.(subMonths(currentMonth, 1))}
+              >
+                <ChevronLeftIcon />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => onMonthChange?.(addMonths(currentMonth, 1))}
+              >
+                <ChevronRightIcon />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-      <div className="relative">
-        <DayPicker
-          mode={isRange ? "range" : "single"}
-          month={currentMonth}
-          onMonthChange={onMonthChange}
-          selected={selected}
-          // onSelect WAJIB ada agar engine range RDP aktif (modifier
-          // range_start/middle/end + preview hover via selected={{from,to}}).
-          // Tapi onSelect menelan klik-kedua di tanggal start (dianggap deselect).
-          // Solusi: onSelect jadi no-op; state digerakkan onDayClick (klik mentah,
-          // fire tiap klik) → handleDayClick urus same-day.
-          onSelect={() => {}}
-          onDayClick={(day) => onDayClick(day)}
-          onDayMouseEnter={(day) => {
-            if (isRange && onDayHover) onDayHover(day);
-          }}
-          onDayMouseLeave={() => {
-            if (isRange && onDayHover) onDayHover(undefined);
-          }}
-          numberOfMonths={isMobile ? 1 : showTwoMonths ? 2 : 1}
-          showOutsideDays
-          weekStartsOn={weekStartsOn}
-          formatters={formatters}
-          classNames={dayPickerClassNames}
-        />
-        {picker && (
-          <MonthYearPicker
-            mode={picker}
-            current={currentMonth}
-            months={i18n.monthsShort}
-            years={years}
-            onPick={(d, next) => {
-              onMonthChange?.(d);
-              setPicker(next);
+        <div className="relative">
+          <DayPicker
+            mode={effectiveMode}
+            month={currentMonth}
+            onMonthChange={onMonthChange}
+            selected={selected}
+            // onSelect WAJIB ada agar engine range RDP aktif (modifier
+            // range_start/middle/end + preview hover via selected={{from,to}}).
+            // Tapi onSelect menelan klik-kedua di tanggal start (dianggap deselect).
+            // Solusi: onSelect jadi no-op untuk single/range; state digerakkan onDayClick
+            // (klik mentah, fire tiap klik). Untuk multiple: onSelect dipakai normal.
+            onSelect={
+              effectiveMode === "multiple"
+                ? (days) => onDayClick(days)
+                : () => {}
+            }
+            onDayClick={
+              effectiveMode !== "multiple"
+                ? (day) => onDayClick(day)
+                : undefined
+            }
+            onDayMouseEnter={(day) => {
+              if (isRange && onDayHover) onDayHover(day);
             }}
-            className="absolute inset-0"
+            onDayMouseLeave={() => {
+              if (isRange && onDayHover) onDayHover(undefined);
+            }}
+            disabled={[
+              maxDate ? { after: maxDate } : null,
+              minDate ? { before: minDate } : null,
+            ].filter(Boolean)}
+            numberOfMonths={isMobile ? 1 : showTwoMonths ? 2 : 1}
+            showOutsideDays
+            weekStartsOn={weekStartsOn}
+            formatters={formatters}
+            classNames={dayPickerClassNames}
           />
-        )}
-        {withTime && timeOpen && (
-          <DaySelectorTimePicker
-            value={timeValue}
-            onChange={onTimeChange}
-            scrollTick={scrollTick}
-            className="absolute inset-0"
-          />
-        )}
+          {picker && (
+            <MonthYearPicker
+              mode={picker}
+              current={currentMonth}
+              months={i18n.monthsShort}
+              years={years}
+              onPick={(d, next) => {
+                onMonthChange?.(d);
+                setPicker(next);
+              }}
+              className="absolute inset-0"
+            />
+          )}
+          {withTime && timeOpen && (
+            <DaySelectorTimePicker
+              value={timeValue}
+              onChange={onTimeChange}
+              scrollTick={scrollTick}
+              className="absolute inset-0"
+            />
+          )}
+        </div>
+        <div className="mt-2 flex justify-start">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              const now = new Date();
+              setPicker(null);
+              setTimeOpen(false);
+              onMonthChange?.(now);
+              onDayClick?.(now);
+              if (withTime) onTimeChange?.(now);
+            }}
+          >
+            {withTime ? "Now" : "Today"}
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-});
+    );
+  }),
+);
 
 /**
  * MonthYearPicker — overlay pilih bulan / tahun di header calendar (pola
@@ -777,20 +835,27 @@ const DateSelectorDayPicker = memo(function DateSelectorDayPicker({
  */
 function MonthYearPicker({ mode, current, months, years, onPick, className }) {
   const yearRef = useRef(null);
+  const viewportRef = useRef(null);
   const curYear = current.getFullYear();
   const curMonth = current.getMonth();
 
   useEffect(() => {
-    if (mode === "year") {
-      yearRef.current?.scrollIntoView({ behavior: "auto", block: "center" });
-    }
-  }, [mode]);
+    if (mode !== "year") return;
+    const id = setTimeout(() => {
+      const el = yearRef.current;
+      const viewport = viewportRef.current;
+      if (!el || !viewport) return;
+      const elTop = el.offsetTop;
+      const elHeight = el.offsetHeight;
+      const vpHeight = viewport.offsetHeight;
+      viewport.scrollTop = elTop - vpHeight / 2 + elHeight / 2;
+    }, 10);
+    return () => clearTimeout(id);
+  }, [mode, curYear]);
 
   return (
     <div className={cn("overflow-hidden bg-popover", className)}>
-      {/* h-full mengisi overlay (absolute inset-0 = setinggi calendar) lalu scroll
-          saat konten lebih tinggi — berlaku untuk daftar tahun maupun bulan. */}
-      <ScrollArea className="h-full">
+      <div ref={viewportRef} className="h-full overflow-y-auto">
         {mode === "year" ? (
           <div className="grid grid-cols-4 gap-1 p-1">
             {years.map((y) => (
@@ -827,7 +892,7 @@ function MonthYearPicker({ mode, current, months, years, onPick, className }) {
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </div>
   );
 }
@@ -1057,7 +1122,12 @@ function TimeColumn({
  * area calendar (dibuka dari trigger time di header), jadi tinggi mengisi penuh
  * (`h-full`) agar tak menambah tinggi vertikal popup.
  */
-function DaySelectorTimePicker({ value, onChange, scrollTick, className }) {
+export function DaySelectorTimePicker({
+  value,
+  onChange,
+  scrollTick,
+  className,
+}) {
   const base = value instanceof Date ? value : new Date();
   const hour = base.getHours();
   const minute = base.getMinutes();
@@ -1232,6 +1302,7 @@ export function DateSelector({
   // selectedYear/value, sehingga effect scroll (deps berbasis nilai) tak fire.
   // Bump counter ini agar effect re-run tanpa peduli nilai berubah atau tidak.
   const [scrollTick, setScrollTick] = useState(0);
+  const dayPickerRef = useRef(null);
 
   return (
     <DateSelectorContext.Provider value={contextValue}>
@@ -1264,6 +1335,7 @@ export function DateSelector({
             size="sm"
             onClick={() => {
               setScrollTick((t) => t + 1);
+              dayPickerRef.current?.resetOverlays();
               const now = new Date();
               const y = now.getFullYear();
               switch (periodType) {
@@ -1294,6 +1366,7 @@ export function DateSelector({
         {periodType === "day" ? (
           <div className="w-full pb-1">
             <DateSelectorDayPicker
+              ref={dayPickerRef}
               currentMonth={calendarMonth}
               onMonthChange={setCalendarMonth}
               selectedDate={selectedDate}

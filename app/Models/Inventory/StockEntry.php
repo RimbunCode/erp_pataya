@@ -14,14 +14,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockEntry extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
-
-    protected $guarded = ['id'];
-    protected $casts   = [
+    protected               $guarded           = ['id'];
+    protected               $casts             = [
         'date'          => 'datetime',
         'received_date' => 'datetime',
         'using_transit' => 'boolean',
     ];
-    public string $keyBreadcrumb               = 'code';
+    public string           $keyBreadcrumb     = 'code';
     protected static string $defaultFormatCode = '@[branch_code]/StockEntry-@[iiii]/@[yy]';
 
     public function codeRelations() {
@@ -34,7 +33,6 @@ class StockEntry extends Model {
     public static function templateLink() {
         return ':code';
     }
-
     // EXAMPLE appendStatus
     /**
      * @return FormStatus[]
@@ -42,18 +40,18 @@ class StockEntry extends Model {
     // protected function appendStatus(): array {
     //   return [FormStatus::OVERDUE];
     // }
-    public string $translateKey    = 'inventory.stockEntry';
+    public string   $translateKey  = 'inventory.stockEntry';
     protected array $configColumns = [
-        'code' => [
+        'code'   => [
             'isLink' => true,
             'show'   => true,
             'order'  => 0,
         ],
-        'date' => [
+        'date'   => [
             'show'  => true,
             'order' => 1,
         ],
-        'type' => [
+        'type'   => [
             'show'       => true,
             'order'      => 2,
             'valueTrans' => 'inventory.stockEntry.types',
@@ -62,10 +60,7 @@ class StockEntry extends Model {
             'show'  => true,
             'order' => 3,
         ],
-        'items' => [
-            'show'  => true,
-            'order' => 10,
-        ],
+        'items',
         'additionalCosts',
         'differenceAccount',
         'referenceable',
