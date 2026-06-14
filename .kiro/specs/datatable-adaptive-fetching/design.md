@@ -242,15 +242,23 @@ Tetap dipertahankan tanpa perubahan perilaku: pagination, `?id`, saved filter (`
 
 ### Perubahan Frontend (carrier cookie)
 
-`Table2.jsx`:
-- `createHeaders`: baca `getCookieByName(DATATABLE_COLUMNS_KEY)` — **key polos** (hapus suffix
-  `_${pathname}` lama). Read by-name; browser sudah menyaring cookie mana yang terkirim per path.
-- `setCookie`: tulis ke `DATATABLE_COLUMNS_KEY` polos dgn `path: window.location.pathname` —
-  **isolasi per-halaman lewat path cookie** (mis. `/items` punya cookie sendiri, tak menimpa `/sales`).
-- `onReset`: `removeCookie(DATATABLE_COLUMNS_KEY, window.location.pathname)` (path sama dgn write).
-- Konsekuensi: nama cookie sama (`datatable_columns`) tapi di-scope per path. Backend
-  `$request->cookie('datatable_columns')` otomatis menerima preferensi untuk path yang diakses.
-  `Table.jsx` (V1) pakai localStorage — tak diubah (tak ke backend).
+Isolasi antar-halaman lewat **nama cookie unik per-path** (bukan path-scoping cookie). Alasan:
+path-scoping (nama sama, `path` beda) rapuh — `document.cookie` tidak mengekspos `path`, sehingga
+sebagian browser (mis. Edge) bisa mengembalikan cookie dari path lain saat nama identik. Maka
+pembeda dipindah ke **nama** via suffix path ter-sanitize.
+
+Helper `datatableColumnsCookieKey(pathname)` (Table2.jsx) — sanitizer: `trim slash → lowercase →
+non-alnum jadi "_"`, hasil `datatable_columns_<slug>` (mis. `/items` → `datatable_columns_items`).
+Sanitizer ini **wajib identik** dgn backend `DataTableScope::datatableColumnsCookieKey($request->path())`.
+
+- `createHeaders`: `getCookieByName(datatableColumnsCookieKey(window.location.pathname))`.
+- `setCookie`: nama per-path, `path: "/"` (nama yang membedakan, jadi path cookie tak perlu).
+- `onReset`: `removeCookie(datatableColumnsCookieKey(...), "/")`.
+- Backend: `$request->cookie($this->datatableColumnsCookieKey($request->path()))` — rekonstruksi
+  nama sama. `$request->path()` sudah tanpa leading slash & query.
+- `bootstrap/app.php`: `encryptCookies(except: ['datatable_columns*'])` — glob mencakup semua
+  varian per-path (lihat di bawah).
+- `Table.jsx` (V1) pakai localStorage — tak diubah (tak ke backend).
 
 ### Reusability Table2: opsi skip-persist (`persistColumns`)
 

@@ -159,14 +159,15 @@ backend, so that preferensi kolom benar-benar memengaruhi query.
 
 #### Acceptance Criteria
 
-1. THE `Table2.jsx` SHALL menulis cookie dengan key `datatable_columns` (tanpa suffix pathname)
-   dan `path` = path halaman saat ini (`window.location.pathname`), sehingga preferensi kolom
-   ter-isolasi per-halaman lewat path cookie.
-2. THE `Table2.jsx` SHALL membaca cookie dengan key `datatable_columns` (by-name).
-3. WHEN user mereset kolom, THE `Table2.jsx` SHALL menghapus cookie `datatable_columns` dengan
-   `path` yang sama dengan saat menulis (`window.location.pathname`).
-4. THE konfigurasi `bootstrap/app.php` SHALL mengecualikan `datatable_columns` dari enkripsi cookie
-   (verifikasi; sudah ada).
+1. THE `Table2.jsx` SHALL menulis cookie dengan nama unik per-path
+   `datatable_columns_<sanitized(pathname)>` (`path: "/"`), sehingga preferensi kolom ter-isolasi
+   antar-halaman lewat NAMA cookie (bukan path-scoping yang rapuh di sebagian browser).
+2. THE sanitizer nama cookie di frontend dan backend SHALL identik: trim slash → lowercase →
+   karakter non-alnum jadi `_`.
+3. THE `Table2.jsx` SHALL membaca/menghapus cookie dengan nama hasil sanitizer yang sama.
+4. THE `DataTableScope` SHALL membaca cookie via `$request->cookie(<nama hasil sanitize $request->path()>)`.
+5. THE konfigurasi `bootstrap/app.php` SHALL mengecualikan `datatable_columns*` (glob) dari enkripsi
+   cookie agar semua varian per-path terbaca plaintext.
 
 ### Requirement 8: Table2 reusable dengan opsi skip-persist
 

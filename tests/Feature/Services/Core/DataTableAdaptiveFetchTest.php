@@ -146,7 +146,7 @@ class DataTableAdaptiveFetchTest extends TestCase {
     public function test_hidden_relation_not_eager_loaded_when_cookie_excludes_it(): void {
         $this->seedData();
         // Cookie hanya menampilkan `name` → relasi customer tidak visible.
-        $cookie = ['datatable_columns' => json_encode(['name' => ['size' => '1fr', 'order' => 0]])];
+        $cookie = $this->dtCookie(['name' => ['size' => '1fr', 'order' => 0]]);
 
         $result = AdaptiveRecord::dataTable($this->ajax(cookies: $cookie));
         $row    = $result['data']->items()[0];
@@ -158,10 +158,10 @@ class DataTableAdaptiveFetchTest extends TestCase {
 
     public function test_visible_relation_is_eager_loaded_with_fk_selected(): void {
         $this->seedData();
-        $cookie = ['datatable_columns' => json_encode([
+        $cookie = $this->dtCookie([
             'name'     => ['order' => 0],
             'customer' => ['order' => 1],
-        ])];
+        ]);
 
         $result = AdaptiveRecord::dataTable($this->ajax(cookies: $cookie));
         $row    = $result['data']->items()[0];
@@ -189,7 +189,7 @@ class DataTableAdaptiveFetchTest extends TestCase {
         // templateLink rujuk `description` (kolom hidden) + `customer.name` (relasi,
         // dot-notation). Cookie hanya `name` → keduanya tetap wajib ikut query.
         AdaptiveRecord::$tplOverride = ':name - :description (:customer.name)';
-        $cookie                      = ['datatable_columns' => json_encode(['name' => ['order' => 0]])];
+        $cookie                      = $this->dtCookie(['name' => ['order' => 0]]);
 
         $result = AdaptiveRecord::dataTable($this->ajax(cookies: $cookie));
         $row    = $result['data']->items()[0];
@@ -221,10 +221,23 @@ class DataTableAdaptiveFetchTest extends TestCase {
         $this->assertSame(5, (int) $row->qty);
     }
 
+    public function test_cookie_from_other_path_does_not_affect_current_page(): void {
+        $this->seedData();
+        // Cookie milik halaman lain (datatable_columns_sales) tak boleh dipakai di
+        // /items → backend baca datatable_columns_items (tak ada) → fallback show:true.
+        $cookie = ['datatable_columns_sales' => json_encode(['name' => ['order' => 0]])];
+
+        $result = AdaptiveRecord::dataTable($this->ajax(cookies: $cookie));
+        $row    = $result['data']->items()[0];
+
+        // Fallback default → description (show:true) tetap ter-select.
+        $this->assertArrayHasKey('description', $row->getAttributes());
+    }
+
     public function test_sort_by_hidden_local_column_stays_valid(): void {
         $this->seedData();
         // description disembunyikan tapi dipakai sort → query tetap valid.
-        $cookie = ['datatable_columns' => json_encode(['name' => ['order' => 0]])];
+        $cookie = $this->dtCookie(['name' => ['order' => 0]]);
 
         $result = AdaptiveRecord::dataTable($this->ajax(['sort' => '-description'], $cookie));
         $ids    = collect($result['data']->items())->pluck('name')->all();
