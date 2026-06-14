@@ -223,8 +223,8 @@ class FilterTreeCleaner {
 
         return match ($type) {
             'number', 'currency' => $this->isNumeric($value),
-            'time'  => $this->isTime($value),
-            default => $this->isFilled($value),
+            'time'               => $this->isTime($value),
+            default              => $this->isFilled($value),
         };
     }
 

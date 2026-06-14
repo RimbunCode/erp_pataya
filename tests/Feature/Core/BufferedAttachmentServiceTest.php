@@ -8,7 +8,9 @@ use App\Models\User\User;
 use App\Services\Core\BufferedAttachmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class BufferedAttachmentServiceTest extends TestCase {
@@ -77,7 +79,7 @@ class BufferedAttachmentServiceTest extends TestCase {
     }
 
     public function test_attaches_buffered_files(): void {
-        \Illuminate\Support\Facades\Storage::fake('local');
+        Storage::fake('local');
         $user = User::factory()->create();
         $this->actingAs($user);
         $unit = Unit::create(['code' => 'CTN', 'name' => 'Carton', 'group' => 'Others']);
@@ -86,7 +88,7 @@ class BufferedAttachmentServiceTest extends TestCase {
             'isPublic' => ['false'],
             'name'     => ['doc'],
         ], [], [
-            'files' => [\Illuminate\Http\UploadedFile::fake()->create('doc.pdf', 10)],
+            'files' => [UploadedFile::fake()->create('doc.pdf', 10)],
         ]);
         $request->setUserResolver(fn () => $user);
 

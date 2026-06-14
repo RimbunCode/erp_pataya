@@ -532,9 +532,9 @@ class FilterEvaluator {
     private function normalizeScalar(string $type, mixed $value): mixed {
         if ($type === 'boolean') {
             return match ($value) {
-                'true', true, 1, '1' => true,
+                'true', true, 1, '1'   => true,
                 'false', false, 0, '0' => false,
-                default => (bool) $value,
+                default                => (bool) $value,
             };
         }
 
