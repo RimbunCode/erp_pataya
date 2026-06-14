@@ -242,14 +242,15 @@ Tetap dipertahankan tanpa perubahan perilaku: pagination, `?id`, saved filter (`
 
 ### Perubahan Frontend (carrier cookie)
 
-`Table2.jsx` & `Table.jsx`:
-- `createHeaders` (`Table2.jsx:76`): baca `getCookieByName(DATATABLE_COLUMNS_KEY)` — hapus `_${window.location.pathname}`.
-- `setCookie` (`Table2.jsx:425`): tulis ke `DATATABLE_COLUMNS_KEY` polos, opsi `path: "/"` agar
-  cookie terkirim ke semua endpoint (bukan hanya pathname tabel).
-- `onReset` (`Table2.jsx:695-698`): `removeCookie` harus pakai key polos `DATATABLE_COLUMNS_KEY`
-  + `path: "/"` (sekarang masih ber-suffix pathname → reset tak menghapus cookie yang benar).
-- Konsekuensi: satu cookie `datatable_columns` global. Aman karena backend hanya memakai key yang
-  dikenal `dataTableColumns` model halaman; key asing diabaikan (aturan 1).
+`Table2.jsx`:
+- `createHeaders`: baca `getCookieByName(DATATABLE_COLUMNS_KEY)` — **key polos** (hapus suffix
+  `_${pathname}` lama). Read by-name; browser sudah menyaring cookie mana yang terkirim per path.
+- `setCookie`: tulis ke `DATATABLE_COLUMNS_KEY` polos dgn `path: window.location.pathname` —
+  **isolasi per-halaman lewat path cookie** (mis. `/items` punya cookie sendiri, tak menimpa `/sales`).
+- `onReset`: `removeCookie(DATATABLE_COLUMNS_KEY, window.location.pathname)` (path sama dgn write).
+- Konsekuensi: nama cookie sama (`datatable_columns`) tapi di-scope per path. Backend
+  `$request->cookie('datatable_columns')` otomatis menerima preferensi untuk path yang diakses.
+  `Table.jsx` (V1) pakai localStorage — tak diubah (tak ke backend).
 
 ### Reusability Table2: opsi skip-persist (`persistColumns`)
 

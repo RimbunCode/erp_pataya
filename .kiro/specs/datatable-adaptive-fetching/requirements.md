@@ -159,11 +159,12 @@ backend, so that preferensi kolom benar-benar memengaruhi query.
 
 #### Acceptance Criteria
 
-1. THE `Table2.jsx` dan `Table.jsx` SHALL menulis cookie dengan key `datatable_columns` (tanpa
-   suffix pathname) dan `path: "/"`.
-2. THE `Table2.jsx` dan `Table.jsx` SHALL membaca cookie dengan key `datatable_columns` yang sama.
-3. WHEN user mereset kolom, THE `Table2.jsx` SHALL menghapus cookie dengan key `datatable_columns`
-   (tanpa suffix) dan `path: "/"`.
+1. THE `Table2.jsx` SHALL menulis cookie dengan key `datatable_columns` (tanpa suffix pathname)
+   dan `path` = path halaman saat ini (`window.location.pathname`), sehingga preferensi kolom
+   ter-isolasi per-halaman lewat path cookie.
+2. THE `Table2.jsx` SHALL membaca cookie dengan key `datatable_columns` (by-name).
+3. WHEN user mereset kolom, THE `Table2.jsx` SHALL menghapus cookie `datatable_columns` dengan
+   `path` yang sama dengan saat menulis (`window.location.pathname`).
 4. THE konfigurasi `bootstrap/app.php` SHALL mengecualikan `datatable_columns` dari enkripsi cookie
    (verifikasi; sudah ada).
 

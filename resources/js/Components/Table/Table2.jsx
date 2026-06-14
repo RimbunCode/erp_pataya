@@ -424,9 +424,13 @@ const Table2 = forwardRef(function Table2(
         order: index,
       };
     });
+    // Cookie di-scope ke path halaman saat ini (mis. /items) — isolasi preferensi
+    // kolom antar-halaman lewat path cookie, bukan suffix nama. Browser hanya
+    // mengirim cookie ini pada request ke path yang cocok, jadi backend membaca
+    // preferensi yang relevan untuk halaman tsb.
     setCookie(DATATABLE_COLUMNS_KEY, JSON.stringify(newShowedColumns), {
       days: DATATABLE_COLUMNS_EXPIRED,
-      path: "/",
+      path: window.location.pathname,
       sameSite: "lax",
     });
   }, [showedColumns]);
@@ -692,7 +696,7 @@ const Table2 = forwardRef(function Table2(
             }}
             onReset={() => {
               if (!skipCookie) {
-                removeCookie(DATATABLE_COLUMNS_KEY, "/");
+                removeCookie(DATATABLE_COLUMNS_KEY, window.location.pathname);
               }
               router.reload();
               setOpenColumnsFilter(false);
