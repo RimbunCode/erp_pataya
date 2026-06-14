@@ -16,9 +16,9 @@ class Category extends Model {
         return ':name';
     }
 
-    public string $formComponent = 'Inventory/Categories/Form';
-    public string $translateKey  = 'inventory.category';
-    protected $configColumns     = [
+    public string $formComponent   = 'Inventory/Categories/Form';
+    public string $translateKey    = 'inventory.category';
+    protected array $configColumns = [
         'name' => [
             'isLink' => true,
             'show'   => true,
@@ -28,6 +28,22 @@ class Category extends Model {
             'show'       => true,
             'order'      => 1,
             'valueTrans' => 'inventory.category.types',
+            'options'    => ['inventory', 'vehicle', 'service'],
+        ],
+        'defaultUnit' => [
+            'show'       => true,
+            'order'      => 2,
+            'valueTrans' => 'inventory.category.default_unit',
         ],
     ];
+
+    protected static function loadRelationsOnShow() {
+        return [
+            'defaultUnit',
+        ];
+    }
+
+    public function defaultUnit() {
+        return $this->belongsTo(Unit::class, 'default_unit_id');
+    }
 }

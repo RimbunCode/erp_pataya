@@ -3,17 +3,23 @@ import {
   FormPageContentDescription,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useCallback, useEffect, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { ArrowLeftRightIcon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
-import Combobox from "@/Components/Combobox";
-import { CommandItem } from "@/Components/ui/command";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import QueryString from "qs";
+import Select from "@/Components/Select";
 import axios from "axios";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
@@ -23,14 +29,46 @@ export default function Form() {
   const [units, setUnits] = useState([]);
   const [unitSelected, setUnitSelected] = useState({ from: null, to: data });
   const [groups, setGroups] = useState([]);
-  const [searchGroup, setSearchGroup] = useState();
+  const [searchGroup, setSearchGroup] = useState("");
   const [fromValue, setFromValue] = useState("");
   const [toValue, setToValue] = useState("");
+  const latestGroupRequestId = useRef(0);
+  const unitOptions = useMemo(() => {
+    const options = units.map((unit) => ({
+      value: String(unit.id),
+      label: convertTemplateLink(unit) || `${unit.name} (${unit.code})`,
+      unit,
+    }));
+    if (
+      data?.id &&
+      !options.some((option) => option.value === String(data.id))
+    ) {
+      options.push({
+        value: String(data.id),
+        label: convertTemplateLink(data) || `${data.name} (${data.code})`,
+        unit: data,
+      });
+    }
+    return options;
+  }, [units, data]);
+  const findUnitByOptionValue = useCallback(
+    (value) => {
+      if (!value) {
+        return null;
+      }
+      return unitOptions.find((option) => option.value == value)?.unit ?? null;
+    },
+    [unitOptions],
+  );
 
   const loadGroups = useCallback((search) => {
+    const requestId = ++latestGroupRequestId.current;
     axios
       .get(route("units.groups", search ?? ""))
       .then((res) => {
+        if (requestId !== latestGroupRequestId.current) {
+          return;
+        }
         setGroups(res.data);
       })
       .catch((err) => {
@@ -100,10 +138,10 @@ export default function Form() {
   useEffect(() => {
     const searchTimeout = setTimeout(() => {
       loadGroups(searchGroup);
-    }, 500);
+    }, 300);
 
     return () => clearTimeout(searchTimeout);
-  }, [searchGroup]);
+  }, [loadGroups, searchGroup]);
 
   useEffect(() => {
     loadUnits(data.group);
@@ -114,30 +152,19 @@ export default function Form() {
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
           <FormInput required={true} label={t("inventory.unit.columns.group")}>
-            <Combobox
-              search={searchGroup}
-              onSearchChange={(val) => {
-                if (data.group) return;
-                setSearchGroup(val);
-              }}
+            <Select
               options={groups}
-              value={data.group}
+              value={data.group ?? ""}
+              onValueChange={(val) =>
+                setData((prev) => ({
+                  ...prev,
+                  group: val,
+                  customable:
+                    val === "Others" ? true : (prev.customable ?? false),
+                }))
+              }
+              onSearchChange={(val) => setSearchGroup(val)}
               placeholder={t("inventory.unit.columns.group.placeholder")}
-              templateTrigger={(group) => {
-                return <span>{group}</span>;
-              }}
-              templateItem={(group) => {
-                return (
-                  <CommandItem
-                    key={group}
-                    onSelect={() => setData("group", group)}
-                    value={group}
-                    keywords={[group]}
-                  >
-                    {group}
-                  </CommandItem>
-                );
-              }}
             />
           </FormInput>
           <FormInput required={true} label={t("inventory.unit.columns.code")}>
@@ -153,6 +180,7 @@ export default function Form() {
             />
           </FormInput>
           <FormCheckbox
+            disabled={data.group === "Others"}
             checked={data.customable ?? false}
             onCheckedChange={(val) => {
               setData("customable", val);
@@ -184,38 +212,19 @@ export default function Form() {
                 ignoreDisabled={true}
                 label={t("inventory.unit.columns.units.from")}
               >
-                <Combobox
-                  options={units}
-                  value={
-                    unitSelected.from && unitSelected.from?.id === data?.id
-                      ? data
-                      : unitSelected.from
-                  }
-                  disabled={
-                    unitSelected.from && unitSelected.from?.id === data?.id
-                  }
+                <Select
+                  options={unitOptions}
+                  value={String(unitSelected.from?.id ?? "")}
+                  // disabled={
+                  //   unitSelected.from && unitSelected.from?.id === data?.id
+                  // }
+                  onValueChange={(value) => {
+                    setUnitSelected((prev) => ({
+                      ...prev,
+                      from: findUnitByOptionValue(value),
+                    }));
+                  }}
                   placeholder={t("inventory.unit.playground.unit.placeholder")}
-                  templateTrigger={(unit) => {
-                    return (
-                      <span>
-                        {unit.name} ({unit.code})
-                      </span>
-                    );
-                  }}
-                  templateItem={(unit) => {
-                    return (
-                      <CommandItem
-                        key={unit.id}
-                        onSelect={() =>
-                          setUnitSelected((prev) => ({ ...prev, from: unit }))
-                        }
-                        value={`${unit.code} ${unit.name}`}
-                        keywords={[unit.code, unit.name]}
-                      >
-                        {unit.name} ({unit.code})
-                      </CommandItem>
-                    );
-                  }}
                 />
               </FormInput>
               <Button
@@ -231,36 +240,17 @@ export default function Form() {
                 ignoreDisabled={true}
                 label={t("inventory.unit.columns.units.to")}
               >
-                <Combobox
-                  options={units}
-                  value={
-                    unitSelected.to && unitSelected.to?.id === data?.id
-                      ? data
-                      : unitSelected.to
-                  }
-                  disabled={unitSelected.to && unitSelected.to?.id === data?.id}
+                <Select
+                  options={unitOptions}
+                  value={String(unitSelected.to?.id ?? "")}
+                  // disabled={unitSelected.to && unitSelected.to?.id === data?.id}
+                  onValueChange={(value) => {
+                    setUnitSelected((prev) => ({
+                      ...prev,
+                      to: findUnitByOptionValue(value),
+                    }));
+                  }}
                   placeholder={t("inventory.unit.playground.unit.placeholder")}
-                  templateTrigger={(unit) => {
-                    return (
-                      <span>
-                        {unit.name} ({unit.code})
-                      </span>
-                    );
-                  }}
-                  templateItem={(unit) => {
-                    return (
-                      <CommandItem
-                        key={unit.id}
-                        onSelect={() =>
-                          setUnitSelected((prev) => ({ ...prev, to: unit }))
-                        }
-                        value={`${unit.code} ${unit.name}`}
-                        keywords={[unit.code, unit.name]}
-                      >
-                        {unit.name} ({unit.code})
-                      </CommandItem>
-                    );
-                  }}
                 />
               </FormInput>
               <Input

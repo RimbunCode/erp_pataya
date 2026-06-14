@@ -8,6 +8,14 @@ import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
+const SPECIAL_DISPLAY_VALUES = new Set(["\u221E", "-"]);
+
+const isSpecialDisplayValue = (rawValue) => {
+  return (
+    typeof rawValue === "string" && SPECIAL_DISPLAY_VALUES.has(rawValue.trim())
+  );
+};
+
 /**
  * @typedef {import('@/Components/CurrencyInput/index.d.ts').CurrencyInputProps} CurrencyInputProps
  * @type {React.ForwardRefRenderFunction<CurrencyInputProps>}
@@ -28,9 +36,18 @@ export default forwardRef(function CurrencyInput(
   const { t, loading } = useLaravelReactI18n();
   const { default_currency_id } = usePage().props.preferences;
   const prevValueRef = useRef(value);
+  const initialValue =
+    Number.isNaN(value) || value === null || value === undefined
+      ? ""
+      : value.toString();
+  const initialFloatValue = isSpecialDisplayValue(value)
+    ? 0
+    : Number.isNaN(value)
+      ? null
+      : value;
   const [data, setData] = useState({
-    value: Number.isNaN(value) ? "" : (value?.toString() ?? ""),
-    values: { float: Number.isNaN(value) ? null : value },
+    value: initialValue,
+    values: { float: initialFloatValue },
   });
   const [intlConfig, decimalScale] = useMemo(() => {
     const config = {
@@ -84,6 +101,12 @@ export default forwardRef(function CurrencyInput(
         value: "",
         values: { float: null },
       });
+    } else if (isSpecialDisplayValue(value)) {
+      prevValueRef.current = value;
+      setData({
+        value: value.trim(),
+        values: { float: 0 },
+      });
     } else {
       if (max && value > max) {
         value = max;
@@ -108,13 +131,21 @@ export default forwardRef(function CurrencyInput(
       intlConfig={intlConfig}
       value={data?.value ?? ""}
       onValueChange={(value, _name, values) => {
+        const isSpecialValue = isSpecialDisplayValue(value);
+        const floatValue = isSpecialValue ? 0 : (values?.float ?? null);
         setData({
           value: value ?? "",
-          values: values ?? { float: null, formatted: "", value: "" },
+          values: {
+            ...(values ?? {
+              formatted: value ?? "",
+              value: value ?? "",
+            }),
+            float: floatValue,
+          },
         });
 
         if (!onValueChange) return;
-        const float = values?.float ?? null;
+        const float = floatValue;
         if (Object.is(prevValueRef.current, float)) return;
         prevValueRef.current = float;
         onValueChange(float);

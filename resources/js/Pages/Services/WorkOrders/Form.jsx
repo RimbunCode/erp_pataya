@@ -10,9 +10,9 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
+import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
-import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
@@ -39,9 +39,11 @@ export default function Form() {
               placeholder={t("service.workOrder.columns.item.placeholder")}
               value={data}
               onValueChange={(val) => {
+                const defaultUnit = val?.default_uom;
                 setData({
                   item: val,
-                  unit: val?.default_unit,
+                  unit: defaultUnit,
+                  conversion_factor: defaultUnit?.conversion_factor,
                   alternative: null,
                 });
               }}
@@ -51,7 +53,7 @@ export default function Form() {
                   not: "vehicle",
                 },
               }}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },
@@ -102,14 +104,19 @@ export default function Form() {
         required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
-            <UnitLinkModel
+            <ItemUnitLinkModel
               disabled={!dataRow?.item}
               placeholder={t("service.workOrder.columns.unit.placeholder")}
               value={data}
-              onValueChange={(val) => setData("unit", val)}
+              onValueChange={(val) =>
+                setData({
+                  unit: val,
+                  conversion_factor: val?.conversion_factor,
+                })
+              }
               {...attributes}
               filters={{
-                group: dataRow?.item?.default_unit?.group,
+                item_id: dataRow?.item?.item_id,
               }}
             />
           );
@@ -308,7 +315,7 @@ export default function Form() {
               filters={{
                 type: "vehicle",
               }}
-              with={["defaultUnit", "category"]}
+              with={["defaultUom", "category"]}
             />
           </FormInput>
           {defaultData?.started_at && (

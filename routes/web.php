@@ -3,14 +3,17 @@ use App\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;
+use App\Http\Controllers\Core\CommandSearchController;
 use App\Http\Controllers\Core\CompanyController;
 use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\DashboardController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\FormatingSeriesController;
+use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
 use App\Http\Controllers\Core\PrintTemplateController;
+use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\Finances\AccountController;
@@ -21,6 +24,7 @@ use App\Http\Controllers\Finances\PaymentTermTemplateController;
 use App\Http\Controllers\Finances\PurchaseInvoiceController;
 use App\Http\Controllers\Finances\SalesInvoiceController;
 use App\Http\Controllers\Finances\TaxesController;
+use App\Http\Controllers\Helpdesk\TicketController;
 use App\Http\Controllers\Inventory\AttributeController;
 use App\Http\Controllers\Inventory\CategoryController;
 use App\Http\Controllers\Inventory\DeliveryNoteController;
@@ -42,6 +46,7 @@ use App\Http\Controllers\Sales\SalesOrderController;
 use App\Http\Controllers\Service\WorkOrderController;
 use App\Http\Controllers\User\RoleController;
 use App\Http\Controllers\User\UserController;
+use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -78,6 +83,7 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
         Route::delete("/{{$name}}", 'destroy')->name("$uri.destroy");
 
         Route::post("/{{$name}}/comment", 'addComment')->name("$uri.addComment");
+        Route::put("/{{$name}}/comment/{id}", 'editComment')->name("$uri.editComment");
         Route::delete("/{{$name}}/comment/{id}", 'removeComment')->name("$uri.removeComment");
 
         Route::post("/{{$name}}/tag", 'addTag')->name("$uri.addTag");
@@ -113,6 +119,32 @@ Route::get('/model/{model}', [ModelController::class, 'columns'])
     ->where('model', '.*')
     ->middleware(middleware: ['auth'])
     ->name('model.columns');
+// Saved filters (FilterTable transport via ?fid=)
+Route::middleware(['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->group(function () {
+        Route::get('/saved-filters', [SavedFilterController::class, 'index'])->name('saved-filters.index');
+        Route::get('/saved-filters/{savedFilter}', [SavedFilterController::class, 'show'])->name('saved-filters.show');
+        Route::post('/saved-filters', [SavedFilterController::class, 'store'])->name('saved-filters.store');
+        Route::patch('/saved-filters/{savedFilter}', [SavedFilterController::class, 'update'])->name('saved-filters.update');
+        Route::delete('/saved-filters/{savedFilter}', [SavedFilterController::class, 'destroy'])->name('saved-filters.destroy');
+    });
+Route::post('/api/html/sanitize', HtmlSanitizeController::class)
+    ->middleware(middleware: ['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->name('api.html.sanitize');
+Route::get('/commands/search', [CommandSearchController::class, 'index'])
+    ->middleware(middleware: ['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->name('commands.search');
+Route::post('/commands/recent', [CommandSearchController::class, 'track'])
+    ->middleware(middleware: ['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->name('commands.recent.track');
+Route::delete('/commands/recent', [CommandSearchController::class, 'remove'])
+    ->middleware(middleware: ['auth'])
+    ->withoutMiddleware([HandleInertiaRequests::class])
+    ->name('commands.recent.remove');
 
 Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     if (config('app.debug')) {
@@ -156,8 +188,10 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
         Route::resourceDetail('formatingSeries', FormatingSeriesController::class);
         Route::resourceDetail('approvalScheme', ApprovalSchemeController::class);
 
-        Route::resourceDetail('printTemplates', PrintTemplateController::class);
-        Route::get('/printTemplates/{printTemplates}/editor', [PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
+        Route::resourceDetail('printTemplate', PrintTemplateController::class);
+        Route::get('/printTemplates/{printTemplate}/editor', [PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
+        Route::post('/printTemplates/{printTemplate}/preview', [PrintTemplateController::class, 'preview'])->name('printTemplates.preview');
+        Route::post('/printTemplates/{printTemplate}/generate-example-data', [PrintTemplateController::class, 'generateExampleData'])->name('printTemplates.generate-example-data');
         Route::resourceDetail('widget', WidgetController::class);
     });
     // Tags
@@ -207,6 +241,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('purchaseRequest', PurchaseRequestController::class, isSubmmitable: true);
     // Purchase Order
     Route::resourceDetail('purchaseOrder', PurchaseOrderController::class, isSubmmitable: true);
+    Route::post('purchaseOrders/{purchaseOrder}/sync-items', [PurchaseOrderController::class, 'syncItems'])->name('purchaseOrders.syncItems');
+    Route::post('purchaseOrders/{purchaseOrder}/mark-done', [PurchaseOrderController::class, 'markDone'])->name('purchaseOrders.markDone');
     // Purchase Receipt
     Route::resourceDetail('purchaseReceipt', PurchaseReceiptController::class, isSubmmitable: true);
     // / Purchase Group End
@@ -219,9 +255,18 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('workOrder', WorkOrderController::class, isSubmmitable: true);
     // / Service Group End
 
+    // / Helpdesk Group
+    // Ticket
+    Route::resourceDetail('ticket', TicketController::class);
+    Route::put('/tickets/{ticket}/markDone', [TicketController::class, 'markDone'])->name('tickets.markDone');
+    Route::put('/tickets/{ticket}/updateTicket', [TicketController::class, 'updateTicket'])->name('tickets.updateTicket');
+    // / Helpdesk Group End
+
     // / Sales Groups
     // Sales Orders
     Route::resourceDetail('salesOrder', SalesOrderController::class, isSubmmitable: true);
+    Route::post('salesOrders/{salesOrder}/sync-items', [SalesOrderController::class, 'syncItems'])->name('salesOrders.syncItems');
+    Route::post('salesOrders/{salesOrder}/mark-done', [SalesOrderController::class, 'markDone'])->name('salesOrders.markDone');
     // Internal Orders
     Route::resourceDetail('internalOrder', InternalOrderController::class, isSubmmitable: true);
     // / Sales Groups End
@@ -233,8 +278,6 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('generalLedger', GeneralLedgerController::class);
     // Payment Methods
     Route::resourceDetail('paymentMethod', PaymentMethodController::class);
-    // Payment Terms
-    // Route::resourceDetail('paymentTerm', \App\Http\Controllers\Finances\PaymentTermController::class);
     // Payment Term Template
     Route::resourceDetail('paymentTermTemplate', PaymentTermTemplateController::class);
     // Payment Entries

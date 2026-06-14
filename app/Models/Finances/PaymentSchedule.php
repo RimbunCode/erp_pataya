@@ -25,7 +25,11 @@ class PaymentSchedule extends Model {
         ];
     }
 
-    protected $configColumns = [
+    public static function templateLink() {
+        return ':referenceTo';
+    }
+
+    protected array $configColumns = [
         'referenceTo' => [
             'type'               => 'relation',
             'order'              => 0,
@@ -50,8 +54,8 @@ class PaymentSchedule extends Model {
             'order'      => 4,
             'show'       => true,
             'valueTrans' => 'status',
+            'dependsOn'  => ['outstanding_amount', 'paid_amount'],
         ],
-        'paymentTerm',
         'paymentMethod',
 
         'base_currency_code' => [
@@ -91,10 +95,6 @@ class PaymentSchedule extends Model {
                 }
             },
         );
-    }
-
-    public function paymentTerm() {
-        return $this->belongsTo(PaymentTerm::class);
     }
 
     public function paymentMethod() {

@@ -2,6 +2,7 @@
 
 namespace App\Models\Purchase;
 
+use App\FormStatus;
 use App\Models\Model;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
@@ -29,10 +30,10 @@ class PurchaseRequest extends Model {
         return ':code';
     }
 
-    public $keyBreadcrumb        = 'code';
-    public string $formComponent = 'Purchase/PurchaseRequests/Form';
-    public string $translateKey  = 'purchase.purchaseRequest';
-    protected $configColumns     = [
+    public $keyBreadcrumb          = 'code';
+    public string $formComponent   = 'Purchase/PurchaseRequests/Form';
+    public string $translateKey    = 'purchase.purchaseRequest';
+    protected array $configColumns = [
         'code' => [
             'show'   => true,
             'isLink' => true,
@@ -50,7 +51,10 @@ class PurchaseRequest extends Model {
             'show'  => true,
             'order' => 3,
         ],
-        'items',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {
@@ -59,6 +63,21 @@ class PurchaseRequest extends Model {
             'items.item',
             'items.unit',
         ];
+    }
+
+    protected function replaceStatus() {
+        $items           = $this->items;
+        $quantity        = $items->sum('quantity');
+        $orderedQuantity = $items->sum('ordered_quantity');
+
+        if ($orderedQuantity < 0) {
+            return [];
+        } else {
+            return [
+                FormStatus::TO_ORDER->value => [$orderedQuantity >= $quantity ? FormStatus::ORDERED : FormStatus::PARTIALLY_ORDERED],
+            ];
+        }
+
     }
 
     public function items() {

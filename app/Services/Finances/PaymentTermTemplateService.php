@@ -35,11 +35,20 @@ class PaymentTermTemplateService {
         $paymentTermTemplate->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $paymentTermTemplate->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item);
 
             if (Ulid::isValid($item['id'])) {
-                $paymentTermTemplate->items()->find($item['id'])->update($item);
+                $existingItems->get($item['id'])?->update($item);
 
                 continue;
             }

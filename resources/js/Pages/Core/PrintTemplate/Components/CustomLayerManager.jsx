@@ -99,7 +99,7 @@ export default function CustomLayerManager({ root }) {
 
   return (
     <div
-      className="gjs-custom-layer-manager h-full overflow-y-auto overflow-x-hidden text-sm text-left select-none relative"
+      className="gjs-custom-layer-manager relative h-full select-none overflow-x-hidden overflow-y-auto text-left text-sm"
       style={wrapGridStyle}
       onPointerDown={onDragStart}
       onPointerMove={onDragMove}
@@ -116,7 +116,7 @@ export default function CustomLayerManager({ root }) {
       {showIndicator && (
         <div
           ref={indicatorRef}
-          className={cn("absolute w-full h-0.5 bg-yellow-400")}
+          className={cn("absolute h-0.5 w-full bg-primary")}
           style={indicatorStyle}
         ></div>
       )}

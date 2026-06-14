@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -19,9 +18,10 @@ return new class extends Migration
             $table->foreignUlid('item_id')->references('id')->on('item_variants')->cascadeOnDelete();
             $table->string('item_name')->nullable();
             $table->double('quantity')->default(1);
+            $table->double('allocated_qty')->default(0);
             $table->double('returned_quantity')->default(0);
             $table->double('unreturned_quantity')->storedAs('quantity - returned_quantity');
-            $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
+            $table->foreignUlid('item_unit_id')->nullable()->references('id')->on('item_units')->nullOnDelete();
             $table->string('unit_name')->nullable();
             $table->double('conversion_factor')->default(1);
             $table->text('description')->nullable();

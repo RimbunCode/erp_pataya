@@ -35,12 +35,21 @@ class InternalOrder extends Model {
         return $this->belongsTo(Branch::class);
     }
 
+    protected static function loadRelationsOnShow() {
+        return [
+            'items',
+            'items.item',
+            'items.unit',
+            'items.sourceWarehouse',
+        ];
+    }
+
     public function items() {
         return $this->hasMany(InternalOrderItem::class);
     }
 
-    public string $translateKey = 'sales.internalOrder';
-    protected $configColumns    = [
+    public string $translateKey    = 'sales.internalOrder';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,
@@ -56,6 +65,10 @@ class InternalOrder extends Model {
         ],
         'branch' => [
             'ignore' => true,
+        ],
+        'items' => [
+            'show'  => true,
+            'order' => 10,
         ],
     ];
 }

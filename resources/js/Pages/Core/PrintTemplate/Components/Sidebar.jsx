@@ -2,8 +2,8 @@ import {
   BlocksIcon,
   BracesIcon,
   Brush,
-  ChevronRight,
   CogIcon,
+  KeyRound,
   Layers3Icon,
 } from "lucide-react";
 import {
@@ -12,243 +12,198 @@ import {
   StylesProvider,
   useEditor,
 } from "@grapesjs/react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/Components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/Components/ui/tabs";
 
 import CustomBlockManager from "./CustomBlockManager";
 import CustomLayerManager from "./CustomLayerManager";
+import CustomModePanel from "./CustomModePanel";
 import CustomStyleManager from "./CustomStyleManager";
-import React from "react";
-import RelationsInspector from "./Inspector/RelationsInspector";
+import React, { useEffect, useMemo, useState } from "react";
+import StaticHTMLInspector from "./Inspector/StaticHTMLInspector";
+import TokenConfigurationManager from "./TokenConfigurationManager";
+import VariableManager from "./VariableManager";
 import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
 
-function VariableItem({ path = "", ...variable }) {
-  const { editor } = useEditor();
-  const { t } = useLaravelReactI18n();
-  const fullKey = path ? `${path}.${variable.name}` : variable.name;
-  const isRelation =
-    (variable.type === "relation" ||
-      variable.type === "data" ||
-      variable.type === "preferences") &&
-    variable.columns?.length;
+const sidebarTabDefs = [
+  {
+    value: "style",
+    labelKey: "core.printTemplate.editor.tab_style",
+    fallback: "Style",
+    icon: Brush,
+  },
+  {
+    value: "layer",
+    labelKey: "core.printTemplate.editor.tab_layer",
+    fallback: "Layer",
+    icon: Layers3Icon,
+  },
+  {
+    value: "blocks",
+    labelKey: "core.printTemplate.editor.tab_blocks",
+    fallback: "Blocks",
+    icon: BlocksIcon,
+  },
+  {
+    value: "variables",
+    labelKey: "core.printTemplate.editor.tab_variables",
+    fallback: "Variables",
+    icon: BracesIcon,
+  },
+  {
+    value: "token",
+    labelKey: "core.printTemplate.editor.tab_token",
+    fallback: "Token",
+    icon: KeyRound,
+  },
+  {
+    value: "inspector",
+    labelKey: "core.printTemplate.editor.tab_inspector",
+    fallback: "Inspector",
+    icon: CogIcon,
+  },
+];
 
-  const handleInsert = () => {
-    if (!editor) return;
-
-    const selected = editor.getSelected();
-    const token = `{{${variable.parentType === "preferences" ? `companyDetail "${variable.name}"` : variable.name}}}`;
-
-    if (selected && selected.is("text")) {
-      const current = selected.get("content") || "";
-      selected.set("content", current + token);
-    } else {
-      editor.addComponents({
-        type: "text",
-        content: token,
-        style: {
-          display: "inline-block",
-          padding: "2px 4px",
-          border: "1px dashed #999",
-          backgroundColor: "#f9f9f9",
-          borderRadius: "4px",
-          fontFamily: "monospace",
-        },
-      });
-    }
-  };
-
-  // Kalau bukan relasi, langsung render item biasa
-  if (!isRelation) {
-    return (
-      <div
-        className="flex flex-col px-2 py-1 border rounded-md hover:bg-muted cursor-pointer transition-colors mt-1"
-        draggable
-        onClick={() => {
-          if (
-            variable.type === "relations" ||
-            variable.type === "data" ||
-            variable.type === "preferences"
-          )
-            return;
-          handleInsert();
-        }}
-        onDragStart={(e) => {
-          if (variable.type === "data" || variable.type === "preferences") {
-            return;
-          }
-          e.dataTransfer.effectAllowed = "copy";
-          e.dataTransfer.setData(
-            "variable/json",
-            JSON.stringify({
-              ...variable,
-            }),
-          );
-
-          // const token = `{{${variable.parentType == "preferences" ? "companyDetail " : ""}${fullKey}}}`;
-          // e.dataTransfer.setData("text/html", `<p>${token}</p>`);
-        }}
-      >
-        <span className="text-sm font-medium">
-          {variable.title ||
-            (variable.titleTrans ? t(variable.titleTrans) : variable.name)}
-        </span>
-        {!(variable.type === "data" || variable.type === "preferences") && (
-          <code className="text-xs text-muted-foreground">
-            {`{{${variable.type === "relation" ? "relation " : ""}${variable.name}}}`}
-          </code>
-        )}
-      </div>
-    );
-  }
-
-  // Kalau relasi, pakai Collapsible
-  return (
-    <Collapsible className="mt-1">
-      <CollapsibleTrigger
-        className={cn(
-          "flex items-center gap-1 w-full px-2 py-1 border rounded-md hover:bg-muted transition-colors [&[data-state=open]_svg]:rotate-90",
-        )}
-      >
-        <ChevronRight className="h-4 w-4 transition-transform duration-200" />
-        <div className="flex flex-col text-left">
-          <span className="text-sm font-medium">
-            {variable.title ||
-              (variable.titleTrans ? t(variable.titleTrans) : variable.name)}
-          </span>
-          {!(variable.type === "data" || variable.type === "preferences") && (
-            <code className="text-xs text-muted-foreground">
-              {"{{" + variable.name + "}}"}
-            </code>
-          )}
-        </div>
-      </CollapsibleTrigger>
-
-      <CollapsibleContent className="pl-4 mt-1 border-l border-muted-foreground/25">
-        {variable.columns.map((sub) => {
-          sub.parentType =
-            variable.type === "data" || variable.type === "preferences"
-              ? variable.type
-              : variable.parentType;
-          return (
-            <VariableItem
-              key={sub.name}
-              path={
-                variable.type === "data" || variable.type === "preferences"
-                  ? ""
-                  : fullKey
-              }
-              {...sub}
-            />
-          );
-        })}
-      </CollapsibleContent>
-    </Collapsible>
-  );
-}
 function Sidebar() {
-  const { dataTableColumns } = usePage().props;
+  const editor = useEditor();
+  const { t } = useLaravelReactI18n();
+  const [activeTab, setActiveTab] = useState("variables");
+  const [isStaticHtmlSelected, setIsStaticHtmlSelected] = useState(false);
+  const [selectedComponent, setSelectedComponent] = useState(null);
+
+  useEffect(() => {
+    const updateSelectedComponentState = () => {
+      const selected = editor.getSelected();
+      const selectedType = selected?.getType?.();
+      setIsStaticHtmlSelected(selectedType === "staticHTML");
+      setSelectedComponent(selected || null);
+    };
+
+    editor.on("component:selected", updateSelectedComponentState);
+    editor.on("component:deselected", updateSelectedComponentState);
+    editor.on("component:update", updateSelectedComponentState);
+
+    updateSelectedComponentState();
+
+    return () => {
+      editor.off("component:selected", updateSelectedComponentState);
+      editor.off("component:deselected", updateSelectedComponentState);
+      editor.off("component:update", updateSelectedComponentState);
+    };
+  }, [editor]);
+
+  useEffect(() => {
+    if (isStaticHtmlSelected && activeTab === "style") {
+      setActiveTab("variables");
+    }
+  }, [activeTab, isStaticHtmlSelected]);
+
+  // Detect if the selected component or its ancestor is a gjsRelationsTable (custom mode or not)
+  const isRelationsTableSelected = useMemo(() => {
+    let current = selectedComponent;
+    while (current) {
+      if (current.getType?.() === "gjsRelationsTable") {
+        return true;
+      }
+      current = current.parent?.();
+    }
+    return false;
+  }, [selectedComponent]);
+
+  // Resolve the actual gjsRelationsTable component (could be the selection itself or an ancestor)
+  const relationsTableComponent = useMemo(() => {
+    let current = selectedComponent;
+    while (current) {
+      if (current.getType?.() === "gjsRelationsTable") {
+        return current;
+      }
+      current = current.parent?.();
+    }
+    return null;
+  }, [selectedComponent]);
+
+  const sidebarTabs = useMemo(
+    () =>
+      sidebarTabDefs.map((tab) => ({
+        ...tab,
+        label: t(tab.labelKey, {}, tab.fallback),
+      })),
+    [t],
+  );
+
+  const visibleTabs = useMemo(() => {
+    if (isStaticHtmlSelected) {
+      return sidebarTabs.filter((tab) => tab.value !== "style");
+    }
+
+    return sidebarTabs;
+  }, [isStaticHtmlSelected, sidebarTabs]);
+
   return (
     <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
       className={cn(
-        "flex flex-col [&_svg]:size-4 order-1 max-w-full  border  lg:col-start-1 border-muted-foreground/25",
-        "[&_:not(div[role=content])+div[role=content]]:border-t-0 [&_div[role=content]:first-child]:border-t-0! [&_div[role=content]]:border-t [&_div[role=content]]:border-muted-foreground/25",
+        "order-1 flex h-full max-w-full flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xs",
       )}
     >
-      <TabsList className="duration-300 ease-in-out sticky z-9 w-full py-2! h-auto rounded-b-none rounded-t-xl items-center justify-start overflow-x-auto divide-x dark:divide-muted bg-background dark:border-muted border-b">
-        <TabsTrigger
-          value="style"
-          className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
-        >
-          <Brush />
-        </TabsTrigger>
-        {/* <TabsTrigger
-          value="trait"
-          className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
-        >
-          <CogIcon />
-        </TabsTrigger> */}
-        <TabsTrigger
-          value="layer"
-          className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
-        >
-          <Layers3Icon />
-        </TabsTrigger>
-        <TabsTrigger
-          value="blocks"
-          className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
-        >
-          <BlocksIcon />
-        </TabsTrigger>
-        <TabsTrigger
-          value="variables"
-          className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
-        >
-          <BracesIcon />
-        </TabsTrigger>
-        <TabsTrigger
-          value="inspector"
-          className="text-base border-0 data-[state=active]:font-bold p-0! px-4! group rounded-none transition-colors"
-        >
-          <CogIcon />
-        </TabsTrigger>
+      <TabsList className="sticky top-0 z-10 h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border bg-card p-1 duration-300 ease-in-out">
+        {visibleTabs.map(({ value, label, icon: Icon }) => (
+          <TabsTrigger
+            key={value}
+            value={value}
+            className={cn(
+              "h-8 shrink-0 gap-1.5 rounded-md border border-transparent px-2 text-xs font-medium text-muted-foreground transition-colors",
+              "hover:bg-muted hover:text-foreground",
+              "data-[state=active]:border-border data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-xs",
+              value === "token" &&
+                isRelationsTableSelected &&
+                relationsTableComponent?.get("customMode") === true &&
+                "hidden",
+            )}
+          >
+            <Icon />
+            <span>{label}</span>
+          </TabsTrigger>
+        ))}
       </TabsList>
-      <TabsContent value="style">
-        {/* <SelectorsProvider>
-          {(props) => <CustomSelectorManager {...props} />}
-        </SelectorsProvider> */}
-        <StylesProvider>
-          {(props) => <CustomStyleManager {...props} />}
-        </StylesProvider>
-      </TabsContent>
-      {/* <TabsContent value="trait">
-        <TraitsProvider>
-          {({ traits }) => (
-            <div className="gjs-custom-style-manager text-left mt-3 p-1">
-              {!traits.length ? (
-                <div>No properties available</div>
-              ) : (
-                traits.map((trait) => (
-                  <TraitPropertyField key={trait.getId()} trait={trait} />
-                ))
-              )}
-            </div>
-          )}
-        </TraitsProvider>
-      </TabsContent> */}
-      <TabsContent value="layer">
+      {!isStaticHtmlSelected && (
+        <TabsContent value="style" className="mt-0 h-full overflow-auto">
+          <StylesProvider>
+            {(props) => <CustomStyleManager {...props} />}
+          </StylesProvider>
+        </TabsContent>
+      )}
+      <TabsContent value="layer" className="mt-0 h-full overflow-hidden">
         <LayersProvider>
           {(props) => <CustomLayerManager {...props} />}
         </LayersProvider>
       </TabsContent>
-      <TabsContent value="blocks">
+      <TabsContent value="blocks" className="mt-0 h-full overflow-auto">
         <BlocksProvider>
           {(props) => <CustomBlockManager {...props} />}
         </BlocksProvider>
       </TabsContent>
-      {/* 🧾 VARIABEL */}
-      <TabsContent value="variables">
-        <div className="p-3 text-left overflow-y-auto max-h-[80vh] space-y-2">
-          <h3 className="font-semibold mb-2 text-base flex items-center gap-2">
-            Variabel Dokumen
-          </h3>
-
-          {!dataTableColumns.length ? (
-            <p className="text-sm text-muted-foreground">
-              Tidak ada variabel tersedia.
-            </p>
-          ) : (
-            dataTableColumns.map((v) => <VariableItem key={v.name} {...v} />)
-          )}
-        </div>
+      {/* 🧾 VARIABEL — replaced by CustomModePanel when a gjsRelationsTable is selected */}
+      <TabsContent value="variables" className="mt-0 h-full overflow-auto">
+        {isRelationsTableSelected ? (
+          <CustomModePanel selectedComponent={relationsTableComponent} />
+        ) : (
+          <VariableManager />
+        )}
       </TabsContent>
-      <TabsContent value="inspector">
-        <RelationsInspector />
+      <TabsContent value="token" className="mt-0 h-full overflow-auto">
+        {isRelationsTableSelected &&
+        relationsTableComponent?.get("customMode") === true ? (
+          <CustomModePanel selectedComponent={relationsTableComponent} />
+        ) : (
+          <TokenConfigurationManager />
+        )}
+      </TabsContent>
+      <TabsContent value="inspector" className="mt-0 h-full overflow-auto">
+        <div className="space-y-3 p-3">
+          <StaticHTMLInspector />
+        </div>
       </TabsContent>
     </Tabs>
   );

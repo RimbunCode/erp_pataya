@@ -11,9 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class StockLedgerEntry extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded       = ['id'];
-    public $translateKey     = 'inventory.stockLedger';
-    protected $configColumns = [
+    protected $guarded             = ['id'];
+    public $translateKey           = 'inventory.stockLedger';
+    protected array $configColumns = [
         'item' => [
             'show'  => true,
             'order' => 0,
@@ -56,19 +56,33 @@ class StockLedgerEntry extends Model {
     ];
     protected $casts = [
         'stock_queue' => 'array',
+        'is_valuated' => 'boolean',
     ];
+
+    public static function templateLink() {
+        return ':referenceable';
+    }
+
+    protected static function loadRelationsOnShow() {
+        return [
+            'item',
+            'unit',
+            'warehouse',
+            'referenceable',
+        ];
+    }
 
     public function canDelete() {
         return false;
     }
 
-    protected static string $defaultFormatCode = 'StockLedger-@[iiii]/@[yy]';
+    protected static string $defaultFormatCode = 'SLE-@[iiii]/@[yy]';
     protected static $generateCodeSeries       = true;
 
     public static function boot() {
         parent::boot();
         self::creating(function ($model) {
-            $model->code = FormatingSeries::generate(StockEntry::class, $model->toArray());
+            $model->code = FormatingSeries::generate(StockLedgerEntry::class, $model->toArray());
         });
     }
 
@@ -77,7 +91,7 @@ class StockLedgerEntry extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class, 'unit_id');
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 
     public function warehouse() {

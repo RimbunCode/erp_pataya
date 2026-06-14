@@ -1,154 +1,155 @@
-import { inArray } from "@/lib/utils";
+// Operator metadata untuk FilterTable. Selaras dengan backend
+// App\Services\Core\FilterEvaluator::$operatorsByType.
+//
+// Tiap operator membawa `valueInput` yang menentukan komponen value field
+// yang dirender oleh ValueField:
+//   - "none"        : tanpa input (set/!set)
+//   - "text"        : input teks
+//   - "currency"    : CurrencyInput
+//   - "currency2"   : dua CurrencyInput (between)
+//   - "checkbox"    : Checkbox (boolean)
+//   - "select"      : Select tunggal (formStatus/enum/relation single)
+//   - "multiselect" : MultiSelect / multi-grow (in/!in)
+//   - "linkmodel"   : LinkModel (relation basic)
+//   - "linkmodelMulti"
+//   - "morph"       : PermissionLinkModel + LinkModel (relation morph)
+//   - "morphMulti"
+//   - "time" / "time2"
+//   - "dateselector": DateSelector (in_period)
 
-const getOperators = (type) => {
+const UNIVERSAL = {
+  set: { operator: "set", valueInput: "none" },
+  "!set": { operator: "!set", valueInput: "none" },
+};
+
+const op = (operator, valueInput) => ({ operator, valueInput });
+
+// Apakah kolom membawa daftar `options` (enum-like). String dengan options
+// dirender sebagai Select alih-alih input teks bebas.
+const columnHasOptions = (column) => {
+  const opts = column?.options;
+  if (!opts) return false;
+  return Array.isArray(opts) ? opts.length > 0 : Object.keys(opts).length > 0;
+};
+
+const getOperators = (type, { typeRelation, hasOptions } = {}) => {
   let operators = {};
+
   switch (type) {
     case "string":
+      // String dengan daftar `options` (enum-like) memakai Select/MultiSelect
+      // untuk =,!=,in,!in; matches/starts_with/ends_with tetap teks bebas.
       operators = {
-        "=": {
-          operator: "=",
-          searchType: type,
-        },
-        "!=": {
-          operator: "!=",
-          searchType: type,
-        },
-        matches: {
-          operator: "matches",
-          searchType: type,
-        },
-        not_matches: {
-          operator: "not_matches",
-          searchType: type,
-        },
-        in: {
-          operator: "in",
-          searchType: `multiple:${type}`,
-        },
-        not_in: {
-          operator: "!in",
-          searchType: `multiple:${type}`,
-        },
+        "=": op("=", hasOptions ? "select" : "text"),
+        "!=": op("!=", hasOptions ? "select" : "text"),
+        matches: op("matches", "text"),
+        "!matches": op("!matches", "text"),
+        starts_with: op("starts_with", "text"),
+        ends_with: op("ends_with", "text"),
+        in: op("in", "multiselect"),
+        "!in": op("!in", "multiselect"),
       };
       break;
+
     case "number":
     case "currency":
+      operators = {
+        "=": op("=", "currency"),
+        "!=": op("!=", "currency"),
+        ">": op(">", "currency"),
+        ">=": op(">=", "currency"),
+        "<": op("<", "currency"),
+        "<=": op("<=", "currency"),
+        in: op("in", "multiselect"),
+        "!in": op("!in", "multiselect"),
+        between: op("between", "currency2"),
+        "!between": op("!between", "currency2"),
+      };
+      break;
+
+    case "time":
+      operators = {
+        "=": op("=", "time"),
+        "!=": op("!=", "time"),
+        ">": op(">", "time"),
+        ">=": op(">=", "time"),
+        "<": op("<", "time"),
+        "<=": op("<=", "time"),
+        in: op("in", "multiselect"),
+        "!in": op("!in", "multiselect"),
+        between: op("between", "time2"),
+        "!between": op("!between", "time2"),
+      };
+      break;
+
     case "date":
     case "datetime":
+      // Semua komparasi & granularitas dipindahkan ke DateSelector.
       operators = {
-        "=": {
-          operator: "=",
-          searchType: inArray(type, ["date", "datetime"]) ? "date" : type,
-        },
-        "!=": {
-          operator: "!=",
-          searchType: inArray(type, ["date", "datetime"]) ? "date" : type,
-        },
-        ">": {
-          operator: ">",
-          searchType: inArray(type, ["date", "datetime"]) ? "date" : type,
-        },
-        "<": {
-          operator: "<",
-          searchType: inArray(type, ["date", "datetime"]) ? "date" : type,
-        },
-        ">=": {
-          operator: ">=",
-          searchType: inArray(type, ["date", "datetime"]) ? "date" : type,
-        },
-        "<=": {
-          operator: "<=",
-          searchType: inArray(type, ["date", "datetime"]) ? "date" : type,
-        },
-        in: {
-          operator: "in",
-          searchType: `multiple:${type}`,
-        },
-        not_in: {
-          operator: "!in",
-          searchType: `multiple:${type}`,
-        },
-        between: {
-          operator: "between",
-          searchType: inArray(type, ["date", "datetime"])
-            ? "dateSelector"
-            : type,
-        },
-        not_between: {
-          operator: "not_between",
-          searchType: inArray(type, ["date", "datetime"])
-            ? "dateSelector"
-            : type,
-        },
+        in_period: op("in_period", "dateselector"),
+        "!in_period": op("!in_period", "dateselector"),
       };
       break;
-    case "formStatus":
-    case "relation":
-      operators = {
-        "=": {
-          operator: "=",
-          searchType: type,
-        },
-        "!=": {
-          operator: "!=",
-          searchType: type,
-        },
-        in: {
-          operator: "in",
-          searchType: `multiple:${type}`,
-        },
-        not_in: {
-          operator: "!in",
-          searchType: `multiple:${type}`,
-        },
-      };
-      break;
-    case "formStatuses":
-    case "relations":
-      operators = {
-        has: {
-          operator: "has",
-          searchType: type,
-        },
-        not_has: {
-          operator: "not_has",
-          searchType: type,
-        },
-        in: {
-          operator: "in",
-          searchType: `multiple:${type}`,
-        },
-        not_in: {
-          operator: "!in",
-          searchType: `multiple:${type}`,
-        },
-      };
-      break;
+
     case "boolean":
       operators = {
-        "=": {
-          operator: "=",
-          searchType: type,
-        },
-        "!=": {
-          operator: "!=",
-          searchType: type,
-        },
+        "=": op("=", "checkbox"),
+        "!=": op("!=", "checkbox"),
       };
       break;
+
+    case "relation": {
+      const single = typeRelation === "morph" ? "morph" : "linkmodel";
+      const multi = typeRelation === "morph" ? "morphMulti" : "linkmodelMulti";
+      operators = {
+        "=": op("=", single),
+        "!=": op("!=", single),
+        in: op("in", multi),
+        "!in": op("!in", multi),
+      };
+      break;
+    }
+
+    case "formStatus":
+    case "enum":
+      operators = {
+        "=": op("=", "select"),
+        "!=": op("!=", "select"),
+        in: op("in", "multiselect"),
+        "!in": op("!in", "multiselect"),
+      };
+      break;
+
+    case "relations": {
+      const multi = typeRelation === "morph" ? "morphMulti" : "linkmodelMulti";
+      operators = {
+        has: op("has", multi),
+        "!has": op("!has", multi),
+        in: op("in", multi),
+        "!in": op("!in", multi),
+      };
+      break;
+    }
+
+    case "formStatuses":
+      operators = {
+        has: op("has", "multiselect"),
+        "!has": op("!has", "multiselect"),
+        in: op("in", "multiselect"),
+        "!in": op("!in", "multiselect"),
+      };
+      break;
+
     default:
       operators = {};
   }
 
-  return {
-    ...operators,
-    set: {
-      operator: "set",
-    },
-    not_set: {
-      operator: "not_set",
-    },
-  };
+  // Tipe non-filterable: tidak ada operator.
+  if (["binary", "json", "mixed", "attribute"].includes(type)) {
+    return {};
+  }
+
+  return { ...operators, ...UNIVERSAL };
 };
 
-export { getOperators };
+export { getOperators, columnHasOptions };

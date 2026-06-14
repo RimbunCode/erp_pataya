@@ -11,23 +11,32 @@ import { checkFileType, cn, formatBytes, generateRandom } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import FileItem from "./FileItem";
+import LoadingIcon from "@/Components/LoadingIcon";
 import Library from "@/Pages/Core/Components/Library/Library";
 import { Progress } from "@/Components/ui/progress";
 import { Transition } from "@headlessui/react";
+import axios from "axios";
 import { router } from "@inertiajs/react";
+import { toast } from "sonner";
 import { useIsMobile } from "@/Hooks/use-mobile";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function UploadDialog({
   onClose,
   single = false,
   imageOnly = false,
+  onBuffer = null,
   options: { route: routeProp, ...optionsProp } = {},
 }) {
   const isMobile = useIsMobile();
+  const { t } = useLaravelReactI18n();
+  const route = window.route;
   const [menu, setMenu] = useState("home");
   const [files, setFiles] = useState([]);
   const [hover, setHover] = useState(false);
   const [progress, setProgress] = useState(false);
+  // true selama request upload in-flight (termasuk delay backend setelah 100%).
+  const [uploading, setUploading] = useState(false);
   const [checklistFile, setChecklistFile] = useState(new Set());
   const libraryRef = useRef();
   const id = useId();
@@ -82,8 +91,51 @@ function UploadDialog({
     }
   }, []);
 
-  const onAttach = useCallback((menu, files) => {
-    const formData = new FormData();
+  const onAttach = useCallback(
+    (menu, files) => {
+      // Mode create (onBuffer): upload draft langsung ke files.store, simpan
+      // {id,name} di buffer. Saat form disubmit, filesId[] dikirim untuk attach.
+      if (onBuffer) {
+        const formData = new FormData();
+        if (menu == "library") {
+          [...files].forEach((id) => formData.append(`filesId[]`, id));
+        } else {
+          files.forEach((file, index) => {
+            formData.append(`files[${index}]`, file.file);
+            formData.append(`isPublic[${index}]`, file.isPublic ?? false);
+            formData.append(`name[${index}]`, file.name || file.file.name);
+          });
+        }
+        setProgress({ progress: 0 });
+        setUploading(true);
+        axios
+          .post(route("files.store"), formData, {
+            headers: { "Content-Type": "multipart/form-data" },
+            onUploadProgress: (e) => {
+              setProgress({
+                progress: e.total ? e.loaded / e.total : 0,
+                loaded: e.loaded,
+                total: e.total,
+              });
+            },
+          })
+          .then((res) => {
+            const uploaded = Array.isArray(res.data) ? res.data : [];
+            onBuffer(uploaded);
+            toast.success(t("core.form.upload_success"));
+            setFiles([]);
+            onClose();
+            setProgress(false);
+            setUploading(false);
+          })
+          .catch(() => {
+            toast.error(t("core.form.upload_failed"));
+            setProgress(false);
+            setUploading(false);
+          });
+        return;
+      }
+      const formData = new FormData();
     if (menu == "library") {
       files.forEach((id) => {
         formData.append(`filesId[]`, id);
@@ -115,7 +167,9 @@ function UploadDialog({
         setProgress(false);
       },
     });
-  }, []);
+    },
+    [onBuffer, onClose, optionsProp, routeProp],
+  );
 
   const getMenu = () => {
     switch (menu) {
@@ -273,20 +327,38 @@ function UploadDialog({
       }
     }
   };
+  // Setelah upload 100%, backend masih menyimpan/mencatat ke tabel files
+  // (ada delay). Tampilkan indikator "saving" & kunci interaksi.
+  const isSaving = uploading && (progress?.progress ?? 0) >= 1;
   return (
     <DialogContent className="max-w-xl overflow-hidden!">
       <DialogHeader className="pb-2 border-b">
         <DialogTitle>Upload</DialogTitle>
         <DialogDescription className="sr-only"></DialogDescription>
       </DialogHeader>
-      {getMenu()}
+      {/* Saat upload berlangsung, kunci konten agar tak ada klik tak sengaja. */}
+      <div
+        className={cn(
+          "transition-opacity",
+          uploading && "pointer-events-none opacity-60 select-none",
+        )}
+      >
+        {getMenu()}
+      </div>
       {progress && (
         <div className="flex items-center w-full text-xs text-muted-foreground">
           <Progress value={progress.progress * 100} className="h-2!" />
           <p className="mx-3 text-nowrap">
             ({formatBytes(progress.loaded)} / {formatBytes(progress.total)})
           </p>
-          <p>{(progress.progress * 100).toFixed(1)}%</p>
+          {isSaving ? (
+            <span className="flex items-center text-nowrap gap-x-1.5">
+              <LoadingIcon className="size-3.5" />
+              {t("core.form.saving")}
+            </span>
+          ) : (
+            <p>{(progress.progress * 100).toFixed(1)}%</p>
+          )}
         </div>
       )}
       <DialogFooter
@@ -304,7 +376,11 @@ function UploadDialog({
                 variant="secondary"
                 size="sm"
                 asChild
-                className="cursor-pointer"
+                disabled={uploading}
+                className={cn(
+                  "cursor-pointer",
+                  uploading && "pointer-events-none opacity-50",
+                )}
               >
                 <label htmlFor={id}>Browse</label>
               </Button>
@@ -335,14 +411,20 @@ function UploadDialog({
         )}
         <Button
           disabled={
-            menu == "home" ? files.length <= 0 : checklistFile.size <= 0
+            uploading ||
+            (menu == "home" ? files.length <= 0 : checklistFile.size <= 0)
           }
           size="sm"
           onClick={() =>
             onAttach(menu, menu == "library" ? checklistFile : files)
           }
         >
-          Attach
+          {uploading && <LoadingIcon className="size-4" />}
+          {isSaving
+            ? t("core.form.saving")
+            : uploading
+              ? t("core.form.uploading")
+              : "Attach"}
         </Button>
       </DialogFooter>
     </DialogContent>

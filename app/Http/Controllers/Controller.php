@@ -13,6 +13,7 @@ use App\Models\Core\Taggable;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Core\PrintTemplate\RelationTrackerService;
 use App\Utils;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -56,7 +57,7 @@ abstract class Controller {
                 }
                 if ($key == 0) {
                     $breadcrumbs[] = ['name' => ($instanceModel->translateKey ?? '') . '.title', 'link' => route("{$model->route}.index")];
-                    $name          = Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
+                    $name          = $model->templateLink ? Utils::convertTemplateLink($model) : Arr::get($model->toArray(), $model->keyBreadcrumb ?? '', $model->name);
                     $breadcrumbs[] = ($key == (count($models) - 1)) ?
                         ['name' => $name] :
                         ['name' => $name, 'link' => route("{$model->route}.show", $model->id)];
@@ -76,20 +77,26 @@ abstract class Controller {
         ]);
     }
 
-    protected function guard(string $action, int $level = 0) {
+    protected function guard(array|string $action, int $level = 0) {
         return $this->model::_checkPermission($action, $level);
     }
 
+    /**
+     * Summary of exceptPermission
+     *
+     * @return null|bool
+     */
     protected function exceptPermission(string $method) {
         return null;
     }
 
+    /**
+     * Summary of enforcePermission
+     *
+     * @return null|string|string[]|bool
+     */
     protected function enforcePermission(string $method) {
         return null;
-    }
-
-    private function _matchMethodWithPermission(string $method) {
-        return \in_array($method, ['addComment', 'addTag', 'addFile', 'removeFile', 'removeComment', 'removeTag']);
     }
 
     public function __construct(Request $request, ?string $model = null) {
@@ -131,28 +138,35 @@ abstract class Controller {
                         'cancel'  => 'cancel',
                         'print'   => 'print',
                         'amend'   => 'amend',
-                        default   => $this->enforcePermission($method),
+                        'addComment',
+                        'editComment',
+                        'addTag',
+                        'addFile',
+                        'removeFile',
+                        'removeComment',
+                        'removeTag' => 'read',
+                        default     => $this->enforcePermission($method),
                     };
-                    if (! $this->_matchMethodWithPermission($method)) {
-                        // dd($keyPermission, \is_string($keyPermission), $keyPermission == null);
-                        if (\is_string($keyPermission)) {
-                            $this->onlyCreator = $this->guard($keyPermission, 0);
-                            $request->merge(['onlyCreator' => $this->onlyCreator ?? false]);
+                    if ($keyPermission) {
+                        $this->onlyCreator = $this->guard($keyPermission, 0);
+                        $request->merge(['onlyCreator' => $this->onlyCreator ?? false]);
 
-                            foreach ($currentRoute->parameters() as $key => $value) {
-                                if (get_class($value) === $this->model) {
-                                    $data = $value;
-                                }
+                        foreach ($currentRoute->parameters() as $value) {
+                            if (\is_string($value)) {
+                                continue;
                             }
-                            if (isset($data)) {
-                                $allowed = $this->onlyCreator ? $data?->created_by_id == $request->user()->id : true;
-                                if (! $allowed) {
-                                    abort(403);
-                                }
+                            if (\get_class($value) === $this->model) {
+                                $data = $value;
                             }
-                        } elseif ($keyPermission == null) {
-                            abort(403);
                         }
+                        if (isset($data)) {
+                            $allowed = $this->onlyCreator ? $data?->created_by_id == $request->user()->id : true;
+                            if (! $allowed) {
+                                abort(403);
+                            }
+                        }
+                    } else {
+                        abort(403);
                     }
                 }
             }
@@ -183,6 +197,22 @@ abstract class Controller {
             'loggable_type' => $this->model,
             'type'          => 'comment',
             'activity'      => $request->comment,
+            'comment_json'  => $request->comment_json,
+        ]);
+
+        return back();
+    }
+
+    public function editComment(CommentRequest $request, $param, Log $id) {
+        if ($id->user_id != $request->user()->id || $id->type != 'comment') {
+            return back()->with('alert', [
+                'message' => 'Failed to edit comment',
+            ]);
+        }
+
+        $id->update([
+            'activity'     => $request->comment,
+            'comment_json' => $request->comment_json,
         ]);
 
         return back();
@@ -268,7 +298,7 @@ abstract class Controller {
                 ->where('fileable_type', $this->model)
                 ->where('file_id', $id->id)->delete();
         } catch (Exception $e) {
-            dd($e);
+            // dd($e);
         }
 
         return back();
@@ -277,20 +307,29 @@ abstract class Controller {
     public function print(Request $request, mixed $id, ?PrintTemplate $printTemplate = null) {
         $data = $this->model::find($id);
         $this->setBreadcrumbs($data, __('core/form.print_preview'));
-        $data->loadRelations();
+
+        // Resolve the print template first so we can use its used_relations
         $printTemplate ??= PrintTemplate::where('model', $this->model)
             ->where('is_default', true)
             ->first();
+
+        // Use template's used_relations for optimized eager loading when available
+        $usedRelations = $printTemplate?->getUsedRelations() ?? [];
+
+        $relationTracker                                             = app(RelationTrackerService::class);
+        ['relations' => $validRelations, 'modelColumns' => $columns] = $relationTracker->validateRelations($this->model, $usedRelations, true);
+        $data->load($validRelations);
+
         $printTemplate->loadRelations();
 
+        $docInfo = [
+            'doc_name' => $data->translateKey . '.name',
+        ];
+
         return Inertia::render('Core/Print', [
-            'data'     => $data,
-            'document' => [
-                [
-                    'name'       => 'name',
-                    'titleTrans' => $data->translateKey . '.name',
-                ],
-            ],
+            'doc'           => $data,
+            'docInfo'       => $docInfo,
+            'columns'       => $columns,
             'printTemplate' => $printTemplate->toArray(),
         ]);
     }

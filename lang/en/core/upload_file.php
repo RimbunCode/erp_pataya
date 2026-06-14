@@ -15,4 +15,6 @@ return [
     'back'                      => 'Back',
     'no_files_found'            => 'No files found',
     'search'                    => 'Search by filename or extension',
+    'image_upload_success'      => 'Image uploaded successfully',
+    'image_upload_error'        => 'Failed to upload image',
 ];

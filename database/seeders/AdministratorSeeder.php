@@ -19,10 +19,6 @@ class AdministratorSeeder extends Seeder {
      * Run the database seeds.
      */
     public function run(): void {
-        if (Permission::query()->doesntExist()) {
-            $this->call(PermissionSeeder::class);
-        }
-
         DB::transaction(function (): void {
             $defaultBranch = Branch::query()
                 ->where('is_main_branch', true)
@@ -36,18 +32,19 @@ class AdministratorSeeder extends Seeder {
                 ->get();
 
             $passwordAdmin = config('app.debug') ? 'admin' : Utils::generateRandom(10, true);
-            $adminUser     = User::updateOrCreate(
-                ['username' => 'admin'],
-                [
-                    'name'              => 'Administrator',
-                    'email'             => 'test@example.com',
-                    'email_verified_at' => now(),
-                    'password'          => bcrypt($passwordAdmin),
-                    'default_branch_id' => $defaultBranch->id,
-                    'remember_token'    => Str::random(10),
-                    'status'            => FormStatus::ACTIVE,
-                ],
-            );
+            $adminUser     = User::withoutGlobalScope('exclude_example_data')
+                ->updateOrCreate(
+                    ['username' => 'admin'],
+                    [
+                        'name'              => 'Administrator',
+                        'email'             => 'test@example.com',
+                        'email_verified_at' => now(),
+                        'password'          => bcrypt($passwordAdmin),
+                        'default_branch_id' => $defaultBranch->id,
+                        'remember_token'    => Str::random(10),
+                        'status'            => FormStatus::ACTIVE,
+                    ],
+                );
 
             $roleIds = [];
             foreach ($this->defaultRoles() as $roleDefinition) {

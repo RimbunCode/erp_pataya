@@ -3,18 +3,61 @@
 namespace App\Models\Inventory;
 
 use App\Models\Model;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ItemUnit extends Model {
     use HasUlids, SoftDeletes;
 
-    protected $guarded          = ['id'];
-    public string $translateKey = 'inventories.itemUnit';
-    protected $configColumns    = [
+    protected $guarded = ['id'];
+    protected $casts   = [
+        'is_default'                => 'boolean',
+        'is_manual'                 => 'boolean',
+        'generated_by_default_unit' => 'boolean',
+    ];
+    public string $translateKey    = 'inventories.itemUnit';
+    protected array $configColumns = [
         'item',
         'unit',
+        'code' => [
+            'isLink'      => true,
+            'show'        => true,
+            'order'       => 0,
+            'forceAppend' => true,
+        ],
+        'name' => [
+            'isLink'      => true,
+            'show'        => true,
+            'order'       => 1,
+            'forceAppend' => true,
+        ],
+        'is_default' => [
+            'ignore' => true,
+        ],
+        'is_manual' => [
+            'ignore' => true,
+        ],
+        'generated_by_default_unit' => [
+            'ignore' => true,
+        ],
     ];
+
+    protected static function booted(): void {
+        static::addGlobalScope('join_units', function (Builder $builder): void {
+            $table = $builder->getModel()->getTable();
+
+            $builder
+                ->join('units', 'units.id', '=', "{$table}.unit_id")
+                ->addSelect("{$table}.*")
+                ->addSelect('units.name')
+                ->addSelect('units.code');
+        });
+    }
+
+    public static function templateLink() {
+        return ':name (:code)';
+    }
 
     public function item() {
         return $this->belongsTo(Item::class);
@@ -25,9 +68,11 @@ class ItemUnit extends Model {
     }
 
     public static function getConversionFactor(string $itemId, string $unitId) {
-        return self::select('conversion_factor')
-            ->where('item_id', $itemId)
-            ->where('unit_id', $unitId)
+        $table = (new self)->getTable();
+
+        return self::select("{$table}.conversion_factor")
+            ->where("{$table}.item_id", $itemId)
+            ->where("{$table}.unit_id", $unitId)
             ->first()?->conversion_factor;
     }
 }

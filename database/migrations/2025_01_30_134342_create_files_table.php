@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('extension')->nullable();
             $table->string('mime_type');
             $table->boolean('is_public')->default(false);
+            $table->boolean('is_draft')->default(false);
             $table->foreignUlid('created_by_id')->nullable()->references('id')->on('users')->nullOnDelete();
 
             $table->timestamps();

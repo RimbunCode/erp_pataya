@@ -7,8 +7,8 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
-use App\Models\Inventory\ItemUnit;
 use App\Models\Sales\SalesOrder;
+use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -37,8 +37,8 @@ class SalesInvoiceService {
 
     private function fillItemRelations(array $data, SalesInvoice $salesInvoice) {
         $data['item_id']            = $data['item']['id'];
-        $data['unit_id']            = $data['unit']['id'];
-        $data['conversion_factor']  = ItemUnit::getConversionFactor($data['item']['item_id'], $data['unit_id']);
+        $data['item_unit_id']       = $data['unit']['id'];
+        $data['conversion_factor']  = $data['unit']['conversion_factor'];
         $data['tax_id']             = $data['tax']['id'];
         $data['tax_rate']           = $data['tax']['rate'];
         $data['currency_code']      = $salesInvoice->currency_code;
@@ -56,7 +56,6 @@ class SalesInvoiceService {
         $data['base_currency_code'] = $salesInvoice->base_currency_code;
         $data['exchange_rate']      = $salesInvoice->exchange_rate;
         $data['for_internal']       = $salesInvoice->return_against_id === null ? true : false;
-        $data['payment_term_id']    = $data['payment_term']['id'] ?? null;
         $data['payment_method_id']  = $data['payment_method']['id'] ?? null;
 
         return $data;
@@ -98,20 +97,32 @@ class SalesInvoiceService {
         $salesInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $salesInvoice->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $salesInvoice);
 
             if (Ulid::isValid($item['id'])) {
-                $item = $salesInvoice->items()
-                    ->find($item['id'])
-                    ->fill($item);
-                $item->save();
+                $itemModel = $existingItems->get($item['id']);
+                if ($itemModel) {
+                    $itemModel->fill($item);
+                    $itemModel->save();
+                } else {
+                    $itemModel = $salesInvoice->items()->create($item);
+                }
             } else {
-                $item = $salesInvoice->items()->create($item);
+                $itemModel = $salesInvoice->items()->create($item);
             }
-            $item->refresh();
-            $basicAmount += $item->basic_amount;
-            $taxAmount += $item->tax_amount;
+            $itemModel->refresh();
+            $basicAmount += $itemModel->basic_amount;
+            $taxAmount += $itemModel->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
 
@@ -123,10 +134,19 @@ class SalesInvoiceService {
         $salesInvoice->paymentSchedules()
             ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
             ->delete();
+        $paymentScheduleIds = collect($data['payment_schedules'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingPaymentSchedules = $salesInvoice->paymentSchedules()
+            ->whereIn('id', $paymentScheduleIds)
+            ->get()
+            ->keyBy('id');
         foreach ($data['payment_schedules'] as $payment_schedule) {
             $payment_schedule = $this->fillPaymentScheduleRelations($payment_schedule, $salesInvoice);
             if (Ulid::isValid($payment_schedule['id'])) {
-                $salesInvoice->paymentSchedules()->find($payment_schedule['id'])->update($payment_schedule);
+                $existingPaymentSchedules->get($payment_schedule['id'])?->update($payment_schedule);
 
                 continue;
             }
@@ -236,32 +256,10 @@ class SalesInvoiceService {
                 'referenceable_id'   => $salesInvoice->id,
             ]);
 
-            $salesOrder         = $salesInvoice->salesOrder;
-            $unbilledItems      = $salesOrder->items()->select(['id', 'unbilled_quantity', 'quantity'])->get();
-            $countUnbilledItems = $unbilledItems->sum('unbilled_quantity');
-            $sumQuantity        = $unbilledItems->sum('quantity');
-            if ($countUnbilledItems == $sumQuantity) {
-                $status = Utils::replaceStatus(
-                    $salesOrder->status,
-                    [FormStatus::BILLED, FormStatus::PARTIALLY_BILLED],
-                    FormStatus::TO_BILL,
-                );
-            } elseif ($countUnbilledItems > 0) {
-                $status = Utils::replaceStatus(
-                    $salesOrder->status,
-                    FormStatus::TO_BILL,
-                    FormStatus::PARTIALLY_BILLED,
-                );
-            } else {
-                $status = Utils::replaceStatus(
-                    $salesOrder->status,
-                    [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED],
-                    FormStatus::BILLED,
-                );
+            $salesOrder = $salesInvoice->salesOrder;
+            if ($salesOrder) {
+                (new SalesOrderService)->updateSalesOrderStatus($salesOrder);
             }
-            $salesOrder->update([
-                'status' => $status,
-            ]);
 
             $salesInvoice->update([
                 'amount' => $totalAmount,
@@ -271,7 +269,7 @@ class SalesInvoiceService {
             if ($returnAgainst) {
                 $returnedItems      = $returnAgainst->items()->select(['returned_quantity', 'quantity'])->get();
                 $countReturnedItems = $returnedItems->sum('returned_quantity');
-                $sumQuantity        = $unbilledItems->sum('quantity');
+                $sumQuantity        = $returnedItems->sum('quantity');
 
                 if ($countReturnedItems == $sumQuantity) {
                     $status = Utils::replaceStatus(

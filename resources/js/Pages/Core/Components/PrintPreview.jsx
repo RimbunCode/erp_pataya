@@ -4,13 +4,14 @@ import Handlebars from "handlebars";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { formatValue } from "@/Components/CurrencyInput";
-import { getLocaleDate } from "@/lib/utils";
+import { getLocaleDate, getSafePrintFontFamily } from "@/lib/utils";
 import { initHandlebar } from "@/lib/initHandlebar";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 function formatData(data, columns, opts = {}) {
-  const cols = columns.reduce((a, b) => ({ ...a, [b.name]: b }), {});
+  const cols = columns[opts.model];
+  if (!cols) return data;
   const newData = {};
   for (let key in data) {
     const col = cols[key];
@@ -22,11 +23,16 @@ function formatData(data, columns, opts = {}) {
     if (col == null) continue;
     switch (col.type) {
       case "relation": {
-        newData[key] = formatData(value, col.columns, opts);
+        newData[key] = formatData(value, columns, {
+          ...opts,
+          model: col.related,
+        });
         break;
       }
       case "relations": {
-        newData[key] = value.map((item) => formatData(item, col.columns, opts));
+        newData[key] = value.map((item) =>
+          formatData(item, columns, { ...opts, model: col.related }),
+        );
         break;
       }
       case "date":
@@ -73,12 +79,11 @@ function formatData(data, columns, opts = {}) {
                 col.type == "number"
                   ? undefined
                   : col.currencyCode || opts.defaultCurrencyCode,
-              decimalScale: col.decimalScale,
             },
+            decimalScale: col.decimalScale ?? 0,
           });
-        } catch (e) {
+        } catch {
           newData[key] = value;
-          console.log(e);
         }
         break;
       }
@@ -88,10 +93,27 @@ function formatData(data, columns, opts = {}) {
   }
   return newData;
 }
+/**
+ * CSS overrides to hide editor-only styles on the static HTML wrapper
+ * in print preview/export mode (Requirements: 24.1, 24.2).
+ */
+const PRINT_WRAPPER_OVERRIDES = `
+.gjs-static-html-wrapper {
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+.gjs-static-html-wrapper::before {
+  content: none !important;
+  display: none !important;
+}
+`;
+
 export default forwardRef(function PrintPreview({ template }, ref) {
   const {
-    data: _data,
-    dataTableColumns,
+    doc: _doc,
+    columns,
+    docInfo: _docInfo,
     preferences,
     document,
   } = usePage().props;
@@ -100,21 +122,26 @@ export default forwardRef(function PrintPreview({ template }, ref) {
   const { default_currency_id } = usePage().props.preferences;
 
   useEffect(() => {
-    setLocale(template.default_languange ?? "en");
-  }, [template.default_languange]);
+    setLocale(template.default_language ?? "en");
+  }, [template.default_language]);
 
-  const data = useMemo(() => {
-    return formatData(
-      _data,
-      template?.columns?.find((x) => x.type == "data")?.columns ?? [],
-      {
-        t,
-        lang: template.default_languange ?? "en",
-        defaultCurrencyCode: default_currency_id,
-        absoluteNumber: template?.show_absolute_values ?? false,
-      },
-    );
-  }, [_data, template, t, default_currency_id]);
+  const doc = useMemo(() => {
+    // return _doc;
+    return formatData(_doc, columns, {
+      t,
+      model: template.model,
+      lang: template.default_language ?? "en",
+      defaultCurrencyCode: default_currency_id,
+      absoluteNumber: template?.show_absolute_values ?? false,
+    });
+  }, [_doc, template, t, default_currency_id]);
+  const docInfo = useMemo(() => {
+    const newData = {};
+    for (let key in _docInfo) {
+      newData[key] = t(_docInfo[key]);
+    }
+    return newData;
+  }, [_docInfo, t]);
   const { html, css } = useMemo(() => {
     initHandlebar(t);
     let css = "";
@@ -125,46 +152,62 @@ export default forwardRef(function PrintPreview({ template }, ref) {
         (letterHeadTemplate.css?.replace("body", "div") ?? "") +
         ".resize-divider{display:none !important;}.gjs-cell{display: table-cell !important;}";
       html = Handlebars.compile(
-        "{{#with preferences}}" +
-          (letterHeadTemplate?.html?.replace("body", "div") ?? "") +
-          "{{/with}}",
+        letterHeadTemplate?.html?.replace("body", "div") ?? "",
       )({
-        dataTableColumns,
-        preferences,
+        lang: template.default_language ?? "en",
+        modelDoc: template.model,
+        columns,
+        company: preferences,
+        docInfo,
       });
     }
 
     css +=
       (template.css?.replace("body", "main") ?? "") +
       ".resize-divider{display:none !important;}";
-    html += Handlebars.compile(
-      "{{#with data}}" +
-        (template?.html?.replace("body", "main") ?? "") +
-        "{{/with}}",
-    )({
-      dataTableColumns: template?.columns ?? [],
-      preferences,
+    html += Handlebars.compile(template?.html?.replace("body", "main") ?? "")({
+      lang: template.default_language ?? "en",
+      modelDoc: template.model,
+      columns,
+      company: preferences,
+      docInfo,
       document,
-      data,
+      doc,
     });
     return {
       html,
       css,
     };
-  }, [data, template, t]);
+  }, [doc, template, t]);
 
   useEffect(() => {
     if (!ref?.current) return;
-    ref.current.contentDocument.body.innerHTML = html;
+    const doc = ref.current.contentDocument;
+    doc.body.innerHTML = html;
+
+    // Ensure Bootstrap CSS is loaded via <link> in the iframe head
+    let bootstrapLink = doc.getElementById("bootstrap-css-link");
+    if (!bootstrapLink) {
+      bootstrapLink = doc.createElement("link");
+      bootstrapLink.id = "bootstrap-css-link";
+      bootstrapLink.rel = "stylesheet";
+      bootstrapLink.href =
+        "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css";
+      doc.head.appendChild(bootstrapLink);
+    }
+
     const style =
-      ref.current.contentDocument.head.getElementsByTagName("style")[0] ??
-      ref.current.contentDocument.createElement("style");
-    const unitCode = template.unit;
+      doc.head.querySelector("style#print-preview-style") ??
+      doc.createElement("style");
+    style.id = "print-preview-style";
+    const unitCode = template.unit ?? "cm";
+    const fontFamily = getSafePrintFontFamily(template.font_family);
     style.innerHTML =
+      PRINT_WRAPPER_OVERRIDES +
       css +
       `
       body{
-        font-family: ${template.font_family};
+        font-family: ${fontFamily};
         margin: ${template.margin_top ?? 0}${unitCode} ${template.margin_right ?? 0}${unitCode} ${template.margin_bottom ?? 0}${unitCode} ${template.margin_left ?? 0}${unitCode};
       }
       @media print {
@@ -187,8 +230,8 @@ export default forwardRef(function PrintPreview({ template }, ref) {
         }
       }
     `;
-    if (!ref.current.contentDocument.head.getElementsByTagName("style")[0])
-      ref.current.contentDocument.head.appendChild(style);
+    if (!doc.head.querySelector("style#print-preview-style"))
+      doc.head.appendChild(style);
 
     ref.current.style.width = `${template.width}${unitCode}`;
     ref.current.style.minHeight = `${template.height}${unitCode}`;
@@ -200,5 +243,5 @@ export default forwardRef(function PrintPreview({ template }, ref) {
     };
   }, [html, css, ref, template]);
 
-  return <iframe ref={ref} data-role="print-preview"></iframe>;
+  return <iframe ref={ref} data-role="print-preview" />;
 });

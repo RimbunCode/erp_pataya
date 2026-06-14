@@ -3,11 +3,16 @@
 namespace App\Models\Scopes;
 
 use App\Models\Core\Preference;
+use App\Models\Core\SavedFilter;
+use App\Services\Core\DataTableColumnSelector;
+use App\Services\Core\FilterColumnResolver;
+use App\Services\Core\FilterEvaluator;
 use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Inertia\Inertia;
 
 class DataTableScope implements Scope {
@@ -26,42 +31,81 @@ class DataTableScope implements Scope {
         return preg_match('/^\w+\.\w+$/', $columnReference);
     }
 
+    /**
+     * Nama cookie kolom DataTable, unik per-path. HARUS identik dengan sanitizer
+     * frontend (Table2.jsx `datatableColumnsCookieKey`): trim slash → lowercase →
+     * ganti karakter non-alnum jadi "_". `$request->path()` sudah tanpa leading
+     * slash & query string.
+     */
+    private function datatableColumnsCookieKey(string $path): string {
+        $slug = \trim($path, '/');
+        $slug = \strtolower($slug);
+        $slug = \preg_replace('/[^a-z0-9]+/', '_', $slug);
+        $slug = \trim($slug, '_');
+
+        return $slug !== '' ? 'datatable_columns_' . $slug : 'datatable_columns';
+    }
+
     protected function addDataTable(Builder $builder) {
         $builder->macro('dataTable', function (Builder $query, Request $request, ?array $showedColumns = null) {
             $dataTableColumns = \get_class($query->getModel())::getColumns(1);
-            $configColumns    = array_column(\json_decode($_COOKIE['datatable_columns'] ?? '', true) ?? [], null, 'name');
+            // Kolom visible dari cookie (standar Laravel; plaintext krn dikecualikan
+            // dari enkripsi di bootstrap/app.php). Nama cookie unik per-path (suffix
+            // path ter-sanitize) agar tak bentrok antar-halaman di sebagian browser.
+            // Hanya himpunan nama kolom yang dipakai — width & order diabaikan (frontend).
+            $cookieRaw   = $request->cookie($this->datatableColumnsCookieKey($request->path()));
+            $visibleKeys = \is_string($cookieRaw)
+                ? \array_keys(\json_decode($cookieRaw, true) ?: [])
+                : null;
 
             $isSubmitable = $query->getModel()->isSubmitable();
             $nameOfTable  = $query->toBase()->from;
-            $query->addSelect("$nameOfTable.*");
-            $defaultShow = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
-            $show        = (int) ($_COOKIE['datatable_show'] ?? $defaultShow);
-            $show        = $show <= 0 ? 25 : $show;
-            // Sort
+            $defaultShow  = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
+            // Prioritas: query param `show` > cookie `datatable_show` > default preference.
+            $showFromQuery = $request->input('show');
+            $show          = (int) ($showFromQuery ?? $request->cookie('datatable_show') ?? $defaultShow);
+            $show          = $show <= 0 ? 25 : $show;
+            // Kalau `show` datang dari query param, persist ke cookie pada path yang
+            // diakses agar konsisten di kunjungan berikutnya tanpa query param.
+            if ($showFromQuery !== null) {
+                Cookie::queue(
+                    Cookie::make('datatable_show', (string) $show, 60 * 24 * 7, '/' . ltrim($request->path(), '/')),
+                );
+            }
+            // Sort — konvensi: prefix `-` = descending, tanpa prefix = ascending.
+            // Parse via str_starts_with agar key ber-dash / nested tetap utuh.
             $sort          = $request->input('sort', '-created_at');
-            $sortArr       = explode('-', $sort);
-            $sortKey       = end($sortArr);
-            $sortKey       = $this->isTableIncluded($sortKey) ? $sortKey : "$nameOfTable.$sortKey";
-            $sortDirection = $sortArr[0] === $sortKey ? 'asc' : 'desc';
+            $sortDirection = \str_starts_with($sort, '-') ? 'desc' : 'asc';
+            $sortKeyRaw    = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
+            $sortKey       = $this->isTableIncluded($sortKeyRaw) ? $sortKeyRaw : "$nameOfTable.$sortKeyRaw";
             $query         = $query->orderBy($sortKey, $sortDirection);
 
-            $relations = [];
-            foreach ($dataTableColumns as $column) {
-                if ($column['ignore'] ?? false) {
-                    continue;
-                }
-                if ($column['type'] == 'relation') {
-                    $relations[] = $column['nameOfFunction'];
-                }
+            // Pruning adaptif: SELECT hanya kolom visible (+PK+FK relasi+dependsOn append)
+            // dan with() hanya relasi visible. Kolom sort lokal non-visible diikutkan via
+            // extraKeys agar orderBy tetap valid. Relasi yang hanya difilter/disort tidak
+            // ikut with(). Anomali/append tanpa dependsOn → fallbackAll (SELECT *).
+            $extraKeys = $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw];
+            // templateLink dirender di mobile view (convertTemplateLink) → kolom/relasi
+            // yang dirujuknya wajib ikut select/with walau tak visible di cookie.
+            $modelClass   = \get_class($query->getModel());
+            $templateLink = \method_exists($modelClass, 'templateLink') ? $modelClass::templateLink() : null;
+            $resolved     = (new DataTableColumnSelector(new FilterColumnResolver($dataTableColumns)))
+                ->resolve($dataTableColumns, $query->getModel(), $visibleKeys, $extraKeys, $templateLink);
+
+            if ($resolved['fallbackAll']) {
+                $query->addSelect("$nameOfTable.*");
+            } else {
+                $query->addSelect(\array_map(fn ($c) => "$nameOfTable.$c", $resolved['select']));
             }
-            $with = $relations;
+
+            $with = $resolved['with'];
             if ($request->has('with')) {
                 $with = [
                     ...$with,
                     ...$request->with,
                 ];
             }
-            $query = $query->with($with);
+            $query = $query->with(\array_values(\array_unique($with)));
             if ($request->has('id')) {
                 $data = $query->find($request->id);
 
@@ -70,44 +114,19 @@ class DataTableScope implements Scope {
                     'dataTableColumns' => $dataTableColumns,
                 ];
             }
-            // Filter
-            if ($request->has('f')) {
-                $filter = $request->input('f');
-                $query->where(function (Builder $query) use ($filter, $nameOfTable) {
-                    foreach ($filter as $key => $payload) {
-                        $keyQuery = $this->isTableIncluded($payload[0]) ? $payload[0] : "$nameOfTable.$payload[0]";
-                        $operator = $payload[1];
-                        $value    = match ($payload[2]) {
-                            'true'  => true,
-                            'false' => false,
-                            default => $payload[2],
-                        };
-                        if (in_array($operator, ['in', '!in'])) {
-                            $values = array_map(function ($val) {
-                                return trim($val);
-                            }, explode(',', $value));
-                            $query->whereIn($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
-                        } elseif (in_array($operator, ['between', '!between'])) {
-                            if (is_array($value) && count($value) == 2) {
-                                $query->whereBetween($keyQuery, \array_values($value), $key <= 0 ? 'and' : 'or', $operator == '!like');
-                            } else {
-                                $values = array_map(function ($val) {
-                                    return trim($val);
-                                }, explode(',', $value));
-                                $query->whereBetween($keyQuery, $values, $key <= 0 ? 'and' : 'or', $operator == '!like');
-                            }
-                        } else {
-                            $operator = match ($payload[1]) {
-                                'eq'    => '=',
-                                '!eq'   => '!=',
-                                'like'  => 'like',
-                                '!like' => 'not like',
-                                default => $payload[1],
-                            };
-                            $query->where($keyQuery, $operator, $value, $key <= 0 ? 'and' : 'or');
-                        }
-                    }
-                });
+            // Filter — saved filter (nested tree) via ?fid=<id>.
+            // Akses by-id terbuka (tanpa cek owner); cocokkan model halaman.
+            if ($request->filled('fid')) {
+                $saved      = SavedFilter::find($request->input('fid'));
+                $modelClass = \get_class($query->getModel());
+                if ($saved && $saved->model === $modelClass) {
+                    (new FilterEvaluator($dataTableColumns))
+                        ->apply($query, $saved->filter ?? []);
+                    // Expand kolom relasi yang dipakai filter agar frontend dapat
+                    // me-resolve value tanpa fetch async (hilangkan kedip/lag).
+                    $dataTableColumns = (new FilterColumnResolver($dataTableColumns))
+                        ->expandColumnsForTree($saved->filter ?? []);
+                }
             }
             if ($isSubmitable) {
                 $query->where(function (Builder $query) use ($request) {

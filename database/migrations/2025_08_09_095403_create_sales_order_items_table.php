@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -14,7 +13,8 @@ return new class extends Migration
             $table->ulid('id')->primary();
             $table->foreignUlid('sales_order_id')->references('id')->on('sales_orders')->cascadeOnDelete();
             $table->foreignUlid('item_id')->references('id')->on('item_variants')->cascadeOnDelete();
-            $table->foreignUlid('unit_id')->references('id')->on('units')->cascadeOnDelete();
+            $table->foreignUlid('parent_item_id')->nullable()->references('id')->on('sales_order_items')->nullOnDelete();
+            $table->foreignUlid('item_unit_id')->nullable()->references('id')->on('item_units')->nullOnDelete();
             $table->nullableUlidMorphs('referenceable');
             $table->foreignUlid('source_warehouse_id')->nullable()->references('id')->on('warehouses')->nullOnDelete();
             $table->double('quantity')->default(0);

@@ -1,12 +1,19 @@
 import "@/../css/print.css";
 
+import { DEFAULT_PRINT_FONTS, getFonts } from "@/lib/utils";
 import { Edit2Icon, PrinterIcon } from "lucide-react";
 import { Kbd, KbdGroup } from "@/Components/ui/kbd";
 import {
   LaravelReactI18nProvider,
   useLaravelReactI18n,
 } from "laravel-react-i18n";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -23,7 +30,6 @@ import Link from "@/Components/Link";
 import LinkModel from "@/Components/LinkModel";
 import PrintPreview from "./Components/PrintPreview";
 import Select from "@/Components/Select";
-import { getFonts } from "@/lib/utils";
 import { useForm } from "@inertiajs/react";
 
 const paperSize = {
@@ -71,12 +77,57 @@ const units = {
     conversion_factor: 1,
   },
 };
-function Print({ data: _data, printTemplate }) {
+function Print({ data: _data, printTemplate, lang }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
-  const { data: template, setData: setTemplate } = useForm(printTemplate);
+  const initialTemplate = useMemo(() => {
+    const normalizedOrientation =
+      printTemplate?.orientation === "landscape" ? "landscape" : "portrait";
+    const unit = printTemplate?.unit ?? "cm";
+    const paper = printTemplate?.paper ?? "A4";
+    const paperMetric = paperSize[paper] ?? paperSize.A4;
+    const conversionFactor = units[unit]?.conversion_factor ?? 1;
+    const portraitWidth = paperMetric.width / conversionFactor;
+    const portraitHeight = paperMetric.height / conversionFactor;
+
+    return {
+      ...printTemplate,
+      paper,
+      unit,
+      orientation: normalizedOrientation,
+      default_language: printTemplate?.default_language || lang || "en",
+      page_number: printTemplate?.page_number ?? "bottom_right",
+      font_family: printTemplate?.font_family ?? "Times New Roman",
+      width:
+        printTemplate?.width ??
+        (normalizedOrientation === "portrait" ? portraitWidth : portraitHeight),
+      height:
+        printTemplate?.height ??
+        (normalizedOrientation === "portrait" ? portraitHeight : portraitWidth),
+      last_conversion_factor:
+        printTemplate?.last_conversion_factor ?? conversionFactor,
+    };
+  }, [printTemplate, lang]);
+
+  const { data: template, setData: setTemplate } = useForm(initialTemplate);
   const frame = useRef();
-  const [fonts, setFonts] = useState([]);
+  const [fonts, setFonts] = useState([...DEFAULT_PRINT_FONTS]);
+
+  const fontOptions = useMemo(() => {
+    const options = [template?.font_family, ...fonts].filter(
+      (font) => typeof font === "string" && font.trim(),
+    );
+    const map = new Map();
+    options.forEach((font) => {
+      const normalized = font.trim();
+      const key = normalized.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, normalized);
+      }
+    });
+    return Array.from(map.values());
+  }, [template?.font_family, fonts]);
+
   useEffect(() => {
     const fn = async () => {
       const fonts = await getFonts();
@@ -142,10 +193,10 @@ function Print({ data: _data, printTemplate }) {
             <div className="grid col-span-full grid-cols-subgrid gap-y-4 border-b py-4">
               <FormInput label={t("core.printTemplate.columns.languange")}>
                 <Select
-                  value={template?.default_languange ?? ""}
-                  onValueChange={(e) => setTemplate("default_languange", e)}
+                  value={template?.default_language ?? ""}
+                  onValueChange={(e) => setTemplate("default_language", e)}
                   options={["en", "id"]}
-                  optionTrans="core.printTemplate.columns.default_languange.options"
+                  optionTrans="core.printTemplate.columns.default_language.options"
                 />
               </FormInput>
               <FormInput label={t("core.printTemplate.columns.letter_head")}>
@@ -165,7 +216,6 @@ function Print({ data: _data, printTemplate }) {
             </div>
             <FormInput label={t("core.printTemplate.columns.paper")} required>
               <Select
-                defaultValue="A4"
                 value={template?.paper ?? ""}
                 onValueChange={(paper) => {
                   setTemplate((prev) => {
@@ -223,7 +273,6 @@ function Print({ data: _data, printTemplate }) {
               label={t("core.printTemplate.columns.orientation")}
             >
               <Select
-                defaultValue="portrait"
                 value={template?.orientation ?? ""}
                 onValueChange={(val) => {
                   setTemplate((prev) => ({
@@ -242,15 +291,13 @@ function Print({ data: _data, printTemplate }) {
               label={t("core.printTemplate.columns.font_family")}
             >
               <Select
-                defaultValue="Times New Roman"
                 value={template?.font_family ?? ""}
                 onValueChange={(e) => setTemplate("font_family", e)}
-                options={fonts}
+                options={fontOptions}
               />
             </FormInput>
             <FormInput required label={t("core.printTemplate.columns.unit")}>
               <Select
-                defaultValue="cm"
                 value={template?.unit ?? ""}
                 options={Object.values(units)}
                 onValueChange={(unit) => {
@@ -309,7 +356,6 @@ function Print({ data: _data, printTemplate }) {
               label={t("core.printTemplate.columns.page_number")}
             >
               <Select
-                defaultValue="bottom_right"
                 value={template?.page_number ?? ""}
                 onValueChange={(e) => setTemplate("page_number", e)}
                 options={[
@@ -355,11 +401,11 @@ function Print({ data: _data, printTemplate }) {
                             ? "custom"
                             : prev.paper,
                         orientation:
-                          val > prev.height ? "landscape" : "potrait",
+                          val > prev.height ? "landscape" : "portrait",
                       };
                     });
                   }}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
               <FormInput
@@ -385,7 +431,7 @@ function Print({ data: _data, printTemplate }) {
                       };
                     });
                   }}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
             </div>
@@ -401,7 +447,7 @@ function Print({ data: _data, printTemplate }) {
                   className="text-left"
                   value={template?.margin_top ?? ""}
                   onValueChange={(e) => setTemplate("margin_top", e)}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
               <FormInput
@@ -414,7 +460,7 @@ function Print({ data: _data, printTemplate }) {
                   className="text-left"
                   value={template?.margin_bottom ?? ""}
                   onValueChange={(e) => setTemplate("margin_bottom", e)}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
               <FormInput
@@ -428,7 +474,7 @@ function Print({ data: _data, printTemplate }) {
                   className="text-left"
                   value={template?.margin_left ?? ""}
                   onValueChange={(e) => setTemplate("margin_left", e)}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
               <FormInput
@@ -441,7 +487,7 @@ function Print({ data: _data, printTemplate }) {
                   className="text-left"
                   value={template?.margin_right ?? ""}
                   onValueChange={(e) => setTemplate("margin_right", e)}
-                  options={["potrait", "landscape"]}
+                  options={["portrait", "landscape"]}
                 />
               </FormInput>
             </div>
@@ -462,10 +508,10 @@ function Print({ data: _data, printTemplate }) {
           </div>
         </div>
         {/* Preview */}
-        <div className="h-full overflow-auto w-full flex-shrink-1">
+        <div className="h-full overflow-auto w-full shrink">
           <div className="bg-muted p-8 h-fit! w-fit! rounded-lg mx-auto">
             <LaravelReactI18nProvider
-              locale={template.default_languange}
+              locale={template.default_language}
               fallbackLocale={"en"}
               files={import.meta.glob("/lang/*.json")}
             >

@@ -6,7 +6,6 @@ use App\Casts\Json;
 use App\Casts\LogContent;
 use App\Models\Model;
 use App\Models\User\User;
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,9 +15,11 @@ class Log extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'activity'    => LogContent::class,
-        'data_before' => Json::class,
-        'data_after'  => Json::class,
+        'activity'     => LogContent::class,
+        'data_before'  => Json::class,
+        'data_after'   => Json::class,
+        'comment_json' => 'array',
+        'edited_at'    => 'datetime',
     ];
     protected $with    = ['user'];
     protected $appends = ['code'];
@@ -26,13 +27,16 @@ class Log extends Model {
     public function code(): Attribute {
         return new Attribute(
             get: function () {
-                return $this->user->name . ' (' . Carbon::parse($this->created_at)->format('Y-m-d H:i:s') . ')';
+                $userName  = $this->user?->name ?? 'System';
+                $createdAt = $this->created_at?->format('Y-m-d H:i:s') ?? '-';
+
+                return $userName . ' (' . $createdAt . ')';
             },
         );
     }
 
-    public $translateKey     = 'core.log';
-    protected $configColumns = [
+    public $translateKey           = 'core.log';
+    protected array $configColumns = [
         'activity' => [
             'show'  => true,
             'order' => 1,

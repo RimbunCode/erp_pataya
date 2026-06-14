@@ -26,7 +26,6 @@ export default function Show({ workOrder }) {
     );
     return totalRequiredQuantity > 0;
   }, [workOrder]);
-  console.log(canRequest);
 
   return (
     <FormPage

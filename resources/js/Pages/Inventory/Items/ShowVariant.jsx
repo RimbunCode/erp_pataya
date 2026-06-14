@@ -9,13 +9,14 @@ export default function ShowVariant({ itemVariant }) {
   const route = window.route;
   return (
     <FormPage
-      title={itemVariant.sku}
+      title={itemVariant.code}
       name="itemVariant"
+      deleteable={false}
       badge={
         <>
           {itemVariant.format_variant && (
             <span className="text-sm badge primary">
-              {`${t("inventory.item.variant_of")} `}
+              {`${t("inventory.itemVariant.variant_of")} `}
               <Link
                 className="ml-1 hover:underline"
                 href={route("items.show", itemVariant.item.id)}

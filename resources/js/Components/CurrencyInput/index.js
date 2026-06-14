@@ -227,6 +227,9 @@
       if (_value === '-') {
           return '-';
       }
+      if (_value === '\u221E' || _value === "+\u221E" || _value === "-\u221E") {
+          return _value;
+      }
       var isNegative = new RegExp("^\\d?-".concat(prefix ? "".concat(escapeRegExp(prefix), "?") : '', "\\d")).test(_value);
       var _c = intlConfig || {}, locale = _c.locale, currency = _c.currency, formatOptions = __rest(_c, ["locale", "currency"]);
       var localeConfig = getLocaleConfig(intlConfig);

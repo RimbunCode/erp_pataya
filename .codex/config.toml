@@ -6,7 +6,7 @@ args = ["-r", "$home=getenv('USERPROFILE')?:getenv('HOME'); if(!$home){fwrite(ST
 cwd = "."
 
 [mcp_servers.herd.env]
-SITE_PATH = "."
+SITE_PATH = "G:\\Project App\\erp"
 
 [mcp_servers.shadcn]
 command = "npx"

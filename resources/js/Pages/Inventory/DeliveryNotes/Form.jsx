@@ -9,11 +9,11 @@ import DeliveryNoteLinkModel from "./DeliveryNoteLinkModel";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
+import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import LinkModel from "@/Components/LinkModel";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
-import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -41,9 +41,11 @@ export default function Form() {
               placeholder={t("inventory.deliveryNote.columns.item.placeholder")}
               value={dataRow.item}
               onValueChange={(val) => {
+                const defaultUnit = val?.default_uom;
                 setData({
                   item: val,
-                  unit: val?.default_unit,
+                  unit: defaultUnit,
+                  conversion_factor: defaultUnit?.conversion_factor,
                   source_warehouse: data.source_warehouse,
                 });
               }}
@@ -51,7 +53,7 @@ export default function Form() {
               filters={{
                 is_stock_item: true,
               }}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },
@@ -122,15 +124,19 @@ export default function Form() {
         required: true,
         cell({ data, setData, attributes, dataRow }) {
           return (
-            <UnitLinkModel
+            <ItemUnitLinkModel
               disabled={!dataRow?.item}
               placeholder={t("inventory.deliveryNote.columns.unit.placeholder")}
               value={data}
-              onValueChange={(val) => setData("unit", val)}
+              onValueChange={(val) =>
+                setData({
+                  unit: val,
+                  conversion_factor: val?.conversion_factor,
+                })
+              }
               {...attributes}
-              readOnly={false}
               filters={{
-                group: dataRow?.item?.default_unit?.group,
+                item_id: dataRow?.item?.item_id,
               }}
             />
           );
@@ -216,7 +222,7 @@ export default function Form() {
                     "items",
                     ...(data.reference_to?.model ==
                     "App\\Models\\Sales\\SalesOrder"
-                      ? ["customer", "customer_branch"]
+                      ? ["customer", "customerBranch"]
                       : ["branch"]),
                     "items.item",
                     "items.unit",
@@ -289,9 +295,9 @@ export default function Form() {
                   appends={["model"]}
                   with={[
                     "referenceable",
-                    "reference_to",
+                    "referenceTo",
                     "customer",
-                    "customer_branch",
+                    "customerBranch",
                     "items",
                     "items.item",
                     "items.unit",

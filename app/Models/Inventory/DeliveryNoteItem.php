@@ -9,21 +9,50 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class DeliveryNoteItem extends Model {
     use HasUlids, SoftDeletes;
 
-    protected $guarded          = ['id'];
-    public string $translateKey = 'finances.deliveryNoteItem';
-    protected $configColumns    = [
-        'quantity' => [
-            'type'  => 'numeric',
+    public static $parentRelation  = 'deliveryNote';
+    protected $guarded             = ['id'];
+    public string $translateKey    = 'finances.deliveryNoteItem';
+    protected array $configColumns = [
+        'item' => [
+            'type'  => 'relation',
             'show'  => true,
             'order' => 0,
         ],
-        'description' => [
+        'quantity' => [
+            'type'  => 'numeric',
             'show'  => true,
             'order' => 1,
         ],
-        'referenceable',
-        'sourceWarehouse',
-        'item',
+        'sourceWarehouse' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 2,
+        ],
+        'description' => [
+            'show'  => true,
+            'order' => 3,
+        ],
+        'unit' => [
+            'type'  => 'relation',
+            'show'  => false,
+            'order' => 4,
+        ],
+        'referenceable' => [
+            'show'  => false,
+            'order' => 5,
+        ],
+        'deliveryNote' => [
+            'ignore' => true,
+        ],
+        'delivery_note_id' => [
+            'ignore' => true,
+        ],
+        'returnAgainstItem' => [
+            'ignore' => true,
+        ],
+        'return_against_item_id' => [
+            'ignore' => true,
+        ],
     ];
     protected $casts = [
         'valuation_rates' => 'array',
@@ -46,7 +75,7 @@ class DeliveryNoteItem extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 
     public function returnAgainstItem() {

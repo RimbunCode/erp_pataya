@@ -16,7 +16,6 @@ return new class extends Migration
             $table->ulidMorphs('payment_scheduleable', 'payment_scheduleable_index');
             $table->double('invoice_portion');
             $table->text('description')->nullable();
-            $table->foreignUlid('payment_term_id')->nullable()->references('id')->on('payment_terms')->nullOnDelete();
             $table->foreignUlid('payment_method_id')->nullable()->references('id')->on('payment_methods')->nullOnDelete();
             $table->double('payment_amount');
             $table->double('paid_amount')->default(0);

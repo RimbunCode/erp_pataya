@@ -1129,6 +1129,10 @@ export default memo(
     const MyDialogDescription = submitable
       ? AlertDialogDescription
       : DialogDescription;
+
+    const currentRowData = useMemo(() => {
+      return (submitable ? currentData : currentRow) ?? {};
+    }, [currentData, currentRow, submitable]);
     return (
       <>
         <div
@@ -1242,7 +1246,7 @@ export default memo(
           }}
         >
           <MyDialogContent
-            {...(submitable ? { hideX: true } : {})}
+            {...(!submitable ? { hideX: true } : {})}
             className={cn(
               "max-w-full sm:max-w-(--breakpoint-sm) md:w-fit md:min-w-[672px]  md:max-w-3xl lg:max-w-(--breakpoint-lg)",
               classNameDialog,
@@ -1440,7 +1444,7 @@ export default memo(
                   showHeader={false}
                   errors={{}}
                   fieldNameTrans={""}
-                  data={(submitable ? currentData : currentRow) ?? {}}
+                  data={currentRowData ?? {}}
                   setData={(...args) =>
                     submitable
                       ? updateDataCurrent(...args)
@@ -1448,8 +1452,28 @@ export default memo(
                   }
                 >
                   {typeof form === "function"
-                    ? form({ getColumn })
-                    : React.cloneElement(form, { getColumn })}
+                    ? form({
+                        getColumn,
+                        data: currentRowData,
+                        setData(...args) {
+                          submitable
+                            ? updateDataCurrent(...args)
+                            : updateData(currentIndex, ...args);
+                        },
+                        readOnly,
+                        disabled,
+                      })
+                    : React.cloneElement(form, {
+                        getColumn,
+                        data: currentRowData,
+                        setData(...args) {
+                          submitable
+                            ? updateDataCurrent(...args)
+                            : updateData(currentIndex, ...args);
+                        },
+                        readOnly,
+                        disabled,
+                      })}
                 </FormChildren>
               ) : (
                 <div
@@ -1459,7 +1483,7 @@ export default memo(
                       : columns.length <= 2
                         ? "md:grid-cols-2"
                         : "md:grid-cols-2 lg:grid-cols-3",
-                    "grid gap-x-4 gap-y-3",
+                    "grid gap-x-4 gap-y-3 pt-4",
                   )}
                 >
                   {columns &&
@@ -1704,7 +1728,7 @@ const SelectColumn = memo(function SelectColumn({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-full md:max-w-[50%]  min-w-64">
         <DialogHeader className="pb-2 border-b border-muted-foreground/25">
           <DialogTitle>{t("core.formtable.select_columns")}</DialogTitle>
           <DialogDescription className="sr-only"></DialogDescription>
@@ -1712,7 +1736,7 @@ const SelectColumn = memo(function SelectColumn({
         <p className="text-sm text-muted-foreground">
           {t("core.formtable.select_columns.description")}
         </p>
-        <div className="space-y-4 columns-3xs">
+        <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
           {columns &&
             columns.map((col) => {
               return (

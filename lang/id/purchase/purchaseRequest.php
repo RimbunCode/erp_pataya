@@ -1,19 +1,19 @@
 <?php
 
 return [
-    'title'              => 'Permintaan Pembelian (Purchase Requests)',
-    'add'                => 'Tambah Permintaan Pembelian',
-    'new'                => 'Permintaan Pembelian Baru',
-    'delete'             => 'Hapus Permintaan Pembelian',
-    'delete.description' => 'Apakah Anda yakin ingin menghapus Permintaan Pembelian ini?',
+    'title'              => 'Purchase Requests',
+    'add'                => 'Tambah Purchase Request',
+    'new'                => 'Purchase Request Baru',
+    'delete'             => 'Hapus Purchase Request',
+    'delete.description' => 'Apakah Anda yakin ingin menghapus Purchase Request ini?',
     'delete.confirm'     => 'Hapus',
     'cancel'             => 'Batal',
-    'work_order'         => 'Permintaan Pembelian',
+    'work_order'         => 'Purchase Request',
     'detail'             => 'Detail',
     'items'              => 'Item',
     'connections'        => 'Koneksi',
     'actions'            => [
-        'create_po' => 'Buat Pesanan Pembelian',
+        'create_po' => 'Buat Purchase Order',
     ],
     'import_items' => 'Impor Item',
     'columns'      => [

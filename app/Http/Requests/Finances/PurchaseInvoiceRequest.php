@@ -40,7 +40,7 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             'items.*.referenceable_type'     => ['nullable', 'string'],
             'items.*.referenceable_id'       => ['nullable', 'string'],
             'items.*.quantity'               => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'                => ['required', 'exists:units,id'],
+            'items.*.unit.id'                => ['required', 'exists:item_units,id'],
             'items.*.unit.*'                 => ['nullable'],
             'items.*.tax.id'                 => ['nullable', 'exists:taxes,id'],
             'items.*.tax.*'                  => ['nullable'],

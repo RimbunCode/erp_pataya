@@ -9,6 +9,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class FormatingSeries extends Model {
     use DataTable, HasUlids;
@@ -66,7 +67,7 @@ class FormatingSeries extends Model {
         return $codeFormats;
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'name' => [
             'isLink' => true,
             'show'   => true,
@@ -79,11 +80,15 @@ class FormatingSeries extends Model {
     ];
     public string $translateKey = 'core.formatingSeries';
 
+    public static function templateLink() {
+        return 'Formating: :name';
+    }
+
     private static function getCodeRelations(string $model) {
         $objectModel   = new $model;
         $codeRelations = collect(
             \method_exists($objectModel, 'codeRelations') ?
-            $objectModel->codeRelations() : [],
+      $objectModel->codeRelations() : [],
         )->mapWithKeys(function ($value) {
             preg_replace_callback('/^([^:]+):([^\.]+)\.([^\.]+)$/', function ($matches) use (&$code, &$relation, &$key) {
                 $code     = $matches[1];
@@ -185,13 +190,27 @@ class FormatingSeries extends Model {
             $refLatest['current'] += 1;
         }
 
+        // Validate that all custom tokens in the format are defined in codeRelations
+        preg_match_all('/@\[(.*?)\]/', $ref->format, $tokenMatches);
+        $builtInPattern = '/^(i+|yyyy|yy|mmmm|mmm|mm)$/';
+        foreach ($tokenMatches[1] as $token) {
+            if (preg_match($builtInPattern, $token)) {
+                continue;
+            }
+            if (! isset($codeRelations[$token])) {
+                throw ValidationException::withMessages([
+                    'format' => ["Relation field '@[{$token}]' is not defined in codeRelations() for model {$model}."],
+                ]);
+            }
+        }
+
         if (! \is_array($data)) {
             $relations = \array_unique(\array_values(\array_map(fn ($item) => $item['relation'], $codeRelations)));
             $data->load($relations);
             $data = $data->toArray();
         }
         $pattern = '/@\[(.*?)\]/';
-        $result  = preg_replace_callback($pattern, function ($matches) use ($isDraft, $codeRelations, $data, $now, $refLatest) {
+        $result  = preg_replace_callback($pattern, function ($matches) use ($isDraft, $codeRelations, $data, $now, $refLatest, $model) {
             $format = $matches[1];
             if ($format[0] == 'i') {
                 $rslt = str_pad($refLatest['current'], \strlen($format), '0', STR_PAD_LEFT);
@@ -205,7 +224,19 @@ class FormatingSeries extends Model {
                 'mmmm'  => $now->translatedFormat('F'),
                 'mmm'   => $now->translatedFormat('M'),
                 'mm'    => $now->translatedFormat('m'),
-                default => $data[($codeRelations[$format]['relation'])][($codeRelations[$format]['key'])] ?? "{{$format}}",
+                default => (function () use ($data, $codeRelations, $format, $model) {
+                    if (! isset($codeRelations[$format])) {
+                        throw new \Error("Relation field '@[{$format}]' is not defined in codeRelations() for model {$model}.");
+                    }
+                    $relation = $codeRelations[$format]['relation'];
+                    $key      = $codeRelations[$format]['key'];
+                    $value    = $data[$relation][$key] ?? null;
+                    if ($value === null) {
+                        throw new \Error("Relation '{$relation}.{$key}' could not be resolved for model {$model}. Ensure the relation is loaded and the field exists.");
+                    }
+
+                    return $value;
+                })(),
             };
         }, $ref->format);
 

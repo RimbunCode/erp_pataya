@@ -22,7 +22,7 @@ class DashboardWidget extends Model {
         return ['widget', 'dashboard', 'parent'];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'widget',
         'dashboard',
         'parent',

@@ -14,7 +14,7 @@ class Role extends Model {
     protected $casts   = [
         'is_disabled' => 'boolean',
     ];
-    public $configColumns = [
+    protected array $configColumns = [
         'name' => [
             'show'   => true,
             'order'  => 0,
@@ -33,6 +33,10 @@ class Role extends Model {
 
     public static function templateLink() {
         return ':name';
+    }
+
+    protected static function loadRelationsOnShow() {
+        return ['rules', 'rules.permission'];
     }
 
     public function users() {

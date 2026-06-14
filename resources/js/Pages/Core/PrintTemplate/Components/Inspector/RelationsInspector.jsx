@@ -35,6 +35,7 @@ import { useForm, usePage } from "@inertiajs/react";
 import { Button } from "@/Components/ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import { FormCheckbox } from "@/Components/ui/checkbox";
+import { buildExampleDataTable } from "@/lib/gjsRelationsTable";
 import { useEditor } from "@grapesjs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -55,7 +56,7 @@ const SelectColumn = memo(function SelectColumn({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-full md:max-w-[50%]  min-w-64">
         <DialogHeader className="pb-2 border-b border-muted-foreground/25">
           <DialogTitle>{t("core.formtable.select_columns")}</DialogTitle>
           <DialogDescription className="sr-only"></DialogDescription>
@@ -63,7 +64,7 @@ const SelectColumn = memo(function SelectColumn({
         <p className="text-sm text-muted-foreground">
           {t("core.formtable.select_columns.description")}
         </p>
-        <div className="space-y-4 columns-3xs">
+        <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
           {columns &&
             columns.map((col) => {
               return (
@@ -174,6 +175,7 @@ const ColumnItem = memo(function ColumnItem({ column, onRemove }) {
 });
 const ComponentItem = memo(function ComponentItem({ component, data }) {
   const { t } = useLaravelReactI18n();
+  const { printTemplate } = usePage().props ?? {};
   const {
     data: _data,
     setData: _setData,
@@ -250,127 +252,23 @@ const ComponentItem = memo(function ComponentItem({ component, data }) {
     tbody.remove();
 
     const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
-    component.append([
-      {
-        type: "tableHead",
-        tagName: "thead",
-        toolbars: [],
-        selectable: false,
-        droppable: false,
-        layerable: false,
-        editable: false,
-        draggable: false,
-        components: [
-          {
-            type: "html-comment",
-            attributes: {
-              text: `{{#infoColumns @root.dataTableColumns key="${attributes["data-relations"]}" }}`,
-            },
-          },
-          {
-            tagName: "tr",
-            toolbars: [],
-            selectable: false,
-            droppable: false,
-            layerable: false,
-            editable: false,
-            draggable: false,
-            components: [
-              {
-                tagName: "th",
-                selectable: false,
-                droppable: false,
-                layerable: false,
-                editable: false,
-                draggable: false,
-                content: "#",
-                attributes: {
-                  "data-id": genId("cell"),
-                },
-              },
-              ...columns.map((col) => ({
-                tagName: "th",
-                content: `{{trans ${col.name}}}`,
-                selectable: false,
-                droppable: false,
-                layerable: false,
-                editable: false,
-                draggable: false,
-                attributes: {
-                  "data-id": genId("cell"),
-                  name: col.name,
-                  class:
-                    "border border-gray-400 px-2 py-1 text-left bg-gray-100",
-                },
-                toolbars: [],
-              })),
-            ],
-          },
-          {
-            type: "html-comment",
-            attributes: { text: `{{/infoColumns}}` },
-          },
-        ],
-      },
-      {
-        tagName: "tbody",
-        toolbars: [],
-        selectable: false,
-        droppable: false,
-        layerable: false,
-        editable: false,
-        draggable: false,
-        components: [
-          {
-            type: "html-comment",
-            attributes: { text: `{{#each ${attributes["data-relations"]}}}` },
-          },
-          {
-            tagName: "tr",
-            toolbars: [],
-            selectable: false,
-            droppable: false,
-            layerable: false,
-            editable: false,
-            draggable: false,
-            components: [
-              {
-                tagName: "td",
-                toolbars: [],
-                selectable: false,
-                droppable: false,
-                layerable: false,
-                editable: false,
-                draggable: false,
-                content: "{{idx}}",
-                attributes: {
-                  "data-id": genId("cell"),
-                },
-              },
-              ...columns.map((col) => ({
-                tagName: "td",
-                content: `{{${col.type == "relation" ? "relation " : ""}${col.name}}}`,
-                toolbars: [],
-                selectable: false,
-                droppable: false,
-                layerable: false,
-                editable: false,
-                draggable: false,
-                attributes: {
-                  "data-id": genId("cell"),
-                  name: col.name,
-                  class: "border border-gray-300 px-2 py-1",
-                },
-              })),
-            ],
-          },
-          {
-            type: "html-comment",
-            attributes: { text: `{{/each}}` },
-          },
-        ],
-      },
-    ]);
+    const relationName = attributes["data-relations"];
+
+    // Build canvas preview (without example data)
+    // Requirements: 3.1, 3.2, 3.4
+    const tableComponents = buildExampleDataTable({
+      columns,
+      relationName,
+      exampleData: [],
+      t,
+      genId,
+      locale: printTemplate?.default_language,
+    });
+
+    // Store columns config on the component for toHTML() token generation
+    component.set("columnsConfig", columns);
+
+    component.append(tableComponents);
   }, [_data]);
   const onReset = useCallback(() => {
     setColumns(data.columns);
@@ -496,15 +394,18 @@ export default function RelationsInspector() {
             dataCol = i == keys.length - 1 ? temp : temp.columns;
           }
         }
-        console.log(dataCol, keys);
-
         if (!dataCol) return;
         dataCol.columns = dataCol.columns
-          ?.map((col) => {
+          ?.map((col, idx) => {
             const config = getConfig(col.name);
             return {
               ...col,
-              ...config,
+              // Use order from table headers if present, otherwise
+              // fall back to the order property from DataTableColumns config,
+              // and finally use the array index as last resort.
+              // Requirements: 3.12
+              order: config.order ?? col.order ?? idx,
+              show: config.show ?? col.show ?? true,
             };
           })
           .sort((a, b) => {
@@ -532,190 +433,3 @@ export default function RelationsInspector() {
     </Accordion>
   );
 }
-
-// export default function RelationsInspector() {
-//   const { dataTableColumns } = usePage().props;
-//   const [comp, setComp] = useState(null);
-//   const [columns, setColumns] = useState([]); // all columns list
-//   const [visible, setVisible] = useState([]); // visible columns
-//   const [order, setOrder] = useState([]); // column order
-//   const editor = useEditor();
-
-//   useEffect(() => {
-//     console.log(editor);
-//     if (!editor) return;
-
-//     const onSelect = () => {
-//       const sel = editor.getSelected();
-//       if (!sel || sel.get("type") !== "gjsDynamicTable") {
-//         setComp(null);
-//         return;
-//       }
-
-//       setComp(sel);
-
-//       const allCols =
-//         (dataTableColumns ?? []).find(
-//           (col) => col.name == sel.getAttributes()["data-relations"],
-//         )?.columns ?? [];
-
-//       console.log(
-//         dataTableColumns,
-//         allCols,
-//         sel.getAttributes()["data-relations"],
-//       );
-
-//       const initialOrder = sel.get("columnOrder") || allCols.slice();
-//       const initialVisible = sel.get("visibleColumns") || allCols.slice();
-
-//       setColumns(allCols);
-//       setOrder(initialOrder);
-//       setVisible(initialVisible);
-//     };
-//     editor.on("selector:state", (cmp) => {
-//       console.log("SELECTED from selector:state", cmp);
-//     });
-
-//     editor.on("component:selected", onSelect);
-//     // also update on component:update (when created from drop)
-//     editor.on("component:update", onSelect);
-
-//     return () => {
-//       editor.off("component:selected", onSelect);
-//       editor.off("component:update", onSelect);
-//     };
-//   }, [editor]);
-
-//   // update component when visible changes
-//   useEffect(() => {
-//     if (!comp) return;
-//     comp.set("visibleColumns", visible);
-//     // also set attributes so save/restore works
-//     const colsJson = JSON.stringify(columns);
-//     comp.addAttributes({ "data-columns": colsJson });
-//     comp.set("columnOrder", order);
-//     // rebuild HTML inside component — plugin should observe change, but we proactively update components
-//     rebuildTable(
-//       comp,
-//       order.filter((c) => visible.includes(c)),
-//     );
-//     comp.trigger("change:visibleColumns");
-//     comp.trigger("change:columnOrder");
-//     // persist
-//     const editor = window.gjsEditorRef;
-//     editor && editor.store();
-//   }, [visible, order]);
-
-//   const rebuildTable = (componentModel, visibleOrdered) => {
-//     // Replace inner markup with table using visibleOrdered.
-//     // We keep the outer component as single wrapper.
-//     const relation =
-//       componentModel.getAttributes()["data-relations"] ||
-//       componentModel.get("relation") ||
-//       "relation";
-//     const thead = {
-//       tagName: "thead",
-//       components: [
-//         {
-//           tagName: "tr",
-//           components: visibleOrdered.map((c) => ({
-//             tagName: "th",
-//             content: c,
-//           })),
-//         },
-//       ],
-//     };
-//     const tbody = {
-//       tagName: "tbody",
-//       components: [
-//         {
-//           tagName: "tr",
-//           components: visibleOrdered.map((c) => ({
-//             tagName: "td",
-//             content: `{{${relation}.${c}}}`,
-//           })),
-//         },
-//       ],
-//     };
-//     // replace inner components
-//     componentModel.components([thead, tbody]);
-//   };
-
-//   if (!comp) return null;
-
-//   return (
-//     <div className="p-3 border-t">
-//       <Collapsible defaultOpen>
-//         <CollapsibleTrigger className="flex items-center justify-between w-full">
-//           <div>
-//             <div className="font-medium">
-//               Relations: {comp.getAttributes()["data-relations"]}
-//             </div>
-//             <div className="text-xs text-muted-foreground">
-//               Atur kolom & urutan
-//             </div>
-//           </div>
-//           <ChevronDown className="w-4 h-4" />
-//         </CollapsibleTrigger>
-//         <CollapsibleContent className="mt-2">
-//           <div className="text-sm mb-2">Tampilkan Kolom</div>
-//           <div className="space-y-1">
-//             {columns.map((col) => (
-//               <label key={col.name} className="flex items-center gap-2">
-//                 <Checkbox
-//                   checked={visible.includes(col)}
-//                   onCheckedChange={() => {
-//                     setVisible((prev) =>
-//                       prev.includes(col)
-//                         ? prev.filter((c) => c !== col)
-//                         : [...prev, col],
-//                     );
-//                   }}
-//                 />
-//                 <span className="text-sm">{col}</span>
-//               </label>
-//             ))}
-//           </div>
-
-//           <div className="text-sm mt-4 mb-2">Urutan Kolom</div>
-//           <Reorder.Group
-//             axis="y"
-//             values={order}
-//             onReorder={setOrder}
-//             className="space-y-2"
-//           >
-//             {order.map((col) => (
-//               <Reorder.Item
-//                 key={col}
-//                 value={col}
-//                 className="p-2 border rounded bg-background cursor-grab"
-//               >
-//                 {col}
-//               </Reorder.Item>
-//             ))}
-//           </Reorder.Group>
-
-//           <div className="flex gap-2 mt-3">
-//             <Button
-//               onClick={() => {
-//                 setVisible(columns.slice());
-//                 setOrder(columns.slice());
-//               }}
-//             >
-//               Reset
-//             </Button>
-//             <Button
-//               variant="ghost"
-//               onClick={() => {
-//                 // quick apply: hide all
-//                 setVisible([]);
-//               }}
-//             >
-//               Clear
-//             </Button>
-//           </div>
-//         </CollapsibleContent>
-//       </Collapsible>
-//     </div>
-//   );
-// }

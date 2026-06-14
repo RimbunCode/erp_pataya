@@ -17,6 +17,7 @@ import LoadingIcon from "@/Components/LoadingIcon";
 import QueryString from "qs";
 import axios from "axios";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useFormPage } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function Tags() {
@@ -25,6 +26,10 @@ function Tags() {
   const inputRef = useRef();
   const [tags, setTags] = useState([]);
   const { tags: _tags } = usePage().props;
+  // SidebarChildren bisa dirender di luar FormPageContext (sidebar FormPage),
+  // jadi context bisa undefined → fallback ke edit-mode (isCreate falsy).
+  const { isCreate, data, setData } = useFormPage() ?? {};
+  const bufferedTags = data?.buffered_tags ?? [];
   const [search, setSearch] = useState("");
   const [listTags, setListTags] = useState([]);
   const [open, setOpen] = useState();
@@ -34,8 +39,8 @@ function Tags() {
   const currentQueryString = window.location.search;
   const basePath = `${currentPath}/tag`;
   useEffect(() => {
-    setTags(_tags ?? []);
-  }, [_tags]);
+    setTags(isCreate ? bufferedTags : (_tags ?? []));
+  }, [_tags, isCreate, JSON.stringify(bufferedTags)]);
 
   useEffect(() => {
     if (!showSearch) {
@@ -47,6 +52,17 @@ function Tags() {
 
   const addTag = (tag) => {
     if (tags.findIndex((t) => t.name == tag.name) >= 0) {
+      setSearch("");
+      setShowSearch(false);
+      return;
+    }
+    if (isCreate) {
+      const next = [
+        ...bufferedTags,
+        { id: tag.id, name: tag.name, isNew: tag.isNew },
+      ];
+      setData("buffered_tags", next);
+      setTags(next);
       setSearch("");
       setShowSearch(false);
       return;
@@ -68,6 +84,12 @@ function Tags() {
   };
 
   const removeTag = (id) => {
+    if (isCreate) {
+      const next = bufferedTags.filter((t) => t.id !== id);
+      setData("buffered_tags", next);
+      setTags(next);
+      return;
+    }
     router.delete(`${basePath}/${id}${currentQueryString}`, {
       reset: ["tags"],
       preserveScroll: true,
@@ -105,6 +127,39 @@ function Tags() {
 
     return () => clearTimeout(reloadData);
   }, [search]);
+
+  const tagList = (
+    <div className="flex flex-wrap px-8 gap-x-2 gap-y-3 lg:max-w-72">
+      {tags &&
+        tags.map(({ id, name, isLoading }) => (
+          <div
+            key={id}
+            className="flex items-center px-2 py-1 text-sm rounded-lg gap-x-2 bg-muted"
+          >
+            <Link
+              href={route("tags.show", { tag: id })}
+              className="hover:underline"
+            >
+              {name}
+            </Link>
+            <Button
+              variant="ghost"
+              className="rounded-full p-0! m-0! w-auto h-auto group-data-[disabled=true]/form:hidden"
+              size="icon"
+              onClick={() => {
+                if (!isLoading) removeTag(id);
+              }}
+            >
+              {isLoading ? (
+                <LoadingIcon className="size-4" />
+              ) : (
+                <X className="size-4!" />
+              )}
+            </Button>
+          </div>
+        ))}
+    </div>
+  );
 
   return (
     <ClickAwayListener onClickAway={() => setShowSearch(false)}>
@@ -162,48 +217,24 @@ function Tags() {
             </ClickAwayListener>
           </div>
         )}
-        <Deferred
-          data={["tags"]}
-          fallback={
-            <div className="mb-3 first:mt-2 ms-6">
-              <div className="text-base! font-normal text-foreground flex gap-x-4">
-                <LoadingIcon className="size-4" />
-                <span>{t("core.form.loading")} ...</span>
-              </div>
-            </div>
-          }
-        >
-          <div className="flex flex-wrap px-8 gap-x-2 gap-y-3 lg:max-w-72">
-            {tags &&
-              tags.map(({ id, name, isLoading }) => (
-                <div
-                  key={id}
-                  className="flex items-center px-2 py-1 text-sm rounded-lg gap-x-2 bg-muted"
-                >
-                  <Link
-                    href={route("tags.show", { tag: id })}
-                    className="hover:underline"
-                  >
-                    {name}
-                  </Link>
-                  <Button
-                    variant="ghost"
-                    className="rounded-full p-0! m-0! w-auto h-auto group-data-[disabled=true]/form:hidden"
-                    size="icon"
-                    onClick={() => {
-                      if (!isLoading) removeTag(id);
-                    }}
-                  >
-                    {isLoading ? (
-                      <LoadingIcon className="size-4" />
-                    ) : (
-                      <X className="size-4!" />
-                    )}
-                  </Button>
+        {/* Create: tag dari buffer lokal — tanpa Deferred (cegah loading abadi). */}
+        {isCreate ? (
+          tagList
+        ) : (
+          <Deferred
+            data={["tags"]}
+            fallback={
+              <div className="mb-3 first:mt-2 ms-6">
+                <div className="text-base! font-normal text-foreground flex gap-x-4">
+                  <LoadingIcon className="size-4" />
+                  <span>{t("core.form.loading")} ...</span>
                 </div>
-              ))}
-          </div>
-        </Deferred>
+              </div>
+            }
+          >
+            {tagList}
+          </Deferred>
+        )}
       </div>
     </ClickAwayListener>
   );

@@ -30,13 +30,14 @@ class Warehouse extends Model {
         );
     }
 
-    public string $formComponent = 'Inventory/Warehouses/Form';
-    public string $translateKey  = 'inventory.warehouse';
-    protected $configColumns     = [
+    public string $formComponent   = 'Inventory/Warehouses/Form';
+    public string $translateKey    = 'inventory.warehouse';
+    protected array $configColumns = [
         'title' => [
-            'show'   => true,
-            'order'  => 0,
-            'isLink' => true,
+            'show'      => true,
+            'order'     => 0,
+            'isLink'    => true,
+            'dependsOn' => ['code', 'branch.code'],
         ],
         'name' => [
             'show'  => true,

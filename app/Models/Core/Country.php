@@ -5,12 +5,12 @@ namespace App\Models\Core;
 use App\Models\Model;
 
 class Country extends Model {
-    protected $primaryKey    = 'code';
-    public $incrementing     = false;
-    protected $keyType       = 'string';
-    protected $guarded       = [];
-    public $translateKey     = 'core.country';
-    protected $configColumns = [
+    protected $primaryKey          = 'code';
+    public $incrementing           = false;
+    protected $keyType             = 'string';
+    protected $guarded             = [];
+    public $translateKey           = 'core.country';
+    protected array $configColumns = [
         'code' => [
             'show'  => true,
             'order' => 0,

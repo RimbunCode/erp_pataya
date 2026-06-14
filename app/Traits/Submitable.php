@@ -8,14 +8,18 @@ use App\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
+use App\Models\Core\FormatingSeries;
+use App\Models\Core\ModelConnection;
 use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Model;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 trait Submitable {
     use DataTable;
@@ -57,6 +61,16 @@ trait Submitable {
                 $model->status = FormStatus::DRAFT;
             }
 
+            static $submittedFormatColumnCache = [];
+            $tableName                         = $model->getTable();
+            $hasSubmittedFormatColumn          = $submittedFormatColumnCache[$tableName] ??= Schema::hasColumn($tableName, 'submitted_format');
+            if ($hasSubmittedFormatColumn && $model->isDirty('code')) {
+                $latestFormat = FormatingSeries::where('model', $model::class)->value('format');
+                if (is_string($latestFormat) && trim($latestFormat) !== '') {
+                    $model->submitted_format = $latestFormat;
+                }
+            }
+
             if (! \in_array(FormStatus::DRAFT, $model->status)) {
                 $model->submitted_at = now();
             }
@@ -70,17 +84,6 @@ trait Submitable {
                 ]);
             }
         });
-    }
-
-    /**
-     * Summary of replaceStatus
-     *
-     * @param  FormStatus|array<FormStatus>  $from
-     * @param  FormStatus|array<FormStatus>  $to
-     * @return FormStatus|array<FormStatus>
-     */
-    public function replaceStatus($from, $to) {
-        return \array_replace($this->status, $from, $to);
     }
 
     public function createdBy() {
@@ -99,10 +102,11 @@ trait Submitable {
         return $this->belongsTo(\get_class($this), 'amended_from_id');
     }
 
-    public function checkApproval(array $options = []) {
+    public function checkApproval(array $options = [], string $triggerOn = 'submit') {
         return app()->call(\implode([ApprovalInstanceController::class, '@', 'checkApproval']), [
             'data'    => $this,
             'options' => $options,
+            'trigger' => $triggerOn,
         ]);
     }
 
@@ -130,6 +134,7 @@ trait Submitable {
             'revision_number',
             'created_by_id',
             'code',
+            'submitted_format',
         ]);
         $newData->code            = $newCode;
         $newData->amended_from_id = $amendedFromId;
@@ -163,5 +168,32 @@ trait Submitable {
         DB::commit();
 
         return $newData;
+    }
+
+    public function attachConnections(Model $item, ?array $data, ?int $depth = null) {
+        if ($depth !== null && $depth < 0) {
+            return;
+        }
+        if ($item && ($item->referenceable_type == null || $item->referenceable_id == null)) {
+            return;
+        }
+
+        $sourceItem = $item->referenceable;
+
+        ModelConnection::createConnection([
+            'model'     => $sourceItem,
+            'reference' => $item,
+            'data'      => $data,
+        ]);
+
+        $parentRelation = $sourceItem->parentRelation;
+        if ($parentRelation) {
+            ModelConnection::createConnection([
+                'model'     => $parentRelation,
+                'reference' => $this,
+            ]);
+        }
+        $nextDepth = $depth === null ? null : $depth - 1;
+        $this->attachConnections($sourceItem, $data, $nextDepth);
     }
 }

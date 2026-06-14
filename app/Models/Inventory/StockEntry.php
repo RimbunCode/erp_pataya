@@ -3,6 +3,7 @@
 namespace App\Models\Inventory;
 
 use App\FormStatus;
+use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\AdditionalCost;
 use App\Models\Model;
@@ -21,13 +22,17 @@ class StockEntry extends Model {
         'using_transit' => 'boolean',
     ];
     public string $keyBreadcrumb               = 'code';
-    protected static string $defaultFormatCode = 'StockEntry-@[iiii]/@[yy]';
+    protected static string $defaultFormatCode = '@[branch_code]/StockEntry-@[iiii]/@[yy]';
 
     public function codeRelations() {
         return [
             'branch_code:branch.code',
             'branch_name:branch.name',
         ];
+    }
+
+    public static function templateLink() {
+        return ':code';
     }
 
     // EXAMPLE appendStatus
@@ -37,8 +42,8 @@ class StockEntry extends Model {
     // protected function appendStatus(): array {
     //   return [FormStatus::OVERDUE];
     // }
-    public string $translateKey = 'inventory.stockEntry';
-    protected $configColumns    = [
+    public string $translateKey    = 'inventory.stockEntry';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,
@@ -57,9 +62,6 @@ class StockEntry extends Model {
             'show'  => true,
             'order' => 3,
         ],
-        'branch' => [
-            'ignore' => true,
-        ],
         'items',
         'additionalCosts',
         'differenceAccount',
@@ -77,6 +79,10 @@ class StockEntry extends Model {
             'additionalCosts',
             'differenceAccount',
         ];
+    }
+
+    public function branch() {
+        return $this->belongsTo(Branch::class, 'branch_id');
     }
 
     public function differenceAccount() {

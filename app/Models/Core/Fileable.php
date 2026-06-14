@@ -8,9 +8,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Fileable extends Pivot {
     use SoftDeletes;
 
-    protected $table         = 'fileables';
-    public $translateKey     = 'core.fileable';
-    protected $configColumns = [
+    protected $table               = 'fileables';
+    public $translateKey           = 'core.fileable';
+    protected array $configColumns = [
         'fileable',
         'file',
     ];

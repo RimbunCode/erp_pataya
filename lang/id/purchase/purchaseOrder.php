@@ -1,20 +1,20 @@
 <?php
 
 return [
-    'title'              => 'Pesanan Pembelian (Purchase Orders)',
-    'add'                => 'Tambah Pesanan Pembelian',
-    'new'                => 'Pesanan Pembelian Baru',
-    'delete'             => 'Hapus Pesanan Pembelian',
-    'delete.description' => 'Apakah Anda yakin ingin menghapus Pesanan Pembelian ini?',
+    'title'              => 'Purchase Orders',
+    'add'                => 'Tambah Purchase Order',
+    'new'                => 'Purchase Order Baru',
+    'delete'             => 'Hapus Purchase Order',
+    'delete.description' => 'Apakah Anda yakin ingin menghapus Purchase Order ini?',
     'delete.confirm'     => 'Hapus',
     'cancel'             => 'Batal',
-    'purchase_order'     => 'Pesanan Pembelian',
+    'purchase_order'     => 'Purchase Order',
     'detail'             => 'Detail',
     'items'              => 'Item',
     'connections'        => 'Koneksi',
     'actions'            => [
-        'create_purchase_receipt' => 'Buat Tanda Terima Pembelian',
-        'create_purchase_invoice' => 'Buat Faktur Pembelian',
+        'create_purchase_receipt' => 'Buat Purchase Receipt',
+        'create_purchase_invoice' => 'Buat Purchase Invoice',
     ],
     'import_items' => 'Impor Item',
     'columns'      => [

@@ -422,6 +422,15 @@ export default memo(
         data = dataSelected;
         model = dataModel.model;
       }
+      if (configModel?.columnAlias) {
+        data = data.map((item) => {
+          const newItem = { ...item };
+          Object.entries(configModel.columnAlias).forEach(([key, value]) => {
+            newItem[key] = item[value];
+          });
+          return newItem;
+        });
+      }
       onSelected(data, model);
       setOpen(false);
     }, [tableRef, configModel, select, dataModel, setOpen]);

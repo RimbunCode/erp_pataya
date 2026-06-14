@@ -45,12 +45,18 @@ function ApproverDecision({ name, approval }) {
     [data],
   );
   if (!currentStep) return;
-  const approver = currentStep.approver;
-  if (
-    user?.id != approver?.id &&
-    !user?.id_roles?.find((x) => x == approver?.id)
-  )
-    return null;
+
+  const userCanDecide = currentStep.is_advanced
+    ? currentStep.approvers?.some(
+        (a) =>
+          (a.approver_type === "user" && a.approver?.id === user?.id) ||
+          (a.approver_type === "role" &&
+            user?.id_roles?.find((r) => r === a.approver?.id)),
+      )
+    : user?.id == currentStep.approver?.id ||
+      user?.id_roles?.find((x) => x == currentStep.approver?.id);
+
+  if (!userCanDecide) return null;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

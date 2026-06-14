@@ -50,7 +50,7 @@ class User extends Authenticatable {
         return ':name';
     }
 
-    public $configColumns = [
+    protected array $configColumns = [
         'image' => [
             'show'  => true,
             'order' => 0,
@@ -75,6 +75,9 @@ class User extends Authenticatable {
             'order' => 4,
         ],
         'defaultBranch',
+        'avatar_url' => [
+            'ignore' => true,
+        ],
     ];
 
     public function defaultBranch() {

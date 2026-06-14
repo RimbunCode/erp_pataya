@@ -20,8 +20,9 @@ class CategoryRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'name' => ['required', 'string', 'min:3', 'max:255'],
-            'type' => ['required', 'string', 'min:3', 'max:255'],
+            'name'            => ['required', 'string', 'min:3', 'max:255'],
+            'type'            => ['required', 'string', 'min:3', 'max:255'],
+            'default_unit.id' => ['nullable', 'string', 'exists:units,id'],
         ];
     }
 }

@@ -36,7 +36,7 @@ class PurchaseReceipt extends Model {
         return ['items', 'items.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,
@@ -59,6 +59,10 @@ class PurchaseReceipt extends Model {
             'order' => 4,
         ],
         'returnAgainst',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     public function purchaseOrder() {

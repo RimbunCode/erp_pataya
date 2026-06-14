@@ -15,4 +15,6 @@ return [
     'back'                      => 'Kembali',
     'no_files_found'            => 'Tidak ada berkas yang ditemukan',
     'search'                    => 'Cari menurut nama berkas atau ekstensi',
+    'image_upload_success'      => 'Gambar berhasil diunggah',
+    'image_upload_error'        => 'Gagal mengunggah gambar',
 ];

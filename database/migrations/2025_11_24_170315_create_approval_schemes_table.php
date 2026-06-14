@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,6 +16,7 @@ return new class extends Migration
             $table->string('name_model');
             $table->string('model');
             $table->boolean('is_active')->default(false);
+            $table->string('trigger_on')->default('submit');
             $table->json('config')->nullable();
             $table->softDeletes();
             $table->timestamps();

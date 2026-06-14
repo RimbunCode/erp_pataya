@@ -2,7 +2,7 @@
 
 return [
     'draft'                           => 'Draf',
-    'submitted'                       => 'Terkirim',
+    'submitted'                       => 'Diajukan',
     'canceled'                        => 'Dibatalkan',
     'approved'                        => 'Disetujui',
     'rejected'                        => 'Ditolak',
@@ -39,4 +39,9 @@ return [
     'ordered'                         => 'Dipesan',
     'pre_registered'                  => 'Prapendaftaran',
     'invited'                         => 'Diundang',
+    'over_delivered'                  => 'Melebihi Pengiriman',
+    'new'                             => 'Baru',
+    'on_hold'                         => 'Ditunda',
+    'resolved'                        => 'Terselesaikan',
+    'done'                            => 'Selesai',
 ];

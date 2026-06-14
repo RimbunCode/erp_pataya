@@ -1,9 +1,10 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React from "react";
 
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
+import React from "react";
 import Select from "@/Components/Select";
+import UnitLinkModel from "../Units/UnitLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
@@ -32,7 +33,13 @@ export default function Form() {
               onValueChange={(v) => setData("type", v)}
               placeholder={t("inventory.category.columns.type.placeholder")}
               optionTrans="inventory.category.types"
-              options={["stock", "vehicle", "service"]}
+              options={["inventory", "vehicle", "service"]}
+            />
+          </FormInput>
+          <FormInput label={t("inventory.category.columns.default_unit")}>
+            <UnitLinkModel
+              value={data?.default_unit ?? ""}
+              onValueChange={(v) => setData("default_unit", v)}
             />
           </FormInput>
         </div>

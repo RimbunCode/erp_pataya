@@ -1,0 +1,50 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md", "CLAUDE.md", "RTK.md"],
+  "shell": "C:/Program Files/Git/usr/bin/bash.exe",
+  "skills": {
+    "paths": [".opencode/skills"]
+  },
+  "permission": {
+    "bash": {
+      "git config *": "allow",
+      "rtk git *": "allow",
+      "rtk gain *": "allow",
+      "rtk vitest *": "allow",
+      "php artisan *": "allow",
+      "vendor/bin/pint *": "allow",
+      "vendor/bin/phpstan *": "allow",
+      "vendor/bin/phpunit *": "allow",
+      "npm run *": "allow",
+      "npx --yes *": "ask",
+      "*": "ask"
+    }
+  },
+  "mcp": {
+    "laravel-boost": {
+      "type": "local",
+      "command": ["php", "artisan", "boost:mcp"],
+      "enabled": true
+    },
+    "herd": {
+      "type": "local",
+      "command": [
+        "php",
+        "-r",
+        "$home=getenv('USERPROFILE')?:getenv('HOME'); if(!$home){fwrite(STDERR,'Unable to resolve USERPROFILE or HOME'.PHP_EOL); exit(1);} require rtrim(str_replace('\\\\','/',$home),'/').'/.config/herd/bin/herd-mcp.phar';"
+      ],
+      "enabled": true,
+      "env": {
+        "SITE_PATH": "G:/Project App/erp"
+      }
+    },
+    "shadcn": {
+      "type": "local",
+      "command": ["npx", "shadcn@latest", "mcp"],
+      "enabled": true
+    }
+  },
+  "plugin": ["./.opencode/plugin/security-scan.ts"],
+  "lsp": true,
+  "formatter": true
+}

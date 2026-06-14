@@ -11,13 +11,15 @@ return [
     'cancel'             => 'Batal',
     'category'           => 'Kategori',
     'columns'            => [
-        'name'             => 'Nama',
-        'type'             => 'Tipe',
-        'type.placeholder' => 'Pilih tipe',
+        'name'                     => 'Nama',
+        'type'                     => 'Tipe',
+        'type.placeholder'         => 'Pilih tipe',
+        'default_unit'             => 'Default Unit',
+        'default_unit.placeholder' => 'Pilih default unit',
     ],
     'types' => [
-        'stock'   => 'Stok',
-        'vehicle' => 'Kendaraan',
-        'service' => 'Jasa/Layanan',
+        'inventory' => 'Inventaris',
+        'vehicle'   => 'Kendaraan',
+        'service'   => 'Jasa/Layanan',
     ],
 ];

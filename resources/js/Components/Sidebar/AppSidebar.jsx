@@ -8,6 +8,7 @@ import {
   Settings2,
   ShoppingBagIcon,
   StampIcon,
+  TicketsIcon,
   Users2,
 } from "lucide-react";
 import {
@@ -253,6 +254,12 @@ const navList = [
     ],
   },
   {
+    title: "Tickets",
+    icon: <TicketsIcon />,
+    url: "/tickets",
+    urlPattern: "/tickets/*",
+  },
+  {
     title: "Settings",
     icon: <Settings2 />,
     items: [
@@ -260,7 +267,7 @@ const navList = [
         title: "Company",
         url: "/settings/company",
         urlPattern: "/settings/company/*",
-        model: "App\\Models\\Core\\Prefence",
+        model: "App\\Models\\Core\\Preference",
       },
       {
         title: "Branches",

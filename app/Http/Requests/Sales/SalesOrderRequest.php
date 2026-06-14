@@ -6,7 +6,6 @@ use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
 use App\Models\Core\Preference;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
 class SalesOrderRequest extends BaseFormRequest {
@@ -47,7 +46,7 @@ class SalesOrderRequest extends BaseFormRequest {
             'items.*.item.*'              => ['nullable'],
             'items.*.description'         => ['nullable', 'string'],
             'items.*.quantity'            => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'             => ['required', 'exists:units,id'],
+            'items.*.unit.id'             => ['required', 'exists:item_units,id'],
             'items.*.unit.*'              => ['nullable'],
             'items.*.tax.id'              => ['required', 'exists:taxes,id'],
             'items.*.tax.*'               => ['nullable'],

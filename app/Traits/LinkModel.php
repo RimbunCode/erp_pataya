@@ -6,25 +6,66 @@ use App\Casts\FormStatusCast;
 use App\Casts\FormStatusesCast;
 use App\Casts\Json;
 use App\FormStatus;
+use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
+use App\Services\Core\CommandSearchIndexService;
+use App\Services\Core\HaveTransactionsSyncService;
+use App\Utils;
+use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 trait LinkModel {
     protected $defaultConfigColumns = [];
 
     protected static function bootLinkModel() {
         static::addGlobalScope(new DataTableScope);
+
+        static::saved(function (EloquentModel $model): void {
+            app(HaveTransactionsSyncService::class)->syncFromModel($model);
+            app(CommandSearchIndexService::class)->syncFromModel($model);
+        });
+
+        static::deleted(function (EloquentModel $model): void {
+            app(HaveTransactionsSyncService::class)->syncFromModel($model);
+            app(CommandSearchIndexService::class)->syncFromModel($model);
+        });
+
+        if (\in_array(SoftDeletes::class, \class_uses_recursive(static::class), true)) {
+            static::restored(function (EloquentModel $model): void {
+                app(HaveTransactionsSyncService::class)->syncFromModel($model);
+                app(CommandSearchIndexService::class)->syncFromModel($model);
+            });
+        }
+
+        static::deleting(function (EloquentModel $model): void {
+            if (! config('have_transactions.enforce_delete_guard', true)) {
+                return;
+            }
+
+            if (($model->canDelete ?? true) === true) {
+                return;
+            }
+
+            throw ValidationException::withMessages([
+                'delete' => 'Data tidak dapat dihapus karena sudah memiliki transaksi atau status tidak mengizinkan.',
+            ]);
+        });
     }
 
     public function initializeLinkModel() {
         $this->defaultConfigColumns = array_merge([
+            'is_example' => [
+                'ignore' => true,
+            ],
             'created_at' => [
                 'titleTrans' => 'core.form.created_at',
             ],
@@ -53,6 +94,9 @@ trait LinkModel {
                 'titleTrans' => 'core.form.files',
             ],
             'have_transactions' => [
+                'ignore' => true,
+            ],
+            'submitted_format' => [
                 'ignore' => true,
             ],
             'createdBy' => [
@@ -176,19 +220,62 @@ trait LinkModel {
         return [];
     }
 
+    /**
+     * Summary of replaceStatus
+     *
+     * @return array<string, FormStatus|array<FormStatus>|array{
+     *     values: array<FormStatus>,
+     *     forceReplace?: bool
+     * }>
+     * */
+    protected function replaceStatus() {
+        return [];
+    }
+
     protected function getAppendStatusAttribute() {
         $baseStatus = $this->status;
         $baseStatus = $baseStatus instanceof FormStatus ? [$baseStatus] : ($baseStatus ?? []);
 
-        $append = $this->appendStatus();
-        $append = $append instanceof FormStatus ? [$append] : ($append ?? []);
-
-        return collect($baseStatus)
+        $append     = $this->appendStatus();
+        $append     = $append instanceof FormStatus ? [$append] : ($append ?? []);
+        $mergeValue = collect($baseStatus)
             ->merge($append)
             ->filter()
-            ->unique(fn ($s) => $s instanceof FormStatus ? $s->value : $s)
+            ->map(fn ($s) => $s instanceof FormStatus ? $s->value : $s)
+            ->unique()
+            ->values();
+
+        $flipedValues = $mergeValue->mapWithKeys(fn ($k) => [$k => $k]);
+        $result       = [];
+        $replaces     = $this->replaceStatus();
+
+        foreach ($replaces as $key => $replace) {
+            $forceReplace = false;
+            $result       = [];
+            if (\is_array($replace)) {
+                if (\array_any(\array_keys($replace), fn ($v) => \is_string($v))) {
+                    $forceReplace = $replace['forceReplace'] ?? false;
+                    $result       = $replace['values'] ?? [];
+                } else {
+                    $result = [...$result, ...$replace];
+                }
+            } else {
+                $result = $replace;
+            }
+
+            if ($flipedValues->get($key)) {
+                $flipedValues->put($key, $result);
+            } elseif ($forceReplace) {
+                $flipedValues->put(Utils::generateRandom(5), $result);
+            }
+        }
+
+        return $flipedValues
             ->values()
-            ->all();
+            ->flatten()
+            ->map(fn ($s) => $s instanceof FormStatus ? $s->value : $s)
+            ->unique();
+
     }
 
     protected function getKeyModelAttribute() {
@@ -232,6 +319,23 @@ trait LinkModel {
         return with(new static)->getTable();
     }
 
+    public function parentRelation() {
+        $relation = static::$parentRelation ?? false;
+        if ($relation) {
+            return $this->$relation();
+        }
+
+        return null;
+    }
+
+    public function connections() {
+        if ($this->getKey() === null) {
+            return ModelConnection::query()->whereRaw('1 = 0');
+        }
+
+        return ModelConnection::search(static::class, $this->getKey());
+    }
+
     private static function parseColumnType(array $dataColumn, array $casts) {
         $definition = $dataColumn['type'];
         // Regex:
@@ -264,12 +368,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
-            'date' => 'date',
-            'datetime', 'timestamp' => 'datetime',
-            'time' => 'time',
-            'blob', 'binary', 'varbinary' => 'binary',
-            default => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
+            'date'                                                                                            => 'date',
+            'datetime', 'timestamp'                                                                           => 'datetime',
+            'time'                                                                                            => 'time',
+            'blob', 'binary', 'varbinary'                                                                     => 'binary',
+            default                                                                                           => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -303,14 +407,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class             => 'json',
-                    FormStatusCast::class   => 'formStatus',
-                    FormStatusesCast::class => 'formStatuses',
+                    Json::class                                             => 'json',
+                    FormStatusCast::class                                   => 'formStatus',
+                    FormStatusesCast::class                                 => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date' => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
-                    'time'  => 'time',
-                    default => $cast,
+                    'immutable_date', 'date'                                => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
+                    'time'                                                  => 'time',
+                    default                                                 => $cast,
                 };
             }
         }
@@ -409,6 +513,24 @@ trait LinkModel {
                 ];
             }
         }
+        $forcedColumns = \array_filter($configColumns, fn ($col) => $col['forceAppend'] ?? false);
+        foreach ($forcedColumns as $key => $config) {
+            $key    = \is_string($key) ? $key : $config;
+            $config = \is_array($config) ? $config : [];
+
+            if (isset($config['ignore']) && $config['ignore']) {
+                continue;
+            }
+            $newColumns[$key] = [
+                'name'       => $key,
+                'sortable'   => true,
+                'searchable' => true,
+                'type'       => 'string',
+                'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
+                ...$config,
+                'primaryKey' => $instance->getKeyName(),
+            ];
+        }
 
         foreach ($appends as $value) {
             if (in_array($value, $hidden)) {
@@ -449,6 +571,7 @@ trait LinkModel {
 
             $classRelation = \get_class($rel->getRelated());
             $type          = 'relations';
+            $typeRelation  = 'basic';
             if (\in_array($classRelation, $excepts)) {
                 continue;
             }
@@ -456,7 +579,8 @@ trait LinkModel {
                 $newKey = $rel->getRelationName();
                 unset($newColumns[$rel->getForeignKeyName()]);
                 unset($newColumns[$rel->getMorphType()]);
-                $type = 'relation';
+                $type         = 'relation';
+                $typeRelation = 'morph';
             } elseif ($rel instanceof BelongsTo) {
                 unset($newColumns[$rel->getForeignKeyName()]);
                 $type   = 'relation';
@@ -466,9 +590,15 @@ trait LinkModel {
                 $type   = 'relation';
                 $route  = $rel->getRelated()->route;
                 $newKey = Str::snake($key);
+            } elseif ($rel instanceof MorphOne) {
+                $type         = 'relation';
+                $route        = $rel->getRelated()->route;
+                $newKey       = Str::snake($key);
+                $typeRelation = 'morph';
             } elseif ($rel instanceof MorphMany) {
-                $type   = 'relations';
-                $newKey = Str::snake($key);
+                $type         = 'relations';
+                $newKey       = Str::snake($key);
+                $typeRelation = 'morph';
             } else {
                 $newKey = Str::snake($key);
             }
@@ -478,6 +608,7 @@ trait LinkModel {
             $newColumns[$newKey] = [
                 'name'           => $newKey,
                 'type'           => $type,
+                'typeRelation'   => $typeRelation,
                 'nameOfFunction' => $key,
                 'related'        => $classRelation,
                 'route'          => isset($route) ? "$route.show" : null,

@@ -1,0 +1,6 @@
+{
+  "specId": "ad0baf82-ae8c-4539-aebb-2082bec9d7be",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Adaptive column & relation fetching di DataTableScope: SELECT hanya kolom visible (+ PK + FK relasi) dan with() hanya relasi yang ditampilkan, berbasis cookie datatable_columns dengan configColumns sebagai sumber kebenaran."
+}

@@ -16,7 +16,7 @@ class Tax extends Model {
         return ':name (:rate%)';
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'name' => [
             'show'   => true,
             'isLink' => true,

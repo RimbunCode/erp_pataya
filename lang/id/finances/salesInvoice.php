@@ -1,11 +1,11 @@
 <?php
 
 return [
-    'title'                => 'Faktur Penjualan',
-    'add'                  => 'Faktur Penjualan Baru',
+    'title'                => 'Sales Invoices',
+    'add'                  => 'Sales Invoice Baru',
     'customer'             => 'Pelanggan',
     'branch'               => 'Cabang Pelanggan',
-    'new'                  => 'Faktur Penjualan Baru',
+    'new'                  => 'Sales Invoice Baru',
     'items'                => 'Item',
     'detail'               => 'Detail',
     'status'               => 'Status',
@@ -20,8 +20,8 @@ return [
     ],
     'columns' => [
         'code'                         => 'Kode',
-        'sales_order'                  => 'Pesanan Penjualan',
-        'sales_order.placeholder'      => 'Pilih Pesanan Penjualan',
+        'sales_order'                  => 'Sales Order',
+        'sales_order.placeholder'      => 'Pilih Sales Order',
         'amount'                       => 'Jumlah',
         'currency'                     => 'Mata Uang',
         'basic_amount'                 => 'Jumlah Dasar',
@@ -81,6 +81,6 @@ return [
         'income_account'       => 'Akun Pendapatan',
         'debit_account'        => 'Debit Ke',
         'is_return'            => 'Apakah Retur (Nota Kredit)',
-        'return_against'       => 'Retur Terhadap Faktur Penjualan',
+        'return_against'       => 'Retur Terhadap Sales Invoice',
     ],
 ];

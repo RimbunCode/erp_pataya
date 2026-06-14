@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -15,8 +14,9 @@ return new class extends Migration
             $table->tinyInteger('sequence');
             $table->foreignUlid('approval_instance_id')->references('id')->on('approval_instances')->cascadeOnDelete();
             $table->string('approver_type');
-            $table->ulidMorphs('approverable', 'approverable_index');
+            $table->ulidMorphs('approverable', 'instance_step_approverable_index');
             $table->json('config')->nullable();
+            $table->boolean('is_advanced')->default(false);
             $table->string('status')->default('waiting');
             $table->foreignUlid('acted_by_id')->nullable()->references('id')->on('users')->nullOnDelete();
             $table->timestamp('acted_at')->nullable();

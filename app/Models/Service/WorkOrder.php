@@ -53,9 +53,9 @@ class WorkOrder extends Model {
         return ':code';
     }
 
-    public string $formComponent = 'Services/WorkOrders/Form';
-    public string $translateKey  = 'service.workOrder';
-    protected $configColumns     = [
+    public string $formComponent   = 'Services/WorkOrders/Form';
+    public string $translateKey    = 'service.workOrder';
+    protected array $configColumns = [
         'code' => [
             'isLink' => true,
             'show'   => true,
@@ -70,12 +70,16 @@ class WorkOrder extends Model {
             'ignore' => true,
         ],
         'for_internal' => [
-            'type'  => 'boolean',
-            'show'  => true,
-            'width' => 'fit',
-            'order' => 3,
+            'type'      => 'boolean',
+            'show'      => true,
+            'width'     => 'fit',
+            'order'     => 3,
+            'dependsOn' => ['customer_id'],
         ],
-        'items',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
         'customer' => [
             'show'  => true,
             'order' => 4,

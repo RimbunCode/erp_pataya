@@ -4,6 +4,7 @@
   "Laravel.phpEnvironment": "herd",
   "Laravel.pint.runOnSave": false,
   "[php]": {
+    "editor.tabSize": 4,
     "editor.defaultFormatter": "DEVSENSE.phptools-vscode"
   },
   "php.inlayHints.types.variable": true,
@@ -81,6 +82,7 @@
   "php.format.rules.openBraceOnNewLineForLambdas": false,
   "php.format.rules.openBraceOnNewLineForNamespaces": false,
   "php.format.rules.openBraceOnNewLineForTypes": false,
+  "php.format.rules.indentSize": 4,
   "files.associations": {
     ".env*": "dotenv",
     "*.css": "tailwindcss"
@@ -135,15 +137,30 @@
     "HACK",
     "TODO",
     "XXX",
-    "[ ]",
     "[x]",
+    "[-]",
+    "[~]",
+    "[ ]",
     "FIXME",
     "EXAMPLE"
   ],
+
+  "todo-tree.general.tagGroups": {
+    "TODO": ["TODO", "todo"],
+    "BUG": ["BUG", "bug"],
+    "FIX": ["FIX", "FIXME", "fix", "fixme"],
+    "HACK": ["HACK", "hack"],
+    "XXX": ["XXX", "xxx"],
+    "EXAMPLE": ["EXAMPLE"],
+    "MARK": ["MARK", "mark"]
+  },
   "todo-tree.highlights.customHighlight": {
     "TODO": {
       "gutterIcon": true,
       "iconColour": "#00ffff"
+    },
+    "MARK": {
+      "icon": "bookmark"
     },
     "BUG": {
       "icon": "bug",
@@ -173,26 +190,48 @@
       "foreground": "#c7c7c7",
       "background": "#474747"
     },
-    "[ ]": {
-      "icon": "issue-draft",
-      "iconColour": "#00ff00",
-      "foreground": "#fff",
-      "background": "#006308",
-      "gutterIcon": true
-    },
     "[x]": {
-      "icon": "issue-closed",
+      "icon": "checklist",
       "iconColour": "#00FF00",
       "foreground": "#000",
       "background": "#00FF00",
+      "strikethrough": true,
       "gutterIcon": true
     },
-    "FIXME": {
+    "[-]": {
+      "icon": "$(sparkle-filled)",
+      "iconColour": "#004297",
+      "foreground": "#ffffff",
+      "background": "#002e69"
+    },
+    "[~]": {
+      "icon": "$(session-in-progress)",
+      "iconColour": "#470070",
+      "foreground": "#ffffff",
+      "background": "#470070",
+      "gutterIcon": true
+    },
+    "[ ]": {
+      "icon": "$(issues)",
+      "foreground": "#c7c7c7",
+      "background": "#1f1f1f",
+      "gutterIcon": false
+    },
+    "FIX": {
       "icon": "flame",
       "gutterIcon": true,
       "iconColour": "#ff0000",
       "background": "#ff0000",
       "foreground": "#FFF"
     }
-  }
+  },
+  "todo-tree.highlights.defaultHighlight": {
+    "type": "text-and-comment"
+  },
+  "todo-tree.tree.showBadges": false,
+  "todo-tree.tree.scanAtStartup": false,
+  "todo-tree.highlights.enabled": true,
+  "todo-tree.tree.labelFormat": "${tag:uppercase} ${after} [${filename}]",
+  "todo-tree.tree.tooltipFormat": "${filename}:[${line}] in ${filepath}",
+  "javascript.autoClosingTags": false
 }

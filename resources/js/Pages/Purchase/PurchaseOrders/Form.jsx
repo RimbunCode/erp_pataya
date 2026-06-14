@@ -11,12 +11,12 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemBarcode from "@/Pages/Inventory/Items/ItemBarcode";
 import ItemForm from "./ItemForm";
+import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
 import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import PaymentSchedule from "@/Pages/Finances/Components/PaymentSchedule";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import TaxLinkModel from "@/Pages/Finances/Taxes/TaxLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
-import UnitLinkModel from "@/Pages/Inventory/Units/UnitLinkModel";
 import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
@@ -153,15 +153,17 @@ function Form() {
               placeholder={t("purchase.purchaseOrder.columns.item.placeholder")}
               value={dataRow?.item}
               onValueChange={(val) => {
+                const defaultUnit = val?.default_uom;
                 setData({
                   item: val,
-                  unit: val?.default_unit,
+                  unit: defaultUnit,
+                  conversion_factor: defaultUnit?.conversion_factor,
                   required_date: data.required_date,
                   target_warehouse: data.target_warehouse,
                 });
               }}
               {...attributes}
-              with={["defaultUnit", "item"]}
+              with={["defaultUom", "item"]}
             />
           );
         },
@@ -246,14 +248,19 @@ function Form() {
         titleTrans: "purchase.purchaseOrder.columns.unit",
         cell({ data, setData, attributes, dataRow }) {
           return (
-            <UnitLinkModel
+            <ItemUnitLinkModel
               disabled={!dataRow?.item}
               placeholder={t("purchase.purchaseOrder.columns.unit.placeholder")}
               value={data}
-              onValueChange={(val) => setData("unit", val)}
+              onValueChange={(val) =>
+                setData({
+                  unit: val,
+                  conversion_factor: val?.conversion_factor,
+                })
+              }
               {...attributes}
               filters={{
-                group: dataRow?.item?.default_unit?.group,
+                item_id: dataRow?.item?.item_id,
               }}
             />
           );
@@ -415,6 +422,9 @@ function Form() {
               from={{
                 "App\\Models\\Service\\WorkOrder": {
                   columns: ["code", "date"],
+                  columnAlias: {
+                    unordered_quantity: "required_quantity",
+                  },
                   filters: {
                     status: "submitted",
                   },

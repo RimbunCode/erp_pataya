@@ -22,7 +22,7 @@ class Account extends Model {
 
     protected static function loadRelationsOnShow() {
         return [
-            'parent_account',
+            'parentAccount',
             'currency',
         ];
     }
@@ -41,18 +41,19 @@ class Account extends Model {
         return ':account_number - :account_name';
     }
 
-    public $translateKey     = 'finances.account';
-    protected $configColumns = [
+    public $translateKey           = 'finances.account';
+    protected array $configColumns = [
         'code' => [
-            'show'   => true,
-            'order'  => 0,
-            'isLink' => true,
+            'show'      => true,
+            'order'     => 0,
+            'isLink'    => true,
+            'dependsOn' => ['account_number', 'account_name'],
         ],
         'is_group' => [
             'show'  => true,
             'order' => 1,
         ],
-        'parent_account' => [
+        'parentAccount' => [
             'show'  => true,
             'order' => 2,
         ],
@@ -79,7 +80,7 @@ class Account extends Model {
         return $this->belongsTo(Currency::class);
     }
 
-    public function parent_account() {
+    public function parentAccount() {
         return $this->belongsTo(Account::class, 'parent_id');
     }
 

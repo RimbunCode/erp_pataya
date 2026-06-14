@@ -16,7 +16,8 @@ class Widget extends Model {
 
     protected $guarded = ['id'];
     public $casts      = [
-        'config' => Json::class,
+        'config'  => Json::class,
+        'filters' => Json::class,
     ];
     public $translateKey = 'settings.widget';
 
@@ -36,7 +37,7 @@ class Widget extends Model {
         return ['dashboards', 'createdBy', 'model'];
     }
 
-    protected $configColumns = [
+    protected array $configColumns = [
         'title' => [
             'show'   => true,
             'order'  => 0,

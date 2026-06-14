@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -23,7 +22,7 @@ return new class extends Migration
             $table->double('ready_quantity')->storedAs('quantity - (ordered_quantity - received_quantity)');
             $table->double('transferred_quantity')->default(0);
             $table->double('remaining_quantity')->storedAs('ready_quantity - transferred_quantity');
-            $table->foreignUlid('unit_id')->nullable()->references('id')->on('units')->nullOnDelete();
+            $table->foreignUlid('item_unit_id')->nullable()->references('id')->on('item_units')->nullOnDelete();
             $table->string('unit_name')->nullable();
             $table->double('conversion_factor')->nullable()->default(1);
             $table->text('description')->nullable();

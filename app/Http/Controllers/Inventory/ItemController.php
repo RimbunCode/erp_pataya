@@ -7,7 +7,6 @@ use App\Http\Requests\Inventory\ItemRequest;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\Unit;
 use App\Services\Inventory\ItemServices;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,14 +25,7 @@ class ItemController extends Controller {
      */
     public function index(Request $request) {
         $this->setBreadcrumbs();
-        Item::with(['variants'])
-            ->leftJoin('categories', 'categories.id', '=', 'items.category_id')
-            ->leftJoin('units', 'units.id', '=', 'items.default_unit_id')
-            ->select([
-                'categories.name as category_name',
-                'units.name as default_unit_name',
-            ])
-            ->dataTable($request);
+        Item::dataTable($request);
 
         return Inertia::render('Inventory/Items/Index');
     }
@@ -52,18 +44,21 @@ class ItemController extends Controller {
         $data                    = $request->validated();
         $data['category_id']     = $data['category']['id'];
         $data['default_unit_id'] = $data['default_unit']['id'];
+        $data['uoms']            = $this->service->sanitizeUoms($data['default_unit_id'], $data['uoms'] ?? []);
 
-        $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn ($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+        $data['conversion_factor'] = $this->service->resolveDefaultUnitConversionFactor(
+            $data['default_unit_id'],
+            $data['uoms'],
+        );
 
         DB::beginTransaction();
         $category              = Category::find($data['category_id']);
         $data['is_stock_item'] = $category->type != 'service';
         $data['type']          = $category->type;
         $item                  = Item::create($data);
-        Unit::find($item->default_unit_id)->updateHaveTransactions();
         $this->service->updateUom($item, $data['uoms']);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
-        $this->service->updateBarcodes($itemVariant, barcodes: $data['barcodes'] ?? []);
+        $this->service->updateBarcodes($itemVariant, $data['barcodes'] ?? []);
         $item->logForCreated();
         DB::commit();
         if ($itemVariant) {
@@ -90,7 +85,8 @@ class ItemController extends Controller {
         return Inertia::render('Inventory/Items/Show', [
             'item' => function () use ($item) {
                 $item->loadRelations();
-                $itemArray = $item->toArray();
+                $item->uoms = $item->uoms();
+                $itemArray  = $item->toArray();
 
                 $variant = $item->variants
                     ->whereNull('format_variant')
@@ -102,16 +98,15 @@ class ItemController extends Controller {
                 return $itemArray;
             },
             'variants' => Inertia::defer(function () use ($item) {
-                return ItemVariant::with(['values', 'stocks'])
+                return ItemVariant::with(['stocks'])
                     ->where('item_id', $item->id)
                     ->orderBy('format_variant', 'asc')
                     ->get()
-                    ->map(function ($variant) {
+                    ->map(function (ItemVariant $variant) {
                         $totalStock = $variant->stocks->sum('quantity');
 
                         return [
-                            'id'          => $variant->id,
-                            'sku'         => $variant->sku,
+                            ...$variant->toArray(),
                             'total_stock' => $totalStock,
                         ];
                     });
@@ -127,11 +122,16 @@ class ItemController extends Controller {
         $data['category_id'] = $data['category']['id'];
         if (! $item->have_transactions) {
             $data['default_unit_id'] = $data['default_unit']['id'];
+        } else {
+            $data['default_unit_id'] = $item->default_unit_id;
         }
-        $data['conversion_factor'] = \array_values(\array_filter($data['uoms'], fn ($uom) => $uom['id'] == $data['default_unit_id']))[0]['conversion_factor'];
+        $data['uoms']              = $this->service->sanitizeUoms($data['default_unit_id'], $data['uoms'] ?? []);
+        $data['conversion_factor'] = $this->service->resolveDefaultUnitConversionFactor(
+            $data['default_unit_id'],
+            $data['uoms'],
+        );
 
         DB::beginTransaction();
-        Unit::find($item->default_unit_id)->updateHaveTransactions();
         $category              = Category::find($data['category_id']);
         $data['is_stock_item'] = $category->type != 'service';
         $data['type']          = $category->type;

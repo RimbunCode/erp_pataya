@@ -6,19 +6,19 @@ use App\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Purchase\PurchaseRequest;
+use App\Models\Purchase\PurchaseRequestItem;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\Uid\Ulid;
 
 class PurchaseRequestService {
     private function fillRelations(array $data) {
-
         return $data;
     }
 
     private function fillItemRelations(array $data) {
         $data['item_variant_id']   = $data['item']['id'];
-        $data['item_name']         = $data['item']['sku'];
-        $data['unit_id']           = $data['unit']['id'];
+        $data['item_name']         = $data['item']['code'];
+        $data['item_unit_id']      = $data['unit']['id'];
         $data['unit_name']         = $data['unit']['name'];
         $data['conversion_factor'] = $data['unit']['conversion_factor'];
 
@@ -44,12 +44,21 @@ class PurchaseRequestService {
         $purchaseRequest->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->update(['deleted_at' => now()]);
+        $itemIds = collect($data['items'])
+            ->pluck('id')
+            ->filter(fn ($id) => Ulid::isValid((string) $id))
+            ->values()
+            ->all();
+        $existingItems = $purchaseRequest->items()
+            ->whereIn('id', $itemIds)
+            ->get()
+            ->keyBy('id');
 
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item);
 
             if (Ulid::isValid($item['id'])) {
-                $purchaseRequest->items()->find($item['id'])?->update($item);
+                $existingItems->get($item['id'])?->update($item);
 
                 continue;
             }
@@ -86,11 +95,14 @@ class PurchaseRequestService {
         $modelConnections = [];
         foreach ($items as $item) {
             // Update ordered_quantity from source item
-            $sourceItem = $item->referenceable;
-            $orderedQty = $sourceItem->ordered_quantity + $item->quantity;
-            $sourceItem->update([
-                'ordered_quantity' => $orderedQty > $sourceItem->quantity ? $sourceItem->quantity : $orderedQty,
-            ]);
+            $sourceItem         = $item->referenceable;
+            $modelConnections[] = [
+                'model'     => $item->referenceable,
+                'reference' => $item,
+                'data'      => [
+                    'requested_quantity' => $item->quantity,
+                ],
+            ];
 
             $parentRelation     = $sourceItem->parentRelation();
             $parentRelationKey  = $parentRelation->getForeignKeyName();
@@ -103,12 +115,52 @@ class PurchaseRequestService {
 
         // Create ModelConnection for each item
         foreach ($modelConnections as $modelConnection) {
-            ModelConnection::create([
-                'model_type'     => $modelConnection['model_type'],
-                'model_id'       => $modelConnection['model_id'],
-                'reference_type' => PurchaseRequest::class,
-                'reference_id'   => $purchaseRequest->id,
-            ]);
+            $mType = isset($modelConnection['model']) ? \get_class($modelConnection['model']) : $modelConnection['model_type'];
+            $mId   = isset($modelConnection['model']) ? $modelConnection['model']->id : $modelConnection['model_id'];
+            $rType = isset($modelConnection['reference']) ? \get_class($modelConnection['reference']) : ($modelConnection['reference_type'] ?? PurchaseRequest::class);
+            $rId   = isset($modelConnection['reference']) ? $modelConnection['reference']->id : ($modelConnection['reference_id'] ?? $purchaseRequest->id);
+
+            ModelConnection::updateOrCreate(
+                [
+                    'model_type'     => $mType,
+                    'model_id'       => $mId,
+                    'reference_type' => $rType,
+                    'reference_id'   => $rId,
+                ],
+                [
+                    // Tetap pasang object ke dalam array payload agar
+                    // event creating/updating pada model_display tetap berjalan.
+                    ...(isset($modelConnection['model']) ? [
+                        'model' => $modelConnection['model'],
+                    ] : []),
+                    ...(isset($modelConnection['reference']) ? [
+                        'reference' => $modelConnection['reference'],
+                    ] : []),
+                    'data' => $modelConnection['data'] ?? null,
+                ],
+            );
+        }
+
+        $itemConnections = ModelConnection::with('reference')
+            ->search(PurchaseRequestItem::class, $items->pluck('id')->toArray())
+            ->get();
+
+        foreach ($itemConnections->groupBy('reference_type') as $type => $connections) {
+            $uniqueReference = $connections->unique('reference_id');
+            $ids             = $uniqueReference->pluck('reference_id')->toArray();
+
+            $sums = ModelConnection::search($type, $ids)
+                ->get()
+                ->groupBy('reference_id')
+                ->map(fn ($group) => $group->sum('data.requested_quantity'));
+
+            foreach ($uniqueReference as $reference) {
+                $qty  = $sums->get($reference->id, 0);
+                $item = $reference->reference;
+                $item->update([
+                    'requested_quantity' => $qty,
+                ]);
+            }
         }
 
         DB::commit();
