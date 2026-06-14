@@ -107,6 +107,75 @@ class SavedFilterTest extends TestCase {
         ])->assertStatus(422);
     }
 
+    public function test_store_updates_own_ephemeral_when_fid_given(): void {
+        $user = $this->makeUser();
+        $own  = SavedFilter::create([
+            'user_id'  => $user->id,
+            'model'    => ApprovalScheme::class,
+            'filter'   => $this->sampleTree('Old'),
+            'is_saved' => false,
+        ]);
+
+        $res = $this->actingAs($user)->postJson('/saved-filters', [
+            'model'  => ApprovalScheme::class,
+            'filter' => $this->sampleTree('New'),
+            'fid'    => $own->id,
+        ]);
+
+        // Row yang sama di-update (id tetap), bukan row baru.
+        $res->assertOk()->assertJsonPath('id', $own->id);
+        $this->assertSame(1, SavedFilter::where('user_id', $user->id)->count());
+        $this->assertSame('New', SavedFilter::find($own->id)->filter['root']['c']['i1']['v']);
+    }
+
+    public function test_store_creates_new_when_fid_belongs_to_other_user(): void {
+        $owner        = $this->makeUser();
+        $other        = $this->makeUser();
+        $ownersFilter = SavedFilter::create([
+            'user_id'  => $owner->id,
+            'model'    => ApprovalScheme::class,
+            'filter'   => $this->sampleTree('Owner'),
+            'is_saved' => false,
+        ]);
+
+        $res = $this->actingAs($other)->postJson('/saved-filters', [
+            'model'  => ApprovalScheme::class,
+            'filter' => $this->sampleTree('Other'),
+            'fid'    => $ownersFilter->id,
+        ]);
+
+        // Tidak menimpa row owner; buat row baru milik $other.
+        $res->assertOk();
+        $this->assertNotSame($ownersFilter->id, $res->json('id'));
+        $this->assertSame('Owner', SavedFilter::find($ownersFilter->id)->filter['root']['c']['i1']['v']);
+        $this->assertDatabaseHas('saved_filters', [
+            'id'      => $res->json('id'),
+            'user_id' => $other->id,
+        ]);
+    }
+
+    public function test_store_creates_new_when_fid_is_named_filter(): void {
+        $user  = $this->makeUser();
+        $named = SavedFilter::create([
+            'user_id'  => $user->id,
+            'model'    => ApprovalScheme::class,
+            'filter'   => $this->sampleTree('Named'),
+            'name'     => 'My Named',
+            'is_saved' => true,
+        ]);
+
+        $res = $this->actingAs($user)->postJson('/saved-filters', [
+            'model'  => ApprovalScheme::class,
+            'filter' => $this->sampleTree('Adhoc'),
+            'fid'    => $named->id,
+        ]);
+
+        // Named filter tak boleh ditimpa lewat apply; buat ephemeral baru.
+        $res->assertOk();
+        $this->assertNotSame($named->id, $res->json('id'));
+        $this->assertSame('Named', SavedFilter::find($named->id)->filter['root']['c']['i1']['v']);
+    }
+
     public function test_store_drops_invalid_items_and_keeps_valid(): void {
         $user = $this->makeUser();
 
@@ -366,6 +435,42 @@ class SavedFilterTest extends TestCase {
         $this->assertDatabaseHas('saved_filters', ['id' => $saved->id, 'is_saved' => true, 'name' => 'My Filter']);
     }
 
+    public function test_update_overwrites_tree_of_named_filter(): void {
+        $owner = $this->makeUser();
+        $named = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree('Old'), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        // Kirim hanya filter → overwrite tree, nama & is_saved tetap.
+        $this->actingAs($owner)
+            ->patchJson("/saved-filters/{$named->id}", ['filter' => $this->sampleTree('New')])
+            ->assertOk()
+            ->assertJsonPath('filter.root.c.i1.v', 'New');
+
+        $fresh = SavedFilter::find($named->id);
+        $this->assertSame('New', $fresh->filter['root']['c']['i1']['v']);
+        $this->assertSame('Keep', $fresh->name);
+        $this->assertTrue($fresh->is_saved);
+    }
+
+    public function test_update_overwrite_rejects_empty_tree(): void {
+        $owner = $this->makeUser();
+        $named = SavedFilter::create([
+            'user_id' => $owner->id, 'model' => ApprovalScheme::class,
+            'filter'  => $this->sampleTree('Old'), 'name' => 'Keep', 'is_saved' => true,
+        ]);
+
+        // Tree tanpa item valid → 422, tree lama tak berubah.
+        $this->actingAs($owner)->patchJson("/saved-filters/{$named->id}", [
+            'filter' => ['root' => ['k' => 'and', 'c' => [
+                'i1' => ['k' => 'name', 'o' => 'matches', 'v' => ''],
+            ]]],
+        ])->assertStatus(422)->assertJsonValidationErrors(['filter']);
+
+        $this->assertSame('Old', SavedFilter::find($named->id)->filter['root']['c']['i1']['v']);
+    }
+
     public function test_update_by_non_owner_forbidden(): void {
         $owner = $this->makeUser();
         $other = $this->makeUser();
@@ -382,8 +487,12 @@ class SavedFilterTest extends TestCase {
         $other = $this->makeUser();
         SavedFilter::create(['user_id' => $owner->id, 'model' => ApprovalScheme::class, 'filter' => $this->sampleTree(), 'is_saved' => true, 'name' => 'A']);
 
-        // owner melihat
-        $this->actingAs($owner)->getJson('/saved-filters?model=' . urlencode(ApprovalScheme::class))->assertOk()->assertJsonCount(1);
+        // owner melihat — dan payload menyertakan is_saved (dipakai frontend
+        // untuk menentukan apply named tanpa membuat record baru).
+        $this->actingAs($owner)->getJson('/saved-filters?model=' . urlencode(ApprovalScheme::class))
+            ->assertOk()
+            ->assertJsonCount(1)
+            ->assertJsonPath('0.is_saved', true);
         // user lain tidak melihat
         $this->actingAs($other)->getJson('/saved-filters?model=' . urlencode(ApprovalScheme::class))->assertOk()->assertJsonCount(0);
     }

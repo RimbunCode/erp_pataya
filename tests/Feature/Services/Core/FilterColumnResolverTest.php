@@ -95,4 +95,41 @@ class FilterColumnResolverTest extends TestCase {
         // 'name' skalar tidak bisa jadi segmen tengah
         $this->assertNull($this->resolver()->resolve('name.something'));
     }
+
+    public function test_expand_columns_for_tree_fills_relation_children(): void {
+        // category.columns kosong di awal (mensimulasikan getColumns(1)).
+        $tree = ['root' => ['k' => 'and', 'c' => [
+            'a' => ['k' => 'category.type', 'o' => '=', 'v' => 'service'],
+            'b' => ['k' => 'name', 'o' => 'matches', 'v' => 'x'],
+        ]]];
+
+        $expanded = $this->resolver()->expandColumnsForTree($tree);
+
+        $category = null;
+        foreach ($expanded as $col) {
+            if (($col['name'] ?? null) === 'category') {
+                $category = $col;
+            }
+        }
+        $this->assertNotNull($category);
+        $childNames = array_map(fn ($c) => $c['name'] ?? null, $category['columns'] ?? []);
+        $this->assertContains('type', $childNames, 'kolom anak relasi harus ter-expand');
+    }
+
+    public function test_expand_columns_ignores_scalar_keys(): void {
+        // Tanpa key relasi → columns tak berubah (tetap kosong utk category).
+        $tree = ['root' => ['k' => 'and', 'c' => [
+            'a' => ['k' => 'name', 'o' => 'matches', 'v' => 'x'],
+        ]]];
+
+        $expanded = $this->resolver()->expandColumnsForTree($tree);
+
+        $category = null;
+        foreach ($expanded as $col) {
+            if (($col['name'] ?? null) === 'category') {
+                $category = $col;
+            }
+        }
+        $this->assertEmpty($category['columns'] ?? []);
+    }
 }

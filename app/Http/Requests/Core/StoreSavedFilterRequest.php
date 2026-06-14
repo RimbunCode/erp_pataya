@@ -21,6 +21,9 @@ class StoreSavedFilterRequest extends BaseFormRequest {
             'model'  => ['required', 'string', $this->validModelRule()],
             'filter' => ['required', 'array'],
             'name'   => ['nullable', 'string', 'max:255'],
+            // fid opsional: id filter ephemeral aktif untuk di-update (bukan
+            // membuat row baru) saat user memperbarui filternya sendiri.
+            'fid' => ['nullable', 'string'],
         ];
     }
 

@@ -6,9 +6,21 @@ use App\Models\Model as AppModel;
 use App\Services\Core\FilterEvaluator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
+
+/**
+ * Model stub kategori untuk menguji filter kolom DALAM relasi (category.type).
+ */
+class FilterTestCategory extends AppModel {
+    use HasUlids;
+
+    protected $table   = 'filter_test_categories';
+    protected $guarded = ['id'];
+    public $timestamps = true;
+}
 
 /**
  * Model stub dengan beragam type kolom untuk menguji FilterEvaluator
@@ -29,6 +41,10 @@ class FilterTestRecord extends AppModel {
             'born_on'    => 'date',
         ];
     }
+
+    public function category(): BelongsTo {
+        return $this->belongsTo(FilterTestCategory::class, 'category_id');
+    }
 }
 
 class FilterEvaluatorTest extends TestCase {
@@ -40,8 +56,16 @@ class FilterEvaluatorTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
+        Schema::create('filter_test_categories', function ($t) {
+            $t->ulid('id')->primary();
+            $t->string('type')->nullable();
+            $t->boolean('is_example')->default(false);
+            $t->timestamps();
+        });
+
         Schema::create('filter_test_records', function ($t) {
             $t->ulid('id')->primary();
+            $t->ulid('category_id')->nullable();
             $t->string('name')->nullable();
             $t->integer('qty')->nullable();
             $t->decimal('price', 12, 2)->nullable();
@@ -62,6 +86,18 @@ class FilterEvaluatorTest extends TestCase {
             'born_on'    => ['name' => 'born_on', 'type' => 'date', 'searchable' => true],
             'started_at' => ['name' => 'started_at', 'type' => 'datetime', 'searchable' => true],
             'secret'     => ['name' => 'secret', 'type' => 'string', 'searchable' => false],
+            'category'   => [
+                'name'           => 'category',
+                'type'           => 'relation',
+                'typeRelation'   => 'basic',
+                'nameOfFunction' => 'category',
+                'related'        => FilterTestCategory::class,
+                'primaryKey'     => 'id',
+                'searchable'     => true,
+                'columns'        => [
+                    ['name' => 'type', 'type' => 'string', 'searchable' => true],
+                ],
+            ],
         ];
     }
 
@@ -129,6 +165,37 @@ class FilterEvaluatorTest extends TestCase {
     public function test_enum_in(): void {
         $this->seedRecords();
         $this->assertEqualsCanonicalizing(['r1', 'r3'], $this->applyAnd(['i' => ['k' => 'status', 'o' => 'in', 'v' => 'active,closed']])->pluck('id')->all());
+    }
+
+    public function test_relation_dot_notation_column_uses_where_has(): void {
+        // Kolom DI DALAM relasi (category.type) → whereHas, bukan
+        // where('category.type', ...) yang menghasilkan SQL invalid.
+        FilterTestCategory::insert([
+            ['id' => 'c1', 'type' => 'service', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'c2', 'type' => 'vehicle', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        FilterTestRecord::insert([
+            ['id' => 'r1', 'category_id' => 'c1', 'name' => 'A', 'is_active' => true, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r2', 'category_id' => 'c2', 'name' => 'B', 'is_active' => true, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r3', 'category_id' => null, 'name' => 'C', 'is_active' => true, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // category.type = service → hanya r1
+        $this->assertEqualsCanonicalizing(
+            ['r1'],
+            $this->applyAnd(['i' => ['k' => 'category.type', 'o' => '=', 'v' => 'service']])->pluck('id')->all(),
+        );
+
+        // OR dua kondisi relasi (payload user): service OR vehicle → r1 & r2
+        $tree = ['root' => ['k' => 'and', 'c' => [
+            'g' => ['k' => 'or', 'c' => [
+                'a' => ['k' => 'category.type', 'o' => '=', 'v' => 'service'],
+                'b' => ['k' => 'category.type', 'o' => '=', 'v' => 'vehicle'],
+            ]],
+        ]]];
+        $q = FilterTestRecord::query();
+        $this->evaluator()->apply($q, $tree);
+        $this->assertEqualsCanonicalizing(['r1', 'r2'], $q->pluck('id')->all());
     }
 
     public function test_nested_and_or_grouping(): void {

@@ -8,9 +8,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "../../ui/alert-dialog";
-import { Bookmark, BookmarkCheck, Filter, Trash2 } from "lucide-react";
-import { memo, useCallback, useEffect, useState } from "react";
+import {
+  Bookmark,
+  BookmarkCheck,
+  ChevronDown,
+  Filter,
+  Trash2,
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../ui/dropdown-menu";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import useNestedFilters, {
+  flattenFilters,
   NestedFiltersProvider,
 } from "@/Hooks/useNestedFilters";
 
@@ -37,6 +52,14 @@ import { validateTree } from "./filterValidation";
  *   activeFid     : id saved filter aktif (utk promote "Simpan")
  *   onSaved       : (savedFilter) => void — callback setelah named tersimpan
  *   isMobile      : tampilan trigger mobile
+ * @param root0
+ * @param root0.columns
+ * @param root0.initialFilters
+ * @param root0.onApply
+ * @param root0.model
+ * @param root0.activeFid
+ * @param root0.onSaved
+ * @param root0.isMobile
  */
 function FilterTable({
   columns,
@@ -50,6 +73,13 @@ function FilterTable({
   const { t } = useLaravelReactI18n();
   const [open, setOpen] = useState(false);
 
+  // Jumlah kondisi filter aktif (item lengkap) untuk badge di tombol Filter.
+  const activeCount = useMemo(() => {
+    const root = initialFilters?.root;
+    if (!root) return 0;
+    return flattenFilters(root.c ?? root.children ?? {}).length;
+  }, [initialFilters]);
+
   return (
     <NestedFiltersProvider initialFilters={initialFilters} columns={columns}>
       <AlertDialog open={open} onOpenChange={setOpen}>
@@ -58,16 +88,27 @@ function FilterTable({
             <div className="hover:bg-accent relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0">
               <Filter />
               {t("core.datatable.filter.filter")}
+              {activeCount > 0 && (
+                <span className="ml-auto inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-xs font-semibold text-primary-foreground">
+                  {activeCount}
+                </span>
+              )}
             </div>
           ) : (
             <Button
               className={cn(
                 "flex-1 relative py-0! h-8 px-2! border-muted-foreground/50",
+                activeCount > 0 && "border-primary/60 text-primary",
               )}
               variant="secondary"
             >
               <Filter />
               {t("core.datatable.filter.filter")}
+              {activeCount > 0 && (
+                <span className="inline-flex min-w-4.5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
+                  {activeCount}
+                </span>
+              )}
             </Button>
           )}
         </AlertDialogTrigger>
@@ -108,6 +149,92 @@ function FilterTableContent({
   const { columns, filters, setErrors, clearErrors, setFromInitial } =
     useNestedFilters();
   const [applying, setApplying] = useState(false);
+  // Status menyimpan/menimpa filter (dilaporkan SaveFilterControl) — dipakai
+  // untuk meng-freeze seluruh dialog saat proses berjalan.
+  const [saving, setSaving] = useState(false);
+  const busy = applying || saving;
+  // Daftar named filter (is_saved=true) milik user untuk model ini — di-share
+  // antara SavedFilterBar (pilih) dan SaveFilterControl (timpa/baru) agar save
+  // langsung me-refresh daftar tanpa reload.
+  const [savedItems, setSavedItems] = useState([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  // Id filter yang SEDANG DIMUAT di builder (lokal dialog), terpisah dari
+  // `activeFid` (filter yang sudah di-Apply ke tabel). Memilih/menyimpan hanya
+  // mengubah ini — penerapan ke tabel baru terjadi saat tombol "Terapkan".
+  const [loadedFid, setLoadedFid] = useState(activeFid ?? null);
+
+  // Saat dialog dibuka, mulai dari filter aktif global.
+  useEffect(() => {
+    if (open) setLoadedFid(activeFid ?? null);
+  }, [open, activeFid]);
+
+  const loadSaved = useCallback(() => {
+    if (!model) return;
+    setLoadingSaved(true);
+    axios
+      .get(window.route("saved-filters.index"), { params: { model } })
+      .then((res) => setSavedItems(res.data?.data ?? res.data ?? []))
+      .catch(() => setSavedItems([]))
+      .finally(() => setLoadingSaved(false));
+  }, [model]);
+
+  useEffect(() => {
+    if (open) loadSaved();
+  }, [open, loadSaved]);
+
+  // Named filter yang sedang dimuat (untuk judul + deteksi dirty).
+  const loadedSaved = useMemo(() => {
+    if (!loadedFid) return null;
+    return savedItems.find((x) => x.id === loadedFid) ?? null;
+  }, [loadedFid, savedItems]);
+  const loadedName = loadedSaved?.name ?? null;
+
+  // Dirty: named filter aktif (is_saved=true) yang tree-nya sudah diubah di
+  // builder. Bandingkan SELURUH item (termasuk yang belum lengkap) secara
+  // urutan-independen — agar perubahan sekecil apa pun (mis. ganti operator,
+  // tambah item kosong) langsung terdeteksi.
+  const isDirty = useMemo(() => {
+    if (!loadedSaved?.is_saved || !loadedSaved.filter) return false;
+    const collectItems = (nodes, acc = []) => {
+      for (const node of Object.values(nodes ?? {})) {
+        if (!node || typeof node !== "object") continue;
+        const children = node.c ?? node.children;
+        if (children && typeof children === "object") {
+          collectItems(children, acc);
+        } else {
+          acc.push([node.k ?? "", node.o ?? "", node.v ?? ""]);
+        }
+      }
+      return acc;
+    };
+    const norm = (tree) => {
+      const root = tree?.root ?? tree;
+      return JSON.stringify(
+        collectItems(root?.c ?? root?.children ?? {})
+          .map((x) => JSON.stringify(x))
+          .sort(),
+      );
+    };
+    return norm(loadedSaved.filter) !== norm(filters);
+  }, [loadedSaved, filters]);
+
+  // Hapus sebuah named filter (per chip di SavedFilterBar).
+  const removeSaved = useCallback(
+    (id) => {
+      if (!id) return;
+      axios
+        .delete(window.route("saved-filters.destroy", { savedFilter: id }))
+        .then(() => {
+          setSavedItems((prev) => prev.filter((x) => x.id !== id));
+          if (id === loadedFid) setLoadedFid(null);
+          // Bila yang dihapus adalah filter aktif global, lepaskan juga di tabel.
+          if (id === activeFid) onSaved?.(null);
+          toast.success(t("core.datatable.filter.saved.deleted_toast"));
+        })
+        .catch(() => {});
+    },
+    [loadedFid, activeFid, onSaved, t],
+  );
 
   // Validasi frontend dulu, lalu kirim tree utuh ke parent (async save).
   // AlertDialogAction auto-close — kita selalu preventDefault dan mengontrol
@@ -129,8 +256,11 @@ function FilterTableContent({
     clearErrors();
     setApplying(true);
     try {
-      // Kirim tree utuh — bukan array datar — agar struktur AND/OR & nesting utuh.
-      await onApply?.(filters);
+      // Named filter yang dimuat & TIDAK diubah → terapkan langsung memakai id
+      // named itu, tanpa membuat record baru. Bila diubah (dirty) atau ephemeral
+      // → store (backend update-or-create; named yang dirty tak akan ditimpa).
+      const useExisting = Boolean(loadedSaved?.is_saved) && !isDirty;
+      await onApply?.(filters, loadedFid, { useExisting });
       setOpen?.(false);
     } catch {
       // Caller (DataTable2.persistFilterTree) sudah menampilkan toast error.
@@ -147,184 +277,329 @@ function FilterTableContent({
   }, [open, initialFilters, setFromInitial]);
 
   return (
-    <>
-      <AlertDialogHeader className="border-b border-muted-foreground/30">
-        <AlertDialogTitle className="pb-2 ">
-          {t("core.datatable.filter.filter")}
-        </AlertDialogTitle>
-        <AlertDialogDescription className="sr-only">
-          {t("core.datatable.filter.filter")}
-        </AlertDialogDescription>
-      </AlertDialogHeader>
-
-      {model && (
-        <SavedFilterBar
-          model={model}
-          onPick={(saved) => {
-            setFromInitial(saved.filter);
-          }}
-        />
+    <div className="relative flex flex-col min-h-0 flex-1">
+      {/* Overlay freeze: kunci interaksi saat menyimpan/menerapkan. */}
+      {busy && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-[1px] cursor-wait">
+          <LoadingIcon className="size-6 text-primary" />
+        </div>
       )}
+      <fieldset
+        disabled={busy}
+        className={cn(
+          "flex flex-col min-h-0 flex-1 border-0 p-0 m-0",
+          busy && "pointer-events-none select-none",
+        )}
+      >
+        <AlertDialogHeader className="border-b border-muted-foreground/30">
+          <AlertDialogTitle className="pb-2 flex items-center gap-2">
+            <span>{t("core.datatable.filter.filter")}</span>
+            {loadedName && (
+              <>
+                <span className="text-muted-foreground">—</span>
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-base font-semibold transition-colors",
+                    isDirty
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      : "bg-primary/10 text-primary",
+                  )}
+                  title={
+                    isDirty ? t("core.datatable.filter.saved.dirty") : undefined
+                  }
+                >
+                  {isDirty ? (
+                    <span className="size-2 rounded-full bg-amber-500" />
+                  ) : (
+                    <BookmarkCheck className="size-4" />
+                  )}
+                  {loadedName}
+                </span>
+              </>
+            )}
+          </AlertDialogTitle>
+          <AlertDialogDescription className="sr-only">
+            {t("core.datatable.filter.filter")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
 
-      <div className={cn(!isMobile && "max-h-[92%]", "flex flex-1 min-h-0")}>
-        <FilterBuilderBody />
-      </div>
-
-      <div className="flex items-center justify-between pt-4 border-t gap-x-6 border-muted-foreground/50">
         {model && (
-          <SaveFilterControl
-            model={model}
-            filter={filters}
-            activeFid={activeFid}
-            onSaved={onSaved}
+          <SavedFilterBar
+            items={savedItems}
+            loading={loadingSaved}
+            activeFid={loadedFid}
+            onPick={(saved) => {
+              // Hanya muat ke builder — belum diterapkan ke tabel (tunggu Apply).
+              setFromInitial(saved.filter);
+              setLoadedFid(saved.id);
+            }}
+            onRemove={removeSaved}
           />
         )}
-        <div className="flex gap-x-2 ml-auto">
-          <AlertDialogCancel size="md" className="h-8 px-2! mt-0">
-            {t("core.datatable.filter.cancel")}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            size="md"
-            className="h-8 px-2!"
-            onClick={applyFilters}
-            disabled={applying}
-          >
-            {applying && <LoadingIcon className="size-4" />}
-            {t("core.datatable.filter.apply_filters")}
-          </AlertDialogAction>
+
+        <div className={cn(!isMobile && "max-h-[92%]", "flex flex-1 min-h-0")}>
+          <FilterBuilderBody />
         </div>
-      </div>
-    </>
-  );
-}
 
-/**
- * SavedFilterBar — daftar saved filter milik user (listing private) untuk model
- * ini. Memilih satu memuat tree-nya ke builder.
- */
-function SavedFilterBar({ model, onPick }) {
-  const { t } = useLaravelReactI18n();
-  const [items, setItems] = useState([]);
-
-  const load = useCallback(() => {
-    axios
-      .get(window.route("saved-filters.index"), { params: { model } })
-      .then((res) => setItems(res.data?.data ?? res.data ?? []))
-      .catch(() => setItems([]));
-  }, [model]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const remove = (id) => {
-    axios
-      .delete(window.route("saved-filters.destroy", { savedFilter: id }))
-      .then(() => setItems((prev) => prev.filter((x) => x.id !== id)))
-      .catch(() => {});
-  };
-
-  if (items.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-muted-foreground/20">
-      <span className="text-muted-foreground text-sm">
-        {t("core.datatable.filter.saved.list")}
-      </span>
-      {items.map((item) => (
-        <span
-          key={item.id}
-          className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/30 px-2 py-0.5 text-sm"
-        >
-          <button
-            type="button"
-            className="hover:underline"
-            onClick={() => onPick(item)}
-          >
-            {item.name}
-          </button>
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-destructive"
-            onClick={() => remove(item.id)}
-          >
-            <Trash2 className="size-3.5" />
-          </button>
-        </span>
-      ))}
+        <div className="flex items-center justify-between pt-4 border-t gap-x-6 border-muted-foreground/50">
+          {model && (
+            <SaveFilterControl
+              model={model}
+              filter={filters}
+              savedItems={savedItems}
+              onSavingChange={setSaving}
+              // Named filter yang dimuat & belum diubah tak punya yang perlu
+              // disimpan → disable. Aktif lagi saat dirty / filter belum named.
+              disabled={Boolean(loadedSaved?.is_saved) && !isDirty}
+              onSaved={(saved) => {
+                // Simpan hanya me-refresh daftar & menandai sebagai dimuat —
+                // tidak menerapkan ke tabel (tunggu tombol Terapkan).
+                loadSaved();
+                if (saved?.id) setLoadedFid(saved.id);
+              }}
+            />
+          )}
+          <div className="flex gap-x-2 ml-auto">
+            <AlertDialogCancel size="md" className="h-8 px-2! mt-0">
+              {t("core.datatable.filter.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              size="md"
+              className="h-8 px-2!"
+              onClick={applyFilters}
+              disabled={applying || busy}
+            >
+              {applying && <LoadingIcon className="size-4" />}
+              {t("core.datatable.filter.apply_filters")}
+            </AlertDialogAction>
+          </div>
+        </div>
+      </fieldset>
     </div>
   );
 }
 
 /**
- * SaveFilterControl — menyimpan filter aktif menjadi named. Bila `activeFid`
- * tersedia (filter sudah di-apply → ada row ephemeral), promote row itu via
- * PATCH; bila belum, buat row baru via POST lalu promote.
+ * SavedFilterBar — daftar named filter milik user untuk model ini. Daftar
+ * dikelola parent (FilterTableContent) agar konsisten dengan aksi simpan/timpa.
+ * Memilih satu memuat tree-nya ke builder; chip yang dimuat di-highlight. Tiap
+ * chip punya tombol hapus.
+ * @param root0
+ * @param root0.items
+ * @param root0.loading
+ * @param root0.activeFid
+ * @param root0.onPick
+ * @param root0.onRemove
  */
-function SaveFilterControl({ model, filter, activeFid, onSaved }) {
+function SavedFilterBar({ items, loading, activeFid, onPick, onRemove }) {
   const { t } = useLaravelReactI18n();
-  const [editing, setEditing] = useState(false);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-muted-foreground/20">
+      <span className="text-muted-foreground text-sm shrink-0">
+        {t("core.datatable.filter.saved.list")}
+      </span>
+      {loading ? (
+        <span className="inline-flex items-center gap-2 text-muted-foreground text-sm">
+          <LoadingIcon className="size-4" />
+          {t("core.datatable.filter.saved.loading")}
+        </span>
+      ) : items.length === 0 ? (
+        <span className="text-muted-foreground/70 text-sm italic">
+          {t("core.datatable.filter.saved.empty")}
+        </span>
+      ) : (
+        items.map((item) => {
+          const isActive = item.id === activeFid;
+          return (
+            <span
+              key={item.id}
+              className={cn(
+                "group inline-flex items-center rounded-full border pl-2.5 pr-1 py-0.5 text-sm transition-colors",
+                isActive
+                  ? "border-primary/60 bg-primary/10 text-primary ring-1 ring-primary/30"
+                  : "border-muted-foreground/30 hover:border-muted-foreground/60 hover:bg-accent",
+              )}
+            >
+              <button
+                type="button"
+                className="inline-flex cursor-pointer items-center gap-1.5 font-medium"
+                onClick={() => onPick(item)}
+              >
+                <BookmarkCheck
+                  className={cn(
+                    "size-3.5 shrink-0",
+                    isActive ? "text-primary" : "text-muted-foreground",
+                  )}
+                />
+                {item.name || t("core.datatable.filter.saved.untitled")}
+              </button>
+              <button
+                type="button"
+                className="ml-1 inline-flex size-5 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                title={t("core.datatable.filter.delete.label")}
+                onClick={() => onRemove?.(item.id)}
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </span>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+/**
+ * SaveFilterControl — simpan filter aktif sebagai named. Dropdown:
+ *  - "Simpan sebagai baru": input nama → SELALU buat record baru (POST tanpa
+ *    fid) lalu promote menjadi named via PATCH name.
+ *  - "Timpa <named>": overwrite TREE named existing via PATCH filter.
+ * Setelah berhasil → toast + onSaved(refresh daftar).
+ * @param root0
+ * @param root0.model
+ * @param root0.filter
+ * @param root0.savedItems
+ * @param root0.onSaved
+ * @param root0.onSavingChange
+ */
+function SaveFilterControl({
+  model,
+  filter,
+  savedItems,
+  onSaved,
+  onSavingChange,
+  disabled = false,
+}) {
+  const { t } = useLaravelReactI18n();
+  // mode: null (idle) | "new" (input nama)
+  const [mode, setMode] = useState(null);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const save = async () => {
-    if (!name.trim()) return;
+  // Laporkan status saving ke parent agar dialog bisa di-freeze.
+  useEffect(() => {
+    onSavingChange?.(saving);
+  }, [saving, onSavingChange]);
+
+  // Simpan sebagai named BARU: SELALU buat row baru (POST tanpa fid agar tidak
+  // menimpa filter aktif), lalu promote dengan name.
+  const saveAsNew = async () => {
+    const trimmed = name.trim();
+    if (!trimmed || saving) return;
     setSaving(true);
     try {
-      let id = activeFid;
-      if (!id) {
-        const res = await axios.post(window.route("saved-filters.store"), {
-          model,
-          filter,
-        });
-        id = res.data?.id;
-      }
+      const created = await axios.post(window.route("saved-filters.store"), {
+        model,
+        filter,
+      });
+      const id = created.data?.id;
       if (!id) return;
       const res = await axios.patch(
         window.route("saved-filters.update", { savedFilter: id }),
-        { name: name.trim() },
+        { name: trimmed },
       );
-      onSaved?.(res.data ?? { id, name: name.trim() });
-      setEditing(false);
+      onSaved?.(res.data ?? { id, name: trimmed, filter });
+      toast.success(t("core.datatable.filter.saved.saved_toast"));
+      setMode(null);
       setName("");
+    } catch {
+      toast.error(t("core.datatable.filter.saved.save_error"));
     } finally {
       setSaving(false);
     }
   };
 
-  if (!editing) {
+  // Timpa TREE named existing (nama tak berubah).
+  const overwrite = async (target) => {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const res = await axios.patch(
+        window.route("saved-filters.update", { savedFilter: target.id }),
+        { filter },
+      );
+      onSaved?.(res.data ?? { ...target, filter });
+      toast.success(t("core.datatable.filter.saved.updated_toast"));
+    } catch {
+      toast.error(t("core.datatable.filter.saved.save_error"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Mode input nama (Simpan sebagai baru).
+  if (mode === "new") {
     return (
-      <Button
-        variant="outline"
-        className="h-8 px-2!"
-        type="button"
-        onClick={() => setEditing(true)}
-      >
-        <Bookmark />
-        {t("core.datatable.filter.saved.save")}
-      </Button>
+      <div className="flex items-center gap-2">
+        <Input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder={t("core.datatable.filter.saved.name_placeholder")}
+          className="h-8 w-48"
+          onKeyDown={(e) => e.key === "Enter" && saveAsNew()}
+        />
+        <Button
+          className="h-8 px-2!"
+          type="button"
+          disabled={saving || !name.trim()}
+          onClick={saveAsNew}
+        >
+          <BookmarkCheck />
+          {t("core.datatable.filter.saved.save")}
+        </Button>
+        <Button
+          variant="ghost"
+          className="h-8 px-2!"
+          type="button"
+          onClick={() => {
+            setMode(null);
+            setName("");
+          }}
+        >
+          {t("core.datatable.filter.cancel")}
+        </Button>
+      </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Input
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder={t("core.datatable.filter.saved.name_placeholder")}
-        className="h-8 w-48"
-        onKeyDown={(e) => e.key === "Enter" && save()}
-      />
-      <Button
-        className="h-8 px-2!"
-        type="button"
-        disabled={saving || !name.trim()}
-        onClick={save}
-      >
-        <BookmarkCheck />
-        {t("core.datatable.filter.saved.save")}
-      </Button>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          className="h-8 px-2!"
+          type="button"
+          disabled={disabled}
+        >
+          <Bookmark />
+          {t("core.datatable.filter.saved.save")}
+          <ChevronDown className="size-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuItem onSelect={() => setMode("new")}>
+          <Bookmark className="size-4" />
+          {t("core.datatable.filter.saved.save_new")}
+        </DropdownMenuItem>
+        {savedItems.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-muted-foreground text-xs">
+              {t("core.datatable.filter.saved.list")}
+            </DropdownMenuLabel>
+            {savedItems.map((item) => (
+              <DropdownMenuItem key={item.id} onSelect={() => overwrite(item)}>
+                <BookmarkCheck className="size-4" />
+                {t("core.datatable.filter.saved.overwrite", {
+                  name: item.name || t("core.datatable.filter.saved.untitled"),
+                })}
+              </DropdownMenuItem>
+            ))}
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

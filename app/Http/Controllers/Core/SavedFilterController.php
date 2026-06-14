@@ -18,7 +18,7 @@ class SavedFilterController extends Controller {
 
         $filters = SavedFilter::ownedListing($request->user()->id, $request->input('model'))
             ->latest()
-            ->get(['id', 'name', 'filter', 'created_at']);
+            ->get(['id', 'name', 'filter', 'is_saved', 'created_at']);
 
         return response()->json($filters);
     }
@@ -47,13 +47,29 @@ class SavedFilterController extends Controller {
     }
 
     /**
-     * Buat filter ad-hoc (ephemeral). URL halaman akan memakai ?fid=<id>.
+     * Simpan filter ad-hoc (ephemeral). URL halaman akan memakai ?fid=<id>.
+     *
+     * Update-or-create: bila `fid` menunjuk filter ephemeral milik user sendiri
+     * untuk model yang sama, row itu di-UPDATE (memperbarui filter aktif, bukan
+     * menumpuk row baru). Selain itu (fid kosong / milik user lain / sudah named
+     * / model berbeda) → buat row ephemeral BARU milik requester.
      */
     public function store(StoreSavedFilterRequest $request): JsonResponse {
+        $userId = $request->user()->id;
+        $model  = $request->input('model');
+        $filter = $request->input('filter');
+
+        $existing = $this->reusableEphemeral($request->input('fid'), $userId, $model);
+        if ($existing !== null) {
+            $existing->update(['filter' => $filter]);
+
+            return response()->json(['id' => $existing->id]);
+        }
+
         $saved = SavedFilter::create([
-            'user_id'  => $request->user()->id,
-            'model'    => $request->input('model'),
-            'filter'   => $request->input('filter'),
+            'user_id'  => $userId,
+            'model'    => $model,
+            'filter'   => $filter,
             'name'     => $request->input('name'),
             'is_saved' => false,
         ]);
@@ -62,17 +78,54 @@ class SavedFilterController extends Controller {
     }
 
     /**
-     * Promosikan filter ephemeral menjadi named (permanen). Owner-only.
+     * Cari filter ephemeral yang boleh di-update in-place oleh requester:
+     * milik user sendiri, belum named (is_saved=false), dan model cocok.
+     * Mengembalikan null bila tidak memenuhi (→ caller membuat row baru).
+     */
+    private function reusableEphemeral(?string $fid, string $userId, string $model): ?SavedFilter {
+        if ($fid === null || $fid === '') {
+            return null;
+        }
+
+        $saved = SavedFilter::find($fid);
+        if ($saved === null) {
+            return null;
+        }
+        if ($saved->user_id !== $userId || $saved->is_saved || $saved->model !== $model) {
+            return null;
+        }
+
+        return $saved;
+    }
+
+    /**
+     * Perbarui named filter (owner-only). Mendukung:
+     *  - promote ephemeral → named (kirim `name`),
+     *  - rename (kirim `name`),
+     *  - overwrite tree named existing (kirim `filter`).
+     * Mengirim `name` selalu menjadikan `is_saved=true` (named/permanen).
      */
     public function update(UpdateSavedFilterRequest $request, SavedFilter $savedFilter): JsonResponse {
         abort_if($savedFilter->user_id !== $request->user()->id, 403);
 
-        $savedFilter->update([
-            'name'     => $request->input('name'),
-            'is_saved' => true,
-        ]);
+        $attributes = [];
+        if ($request->filled('name')) {
+            $attributes['name']     = $request->input('name');
+            $attributes['is_saved'] = true;
+        }
+        if ($request->has('filter')) {
+            $attributes['filter'] = $request->input('filter');
+        }
 
-        return response()->json(['id' => $savedFilter->id]);
+        if ($attributes !== []) {
+            $savedFilter->update($attributes);
+        }
+
+        return response()->json([
+            'id'     => $savedFilter->id,
+            'name'   => $savedFilter->name,
+            'filter' => $savedFilter->filter,
+        ]);
     }
 
     /**

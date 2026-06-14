@@ -57,7 +57,14 @@ function FilterItem2({ id, depth = 0 }) {
   const buildColumnNode = useCallback(
     function build(col, parentPath = "") {
       if (col.searchable === false) return null;
-      const value = parentPath ? `${parentPath}.${col.name}` : col.name;
+      // `col.name` bisa berupa nama segmen ("type") ATAU sudah berkualifikasi
+      // penuh ("category.type") — tergantung sumber kolom: hasil getColumns
+      // frontend (DataTable2) memprefix nama anak relasi, sedangkan kolom dari
+      // fetch API masih nama segmen. Cegah double-prefix: pakai segmen terakhir.
+      const segment = `${col.name}`.includes(".")
+        ? `${col.name}`.split(".").pop()
+        : col.name;
+      const value = parentPath ? `${parentPath}.${segment}` : segment;
       const isRelation = col.type === "relation" || col.type === "relations";
       const cachedChildren = getCachedChildren?.(value);
       const children =

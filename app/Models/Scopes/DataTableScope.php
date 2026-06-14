@@ -4,6 +4,7 @@ namespace App\Models\Scopes;
 
 use App\Models\Core\Preference;
 use App\Models\Core\SavedFilter;
+use App\Services\Core\FilterColumnResolver;
 use App\Services\Core\FilterEvaluator;
 use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
@@ -90,6 +91,10 @@ class DataTableScope implements Scope {
                 if ($saved && $saved->model === $modelClass) {
                     (new FilterEvaluator($dataTableColumns))
                         ->apply($query, $saved->filter ?? []);
+                    // Expand kolom relasi yang dipakai filter agar frontend dapat
+                    // me-resolve value tanpa fetch async (hilangkan kedip/lag).
+                    $dataTableColumns = (new FilterColumnResolver($dataTableColumns))
+                        ->expandColumnsForTree($saved->filter ?? []);
                 }
             }
             if ($isSubmitable) {

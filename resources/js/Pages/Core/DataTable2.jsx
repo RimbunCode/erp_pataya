@@ -346,7 +346,7 @@ export default memo(
     // Simpan tree sebagai saved filter ephemeral → dapat `fid` → navigasi.
     // Tree kosong → bersihkan filter (drop fid).
     const persistFilterTree = useCallback(
-      async (tree) => {
+      async (tree, fid = options.fid) => {
         const hasItems = tree && Object.keys(tree.root?.c ?? {}).length > 0;
         if (!hasItems) {
           setFilterTree(null);
@@ -354,9 +354,12 @@ export default memo(
           return;
         }
         try {
+          // Kirim fid yang sedang dimuat: backend akan UPDATE row itu (bila
+          // milik user & ephemeral cocok) alih-alih menumpuk row baru.
           const res = await axios.post(window.route("saved-filters.store"), {
             model,
             filter: tree,
+            fid: fid ?? null,
           });
           setFilterTree(tree);
           setOptions((prev) => ({ ...prev, fid: res.data?.id ?? null }));
@@ -375,15 +378,35 @@ export default memo(
           throw error;
         }
       },
-      [model, t],
+      [model, t, options.fid],
     );
 
     const onApplyFilters = useCallback(
-      (tree) => {
-        return persistFilterTree(tree);
+      (tree, fid, opts) => {
+        // useExisting: terapkan named filter yang dipilih tanpa membuat record
+        // baru — cukup aktifkan id-nya & reload tabel.
+        if (opts?.useExisting && fid) {
+          setFilterTree(tree);
+          setOptions((prev) => ({ ...prev, fid }));
+          toast.success(t("core.datatable.filter.save.success"));
+          return Promise.resolve();
+        }
+        return persistFilterTree(tree, fid);
       },
       [persistFilterTree],
     );
+
+    // Dipanggil saat filter disimpan/dipilih/dihapus di dialog. `saved` berisi
+    // { id, filter, name } untuk menjadikan named itu filter aktif; null untuk
+    // melepas filter aktif (mis. named aktif dihapus).
+    const onSavedFilter = useCallback((saved) => {
+      if (!saved?.id) {
+        setOptions((prev) => ({ ...prev, fid: null }));
+        return;
+      }
+      if (saved.filter) setFilterTree(saved.filter);
+      setOptions((prev) => ({ ...prev, fid: saved.id }));
+    }, []);
 
     useImperativeHandle(ref, () => ({
       addFilter(key, operator, value) {
@@ -428,6 +451,7 @@ export default memo(
                       <FilterTable2
                         columns={mapColumns}
                         onApply={onApplyFilters}
+                        onSaved={onSavedFilter}
                         initialFilters={filterTree}
                         model={model}
                         activeFid={options.fid}
@@ -537,6 +561,7 @@ export default memo(
                   <FilterTable2
                     columns={mapColumns}
                     onApply={onApplyFilters}
+                    onSaved={onSavedFilter}
                     initialFilters={filterTree}
                     model={model}
                     activeFid={options.fid}

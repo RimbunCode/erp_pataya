@@ -107,19 +107,32 @@ class FilterEvaluator {
             return;
         }
 
-        $column = $this->resolveColumn($key, $value);
-        if ($column === null || ($column['searchable'] ?? true) === false) {
+        $path = $this->resolver->resolvePath($key, $value);
+        if ($path === null) {
+            return; // kolom tidak ter-resolve
+        }
+        $column = $path['column'];
+        if (($column['searchable'] ?? true) === false) {
             return; // whitelist kolom
         }
         if (! $this->isOperatorValid($column, $op)) {
             return; // whitelist operator
         }
 
+        // Key dot-notation pada kolom DALAM relasi (mis. "category.type"):
+        // bungkus dalam nested whereHas lalu terapkan kondisi pada kolom akhir
+        // memakai nama relatif (tanpa prefix relasi) agar SQL valid.
+        if (! empty($path['relations'])) {
+            $this->applyNestedRelationColumn($query, $path, $op, $value, $boolean);
+
+            return;
+        }
+
         $type   = $column['type'] ?? 'string';
         $negate = $op !== '!=' && str_starts_with($op, '!');
         $base   = $negate ? substr($op, 1) : $op;
 
-        // Relasi (basic / morph / plural)
+        // Relasi (basic / morph / plural) — filter PADA relasi itu sendiri (by id).
         if (in_array($type, ['relation', 'relations'], true)) {
             $this->applyRelation($query, $column, $base, $negate, $value, $boolean);
 
@@ -135,6 +148,47 @@ class FilterEvaluator {
 
         // Scalar
         $this->applyScalar($query, $this->qualifiedColumn($key), $type, $base, $negate, $value, $boolean);
+    }
+
+    /**
+     * Terapkan kondisi pada kolom yang berada DI DALAM relasi (dot-notation),
+     * membangun nested whereHas dari rantai relasi. Kondisi akhir (scalar /
+     * period) diterapkan pada kolom akhir memakai nama relatifnya.
+     *
+     * @param  array{relations:list<array{function:string,isMorph:bool}>,column:array<string,mixed>,columnName:string}  $path
+     */
+    private function applyNestedRelationColumn(Builder $query, array $path, string $op, mixed $value, string $boolean): void {
+        $relations  = $path['relations'];
+        $columnName = $path['columnName'];
+
+        $type   = $path['column']['type'] ?? 'string';
+        $negate = $op !== '!=' && str_starts_with($op, '!');
+        $base   = $negate ? substr($op, 1) : $op;
+
+        // Closure terdalam: kondisi pada kolom akhir (nama relatif terhadap
+        // tabel relasi terdalam) — pakai boolean "and" di dalam scope relasi.
+        $leaf = function (Builder $q) use ($columnName, $type, $base, $negate, $value): void {
+            if ($base === 'in_period') {
+                $this->applyPeriod($q, $columnName, $value, $negate, 'and');
+
+                return;
+            }
+            $this->applyScalar($q, $columnName, $type, $base, $negate, $value, 'and');
+        };
+
+        // Bungkus dari relasi terdalam keluar menjadi nested whereHas.
+        $callback = $leaf;
+        for ($i = count($relations) - 1; $i >= 1; $i--) {
+            $rel      = $relations[$i]['function'];
+            $inner    = $callback;
+            $callback = function (Builder $q) use ($rel, $inner): void {
+                $q->whereHas($rel, $inner);
+            };
+        }
+
+        $outerRelation = $relations[0]['function'];
+        $method        = $this->method($boolean, 'whereHas');
+        $query->{$method}($outerRelation, $callback);
     }
 
     // ---- Scalar handlers ------------------------------------------------
@@ -417,17 +471,6 @@ class FilterEvaluator {
     }
 
     // ---- Column resolution ----------------------------------------------
-
-    /**
-     * Resolusi kolom (dukung dot-notation relasi "category.type") dengan
-     * lazy-load kolom anak relasi via FilterColumnResolver. `$value` dipakai
-     * untuk relasi morph (ambil FQCN dari value.type).
-     *
-     * @return array<string,mixed>|null
-     */
-    private function resolveColumn(string $key, mixed $value = null): ?array {
-        return $this->resolver->resolve($key, $value);
-    }
 
     private function isOperatorValid(array $column, string $op): bool {
         $type = $column['type'] ?? 'string';
