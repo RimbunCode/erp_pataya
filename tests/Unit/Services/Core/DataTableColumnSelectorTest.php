@@ -225,6 +225,46 @@ class DataTableColumnSelectorTest extends TestCase {
         $this->assertSame([], $res['with']);
     }
 
+    public function test_template_link_scalar_placeholder_forced_into_select(): void {
+        // Cookie hanya `code`, tapi templateLink merujuk secret_note (hidden) →
+        // secret_note wajib ikut SELECT agar mobile view ter-render.
+        $res = $this->selector()->resolve(
+            $this->columns(),
+            new SelectorParentStub,
+            ['code'],
+            templateLink: ':code - :secret_note',
+        );
+
+        $this->assertContains('secret_note', $res['select']);
+    }
+
+    public function test_template_link_relation_placeholder_adds_with_and_fk(): void {
+        // templateLink rujuk customer.name → relasi customer di with + FK di select.
+        $res = $this->selector()->resolve(
+            $this->columns(),
+            new SelectorParentStub,
+            ['code'],
+            templateLink: ':code (:customer.name)',
+        );
+
+        $this->assertContains('customer', $res['with']);
+        $this->assertContains('customer_id', $res['select']);
+    }
+
+    public function test_template_link_alias_uses_inner_placeholder(): void {
+        // `:code{:rent_date}` → pakai rent_date (append) → dependsOn-nya ke SELECT.
+        $res = $this->selector()->resolve(
+            $this->columns(),
+            new SelectorParentStub,
+            ['code'],
+            templateLink: ':code{:rent_date} - :amount',
+        );
+
+        $this->assertContains('start_date', $res['select']);
+        $this->assertContains('end_date', $res['select']);
+        $this->assertFalse($res['fallbackAll']);
+    }
+
     public function test_unknown_key_is_ignored(): void {
         $res = $this->selector()->resolve($this->columns(), new SelectorParentStub, ['code', 'not_a_real_column']);
 

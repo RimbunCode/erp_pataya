@@ -30,9 +30,14 @@ class AdaptiveRecord extends AppModel {
         'description' => ['show' => true, 'order' => 1],
         'customer'    => ['show' => true, 'order' => 2],
     ];
+    public static ?string $tplOverride = null;
 
     public function customer(): BelongsTo {
         return $this->belongsTo(AdaptiveCustomerStub::class, 'customer_id');
+    }
+
+    public static function templateLink() {
+        return static::$tplOverride ?? ':name';
     }
 }
 
@@ -120,6 +125,25 @@ class DataTableAdaptiveFetchTest extends TestCase {
         $this->assertArrayHasKey('name', $row->getAttributes());
         $this->assertArrayHasKey('description', $row->getAttributes());
         $this->assertTrue($row->relationLoaded('customer'));
+    }
+
+    public function test_template_link_columns_forced_into_query(): void {
+        $this->seedData();
+        // templateLink rujuk `description` (kolom hidden) + `customer.name` (relasi,
+        // dot-notation). Cookie hanya `name` → keduanya tetap wajib ikut query.
+        AdaptiveRecord::$tplOverride = ':name - :description (:customer.name)';
+        $cookie                      = ['datatable_columns' => json_encode(['name' => ['order' => 0]])];
+
+        $result = AdaptiveRecord::dataTable($this->ajax(cookies: $cookie));
+        $row    = $result['data']->items()[0];
+
+        AdaptiveRecord::$tplOverride = null;
+
+        // Kolom description (hidden) ter-select karena dirujuk templateLink.
+        $this->assertArrayHasKey('description', $row->getAttributes());
+        // Relasi customer (dot-notation) ter-eager-load + FK ter-select.
+        $this->assertTrue($row->relationLoaded('customer'));
+        $this->assertSame('Acme', $row->customer->name);
     }
 
     public function test_sort_by_hidden_local_column_stays_valid(): void {

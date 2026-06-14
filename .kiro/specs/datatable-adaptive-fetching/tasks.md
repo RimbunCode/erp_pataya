@@ -141,6 +141,17 @@ Sort/saved-filter/pagination/submitable **tidak** diubah perilakunya — hanya d
   - Full suite terkait: 71 passed (167 assertions).
   - `vendor/bin/pint --dirty --format agent`: fixed (formatting) DataTableColumnSelector + DataTableAdaptiveFetchTest.
 
+- [x] 9. templateLink (mobile view) sebagai forced key
+  - [x] 9.1 Selektor parse `templateLink` → placeholder head sbg key visible (forced)
+    - `templateLinkHeads()`: regex mirror frontend; alias `:name{:title}`→`title`; dot-notation→head relasi
+    - Head non-metadata tapi kolom DB nyata (kolom `ignore` dirujuk template) → tetap SELECT
+    - `resolve()` param `?string $templateLink`; placeholder digabung ke visibleHeads
+    - _Requirements: 4.1, 4.2, 4.3, 4.4_
+  - [x] 9.2 `DataTableScope` teruskan `Model::templateLink()` ke selektor
+    - _Requirements: 4.5_
+  - [x] 9.3 Test unit (3) + feature (1, dot-notation + kolom hidden)
+    - **Validates: Requirements 4.1–4.5**
+
 ## Notes
 
 - Setiap task mereferensi requirement untuk traceability.

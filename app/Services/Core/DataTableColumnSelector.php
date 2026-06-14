@@ -42,12 +42,24 @@ class DataTableColumnSelector {
      * @param  array<int, string>|null  $visibleKeys  Nama kolom visible dari cookie; null/[] => default config.
      * @param  array<int, string>  $extraKeys  Kolom skalar lokal yang wajib ikut SELECT walau tak visible
      *                                         (mis. kolom sort non-visible). Tidak menambah `with`.
+     * @param  string|null  $templateLink  String templateLink model (mis. ':code - :name'). Placeholder-nya
+     *                                     SELALU diperlakukan sbg key visible (mobile view merender via
+     *                                     convertTemplateLink), jadi kolom/relasi/append yang dirujuk
+     *                                     wajib ikut select/with walau tak ada di cookie.
      * @return array{select: list<string>, with: list<string>, fallbackAll: bool}
      */
-    public function resolve(array $dataTableColumns, Model $model, ?array $visibleKeys, array $extraKeys = []): array {
+    public function resolve(array $dataTableColumns, Model $model, ?array $visibleKeys, array $extraKeys = [], ?string $templateLink = null): array {
         $byName       = $this->indexByName($dataTableColumns);
         $visibleHeads = $this->effectiveVisibleHeads($byName, $visibleKeys);
         $dbColumns    = $this->dbColumns($model);
+
+        // Placeholder templateLink selalu wajib ikut (mobile view). Diperlakukan
+        // sama seperti key visible: head top-level masuk pipeline skalar/append/relasi.
+        foreach ($this->templateLinkHeads($templateLink) as $head) {
+            if (! in_array($head, $visibleHeads, true)) {
+                $visibleHeads[] = $head;
+            }
+        }
 
         $pk          = $model->getKeyName();
         $select      = [$pk];
@@ -59,7 +71,14 @@ class DataTableColumnSelector {
             $type = $col['type'] ?? null;
 
             if ($col === null) {
-                continue; // key asing (model lain) — abaikan.
+                // Tak ada di metadata (mis. kolom DB yang di-`ignore` tapi dirujuk
+                // templateLink). Bila kolom DB nyata → tetap SELECT agar template
+                // ter-render; selain itu abaikan (key asing/model lain).
+                if (in_array($head, $dbColumns, true)) {
+                    $select[] = $head;
+                }
+
+                continue;
             }
 
             // Hanya relasi singular (`relation`: BelongsTo/HasOne/MorphTo/MorphOne)
@@ -227,6 +246,37 @@ class DataTableColumnSelector {
         }
 
         return self::$dbColumnsCache[$table];
+    }
+
+    /**
+     * Ekstrak head (segmen top-level) tiap placeholder dari string templateLink.
+     * Mirror parser frontend (convertTemplateLink): placeholder `:(\w+|\w.\w...)`,
+     * dan sintaks alias `:name{:title}` → pakai `title` (yang di dalam kurung).
+     * Key ber-dot (`branch.code`) direduksi ke head `branch`.
+     *
+     * @return list<string>
+     */
+    private function templateLinkHeads(?string $templateLink): array {
+        if (! is_string($templateLink) || $templateLink === '') {
+            return [];
+        }
+
+        $heads = [];
+        // Tangkap placeholder: bentuk alias `word{:alias}` atau plain `word(.word)*`.
+        if (preg_match_all('/:((\w[\w]+\{:[\w]+\})|(\w[\w.]+))/', $templateLink, $matches)) {
+            foreach ($matches[1] as $raw) {
+                // `name{:title}` → `title` (alias menang).
+                if (preg_match('/.*?\{:(.*?)\}/', $raw, $aliasMatch)) {
+                    $raw = $aliasMatch[1];
+                }
+                $head = str_contains($raw, '.') ? explode('.', $raw)[0] : $raw;
+                if ($head !== '') {
+                    $heads[] = $head;
+                }
+            }
+        }
+
+        return array_values(array_unique($heads));
     }
 
     /**

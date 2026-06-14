@@ -100,7 +100,24 @@ sumber yang dibaca accessor, so that backend bisa men-SELECT kolom presisi tanpa
 4. IF sebuah append visible TIDAK memiliki `dependsOn` AND aplikasi berjalan di produksi, THEN THE
    `DataTableColumnSelector` SHALL mencatat `Log::warning` dan menyetel `fallbackAll = true`.
 
-### Requirement 4: Fallback aman tanpa regresi
+### Requirement 4: Kolom `templateLink` (mobile view) selalu ikut query
+
+**User Story:** As an end-user pada perangkat mobile, I want baris tabel tetap menampilkan teks
+ringkasan (templateLink), so that data terbaca walau kolom sumbernya sedang disembunyikan.
+
+#### Acceptance Criteria
+
+1. THE `DataTableColumnSelector` SHALL memperlakukan setiap placeholder pada string `templateLink`
+   model sebagai key visible (forced) — selalu ikut `SELECT`/`with` walau tak ada di cookie.
+2. WHEN placeholder berbentuk dot-notation (`relasi.kolom`), THE `DataTableColumnSelector` SHALL
+   menambahkan relasi (segmen pertama) ke `with` dan foreign key-nya ke `SELECT`.
+3. WHEN placeholder memakai sintaks alias `:name{:title}`, THE `DataTableColumnSelector` SHALL
+   memakai placeholder di dalam kurung (`title`) sebagai key.
+4. IF sebuah placeholder merujuk kolom DB nyata yang tidak ada di `dataTableColumns` (mis. kolom
+   ber-`ignore`), THEN THE `DataTableColumnSelector` SHALL tetap menyertakan kolom itu pada `SELECT`.
+5. THE `DataTableScope` SHALL meneruskan `Model::templateLink()` (bila ada) ke selektor.
+
+### Requirement 5: Fallback aman tanpa regresi
 
 **User Story:** As an operator aplikasi, I want optimasi ini tidak pernah merusak data yang tampil,
 so that halaman tetap berfungsi walau ada konfigurasi yang belum lengkap.
@@ -114,7 +131,7 @@ so that halaman tetap berfungsi walau ada konfigurasi yang belum lengkap.
 4. WHEN tidak ada cookie sama sekali, THE data dan relasi yang dihasilkan SHALL setara dengan
    menampilkan kolom `show !== false` (tanpa regresi fungsional).
 
-### Requirement 5: Kompatibilitas dengan sort dan saved filter
+### Requirement 6: Kompatibilitas dengan sort dan saved filter
 
 **User Story:** As an end-user, I want menyortir atau memfilter berdasarkan kolom yang sedang saya
 sembunyikan tetap bekerja, so that fitur sort/filter tidak rusak oleh optimasi.
@@ -130,7 +147,7 @@ sembunyikan tetap bekerja, so that fitur sort/filter tidak rusak oleh optimasi.
    tanpa memengaruhi `SELECT`/`with`.
 4. THE `DataTableScope` SHALL mempertahankan perilaku pagination, akses by-`?id`, dan submitable.
 
-### Requirement 6: Carrier cookie konsisten frontend–backend
+### Requirement 7: Carrier cookie konsisten frontend–backend
 
 **User Story:** As a developer, I want cookie kolom dibaca-tulis dengan key yang sama di frontend dan
 backend, so that preferensi kolom benar-benar memengaruhi query.
@@ -145,7 +162,7 @@ backend, so that preferensi kolom benar-benar memengaruhi query.
 4. THE konfigurasi `bootstrap/app.php` SHALL mengecualikan `datatable_columns` dari enkripsi cookie
    (verifikasi; sudah ada).
 
-### Requirement 7: Table2 reusable dengan opsi skip-persist
+### Requirement 8: Table2 reusable dengan opsi skip-persist
 
 **User Story:** As a developer yang membungkus `Table2` di dalam `Dialog`, I want perubahan kolom di
 tabel dialog tidak menimpa preferensi kolom tabel halaman utama, so that kedua tabel independen.
@@ -162,7 +179,7 @@ tabel dialog tidak menimpa preferensi kolom tabel halaman utama, so that kedua t
 5. WHEN user menerapkan perubahan kolom, THE `Table2` SHALL memanggil `reload(val)` dengan daftar
    kolom terbaru agar pemanggil dapat memuat ulang data sesuai kolom visible.
 
-### Requirement 8: Verifikasi terprogram
+### Requirement 9: Verifikasi terprogram
 
 **User Story:** As a maintainer, I want perubahan ini tercakup unit dan feature test, so that
 optimasi terbukti benar dan tidak regresi.

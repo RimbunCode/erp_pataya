@@ -69,8 +69,12 @@ class DataTableScope implements Scope {
             // extraKeys agar orderBy tetap valid. Relasi yang hanya difilter/disort tidak
             // ikut with(). Anomali/append tanpa dependsOn → fallbackAll (SELECT *).
             $extraKeys = $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw];
-            $resolved  = (new DataTableColumnSelector(new FilterColumnResolver($dataTableColumns)))
-                ->resolve($dataTableColumns, $query->getModel(), $visibleKeys, $extraKeys);
+            // templateLink dirender di mobile view (convertTemplateLink) → kolom/relasi
+            // yang dirujuknya wajib ikut select/with walau tak visible di cookie.
+            $modelClass   = \get_class($query->getModel());
+            $templateLink = \method_exists($modelClass, 'templateLink') ? $modelClass::templateLink() : null;
+            $resolved     = (new DataTableColumnSelector(new FilterColumnResolver($dataTableColumns)))
+                ->resolve($dataTableColumns, $query->getModel(), $visibleKeys, $extraKeys, $templateLink);
 
             if ($resolved['fallbackAll']) {
                 $query->addSelect("$nameOfTable.*");

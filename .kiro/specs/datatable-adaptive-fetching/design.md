@@ -288,6 +288,21 @@ Implikasi untuk tabel dialog (`persistColumns={false}`):
 > selektor sudah menerima `visibleKeys` dari sumber mana pun; scope tinggal pilih param > cookie.
 > (Detail param eksplisit di luar scope inti spec ini; dicatat di Batasan/Tindak Lanjut.)
 
+### Konfigurasi `templateLink` (mobile view)
+
+`Model::templateLink()` mengembalikan string (mis. `:code - :name`, `:name{:title}`,
+`:code{:title} - :branch.code`). Di **mobile view**, `Table2` merender baris via
+`convertTemplateLink(row)` yang mengganti placeholder dgn nilai dari row. Maka kolom/relasi/append
+yang dirujuk templateLink **wajib** ikut query walau tak ada di cookie visible.
+
+Selektor menerima string `templateLink` dan mengekstrak head tiap placeholder (mirror parser
+frontend), lalu menambahkannya ke himpunan visible (forced — selalu disertakan):
+- Placeholder `:(\w+|\w.\w...)`; sintaks alias `:name{:title}` → pakai `title` (di dalam kurung).
+- **Dot-notation didukung**: `:branch.code` → head `branch` (relasi) → `with` + FK; resolusi penuh
+  lewat pipeline yang sama dgn visibleKeys (skalar→select, append→dependsOn, relasi→with+FK).
+- Head yang **tidak** ada di `dataTableColumns` tapi **kolom DB nyata** (mis. kolom yang `ignore`
+  di config tapi dirujuk template) → tetap di-SELECT (fallback ke `dbColumns`).
+
 ## Data Models
 
 Tidak ada perubahan skema DB. Bentuk cookie tetap:
