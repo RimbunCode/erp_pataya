@@ -44,6 +44,9 @@ class SalesInvoice extends Model {
 
     public $translateKey           = 'finances.salesInvoice';
     protected array $configColumns = [
+        'is_return' => [
+            'dependsOn' => ['return_against_id'],
+        ],
         'code' => [
             'isLink' => true,
             'show'   => true,

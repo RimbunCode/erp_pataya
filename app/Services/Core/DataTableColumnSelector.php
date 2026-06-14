@@ -17,24 +17,18 @@ use Illuminate\Support\Facades\Schema;
  * tersebut ditangani oleh pemanggil (DataTableScope).
  *
  * Aturan ringkas:
- *  - SELECT = PK + kolom skalar visible + FK relasi visible + dependsOn append visible + extraKeys.
+ *  - SELECT = PK + kolom DB visible (cek via Schema, apa pun type render) + FK relasi
+ *    visible + dependsOn append visible + extraKeys.
  *  - with   = relasi VISIBLE saja (relasi yang hanya difilter/disort tidak ikut).
- *  - Append (`attribute`) visible WAJIB punya `dependsOn`; bila tidak → throw
- *    (non-produksi) atau log + fallbackAll (produksi).
+ *  - Kolom `forceAppend` (virtual dari global scope join) di-skip — disediakan scope.
+ *  - Kolom non-DB yang bukan relasi & bukan forceAppend (append accessor / type
+ *    di-override) WAJIB punya `dependsOn`; bila tidak → throw (non-produksi) atau
+ *    log + fallbackAll (produksi).
  *  - fallbackAll → pemanggil memakai `<table>.*` (perilaku lama), `with` tetap di-prune.
  *
  * @phpstan-type ColumnNode array<string,mixed>
  */
 class DataTableColumnSelector {
-    /**
-     * Tipe kolom skalar yang merupakan kolom DB nyata (boleh masuk SELECT).
-     *
-     * @var list<string>
-     */
-    private const SCALAR_TYPES = [
-        'string', 'number', 'integer', 'float', 'date', 'datetime', 'boolean', 'json',
-    ];
-
     public function __construct(private FilterColumnResolver $resolver) {}
 
     /**
@@ -93,16 +87,24 @@ class DataTableColumnSelector {
                 continue;
             }
 
-            // Kolom skalar yang benar-benar kolom DB → SELECT langsung.
-            if (in_array($type, self::SCALAR_TYPES, true) && in_array($col['name'], $dbColumns, true)) {
+            // Kolom virtual dari global scope join (forceAppend) — disediakan oleh
+            // scope (mis. ItemUnit join units.name/code). Bukan kolom tabel sendiri,
+            // bukan accessor; jangan di-SELECT (akan salah kualifikasi) & jangan throw.
+            if (($col['forceAppend'] ?? false) === true) {
+                continue;
+            }
+
+            // Kolom DB nyata (apa pun type render: string/numeric/currency/formStatus/
+            // date/image/dll) → SELECT langsung. dbColumns adalah sumber kebenaran,
+            // bukan whitelist type.
+            if (in_array($col['name'], $dbColumns, true)) {
                 $select[] = $col['name'];
 
                 continue;
             }
 
-            // Sisanya (append `attribute`, ATAU "skalar" yang ternyata bukan kolom
-            // DB karena type di-override, mis. rent_date) = turunan accessor →
-            // wajib `dependsOn`. Gagal → fallbackAll.
+            // Sisanya = turunan accessor (append `attribute`, ATAU type di-override
+            // pada kolom non-DB spt rent_date/status) → wajib `dependsOn`.
             if (! $this->collectAppend($model, $col, $select, $with)) {
                 $fallbackAll = true;
             }
@@ -113,11 +115,8 @@ class DataTableColumnSelector {
             if ($key === '' || str_contains($key, '.')) {
                 continue;
             }
-            $col = $byName[$key] ?? null;
-            if ($col !== null
-                && in_array($col['type'] ?? null, self::SCALAR_TYPES, true)
-                && in_array($col['name'], $dbColumns, true)) {
-                $select[] = $col['name'];
+            if (in_array($key, $dbColumns, true)) {
+                $select[] = $key;
             }
         }
 

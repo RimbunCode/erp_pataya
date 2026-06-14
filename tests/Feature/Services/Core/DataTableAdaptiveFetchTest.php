@@ -4,9 +4,11 @@ namespace Tests\Feature\Services\Core;
 
 use App\Models\Model as AppModel;
 use App\Traits\DataTable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -41,6 +43,35 @@ class AdaptiveRecord extends AppModel {
     }
 }
 
+/**
+ * Stub meniru ItemUnit: global scope join ke tabel lain + kolom hasil join
+ * ditandai forceAppend di config (bukan kolom tabel sendiri).
+ */
+class JoinedRecord extends AppModel {
+    use DataTable;
+
+    protected $table               = 'joined_records';
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'unit_code' => ['isLink' => true, 'show' => true, 'order' => 0, 'forceAppend' => true],
+        'qty'       => ['show' => true, 'order' => 1],
+    ];
+
+    protected static function booted(): void {
+        static::addGlobalScope('join_units', function (Builder $builder): void {
+            $table = $builder->getModel()->getTable();
+            $builder
+                ->join('join_units', 'join_units.id', '=', "{$table}.unit_id")
+                ->addSelect("{$table}.*")
+                ->addSelect('join_units.code as unit_code');
+        });
+    }
+
+    public static function templateLink() {
+        return ':unit_code';
+    }
+}
+
 class DataTableAdaptiveFetchTest extends TestCase {
     use RefreshDatabase;
 
@@ -66,6 +97,21 @@ class DataTableAdaptiveFetchTest extends TestCase {
                 $t->string('name')->nullable();
                 $t->string('description')->nullable();
                 $t->unsignedBigInteger('customer_id')->nullable();
+                $t->boolean('is_example')->default(false);
+                $t->timestamps();
+            });
+        }
+        if (! Schema::hasTable('join_units')) {
+            Schema::create('join_units', function ($t) {
+                $t->id();
+                $t->string('code')->nullable();
+            });
+        }
+        if (! Schema::hasTable('joined_records')) {
+            Schema::create('joined_records', function ($t) {
+                $t->id();
+                $t->unsignedBigInteger('unit_id')->nullable();
+                $t->integer('qty')->nullable();
                 $t->boolean('is_example')->default(false);
                 $t->timestamps();
             });
@@ -144,6 +190,24 @@ class DataTableAdaptiveFetchTest extends TestCase {
         // Relasi customer (dot-notation) ter-eager-load + FK ter-select.
         $this->assertTrue($row->relationLoaded('customer'));
         $this->assertSame('Acme', $row->customer->name);
+    }
+
+    public function test_global_scope_join_force_append_column_does_not_break_query(): void {
+        // ItemUnit-like: kolom unit_code (forceAppend, dari global scope join) tak
+        // boleh ikut SELECT presisi (akan salah kualifikasi joined_records.unit_code)
+        // & tak boleh throw. Query harus jalan, kolom join ter-resolve.
+        $uid = DB::table('join_units')->insertGetId(['code' => 'KG']);
+        DB::table('joined_records')->insert([
+            'unit_id' => $uid, 'qty' => 5, 'is_example' => false, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Cookie kosong → semua show:true. forceAppend unit_code di-skip dari SELECT
+        // presisi; global scope menyediakannya.
+        $result = JoinedRecord::dataTable($this->ajax());
+        $row    = $result['data']->items()[0];
+
+        $this->assertSame('KG', $row->unit_code); // kolom join ter-resolve
+        $this->assertSame(5, (int) $row->qty);
     }
 
     public function test_sort_by_hidden_local_column_stays_valid(): void {

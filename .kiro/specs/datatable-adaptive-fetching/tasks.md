@@ -123,7 +123,16 @@ Sort/saved-filter/pagination/submitable **tidak** diubah perilakunya — hanya d
     - Customer.address & Supplier.address → `['street','city','province','zip_code','country.name']`
     - Warehouse.title → `['code','branch.code']`
     - Account.code → `['account_number','account_name']`
+    - ApprovalScheme.status → `['is_active']`; PaymentSchedule.status → `['outstanding_amount','paid_amount']`
+    - WorkOrder.for_internal → `['customer_id']`; SalesInvoice.is_return → `['return_against_id']`
     - _Requirements: 3.1, 3.2_
+
+  - [x] 6.3 Gate SELECT via kolom DB nyata (bukan whitelist tipe) + forceAppend skip
+    - Inversi: kolom DB ditentukan `Schema::getColumnListing`, bukan `SCALAR_TYPES`. Type custom
+      (currency/formStatus/numeric/image/dll) yang kolom DB → SELECT langsung, tanpa dependsOn.
+    - `forceAppend` (kolom virtual global-scope join, mis. ItemUnit) → skip SELECT + tak throw.
+    - Test: unit (custom type + forceAppend) + feature (global scope join ItemUnit-like).
+    - _Requirements: 1.1_
 
 - [x] 7. Feature test end-to-end
   - [x] 7.1 Feature test prune select + with

@@ -48,7 +48,12 @@ yang diambil dari database, so that halaman lebih cepat dimuat dan payload lebih
 #### Acceptance Criteria
 
 1. WHEN cookie `datatable_columns` berisi himpunan kolom visible, THE `DataTableScope` SHALL
-   meng-`SELECT` hanya kolom skalar yang visible ditambah primary key model.
+   meng-`SELECT` hanya kolom DB yang visible ditambah primary key model.
+   THE penentuan "kolom DB" SHALL memakai `Schema::getColumnListing` (sumber kebenaran), bukan
+   whitelist tipe — kolom DB ber-`type` render custom (mis. `currency`, `formStatus`, `numeric`)
+   tetap diperlakukan sebagai kolom DB.
+   THE kolom ber-`forceAppend` (virtual dari global scope join) SHALL di-skip dari SELECT (disediakan
+   oleh scope) dan tidak memicu kewajiban `dependsOn`.
 2. THE `DataTableScope` SHALL selalu menyertakan primary key model pada `SELECT` walau tidak visible.
 3. IF cookie `datatable_columns` kosong, absen, atau JSON-nya invalid, THEN THE `DataTableScope`
    SHALL memakai kolom dengan `show !== false` dari `configColumns` sebagai visibleKeys.

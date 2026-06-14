@@ -121,10 +121,16 @@ class DataTableColumnSelector
      ke kolom top-level. Gabungkan `extraKeys` (kolom sort) ke himpunan ini.
    - Buang key yang tidak ada di `dataTableColumns` (kolom asing milik model lain → cross-page aman).
 2. **SELECT** (kumpulkan dari himpunan top-level): untuk tiap key, lookup entri di `dataTableColumns`:
-   - `type` skalar (`string|number|integer|float|date|datetime|boolean|json`) **dan** namanya kolom DB nyata → masukkan ke `select`.
-   - `type == 'attribute'` (append) → proses `dependsOn` (langkah 4). **Tak** lagi memicu `fallbackAll`.
    - `type == 'relation'|'relations'` → diproses di langkah 3.
+   - `forceAppend == true` → **skip** (kolom virtual dari global scope join, mis. ItemUnit
+     `units.code`; disediakan scope, bukan kolom tabel sendiri — jangan SELECT, jangan throw).
+   - **Nama ∈ kolom DB** (`Schema::getColumnListing`, sumber kebenaran — apa pun type render:
+     `string/number/currency/formStatus/date/image/...`) → masukkan ke `select`.
+   - Sisanya (append `attribute`, atau type di-override pada kolom non-DB spt `rent_date`/`status`)
+     → proses `dependsOn` (langkah 4).
    - Selalu push PK (`$model->getKeyName()`).
+   > Catatan: gate SELECT memakai **kolom DB nyata** (`dbColumns`), bukan whitelist tipe — type
+   > hanya penanda render frontend. Kolom DB ber-type custom tetap kolom DB.
 3. **Relasi & FK**: hanya relasi **singular** (`type == 'relation'`: BelongsTo/HasOne/MorphTo/MorphOne)
    yang visible di-eager-load default — **meniru perilaku lama** (cegah regresi eager-load morphMany
    `files` global). Relasi **plural** (`type == 'relations'`: HasMany/MorphMany) **tidak** auto-`with`

@@ -62,9 +62,10 @@ class ApprovalScheme extends Model {
             'order' => 1,
         ],
         'status' => [
-            'type'  => 'formStatus',
-            'show'  => true,
-            'order' => 2,
+            'type'      => 'formStatus',
+            'show'      => true,
+            'order'     => 2,
+            'dependsOn' => ['is_active'],
         ],
         'permission_id' => [
             'ignore' => true,

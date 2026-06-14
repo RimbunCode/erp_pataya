@@ -69,6 +69,8 @@ class DataTableColumnSelectorTest extends TestCase {
                 $t->unsignedBigInteger('referenceable_id')->nullable();
                 $t->dateTime('start_date')->nullable();
                 $t->dateTime('end_date')->nullable();
+                $t->string('state')->nullable();   // type render custom (formStatus), kolom DB nyata
+                $t->decimal('total')->nullable();  // type render custom (currency), kolom DB nyata
             });
         }
     }
@@ -109,6 +111,11 @@ class DataTableColumnSelectorTest extends TestCase {
                 'dependsOn' => ['start_date', 'end_date'],
                 'show'      => true,
             ],
+            // Kolom DB nyata dgn type render custom (bukan di whitelist tipe lama).
+            ['name' => 'state', 'type' => 'formStatus', 'show' => true],
+            ['name' => 'total', 'type' => 'currency', 'show' => true],
+            // Kolom virtual dari global scope join — bukan kolom tabel, forceAppend.
+            ['name' => 'joined_label', 'type' => 'string', 'forceAppend' => true, 'show' => true],
         ];
     }
 
@@ -262,6 +269,26 @@ class DataTableColumnSelectorTest extends TestCase {
 
         $this->assertContains('start_date', $res['select']);
         $this->assertContains('end_date', $res['select']);
+        $this->assertFalse($res['fallbackAll']);
+    }
+
+    public function test_custom_type_db_column_selected_without_depends_on(): void {
+        // state (formStatus) & total (currency) = kolom DB nyata dgn type render
+        // custom → harus SELECT langsung, tanpa dependsOn, tanpa throw/fallback.
+        $res = $this->selector()->resolve($this->columns(), new SelectorParentStub, ['state', 'total']);
+
+        $this->assertContains('state', $res['select']);
+        $this->assertContains('total', $res['select']);
+        $this->assertFalse($res['fallbackAll']);
+    }
+
+    public function test_force_append_virtual_column_skipped_without_throw(): void {
+        // joined_label (forceAppend, kolom virtual dari global scope join) → tak
+        // di-SELECT (scope yang sediakan) & tak throw walau tanpa dependsOn.
+        $res = $this->selector()->resolve($this->columns(), new SelectorParentStub, ['code', 'joined_label']);
+
+        $this->assertNotContains('joined_label', $res['select']);
+        $this->assertContains('code', $res['select']);
         $this->assertFalse($res['fallbackAll']);
     }
 
