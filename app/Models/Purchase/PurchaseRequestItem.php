@@ -12,9 +12,42 @@ class PurchaseRequestItem extends Model {
     use HasUlids, SoftDeletes;
 
     public static $parentRelation  = 'purchaseRequest';
+    public string $translateKey    = 'purchase.purchaseRequest.item';
     protected $guarded             = ['id'];
     protected array $configColumns = [
-        'purchaseRequest',
+        'item' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 0,
+        ],
+        'quantity' => [
+            'type'  => 'numeric',
+            'show'  => true,
+            'order' => 1,
+        ],
+        'unit' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 2,
+        ],
+        'required_date' => [
+            'type'  => 'date',
+            'show'  => true,
+            'order' => 3,
+        ],
+        'description' => [
+            'show'  => false,
+            'order' => 4,
+        ],
+        'purchaseRequest' => [
+            'ignore' => true,
+        ],
+        'purchase_request_id' => [
+            'ignore' => true,
+        ],
+        'referenceable' => [
+            'ignore' => true,
+        ],
     ];
     protected $casts = [
         'required_date' => 'datetime',

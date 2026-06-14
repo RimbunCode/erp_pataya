@@ -20,7 +20,8 @@ class CommentRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'comment' => ['required', 'string', 'min:3'],
+            'comment'      => ['required', 'string', 'min:3'],
+            'comment_json' => ['nullable', 'array'],
         ];
     }
 

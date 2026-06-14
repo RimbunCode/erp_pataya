@@ -1,5 +1,4 @@
 import "../css/app.css";
-import "quill/dist/quill.core.css";
 import "./bootstrap";
 
 import { createRoot, hydrateRoot } from "react-dom/client";
@@ -11,6 +10,12 @@ import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
 const appName = import.meta.env.VITE_APP_NAME || "Laravel";
 
 createInertiaApp({
+  defaults: {
+    visitOptions: (href, options) => ({
+      ...options,
+      viewTransition: true,
+    }),
+  },
   title: (title) => `${title} - ${appName}`,
   resolve: (name) =>
     resolvePageComponent(

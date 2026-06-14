@@ -5,6 +5,7 @@ namespace App\Models\Core;
 use App\Casts\Json;
 use App\Models\Model;
 use App\Models\User\Permission;
+use App\Services\Core\PrintTemplate\RelationTrackerService;
 use App\Traits\DataTable;
 use App\Utils;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -18,11 +19,12 @@ class PrintTemplate extends Model {
     protected $guarded = ['id'];
     protected $casts   = [
         'template'             => Json::class,
+        'used_relations'       => 'array',
         'is_default'           => 'boolean',
         'is_letter_head'       => 'boolean',
         'show_absolute_values' => 'boolean',
     ];
-    protected $appends           = ['title', 'columns'];
+    protected $appends           = ['title'];
     public string $keyBreadcrumb = 'name';
     public string $translateKey  = 'core.printTemplate';
 
@@ -47,24 +49,31 @@ class PrintTemplate extends Model {
     public function columns(): Attribute {
         return new Attribute(
             get: function () {
+                $columns = [
+                    [
+                        'name'       => 'company_details',
+                        'titleTrans' => 'core.company.company_details.title',
+                        'type'       => 'company',
+                        'columns'    => Utils::getPreferenceColumns(),
+                    ],
+                    [
+                        'name'       => 'doc_info',
+                        'titleTrans' => 'core.printTemplate.doc_info',
+                        'type'       => 'docInfo',
+                        'columns'    => Utils::getDocInfoColumns(),
+                    ],
+                ];
                 if ($this->model) {
-                    $instance = new $this->model;
-                    $columns  = [
-                        [
-                            'name'    => 'company_details',
-                            'title'   => trans('core/company.company_details.title'),
-                            'type'    => 'preferences',
-                            'columns' => Utils::getPreferenceColumns(),
-                        ], [
-                            'name'       => Str::lower(Str::snake(Str::singular($this->name_model))),
-                            'type'       => 'data',
-                            'titleTrans' => isset($instance) ? $instance->translateKey . '.title' : Str::singular($this->name_model),
-                            'columns'    => $this->model::getColumns(1),
-                        ],
+                    $instance  = new $this->model;
+                    $columns[] = [
+                        'name'       => Str::lower(Str::snake(Str::singular($this->name_model))),
+                        'type'       => 'doc',
+                        'titleTrans' => isset($instance) ? $instance->translateKey . '.title' : Str::singular($this->name_model),
+                        'columns'    => $this->model::getColumns(2),
                     ];
                 }
 
-                return $this->model != null ? $columns : Utils::getPreferenceColumns();
+                return $columns;
             },
         );
     }
@@ -140,5 +149,21 @@ class PrintTemplate extends Model {
 
     public function letterHead() {
         return $this->belongsTo(PrintTemplate::class, 'letter_head_id');
+    }
+
+    /**
+     * Get used relations for eager loading
+     */
+    public function getUsedRelations(): array {
+        return $this->used_relations ?? [];
+    }
+
+    /**
+     * Set used relations from template
+     */
+    public function setUsedRelationsFromTemplate(): void {
+        $tracker              = app(RelationTrackerService::class);
+        $relations            = $tracker->extractRelations($this->template ?? []);
+        $this->used_relations = $relations;
     }
 }

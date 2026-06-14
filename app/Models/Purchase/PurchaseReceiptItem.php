@@ -12,8 +12,53 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseReceiptItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation = 'purchaseReceipt';
-    protected $guarded            = ['id'];
+    public static $parentRelation  = 'purchaseReceipt';
+    public string $translateKey    = 'purchase.purchaseReceipt.item';
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'item' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 0,
+        ],
+        'quantity' => [
+            'type'  => 'numeric',
+            'show'  => true,
+            'order' => 1,
+        ],
+        'unit' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 2,
+        ],
+        'targetWarehouse' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 3,
+        ],
+        'description' => [
+            'show'  => false,
+            'order' => 4,
+        ],
+        'purchaseReceipt' => [
+            'ignore' => true,
+        ],
+        'purchase_receipt_id' => [
+            'ignore' => true,
+        ],
+        'purchaseOrderItem' => [
+            'ignore' => true,
+        ],
+        'purchase_order_item_id' => [
+            'ignore' => true,
+        ],
+        'returnAgainstItem' => [
+            'ignore' => true,
+        ],
+        'return_against_item_id' => [
+            'ignore' => true,
+        ],
+    ];
 
     public function purchaseReceipt() {
         return $this->belongsTo(PurchaseReceipt::class, 'purchase_receipt_id');

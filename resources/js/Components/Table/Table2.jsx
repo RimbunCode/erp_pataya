@@ -53,6 +53,21 @@ import usePermission from "@/Hooks/usePermission";
 
 export const DATATABLE_COLUMNS_KEY = "datatable_columns";
 const DATATABLE_COLUMNS_EXPIRED = 7; //days
+
+// Nama cookie unik per-path agar tidak bentrok antar-halaman. Path-scoping cookie
+// (nama sama beda path) rapuh: `document.cookie` tak mengekspos path sehingga
+// browser tertentu (mis. Edge) bisa mengembalikan cookie path lain. Maka isolasi
+// dilakukan lewat NAMA (suffix path ter-sanitize), bukan path cookie.
+// Sanitizer HARUS identik dengan sisi backend (DataTableScope::datatableColumnsCookieKey):
+//   trim slash → lowercase → ganti karakter non-alnum jadi "_".
+export const datatableColumnsCookieKey = (pathname) => {
+  const slug = String(pathname ?? "")
+    .replace(/^\/+|\/+$/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return slug ? `${DATATABLE_COLUMNS_KEY}_${slug}` : DATATABLE_COLUMNS_KEY;
+};
 export const convertColWidth = (colWidth) => {
   if (colWidth) {
     switch (colWidth) {
@@ -73,7 +88,9 @@ export const createHeaders = (headers, ignoreCookie = false) => {
   const columnsFromCookie = ignoreCookie
     ? null
     : JSON.parse(
-        getCookieByName(`${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`),
+        getCookieByName(
+          datatableColumnsCookieKey(window.location.pathname),
+        ) || "null",
       );
   // const newHeaders = { ...headers };
   Object.values(headers).forEach((col) => {
@@ -268,9 +285,14 @@ const Table2 = forwardRef(function Table2(
     reload,
     isDynamicData,
     isLoading,
+    persistColumns = true,
   },
   ref,
 ) {
+  // Skip baca/tulis cookie kolom bila data dinamis (dikelola parent) ATAU
+  // persistColumns dimatikan (mis. Table2 dibungkus Dialog — agar perubahan
+  // kolomnya tidak menimpa preferensi cookie tabel halaman).
+  const skipCookie = isDynamicData || !persistColumns;
   const { t } = useLaravelReactI18n();
   const [data, setData] = useState(initialData);
   useDidMountEffect(() => {
@@ -312,10 +334,10 @@ const Table2 = forwardRef(function Table2(
   // const [tableHeight, setTableHeight] = useState("auto");
   const [activeIndex, setActiveIndex] = useState(null);
   const tableElement = useRef(null);
-  const [columns, setColumns] = useState(createHeaders(headers, isDynamicData));
+  const [columns, setColumns] = useState(createHeaders(headers, skipCookie));
   const [openColumnsFilter, setOpenColumnsFilter] = useState(false);
   useDidMountEffect(() => {
-    setColumns(createHeaders(headers, isDynamicData));
+    setColumns(createHeaders(headers, skipCookie));
   }, [headers]);
 
   const sensors = useSensors(
@@ -413,7 +435,7 @@ const Table2 = forwardRef(function Table2(
   }, [columns]);
 
   useEffect(() => {
-    if (isDynamicData) return;
+    if (skipCookie) return;
     const newShowedColumns = {};
     showedColumns.forEach((col, index) => {
       newShowedColumns[col.name] = {
@@ -421,12 +443,15 @@ const Table2 = forwardRef(function Table2(
         order: index,
       };
     });
+    // Nama cookie unik per-path (suffix path ter-sanitize) → isolasi antar-halaman
+    // tanpa bergantung path-scoping yang rapuh di sebagian browser. path:"/" agar
+    // cookie pasti terkirim ke request halaman ybs (nama yang membedakan, bukan path).
     setCookie(
-      `${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`,
+      datatableColumnsCookieKey(window.location.pathname),
       JSON.stringify(newShowedColumns),
       {
         days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
+        path: "/",
         sameSite: "lax",
       },
     );
@@ -692,10 +717,12 @@ const Table2 = forwardRef(function Table2(
               setOpenColumnsFilter(false);
             }}
             onReset={() => {
-              removeCookie(
-                `${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`,
-                window.location.pathname,
-              );
+              if (!skipCookie) {
+                removeCookie(
+                  datatableColumnsCookieKey(window.location.pathname),
+                  "/",
+                );
+              }
               router.reload();
               setOpenColumnsFilter(false);
             }}

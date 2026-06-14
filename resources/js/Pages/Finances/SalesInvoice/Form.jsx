@@ -385,7 +385,7 @@ export default function Form() {
                   }}
                   with={[
                     "customer",
-                    "customer_branch",
+                    "customerBranch",
                     "salesOrder",
                     "debitAccount",
                     "currency",

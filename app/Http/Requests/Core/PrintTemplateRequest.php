@@ -8,11 +8,27 @@ use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
 class PrintTemplateRequest extends BaseFormRequest {
+    private const array PAPER_OPTIONS       = ['A4', 'A5', 'Letter', 'Legal', 'Tabloid', 'F4', 'custom'];
+    private const array ORIENTATION_OPTIONS = ['portrait', 'landscape'];
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool {
         return true;
+    }
+
+    protected function prepareForValidation(): void {
+        $orientation = $this->input('orientation');
+        if (! \is_string($orientation)) {
+            return;
+        }
+
+        if (strtolower(trim($orientation)) === 'potrait') {
+            $this->merge([
+                'orientation' => 'portrait',
+            ]);
+        }
     }
 
     /**
@@ -32,10 +48,10 @@ class PrintTemplateRequest extends BaseFormRequest {
             'permission.model'     => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string'],
             'permission.*'         => ['nullable'],
             'is_default'           => ['nullable', 'boolean'],
-            'default_languange'    => ['nullable', 'string'],
+            'default_language'     => ['nullable', 'string'],
             'letter_head.id'       => ['nullable', 'exists:print_templates,id'],
-            'paper'                => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string'],
-            'orientation'          => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string'],
+            'paper'                => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string', Rule::in(self::PAPER_OPTIONS)],
+            'orientation'          => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'string', Rule::in(self::ORIENTATION_OPTIONS)],
             'width'                => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'numeric'],
             'height'               => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'numeric'],
             'margin_top'           => ['nullable', Rule::requiredIf(! ($this->is_letter_head ?? false)), 'numeric'],

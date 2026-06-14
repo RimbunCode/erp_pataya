@@ -54,6 +54,7 @@ class PaymentSchedule extends Model {
             'order'      => 4,
             'show'       => true,
             'valueTrans' => 'status',
+            'dependsOn'  => ['outstanding_amount', 'paid_amount'],
         ],
         'paymentMethod',
 

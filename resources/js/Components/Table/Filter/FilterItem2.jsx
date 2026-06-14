@@ -1,31 +1,39 @@
-import { PlusIcon, Trash2Icon } from "lucide-react";
+import { Trash2Icon } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import useNestedFilters, {
   getNodeById,
   isGroupNode,
+  isOnlyChildOfRoot,
+  MAX_NESTED_DEPTH,
 } from "@/Hooks/useNestedFilters";
 
 import { Button } from "@/Components/ui/button";
-import { Input } from "@/Components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 import NestedSelect from "@/Components/NestedSelect";
 import { RiGitMergeLine } from "@remixicon/react";
 import Select from "@/Components/Select";
+import ValueField from "./ValueField";
 import axios from "axios";
-import { getOperators } from "./operators";
-import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { cn } from "@/lib/utils";
+import { columnHasOptions, getOperators } from "./operators";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-function FilterItem2({ id }) {
+function FilterItem2({ id, depth = 0 }) {
   const {
     columns,
     filters,
+    errors,
     updateItem,
-    addSiblingItem,
     wrapItemWithGroup,
     removeNode,
     getCachedChildren,
     setCachedChildren,
   } = useNestedFilters();
+  const errorKey = errors?.[id];
   const f = getNodeById(filters, id);
   const filter = f
     ? {
@@ -49,7 +57,14 @@ function FilterItem2({ id }) {
   const buildColumnNode = useCallback(
     function build(col, parentPath = "") {
       if (col.searchable === false) return null;
-      const value = parentPath ? `${parentPath}.${col.name}` : col.name;
+      // `col.name` bisa berupa nama segmen ("type") ATAU sudah berkualifikasi
+      // penuh ("category.type") — tergantung sumber kolom: hasil getColumns
+      // frontend (DataTable2) memprefix nama anak relasi, sedangkan kolom dari
+      // fetch API masih nama segmen. Cegah double-prefix: pakai segmen terakhir.
+      const segment = `${col.name}`.includes(".")
+        ? `${col.name}`.split(".").pop()
+        : col.name;
+      const value = parentPath ? `${parentPath}.${segment}` : segment;
       const isRelation = col.type === "relation" || col.type === "relations";
       const cachedChildren = getCachedChildren?.(value);
       const children =
@@ -61,9 +76,14 @@ function FilterItem2({ id }) {
       const resolvedChildren = Array.isArray(children) ? children : [];
       return {
         label: col.title ?? t(col.titleTrans),
+        title: col.title ?? (col.titleTrans ? t(col.titleTrans) : col.name),
         value,
         type: col.type,
+        related: col.related,
         relation: col.related,
+        typeRelation: col.typeRelation,
+        options: col.options,
+        valueTrans: col.valueTrans,
         children: resolvedChildren,
         loadable: isRelation && resolvedChildren.length === 0,
       };
@@ -89,19 +109,30 @@ function FilterItem2({ id }) {
   }, [columns, buildColumnNode, toArrayColumns, cacheVersion]);
 
   const isValidFilter = Boolean(filter && !isGroupNode(filter));
+  const isOnlyChild = isOnlyChildOfRoot(filters, id);
+  // Branch item membungkusnya dalam group baru pada depth + 1 (slot child parent).
+  // Hanya berdasar posisi: item di group dangkal tetap normal.
+  const branchWillBeTooDeep = depth + 1 >= MAX_NESTED_DEPTH;
   const selectedColumn = useMemo(() => {
     if (!filter?.key) return null;
     return findNodeByValue(columnOptions, filter.key);
   }, [columnOptions, filter?.key, findNodeByValue]);
   const operators = useMemo(() => {
-    return getOperators(selectedColumn?.type);
-  }, [selectedColumn?.type]);
+    return getOperators(selectedColumn?.type, {
+      typeRelation: selectedColumn?.typeRelation,
+      hasOptions: columnHasOptions(selectedColumn),
+    });
+  }, [
+    selectedColumn?.type,
+    selectedColumn?.typeRelation,
+    selectedColumn?.options,
+  ]);
 
   const onFilterChanged = (payload) => {
     updateItem(id, {
       k: payload?.key ?? filter.key,
       o: payload?.operator ?? filter.operator ?? "",
-      v: payload?.value ?? filter.value ?? "",
+      v: "value" in (payload ?? {}) ? payload.value : (filter.value ?? ""),
     });
   };
 
@@ -109,24 +140,20 @@ function FilterItem2({ id }) {
     onFilterChanged({ key: val, operator: "", value: "" });
   };
 
-  useDidMountEffect(() => {
-    if (!isValidFilter) return;
-    onOperatorsChanged(filter.operator);
-  }, [operators, filter?.operator, isValidFilter]);
-
   const onOperatorsChanged = (val) => {
     if (!selectedColumn) return;
-    const normalizedValue = val === "not_between" ? "!between" : val;
-    const newOperator = operators[normalizedValue];
+    const newOperator = operators[val];
     if (!newOperator) {
-      onFilterChanged({ operator: "" });
+      onFilterChanged({ operator: "", value: "" });
       return;
     }
-    const oldOperator = operators[filter?.operator];
-    if (newOperator?.searchType != oldOperator?.searchType) {
-      onFilterChanged({ operator: normalizedValue, value: "" });
+    // Reset value bila jenis input value berubah antar operator.
+    const oldInput = operators[filter?.operator]?.valueInput;
+    if (newOperator.valueInput !== oldInput) {
+      onFilterChanged({ operator: val, value: "" });
+      return;
     }
-    onFilterChanged({ operator: normalizedValue });
+    onFilterChanged({ operator: val });
   };
 
   const onValueChanged = (val) => {
@@ -165,13 +192,19 @@ function FilterItem2({ id }) {
   }, [operators]);
   if (!isValidFilter) return null;
   return (
-    <div className="grid grid-cols-subgrid col-span-full">
+    <div
+      className={cn(
+        "grid grid-cols-subgrid col-span-full items-start pb-2",
+        errorKey &&
+          "rounded-md ring-1 ring-destructive/60 bg-destructive/5 p-1 -m-1",
+      )}
+    >
       <NestedSelect
         options={columnOptions}
         value={filter.key}
         onValueChange={onColumnChanged}
         placeholder={t("core.datatable.filter.select_column")}
-        className="m-1 min-w-[12rem]"
+        className="min-w-[12rem]"
         fetchChildren={fetchRelationColumns}
       />
       <Select
@@ -181,40 +214,74 @@ function FilterItem2({ id }) {
         optionTrans="core.datatable.filter.operator"
         options={operatorOptions}
         placeholder={t("core.datatable.filter.select_operator")}
-        className="m-1"
       />
-      <Input
-        disabled={!filter.operator}
+      <ValueField
+        column={selectedColumn}
+        operator={filter.operator}
         value={filter.value}
-        onValueChange={onValueChanged}
-        className="m-1"
+        onChange={onValueChanged}
       />
-      <div className="flex gap-x-1 pr-2">
-        <Button
-          size="icon"
-          variant="ghost"
-          type="button"
-          onClick={() => addSiblingItem(id)}
-        >
-          <PlusIcon />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          type="button"
-          onClick={() => wrapItemWithGroup(id)}
-        >
-          <RiGitMergeLine />
-        </Button>
-        <Button
-          size="icon"
-          variant="ghost"
-          type="button"
-          onClick={() => removeNode(id)}
-        >
-          <Trash2Icon />
-        </Button>
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            className={cn(
+              "col-start-5",
+              isOnlyChild && "opacity-50 cursor-not-allowed",
+              !isOnlyChild &&
+                branchWillBeTooDeep &&
+                "text-amber-600 hover:text-amber-700 dark:text-amber-400",
+            )}
+            size="icon"
+            variant="ghost"
+            type="button"
+            aria-disabled={isOnlyChild}
+            onClick={() => {
+              if (isOnlyChild) return;
+              wrapItemWithGroup(id);
+            }}
+          >
+            <RiGitMergeLine />
+          </Button>
+        </TooltipTrigger>
+        {isOnlyChild ? (
+          <TooltipContent>
+            {t("core.datatable.filter.branch.disabled_single_item")}
+          </TooltipContent>
+        ) : branchWillBeTooDeep ? (
+          <TooltipContent>
+            {t("core.datatable.filter.depth_warning.branch", {
+              max: MAX_NESTED_DEPTH,
+            })}
+          </TooltipContent>
+        ) : null}
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            className={cn(isOnlyChild && "opacity-50 cursor-not-allowed")}
+            size="icon"
+            variant="ghost"
+            type="button"
+            aria-disabled={isOnlyChild}
+            onClick={() => {
+              if (isOnlyChild) return;
+              removeNode(id);
+            }}
+          >
+            <Trash2Icon />
+          </Button>
+        </TooltipTrigger>
+        {isOnlyChild && (
+          <TooltipContent>
+            {t("core.datatable.filter.delete.disabled_single_item")}
+          </TooltipContent>
+        )}
+      </Tooltip>
+      {errorKey && (
+        <p className="col-span-full text-destructive text-xs pt-0.5">
+          {t(errorKey)}
+        </p>
+      )}
     </div>
   );
 }

@@ -66,5 +66,9 @@ class InternalOrder extends Model {
         'branch' => [
             'ignore' => true,
         ],
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 }

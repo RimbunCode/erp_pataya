@@ -77,7 +77,7 @@ class SalesOrder extends Model {
             'show'  => true,
             'order' => 4,
         ],
-        'customer_branch',
+        'customerBranch',
         'currency',
         'branch' => [
             'ignore' => true,
@@ -109,9 +109,13 @@ class SalesOrder extends Model {
             'ignore' => true,
         ],
         'rent_date' => [
-            'type' => 'datetime',
+            'type'      => 'datetime',
+            'dependsOn' => ['start_date', 'end_date'],
         ],
-        'items',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {
@@ -120,7 +124,7 @@ class SalesOrder extends Model {
             'referenceSo',
             'items',
             'customer',
-            'customer_branch',
+            'customerBranch',
             'currency',
             'items.item',
             'items.tax',
@@ -147,7 +151,7 @@ class SalesOrder extends Model {
         return $this->belongsTo(Customer::class);
     }
 
-    public function customer_branch() {
+    public function customerBranch() {
         return $this->belongsTo(Branch::class, 'customer_branch_id');
     }
 

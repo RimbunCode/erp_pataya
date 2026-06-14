@@ -1,18 +1,87 @@
-import { Code, RedoIcon, UndoIcon } from "lucide-react";
+import {
+  Code,
+  Eye,
+  Loader2Icon,
+  RedoIcon,
+  SaveIcon,
+  UndoIcon,
+} from "lucide-react";
 import React, { memo, useEffect, useMemo, useState } from "react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 import { Button } from "@/Components/ui/button";
+import { Kbd, KbdGroup } from "@/Components/ui/kbd";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/Components/ui/tooltip";
 import { useEditor } from "@grapesjs/react";
+import SaveStatusBadge from "./SaveStatusBadge";
 
 const TopBar = memo(function TopBar() {
+  const { t } = useLaravelReactI18n();
   const editor = useEditor();
   const { UndoManager, Commands } = editor;
+  const [isSaving, setIsSaving] = useState(false);
   const [, setUpdateCounter] = useState(0);
+
+  const renderShortcut = (shortcut = []) => {
+    if (!shortcut.length) {
+      return null;
+    }
+
+    return (
+      <KbdGroup>
+        {shortcut.map((key, index) => (
+          <React.Fragment key={`${key}-${index}`}>
+            {index > 0 && <span>+</span>}
+            <Kbd>{key}</Kbd>
+          </React.Fragment>
+        ))}
+      </KbdGroup>
+    );
+  };
 
   const commandButtons = useMemo(() => {
     return [
       {
+        id: "core:save-template",
+        label: t("core.printTemplate.editor.save"),
+        icon: isSaving ? (
+          <Loader2Icon className="animate-spin" />
+        ) : (
+          <SaveIcon />
+        ),
+        shortcut: ["Ctrl/Cmd", "S"],
+        disabled: () => isSaving,
+        variant: "primary",
+      },
+      {
+        id: "core:undo",
+        label: t("core.printTemplate.editor.undo"),
+        icon: <UndoIcon />,
+        shortcut: ["Ctrl/Cmd", "Z"],
+        disabled: () => !UndoManager.hasUndo(),
+      },
+      {
+        id: "core:redo",
+        label: t("core.printTemplate.editor.redo"),
+        icon: <RedoIcon />,
+        shortcut: ["Ctrl/Cmd", "Shift", "Z"],
+        disabled: () => !UndoManager.hasRedo(),
+      },
+      {
+        id: "core:preview-template",
+        label: t("core.printTemplate.editor.preview"),
+        icon: <Eye />,
+        shortcut: ["Ctrl/Cmd", "Shift", "P"],
+      },
+      {
         id: "core:component-outline",
+        label: t("core.printTemplate.editor.outline"),
+        toggle: true,
         icon: (
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">
             <path
@@ -24,54 +93,84 @@ const TopBar = memo(function TopBar() {
       },
       {
         id: "core:open-code",
+        label: t("core.printTemplate.editor.code"),
+        toggle: true,
         icon: <Code />,
       },
-      {
-        id: "core:undo",
-        icon: <UndoIcon />,
-        disabled: () => !UndoManager.hasUndo(),
-      },
-      {
-        id: "core:redo",
-        icon: <RedoIcon />,
-        disabled: () => !UndoManager.hasRedo(),
-      },
     ];
-  }, []);
+  }, [UndoManager, isSaving, t]);
 
   useEffect(() => {
     const cmdEvent = "run stop";
     const updateEvent = "update";
     const updateCounter = () => setUpdateCounter((value) => value + 1);
-    const onCommand = (id) => {
-      commandButtons.find((btn) => btn.id === id) && updateCounter();
-    };
+    const onCommand = () => updateCounter();
+    const onSaveStart = () => setIsSaving(true);
+    const onSaveFinish = () => setIsSaving(false);
+
     editor.on(cmdEvent, onCommand);
     editor.on(updateEvent, updateCounter);
+    editor.on("template:save-start", onSaveStart);
+    editor.on("template:save-finish", onSaveFinish);
+
     return () => {
       editor.off(cmdEvent, onCommand);
       editor.off(updateEvent, updateCounter);
+      editor.off("template:save-start", onSaveStart);
+      editor.off("template:save-finish", onSaveFinish);
     };
-  });
+  }, [editor]);
+
   return (
-    <div className="flex gap-3 [&_svg]:size-4!">
-      {commandButtons.map(({ id, icon, disabled, options = {} }) => (
-        <Button
-          key={id}
-          type="button"
-          variant="outline"
-          className="h-8 px-1.5"
-          disabled={disabled?.() ?? false}
-          onClick={() => {
-            Commands.isActive(id)
-              ? Commands.stop(id)
-              : Commands.run(id, options);
-          }}
-        >
-          {icon}
-        </Button>
-      ))}
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <div className="flex flex-wrap items-center gap-2 [&_svg]:size-4!">
+        {commandButtons.map(
+          ({
+            id,
+            icon,
+            label,
+            disabled,
+            options = {},
+            shortcut = [],
+            toggle = false,
+            variant = "outline",
+          }) => (
+            <Tooltip key={id}>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant={Commands.isActive(id) ? "secondary" : variant}
+                  size="sm"
+                  className="h-8 px-2.5 gap-1.5"
+                  aria-label={label}
+                  disabled={disabled?.() ?? false}
+                  onClick={() => {
+                    if (toggle) {
+                      Commands.isActive(id)
+                        ? Commands.stop(id)
+                        : Commands.run(id, options);
+                      return;
+                    }
+
+                    Commands.run(id, options);
+                  }}
+                >
+                  {icon}
+                  <span>{label}</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <div className="flex items-center gap-2">
+                  <span>{label}</span>
+                  {renderShortcut(shortcut)}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          ),
+        )}
+        <SaveStatusBadge />
+      </div>
+    </TooltipProvider>
   );
 });
 

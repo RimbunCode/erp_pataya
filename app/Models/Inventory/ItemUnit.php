@@ -20,6 +20,18 @@ class ItemUnit extends Model {
     protected array $configColumns = [
         'item',
         'unit',
+        'code' => [
+            'isLink'      => true,
+            'show'        => true,
+            'order'       => 0,
+            'forceAppend' => true,
+        ],
+        'name' => [
+            'isLink'      => true,
+            'show'        => true,
+            'order'       => 1,
+            'forceAppend' => true,
+        ],
         'is_default' => [
             'ignore' => true,
         ],

@@ -41,12 +41,13 @@ import {
   forwardRef,
   memo,
   useCallback,
+  useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { cn, getCookieByName, setCookie } from "@/lib/utils";
+import { cn, getCookieByName } from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable2 from "@/Components/Table/Filter/FilterTable2";
@@ -58,14 +59,16 @@ import QueryString from "qs";
 import React from "react";
 import { ScrollArea } from "@/Components/ui/scroll-area";
 import Table2 from "@/Components/Table/Table2";
+import axios from "axios";
+import { createFilterGroup, createFilterItem } from "@/Hooks/useNestedFilters";
 import pluralize from "pluralize";
+import { toast } from "sonner";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import usePermission from "@/Hooks/usePermission";
 
-const DATATABLE_COLUMNS_EXPIRED = 7; //days
 /**
  * @namespace DataTable
  */
@@ -151,11 +154,34 @@ export default memo(
     const { data, defaultSort, dataTableColumns, translateKey, model, name } =
       usePage().props;
     const { can } = usePermission(model);
+    const { num_per_page: numPerPage, per_page_options: perPageOptions } =
+      usePage().props?.preferences ?? {
+        num_per_page: 25,
+        per_page_options: [25, 50, 100],
+      };
+    // `show` dibaca dengan prioritas: query param `?show` > cookie > preference.
+    // Disimpan di `options` agar ikut ke URL & memicu reload otomatis.
+    const initialShow =
+      query?.show ?? getCookieByName("datatable_show") ?? numPerPage;
     const [options, setOptions] = useState({
       sort: query?.sort ?? defaultSort,
-      f: query?.f ?? [],
+      fid: query?.fid ?? null,
       page: query?.page ?? 1,
+      show: initialShow,
     });
+    const show = options.show;
+    // Kalau `show` (mis. dari query param) tak ada di daftar preference, paksa
+    // tambahkan ke daftar (frontend saja) agar Select punya item yang cocok.
+    const effectivePerPageOptions = useMemo(() => {
+      const showNum = Number(show);
+      const base = perPageOptions.map(Number);
+      if (!Number.isNaN(showNum) && !base.includes(showNum)) {
+        base.push(showNum);
+      }
+      return base.sort((a, b) => a - b);
+    }, [perPageOptions, show]);
+    // Tree filter aktif (untuk seed builder). TIDAK ikut ke URL — hanya `fid`.
+    const [filterTree, setFilterTree] = useState(null);
     const { user } = usePage().props.auth;
     const dialogRef = useRef();
 
@@ -268,31 +294,35 @@ export default memo(
         },
       );
     }, [options]);
-    const optionsSort = (options.sort ?? "").split("-");
-    const optionsSortKey = optionsSort[optionsSort.length - 1];
-    const optionsSortOrder = optionsSort[0] === optionsSortKey ? "asc" : "desc";
+    // Konvensi sort: prefix `-` = descending, tanpa prefix = ascending.
+    // Parse via startsWith agar key ber-dash / nested (`rel.col`) tetap utuh.
+    const parseSort = (sortStr) => {
+      const raw = sortStr ?? "";
+      const order = raw.startsWith("-") ? "desc" : "asc";
+      const key = order === "desc" ? raw.slice(1) : raw;
+      return { key, order };
+    };
+    const { key: optionsSortKey, order: optionsSortOrder } = parseSort(
+      options.sort,
+    );
 
     const resetSorting = useCallback(() => {
-      setOptions({
-        ...options,
-        sort: defaultSort,
+      // Functional update agar tak menelan page/fid/show dari closure stale.
+      setOptions((prev) => ({ ...prev, sort: defaultSort, page: 1 }));
+    }, [defaultSort]);
+    const setSort = useCallback((name, sort) => {
+      setOptions((prev) => {
+        const { key, order: prevOrder } = parseSort(prev.sort);
+        // Tanpa argumen `sort`: toggle asc↔desc kolom yang sama.
+        const order =
+          sort ?? (key === name && prevOrder === "asc" ? "desc" : "asc");
+        return {
+          ...prev,
+          sort: `${order === "asc" ? "" : "-"}${name}`,
+          page: 1,
+        };
       });
     }, []);
-    const setSort = useCallback(
-      (name, sort) => {
-        const order =
-          sort ??
-          (optionsSortKey == name && optionsSortOrder == "asc"
-            ? "desc"
-            : "asc");
-
-        setOptions({
-          ...options,
-          sort: order ? `${order == "asc" ? "" : "-"}${name}` : null,
-        });
-      },
-      [options.sort],
-    );
     useDidMountEffect(() => {
       const reloadData = setTimeout(() => {
         loadData();
@@ -300,40 +330,102 @@ export default memo(
 
       return () => clearTimeout(reloadData);
     }, [options]);
-    const onApplyFilters = useCallback((filters) => {
-      setOptions((prev) => {
-        return { ...prev, f: filters };
-      });
+    // Seed builder dari `?fid=` saat load awal: ambil tree dari saved filter
+    // by-id (termasuk ephemeral) agar filter aktif termuat saat builder dibuka.
+    // `saved-filters.index` tidak dipakai karena hanya mengembalikan named filter.
+    useEffect(() => {
+      const fid = query?.fid;
+      if (!fid || filterTree) return;
+      axios
+        .get(window.route("saved-filters.show", { savedFilter: fid }))
+        .then((res) => {
+          if (res.data?.filter) setFilterTree(res.data.filter);
+        })
+        .catch(() => {});
     }, []);
+    // Simpan tree sebagai saved filter ephemeral → dapat `fid` → navigasi.
+    // Tree kosong → bersihkan filter (drop fid).
+    const persistFilterTree = useCallback(
+      async (tree, fid = options.fid) => {
+        const hasItems = tree && Object.keys(tree.root?.c ?? {}).length > 0;
+        if (!hasItems) {
+          setFilterTree(null);
+          setOptions((prev) => ({ ...prev, fid: null }));
+          return;
+        }
+        try {
+          // Kirim fid yang sedang dimuat: backend akan UPDATE row itu (bila
+          // milik user & ephemeral cocok) alih-alih menumpuk row baru.
+          const res = await axios.post(window.route("saved-filters.store"), {
+            model,
+            filter: tree,
+            fid: fid ?? null,
+          });
+          setFilterTree(tree);
+          setOptions((prev) => ({ ...prev, fid: res.data?.id ?? null }));
+          toast.success(t("core.datatable.filter.save.success"));
+        } catch (error) {
+          console.error(error);
+          // 422 = tidak ada filter valid setelah cleaning backend.
+          const message =
+            error?.response?.status === 422
+              ? (error.response.data?.errors?.filter?.[0] ??
+                t("core.datatable.filter.validation.empty_tree"))
+              : t("core.datatable.filter.save.error");
+          toast.error(message);
+          // Re-throw agar pemanggil (FilterTable2) tahu save gagal & dialog
+          // tetap terbuka untuk perbaikan.
+          throw error;
+        }
+      },
+      [model, t, options.fid],
+    );
+
+    const onApplyFilters = useCallback(
+      (tree, fid, opts) => {
+        // useExisting: terapkan named filter yang dipilih tanpa membuat record
+        // baru — cukup aktifkan id-nya & reload tabel.
+        if (opts?.useExisting && fid) {
+          setFilterTree(tree);
+          setOptions((prev) => ({ ...prev, fid }));
+          toast.success(t("core.datatable.filter.save.success"));
+          return Promise.resolve();
+        }
+        return persistFilterTree(tree, fid);
+      },
+      [persistFilterTree],
+    );
+
+    // Dipanggil saat filter disimpan/dipilih/dihapus di dialog. `saved` berisi
+    // { id, filter, name } untuk menjadikan named itu filter aktif; null untuk
+    // melepas filter aktif (mis. named aktif dihapus).
+    const onSavedFilter = useCallback((saved) => {
+      if (!saved?.id) {
+        setOptions((prev) => ({ ...prev, fid: null }));
+        return;
+      }
+      if (saved.filter) setFilterTree(saved.filter);
+      setOptions((prev) => ({ ...prev, fid: saved.id }));
+    }, []);
+
     useImperativeHandle(ref, () => ({
       addFilter(key, operator, value) {
-        const filters = options.f;
-        value = value.toString();
-        if (
-          filters.find(
-            (x) => x[0] === key && x[1] === operator && x[2] === value,
-          )
-        )
-          return;
-        filters.push([key, operator, value]);
-        setOptions((prev) => ({ ...prev, f: filters }));
+        // Filter cepat (mis. klik cell): bangun item baru, gabung ke tree aktif.
+        const item = createFilterItem({ k: key, o: operator, v: value });
+        const root = filterTree?.root ?? createFilterGroup({});
+        const id = `${Date.now()}`;
+        const nextTree = {
+          root: { ...root, c: { ...(root.c ?? {}), [id]: item } },
+        };
+        // Quick filter (klik cell) tak punya dialog — telan error (toast
+        // sudah ditampilkan di persistFilterTree).
+        persistFilterTree(nextTree).catch(() => {});
       },
     }));
-    const { num_per_page: numPerPage, per_page_options: perPageOptions } =
-      usePage().props?.preferences ?? {
-        num_per_page: 25,
-        per_page_options: [25, 50, 100],
-      };
-    const [show, setShow] = useState(
-      getCookieByName("datatable_show") ?? numPerPage,
-    );
     const setShowNumber = useCallback((value) => {
-      setShow(value);
-      setCookie("datatable_show", value, {
-        days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      });
+      // Update `options.show` → ikut ke URL (?show=) → backend persist cookie
+      // `datatable_show` pada path ini. Reset ke page 1 agar tak out-of-range.
+      setOptions((prev) => ({ ...prev, show: value, page: 1 }));
     }, []);
     const title = t(`${translateKey}.title`);
     return (
@@ -359,7 +451,10 @@ export default memo(
                       <FilterTable2
                         columns={mapColumns}
                         onApply={onApplyFilters}
-                        initialFilters={options.f}
+                        onSaved={onSavedFilter}
+                        initialFilters={filterTree}
+                        model={model}
+                        activeFid={options.fid}
                         isMobile={true}
                       />
                       {isMobile && (
@@ -373,7 +468,7 @@ export default memo(
                                 value={`${show}`}
                                 onValueChange={(val) => setShowNumber(val)}
                               >
-                                {perPageOptions.map((x) => (
+                                {effectivePerPageOptions.map((x) => (
                                   <DropdownMenuRadioItem
                                     key={x}
                                     value={x.toString()}
@@ -466,18 +561,19 @@ export default memo(
                   <FilterTable2
                     columns={mapColumns}
                     onApply={onApplyFilters}
-                    initialFilters={options.f}
+                    onSaved={onSavedFilter}
+                    initialFilters={filterTree}
+                    model={model}
+                    activeFid={options.fid}
                   />
-                  {Object.keys(options.f).length > 0 && (
+                  {options.fid && (
                     <Button
                       className="py-0! h-8 px-2! rounded-l-none"
                       variant="secondary"
-                      onClick={() =>
-                        setOptions({
-                          ...options,
-                          f: [],
-                        })
-                      }
+                      onClick={() => {
+                        setFilterTree(null);
+                        setOptions((prev) => ({ ...prev, fid: null }));
+                      }}
                     >
                       <X />
                     </Button>
@@ -560,14 +656,17 @@ export default memo(
                   data.data.map((x) => {
                     const item = templateItem?.({
                       dataRow: x,
-                      deleteItem: deleteItem(
-                        `${pluralize.plural(name ?? "")}.destroy`,
-                        x.id,
-                        {
-                          usePasswordConfirmation:
-                            usePasswordConfirmationForDelete,
-                        },
-                      ),
+                      // Pass closure — JANGAN panggil deleteItem() saat render
+                      // (memicu setState store DeleteDialog selama render).
+                      deleteItem: () =>
+                        deleteItem(
+                          `${pluralize.plural(name ?? "")}.destroy`,
+                          x.id,
+                          {
+                            usePasswordConfirmation:
+                              usePasswordConfirmationForDelete,
+                          },
+                        ),
                     });
                     if (!item) return null;
                     return cloneElement(item, { key: x.id, ...item.props });
@@ -583,7 +682,6 @@ export default memo(
                 actions={actions}
                 columns={mapColumns}
                 data={data.data}
-                totalPages={data.total}
                 options={options}
                 setSort={setSort}
                 resetSorting={resetSorting}
@@ -592,9 +690,7 @@ export default memo(
             )}
             <div
               className={cn(
-                !isMobile || Math.floor(data.total / show) + 1 > 1
-                  ? "flex"
-                  : "hidden",
+                !isMobile || (data.last_page ?? 1) > 1 ? "flex" : "hidden",
                 " justify-between px-4 py-4 border-t border-muted-foreground/25 gap-x-4",
               )}
             >
@@ -609,7 +705,7 @@ export default memo(
                       <SelectValue placeholder="Show"></SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {perPageOptions.map((x) => (
+                      {effectivePerPageOptions.map((x) => (
                         <SelectItem key={x} value={x.toString()}>
                           {x}
                         </SelectItem>
@@ -619,8 +715,8 @@ export default memo(
                 </div>
               )}
               <Pagination
-                currentPage={options.page}
-                totalPages={Math.floor(data.total / show) + 1}
+                currentPage={Number(options.page)}
+                totalPages={data.last_page ?? 1}
                 onPageChanged={(page) => setOptions({ ...options, page })}
                 className="justify-end"
               />

@@ -30,6 +30,11 @@ class FormStatusCast implements CastsAttributes {
         if ($value instanceof FormStatus) {
             return $value->value;
         }
+
+        if (is_string($value)) {
+            return FormStatus::from($value)->value;
+        }
+
         throw new InvalidArgumentException('The given value is not an instance of FormStatus');
     }
 }

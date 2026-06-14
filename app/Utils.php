@@ -159,10 +159,10 @@ class Utils {
 
         // === (c) RULE LIST: [['from'=>FormStatus,'to'=>FormStatus|FormStatus[]], ...]
         $isRuleList = \is_array($from)
-          && $from !== []
-          && \is_array($from[0] ?? null)
-          && \array_key_exists('from', $from[0])
-          && \array_key_exists('to', $from[0]);
+            && $from !== []
+            && \is_array($from[0] ?? null)
+            && \array_key_exists('from', $from[0])
+            && \array_key_exists('to', $from[0]);
 
         if ($isRuleList) {
             /** @var array<int, array{from: FormStatus, to: FormStatus|array<FormStatus>}> $from */
@@ -291,6 +291,16 @@ class Utils {
                 'name'  => 'country_name',
                 'title' => trans('core/company.company_details.country'),
                 'type'  => 'string',
+            ],
+        ];
+    }
+
+    public static function getDocInfoColumns() {
+        return [
+            [
+                'name'       => 'doc_name',
+                'titleTrans' => 'core.printTemplate.doc_info.columns.doc_name',
+                'type'       => 'string',
             ],
         ];
     }

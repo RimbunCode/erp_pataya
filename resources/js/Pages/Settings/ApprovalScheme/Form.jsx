@@ -10,13 +10,41 @@ import Select from "@/Components/Select";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+import { convertTemplateLink } from "@/lib/linkModelUtils";
 
-function Form() {
+const approverTypeOptions = ["role", "user"];
+
+function ApproverSummaryText({ approvers }) {
   const { t } = useLaravelReactI18n();
-  const { data, setData } = useFormPage();
+  if (!approvers || approvers.length === 0)
+    return <span className="text-muted-foreground text-xs">—</span>;
 
-  const stepColumns = useMemo(() => {
-    return [
+  return (
+    <div className="px-2 py-1 text-xs leading-snug grid grid-cols-[auto_minmax(0,1fr)] w-full">
+      {approvers?.map((approver) => {
+        return (
+          <div
+            key={approver.id}
+            className="grid col-span-full grid-cols-subgrid gap-x-2"
+          >
+            <span>
+              {t(
+                `core.approvalScheme.steps.columns.approver_type.options.${approver.approver_type}`,
+              )}
+            </span>
+            <span>: {convertTemplateLink(approver.approver)}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function NestedApproverFormTable({ value, onChange, disabled, readOnly }) {
+  const { t } = useLaravelReactI18n();
+
+  const nestedColumns = useMemo(
+    () => [
       {
         name: "approver_type",
         titleTrans: "core.approvalScheme.steps.columns.approver_type",
@@ -25,15 +53,11 @@ function Form() {
           return (
             <Select
               value={data}
-              onValueChange={(val) => {
-                console.log(val);
-                setData({
-                  approver_type: val,
-                  ...(data != val ? { approver: null } : {}),
-                });
-              }}
+              onValueChange={(val) =>
+                setData({ approver_type: val, approver: null })
+              }
               optionTrans="core.approvalScheme.steps.columns.approver_type.options"
-              options={["role", "user"]}
+              options={approverTypeOptions}
               {...attributes}
             />
           );
@@ -48,7 +72,7 @@ function Form() {
             <LinkModel
               disabled={!dataRow?.approver_type}
               model={
-                dataRow?.approver_type == "role"
+                dataRow?.approver_type === "role"
                   ? "App\\Models\\User\\Role"
                   : "App\\Models\\User\\User"
               }
@@ -60,8 +84,137 @@ function Form() {
           );
         },
       },
+    ],
+    [],
+  );
+
+  return (
+    <FormTable
+      name="ApprovalSchemeNestedApprovers"
+      label={t("core.approvalScheme.steps.columns.approvers")}
+      className="mt-2"
+      columns={nestedColumns}
+      value={value}
+      onValueChange={onChange}
+      disabled={disabled}
+      readOnly={readOnly}
+    />
+  );
+}
+
+function StepFormDialog({
+  getColumn,
+  data: data,
+  setData: setData,
+  disabled,
+  readOnly,
+}) {
+  const { t } = useLaravelReactI18n();
+  return (
+    <div className="p-4 grid grid-cols-1 gap-y-3">
+      <FormCheckbox
+        checked={data.is_advanced}
+        onCheckedChange={(val) => setData("is_advanced", val)}
+        label={t("core.approvalScheme.steps.columns.is_advanced")}
+      />
+      {data?.is_advanced ? (
+        <NestedApproverFormTable
+          value={data?.approvers ?? []}
+          onChange={(val) => setData("approvers", val)}
+          disabled={disabled}
+          readOnly={readOnly}
+        />
+      ) : (
+        <div className="grid grid-cols-2 gap-x-4 pt-2">
+          {getColumn("approver_type")}
+          {getColumn("approver")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Form() {
+  const { t } = useLaravelReactI18n();
+  const { data, setData } = useFormPage();
+
+  const stepColumns = useMemo(() => {
+    return [
+      {
+        name: "is_advanced",
+        titleTrans: "core.approvalScheme.steps.columns.is_advanced",
+        cell({ data: isAdvanced, setData, dataRow, attributes }) {
+          return (
+            <div className="flex justify-center w-full h-full items-center">
+              <FormCheckbox
+                checked={!!isAdvanced}
+                onCheckedChange={(val) =>
+                  setData({
+                    is_advanced: val,
+                    approver_type: val ? null : dataRow?.approver_type,
+                    approver: val ? null : dataRow?.approver,
+                    approvers: val ? (dataRow?.approvers ?? []) : [],
+                  })
+                }
+                {...attributes}
+              />
+            </div>
+          );
+        },
+      },
+      {
+        name: "approver_type",
+        titleTrans: "core.approvalScheme.steps.columns.approver_type",
+        required: true,
+        cell({ data, setData, dataRow, attributes }) {
+          if (dataRow?.is_advanced) {
+            return (
+              <span className="px-2 text-xs text-muted-foreground w-full">
+                {t("core.approvalScheme.steps.columns.is_advanced_label")}
+              </span>
+            );
+          }
+          return (
+            <Select
+              value={data}
+              onValueChange={(val) =>
+                setData({ approver_type: val, approver: null })
+              }
+              optionTrans="core.approvalScheme.steps.columns.approver_type.options"
+              options={approverTypeOptions}
+              {...attributes}
+              required={!dataRow?.is_advanced && attributes.required}
+            />
+          );
+        },
+      },
+      {
+        name: "approver",
+        titleTrans: "core.approvalScheme.steps.columns.approver",
+        required: true,
+        cell({ dataRow, data, setData, attributes }) {
+          if (dataRow?.is_advanced) {
+            return <ApproverSummaryText approvers={dataRow?.approvers} />;
+          }
+          return (
+            <LinkModel
+              disabled={!dataRow?.approver_type}
+              model={
+                dataRow?.approver_type === "role"
+                  ? "App\\Models\\User\\Role"
+                  : "App\\Models\\User\\User"
+              }
+              value={data}
+              onValueChange={(val) => setData("approver", val)}
+              disabledAddButton
+              {...attributes}
+              required={!dataRow?.is_advanced && attributes.required}
+            />
+          );
+        },
+      },
     ];
-  }, []);
+  }, [t]);
 
   return (
     <>
@@ -117,6 +270,7 @@ function Form() {
           columns={stepColumns}
           value={data.steps}
           onValueChange={(val) => setData("steps", val)}
+          form={<StepFormDialog />}
         />
       </FormPageContent>
     </>

@@ -12,8 +12,54 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class InternalOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation = 'internalOrder';
-    protected $guarded            = ['id'];
+    public static $parentRelation  = 'internalOrder';
+    public string $translateKey    = 'sales.internalOrder.item';
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'item' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 0,
+        ],
+        'quantity' => [
+            'type'  => 'numeric',
+            'show'  => true,
+            'order' => 1,
+        ],
+        'unit' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 2,
+        ],
+        'sourceWarehouse' => [
+            'type'  => 'relation',
+            'show'  => true,
+            'order' => 3,
+        ],
+        'description' => [
+            'show'  => false,
+            'order' => 4,
+        ],
+        'delivered_quantity' => [
+            'type'  => 'numeric',
+            'show'  => false,
+            'order' => 5,
+        ],
+        'undelivered_quantity' => [
+            'type'  => 'numeric',
+            'show'  => false,
+            'order' => 6,
+        ],
+        'conversion_factor' => [
+            'ignore' => true,
+        ],
+        'internalOrder' => [
+            'ignore' => true,
+        ],
+        'internal_order_id' => [
+            'ignore' => true,
+        ],
+    ];
 
     public static function templateLink() {
         return ':item';

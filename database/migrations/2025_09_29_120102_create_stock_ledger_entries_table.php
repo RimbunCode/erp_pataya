@@ -21,6 +21,7 @@ return new class extends Migration
             $table->double('valuation_rate')->default(0);
             $table->double('balance_stock_value')->default(0);
             $table->double('change_in_stock_value')->default(0);
+            $table->boolean('is_valuated')->default(false);
             $table->json('stock_queue')->nullable();
             $table->softDeletes();
             $table->timestamps();

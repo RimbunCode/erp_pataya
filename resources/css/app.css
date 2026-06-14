@@ -1,5 +1,6 @@
 @import "tailwindcss" source(none);
 @import "tw-animate-css";
+@import "./tiptap.css";
 
 @plugin '@tailwindcss/forms';
 
@@ -773,7 +774,7 @@ html {
 
 @media print {
   @page {
-    size: a4 potrait;
+    size: a4 portrait;
     margin-top: 2cm;
     margin-bottom: 2cm;
     margin-right: 2cm;

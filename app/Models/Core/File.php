@@ -16,6 +16,7 @@ class File extends Model {
     protected $guarded = ['id'];
     protected $casts   = [
         'is_public' => 'boolean',
+        'is_draft'  => 'boolean',
     ];
     protected $appends                = ['fullname'];
     public $translateKey              = 'core.file';
@@ -65,7 +66,7 @@ class File extends Model {
      * @param  callable(File)  $onUploadedFile
      * @return void
      */
-    public static function uploadFile(Request $request, string $folderName, callable $onUploadedFile, array $defaultValue = []) {
+    public static function uploadFile(Request $request, string $folderName, callable $onUploadedFile, array $defaultValue = [], bool $useFolder = true) {
         if ($request->has('filesId')) {
             $validatedData = $request->validate([
                 'filesId'   => ['required', 'array'],
@@ -84,10 +85,18 @@ class File extends Model {
                 'name'       => ['required', 'array'],
                 'name.*'     => ['required', 'string'],
             ]);
-            $folder = File::firstOrCreate([
-                'name'      => $folderName,
-                'mime_type' => 'folder',
-            ]);
+            // Folder = parent nested-set. Insert ke parent ber-rgt rendah
+            // meng-shift seluruh subtree kanan (O(n) update) → lambat untuk
+            // tabel besar. Draft upload pakai $useFolder=false agar file
+            // ditambahkan sebagai root (append ujung, tanpa shift massal).
+            $parentId = null;
+            if ($useFolder) {
+                $folder = File::firstOrCreate([
+                    'name'      => $folderName,
+                    'mime_type' => 'folder',
+                ]);
+                $parentId = $folder->id;
+            }
             foreach ($validatedData['files'] as $key => $file) {
                 $extension = $file->getClientOriginalExtension();
                 $file      = File::create([
@@ -97,7 +106,7 @@ class File extends Model {
                     'extension' => $extension,
                     'mime_type' => $file->getMimeType(),
                     'user_id'   => $request->user()->id,
-                    'parent_id' => $folder->id,
+                    'parent_id' => $parentId,
                     ...$defaultValue,
                 ]);
                 $onUploadedFile($file);

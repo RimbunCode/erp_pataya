@@ -1,0 +1,6 @@
+{
+  "specId": "d8a4dcf2-8fc0-4eed-8766-0e41026ecb48",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Sidebar sisi kanan yang collapsible & customable pada FormPageDialog, me-reuse SidebarChildren (Attachments/Tags) dari FormPage. Mode CREATE memakai buffer lokal yang otomatis ter-attach ke record baru via hook DataTable."
+}

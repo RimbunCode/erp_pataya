@@ -78,7 +78,6 @@ class UnitController extends Controller {
      */
     public function store(UnitRequest $request) {
         $data = $request->validated();
-        dd($data);
         DB::beginTransaction();
         if (($data['customable'] ?? false) == true || $data['group'] == 'Others') {
             $data['conversion_factor'] = null;

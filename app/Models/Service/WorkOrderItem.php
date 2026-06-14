@@ -15,21 +15,23 @@ class WorkOrderItem extends Model {
     protected $guarded             = ['id'];
     public string $translateKey    = 'service.workOrder.workOrderItem';
     protected array $configColumns = [
-        'workOrder' => [
+        'item' => [
+            'type'  => 'relation',
             'show'  => true,
             'order' => 0,
         ],
-        'item' => [
+        'quantity' => [
+            'type'  => 'numeric',
             'show'  => true,
             'order' => 1,
         ],
-        'quantity' => [
+        'unit' => [
+            'type'  => 'relation',
             'show'  => true,
             'order' => 2,
         ],
-        'unit' => [
-            'show'  => true,
-            'order' => 3,
+        'workOrder' => [
+            'ignore' => true,
         ],
     ];
 

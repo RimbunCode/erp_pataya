@@ -8,6 +8,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
+use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -255,32 +256,10 @@ class SalesInvoiceService {
                 'referenceable_id'   => $salesInvoice->id,
             ]);
 
-            $salesOrder         = $salesInvoice->salesOrder;
-            $unbilledItems      = $salesOrder->items()->select(['id', 'unbilled_quantity', 'quantity'])->get();
-            $countUnbilledItems = $unbilledItems->sum('unbilled_quantity');
-            $sumQuantity        = $unbilledItems->sum('quantity');
-            if ($countUnbilledItems == $sumQuantity) {
-                $status = Utils::replaceStatus(
-                    $salesOrder->status,
-                    [FormStatus::BILLED, FormStatus::PARTIALLY_BILLED],
-                    FormStatus::TO_BILL,
-                );
-            } elseif ($countUnbilledItems > 0) {
-                $status = Utils::replaceStatus(
-                    $salesOrder->status,
-                    FormStatus::TO_BILL,
-                    FormStatus::PARTIALLY_BILLED,
-                );
-            } else {
-                $status = Utils::replaceStatus(
-                    $salesOrder->status,
-                    [FormStatus::TO_BILL, FormStatus::PARTIALLY_BILLED],
-                    FormStatus::BILLED,
-                );
+            $salesOrder = $salesInvoice->salesOrder;
+            if ($salesOrder) {
+                (new SalesOrderService)->updateSalesOrderStatus($salesOrder);
             }
-            $salesOrder->update([
-                'status' => $status,
-            ]);
 
             $salesInvoice->update([
                 'amount' => $totalAmount,
@@ -290,7 +269,7 @@ class SalesInvoiceService {
             if ($returnAgainst) {
                 $returnedItems      = $returnAgainst->items()->select(['returned_quantity', 'quantity'])->get();
                 $countReturnedItems = $returnedItems->sum('returned_quantity');
-                $sumQuantity        = $unbilledItems->sum('quantity');
+                $sumQuantity        = $returnedItems->sum('quantity');
 
                 if ($countReturnedItems == $sumQuantity) {
                     $status = Utils::replaceStatus(

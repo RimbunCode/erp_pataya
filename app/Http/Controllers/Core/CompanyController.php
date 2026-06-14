@@ -15,7 +15,7 @@ use Inertia\Inertia;
 class CompanyController extends Controller {
     protected function enforcePermission($method) {
         if ($method == 'image') {
-            return ['write'];
+            return 'write';
         }
     }
 
@@ -81,7 +81,9 @@ class CompanyController extends Controller {
         File::uploadFile($request, 'Company', function ($file) {
             Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
                 ->updateOrCreate(['key' => 'company_image'], ['value' => $file->id]);
-        });
+        }, [
+            'is_public' => true,
+        ]);
         DB::commit();
 
         return back();

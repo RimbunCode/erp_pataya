@@ -12,8 +12,9 @@ class ApprovalSchemeStep extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'is_active' => 'boolean',
-        'config'    => Json::class,
+        'is_active'   => 'boolean',
+        'is_advanced' => 'boolean',
+        'config'      => Json::class,
     ];
     public string $translateKey = 'core.approvalScheme.steps';
 
@@ -23,5 +24,9 @@ class ApprovalSchemeStep extends Model {
 
     public function approver() {
         return $this->morphTo('approver', 'approverable_type', 'approverable_id');
+    }
+
+    public function approvers() {
+        return $this->hasMany(ApprovalSchemeStepApprover::class, 'approval_scheme_step_id');
     }
 }

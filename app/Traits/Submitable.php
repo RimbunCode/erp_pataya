@@ -102,10 +102,11 @@ trait Submitable {
         return $this->belongsTo(\get_class($this), 'amended_from_id');
     }
 
-    public function checkApproval(array $options = []) {
+    public function checkApproval(array $options = [], string $triggerOn = 'submit') {
         return app()->call(\implode([ApprovalInstanceController::class, '@', 'checkApproval']), [
             'data'    => $this,
             'options' => $options,
+            'trigger' => $triggerOn,
         ]);
     }
 

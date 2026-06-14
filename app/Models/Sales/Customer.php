@@ -37,8 +37,9 @@ class Customer extends Model {
             'order' => 2,
         ],
         'address' => [
-            'show'  => true,
-            'order' => 3,
+            'show'      => true,
+            'order'     => 3,
+            'dependsOn' => ['street', 'city', 'province', 'zip_code', 'country.name'],
         ],
         'country',
     ];

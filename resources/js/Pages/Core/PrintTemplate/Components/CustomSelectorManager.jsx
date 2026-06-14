@@ -1,4 +1,5 @@
 import { PlusIcon, XIcon } from "lucide-react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 
 import Select from "@/Components/Select";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,8 @@ export default function CustomSelectorManager({
   addSelector,
   removeSelector,
 }) {
+  const { t } = useLaravelReactI18n();
+
   const addNewSelector = () => {
     const next = selectors.length + 1;
     addSelector({ name: `new-${next}`, label: `New ${next}` });
@@ -22,7 +25,7 @@ export default function CustomSelectorManager({
   return (
     <div className="gjs-custom-selector-manager p-2 flex flex-col gap-2 text-left">
       <div className="flex items-center">
-        <div className="flex-grow">Selectors</div>
+        <div className="grow">{t("core.printTemplate.editor.selectors")}</div>
         <Select
           value={selectedState}
           onChange={(ev) => setState(ev.target.value)}
@@ -46,7 +49,9 @@ export default function CustomSelectorManager({
             <PlusIcon />
           </button>
         ) : (
-          <div className="opacity-70">Select a component</div>
+          <div className="opacity-70">
+            {t("core.printTemplate.editor.select_a_component")}
+          </div>
         )}
         {selectors.map((selector) => (
           <div
@@ -61,7 +66,10 @@ export default function CustomSelectorManager({
         ))}
       </div>
       <div>
-        Selected: <span className="opacity-70">{targetStr || "None"}</span>
+        {t("core.printTemplate.editor.selected")}{" "}
+        <span className="opacity-70">
+          {targetStr || t("core.printTemplate.editor.none")}
+        </span>
       </div>
     </div>
   );

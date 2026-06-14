@@ -44,6 +44,9 @@ class SalesInvoice extends Model {
 
     public $translateKey           = 'finances.salesInvoice';
     protected array $configColumns = [
+        'is_return' => [
+            'dependsOn' => ['return_against_id'],
+        ],
         'code' => [
             'isLink' => true,
             'show'   => true,
@@ -68,7 +71,7 @@ class SalesInvoice extends Model {
             'show'  => true,
             'order' => 4,
         ],
-        'customer_branch',
+        'customerBranch',
         'currency',
         'branch' => [
             'ignore' => true,
@@ -94,13 +97,17 @@ class SalesInvoice extends Model {
         'incomeAccount',
         'debitAccount',
         'returnAgainst',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {
         return [
             'salesOrder',
             'customer',
-            'customer_branch',
+            'customerBranch',
             'branch',
             'currency',
             'items',
@@ -131,7 +138,7 @@ class SalesInvoice extends Model {
         return $this->belongsTo(Customer::class);
     }
 
-    public function customer_branch() {
+    public function customerBranch() {
         return $this->belongsTo(Branch::class, 'customer_branch_id');
     }
 

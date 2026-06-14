@@ -20,15 +20,20 @@ class ApprovalSchemeRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'name'                  => ['required', 'string', 'min:3', 'max:255', "unique:approval_schemes,name,{$this->id}"],
-            'permission.model'      => ['required', 'string'],
-            'permission.id'         => ['required', 'string', 'exists:permissions,id'],
-            'permission.*'          => ['nullable'],
-            'is_active'             => ['nullable', 'boolean'],
-            'steps'                 => ['required', 'array', 'min:1'],
-            'steps.*.id'            => ['nullable', 'string'],
-            'steps.*.approver_type' => ['required', 'string', 'in:role,user'],
-            'steps.*.approver.id'   => ['required', 'string'],
+            'name'                              => ['required', 'string', 'min:3', 'max:255', "unique:approval_schemes,name,{$this->id}"],
+            'permission.model'                  => ['required', 'string'],
+            'permission.id'                     => ['required', 'string', 'exists:permissions,id'],
+            'permission.*'                      => ['nullable'],
+            'is_active'                         => ['nullable', 'boolean'],
+            'steps'                             => ['required', 'array', 'min:1'],
+            'steps.*.id'                        => ['nullable', 'string'],
+            'steps.*.is_advanced'               => ['nullable', 'boolean'],
+            'steps.*.approver_type'             => ['required_if:steps.*.is_advanced,false,null', 'nullable', 'string', 'in:role,user'],
+            'steps.*.approver.id'               => ['required_if:steps.*.is_advanced,false,null', 'nullable', 'string'],
+            'steps.*.approvers'                 => ['required_if:steps.*.is_advanced,true', 'nullable', 'array', 'min:1'],
+            'steps.*.approvers.*.id'            => ['nullable', 'string'],
+            'steps.*.approvers.*.approver_type' => ['required_with:steps.*.approvers', 'nullable', 'string', 'in:role,user'],
+            'steps.*.approvers.*.approver.id'   => ['required_with:steps.*.approvers', 'nullable', 'string'],
         ];
     }
 }

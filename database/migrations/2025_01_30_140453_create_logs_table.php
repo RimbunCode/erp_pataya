@@ -12,6 +12,7 @@ return new class extends Migration
         Schema::create('logs', function (Blueprint $table) {
             $table->ulid('id')->primary();
             $table->longText('activity');
+            $table->json('comment_json')->nullable();
             $table->text('notes')->nullable();
             $table->string('type')->default('log');
             $table->json('data_before')->nullable();

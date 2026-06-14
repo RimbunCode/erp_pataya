@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
@@ -17,6 +16,7 @@ return new class extends Migration
             $table->string('approver_type');
             $table->ulidMorphs('approverable', 'approverable_index');
             $table->json('config')->nullable();
+            $table->boolean('is_advanced')->default(false);
             $table->softDeletes();
             $table->timestamps();
         });

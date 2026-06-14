@@ -338,14 +338,94 @@ export const calculateArray = (arr, keyColumn, operator) => {
   if (operator === "average") return length != 0 ? result / length : 0;
   return result;
 };
+export const DEFAULT_PRINT_FONTS = Object.freeze([
+  "Times New Roman",
+  "Arial",
+  "Helvetica",
+  "Segoe UI",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Georgia",
+  "Garamond",
+  "Cambria",
+  "Courier New",
+  "Roboto",
+  "Noto Sans",
+  "Noto Serif",
+]);
+
+const normalizeFontName = (font) => {
+  if (typeof font !== "string") {
+    return "";
+  }
+  return font.trim();
+};
+
+const dedupeFonts = (fonts = []) => {
+  const map = new Map();
+  fonts.forEach((font) => {
+    const normalized = normalizeFontName(font);
+    if (!normalized) {
+      return;
+    }
+    const key = normalized.toLowerCase();
+    if (!map.has(key)) {
+      map.set(key, normalized);
+    }
+  });
+  return Array.from(map.values());
+};
+
+const inferGenericFontFamily = (fontFamily = "") => {
+  const value = fontFamily.toLowerCase();
+  if (/mono|courier|consolas|menlo|code|terminal|source code/.test(value)) {
+    return "monospace";
+  }
+  if (
+    /serif|times|georgia|garamond|cambria|palatino|book antiqua/.test(value)
+  ) {
+    return "serif";
+  }
+  return "sans-serif";
+};
+
+export const getSafePrintFontFamily = (fontFamily, genericFamily) => {
+  const normalized = normalizeFontName(fontFamily);
+  const fallback = genericFamily ?? inferGenericFontFamily(normalized);
+  if (!normalized) {
+    return fallback;
+  }
+
+  const escaped = normalized.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  return `'${escaped}', ${fallback}`;
+};
+
 export const getFonts = async () => {
+  const fallbackFonts = [...DEFAULT_PRINT_FONTS];
+  if (
+    typeof window === "undefined" ||
+    typeof window.queryLocalFonts !== "function"
+  ) {
+    return fallbackFonts;
+  }
+
   try {
     const availableFonts = await window.queryLocalFonts();
-    const list = Array.from(availableFonts).map((font) => font.family);
-    return [...new Set(list)];
+    const localFonts = dedupeFonts(
+      Array.from(availableFonts).map((font) => font?.family ?? ""),
+    );
+    const fallbackSet = new Set(
+      fallbackFonts.map((font) => font.toLowerCase()),
+    );
+    const additionalFonts = localFonts
+      .filter((font) => !fallbackSet.has(font.toLowerCase()))
+      .sort((a, b) => a.localeCompare(b));
+
+    return [...fallbackFonts, ...additionalFonts];
   } catch (err) {
     console.error(err.name, err.message);
-    return [];
+    return fallbackFonts;
   }
 };
 

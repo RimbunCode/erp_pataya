@@ -43,33 +43,15 @@ class FileController extends Controller {
      * Store a newly created resource in storage.
      */
     public function store(Request $request) {
-        if ($request->has('files')) {
-            $validatedData = $request->validate([
-                'files'      => ['required', 'array'],
-                'files.*'    => ['required', 'file', 'max:10240'],
-                'isGlobal'   => ['required', 'array'],
-                'isGlobal.*' => ['required'],
-                'name'       => ['required', 'array'],
-                'name.*'     => ['required', 'string'],
-            ]);
-            $validatedData['files'];
-        } else {
-            $validatedData = $request->validate([
-                'file.*'     => ['required', 'file', 'max:10240'],
-                'isGlobal.*' => ['required'],
-                'name.*'     => ['required', 'string'],
-            ]);
-        }
-        if (! Utils::isInertiaRequest($request)) {
-        }
-        // try {
-        //   $file = $request->validate([
-        //     'file' => ['required', 'file', 'max:10240'],
-        //   ]);
-        //   dd($file);
-        // } catch (\Throwable $th) {
-        //   //throw $th;
-        // }
+        // TreeView (File use TreeView) sudah membungkus tiap create dalam
+        // transaksi + lockForUpdate sendiri. Membungkus lagi dengan transaksi
+        // luar menahan lock lama → deadlock/timeout. Biarkan per-create atomik.
+        $uploaded = [];
+        File::uploadFile($request, 'drafts', function ($file) use (&$uploaded) {
+            $uploaded[] = ['id' => $file->id, 'name' => $file->name];
+        }, ['is_draft' => true], useFolder: false);
+
+        return response()->json($uploaded);
     }
 
     /**

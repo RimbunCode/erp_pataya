@@ -13,6 +13,7 @@ use App\Services\Purchase\PurchaseOrderService;
 use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller {
@@ -164,6 +165,28 @@ class PurchaseOrderController extends Controller {
         $this->service->cancel($purchaseOrder);
 
         return back();
+    }
+
+    /**
+     * Sync PO items berdasarkan data Invoice & Receipt (split per rate/tax/warehouse).
+     */
+    public function syncItems(PurchaseOrder $purchaseOrder) {
+        $syncLog = $this->service->syncItems($purchaseOrder);
+
+        return back()->with('success', 'Items berhasil disinkronisasi.');
+    }
+
+    /**
+     * Validasi receipt == invoice qty, lalu finalisasi PO sebagai COMPLETED.
+     */
+    public function markDone(PurchaseOrder $purchaseOrder) {
+        try {
+            $result = $this->service->markDone($purchaseOrder);
+
+            return back()->with('success', 'Purchase Order telah selesai.');
+        } catch (ValidationException $e) {
+            return back()->withErrors($e->errors());
+        }
     }
 
     /**

@@ -26,27 +26,47 @@ class ApprovalInstanceController extends Controller {
 
     public function index(Request $request) {
         $this->setBreadcrumbs();
-        $user = $request->user();
+        $user    = $request->user();
+        $roleIds = $user->roles->pluck('id');
+
         ApprovalInstanceStep::query()
             ->whereNot('status', 'waiting')
             ->whereNot('status', 'skipped')
-            ->where(function (Builder $query) use ($user) {
-                $query->where(function (Builder $query) use ($user) {
-                    $query->where('approver_type', 'role')
-                        ->where(function (Builder $query) use ($user) {
-                            $query->where(function (Builder $query) use ($user) {
-                                $query->where('status', 'pending')
-                                    ->whereIn('approverable_id', $user->roles->pluck('id'));
+            ->where(function (Builder $query) use ($user, $roleIds) {
+                // single-approver: cocok langsung di kolom step
+                $query->where(function (Builder $query) use ($user, $roleIds) {
+                    $query->where('is_advanced', false)
+                        ->where(function (Builder $query) use ($user, $roleIds) {
+                            $query->where(function (Builder $query) use ($roleIds) {
+                                $query->where('approver_type', 'role')
+                                    ->where(function (Builder $query) use ($roleIds) {
+                                        $query->where(function (Builder $query) use ($roleIds) {
+                                            $query->where('status', 'pending')
+                                                ->whereIn('approverable_id', $roleIds);
+                                        })->orWhere(function (Builder $query) use ($roleIds) {
+                                            $query->whereIn('status', ['approved', 'rejected'])
+                                                ->whereIn('approverable_id', $roleIds);
+                                        });
+                                    });
                             })->orWhere(function (Builder $query) use ($user) {
-                                $query->whereIn('status', ['approved', 'rejected'])
-                                    ->where('acted_by_id', $user->id);
+                                $query->where('approver_type', 'user')
+                                    ->where('approverable_id', $user->id);
                             });
                         });
                 })
-                    ->orWhere(function (Builder $query) use ($user) {
-                        $query->where('approver_type', 'user')
-                            ->where('approverable_id', $user->id);
-                    });
+                    // multi-approver: cocok di approver anak
+                    ->orWhere(function (Builder $query) use ($user, $roleIds) {
+                        $query->where('is_advanced', true)
+                            ->whereHas('approvers', function (Builder $q) use ($user, $roleIds) {
+                                $q->where(function (Builder $q) use ($user) {
+                                    $q->where('approver_type', 'user')->where('approverable_id', $user->id);
+                                })->orWhere(function (Builder $q) use ($roleIds) {
+                                    $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
+                                });
+                            });
+                    })
+                    // histori: sudah acted_by user ini
+                    ->orWhere('acted_by_id', $user->id);
             })
             ->dataTable($request);
 
@@ -85,19 +105,37 @@ class ApprovalInstanceController extends Controller {
 
         return $approvalInstance->steps()
             ->where(function (Builder $query) use ($user, $roleIds) {
-                $query->where(function (Builder $query) use ($roleIds) {
-                    $query->where('approver_type', 'role')
-                        ->whereIn('approverable_id', $roleIds);
-                })->orWhere(function (Builder $query) use ($user) {
-                    $query->where('approver_type', 'user')
-                        ->where('approverable_id', $user->id);
-                })->orWhere('acted_by_id', $user->id);
+                // single-approver
+                $query->where(function (Builder $query) use ($user, $roleIds) {
+                    $query->where('is_advanced', false)
+                        ->where(function (Builder $query) use ($user, $roleIds) {
+                            $query->where(function (Builder $query) use ($roleIds) {
+                                $query->where('approver_type', 'role')
+                                    ->whereIn('approverable_id', $roleIds);
+                            })->orWhere(function (Builder $query) use ($user) {
+                                $query->where('approver_type', 'user')
+                                    ->where('approverable_id', $user->id);
+                            });
+                        });
+                })
+                    // multi-approver: ada sebagai approver anak
+                    ->orWhere(function (Builder $query) use ($user, $roleIds) {
+                        $query->where('is_advanced', true)
+                            ->whereHas('approvers', function (Builder $q) use ($user, $roleIds) {
+                                $q->where(function ($q) use ($user) {
+                                    $q->where('approver_type', 'user')->where('approverable_id', $user->id);
+                                })->orWhere(function ($q) use ($roleIds) {
+                                    $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
+                                });
+                            });
+                    })
+                    ->orWhere('acted_by_id', $user->id);
             })
             ->exists();
     }
 
-    public function checkApproval(Model $data, array $options = []) {
-        return DB::transaction(function () use ($data, $options) {
+    public function checkApproval(Model $data, array $options = [], string $triggerOn = 'submit') {
+        return DB::transaction(function () use ($data, $options, $triggerOn) {
             $currentRoute     = Route::getCurrentRoute();
             $controller       = $currentRoute->getControllerClass();
             $parameters       = $currentRoute->originalParameters();
@@ -105,7 +143,7 @@ class ApprovalInstanceController extends Controller {
                 'controller' => $controller,
                 'parameters' => $parameters,
                 'options'    => $options,
-            ]);
+            ], $triggerOn);
 
             if (! $instanceApproval || $instanceApproval->status == FormStatus::APPROVED) {
                 $result = app()->call(\implode([$controller, '@', 'onApproved']), [
@@ -161,6 +199,10 @@ class ApprovalInstanceController extends Controller {
         DB::beginTransaction();
         $approval = $approvalInstanceStep->approvalInstance;
 
+        if ($approvalInstanceStep->is_advanced) {
+            $this->recordApproverChildDecision($approvalInstanceStep, FormStatus::APPROVED);
+        }
+
         $approvalInstanceStep->update([
             'status'      => FormStatus::APPROVED,
             'acted_at'    => now(),
@@ -206,9 +248,39 @@ class ApprovalInstanceController extends Controller {
         return back();
     }
 
+    private function recordApproverChildDecision(ApprovalInstanceStep $step, FormStatus $status): void {
+        $user    = Auth::user();
+        $roleIds = $user->roles()->pluck('roles.id');
+
+        $matched = $step->approvers()
+            ->where(function ($q) use ($user, $roleIds) {
+                $q->where(function ($q) use ($user) {
+                    $q->where('approver_type', 'user')->where('approverable_id', $user->id);
+                })->orWhere(function ($q) use ($roleIds) {
+                    $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
+                });
+            })
+            ->where('status', FormStatus::PENDING->value)
+            ->first();
+
+        if ($matched) {
+            $matched->update([
+                'status'      => $status,
+                'acted_by_id' => $user->id,
+                'acted_at'    => now(),
+            ]);
+        }
+
+        $step->approvers()->where('status', FormStatus::PENDING->value)->update(['status' => FormStatus::SKIPPED->value]);
+    }
+
     private function reject(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {
         DB::beginTransaction();
         $approval = $approvalInstanceStep->approvalInstance;
+
+        if ($approvalInstanceStep->is_advanced) {
+            $this->recordApproverChildDecision($approvalInstanceStep, FormStatus::REJECTED);
+        }
 
         $approvalInstanceStep->update([
             'status'      => FormStatus::REJECTED,

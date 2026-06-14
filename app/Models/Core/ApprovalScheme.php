@@ -33,6 +33,7 @@ class ApprovalScheme extends Model {
         self::saved(function ($data) {
             if ($data->is_active) {
                 ApprovalScheme::where('permission_id', $data->permission_id)
+                    ->where('trigger_on', $data->trigger_on)
                     ->whereNot('id', $data->id)
                     ->update(['is_active' => false]);
             } else {
@@ -61,9 +62,10 @@ class ApprovalScheme extends Model {
             'order' => 1,
         ],
         'status' => [
-            'type'  => 'formStatus',
-            'show'  => true,
-            'order' => 2,
+            'type'      => 'formStatus',
+            'show'      => true,
+            'order'     => 2,
+            'dependsOn' => ['is_active'],
         ],
         'permission_id' => [
             'ignore' => true,

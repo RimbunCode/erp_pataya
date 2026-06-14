@@ -10,9 +10,9 @@ use Illuminate\Database\Eloquent\Builder;
 class Preference extends Model {
     use DataTable;
 
-    public const HIDE_PRIVATE_KEYS_SCOPE = 'hide_private_keys';
-    protected const HIDDEN_KEYS          = [];
-    protected const HIDDEN_KEY_PATTERNS  = [
+    public const string HIDE_PRIVATE_KEYS_SCOPE = 'hide_private_keys';
+    protected const array HIDDEN_KEYS           = [];
+    protected const array HIDDEN_KEY_PATTERNS   = [
         '%password%',
         '%token%',
         '%secret%',

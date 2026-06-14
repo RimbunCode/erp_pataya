@@ -23,13 +23,29 @@ class Branch extends Model {
         'shippingAddress',
         'billingAddress',
     ];
+    protected $with = [
+        'billingCountry',
+        'shippingCountry',
+    ];
 
     public function getShippingAddressAttribute() {
-        return "{$this->shipping_street}, {$this->shipping_city}, {$this->shipping_province}, {$this->shippingCountry?->name} {$this->shipping_zip_code}";
+        return collect([
+            $this->shipping_street,
+            $this->shipping_city,
+            $this->shipping_state,
+            $this->shipping_zip_code,
+            $this->shippingCountry?->name,
+        ])->filter()->implode(', ');
     }
 
     public function getBillingAddressAttribute() {
-        return "{$this->billing_street}, {$this->billing_city}, {$this->billing_province}, {$this->billingCountry?->name} {$this->billing_zip_code}";
+        return collect([
+            $this->billing_street,
+            $this->billing_city,
+            $this->billing_state,
+            $this->billing_zip_code,
+            $this->billingCountry?->name,
+        ])->filter()->implode(', ');
     }
 
     public function title(): Attribute {
@@ -83,7 +99,9 @@ class Branch extends Model {
         ],
         'billingCountry',
         'shippingCountry',
-        'branchable',
+        'branchable' => [
+            'ignore' => true,
+        ],
     ];
 
     public function billingCountry() {

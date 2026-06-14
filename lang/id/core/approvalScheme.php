@@ -39,6 +39,9 @@ return [
             'status'            => 'Status',
             'approval_instance' => 'Instansi Persetujuan',
             'notes'             => 'Catatan',
+            'is_advanced'       => 'Mode Lanjutan',
+            'is_advanced_label' => 'Beberapa Penyetuju',
+            'approvers'         => 'Daftar Penyetuju',
         ],
     ],
 ];

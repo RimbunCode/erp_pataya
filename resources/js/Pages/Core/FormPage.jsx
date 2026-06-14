@@ -17,6 +17,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import {
   ChevronDownIcon,
+  PanelRightIcon,
   PrinterIcon,
   SaveIcon,
   Trash2Icon,
@@ -658,7 +659,7 @@ const FormPage = memo(
       disabled: _disabled,
       isCreate = false,
       fieldNameTrans,
-      title,
+      title: _title,
       badge,
       controls,
       defaultMenu,
@@ -684,8 +685,19 @@ const FormPage = memo(
     const prints = usePage().props.prints ?? [];
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
     const user = usePage().props.auth.user;
-    const { model } = usePage().props;
+    const { model, translateKey } = usePage().props;
     const { can } = usePermission(model);
+    const title = useMemo(() => {
+      return (
+        _title ??
+        (isCreate
+          ? translateKey && t(`${translateKey}.new`)
+          : defaultData.templateLink
+            ? convertTemplateLink(defaultData)
+            : (defaultData.code ?? defaultData.name)) ??
+        ""
+      );
+    }, [_title, defaultData, isCreate, translateKey]);
     const {
       data,
       setData: _setData,
@@ -712,13 +724,21 @@ const FormPage = memo(
         }
 
         if (isCreate) {
+          // Sertakan buffer sidebar create: tags (buffered_tags) & file draft
+          // (filesId). File sudah ter-upload sebagai draft, kirim id saja.
+          const files = Array.isArray(data?.files) ? data.files : [];
+          form.transform((payload) => ({
+            ...payload,
+            filesId: files.map((f) => f.id).filter(Boolean),
+          }));
           post(route(`${pluralize.plural(name ?? "")}.store`));
           return;
         }
 
+        form.transform((payload) => payload);
         put(route(`${pluralize.plural(name ?? "")}.update`, defaultData.id));
       },
-      [route, name, isCreate, defaultData, data],
+      [route, name, isCreate, defaultData, data, form],
     );
     const [showAlertBeforeSubmit, setShowAlertBeforeSubmit] = useState(false);
     const [showAlertBeforeCancel, setShowAlertBeforeCancel] = useState(false);
@@ -1081,7 +1101,28 @@ const FormPage = memo(
               "relative grid grid-cols-1 auto-rows-max lg:grid-rows-[auto_1fr] lg:grid-cols-[1fr_auto] flex-1 gap-4 mt-4",
             )}
           >
-            {!isCreate && (
+            {isCreate ? (
+              // Mode create: sidebar (Attachments/Tags dual-mode) butuh context
+              // isCreate=true karena SidebarChildren sibling di luar provider
+              // FormChildren. Connections/amended_from di-skip (butuh record).
+              <FormPageProvider
+                isCreate={true}
+                disabled={disabled}
+                errors={errors}
+                fieldNameTrans={fieldNameTrans}
+                defaultData={null}
+                data={data}
+                setData={setData}
+                form={form}
+              >
+                <SidebarChildren
+                  content={sidebarContent}
+                  hasConnections={false}
+                  submitable={false}
+                  defaultData={null}
+                />
+              </FormPageProvider>
+            ) : (
               <SidebarChildren
                 content={sidebarContent}
                 hasConnections={
@@ -1262,25 +1303,14 @@ const FormPage = memo(
 //   }),
 // );
 
-const ApprovalItem = memo(function ApprovalItem({
-  id,
-  approver,
-  approver_type,
+const ApprovalActedByDetail = memo(function ApprovalActedByDetail({
   acted_by,
   acted_at,
   notes,
-  status,
 }) {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const lang = usePage().props?.lang;
-  const [open, setOpen] = useState(false);
-
-  const hasDetail = !(
-    status == "waiting" ||
-    status == "pending" ||
-    status == "skipped"
-  );
 
   const alias = acted_by?.name
     ?.split(" ")
@@ -1289,10 +1319,72 @@ const ApprovalItem = memo(function ApprovalItem({
     ?.join("");
 
   return (
+    <div className="text-sm space-y-1.5 mt-1">
+      <p className="truncate">
+        {t("core.approvalScheme.steps.columns.acted_by")} :
+      </p>
+      <p className="truncate flex items-center gap-x-2 w-full">
+        <Avatar className="rounded-full h-max size-10">
+          {acted_by?.image && (
+            <AvatarImage
+              src={
+                route("files.preview", acted_by?.image) +
+                `?v=${new Date(acted_by?.updated_at).getTime()}`
+              }
+              alt={acted_by?.name}
+            />
+          )}
+          <AvatarFallback className="text-xl font-semibold rounded-lg">
+            {alias}
+          </AvatarFallback>
+        </Avatar>
+        <span>{acted_by?.name}</span>
+        <span>●</span>
+        <span>
+          {format(new TZDate(acted_at, "UTC"), "PPPp", {
+            locale: getLocaleDate(lang),
+          })}
+        </span>
+      </p>
+
+      {notes && (
+        <div className="rounded-lg border-muted-foreground/30 mt-2 border">
+          <p className="truncate border-b border-muted-foreground/30 px-2 pt-2 pb-1 font-semibold">
+            {t("core.approvalScheme.steps.columns.notes")}
+          </p>
+          <p className="p-2 w-full text-wrap wrap-break-word text-justify">
+            {notes}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+const ApprovalItem = memo(function ApprovalItem({
+  id,
+  approver,
+  approver_type,
+  acted_by,
+  acted_at,
+  notes,
+  status,
+  is_advanced,
+  approvers,
+}) {
+  const { t } = useLaravelReactI18n();
+  const [open, setOpen] = useState(false);
+
+  const hasDetail = !(
+    status == "waiting" ||
+    status == "pending" ||
+    status == "skipped"
+  );
+
+  return (
     <li key={id} className="mb-3 first:mt-2 ms-6">
       <div
         className={cn(
-          // type == "log" ? "bg-inherit" : "bg-muted border-[3px]",
           "p-2 -mt-1.5 size-[34px] -inset-s-[18px] border-muted flex justify-center items-center absolute rounded-full",
         )}
       >
@@ -1314,55 +1406,79 @@ const ApprovalItem = memo(function ApprovalItem({
           {hasDetail && (
             <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
           )}
-          <p className="text-sm font-normal leading-none ">
-            <span className="capitalize">{approver_type + ": "}</span>
-            <span>{convertTemplateLink(approver)}</span>
+          <p className="text-sm font-normal leading-none">
+            {is_advanced ? (
+              <span className="font-medium">
+                {t("core.approvalScheme.steps.columns.is_advanced_label")}
+              </span>
+            ) : (
+              <>
+                <span className="capitalize">{approver_type + ": "}</span>
+                <span>{convertTemplateLink(approver)}</span>
+              </>
+            )}
             <BadgeStatus className="ml-2" status={status} />
           </p>
         </CollapsibleTrigger>
-        {hasDetail && (
-          <CollapsibleContent asChild>
-            <div className="ml-6 w-[calc(100%-calc(var(--spacing,0.25)*6))] text-sm space-y-1.5 mt-1">
-              <p className="truncate">
-                {t("core.approvalScheme.steps.columns.acted_by")} :
-              </p>
-              <p className="truncate flex items-center gap-x-2 w-full">
-                <Avatar className="rounded-full h-max size-10">
-                  {acted_by?.image && (
-                    <AvatarImage
-                      src={
-                        route("files.preview", acted_by?.image) +
-                        `?v=${new Date(acted_by?.updated_at).getTime()}`
-                      }
-                      alt={acted_by?.name}
-                    />
-                  )}
-                  <AvatarFallback className="text-xl font-semibold rounded-lg">
-                    {alias}
-                  </AvatarFallback>
-                </Avatar>
-                <span>{acted_by?.name}</span>
-                <span>●</span>
-                <span>
-                  {format(new TZDate(acted_at, "UTC"), "PPPp", {
-                    locale: getLocaleDate(lang),
-                  })}
-                </span>
-              </p>
-
-              {notes && (
-                <div className="rounded-lg border-muted-foreground/30 mt-2 border">
-                  <p className="truncate border-b border-muted-foreground/30 px-2 pt-2 pb-1 font-semibold">
-                    {t("core.approvalScheme.steps.columns.notes")}
-                  </p>
-                  <p className="p-2 w-full text-wrap wrap-break-word text-justify">
-                    {notes}
-                  </p>
-                </div>
-              )}
-            </div>
-          </CollapsibleContent>
-        )}
+        <CollapsibleContent asChild>
+          <div className="ml-6 w-[calc(100%-calc(var(--spacing,0.25)*6))]">
+            {is_advanced && approvers && approvers.length > 0 ? (
+              <ul className="mt-2 space-y-2">
+                {approvers.map((childApprover) => {
+                  const childHasDetail = !(
+                    childApprover.status == "waiting" ||
+                    childApprover.status == "pending" ||
+                    childApprover.status == "skipped"
+                  );
+                  return (
+                    <li
+                      key={childApprover.id}
+                      className="border-l-2 border-muted pl-3"
+                    >
+                      <p className="text-sm">
+                        <span className="capitalize">
+                          {childApprover.approver_type + ": "}
+                        </span>
+                        <span>
+                          {convertTemplateLink(childApprover.approver)}
+                        </span>
+                        <BadgeStatus
+                          className="ml-2"
+                          status={childApprover.status}
+                        />
+                      </p>
+                      {childHasDetail && (
+                        <ApprovalActedByDetail
+                          acted_by={childApprover.acted_by}
+                          acted_at={childApprover.acted_at}
+                          notes={null}
+                        />
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              hasDetail && (
+                <ApprovalActedByDetail
+                  acted_by={acted_by}
+                  acted_at={acted_at}
+                  notes={notes}
+                />
+              )
+            )}
+            {hasDetail && is_advanced && notes && (
+              <div className="rounded-lg border-muted-foreground/30 mt-2 border">
+                <p className="truncate border-b border-muted-foreground/30 px-2 pt-2 pb-1 font-semibold text-sm">
+                  {t("core.approvalScheme.steps.columns.notes")}
+                </p>
+                <p className="p-2 w-full text-wrap wrap-break-word text-justify text-sm">
+                  {notes}
+                </p>
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
       </Collapsible>
     </li>
   );
@@ -1553,13 +1669,17 @@ const FormPageDialog = memo(
       badge,
       method = "post",
       routeName,
+      routeParams,
       ignoreDraft = false,
+      sidebarContent,
     },
     ref,
   ) {
     const { t } = useLaravelReactI18n();
     const route = window.route;
     const [open, setOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const hasSidebar = sidebarContent !== false;
     useImperativeHandle(
       ref,
       () => ({
@@ -1601,6 +1721,10 @@ const FormPageDialog = memo(
       }
       reset();
     }, [open, ignoreDraft]);
+    // Setiap dialog dibuka, sidebar default terbuka.
+    useEffect(() => {
+      if (open) setSidebarOpen(true);
+    }, [open]);
 
     const setData = useCallback(
       (...args) => {
@@ -1671,7 +1795,15 @@ const FormPageDialog = memo(
       if (disabled) return;
       if (!name) return;
       const pluralized = routeName ?? `${pluralize.plural(name ?? "")}.store`;
-      submit(method, route(pluralized), {
+      // File sudah ter-upload sebagai draft (punya id). Submit cukup kirim
+      // filesId[] → File::uploadFile cabang filesId → Fileable dibuat &
+      // is_draft di-clear. form.transform agar tak memutasi data reaktif.
+      const files = Array.isArray(data?.files) ? data.files : [];
+      form.transform((payload) => ({
+        ...payload,
+        filesId: files.map((f) => f.id).filter(Boolean),
+      }));
+      submit(method, route(pluralized, routeParams), {
         preserveState: true,
         preserveUrl: false,
         onSuccess: () => {
@@ -1682,7 +1814,15 @@ const FormPageDialog = memo(
     };
     return (
       <AlertDialog open={open}>
-        <AlertDialogContent className={cn(className, "py-0 overflow-hidden")}>
+        <AlertDialogContent
+          className={cn(
+            "py-0 overflow-hidden",
+            // Lebar dialog = className call-site (mis. max-w-6xl), TETAP saat
+            // buka/tutup sidebar → tak ada glitch lebar (w-fit tak bisa dianimasi).
+            // Ruang sidebar dibuka via padding-right yang ditransisi (lihat body).
+            className,
+          )}
+        >
           <TooltipProvider>
             <form
               ref={formRef}
@@ -1704,40 +1844,107 @@ const FormPageDialog = memo(
                     </span>
                   )}
                   {badge}
+                  {hasSidebar && (
+                    <button
+                      type="button"
+                      onClick={() => setSidebarOpen((v) => !v)}
+                      className="items-center hidden gap-2 px-2 py-1 ml-auto text-sm font-normal rounded lg:flex text-muted-foreground hover:bg-muted hover:text-foreground"
+                      aria-label={t("core.form.attachments_and_tags")}
+                    >
+                      <PanelRightIcon className="size-4" />
+                      <span>{t("core.form.attachments_and_tags")}</span>
+                    </button>
+                  )}
                 </AlertDialogTitle>
                 <AlertDialogDescription className="sr-only"></AlertDialogDescription>
               </AlertDialogHeader>
-              <div className="overflow-y-auto">
-                {errors && Object.keys(errors).length > 0 && (
-                  <div className="flex-col w-full mt-4 alert error">
-                    <h3 className="text-base font-semibold">
-                      {t("core.form.errors.title")}
-                    </h3>
-                    <ul className="block pl-5">
-                      {Object.entries(errors).map(([key, value]) => (
-                        <li key={key} className="list-disc">
-                          {fieldNameTrans
-                            ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                            : value}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+              <div
+                className={cn(
+                  "overflow-y-auto",
+                  // ≥lg: container relatif; ruang sidebar dibuka via padding-right
+                  // yang ditransisi (length → mulus, tak loncat seperti w-fit).
+                  // Sidebar di-absolute-kan mengisi area padding itu.
+                  hasSidebar &&
+                    "lg:relative lg:transition-[padding] lg:duration-200",
+                  hasSidebar && (sidebarOpen ? "lg:pr-[19rem]" : "lg:pr-0"),
                 )}
-                <FormChildren
-                  isCreate={true}
-                  disabled={disabled}
-                  defaultMenu={defaultMenu}
-                  className={className}
-                  showHeader={false}
-                  errors={errors}
-                  fieldNameTrans={fieldNameTrans}
-                  data={data}
-                  setData={setData}
-                  form={form}
-                >
-                  {children}
-                </FormChildren>
+              >
+                <div className="min-w-0">
+                  {errors && Object.keys(errors).length > 0 && (
+                    <div className="flex-col w-full mt-4 alert error">
+                      <h3 className="text-base font-semibold">
+                        {t("core.form.errors.title")}
+                      </h3>
+                      <ul className="block pl-5">
+                        {Object.entries(errors).map(([key, value]) => (
+                          <li key={key} className="list-disc">
+                            {fieldNameTrans
+                              ? value.replace(
+                                  key,
+                                  t(`${fieldNameTrans}.${key}`),
+                                )
+                              : value}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <FormChildren
+                    isCreate={true}
+                    disabled={disabled}
+                    defaultMenu={defaultMenu}
+                    className={className}
+                    showHeader={false}
+                    errors={errors}
+                    fieldNameTrans={fieldNameTrans}
+                    data={data}
+                    setData={setData}
+                    form={form}
+                  >
+                    {children}
+                  </FormChildren>
+                </div>
+                {hasSidebar && (
+                  <FormPageProvider
+                    isCreate={true}
+                    disabled={disabled}
+                    errors={errors}
+                    fieldNameTrans={fieldNameTrans}
+                    defaultData={null}
+                    data={data}
+                    setData={setData}
+                    form={form}
+                  >
+                    <div
+                      className={cn(
+                        "min-w-0 h-fit mt-4",
+                        // ≥lg: sidebar absolute mengisi area padding-right (19rem)
+                        // dialog. Slide+fade saat buka/tutup (transform & opacity
+                        // dapat dianimasi mulus, tak memicu reflow lebar dialog).
+                        "lg:absolute lg:right-0 lg:top-0 lg:mt-0 lg:w-72 lg:h-full lg:overflow-y-auto",
+                        "lg:transition-[transform,opacity] lg:duration-200",
+                        // Mobile (<lg): border atas (stack di bawah form).
+                        // ≥lg: border kiri.
+                        "border-t pt-4 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-4",
+                        // SidebarChildren bawa class grid FormPage (lg:sticky/col-start)
+                        // yang tak relevan di dialog — netralkan via wrapper.
+                        "[&>div]:static! [&>div]:top-auto! [&>div]:max-w-none! [&>div]:col-auto! [&>div]:row-auto!",
+                        // Mobile (<lg): SELALU tampil (toggle disembunyikan).
+                        // ≥lg: ikut sidebarOpen — slide+fade keluar saat tutup.
+                        sidebarOpen
+                          ? "lg:translate-x-0 lg:opacity-100"
+                          : "lg:translate-x-full lg:opacity-0 lg:pointer-events-none",
+                      )}
+                    >
+                      <SidebarChildren
+                        content={sidebarContent}
+                        submitable={false}
+                        defaultData={null}
+                        hasConnections={false}
+                      />
+                    </div>
+                  </FormPageProvider>
+                )}
               </div>
               <AlertDialogFooter className="pb-6 mt-4">
                 <AlertDialogCancel

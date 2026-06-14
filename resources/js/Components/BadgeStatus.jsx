@@ -37,6 +37,13 @@ const theme = {
   ordered: "success",
   pre_registered: "warning",
   invited: "primary",
+  over_received: "error",
+  over_billed: "error",
+  over_delivered: "error",
+  new: "secondary",
+  on_hold: "warning",
+  resolved: "success",
+  done: "success",
 };
 export default function BadgeStatus({ status, className, ...props }) {
   const { t } = useLaravelReactI18n();

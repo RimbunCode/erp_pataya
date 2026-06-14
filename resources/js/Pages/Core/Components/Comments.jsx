@@ -1,67 +1,163 @@
-import "quill/dist/quill.bubble.css";
-import "quill-mention/autoregister";
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/Components/ui/alert-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { Deferred, router, usePage } from "@inertiajs/react";
-import { MessageSquare, Paperclip, SendHorizonal, Trash2 } from "lucide-react";
-import React, { memo, useCallback, useEffect, useRef, useState } from "react";
-import {
-  cleanedQuillOutput,
-  cn,
-  getLocaleDate,
-  isNullOrWhitespace,
-} from "@/lib/utils";
+import { MessageSquare, Paperclip, Pencil, Trash2 } from "lucide-react";
+import React, {
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
+import { cn, getLocaleDate } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
-import QueryString from "qs";
-import { ReactQuill } from "@/Components/ReactQuill";
+import TiptapEditor from "@/Components/TiptapEditor";
 import { TZDate } from "@date-fns/tz";
 import axios from "axios";
-import { debounce } from "lodash";
 import { format } from "date-fns";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+
+function CommentBody({ activity }) {
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
+  const ref = useRef(null);
+  const { t } = useLaravelReactI18n();
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // scrollHeight > clientHeight means content is taller than 3-line clamp
+    setClamped(el.scrollHeight > el.clientHeight + 2);
+  }, [activity]);
+
+  return (
+    <div className="col-start-2 pt-2 **:text-sm font-normal text-foreground">
+      <div
+        ref={ref}
+        className={expanded ? "tiptap" : "tiptap line-clamp-3"}
+        dangerouslySetInnerHTML={{ __html: activity }}
+      />
+      {(clamped || expanded) && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs text-muted-foreground hover:text-foreground mt-0.5 underline underline-offset-2 cursor-pointer"
+        >
+          {expanded ? t("core.form.show_less") : t("core.form.show_more")}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function userAlias(name) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n.charAt(0))
+    .join("");
+}
 
 export default memo(function Comments() {
   const { logs, lang } = usePage().props;
   const { t } = useLaravelReactI18n();
-  const commentRef = useRef();
   const route = window.route;
   const currentPath = window.location.pathname.replace(/\/$/, "");
   const currentQueryString = window.location.search;
   const commentBasePath = `${currentPath}/comment`;
-  const [comment, setComment] = useState("");
-  const [showSend, setShowSend] = useState(false);
-  const [focusedOnComment, setFocusedOnComment] = useState(false);
 
-  useEffect(() => {
-    if (isNullOrWhitespace(comment) || comment === "<p><br></p>") {
-      setShowSend(false);
+  const currentUser = usePage().props.auth.user;
+
+  const [open, setOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState(null);
+  const [commentJson, setCommentJson] = useState(null);
+  const editorRef = useRef();
+
+  const isEmpty = !commentJson || editorRef.current?.isEmpty;
+
+  // Returns a Promise that resolves with user list.
+  // Uses a cancel-aware debounce: each call cancels the previous pending resolve
+  // so only the latest query fires the API request.
+  const fetchMentionUsers = useMemo(() => {
+    let pendingResolve = null;
+    let timer = null;
+    return (query) =>
+      new Promise((resolve) => {
+        if (timer) clearTimeout(timer);
+        pendingResolve = resolve;
+        timer = setTimeout(async () => {
+          if (pendingResolve !== resolve) return;
+          try {
+            const res = await axios.get(route("users.index"), {
+              params: { search: query, limit: 10 },
+            });
+            resolve(res.data.map((x) => ({ id: x.id, label: x.name })));
+          } catch {
+            resolve([]);
+          }
+        }, 300);
+      });
+  }, []);
+
+  const handleOpenAdd = useCallback(() => {
+    setEditingLog(null);
+    setCommentJson(null);
+    setOpen(true);
+  }, []);
+
+  const handleOpenEdit = useCallback((log) => {
+    setEditingLog(log);
+    setCommentJson(log.comment_json ?? null);
+    setOpen(true);
+  }, []);
+
+  const handleCancel = useCallback(() => {
+    setCommentJson(null);
+    setEditingLog(null);
+    setOpen(false);
+  }, []);
+
+  const handleSubmit = useCallback(() => {
+    const html = editorRef.current?.getHTML() ?? "";
+    const routerOptions = {
+      reset: ["logs"],
+      preserveScroll: true,
+      preserveState: true,
+      replace: true,
+      onSuccess: () => {
+        setCommentJson(null);
+        setEditingLog(null);
+        setOpen(false);
+      },
+    };
+
+    if (editingLog) {
+      router.put(
+        `${commentBasePath}/${editingLog.id}${currentQueryString}`,
+        { comment: html, comment_json: commentJson },
+        routerOptions,
+      );
     } else {
-      setShowSend(true);
-    }
-  }, [comment]);
-  const onSubmit = useCallback(
-    (_comment) => {
       router.post(
         `${commentBasePath}${currentQueryString}`,
-        { comment: cleanedQuillOutput(_comment) },
-        {
-          reset: ["logs"],
-          preserveScroll: true,
-          preserveState: true,
-          replace: true,
-          onSuccess: () => {
-            setComment("");
-            setFocusedOnComment(false);
-            commentRef.current.blur();
-          },
-        },
+        { comment: html, comment_json: commentJson },
+        routerOptions,
       );
-    },
-    [commentBasePath, currentQueryString],
-  );
+    }
+  }, [editingLog, commentJson, commentBasePath, currentQueryString]);
+
   const removeComment = useCallback(
     (id) => {
       router.delete(`${commentBasePath}/${id}${currentQueryString}`, {
@@ -74,110 +170,23 @@ export default memo(function Comments() {
     [commentBasePath, currentQueryString],
   );
 
-  const onKeyDown = useCallback((e, comment, focusedOnComment) => {
-    e.stopPropagation();
-    if (e.ctrlKey && e.key == "b" && focusedOnComment) {
-      e.preventDefault();
-    }
-    if (e.ctrlKey && e.key == "Enter" && focusedOnComment) {
-      e.preventDefault();
-      onSubmit(comment);
-    }
-  }, []);
-
-  const user = usePage().props.auth.user;
-  const alias = user.name
-    .split(" ")
-    .slice(0, 2)
-    .map((n) => n.charAt(0))
-    .join("");
-  const toolbarOptions = [
-    [{ header: [1, 2, 3, 4, 5, 6, false] }],
-    ["bold", "italic", "underline", "strike"], // toggled buttons
-    [{ script: "sub" }, { script: "super" }], // superscript/subscript
-    ["blockquote", "code-block"],
-    ["link"],
-
-    [{ list: "ordered" }, { list: "bullet" }],
-    [{ align: [] }],
-
-    ["clean"], // remove formatting button
-  ];
-  const mention = {
-    allowedChars: /^[A-Za-z\sÅÄÖåäö]*$/,
-    mentionDenotationChars: ["@"],
-    source: debounce(async function (searchTerm, renderList) {
-      const data = await axios
-        .get(
-          `${route("users.index")}?${QueryString.stringify({
-            search: searchTerm,
-            limit: 10,
-          })}`,
-        )
-        .then((res) => {
-          const data = res.data.map((x) => ({ id: x.id, value: x.name }));
-          return data;
-        })
-        .catch((err) => {
-          console.log(err);
-        });
-      renderList(data, searchTerm);
-    }, 500),
-  };
   return (
     <div className="flex flex-col gap-y-4">
       <div className="flex flex-col gap-y-2">
-        <h1 className="text-xl font-bold">{t("core.form.comments")}</h1>
-        <div
-          className="flex w-full max-w-full gap-x-3"
-          onKeyDown={(e) => {
-            onKeyDown(e, comment, focusedOnComment);
-          }}
-        >
-          <Avatar className="rounded-full size-10">
-            {user.image && (
-              <AvatarImage
-                src={
-                  route("files.preview", user.image) +
-                  `?v=${new Date(user.updated_at).getTime()}`
-                }
-                alt={user.name}
-              />
-            )}
-            <AvatarFallback className="text-xl font-semibold rounded-lg">
-              {alias}
-            </AvatarFallback>
-          </Avatar>
-          <ReactQuill
-            ref={commentRef}
-            placeholder="Type a reply / comment"
-            className="bg-muted relative **:font-sans! focus:border-0! grid grid-cols-1 text-wrap w-full max-w-full grow  basis-0  rounded-lg border border-input  text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-            theme="bubble"
-            value={comment}
-            onChange={setComment}
-            modules={{
-              toolbar: toolbarOptions,
-              mention,
-            }}
-            onFocus={() => setFocusedOnComment(true)}
-            onBlur={() => setFocusedOnComment(false)}
-          />
-          {showSend && (
-            <Button
-              type="button"
-              variant="outline"
-              size="icon"
-              className="p-2!"
-              onClick={() => onSubmit(comment)}
-            >
-              <SendHorizonal className="size-6!" />
-            </Button>
-          )}
+        <div className="flex items-center justify-between">
+          <h1 className="text-xl font-bold">{t("core.form.activity")}</h1>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={handleOpenAdd}
+          >
+            <MessageSquare className="size-4 mr-1.5" />
+            {t("core.form.add_comment")}
+          </Button>
         </div>
-      </div>
-      <div className="flex flex-col gap-y-2">
-        <h1 className="text-xl font-bold">{t("core.form.activity")}</h1>
-        <ol className="relative ml-3.5 border-muted border-s-2 ">
+
+        <ol className="relative ml-3.5 border-muted border-s-2">
           <Deferred
             data={["logs"]}
             fallback={
@@ -191,7 +200,16 @@ export default memo(function Comments() {
           >
             {logs &&
               logs.map(
-                ({ id, type, activity, user, created_at, data_after }) => (
+                ({
+                  id,
+                  type,
+                  activity,
+                  user,
+                  created_at,
+                  updated_at,
+                  comment_json,
+                  data_after,
+                }) => (
                   <li key={id} className="mb-3 first:mt-2 ms-6">
                     <div
                       className={cn(
@@ -207,6 +225,7 @@ export default memo(function Comments() {
                         <MessageSquare className="size-4" />
                       )}
                     </div>
+
                     {type == "comment" ? (
                       <div className="rounded-lg px-4 py-1 grid grid-cols-[auto_1fr] gap-x-4 border border-muted-foreground/30">
                         <div className="flex items-center">
@@ -221,45 +240,62 @@ export default memo(function Comments() {
                               />
                             )}
                             <AvatarFallback className="text-xl font-semibold rounded-lg">
-                              {alias}
+                              {userAlias(user.name)}
                             </AvatarFallback>
                           </Avatar>
                         </div>
                         <div className="flex items-center border-b border-muted-foreground/30">
-                          <div className="flex-1">
+                          <div className="flex-1 flex flex-wrap items-center gap-x-1">
                             <Link
                               href={route("users.show", user.id)}
-                              className="hover:underline"
+                              className="hover:underline font-medium"
                             >
                               {user.name}
-                            </Link>{" "}
+                            </Link>
                             <span>{t("core.form.commented")}</span>
-                            <span className="mx-2 text-muted-foreground">
-                              ●
-                            </span>
-                            <span className="text-muted-foreground">
+                            <span className="text-muted-foreground">●</span>
+                            <span className="text-muted-foreground text-xs">
                               {format(new TZDate(created_at, "UTC"), "PPPp", {
                                 locale: getLocaleDate(lang),
                               })}
                             </span>
+                            {updated_at != created_at && (
+                              <span className="text-xs text-muted-foreground italic">
+                                ({t("core.form.comment_edited")})
+                              </span>
+                            )}
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="p-0! hover:text-red-500"
-                            onClick={() => removeComment(id)}
-                          >
-                            <Trash2 />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {currentUser.id === user.id && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="p-0! hover:text-blue-500 size-7"
+                                onClick={() =>
+                                  handleOpenEdit({
+                                    id,
+                                    comment_json,
+                                  })
+                                }
+                              >
+                                <Pencil className="size-3.5" />
+                              </Button>
+                            )}
+                            {currentUser.id === user.id && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="p-0! hover:text-red-500 size-7"
+                                onClick={() => removeComment(id)}
+                              >
+                                <Trash2 className="size-3.5" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                        <div className="[&_pre]:font-sans! [&_span.ql-mention-value]:hidden col-start-2 pt-2 **:text-sm  font-normal text-foreground ql-container ql-bubble font-sans! [&_a]:underline-offset-2 [&_a]:hover:underline">
-                          <div
-                            className="ql-editor p-0!"
-                            dangerouslySetInnerHTML={{
-                              __html: activity,
-                            }}
-                          />
-                        </div>
+                        <CommentBody activity={activity} />
                       </div>
                     ) : (
                       <>
@@ -297,6 +333,40 @@ export default memo(function Comments() {
           </Deferred>
         </ol>
       </div>
+
+      <AlertDialog open={open} onOpenChange={setOpen}>
+        <AlertDialogContent className="max-w-2xl flex flex-col max-h-[85vh] p-0 gap-0">
+          <AlertDialogHeader className="px-6 pt-6 pb-3 shrink-0">
+            <AlertDialogTitle>
+              {editingLog
+                ? t("core.form.edit_comment")
+                : t("core.form.add_comment")}
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          {/* Editor wrapper: toolbar stays sticky, only content area scrolls */}
+          <div className="flex-1 min-h-0 overflow-hidden px-6">
+            <TiptapEditor
+              ref={editorRef}
+              value={commentJson}
+              onValueChange={(json) => setCommentJson(json)}
+              placeholder={t("core.form.comment_placeholder")}
+              mentionSource={fetchMentionUsers}
+              className="h-full flex flex-col"
+              scrollable
+            />
+          </div>
+          <AlertDialogFooter className="px-6 py-4 shrink-0">
+            <AlertDialogCancel onClick={handleCancel}>
+              {t("core.form.cancel")}
+            </AlertDialogCancel>
+            <AlertDialogAction disabled={isEmpty} onClick={handleSubmit}>
+              {editingLog
+                ? t("core.form.comment_update")
+                : t("core.form.comment_send")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 });

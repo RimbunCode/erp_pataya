@@ -51,7 +51,10 @@ class PurchaseRequest extends Model {
             'show'  => true,
             'order' => 3,
         ],
-        'items',
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     protected static function loadRelationsOnShow() {

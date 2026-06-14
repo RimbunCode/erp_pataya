@@ -1,0 +1,8 @@
+{
+  "specId": "4f01ab28-6049-4a57-b0b7-f0b56f2006e4",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Auto-approve pada approval system (step yang approver-nya = requester langsung APPROVED, step sebelumnya SKIPPED, partial auto lanjut ke step pending berikutnya) dan multi-approver per step bermode race (approve pertama lanjut, reject pertama gagal). Multi-approver disimpan di tabel anak approval_scheme_step_approvers & approval_instance_step_approvers, dikonfigurasi via checkbox Advance Mode + nested FormTable pada scheme, serta tampil benar di tab Approvals dokumen. Backward-compat single-approver dipertahankan.",
+  "createdAt": "2026-06-07T00:00:00.000Z",
+  "createdBy": "Claude"
+}

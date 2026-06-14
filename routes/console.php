@@ -15,3 +15,7 @@ Schedule::command('have-transactions:sync')
 Schedule::command('commands:index --rebuild')
     ->dailyAt('01:20')
     ->withoutOverlapping();
+
+Schedule::command('saved-filters:prune')
+    ->dailyAt('02:00')
+    ->withoutOverlapping();

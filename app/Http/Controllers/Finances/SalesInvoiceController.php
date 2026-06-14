@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Finances;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Finances\SalesInvoiceRequest;
-use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
@@ -61,7 +60,7 @@ class SalesInvoiceController extends Controller {
                                 'date'            => now(),
                                 'sales_order'     => $so,
                                 'customer'        => $so?->customer,
-                                'customer_branch' => $so?->customer_branch,
+                                'customer_branch' => $so?->customerBranch,
                                 'income_account'  => $accounts->where('root_type', 'income')->where('account_type', 'income_account')->first(),
                                 'debit_account'   => $accounts->where('root_type', 'asset')->where('account_type', 'receivable')->first(),
                                 'currency'        => $so?->currency,
@@ -107,7 +106,7 @@ class SalesInvoiceController extends Controller {
                                 'income_account'  => $account,
                                 'debit_account'   => $salesInvoice->debitAccount,
                                 'customer'        => $salesInvoice?->customer,
-                                'customer_branch' => $salesInvoice?->customer_branch,
+                                'customer_branch' => $salesInvoice?->customerBranch,
                                 'currency'        => $salesInvoice?->currency,
                                 'amount'          => $salesInvoice?->amount,
                                 'discount_on'     => $salesInvoice?->discount_on,

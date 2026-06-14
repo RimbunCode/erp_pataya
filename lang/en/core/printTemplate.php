@@ -11,13 +11,13 @@ return [
     'cancel'             => 'Cancel',
     'printTemplate'      => 'Print Template',
     'columns'            => [
-        'name'                      => 'Name',
-        'model'                     => 'Model',
-        'model.placeholder'         => 'Select a model',
-        'is_default'                => 'Is Default',
-        'languange'                 => 'Languange',
-        'default_languange'         => 'Default Languange',
-        'default_languange.options' => [
+        'name'                     => 'Name',
+        'model'                    => 'Model',
+        'model.placeholder'        => 'Select a model',
+        'is_default'               => 'Is Default',
+        'languange'                => 'Languange',
+        'default_language'         => 'Default Language',
+        'default_language.options' => [
             'en' => 'English',
             'id' => 'Indonesia',
         ],
@@ -55,7 +55,165 @@ return [
         'show_absolute_values'             => 'Show Absolute Values',
         'show_absolute_values.description' => 'If checked, negative numeric values of Currency, Quantity or Count would be shown as positive',
     ],
-
+    'doc_info'         => 'Document Info',
+    'doc_info.columns' => [
+        'doc_name' => 'Document Name',
+    ],
     'open_editor'    => 'Open Editor',
     'style_settings' => 'Style Settings',
+
+    'editor' => [
+        'tab_style'              => 'Style',
+        'tab_layer'              => 'Layer',
+        'tab_blocks'             => 'Blocks',
+        'tab_variables'          => 'Variables',
+        'tab_token'              => 'Token',
+        'tab_inspector'          => 'Inspector',
+        'token_config'           => 'Token Configuration',
+        'relation_table'         => 'Relation Table Token',
+        'no_relation_active'     => 'No relation table is active. Select a relation table on the canvas.',
+        'apply_config'           => 'Apply Configuration',
+        'manual_css'             => 'Manual CSS',
+        'edit_css'               => 'Edit CSS',
+        'class_manager'          => 'CSS Classes',
+        'add_class'              => 'Add class',
+        'multi_container'        => 'Container',
+        'select_component'       => 'Select a component to edit CSS.',
+        'no_tokens'              => 'No tokens on canvas yet.',
+        'doc_info'               => 'Document Info',
+        'select_token'           => 'Select on Canvas',
+        'label_key'              => 'Label Key',
+        'handlebar_token'        => 'Handlebar Token',
+        'variable_path'          => 'Variable Path',
+        'relation_path'          => 'Relation Path',
+        'columns'                => 'Columns',
+        'html_tag'               => 'HTML Tag',
+        'mobile_mode_info'       => 'Mobile mode: drag & drop and layout structure changes are only available on desktop.',
+        'desktop_only_structure' => 'Structure changes are only available on desktop.',
+        'desktop_only_add'       => 'Adding new components is only available on desktop.',
+        'desktop_only_remove'    => 'Removing components is only available on desktop.',
+        'no_example_data'        => 'Example data is not yet available for this model. Preview may show placeholders.',
+        'load_error'             => 'Failed to load template. Using empty template.',
+        'reload'                 => 'Reload',
+        'save_error'             => 'Failed to save template due to network issue.',
+        'template_invalid'       => 'Template is not valid',
+        'invalid_drop_target'    => 'Invalid drop target for variable component.',
+
+        // MobileEditor
+        'save'                => 'Save',
+        'preview'             => 'Preview',
+        'undo'                => 'Undo',
+        'redo'                => 'Redo',
+        'mobile_editor_title' => 'Mobile Editor',
+        'mobile_editor_desc'  => 'Tap a text component on the canvas to edit its content and basic style.',
+        'no_text_selected'    => 'No text component selected.',
+        'text'                => 'Text',
+        'font_size'           => 'Font Size (px)',
+        'color'               => 'Color',
+        'alignment'           => 'Alignment',
+        'align_left'          => 'Align Left',
+        'align_center'        => 'Align Center',
+        'align_right'         => 'Align Right',
+        'align_justify'       => 'Align Justify',
+
+        // TopBar (reuses save/preview/undo/redo)
+        'outline' => 'Outline',
+        'code'    => 'Code',
+
+        // SaveStatusBadge
+        'status_saving'      => 'Saving...',
+        'status_not_saved'   => 'Not Saved',
+        'status_save_error'  => 'Save Error',
+        'status_saved'       => 'Saved',
+        'status_ready'       => 'Ready',
+        'time_just_now'      => 'just now',
+        'time_minutes_ago'   => ':countm ago',
+        'time_hours_ago'     => ':counth ago',
+        'save_success'       => 'Template saved successfully.',
+        'save_error_message' => 'An error occurred while saving the template.',
+
+        // PreviewModal
+        'preview_template'         => 'Preview Template',
+        'preview_description'      => 'Render the template result using example data from the server.',
+        'loading_preview'          => 'Loading preview...',
+        'render_error_title'       => 'Failed to render preview',
+        'warnings'                 => 'Warnings',
+        'relation_summary_title'   => 'Table Relation Summary',
+        'relation_rows_suffix'     => 'example data rows',
+        'missing_data_title'       => 'Example Data Not Available',
+        'missing_data_message'     => 'Example data is not available for this model. Preview may not represent the final output.',
+        'generate_example_data'    => 'Generate Example Data',
+        'generating_data'          => 'Generating Data...',
+        'close'                    => 'Close',
+        'print'                    => 'Print',
+        'export_pdf'               => 'Export PDF',
+        'popup_blocked'            => 'Popup blocked by browser. Allow popups to print/export.',
+        'example_data_success'     => 'Example data created successfully. Preview reloaded.',
+        'example_data_error'       => 'Failed to create example data automatically. Run seeder and try again.',
+        'template_invalid_preview' => 'Template is not valid for preview.',
+        'preview_iframe_title'     => 'Print Preview',
+
+        // CustomStyleManager
+        'layout'              => 'Layout',
+        'no_style_properties' => 'No style properties available for this component.',
+        'no_manual_css'       => 'No manual CSS applied.',
+
+        // CustomSelectorManager
+        'selectors'          => 'Selectors',
+        'select_a_component' => 'Select a component',
+        'selected'           => 'Selected:',
+        'none'               => 'None',
+
+        // FlexLayoutControls
+        'justify_content' => 'Justify Content',
+        'align_content'   => 'Align Content',
+        'align_items'     => 'Align Items',
+        'column_gap'      => 'Column Gap',
+        'row_gap'         => 'Row Gap',
+
+        // GridLayoutControls
+        'grid_columns'  => 'Grid Columns',
+        'add_column'    => '+ Column',
+        'remove'        => 'Remove',
+        'justify_items' => 'Justify Items',
+
+        // StaticHTMLComponent
+        'custom_html_editor'  => 'Custom HTML Editor',
+        'html_editor_desc'    => 'Enter custom HTML. Dangerous content will be automatically removed for security.',
+        'input_html'          => 'Input HTML',
+        'preview_sanitized'   => 'Preview (Sanitized)',
+        'preview_placeholder' => 'Preview will appear here...',
+        'security_warning'    => 'Security Warning',
+        'cancel_button'       => 'Cancel',
+        'save_html'           => 'Save HTML',
+
+        // StaticHTMLInspector
+        'static_html_inspector' => 'Static HTML Inspector',
+        'select_html_component' => 'Select a Custom HTML component on the canvas to view and edit HTML.',
+        'edit_html'             => 'Edit HTML',
+        'raw_html'              => 'Raw HTML',
+        'sanitization_warning'  => 'Sanitization Warning',
+        'sanitized_preview'     => 'Sanitized Preview',
+        'no_html_stored'        => 'No HTML stored yet.',
+
+        // CSSEditorModal
+        'css_syntax_error'         => 'CSS Syntax Error',
+        'invalid_css_declaration'  => 'Invalid CSS declaration',
+        'protected_selector_title' => 'Protected selector detected',
+        'protected_selector_desc'  => 'This selector cannot be removed. Default properties on this selector also cannot be removed; you can only change values or add new properties.',
+
+        // VariableManager
+        'document_variables'     => 'Document Variables',
+        'no_variables_available' => 'No variables available.',
+
+        // VariableItem
+        'load_columns_error' => 'Failed to load columns.',
+        'example_label'      => 'Example:',
+        'relations_tooltip'  => 'Relation table (drag to create table)',
+        'relation_tooltip'   => 'Relation (click to expand)',
+        'loading_columns'    => 'Loading columns...',
+
+        // TokenConfigurationManager
+        'loading_latest_columns' => 'Loading latest columns...',
+    ],
 ];

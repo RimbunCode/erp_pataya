@@ -9,6 +9,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\User\Permission;
+use App\Services\Core\BufferedAttachmentService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -22,6 +23,8 @@ use Symfony\Component\Uid\Ulid;
  * @method void dataTable(\Illuminate\Http\Request $request)
  */
 trait DataTable {
+    use HasExampleData;
+
     public function initializeDataTable() {
         $this->mergeCasts([
             'have_transactions' => 'boolean',
@@ -47,6 +50,26 @@ trait DataTable {
                 ->update([
                     'deleted_at' => now(),
                 ]);
+        });
+
+        static::created(function ($model) {
+            if (! app()->bound('request')) {
+                return;
+            }
+            // Jangan attach ke entitas attachment itu sendiri. File use DataTable;
+            // tanpa guard ini, membuat File saat request punya `files`/`filesId`
+            // akan memicu attach → uploadFile → buat File lagi → rekursi tak henti.
+            if ($model instanceof File) {
+                return;
+            }
+            $request = request();
+            if (
+                ! $request->hasAny(['buffered_tags', 'buffered_files', 'filesId'])
+                && ! $request->hasFile('files')
+            ) {
+                return;
+            }
+            BufferedAttachmentService::attach($model, $request);
         });
     }
 
@@ -310,8 +333,18 @@ trait DataTable {
 
             return;
         }
+
+        // Add is_example column for example data system (Requirement 8.1)
+        if (! Schema::hasColumn($tableName, 'is_example')) {
+            Schema::table($tableName, function (Blueprint $table) {
+                $table->boolean('is_example')->default(false);
+                $table->index('is_example');
+            });
+        }
         if ((static::$is_submitable ?? false) || (static::$generateCodeSeries ?? false)) {
-            $formatingSeries = FormatingSeries::where('model', static::class)->first();
+            $formatingSeries = FormatingSeries::where('model', static::class)
+                ->withoutGlobalScope('exclude_example_data')
+                ->first();
             if (! $formatingSeries) {
                 FormatingSeries::create([
                     'model'  => static::class,
@@ -472,16 +505,17 @@ trait DataTable {
             }
         }
 
-        Permission::updateOrCreate([
-            'model' => static::class,
-        ], [
-            'module'             => $module,
-            'name'               => Str::plural($alias),
-            'route'              => Str::plural(Str::camel($nameModel)),
-            'permissions'        => (static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions(),
-            'is_submitable'      => (static::$is_submitable ?? false),
-            'allow_only_creator' => (static::$allow_only_creator ?? static::$is_submitable ?? false),
-        ]);
+        Permission::withoutGlobalScope('exclude_example_data')
+            ->updateOrCreate([
+                'model' => static::class,
+            ], [
+                'module'             => $module,
+                'name'               => Str::plural($alias),
+                'route'              => Str::plural(Str::camel($nameModel)),
+                'permissions'        => (static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions(),
+                'is_submitable'      => (static::$is_submitable ?? false),
+                'allow_only_creator' => (static::$allow_only_creator ?? static::$is_submitable ?? false),
+            ]);
         print_r("\e[39m" . static::class . " \e[92m(SUCCESS) \e[39m" . \PHP_EOL);
     }
 

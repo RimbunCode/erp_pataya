@@ -63,6 +63,9 @@ trait LinkModel {
 
     public function initializeLinkModel() {
         $this->defaultConfigColumns = array_merge([
+            'is_example' => [
+                'ignore' => true,
+            ],
             'created_at' => [
                 'titleTrans' => 'core.form.created_at',
             ],
@@ -510,6 +513,24 @@ trait LinkModel {
                 ];
             }
         }
+        $forcedColumns = \array_filter($configColumns, fn ($col) => $col['forceAppend'] ?? false);
+        foreach ($forcedColumns as $key => $config) {
+            $key    = \is_string($key) ? $key : $config;
+            $config = \is_array($config) ? $config : [];
+
+            if (isset($config['ignore']) && $config['ignore']) {
+                continue;
+            }
+            $newColumns[$key] = [
+                'name'       => $key,
+                'sortable'   => true,
+                'searchable' => true,
+                'type'       => 'string',
+                'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
+                ...$config,
+                'primaryKey' => $instance->getKeyName(),
+            ];
+        }
 
         foreach ($appends as $value) {
             if (in_array($value, $hidden)) {
@@ -550,6 +571,7 @@ trait LinkModel {
 
             $classRelation = \get_class($rel->getRelated());
             $type          = 'relations';
+            $typeRelation  = 'basic';
             if (\in_array($classRelation, $excepts)) {
                 continue;
             }
@@ -557,7 +579,8 @@ trait LinkModel {
                 $newKey = $rel->getRelationName();
                 unset($newColumns[$rel->getForeignKeyName()]);
                 unset($newColumns[$rel->getMorphType()]);
-                $type = 'relation';
+                $type         = 'relation';
+                $typeRelation = 'morph';
             } elseif ($rel instanceof BelongsTo) {
                 unset($newColumns[$rel->getForeignKeyName()]);
                 $type   = 'relation';
@@ -567,9 +590,15 @@ trait LinkModel {
                 $type   = 'relation';
                 $route  = $rel->getRelated()->route;
                 $newKey = Str::snake($key);
+            } elseif ($rel instanceof MorphOne) {
+                $type         = 'relation';
+                $route        = $rel->getRelated()->route;
+                $newKey       = Str::snake($key);
+                $typeRelation = 'morph';
             } elseif ($rel instanceof MorphMany) {
-                $type   = 'relations';
-                $newKey = Str::snake($key);
+                $type         = 'relations';
+                $newKey       = Str::snake($key);
+                $typeRelation = 'morph';
             } else {
                 $newKey = Str::snake($key);
             }
@@ -579,6 +608,7 @@ trait LinkModel {
             $newColumns[$newKey] = [
                 'name'           => $newKey,
                 'type'           => $type,
+                'typeRelation'   => $typeRelation,
                 'nameOfFunction' => $key,
                 'related'        => $classRelation,
                 'route'          => isset($route) ? "$route.show" : null,

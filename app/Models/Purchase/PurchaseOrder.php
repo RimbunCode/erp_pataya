@@ -54,7 +54,10 @@ class PurchaseOrder extends Model {
         'base_currency_code' => [
             'ignore' => true,
         ],
-
+        'items' => [
+            'show'  => true,
+            'order' => 10,
+        ],
     ];
 
     public static function templateLink() {
