@@ -44,9 +44,10 @@ class Account extends Model {
     public $translateKey           = 'finances.account';
     protected array $configColumns = [
         'code' => [
-            'show'   => true,
-            'order'  => 0,
-            'isLink' => true,
+            'show'      => true,
+            'order'     => 0,
+            'isLink'    => true,
+            'dependsOn' => ['account_number', 'account_name'],
         ],
         'is_group' => [
             'show'  => true,

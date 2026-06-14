@@ -4,6 +4,7 @@ namespace App\Models\Scopes;
 
 use App\Models\Core\Preference;
 use App\Models\Core\SavedFilter;
+use App\Services\Core\DataTableColumnSelector;
 use App\Services\Core\FilterColumnResolver;
 use App\Services\Core\FilterEvaluator;
 use App\Utils;
@@ -33,12 +34,17 @@ class DataTableScope implements Scope {
     protected function addDataTable(Builder $builder) {
         $builder->macro('dataTable', function (Builder $query, Request $request, ?array $showedColumns = null) {
             $dataTableColumns = \get_class($query->getModel())::getColumns(1);
-            $configColumns    = array_column(\json_decode($_COOKIE['datatable_columns'] ?? '', true) ?? [], null, 'name');
+            // Kolom visible dari cookie (standar Laravel; plaintext krn dikecualikan
+            // dari enkripsi di bootstrap/app.php). Hanya himpunan nama yang dipakai —
+            // width & order diabaikan (urusan frontend). Kosong/invalid → null (default config).
+            $cookieRaw   = $request->cookie('datatable_columns');
+            $visibleKeys = \is_string($cookieRaw)
+                ? \array_keys(\json_decode($cookieRaw, true) ?: [])
+                : null;
 
             $isSubmitable = $query->getModel()->isSubmitable();
             $nameOfTable  = $query->toBase()->from;
-            $query->addSelect("$nameOfTable.*");
-            $defaultShow = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
+            $defaultShow  = Preference::where('key', 'num_per_page')->first()?->value ?? 25;
             // Prioritas: query param `show` > cookie `datatable_show` > default preference.
             $showFromQuery = $request->input('show');
             $show          = (int) ($showFromQuery ?? $request->cookie('datatable_show') ?? $defaultShow);
@@ -54,27 +60,32 @@ class DataTableScope implements Scope {
             // Parse via str_starts_with agar key ber-dash / nested tetap utuh.
             $sort          = $request->input('sort', '-created_at');
             $sortDirection = \str_starts_with($sort, '-') ? 'desc' : 'asc';
-            $sortKey       = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
-            $sortKey       = $this->isTableIncluded($sortKey) ? $sortKey : "$nameOfTable.$sortKey";
+            $sortKeyRaw    = $sortDirection === 'desc' ? \substr($sort, 1) : $sort;
+            $sortKey       = $this->isTableIncluded($sortKeyRaw) ? $sortKeyRaw : "$nameOfTable.$sortKeyRaw";
             $query         = $query->orderBy($sortKey, $sortDirection);
 
-            $relations = [];
-            foreach ($dataTableColumns as $column) {
-                if ($column['ignore'] ?? false) {
-                    continue;
-                }
-                if ($column['type'] == 'relation') {
-                    $relations[] = $column['nameOfFunction'];
-                }
+            // Pruning adaptif: SELECT hanya kolom visible (+PK+FK relasi+dependsOn append)
+            // dan with() hanya relasi visible. Kolom sort lokal non-visible diikutkan via
+            // extraKeys agar orderBy tetap valid. Relasi yang hanya difilter/disort tidak
+            // ikut with(). Anomali/append tanpa dependsOn → fallbackAll (SELECT *).
+            $extraKeys = $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw];
+            $resolved  = (new DataTableColumnSelector(new FilterColumnResolver($dataTableColumns)))
+                ->resolve($dataTableColumns, $query->getModel(), $visibleKeys, $extraKeys);
+
+            if ($resolved['fallbackAll']) {
+                $query->addSelect("$nameOfTable.*");
+            } else {
+                $query->addSelect(\array_map(fn ($c) => "$nameOfTable.$c", $resolved['select']));
             }
-            $with = $relations;
+
+            $with = $resolved['with'];
             if ($request->has('with')) {
                 $with = [
                     ...$with,
                     ...$request->with,
                 ];
             }
-            $query = $query->with($with);
+            $query = $query->with(\array_values(\array_unique($with)));
             if ($request->has('id')) {
                 $data = $query->find($request->id);
 

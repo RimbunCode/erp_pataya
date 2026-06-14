@@ -72,9 +72,7 @@ export const convertColWidth = (colWidth) => {
 export const createHeaders = (headers, ignoreCookie = false) => {
   const columnsFromCookie = ignoreCookie
     ? null
-    : JSON.parse(
-        getCookieByName(`${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`),
-      );
+    : JSON.parse(getCookieByName(DATATABLE_COLUMNS_KEY) || "null");
   // const newHeaders = { ...headers };
   Object.values(headers).forEach((col) => {
     const colFromCookie = ignoreCookie ? null : columnsFromCookie?.[col.name];
@@ -268,9 +266,14 @@ const Table2 = forwardRef(function Table2(
     reload,
     isDynamicData,
     isLoading,
+    persistColumns = true,
   },
   ref,
 ) {
+  // Skip baca/tulis cookie kolom bila data dinamis (dikelola parent) ATAU
+  // persistColumns dimatikan (mis. Table2 dibungkus Dialog — agar perubahan
+  // kolomnya tidak menimpa preferensi cookie tabel halaman).
+  const skipCookie = isDynamicData || !persistColumns;
   const { t } = useLaravelReactI18n();
   const [data, setData] = useState(initialData);
   useDidMountEffect(() => {
@@ -312,10 +315,10 @@ const Table2 = forwardRef(function Table2(
   // const [tableHeight, setTableHeight] = useState("auto");
   const [activeIndex, setActiveIndex] = useState(null);
   const tableElement = useRef(null);
-  const [columns, setColumns] = useState(createHeaders(headers, isDynamicData));
+  const [columns, setColumns] = useState(createHeaders(headers, skipCookie));
   const [openColumnsFilter, setOpenColumnsFilter] = useState(false);
   useDidMountEffect(() => {
-    setColumns(createHeaders(headers, isDynamicData));
+    setColumns(createHeaders(headers, skipCookie));
   }, [headers]);
 
   const sensors = useSensors(
@@ -413,7 +416,7 @@ const Table2 = forwardRef(function Table2(
   }, [columns]);
 
   useEffect(() => {
-    if (isDynamicData) return;
+    if (skipCookie) return;
     const newShowedColumns = {};
     showedColumns.forEach((col, index) => {
       newShowedColumns[col.name] = {
@@ -421,15 +424,11 @@ const Table2 = forwardRef(function Table2(
         order: index,
       };
     });
-    setCookie(
-      `${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`,
-      JSON.stringify(newShowedColumns),
-      {
-        days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
-        sameSite: "lax",
-      },
-    );
+    setCookie(DATATABLE_COLUMNS_KEY, JSON.stringify(newShowedColumns), {
+      days: DATATABLE_COLUMNS_EXPIRED,
+      path: "/",
+      sameSite: "lax",
+    });
   }, [showedColumns]);
   const mouseMove = useCallback(
     (e) => {
@@ -692,10 +691,9 @@ const Table2 = forwardRef(function Table2(
               setOpenColumnsFilter(false);
             }}
             onReset={() => {
-              removeCookie(
-                `${DATATABLE_COLUMNS_KEY}_${window.location.pathname}`,
-                window.location.pathname,
-              );
+              if (!skipCookie) {
+                removeCookie(DATATABLE_COLUMNS_KEY, "/");
+              }
               router.reload();
               setOpenColumnsFilter(false);
             }}

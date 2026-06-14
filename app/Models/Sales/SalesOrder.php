@@ -109,7 +109,8 @@ class SalesOrder extends Model {
             'ignore' => true,
         ],
         'rent_date' => [
-            'type' => 'datetime',
+            'type'      => 'datetime',
+            'dependsOn' => ['start_date', 'end_date'],
         ],
         'items' => [
             'show'  => true,
