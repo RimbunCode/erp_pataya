@@ -6,6 +6,8 @@ use App\Http\Controllers\Core\BranchController;
 use App\Http\Controllers\Core\CommandSearchController;
 use App\Http\Controllers\Core\CompanyController;
 use App\Http\Controllers\Core\CompanyLogoController;
+use App\Http\Controllers\Core\CountryController;
+use App\Http\Controllers\Core\CurrencyController;
 use App\Http\Controllers\Core\DashboardController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\FormatingSeriesController;
@@ -185,6 +187,9 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
         });
         // Branches
         Route::resourceDetail('branch', BranchController::class);
+        // Countries & Currencies
+        Route::resourceDetail('country', CountryController::class);
+        Route::resourceDetail('currency', CurrencyController::class);
         Route::resourceDetail('formatingSeries', FormatingSeriesController::class);
         Route::resourceDetail('approvalScheme', ApprovalSchemeController::class);
 

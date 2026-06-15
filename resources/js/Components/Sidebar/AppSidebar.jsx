@@ -276,6 +276,18 @@ const navList = [
         model: "App\\Models\\Core\\Branch",
       },
       {
+        title: "Countries",
+        url: "/settings/countries",
+        urlPattern: "/settings/countries/*",
+        model: "App\\Models\\Core\\Country",
+      },
+      {
+        title: "Currencies",
+        url: "/settings/currencies",
+        urlPattern: "/settings/currencies/*",
+        model: "App\\Models\\Core\\Currency",
+      },
+      {
         title: "Manage Dashboards",
         url: "/settings/dashboards",
         urlPattern: "/settings/dashboards/*",

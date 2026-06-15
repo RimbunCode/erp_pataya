@@ -101,7 +101,7 @@ trait DataTable {
         );
         Log::create([
             'user_id'       => Auth::user()->id,
-            'loggable_id'   => $this->id,
+            'loggable_id'   => $this->getKey(),
             'loggable_type' => get_class($this),
             'activity'      => [
                 'en' => ':user created this',
@@ -132,7 +132,7 @@ trait DataTable {
 
         Log::create([
             'user_id'       => Auth::user()->id,
-            'loggable_id'   => $this->id,
+            'loggable_id'   => $this->getKey(),
             'loggable_type' => get_class($this),
             'activity'      => [
                 'en' => ':user updated this',
@@ -149,7 +149,7 @@ trait DataTable {
         }
         Log::create([
             'user_id'       => Auth::user()->id,
-            'loggable_id'   => $this->id,
+            'loggable_id'   => $this->getKey(),
             'loggable_type' => get_class($this),
             'activity'      => [
                 'en' => ':user deleted this',
