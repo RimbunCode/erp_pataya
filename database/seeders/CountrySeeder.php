@@ -12,7 +12,7 @@ class CountrySeeder extends Seeder {
     private function fetchAllCountries(): array {
         $url     = config('services.restcountries.url');
         $key     = config('services.restcountries.key');
-        $fields  = 'names.official,codes.alpha_2,languages,flag.url_svg,timezones,currencies,number_format';
+        $fields  = 'names.common,codes.alpha_2,languages,flag.url_svg,timezones,currencies,number_format';
         $all     = [];
         $offset  = 0;
         $hasMore = true;
@@ -83,8 +83,8 @@ class CountrySeeder extends Seeder {
         $currencies  = [];
 
         usort($countries, fn ($a, $b) => strcmp(
-            $a['names']['official'] ?? '',
-            $b['names']['official'] ?? '',
+            $a['names']['common'] ?? '',
+            $b['names']['common'] ?? '',
         ));
 
         foreach ($countries as $country) {
@@ -103,7 +103,7 @@ class CountrySeeder extends Seeder {
 
             Country::create([
                 'code'      => $code,
-                'name'      => $country['names']['official'] ?? $code,
+                'name'      => $country['names']['common'] ?? $code,
                 'lang_code' => $country['languages'][0]['bcp47'] ?? null,
                 'url_flag'  => $country['flag']['url_svg'] ?? null,
                 'timezones' => array_unique($ianaNames) ?: null,

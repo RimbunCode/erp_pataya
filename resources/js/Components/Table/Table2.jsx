@@ -88,9 +88,8 @@ export const createHeaders = (headers, ignoreCookie = false) => {
   const columnsFromCookie = ignoreCookie
     ? null
     : JSON.parse(
-        getCookieByName(
-          datatableColumnsCookieKey(window.location.pathname),
-        ) || "null",
+        getCookieByName(datatableColumnsCookieKey(window.location.pathname)) ||
+          "null",
       );
   // const newHeaders = { ...headers };
   Object.values(headers).forEach((col) => {
@@ -451,7 +450,7 @@ const Table2 = forwardRef(function Table2(
       JSON.stringify(newShowedColumns),
       {
         days: DATATABLE_COLUMNS_EXPIRED,
-        path: "/",
+        path: window.location.pathname,
         sameSite: "lax",
       },
     );

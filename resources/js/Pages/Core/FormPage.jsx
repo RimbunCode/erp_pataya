@@ -674,6 +674,7 @@ const FormPage = memo(
       banner,
       printable: _printable,
       usePasswordConfirmationForDelete,
+      primaryKey = "id",
     },
     ref,
   ) {
@@ -717,9 +718,15 @@ const FormPage = memo(
       (e) => {
         e.preventDefault();
         if (e.action == "submit") {
-          put(route(`${pluralize.plural(name ?? "")}.submit`, defaultData.id), {
-            isSubmit: true,
-          });
+          put(
+            route(
+              `${pluralize.plural(name ?? "")}.submit`,
+              defaultData[primaryKey],
+            ),
+            {
+              isSubmit: true,
+            },
+          );
           return;
         }
 
@@ -736,7 +743,12 @@ const FormPage = memo(
         }
 
         form.transform((payload) => payload);
-        put(route(`${pluralize.plural(name ?? "")}.update`, defaultData.id));
+        put(
+          route(
+            `${pluralize.plural(name ?? "")}.update`,
+            defaultData[primaryKey],
+          ),
+        );
       },
       [route, name, isCreate, defaultData, data, form],
     );
@@ -807,10 +819,17 @@ const FormPage = memo(
       setShowAlertBeforeCancel(true);
     }, []);
     const onCancel = useCallback(() => {
-      put(route(`${pluralize.plural(name ?? "")}.cancel`, defaultData.id));
+      put(
+        route(
+          `${pluralize.plural(name ?? "")}.cancel`,
+          defaultData[primaryKey],
+        ),
+      );
     }, []);
     const amend = useCallback(() => {
-      put(route(`${pluralize.plural(name ?? "")}.amend`, defaultData.id));
+      put(
+        route(`${pluralize.plural(name ?? "")}.amend`, defaultData[primaryKey]),
+      );
     }, []);
     return (
       <AppLayout
@@ -886,7 +905,7 @@ const FormPage = memo(
                         <Link
                           href={route(
                             `${pluralize.plural(name ?? "")}.print`,
-                            defaultData.id,
+                            defaultData[primaryKey],
                           )}
                         >
                           <PrinterIcon />
@@ -958,7 +977,7 @@ const FormPage = memo(
                                 href={route(
                                   `${pluralize.plural(name ?? "")}.print`,
                                   {
-                                    [name]: defaultData.id,
+                                    [name]: defaultData[primaryKey],
                                     printTemplate: print.id,
                                   },
                                 )}
@@ -1002,7 +1021,7 @@ const FormPage = memo(
                     onClick={() =>
                       deleteItem(
                         `${pluralize.plural(name ?? "")}.destroy`,
-                        defaultData.id,
+                        defaultData[primaryKey],
                         {
                           usePasswordConfirmation:
                             usePasswordConfirmationForDelete,
@@ -1237,71 +1256,6 @@ const FormPage = memo(
     );
   }),
 );
-
-// const Connections = memo(
-//   forwardRef(function Connections(_, ref) {
-//     const route = window.route;
-//     const { t } = useLaravelReactI18n();
-//     const { connections } = usePage().props;
-//     const LoadingIndicator = useMemo(() => {
-//       return (
-//         <div className="text-base! font-normal text-foreground flex gap-x-4">
-//           <LoadingIcon className="size-4" />
-//           <span>{t("core.form.loading")} ...</span>
-//         </div>
-//       );
-//     }, [t]);
-//     return (
-//       <TabsContent value="connections" className="mt-0" ref={ref}>
-//         <div className="p-4 mt-0! border-b-0">
-//           <WhenVisible data={["connections"]} fallback={LoadingIndicator}>
-//             <div className="columns-sm space-y-4 gap-x-4">
-//               {connections &&
-//                 connections?.map((connection) => {
-//                   return (
-//                     <HoverCard key={connection.reference_type}>
-//                       <HoverCardTrigger asChild>
-//                         <Link
-//                           className="badge secondary gap-x-2 shadow-md"
-//                           href={route(connection.route)}
-//                         >
-//                           {connection.model}
-//                           <span className="rounded-full size-6 flex justify-center items-center bg-foreground/90 text-muted!">
-//                             {connection.count}
-//                           </span>
-//                         </Link>
-//                       </HoverCardTrigger>
-//                       <HoverCardContent
-//                         className="max-w-full sm:max-w-80 w-auto"
-//                         side="right"
-//                         align="start"
-//                       >
-//                         <ScrollArea className="max-h-96">
-//                           {connection.items?.map((item) => {
-//                             return (
-//                               <div key={item.id}>
-//                                 <Link
-//                                   href={route(item.route, item.reference_id)}
-//                                   className="text-blue-800 dark:text-blue-200 hover:underline"
-//                                 >
-//                                   {item.reference_display}
-//                                 </Link>
-//                               </div>
-//                             );
-//                           })}
-//                         </ScrollArea>
-//                         <HoverCardArrow />
-//                       </HoverCardContent>
-//                     </HoverCard>
-//                   );
-//                 })}
-//             </div>
-//           </WhenVisible>
-//         </div>
-//       </TabsContent>
-//     );
-//   }),
-// );
 
 const ApprovalActedByDetail = memo(function ApprovalActedByDetail({
   acted_by,

@@ -64,8 +64,7 @@ class DataTableScope implements Scope {
             // Prioritas: query param `show` > cookie `datatable_show` > default preference.
             $showFromQuery = $request->input('show');
             $show          = (int) ($showFromQuery ?? $request->cookie('datatable_show') ?? $defaultShow);
-            dd($show, $request->cookie('datatable_show'));
-            $show = $show <= 0 ? 25 : $show;
+            $show          = $show <= 0 ? 25 : $show;
             // Kalau `show` datang dari query param, persist ke cookie pada path yang
             // diakses agar konsisten di kunjungan berikutnya tanpa query param.
             if ($showFromQuery !== null) {
