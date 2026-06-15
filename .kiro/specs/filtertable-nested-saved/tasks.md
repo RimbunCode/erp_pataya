@@ -132,7 +132,7 @@ Implementasi mengikuti arah data: **backend dulu** (migration → model → `Fil
     - Audit `ValueField`/`DateSelector`/`FilterTable2`/`FilterItem2`: semua label/placeholder/tombol via `t(...)`; `select_value` terima `column.title`; satu-satunya literal (`sr-only` DialogDescription) di-i18n-kan ✓
     - _Requirements: 9.1, 9.5_
 
-- [~] 10. Final checkpoint — Ensure all tests pass + manual e2e
+- [x] 10. Final checkpoint — Ensure all tests pass + manual e2e
   - Pint `--dirty` → fixed 5 file (DataTableScope, FilterEvaluator, migration, 2 test) ✓
   - Spec tests: FilterEvaluatorTest 16 passed (38 assert), SavedFilterTest 11 passed (23 assert) ✓
   - Full suite: 265 passed; 64 failed = `*.is_example no such column` (PRE-EXISTING di baseline, dibuktikan via git stash → SubmitableSnapshotFormatTest gagal sama tanpa perubahan kita). BUKAN regresi.
