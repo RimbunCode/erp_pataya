@@ -12,26 +12,27 @@ class PreferenceSeeder extends Seeder {
      */
     public function run(): void {
         $preferencesArr = [
-            'num_per_page'     => 100,
-            'per_page_options' => [
+            'num_per_page'          => 100,
+            'per_page_options'      => [
                 50,
                 100,
                 200,
                 300,
             ],
-            'company_name'        => 'PATAYA',
-            'short_name'          => 'PSN',
-            'email'               => 'pataya@gmail.com',
-            'phone'               => 'asdas',
-            'street'              => 'Jl. Rungkut Mejoyo Selatan No.9',
-            'city'                => 'Surabaya',
-            'state'               => 'Jawa Timur',
-            'zip_code'            => '60293',
-            'country_id'          => 'IDN',
-            'default_currency_id' => 'idr',
-            'timezone'            => 'Asia/Jakarta',
+            'company_name'          => 'PATAYA',
+            'short_name'            => 'PSN',
+            'email'                 => 'pataya@gmail.com',
+            'phone'                 => 'asdas',
+            'street'                => 'Jl. Rungkut Mejoyo Selatan No.9',
+            'city'                  => 'Surabaya',
+            'state'                 => 'Jawa Timur',
+            'zip_code'              => '60293',
+            'country_id'            => 'ID',
+            'default_currency_id'   => 'idr',
+            'default_number_format' => '#.###,##',
+            'timezone'              => 'Asia/Jakarta',
         ];
-        $preferences = collect($preferencesArr)->map(fn ($value, $key) => [
+        $preferences    = collect($preferencesArr)->map(fn ($value, $key) => [
             'key'   => $key,
             'value' => $value,
         ])->values();

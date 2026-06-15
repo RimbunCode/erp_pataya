@@ -25,20 +25,21 @@ class CompanyController extends Controller {
     public function index() {
         $oriPreferences = Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
             ->get(['key', 'value']);
-        $preferences = $oriPreferences->mapWithKeys(fn ($pref) => [$pref->key => $pref->value]);
+        $preferences    = $oriPreferences->mapWithKeys(fn ($pref) => [$pref->key => $pref->value]);
 
         return Inertia::render('Settings/Company', [
-            'company'    => $preferences->toArray(),
-            'currencies' => Inertia::defer(function () {
+            'model'       => Preference::class,
+            'company'     => $preferences->toArray(),
+            'currencies'  => Inertia::defer(function () {
                 return Currency::all()->toArray();
             }),
-            'countries' => Inertia::defer(function () {
+            'countries'   => Inertia::defer(function () {
                 return Country::all();
             }),
             'breadcrumbs' => [
                 ['name' => 'Company Details'],
             ],
-            'timezones' => timezone_identifiers_list(),
+            'timezones'   => timezone_identifiers_list(),
         ]);
     }
 
@@ -48,6 +49,16 @@ class CompanyController extends Controller {
         foreach ($preferences as $key => $value) {
             Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
                 ->updateOrCreate(['key' => $key], ['value' => $value]);
+        }
+        // Derive aplikasi-wide number format dari currency default terpilih.
+        // Currency.number_format hanya jadi sumber nilai untuk default_number_format.
+        if (isset($preferences['default_currency_id'])) {
+            $currency = Currency::find($preferences['default_currency_id']);
+            Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
+                ->updateOrCreate(
+                    ['key' => 'default_number_format'],
+                    ['value' => $currency?->number_format ?? '#,###.##'],
+                );
         }
         Branch::updateOrCreate(
             [

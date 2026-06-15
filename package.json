@@ -6,6 +6,8 @@
     "dev": "vite",
     "zodgen": "laravel-zodgen && node zodgen-postprocess.mjs",
     "docs": "jsdoc -c jsdoc.conf.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint \"resources/js/**/*.{js,jsx,ts,tsx}\"",
     "lint:fix": "eslint \"resources/js/**/*.{js,jsx,ts,tsx}\" --fix",
     "postinstall": "patch-package && rimraf node_modules/laravel-react-i18n/node_modules/react"

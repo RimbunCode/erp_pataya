@@ -12,6 +12,7 @@ import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import Select from "@/Components/Select";
 import { columnHasOptions, getOperators } from "./operators";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import NumberInput from "@/Components/NumberInput";
 
 /**
  * ValueField — merender input value yang sesuai dengan (column.type, operator).
@@ -60,7 +61,7 @@ export default function ValueField({ column, operator, value, onChange }) {
 
     case "currency":
       return (
-        <CurrencyInput
+        <NumberInput
           className="text-left"
           value={value}
           onValueChange={onChange}
@@ -71,11 +72,7 @@ export default function ValueField({ column, operator, value, onChange }) {
       return (
         <RangePair
           render={(v, set) => (
-            <CurrencyInput
-              className="text-left"
-              value={v}
-              onValueChange={set}
-            />
+            <NumberInput className="text-left" value={v} onValueChange={set} />
           )}
           value={value}
           onChange={onChange}
