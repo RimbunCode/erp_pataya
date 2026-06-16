@@ -177,7 +177,6 @@ export function setupInertiaToast({ t }) {
       },
     ];
     const payloadOptions = payload[1];
-    console.log({ toastId, payload });
     if (toastId != null) {
       toast.update(toastId, {
         title,
@@ -226,7 +225,6 @@ export function setupInertiaToast({ t }) {
   const offSuccess = router.on("success", () => {
     // Hanya tampilkan toast success bila loading toast sempat muncul, agar
     // navigasi cepat (di bawah delay-threshold) tidak memunculkan toast.
-    console.log("success", toastId);
     if (toastId != null) {
       settle(TOAST_TYPE.SUCCESS, t("core.toast.success"));
     } else {
@@ -253,7 +251,6 @@ export function setupInertiaToast({ t }) {
   // (mis. dibatalkan), batalkan timer & tutup loading toast agar tidak nyangkut.
   const offFinish = router.on("finish", (event) => {
     clearTimer();
-    console.log("finish", toastId);
     const wasCancelled =
       event.detail?.visit?.cancelled || event.detail?.visit?.interrupted;
     if (toastId != null && wasCancelled) {
