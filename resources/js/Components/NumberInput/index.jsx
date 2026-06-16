@@ -1,17 +1,29 @@
-import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { cn, mergeRefs } from "@/lib/utils";
 import { formatNumber, formatTyping, normalizeSign } from "./formatNumber";
 
 import { cleanNumber } from "./cleanNumber";
 import { parseNumberFormat } from "./parseNumberFormat";
-import { useCurrency } from "./useCurrency";
+import { resolveCurrencyInput, useCurrency } from "./useCurrency";
+import { fetchExchangeRate } from "./fetchExchangeRate";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
+import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
 export { formatNumber, formatTyping, normalizeSign } from "./formatNumber";
 export { parseNumberFormat } from "./parseNumberFormat";
 export { cleanNumber } from "./cleanNumber";
 export { getCurrencyConfig } from "./getCurrencyConfig";
+export { fetchExchangeRate } from "./fetchExchangeRate";
 
 const DEFAULT_CLASSNAME =
   "text-right flex h-8 w-full rounded-md border border-input bg-muted px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm";
@@ -193,6 +205,8 @@ const countDigits = (str) => {
  * @param {string} [props.prefix] teks di depan; menang atas symbol currency
  * @param {string} [props.suffix] teks di belakang
  * @param {"default"|string} [props.currencyCode] kode currency untuk menarik symbol; `"default"` memakai preference default
+ * @param {boolean} [props.enableExchangeRate] aktifkan fetch exchange rate otomatis dari Frankfurter API; default `false`
+ * @param {(result: { rate: number, base: string, quote: string, date: string } | null) => void} [props.onExchangeRate] callback hasil exchange rate; `null` bila currency sama
  * @param {import('react').Ref<HTMLInputElement>} ref ref yang diteruskan ke elemen `<input>`
  * @returns {import('react').ReactElement}
  * @example
@@ -222,12 +236,15 @@ export default forwardRef(function NumberInput(
     prefix,
     suffix,
     currencyCode,
+    enableExchangeRate = false,
+    onExchangeRate,
     ...props
   },
   ref,
 ) {
   const { preferences } = usePage().props;
   const { symbol } = useCurrency(currencyCode);
+  const { t } = useLaravelReactI18n();
 
   // Defensif: jika parent terlanjur menyimpan object payload sebagai value.
   const value = normalizeValue(rawValue);
@@ -309,6 +326,63 @@ export default forwardRef(function NumberInput(
       setDisplayValue(formatNumber(value, config));
     }
   }, [value, config]);
+
+  // Fetch exchange rate when enableExchangeRate is truthy.
+  // Menampilkan toast loading yang di-update in-place menjadi success/error
+  // via toast.promise(). Tombol Retry muncul saat error.
+  const doFetchExchangeRate = useCallback(() => {
+    const resolution = resolveCurrencyInput(currencyCode);
+    if (resolution.kind !== "fetch") return;
+
+    const baseCode = resolution.code;
+    const quoteCode = preferences?.default_currency_id;
+
+    if (!baseCode || !quoteCode) return;
+
+    // currencyCode "default" sama dengan default_currency_id -> skip tanpa toast.
+    if (baseCode === "default" || baseCode === quoteCode) {
+      onExchangeRate?.(null);
+      return;
+    }
+
+    const promise = fetchExchangeRate(baseCode, { quote: quoteCode });
+
+    toast.promise(promise, {
+      loading: t("core.toast.exchange_rate.loading", {
+        base: baseCode,
+        quote: quoteCode,
+      }),
+      success: (data) => {
+        onExchangeRate?.(data);
+        return t("core.toast.exchange_rate.success");
+      },
+      error: (_err) => {
+        onExchangeRate?.(null);
+        return t("core.toast.exchange_rate.error");
+      },
+      description: {
+        success: (data) =>
+          t("core.toast.exchange_rate.success_desc", {
+            rate: data.rate,
+            base: data.base,
+            quote: data.quote,
+          }),
+        error: (err) =>
+          t("core.toast.exchange_rate.error_desc", { message: err.message }),
+      },
+      action: {
+        error: {
+          label: t("core.toast.retry"),
+          onClick: doFetchExchangeRate,
+        },
+      },
+    });
+  }, [currencyCode, preferences?.default_currency_id, onExchangeRate, t]);
+
+  useEffect(() => {
+    if (!enableExchangeRate) return;
+    doFetchExchangeRate();
+  }, [enableExchangeRate, doFetchExchangeRate]);
 
   const emit = (raw, formatted) => {
     if (!onValueChange) return;

@@ -8,6 +8,7 @@
 .claude/skills
 .github/skills
 .kiro/skills
+.qoder/repowiki
 
 # opencode (project-local; junctions to .claude/.agents sources)
 /.opencode/command
