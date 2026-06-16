@@ -30,11 +30,11 @@ class CountrySeeder extends Seeder {
                 break;
             }
 
-            $body     = $response->json('data');
-            $objects  = $body['objects'] ?? [];
-            $all      = array_merge($all, $objects);
-            $hasMore  = $body['meta']['more'] ?? false;
-            $offset  += 100;
+            $body    = $response->json('data');
+            $objects = $body['objects'] ?? [];
+            $all     = array_merge($all, $objects);
+            $hasMore = $body['meta']['more'] ?? false;
+            $offset += 100;
         }
 
         return $all;
