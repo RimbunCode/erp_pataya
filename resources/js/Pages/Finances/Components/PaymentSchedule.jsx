@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import { FormPageContent } from "@/Pages/Core/FormPage";
@@ -68,7 +68,7 @@ function PaymentSchedule({
         width: 1,
         cell({ data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               suffix="%"
               value={data}
@@ -90,7 +90,7 @@ function PaymentSchedule({
         width: 1,
         cell({ dataRow, data, additionalData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               disabled={!dataRow.invoice_portion}
               decimalScale={2}
               currencyCode={currencyCode}
@@ -162,14 +162,14 @@ function PaymentSchedule({
         width: 1,
         cell({ data: discount, dataRow, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               className="text-left"
               value={discount}
               currencyCode={
                 dataRow.discount_type == "percentage" ? undefined : currencyCode
               }
               onValueChange={(value) => setData("discount", value)}
-              decimalsLimit={2}
+              decimalScale={2}
               suffix={dataRow.discount_type == "percentage" ? "%" : ""}
               min={dataRow.discount_type == "percentage" && 0}
               max={dataRow.discount_type == "percentage" && 100}
@@ -185,7 +185,7 @@ function PaymentSchedule({
         width: 1,
         cell({ data, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               currencyCode={currencyCode}
               value={data ?? additionalData?.outstanding_amount ?? 0}

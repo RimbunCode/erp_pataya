@@ -4,6 +4,7 @@ import * as fc from "fast-check";
 import { cleanNumber } from "./cleanNumber";
 import { formatNumber, formatTyping, normalizeSign } from "./formatNumber";
 import { parseNumberFormat } from "./parseNumberFormat";
+import { resolveCurrencyInput } from "./useCurrency";
 
 describe("parseNumberFormat", () => {
   it("parses US format #,###.##", () => {
@@ -303,6 +304,53 @@ describe("cleanNumber", () => {
     expect(cleanNumber("", {})).toBe("");
     expect(cleanNumber("-", {})).toBe("");
     expect(cleanNumber(null, {})).toBe("");
+  });
+});
+
+describe("resolveCurrencyInput", () => {
+  it("string code -> fetch by that code", () => {
+    expect(resolveCurrencyInput("usd")).toEqual({ kind: "fetch", code: "usd" });
+  });
+
+  it('"default" string -> fetch by "default" (resolved later by getCurrencyConfig)', () => {
+    expect(resolveCurrencyInput("default")).toEqual({
+      kind: "fetch",
+      code: "default",
+    });
+  });
+
+  it("object with symbol -> use symbol directly, no fetch", () => {
+    expect(
+      resolveCurrencyInput({ code: "usd", symbol: "$", name: "US Dollar" }),
+    ).toEqual({ kind: "symbol", symbol: "$" });
+  });
+
+  it("object without symbol -> fallback fetch by object.code", () => {
+    expect(resolveCurrencyInput({ code: "idr", name: "Rupiah" })).toEqual({
+      kind: "fetch",
+      code: "idr",
+    });
+  });
+
+  it("object with empty/null symbol -> fallback fetch by object.code", () => {
+    expect(resolveCurrencyInput({ code: "idr", symbol: "" })).toEqual({
+      kind: "fetch",
+      code: "idr",
+    });
+    expect(resolveCurrencyInput({ code: "idr", symbol: null })).toEqual({
+      kind: "fetch",
+      code: "idr",
+    });
+  });
+
+  it("null/undefined/empty -> none (no symbol, no fetch)", () => {
+    expect(resolveCurrencyInput(null)).toEqual({ kind: "none" });
+    expect(resolveCurrencyInput(undefined)).toEqual({ kind: "none" });
+    expect(resolveCurrencyInput("")).toEqual({ kind: "none" });
+  });
+
+  it("object without symbol AND without code -> none", () => {
+    expect(resolveCurrencyInput({ name: "x" })).toEqual({ kind: "none" });
   });
 });
 

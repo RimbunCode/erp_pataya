@@ -1,13 +1,88 @@
-import React, { forwardRef, useEffect, useMemo } from "react";
+import React, { forwardRef, useEffect, useMemo, useState } from "react";
 
 import Handlebars from "handlebars";
 import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
-import { formatValue } from "@/Components/CurrencyInput";
+import { formatNumber } from "@/Components/NumberInput/formatNumber";
+import { getCurrencyConfig } from "@/Components/NumberInput/getCurrencyConfig";
 import { getLocaleDate, getSafePrintFontFamily } from "@/lib/utils";
 import { initHandlebar } from "@/lib/initHandlebar";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
+
+/**
+ * Pemisah angka berdasarkan locale: "id" memakai ribuan "." & desimal ",",
+ * selain itu memakai gaya "en" (ribuan "," & desimal ".").
+ * @param {string} [lang]
+ * @returns {{ groupSeparator: string, decimalSeparator: string }}
+ */
+function separatorsForLocale(lang) {
+  if (typeof lang === "string" && lang.toLowerCase().startsWith("id")) {
+    return { groupSeparator: ".", decimalSeparator: "," };
+  }
+  return { groupSeparator: ",", decimalSeparator: "." };
+}
+
+/**
+ * Resolusi currency untuk satu nilai dengan precedence (sama seperti Table2 Cell):
+ * `col.currencyCode` → `data.currency` → default. Mengembalikan symbol string
+ * (lewat map `currencySymbols` yang sudah di-pre-resolve di komponen) atau "".
+ * @param {object} col definisi kolom
+ * @param {object} data row data yang sedang diformat
+ * @param {object} opts berisi `currencySymbols` (map code→symbol) & `defaultCurrencyCode`
+ * @returns {string} symbol currency atau ""
+ */
+function resolveCurrencySymbol(col, data, opts) {
+  const symbols = opts.currencySymbols ?? {};
+
+  // 1) col.currencyCode (string code, atau object {code,symbol}).
+  const colCurrency = col?.currencyCode;
+  if (colCurrency) {
+    if (typeof colCurrency === "object") {
+      return colCurrency.symbol ?? symbols[colCurrency.code] ?? "";
+    }
+    return symbols[colCurrency] ?? "";
+  }
+
+  // 2) data.currency (object dari backend, symbol dijamin tersedia).
+  const rowCurrency = data?.currency;
+  if (rowCurrency) {
+    if (typeof rowCurrency === "object") {
+      return rowCurrency.symbol ?? symbols[rowCurrency.code] ?? "";
+    }
+    return symbols[rowCurrency] ?? "";
+  }
+
+  // 3) default.
+  return symbols[opts.defaultCurrencyCode] ?? "";
+}
+
+/**
+ * Mengumpulkan semua currency code unik (string) yang dipakai kolom bertipe
+ * "currency" di seluruh model pada konfigurasi columns. Dipakai untuk
+ * pre-resolve symbol sekali sebelum render (formatData bersifat sinkron).
+ * @param {object} columns map model→(map field→col)
+ * @returns {string[]} daftar code unik
+ */
+function collectCurrencyCodes(columns) {
+  const codes = new Set();
+  if (!columns || typeof columns !== "object") return [];
+  for (const model in columns) {
+    const cols = columns[model];
+    if (!cols || typeof cols !== "object") continue;
+    for (const field in cols) {
+      const col = cols[field];
+      if (col?.type !== "currency") continue;
+      const cc = col.currencyCode;
+      if (typeof cc === "string" && cc) {
+        codes.add(cc);
+      } else if (cc && typeof cc === "object" && cc.code && !cc.symbol) {
+        codes.add(cc.code);
+      }
+    }
+  }
+  return [...codes];
+}
 
 function formatData(data, columns, opts = {}) {
   const cols = columns[opts.model];
@@ -71,17 +146,24 @@ function formatData(data, columns, opts = {}) {
           value = Math.abs(value);
         }
         try {
-          newData[key] = formatValue({
-            value: value.toString(),
-            intlConfig: {
-              locale: opts.lang,
-              currency:
-                col.type == "number"
-                  ? undefined
-                  : col.currencyCode || opts.defaultCurrencyCode,
-            },
+          const { groupSeparator, decimalSeparator } = separatorsForLocale(
+            opts.lang,
+          );
+          // number → tanpa symbol; currency → symbol via precedence col→row→default.
+          const prefix =
+            col.type === "currency"
+              ? (() => {
+                  const symbol = resolveCurrencySymbol(col, data, opts);
+                  return symbol ? `${symbol} ` : "";
+                })()
+              : "";
+          const formatted = formatNumber(value, {
+            groupSeparator,
+            decimalSeparator,
             decimalScale: col.decimalScale ?? 0,
+            prefix,
           });
+          newData[key] = formatted === "" ? value : formatted;
         } catch {
           newData[key] = value;
         }
@@ -121,6 +203,38 @@ export default forwardRef(function PrintPreview({ template }, ref) {
 
   const { default_currency_id } = usePage().props.preferences;
 
+  // Pre-resolve symbol currency (map code→symbol) untuk semua code yang dipakai
+  // kolom + default. formatData bersifat sinkron, jadi symbol harus siap di map
+  // sebelum format dijalankan; `data.currency.symbol` dari backend tetap dipakai
+  // langsung tanpa map (lihat resolveCurrencySymbol).
+  const [currencySymbols, setCurrencySymbols] = useState({});
+  useEffect(() => {
+    let ignore = false;
+    const codes = new Set(collectCurrencyCodes(columns));
+    if (default_currency_id) codes.add(default_currency_id);
+    if (codes.size === 0) {
+      setCurrencySymbols({});
+      return;
+    }
+    Promise.all(
+      [...codes].map((code) =>
+        getCurrencyConfig(code, default_currency_id)
+          .then((cfg) => [code, cfg?.symbol ?? null])
+          .catch(() => [code, null]),
+      ),
+    ).then((entries) => {
+      if (ignore) return;
+      const map = {};
+      for (const [code, symbol] of entries) {
+        if (symbol) map[code] = symbol;
+      }
+      setCurrencySymbols(map);
+    });
+    return () => {
+      ignore = true;
+    };
+  }, [columns, default_currency_id]);
+
   useEffect(() => {
     setLocale(template.default_language ?? "en");
   }, [template.default_language]);
@@ -132,9 +246,10 @@ export default forwardRef(function PrintPreview({ template }, ref) {
       model: template.model,
       lang: template.default_language ?? "en",
       defaultCurrencyCode: default_currency_id,
+      currencySymbols,
       absoluteNumber: template?.show_absolute_values ?? false,
     });
-  }, [_doc, template, t, default_currency_id]);
+  }, [_doc, template, t, default_currency_id, currencySymbols]);
   const docInfo = useMemo(() => {
     const newData = {};
     for (let key in _docInfo) {

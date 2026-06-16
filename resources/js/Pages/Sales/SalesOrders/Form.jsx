@@ -5,7 +5,7 @@ import { calculateArray, generateRandom } from "@/lib/utils";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -229,7 +229,7 @@ export default memo(function Form() {
       width: 1,
       cell({ additionalData, dataRow, attributes }) {
         return (
-          <CurrencyInput
+          <NumberInput
             {...attributes}
             disabled={!dataRow?.item || !dataRow?.item?.is_stock_item}
             readOnly={true}
@@ -250,7 +250,7 @@ export default memo(function Form() {
       width: 1,
       cell({ dataRow, data, setData, attributes }) {
         return (
-          <CurrencyInput
+          <NumberInput
             {...attributes}
             disabled={!dataRow?.item}
             readOnly={
@@ -315,7 +315,7 @@ export default memo(function Form() {
       width: 2,
       cell({ data: price, setData, attributes, dataRow }) {
         return (
-          <CurrencyInput
+          <NumberInput
             decimalScale={2}
             currencyCode={data?.currency?.code}
             disabled={!dataRow?.item}
@@ -441,7 +441,7 @@ export default memo(function Form() {
             label={t("sales.salesOrder.exchange_rate")}
             name="exchange_rate"
           >
-            <CurrencyInput
+            <NumberInput
               disabled={
                 !(
                   data?.currency?.code &&
@@ -571,11 +571,12 @@ export default memo(function Form() {
                 readOnly
                 label={`${t("sales.salesOrder.columns.net_total")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -583,12 +584,12 @@ export default memo(function Form() {
             label={`${t("sales.salesOrder.columns.net_total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               className="text-right"
               value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
@@ -596,11 +597,12 @@ export default memo(function Form() {
                 readOnly
                 label={`${t("sales.salesOrder.columns.tax_amount")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={tax_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -608,12 +610,12 @@ export default memo(function Form() {
             label={`${t("sales.salesOrder.columns.tax_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               className="text-right"
               value={tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
@@ -621,11 +623,12 @@ export default memo(function Form() {
                 readOnly
                 label={`${t("sales.salesOrder.columns.grand_total")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={(net_amount + tax_amount) * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -633,12 +636,12 @@ export default memo(function Form() {
             label={`${t("sales.salesOrder.columns.grand_total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               className="text-right"
               decimalScale={2}
               value={net_amount + tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
         </div>
       </FormPageContent>

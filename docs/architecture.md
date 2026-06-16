@@ -131,7 +131,7 @@ resources/js/
 │   ├── ui/               shadcn/ui (Radix-based)
 │   ├── Table/            Komponen tabel internal
 │   ├── Navbar/  Sidebar/ Navigasi
-│   ├── CurrencyInput/    Sub-komponen CurrencyInput
+│   ├── NumberInput/      Komponen NumberInput + helper formatNumber
 │   └── TimePicker/       Sub-komponen waktu
 │   └── (LinkModel, FormInput, FormTable, DatetimePicker, BadgeStatus, Select, MultiSelect, NestedSelect, ...)
 ├── Hooks/                Custom React hooks (usePermission, useToasts, useDraftForm, ...)

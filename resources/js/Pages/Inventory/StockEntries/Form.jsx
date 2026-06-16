@@ -3,7 +3,7 @@ import React, { useCallback, useMemo, useRef } from "react";
 import { calculateArray, getDataModel } from "@/lib/utils";
 
 import AccountLinkModel from "@/Pages/Finances/Accounts/AccountLinkModel";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
@@ -221,7 +221,7 @@ export default function Form() {
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item}
               readOnly={
@@ -271,7 +271,7 @@ export default function Form() {
         type: "number",
         cell({ dataRow, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item}
               readOnly={data.type != "item_receipt"}
@@ -290,7 +290,7 @@ export default function Form() {
         type: "number",
         cell({ dataRow, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item || attributes.disabled}
               value={dataRow.basic_amount}
@@ -310,7 +310,7 @@ export default function Form() {
               type: "number",
               cell({ dataRow, attributes }) {
                 return (
-                  <CurrencyInput
+                  <NumberInput
                     {...attributes}
                     disabled={!dataRow?.item || attributes.disabled}
                     value={dataRow.additional_cost}
@@ -328,7 +328,7 @@ export default function Form() {
               type: "number",
               cell({ dataRow, attributes }) {
                 return (
-                  <CurrencyInput
+                  <NumberInput
                     {...attributes}
                     disabled={!dataRow?.item || attributes.disabled}
                     value={dataRow.valuation_rate}
@@ -345,7 +345,7 @@ export default function Form() {
               type: "number",
               cell({ dataRow, attributes }) {
                 return (
-                  <CurrencyInput
+                  <NumberInput
                     {...attributes}
                     disabled={!dataRow?.item || attributes.disabled}
                     value={dataRow.amount}
@@ -412,7 +412,7 @@ export default function Form() {
         width: 1,
         cell({ data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               currencyCode="default"
               decimalScale={2}
@@ -562,10 +562,10 @@ export default function Form() {
           />
 
           <FormInput label={t("inventory.stockEntry.columns.total_quantity")}>
-            <CurrencyInput readOnly decimalScale={2} value={totalQty} />
+            <NumberInput readOnly decimalScale={2} value={totalQty} />
           </FormInput>
           <FormInput label={t("inventory.stockEntry.columns.total_amount")}>
-            <CurrencyInput readOnly decimalScale={2} value={totalAmount} />
+            <NumberInput readOnly decimalScale={2} value={totalAmount} />
           </FormInput>
         </div>
       </FormPageContent>
@@ -627,7 +627,7 @@ export default function Form() {
             name="total"
             className="md:col-start-3 col-start-2 col-span-2"
           >
-            <CurrencyInput
+            <NumberInput
               currencyCode="default"
               decimalScale={2}
               value={totalAdditionalCost}

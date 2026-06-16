@@ -4,7 +4,7 @@ import {
   useFormPage,
 } from "@/Pages/Core/FormPage";
 
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
@@ -33,11 +33,11 @@ export default function Form() {
       required: true,
       cell({ data, setData, attributes }) {
         return (
-          <CurrencyInput
+          <NumberInput
             className="text-left"
             value={data}
             onValueChange={(value) => setData("invoice_portion", value)}
-            decimalsLimit={2}
+            decimalScale={2}
             suffix="%"
             min={0}
             max={100}
@@ -101,9 +101,9 @@ export default function Form() {
       width: 1,
       cell({ dataRow, data, setData, attributes }) {
         return (
-          <CurrencyInput
+          <NumberInput
             className="text-left"
-            decimalsLimit={0}
+            decimalScale={0}
             placeholder="0"
             value={data}
             onValueChange={(value) => {
@@ -156,11 +156,11 @@ export default function Form() {
       titleTrans: "finances.paymentTerm.columns.discount",
       cell({ dataRow, data, setData, attributes }) {
         return (
-          <CurrencyInput
+          <NumberInput
             className="text-left"
             value={data}
             onValueChange={(value) => setData("discount", value)}
-            decimalsLimit={2}
+            decimalScale={2}
             suffix={dataRow.discount_type == "percentage" ? "%" : ""}
             min={dataRow.discount_type == "percentage" && 0}
             max={dataRow.discount_type == "percentage" && 100}
@@ -207,7 +207,7 @@ export default function Form() {
         width: 1,
         cell({ data, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               suffix="%"
               value={data}
@@ -224,7 +224,7 @@ export default function Form() {
         width: 1,
         cell({ dataRow, additionalData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               disabled={!dataRow.invoice_portion}
               decimalScale={2}
               currencyCode={default_currency_id}
@@ -284,7 +284,7 @@ export default function Form() {
         width: 1,
         cell({ data: discount, dataRow, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               className="text-left"
               value={discount}
               currencyCode={
@@ -292,7 +292,7 @@ export default function Form() {
                   ? undefined
                   : default_currency_id
               }
-              decimalsLimit={2}
+              decimalScale={2}
               suffix={dataRow.discount_type == "percentage" ? "%" : ""}
               min={dataRow.discount_type == "percentage" && 0}
               max={dataRow.discount_type == "percentage" && 100}
@@ -308,7 +308,7 @@ export default function Form() {
         width: 1,
         cell({ data, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               currencyCode={default_currency_id}
               value={data}
@@ -402,7 +402,7 @@ export default function Form() {
             label={t("finances.paymentTermTemplate.example.invoice_total")}
             readOnly
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               currencyCode={default_currency_id}
               value={amount}

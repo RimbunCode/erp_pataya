@@ -43,6 +43,7 @@ import Link from "../Link";
 import LoadingIcon from "../LoadingIcon";
 import NoDataImg from "./NoDataImg";
 import { TZDate } from "@date-fns/tz";
+import { formatNumber } from "@/Components/NumberInput/formatNumber";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { debounce } from "lodash";
 import { format } from "date-fns";
@@ -122,7 +123,7 @@ const Cell = memo(
     isLink,
     ...colProps
   }) => {
-    const { lang } = usePage().props;
+    const { lang, preferences } = usePage().props;
     const { t } = useLaravelReactI18n();
     const value = row[name];
     const { can, canGlobal } = usePermission(row?.thisModel);
@@ -216,6 +217,35 @@ const Cell = memo(
               : value
           : "";
         break;
+      case "number":
+      case "currency": {
+        if (value == null || value === "") {
+          valueCell = "";
+          break;
+        }
+        // Currency: precedence colProps.currencyCode -> row.currency -> default.
+        // Symbol diambil langsung dari object currency (dikirim backend), tanpa fetch.
+        let prefix = "";
+        if (type === "currency") {
+          const currencySource =
+            colProps?.currencyCode ?? row?.currency ?? null;
+          const symbol =
+            typeof currencySource === "object" ? currencySource?.symbol : null;
+          prefix = symbol ? `${symbol} ` : "";
+        }
+        // decimalScale/format: colProps bila ada, jika tidak fallback ke
+        // preferences.default_number_format.
+        const formatted = formatNumber(value, {
+          numberFormat:
+            colProps?.numberFormat ?? preferences?.default_number_format,
+          decimalScale: colProps?.decimalScale,
+          groupSeparator: colProps?.groupSeparator,
+          decimalSeparator: colProps?.decimalSeparator,
+          prefix,
+        });
+        valueCell = formatted === "" ? value : formatted;
+        break;
+      }
       default:
         valueCell = value;
     }

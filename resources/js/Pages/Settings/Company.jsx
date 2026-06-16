@@ -23,6 +23,7 @@ import Combobox from "@/Components/Combobox";
 import { CommandItem } from "@/Components/ui/command";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
+import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
 import UploadDialog from "../Core/Components/UploadDialog";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -32,6 +33,7 @@ function Form() {
   const { t } = useLaravelReactI18n();
   const { currencies, countries, timezones } = usePage().props;
   const { data, setData } = useFormPage();
+  const [newPerPage, setNewPerPage] = useState(null);
   const onUpdatePerPageOptions = (list) => {
     setData(
       "per_page_options",
@@ -203,10 +205,12 @@ function Form() {
             required={true}
             className=""
           >
-            <Input
-              type="number"
+            <NumberInput
+              className="text-left"
+              allowDecimals={false}
+              decimalScale={0}
               value={data.mail_port}
-              onChange={(e) => setData("mail_port", e.target.value)}
+              onValueChange={(val) => setData("mail_port", val)}
             />
           </FormInput>
           <FormInput
@@ -342,17 +346,17 @@ function Form() {
                       {index + 1}
                     </div>
                     <div className="justify-start! text-left">
-                      <Input
-                        type="number"
-                        defaultValue={item}
-                        onBlur={(e) => {
-                          const index = data.per_page_options.findIndex(
+                      <NumberInput
+                        className="text-left"
+                        allowDecimals={false}
+                        decimalScale={0}
+                        value={item}
+                        onValueChange={(val) => {
+                          const idx = data.per_page_options.findIndex(
                             (x) => x == item,
                           );
                           const options = data.per_page_options;
-                          options[index] = e.target.value
-                            ? Number(e.target.value)
-                            : null;
+                          options[idx] = val ?? null;
                           onUpdatePerPageOptions(options);
                         }}
                       />
@@ -374,14 +378,20 @@ function Form() {
                 {data.per_page_options.length + 1}
               </div>
               <div className="justify-start! text-left">
-                <Input
-                  type="number"
-                  onBlur={(e) => {
-                    onUpdatePerPageOptions([
-                      ...data.per_page_options,
-                      Number(e.target.value),
-                    ]);
-                    e.target.value = null;
+                <NumberInput
+                  className="text-left"
+                  allowDecimals={false}
+                  decimalScale={0}
+                  value={newPerPage}
+                  onValueChange={(val) => setNewPerPage(val)}
+                  onBlur={() => {
+                    if (newPerPage) {
+                      onUpdatePerPageOptions([
+                        ...data.per_page_options,
+                        newPerPage,
+                      ]);
+                    }
+                    setNewPerPage(null);
                   }}
                 />
               </div>
