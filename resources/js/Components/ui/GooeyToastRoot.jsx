@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { GooeyToaster } from "@/Components/ui/goey-toaster";
 import { setupInertiaToast } from "@/lib/inertiaToast";
@@ -13,11 +13,16 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  */
 export default function GooeyToastRoot() {
   const { t } = useLaravelReactI18n();
+  const tRef = useRef(t);
 
   useEffect(() => {
-    const teardown = setupInertiaToast({ t });
-    return teardown;
+    tRef.current = t;
   }, [t]);
+
+  useEffect(() => {
+    const teardown = setupInertiaToast({ t: (key) => tRef.current(key) });
+    return teardown;
+  }, []);
 
   return <GooeyToaster closeButton />;
 }

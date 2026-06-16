@@ -1,7 +1,7 @@
 import { router } from "@inertiajs/react";
 import { Loader2Icon } from "lucide-react";
 
-import { gooeyToast } from "@/lib/gooeyToast";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 
 /**
  * Ambang waktu sebelum loading toast ditampilkan. Visit yang selesai lebih
@@ -34,6 +34,13 @@ const HTTP_ERROR_FALLBACK = {
   502: "Server upstream sedang bermasalah.",
   503: "Layanan sementara tidak tersedia.",
   504: "Waktu tunggu ke server habis.",
+};
+const TOAST_TYPE = {
+  DEFAULT: "default",
+  INFO: "info",
+  SUCCESS: "success",
+  WARNING: "warning",
+  ERROR: "error",
 };
 
 /**
@@ -140,36 +147,77 @@ export function setupInertiaToast({ t }) {
     router.visit(url, { method: lastVisit.method ?? "get" });
   };
 
+  const onClose = (closedId) => {
+    // Cegah race condition: abaikan event onClose dari toast lama yang
+    // telat selesai animasinya (sudah diganti toast baru).
+    if (closedId && closedId !== toastId) {
+      return;
+    }
+
+    clearTimer();
+    toastId = null;
+  };
+
   /**
-   * Menutup loading toast (jika ada) lalu menampilkan toast final.
-   *
-   * Sengaja TIDAK memakai gooeyToast.update(): toast loading sering baru saja
-   * dibuat di tick yang sama dengan event success/error sehingga komponen
-   * GooeyToastWrapper belum sempat di-commit React dan listener update-nya
-   * belum terdaftar — akibatnya update() menjadi no-op dan loading toast
-   * (duration: Infinity) nyangkut selamanya. Dismiss + create baru tidak
-   * bergantung pada timing commit, jadi selalu andal.
-   *
-   * @param {(title: string, options?: object) => string|number} create
+   * update loading toast (jika ada) lalu menampilkan toast final.
+   * @param {string} type
    * @param {string} title
    * @param {object} [options]
    */
-  const settle = (create, title, options = {}) => {
+  const settle = (type, title, options = {}) => {
     clearTimer();
+    const payload = [
+      title,
+      {
+        icon: undefined,
+        duration: 5000,
+        onDismiss: onClose,
+        onAutoClose: onClose,
+        ...options,
+      },
+    ];
+    const payloadOptions = payload[1];
+    console.log({ toastId, payload });
     if (toastId != null) {
-      gooeyToast.dismiss(toastId);
+      toast.update(toastId, {
+        title,
+        type,
+        icon: undefined,
+        ...payloadOptions,
+      });
+
+      // Workaround: Karena toast.update tidak memperbarui duration (tetap Infinity),
+      // kita membuang (dismiss) toast secara manual setelah 3 detik.
+      const idToDismiss = toastId;
+      setTimeout(() => {
+        toast.dismiss(idToDismiss);
+      }, payloadOptions.duration ?? 5000);
+
       toastId = null;
+      return;
     }
-    create(title, options);
+    switch (type) {
+      case TOAST_TYPE.INFO:
+        return toast.info(...payload);
+      case TOAST_TYPE.WARNING:
+        return toast.warning(...payload);
+      case TOAST_TYPE.ERROR:
+        return toast.error(...payload);
+      case TOAST_TYPE.SUCCESS:
+        return toast.success(...payload);
+      case TOAST_TYPE.DEFAULT:
+      default:
+        return toast(...payload);
+    }
   };
 
   const offStart = router.on("start", (event) => {
     lastVisit = event.detail.visit;
     clearTimer();
     timer = setTimeout(() => {
-      toastId = gooeyToast(t("core.toast.loading"), {
+      toastId = settle(TOAST_TYPE.DEFAULT, t("core.toast.loading"), {
         icon: <Loader2Icon className="size-4 animate-spin" />,
-        duration: Infinity,
+        duration: 9999999, // Workaround: ganti Infinity dengan angka besar
       });
       timer = null;
     }, DELAY_MS);
@@ -178,8 +226,9 @@ export function setupInertiaToast({ t }) {
   const offSuccess = router.on("success", () => {
     // Hanya tampilkan toast success bila loading toast sempat muncul, agar
     // navigasi cepat (di bawah delay-threshold) tidak memunculkan toast.
+    console.log("success", toastId);
     if (toastId != null) {
-      settle(gooeyToast.success, t("core.toast.success"));
+      settle(TOAST_TYPE.SUCCESS, t("core.toast.success"));
     } else {
       clearTimer();
     }
@@ -191,7 +240,7 @@ export function setupInertiaToast({ t }) {
       label: tf("core.toast.retry", "Coba lagi"),
       onClick: retry,
     };
-    settle(gooeyToast.error, tf("core.toast.error", "Gagal"), {
+    settle(TOAST_TYPE.ERROR, tf("core.toast.error", "Gagal"), {
       description: message,
       action,
     });
@@ -204,10 +253,11 @@ export function setupInertiaToast({ t }) {
   // (mis. dibatalkan), batalkan timer & tutup loading toast agar tidak nyangkut.
   const offFinish = router.on("finish", (event) => {
     clearTimer();
+    console.log("finish", toastId);
     const wasCancelled =
       event.detail?.visit?.cancelled || event.detail?.visit?.interrupted;
     if (toastId != null && wasCancelled) {
-      gooeyToast.dismiss(toastId);
+      toast.dismiss(toastId);
       toastId = null;
     }
   });
