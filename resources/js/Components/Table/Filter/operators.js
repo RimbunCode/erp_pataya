@@ -5,8 +5,8 @@
 // yang dirender oleh ValueField:
 //   - "none"        : tanpa input (set/!set)
 //   - "text"        : input teks
-//   - "currency"    : CurrencyInput
-//   - "currency2"   : dua CurrencyInput (between)
+//   - "currency"    : NumberInput
+//   - "currency2"   : dua NumberInput (between)
 //   - "checkbox"    : Checkbox (boolean)
 //   - "select"      : Select tunggal (formStatus/enum/relation single)
 //   - "multiselect" : MultiSelect / multi-grow (in/!in)

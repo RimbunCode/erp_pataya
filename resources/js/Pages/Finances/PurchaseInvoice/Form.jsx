@@ -8,7 +8,7 @@ import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -127,7 +127,7 @@ export default function Form() {
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item}
               readOnly={
@@ -195,7 +195,7 @@ export default function Form() {
         width: 1,
         cell({ data: rate, setData, attributes, dataRow }) {
           return (
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               currencyCode={data?.currency?.code}
               disabled={!dataRow?.item}
@@ -315,7 +315,7 @@ export default function Form() {
               name="exchange_rate"
               readOnly
             >
-              <CurrencyInput
+              <NumberInput
                 disabled={
                   !(
                     data?.currency?.code &&
@@ -502,11 +502,12 @@ export default function Form() {
                 readOnly
                 label={`${t("finances.purchaseInvoice.columns.basic_amount")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -514,12 +515,12 @@ export default function Form() {
             label={`${t("finances.purchaseInvoice.columns.basic_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               className="text-right"
               value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
@@ -527,11 +528,12 @@ export default function Form() {
                 readOnly
                 label={`${t("finances.purchaseInvoice.columns.tax_amount")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={tax_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -539,12 +541,12 @@ export default function Form() {
             label={`${t("finances.purchaseInvoice.columns.tax_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               className="text-right"
               value={tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
@@ -552,11 +554,12 @@ export default function Form() {
                 readOnly
                 label={`${t("finances.purchaseInvoice.columns.total")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -564,12 +567,12 @@ export default function Form() {
             label={`${t("finances.purchaseInvoice.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               className="text-right"
               decimalScale={2}
               value={amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
         </div>
       </FormPageContent>

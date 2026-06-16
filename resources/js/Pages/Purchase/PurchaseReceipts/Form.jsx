@@ -1,6 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
@@ -80,7 +80,7 @@ function Form() {
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item}
               readOnly={

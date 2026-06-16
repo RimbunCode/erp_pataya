@@ -1,6 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import React from "react";
@@ -20,7 +20,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput required={true} label={t("finances.taxes.columns.rate")}>
-            <CurrencyInput
+            <NumberInput
               className="text-left"
               value={data.rate}
               onValueChange={(value) => setData("rate", value)}

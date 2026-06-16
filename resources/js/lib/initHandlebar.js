@@ -1,9 +1,25 @@
 import Handlebars from "handlebars";
 import { format as dateFnsFormat } from "date-fns";
 import { TZDate } from "@date-fns/tz";
-import { formatValue } from "@/Components/CurrencyInput";
+import { formatNumber as formatNumberValue } from "@/Components/NumberInput/formatNumber";
 import { convertTemplateLink } from "./linkModelUtils";
 import { resolveLabel } from "@/Pages/Core/PrintTemplate/utils/variableTokenUtils";
+
+// Format angka gaya Indonesia (locale "id"): pemisah ribuan "." dan desimal ",".
+const ID_GROUP_SEPARATOR = ".";
+const ID_DECIMAL_SEPARATOR = ",";
+
+// Fallback symbol per currency code untuk helper Handlebars `formatCurrency`
+// (helper hanya menerima kode currency string, bukan symbol).
+const CURRENCY_SYMBOLS = {
+  IDR: "Rp",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  JPY: "¥",
+  SGD: "S$",
+  MYR: "RM",
+};
 
 /**
  * Resolve a dot-notation field path within a DataTableColumns configuration array.
@@ -15,7 +31,7 @@ import { resolveLabel } from "@/Pages/Core/PrintTemplate/utils/variableTokenUtil
  * @param {Array} columns - DataTableColumns configuration array
  * @returns {object|null} The resolved column definition or null if not found
  */
-function resolveFieldPath(path, columns) {
+function _resolveFieldPath(path, columns) {
   if (!path || !columns) return null;
 
   const parts = path.split(".");
@@ -157,7 +173,8 @@ export function initHandlebar(trans) {
    * Format a numeric value as currency.
    * Usage: {{formatCurrency amount "IDR"}}
    *
-   * Uses Intl.NumberFormat via react-currency-input-field's formatValue.
+   * Memakai `formatNumber` (helper internal) dengan format Indonesia. Symbol
+   * di-resolve dari kode currency via tabel CURRENCY_SYMBOLS (fallback kode).
    */
   Handlebars.registerHelper("formatCurrency", function (value, currency) {
     if (value == null || value === "") {
@@ -171,15 +188,13 @@ export function initHandlebar(trans) {
     }
 
     try {
-      const numericValue =
-        typeof value === "number" ? value.toString() : value.toString();
-
-      return formatValue({
-        value: numericValue,
-        intlConfig: {
-          locale: "id",
-          currency: currency,
-        },
+      const code = currency.trim().toUpperCase();
+      const symbol = CURRENCY_SYMBOLS[code] ?? code;
+      return formatNumberValue(value, {
+        groupSeparator: ID_GROUP_SEPARATOR,
+        decimalSeparator: ID_DECIMAL_SEPARATOR,
+        decimalScale: 2,
+        prefix: `${symbol} `,
       });
     } catch (e) {
       return `[formatCurrency error: ${e.message}]`;
@@ -209,11 +224,9 @@ export function initHandlebar(trans) {
         return "[formatNumber: value is not a valid number]";
       }
 
-      return formatValue({
-        value: numericValue.toFixed(decimals),
-        intlConfig: {
-          locale: "id",
-        },
+      return formatNumberValue(numericValue, {
+        groupSeparator: ID_GROUP_SEPARATOR,
+        decimalSeparator: ID_DECIMAL_SEPARATOR,
         decimalScale: decimals,
       });
     } catch (e) {

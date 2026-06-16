@@ -1,9 +1,13 @@
 import { generateRandom } from "./utils";
-import { formatValue } from "@/Components/CurrencyInput";
+import { formatNumber } from "@/Components/NumberInput/formatNumber";
 import {
   serializeCustomModeHeader,
   serializeCustomModeBody,
 } from "../Pages/Core/PrintTemplate/utils/customModeUtils";
+
+// Format angka gaya Indonesia (locale "id"): pemisah ribuan "." dan desimal ",".
+const ID_GROUP_SEPARATOR = ".";
+const ID_DECIMAL_SEPARATOR = ",";
 
 /**
  * Resolves a dot-notation path on an object to get the value.
@@ -72,8 +76,8 @@ function evaluateExpression(expression, row) {
  * Format a cell value based on the column type from DataTableColumns configuration.
  *
  * Supports:
- * - "currency" type: formats with currency symbol using formatValue utility
- * - "numeric" / "number" type: formats with decimal places using formatValue utility
+ * - "currency" type: formats with currency symbol using formatNumber utility
+ * - "numeric" / "number" type: formats with decimal places using formatNumber utility
  *
  * Requirements: 3.10 - Apply formatting settings from DataTableColumns configuration
  * @param {number|string|null} value - The value to format
@@ -85,19 +89,18 @@ function formatCellValue(value, column) {
 
   const type = column?.type;
   const decimalScale = column?.decimalScale ?? column?.formatOptions?.decimals;
-  const currency = column?.currency ?? column?.formatOptions?.currency ?? "IDR";
 
   if (type === "currency") {
     try {
-      const numericValue =
-        typeof value === "number" ? value.toString() : String(value);
-      return formatValue({
-        value: numericValue,
-        intlConfig: {
-          locale: "id",
-          currency: currency,
-        },
+      const decimals = typeof decimalScale === "number" ? decimalScale : 2;
+      const symbol = column?.symbol ?? column?.currency?.symbol ?? "Rp";
+      const formatted = formatNumber(value, {
+        groupSeparator: ID_GROUP_SEPARATOR,
+        decimalSeparator: ID_DECIMAL_SEPARATOR,
+        decimalScale: decimals,
+        prefix: `${symbol} `,
       });
+      return formatted === "" ? String(value) : formatted;
     } catch {
       return String(value);
     }
@@ -110,13 +113,12 @@ function formatCellValue(value, column) {
       if (isNaN(numericValue)) return String(value);
 
       const decimals = typeof decimalScale === "number" ? decimalScale : 0;
-      return formatValue({
-        value: numericValue.toFixed(decimals),
-        intlConfig: {
-          locale: "id",
-        },
+      const formatted = formatNumber(numericValue, {
+        groupSeparator: ID_GROUP_SEPARATOR,
+        decimalSeparator: ID_DECIMAL_SEPARATOR,
         decimalScale: decimals,
       });
+      return formatted === "" ? String(value) : formatted;
     } catch {
       return String(value);
     }

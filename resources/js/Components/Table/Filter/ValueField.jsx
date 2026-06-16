@@ -3,7 +3,6 @@ import { useMemo } from "react";
 
 import { Button } from "@/Components/ui/button";
 import Checkbox from "@/Components/Checkbox";
-import CurrencyInput from "@/Components/CurrencyInput";
 import DateSelector from "./DateSelector";
 import { Input } from "@/Components/ui/input";
 import LinkModel from "@/Components/LinkModel";

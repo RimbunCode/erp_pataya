@@ -64,7 +64,7 @@ import {
 
 import { Button } from "./ui/button";
 import { CSS } from "@dnd-kit/utilities";
-import CurrencyInput from "./CurrencyInput";
+import NumberInput from "./NumberInput";
 import { FormCheckbox } from "./ui/checkbox";
 import { FormChildren } from "@/Pages/Core/FormPage";
 import FormInput from "./FormInput";
@@ -1828,11 +1828,12 @@ const ColumnItem = memo(function ColumnItem({
         {column.required && <span className="ml-1 text-red-500">*</span>}
       </div>
       <div>
-        <CurrencyInput
+        <NumberInput
           className="text-left"
-          min="1"
-          max="10"
-          step="1"
+          allowDecimals={false}
+          decimalScale={0}
+          min={1}
+          max={10}
           value={column.width ?? 1}
           onValueChange={(val) => {
             onChangeWidth(column.name, val);
