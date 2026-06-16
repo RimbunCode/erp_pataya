@@ -29,6 +29,7 @@ import Select from "./Select";
 import Table2 from "./Table/Table2";
 import { TooltipProvider } from "./ui/tooltip";
 import axios from "axios";
+import { gooeyToast } from "@/lib/gooeyToast";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useForm } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -195,6 +196,7 @@ export default memo(
           })
           .catch((err) => {
             console.log(err);
+            gooeyToast.error(t("core.errors.fetch_failed"));
           })
           .finally(() => {});
       }, 500);
@@ -228,6 +230,7 @@ export default memo(
           .catch((err) => {
             setDataTable({ data: [], total: 0 });
             console.log(err);
+            gooeyToast.error(t("core.errors.fetch_failed"));
           })
           .finally(() => {
             setLoading(false);
@@ -598,6 +601,7 @@ export const loadFromModel = async (model, id, select) => {
     return { value: data, model: dataModel };
   } catch (error) {
     console.log(error);
+    gooeyToast.error("Gagal memuat data. Silakan coba lagi.");
     return null;
   }
 };

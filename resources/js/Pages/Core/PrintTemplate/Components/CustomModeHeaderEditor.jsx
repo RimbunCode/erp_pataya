@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useEditor } from "@grapesjs/react";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import {
   PlusIcon,
   Trash2Icon,

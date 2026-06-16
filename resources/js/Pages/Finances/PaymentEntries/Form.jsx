@@ -1,4 +1,3 @@
-import { Alert, AlertIcon, AlertTitle } from "@/Components/ui/alert";
 import {
   FormPageContent,
   FormPageContentTitle,
@@ -16,11 +15,10 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import LinkModel from "@/Components/LinkModel";
 import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
-import { RiCheckboxCircleLine } from "@remixicon/react";
 import Select from "@/Components/Select";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
@@ -186,20 +184,7 @@ export default function Form() {
           [keyAccount]: account ?? prev?.[keyAccount],
         };
       });
-      toast.custom((toastId) => (
-        <Alert
-          variant="success"
-          icon="success"
-          onClose={() => toast.dismiss(toastId)}
-        >
-          <AlertIcon>
-            <RiCheckboxCircleLine />
-          </AlertIcon>
-          <AlertTitle>
-            {t("finances.paymentTermTemplate.alert.success")}
-          </AlertTitle>
-        </Alert>
-      ));
+      toast.success(t("finances.paymentTermTemplate.alert.success"));
     },
     [setData],
   );

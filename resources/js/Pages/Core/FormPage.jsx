@@ -1,10 +1,4 @@
 import {
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertToolbar,
-} from "@/Components/ui/alert";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -27,7 +21,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/Components/ui/collapsible";
-import { Deferred, Head, WhenVisible, usePage } from "@inertiajs/react";
+import { Deferred, Head, WhenVisible, router, usePage } from "@inertiajs/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,7 +64,6 @@ import FormInput from "@/Components/FormInput";
 import Link from "@/Components/Link";
 import LinkModel from "@/Components/LinkModel";
 import LoadingIcon from "@/Components/LoadingIcon";
-import { RiErrorWarningFill } from "@remixicon/react";
 import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
@@ -78,7 +71,7 @@ import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { evaluate } from "@marcbachmann/cel-js";
 import { format } from "date-fns";
 import pluralize from "pluralize";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
@@ -919,38 +912,19 @@ const FormPage = memo(
                         className="p-2! size-fit h-8"
                         disabled={processing}
                         onClick={() => {
-                          toast.custom(
-                            (e) => (
-                              <Alert
-                                variant="destructive"
-                                icon="destructive"
-                                onClose={() => toast.dismiss(e)}
-                              >
-                                <AlertIcon>
-                                  <RiErrorWarningFill />
-                                </AlertIcon>
-                                <AlertTitle>
-                                  {t("core.form.print.errors.no_template")}
-                                </AlertTitle>
-                                <AlertToolbar>
-                                  <Button>
-                                    <Link
-                                      href={route(
-                                        `${pluralize.plural(name ?? "")}.createPrintTemplate`,
-                                      )}
-                                    >
-                                      {t(
-                                        "core.form.print.errors.no_template.create",
-                                      )}
-                                    </Link>
-                                  </Button>
-                                </AlertToolbar>
-                              </Alert>
-                            ),
-                            {
-                              duration: 5000,
+                          toast.error(t("core.form.print.errors.no_template"), {
+                            action: {
+                              label: t(
+                                "core.form.print.errors.no_template.create",
+                              ),
+                              onClick: () =>
+                                router.visit(
+                                  route(
+                                    `${pluralize.plural(name ?? "")}.createPrintTemplate`,
+                                  ),
+                                ),
                             },
-                          );
+                          });
                         }}
                       >
                         <PrinterIcon />

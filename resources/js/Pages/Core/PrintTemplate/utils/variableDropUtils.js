@@ -7,7 +7,7 @@
 
 import { generateRandom } from "@/lib/utils";
 import { buildExampleDataTable, getColumnLabel } from "@/lib/gjsRelationsTable";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { isValidBodyDropTarget } from "./customModeUtils";
 import {
   buildVariableToken,

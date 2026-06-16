@@ -3,7 +3,7 @@ import { Loader2Icon } from "lucide-react";
 import { useEditor } from "@grapesjs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 
 function formatRelativeTime(lastSavedAt, t) {
   if (!lastSavedAt) {

@@ -16,6 +16,7 @@ import Link from "@/Components/Link";
 import LoadingIcon from "@/Components/LoadingIcon";
 import QueryString from "qs";
 import axios from "axios";
+import { gooeyToast } from "@/lib/gooeyToast";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useFormPage } from "@/Pages/Core/FormPage";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -122,6 +123,7 @@ function Tags() {
         })
         .catch((err) => {
           console.log(err);
+          gooeyToast.error(t("core.errors.fetch_failed"));
         });
     }, 500);
 

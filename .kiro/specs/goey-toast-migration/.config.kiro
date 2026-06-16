@@ -1,0 +1,6 @@
+{
+  "specId": "0a1ae988-94ac-46d4-b543-22dbb6ab41d9",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Migrasi seluruh toast dari Sonner ke goey-toast (gooey/morphing UI). Konfigurasi GooeyToaster (theme=currentTheme, spring, preset=smooth, duration=5000, position=top-center). Paksa toast custom ke standard goey. Tambah loading toast Inertia berbasis promise untuk semua visit (delay-threshold) dengan update success/error in-place + tombol Retry. Audit codebase untuk tambah indikator loading/success/error pada operasi async yang masih silent (mis. LinkModel error-only)."
+}

@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import { useEditor } from "@grapesjs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import CustomModeToggle from "./CustomModeToggle";
 import CustomModeVariablePanel from "./CustomModeVariablePanel";
 import CustomModeHeaderEditor from "./CustomModeHeaderEditor";

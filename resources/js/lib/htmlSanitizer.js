@@ -1,4 +1,5 @@
 import axios from "axios";
+import { gooeyToast } from "@/lib/gooeyToast";
 
 /**
  * Allowed HTML tags (whitelist) - matches backend HTMLSanitizerService
@@ -275,12 +276,17 @@ export async function sanitizeHTMLBackend(html) {
     };
   }
 
-  const response = await axios.post("/api/html/sanitize", { html });
+  try {
+    const response = await axios.post("/api/html/sanitize", { html });
 
-  return {
-    sanitizedHTML: response.data.sanitizedHTML ?? "",
-    warnings: response.data.warnings ?? [],
-    removedTags: response.data.removedTags ?? [],
-    removedAttributes: response.data.removedAttributes ?? [],
-  };
+    return {
+      sanitizedHTML: response.data.sanitizedHTML ?? "",
+      warnings: response.data.warnings ?? [],
+      removedTags: response.data.removedTags ?? [],
+      removedAttributes: response.data.removedAttributes ?? [],
+    };
+  } catch (error) {
+    gooeyToast.error("Gagal memuat data. Silakan coba lagi.");
+    throw error;
+  }
 }

@@ -29,7 +29,7 @@ import gjsTable from "@/lib/gjsTable";
 import grapesjs from "grapesjs";
 import { initHandlebar } from "@/lib/initHandlebar";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import {
   removeAllSelectedComponents,
   shouldClearSelectionOnCanvasClick,

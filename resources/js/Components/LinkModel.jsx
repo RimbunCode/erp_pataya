@@ -26,6 +26,7 @@ import { FormPageLinkModelDialog } from "@/Pages/Core/FormPage";
 import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import axios from "axios";
+import { gooeyToast } from "@/lib/gooeyToast";
 import { isEqual } from "lodash";
 import pluralize from "pluralize";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -455,7 +456,9 @@ export default memo(
           }
           callback?.(data);
         })
-        .catch(() => {})
+        .catch(() => {
+          gooeyToast.error(t("core.errors.fetch_failed"));
+        })
         .finally(() => {
           setLoading(false);
         });
@@ -573,7 +576,9 @@ export default memo(
         .then((res) => {
           setOption(res.data);
         })
-        .catch(() => {})
+        .catch(() => {
+          gooeyToast.error(t("core.errors.fetch_failed"));
+        })
         .finally(() => {
           setLoading(false);
         });
