@@ -402,7 +402,13 @@ function Form() {
               <NumberInput
                 disabled={!data.currency}
                 className="text-left"
-                currencyCode="default"
+                currencyCode={data.currency}
+                enableExchangeRate
+                onExchangeRate={(result) => {
+                  if (result) {
+                    setData("exchange_rate", result.rate);
+                  }
+                }}
                 decimalScale={2}
                 value={data.exchange_rate}
                 onValueChange={(value) => {

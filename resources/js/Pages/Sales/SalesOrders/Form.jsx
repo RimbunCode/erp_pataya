@@ -449,6 +449,18 @@ export default memo(function Form() {
                 )
               }
               className="text-left"
+              currencyCode={data.currency}
+              enableExchangeRate={
+                !!(
+                  data?.currency?.code &&
+                  data?.currency?.code !== default_currency_id
+                )
+              }
+              onExchangeRate={(result) => {
+                if (result) {
+                  setData("exchange_rate", result.rate);
+                }
+              }}
               decimalScale={2}
               value={data.exchange_rate}
               onValueChange={(value) => {
