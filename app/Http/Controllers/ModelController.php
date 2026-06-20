@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Core\FilterEvaluator;
+use App\Services\Core\LinkModelFilterConverter;
 use App\Utils;
 use Error;
 use Illuminate\Database\Eloquent\Builder;
@@ -86,6 +88,12 @@ class ModelController extends Controller {
             default:
                 $query->$function($key, '=', $value, $boolean);
         }
+    }
+
+    private function applyLinkModelFilters(Builder $query, array $filters): void {
+        $columns = $query->getModel()::getColumns(1);
+        $tree    = (new LinkModelFilterConverter($columns))->toTree($filters);
+        (new FilterEvaluator($columns))->apply($query, $tree);
     }
 
     private function filterToQuery(Builder|JoinClause $query, $filters, $boolean = 'and', array &$with = []) {
@@ -264,8 +272,8 @@ class ModelController extends Controller {
             $query->addSelect($model::getTableName() . '.*');
         }
         if (! $isCache && $request->has('filters')) {
-            $query->where(function (Builder $query) use ($request, &$with) {
-                $this->filterToQuery($query, $request->filters ?? [], 'and', $with);
+            $query->where(function (Builder $query) use ($request) {
+                $this->applyLinkModelFilters($query, $request->filters ?? []);
             });
         }
 
