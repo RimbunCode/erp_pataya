@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Sales\InternalOrders;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Sales\InternalOrder;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -43,9 +43,9 @@ class InternalOrderMigrator extends BaseMigrator {
                             'legacy_reference'    => $record->reference ?? null,
                             'legacy_status'       => $record->status ?? null,
                         ],
-                        'deleted_at' => $record->deleted_at,
-                        'created_at' => $record->created_at,
-                        'updated_at' => $record->updated_at,
+                        'deleted_at'      => $record->deleted_at,
+                        'created_at'      => $record->created_at,
+                        'updated_at'      => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(
@@ -87,4 +87,3 @@ class InternalOrderMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Service\WorkOrders;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Service\WorkOrder;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -55,9 +55,9 @@ class WorkOrderMigrator extends BaseMigrator {
                             'legacy_type'      => $record->type ?? null,
                             'legacy_status'    => $record->status ?? null,
                         ],
-                        'deleted_at' => $record->deleted_at,
-                        'created_at' => $record->created_at,
-                        'updated_at' => $record->updated_at,
+                        'deleted_at'           => $record->deleted_at,
+                        'created_at'           => $record->created_at,
+                        'updated_at'           => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(
@@ -121,4 +121,3 @@ class WorkOrderMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

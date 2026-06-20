@@ -5,7 +5,7 @@ namespace App\Traits;
 use App\Casts\FormStatusCast;
 use App\Casts\FormStatusesCast;
 use App\Casts\Json;
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
 use App\Services\Core\CommandSearchIndexService;
@@ -63,75 +63,75 @@ trait LinkModel {
 
     public function initializeLinkModel() {
         $this->defaultConfigColumns = array_merge([
-            'is_example' => [
+            'is_example'        => [
                 'ignore' => true,
             ],
-            'created_at' => [
+            'created_at'        => [
                 'titleTrans' => 'core.form.created_at',
             ],
-            'updated_at' => [
+            'updated_at'        => [
                 'titleTrans' => 'core.form.updated_at',
             ],
-            'deleted_at' => [
+            'deleted_at'        => [
                 'titleTrans' => 'core.form.deleted_at',
             ],
-            'canceled_at' => [
+            'canceled_at'       => [
                 'titleTrans' => 'core.form.canceled_at',
             ],
-            'submitted_at' => [
+            'submitted_at'      => [
                 'titleTrans' => 'core.form.submitted_at',
             ],
-            'logs' => [
+            'logs'              => [
                 'titleTrans' => 'core.form.logs',
                 'filter'     => [
                     'type' => 'comment',
                 ],
             ],
-            'tags' => [
+            'tags'              => [
                 'titleTrans' => 'core.form.tags',
             ],
-            'files' => [
+            'files'             => [
                 'titleTrans' => 'core.form.files',
             ],
             'have_transactions' => [
                 'ignore' => true,
             ],
-            'submitted_format' => [
+            'submitted_format'  => [
                 'ignore' => true,
             ],
-            'createdBy' => [
+            'createdBy'         => [
                 'titleTrans' => 'core.form.created_by',
             ],
-            'status' => [
+            'status'            => [
                 'titleTrans' => 'core.form.status',
                 'width'      => 'minimum',
                 'valueTrans' => 'status',
             ],
-            'branch' => [
+            'branch'            => [
                 'titleTrans' => 'core.branch.branch',
             ],
-            'templateLink' => [
+            'templateLink'      => [
                 'ignore' => true,
             ],
-            'additional_data' => [
+            'additional_data'   => [
                 'ignore' => true,
             ],
-            'amendedFrom' => [
+            'amendedFrom'       => [
                 'titleTrans' => 'core.form.amended_from',
             ],
-            'revision_number' => [
+            'revision_number'   => [
                 'ignore' => true,
             ],
-            'lft' => [
+            'lft'               => [
                 'ignore' => true,
             ],
-            'rgt' => [
+            'rgt'               => [
                 'ignore' => true,
             ],
-            'depth' => [
+            'depth'             => [
                 'ignore' => true,
             ],
-            'appendStatus' => [
+            'appendStatus'      => [
                 'ignore' => true,
             ],
         ]);
@@ -156,8 +156,8 @@ trait LinkModel {
             ...static::loadRelationsOnShow() ?? [],
             ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
         ];
-        $relations = (\is_string($relations) ? [$relations] : ($relations ?? []));
-        $relations = [...$defaultRelations, ...$relations];
+        $relations        = (\is_string($relations) ? [$relations] : ($relations ?? []));
+        $relations        = [...$defaultRelations, ...$relations];
 
         $instance = new static;
         $toLoad   = [];
@@ -421,7 +421,7 @@ trait LinkModel {
 
         return [
             // "db_type"   => $type,
-            'name' => $dataColumn['name'],
+            'name'    => $dataColumn['name'],
             // "length"    => $length,    // alias precision untuk decimal/float
             // "precision" => $precision, // panjang digit total
             // "scale"     => $scale,     // digit setelah koma (0 kalau tidak ada)
@@ -487,7 +487,7 @@ trait LinkModel {
             $instance->defaultConfigColumns ?? [],
             $instance->configColumns ?? [],
         );
-        $translateKey = $instance->translateKey ?? null;
+        $translateKey  = $instance->translateKey ?? null;
 
         $newColumns = [];
 

@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace App\Enums;
 
 enum FormStatus: string {
     case DRAFT               = 'draft';

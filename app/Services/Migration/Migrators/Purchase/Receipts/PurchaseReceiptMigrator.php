@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Purchase\Receipts;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -54,9 +54,9 @@ class PurchaseReceiptMigrator extends BaseMigrator {
                             'legacy_receiver'          => $record->receiver ?? null,
                             'legacy_sender'            => $record->sender ?? null,
                         ],
-                        'deleted_at' => null,
-                        'created_at' => $record->created_at,
-                        'updated_at' => $record->updated_at,
+                        'deleted_at'        => null,
+                        'created_at'        => $record->created_at,
+                        'updated_at'        => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(
@@ -129,4 +129,3 @@ class PurchaseReceiptMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

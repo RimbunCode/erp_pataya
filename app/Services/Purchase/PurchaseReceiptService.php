@@ -2,7 +2,7 @@
 
 namespace App\Services\Purchase;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
@@ -53,7 +53,7 @@ class PurchaseReceiptService {
         $purchaseReceipt->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
-        $itemIds = collect($data['items'])
+        $itemIds       = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -106,7 +106,7 @@ class PurchaseReceiptService {
 
         $purchaseOrder = $purchaseReceipt->purchaseOrder;
 
-        $items = $purchaseReceipt->items()
+        $items         = $purchaseReceipt->items()
             ->with([
                 'item',
                 'item.item',
@@ -115,7 +115,7 @@ class PurchaseReceiptService {
                 'targetWarehouse',
                 'returnAgainstItem',
             ])->get();
-        $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+        $stocks        = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
             ->lockForUpdate()
             ->get()
@@ -263,7 +263,7 @@ class PurchaseReceiptService {
 
                     $invoiceItem->increment('allocated_qty', $allocateQty);
                     $totalRatesForGL += $rate * $allocateQty;
-                    $remainingQty -= $allocateQty;
+                    $remainingQty    -= $allocateQty;
                 }
 
                 // Sisa qty over-receipt → SLE pending

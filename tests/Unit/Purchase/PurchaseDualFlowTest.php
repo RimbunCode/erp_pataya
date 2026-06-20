@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Purchase;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -64,8 +64,8 @@ class PurchaseDualFlowTest extends TestCase {
             $allocateQty = min($receiptQty, $available);
 
             if ($allocateQty > 0) {
-                $allocations[] = ['invoice_id' => $inv['id'], 'qty' => $allocateQty, 'rate' => $inv['rate']];
-                $receiptQty -= $allocateQty;
+                $allocations[]  = ['invoice_id' => $inv['id'], 'qty' => $allocateQty, 'rate' => $inv['rate']];
+                $receiptQty    -= $allocateQty;
             }
         }
 
@@ -95,8 +95,8 @@ class PurchaseDualFlowTest extends TestCase {
             $allocateQty = min($receiptQty, $available);
 
             if ($allocateQty > 0) {
-                $allocations[] = ['invoice_id' => $inv['id'], 'qty' => $allocateQty];
-                $receiptQty -= $allocateQty;
+                $allocations[]  = ['invoice_id' => $inv['id'], 'qty' => $allocateQty];
+                $receiptQty    -= $allocateQty;
             }
         }
 
@@ -129,8 +129,8 @@ class PurchaseDualFlowTest extends TestCase {
             $allocateQty = min($receiptQty, $available);
 
             if ($allocateQty > 0) {
-                $valuatedSLEs[] = ['qty' => $allocateQty, 'is_valuated' => true, 'rate' => $inv['rate']];
-                $receiptQty -= $allocateQty;
+                $valuatedSLEs[]  = ['qty' => $allocateQty, 'is_valuated' => true, 'rate' => $inv['rate']];
+                $receiptQty     -= $allocateQty;
             }
         }
 
@@ -208,8 +208,8 @@ class PurchaseDualFlowTest extends TestCase {
             if (! isset($groups[$key])) {
                 $groups[$key] = ['qty' => 0, 'rate' => $ii['rate'], 'ids' => []];
             }
-            $groups[$key]['qty'] += $ii['quantity'];
-            $groups[$key]['ids'][] = $ii['id'];
+            $groups[$key]['qty']   += $ii['quantity'];
+            $groups[$key]['ids'][]  = $ii['id'];
         }
 
         $this->assertCount(2, $groups, 'Harus ada 2 group: rate 4500 dan rate 6500');
@@ -267,7 +267,7 @@ class PurchaseDualFlowTest extends TestCase {
 
         $createdItems = [];
         foreach ($groups as $g) {
-            $newItem = [
+            $newItem        = [
                 'id'             => uniqid('new-'),
                 'parent_item_id' => $parentId,
                 'quantity'       => $g['qty'],

@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Finances\SalesInvoices;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -69,9 +69,9 @@ class SalesInvoiceMigrator extends BaseMigrator {
                             'legacy_choices'      => $record->choices ?? null,
                             'legacy_trans_type'   => $record->trans_type ?? null,
                         ],
-                        'deleted_at' => $record->deleted_at,
-                        'created_at' => $record->created_at,
-                        'updated_at' => $record->updated_at,
+                        'deleted_at'           => $record->deleted_at,
+                        'created_at'           => $record->created_at,
+                        'updated_at'           => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(
@@ -174,4 +174,3 @@ class SalesInvoiceMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

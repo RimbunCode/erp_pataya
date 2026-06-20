@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Sales\Orders;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Sales\SalesOrder;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -64,9 +64,9 @@ class SalesOrderMigrator extends BaseMigrator {
                             'legacy_inv_type'     => $record->inv_type ?? null,
                             'legacy_breakdown_id' => $record->breakdown_reference_id ?? null,
                         ],
-                        'deleted_at' => $record->deleted_at,
-                        'created_at' => $record->created_at,
-                        'updated_at' => $record->updated_at,
+                        'deleted_at'           => $record->deleted_at,
+                        'created_at'           => $record->created_at,
+                        'updated_at'           => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(
@@ -124,4 +124,3 @@ class SalesOrderMigrator extends BaseMigrator {
         return $stringValue === '' ? null : $stringValue;
     }
 }
-

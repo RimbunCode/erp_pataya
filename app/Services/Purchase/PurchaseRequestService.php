@@ -2,7 +2,7 @@
 
 namespace App\Services\Purchase;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Purchase\PurchaseRequest;
@@ -44,7 +44,7 @@ class PurchaseRequestService {
         $purchaseRequest->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->update(['deleted_at' => now()]);
-        $itemIds = collect($data['items'])
+        $itemIds       = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()

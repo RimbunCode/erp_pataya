@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Purchase\Requests;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Purchase\PurchaseRequest;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -49,9 +49,9 @@ class PurchaseRequestMigrator extends BaseMigrator {
                             'legacy_breakdown_arr'     => $record->breakdown_arr ?? null,
                             'legacy_comments_internal' => $record->comments_internal ?? null,
                         ],
-                        'deleted_at' => null,
-                        'created_at' => $record->created_at ?? null,
-                        'updated_at' => $record->updated_at ?? null,
+                        'deleted_at'      => null,
+                        'created_at'      => $record->created_at ?? null,
+                        'updated_at'      => $record->updated_at ?? null,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(
@@ -118,4 +118,3 @@ class PurchaseRequestMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

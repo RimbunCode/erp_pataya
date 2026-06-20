@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\ApprovalDecisionRequest;
 use App\Models\Core\ApprovalInstance;
@@ -56,15 +56,15 @@ class ApprovalInstanceController extends Controller {
                 })
                     // multi-approver: cocok di approver anak
                     ->orWhere(function (Builder $query) use ($user, $roleIds) {
-                        $query->where('is_advanced', true)
-                            ->whereHas('approvers', function (Builder $q) use ($user, $roleIds) {
-                                $q->where(function (Builder $q) use ($user) {
-                                    $q->where('approver_type', 'user')->where('approverable_id', $user->id);
-                                })->orWhere(function (Builder $q) use ($roleIds) {
-                                    $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
-                                });
+                    $query->where('is_advanced', true)
+                        ->whereHas('approvers', function (Builder $q) use ($user, $roleIds) {
+                            $q->where(function (Builder $q) use ($user) {
+                                $q->where('approver_type', 'user')->where('approverable_id', $user->id);
+                            })->orWhere(function (Builder $q) use ($roleIds) {
+                                $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
                             });
-                    })
+                        });
+                })
                     // histori: sudah acted_by user ini
                     ->orWhere('acted_by_id', $user->id);
             })
@@ -120,15 +120,15 @@ class ApprovalInstanceController extends Controller {
                 })
                     // multi-approver: ada sebagai approver anak
                     ->orWhere(function (Builder $query) use ($user, $roleIds) {
-                        $query->where('is_advanced', true)
-                            ->whereHas('approvers', function (Builder $q) use ($user, $roleIds) {
-                                $q->where(function ($q) use ($user) {
-                                    $q->where('approver_type', 'user')->where('approverable_id', $user->id);
-                                })->orWhere(function ($q) use ($roleIds) {
-                                    $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
-                                });
+                    $query->where('is_advanced', true)
+                        ->whereHas('approvers', function (Builder $q) use ($user, $roleIds) {
+                            $q->where(function ($q) use ($user) {
+                                $q->where('approver_type', 'user')->where('approverable_id', $user->id);
+                            })->orWhere(function ($q) use ($roleIds) {
+                                $q->where('approver_type', 'role')->whereIn('approverable_id', $roleIds);
                             });
-                    })
+                        });
+                })
                     ->orWhere('acted_by_id', $user->id);
             })
             ->exists();
@@ -289,7 +289,7 @@ class ApprovalInstanceController extends Controller {
             'notes'       => $notes,
         ]);
 
-        $isRejected = false;
+        $isRejected                  = false;
         $approval->current_sequence += 1;
         foreach ($approval->steps()->get() as $step) {
             if ($isRejected) {

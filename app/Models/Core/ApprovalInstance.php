@@ -4,7 +4,7 @@ namespace App\Models\Core;
 
 use App\Casts\FormStatusCast;
 use App\Casts\Json;
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\DB;
 
 class ApprovalInstance extends Model {
     use HasUlids, SoftDeletes;
-
     protected $guarded = ['id'];
     protected $casts   = [
         'status'  => FormStatusCast::class,
@@ -28,8 +27,8 @@ class ApprovalInstance extends Model {
     //     ]);
     // }
 
-    protected $with                = ['steps', 'document'];
-    public string $translateKey    = 'core.approvalInstance';
+    protected       $with          = ['steps', 'document'];
+    public string   $translateKey  = 'core.approvalInstance';
     protected array $configColumns = [
         'document' => [
             'isLink' => true,

@@ -4,7 +4,7 @@ namespace App\Traits;
 
 use App\Casts\FormStatusesCast;
 use App\Casts\Json;
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;

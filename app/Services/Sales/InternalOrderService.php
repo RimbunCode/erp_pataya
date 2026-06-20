@@ -2,7 +2,7 @@
 
 namespace App\Services\Sales;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\Stock;
 use App\Models\Sales\InternalOrder;
@@ -42,7 +42,7 @@ class InternalOrderService {
         $internalOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
-        $itemIds = collect($data['items'])
+        $itemIds       = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -76,8 +76,8 @@ class InternalOrderService {
             'code' => FormatingSeries::generate(InternalOrder::class, $internalOrder),
         ]);
 
-        $items  = $internalOrder->items()->with(['item'])->get();
-        $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+        $items      = $internalOrder->items()->with(['item'])->get();
+        $stocks     = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
             ->lockForUpdate()
             ->get()

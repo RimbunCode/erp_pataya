@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Sales;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Finances\SalesInvoiceService;
@@ -21,8 +21,8 @@ class SalesDualFlowTest extends TestCase {
         $this->assertTrue(defined(FormStatus::class . '::OVER_DELIVERED'));
         $this->assertSame('over_delivered', FormStatus::OVER_DELIVERED->value);
     }
-
     #[DataProvider('statusProvider')]
+
     public function test_resolve_status_logic(
         float $totalQty,
         float $totalDelivered,
@@ -62,37 +62,37 @@ class SalesDualFlowTest extends TestCase {
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
             ],
-            'partially delivered' => [
+            'partially delivered'         => [
                 50, 20, 0,
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
                 [FormStatus::PARTIALLY_DELIVERED, FormStatus::TO_BILL],
             ],
-            'fully delivered' => [
+            'fully delivered'             => [
                 50, 50, 0,
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
                 [FormStatus::DELIVERED, FormStatus::TO_BILL],
             ],
-            'over delivered' => [
+            'over delivered'              => [
                 50, 55, 0,
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
                 [FormStatus::OVER_DELIVERED, FormStatus::TO_BILL],
             ],
-            'partially billed' => [
+            'partially billed'            => [
                 50, 0, 20,
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
                 [FormStatus::TO_DELIVER, FormStatus::PARTIALLY_BILLED],
             ],
-            'fully billed' => [
+            'fully billed'                => [
                 50, 0, 50,
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
                 [FormStatus::TO_DELIVER, FormStatus::BILLED],
             ],
-            'over billed' => [
+            'over billed'                 => [
                 50, 0, 60,
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
                 [FormStatus::TO_DELIVER, FormStatus::OVER_BILLED],
             ],
-            'fully delivered and billed' => [
+            'fully delivered and billed'  => [
                 50, 50, 50,
                 [FormStatus::TO_DELIVER, FormStatus::TO_BILL],
                 [FormStatus::DELIVERED, FormStatus::BILLED],
@@ -132,12 +132,12 @@ class SalesDualFlowTest extends TestCase {
         $service = new SalesOrderService;
         $this->assertTrue(method_exists($service, 'syncItems'));
     }
-
     // =========================================================================
     // SYNC ITEMS LOGIC
     // =========================================================================
 
     #[Test]
+
     public function sync_groups_invoice_items_by_price_tax_warehouse(): void {
         $invoiceItems = [
             ['id' => 'ii-1', 'price' => 4500, 'tax_id' => 'tax-1', 'tax_rate' => 11, 'quantity' => 30],
@@ -153,8 +153,8 @@ class SalesDualFlowTest extends TestCase {
             if (! isset($groups[$key])) {
                 $groups[$key] = ['qty' => 0, 'price' => $ii['price'], 'ids' => []];
             }
-            $groups[$key]['qty'] += $ii['quantity'];
-            $groups[$key]['ids'][] = $ii['id'];
+            $groups[$key]['qty']   += $ii['quantity'];
+            $groups[$key]['ids'][]  = $ii['id'];
         }
 
         $this->assertCount(2, $groups, 'Harus ada 2 group: price 4500 dan price 6500');
@@ -166,8 +166,8 @@ class SalesDualFlowTest extends TestCase {
         $this->assertEquals(20, $groups[$key6500]['qty'], 'Group price 6500 harus total qty 20');
         $this->assertCount(2, $groups[$key4500]['ids'], 'Group price 4500 punya 2 invoice items');
     }
-
     #[Test]
+
     public function sync_decides_update_when_only_one_group(): void {
         $groups = [
             '5000|tax-1|11|wh-1' => ['qty' => 50, 'price' => 5000],
@@ -177,8 +177,8 @@ class SalesDualFlowTest extends TestCase {
 
         $this->assertFalse($needsSplit, '1 group → update SO item, bukan split');
     }
-
     #[Test]
+
     public function sync_decides_split_when_multiple_groups(): void {
         $groups = [
             '4500|tax-1|11|wh-1' => ['qty' => 30, 'price' => 4500],
@@ -190,8 +190,8 @@ class SalesDualFlowTest extends TestCase {
         $this->assertTrue($needsSplit, '>1 group → split SO items');
         $this->assertCount(2, $groups, 'Harus buat 2 SO item baru');
     }
-
     #[Test]
+
     public function sync_split_new_items_store_parent_item_id(): void {
         $parentId = 'so-item-old-id';
 
@@ -212,7 +212,7 @@ class SalesDualFlowTest extends TestCase {
 
         $createdItems = [];
         foreach ($groups as $g) {
-            $newItem = [
+            $newItem        = [
                 'id'             => uniqid('new-'),
                 'parent_item_id' => $parentId,
                 'quantity'       => $g['qty'],

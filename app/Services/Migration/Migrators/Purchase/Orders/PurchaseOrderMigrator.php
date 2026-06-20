@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Purchase\Orders;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Purchase\PurchaseOrder;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -55,9 +55,9 @@ class PurchaseOrderMigrator extends BaseMigrator {
                             'legacy_status'     => $record->status ?? null,
                             'legacy_inv_number' => $record->inv_number ?? null,
                         ],
-                        'deleted_at' => $record->deleted_at,
-                        'created_at' => $record->created_at,
-                        'updated_at' => $record->updated_at,
+                        'deleted_at'           => $record->deleted_at,
+                        'created_at'           => $record->created_at,
+                        'updated_at'           => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(
@@ -121,4 +121,3 @@ class PurchaseOrderMigrator extends BaseMigrator {
         return $stringValue === '' ? null : $stringValue;
     }
 }
-

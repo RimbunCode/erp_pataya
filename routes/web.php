@@ -1,5 +1,5 @@
 <?php
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;

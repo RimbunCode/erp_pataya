@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Enums\FormStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ class Utils {
         $charactersLength = strlen($characters);
         $counter          = 0;
         while ($counter < $length) {
-            $result .= $characters[rand(0, $charactersLength - 1)];
+            $result  .= $characters[rand(0, $charactersLength - 1)];
             $counter += 1;
         }
 

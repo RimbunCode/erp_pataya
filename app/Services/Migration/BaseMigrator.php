@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\Log as ActivityLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -13,17 +13,14 @@ use Throwable;
 
 abstract class BaseMigrator {
     protected string $sourceConnection = 'legacy';
-
     /**
      * @var array<string, string|null>
      */
     protected array $idMapping = [];
-
     protected ?string $fallbackCreatedById = null;
     protected ?string $fallbackUnitId      = null;
     protected ?string $fallbackBranchId    = null;
-    protected int $chunkSize               = 500;
-
+    protected int     $chunkSize           = 500;
     /**
      * @var array<string, string|null>
      */
@@ -122,7 +119,7 @@ abstract class BaseMigrator {
         $recordKeyAttribute ??= str_contains($orderColumn, '.')
             ? (string) str($orderColumn)->afterLast('.')
             : $orderColumn;
-        $lastProcessed = $this->getCheckpoint($checkpointKey);
+        $lastProcessed        = $this->getCheckpoint($checkpointKey);
 
         if ($lastProcessed !== null && $lastProcessed !== '') {
             $query->where($orderColumn, '>', $lastProcessed);
@@ -246,9 +243,7 @@ abstract class BaseMigrator {
      */
     protected function defaultLegacyStatus(): array {
         return [FormStatus::DRAFT];
-    }
-
-    /**
+    }/**
      * Execute the migration logic.
      */
     abstract public function migrate(): void;
@@ -320,7 +315,7 @@ abstract class BaseMigrator {
         }
 
         ActivityLog::create([
-            'activity' => [
+            'activity'      => [
                 'en' => 'Migrated from Legacy System',
                 'id' => 'Migrasi dari Sistem Lama',
             ],
@@ -346,7 +341,7 @@ abstract class BaseMigrator {
             $resolver = \Closure::bind(function () use ($method): mixed {
                 return $this->{$method}();
             }, $model, $model);
-            $keys = $resolver ? $resolver() : [];
+            $keys     = $resolver ? $resolver() : [];
 
             return is_array($keys) ? $keys : [];
         } catch (Throwable $exception) {

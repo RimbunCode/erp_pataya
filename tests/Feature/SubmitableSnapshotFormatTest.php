@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -123,7 +123,7 @@ class SubmitableSnapshotFormatTest extends TestCase {
             'updated_at' => now(),
         ]);
 
-        $original = SubmitableSnapshotDocument::create([
+        $original         = SubmitableSnapshotDocument::create([
             'code' => 'PR-0001',
         ]);
         $original->status = [FormStatus::SUBMITTED];
@@ -140,10 +140,9 @@ class SubmitableSnapshotFormatTest extends TestCase {
 
 class SubmitableSnapshotDocument extends Model {
     use HasUlids, SoftDeletes, Submitable;
-
     protected static bool $is_submitable = true;
-    protected $table                     = 'test_submitable_documents';
-    protected $guarded                   = ['id'];
+    protected             $table         = 'test_submitable_documents';
+    protected             $guarded       = ['id'];
 
     public static function templateLink() {
         return ':code';
