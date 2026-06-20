@@ -158,7 +158,7 @@ class FilterTreeCleaner {
         if ($column === null || ($column['searchable'] ?? true) === false) {
             return false;
         }
-        if (! $this->isOperatorValid($column, $op)) {
+        if (! $this->isOperatorValid($column, $op, $item['v'] ?? null)) {
             return false;
         }
 
@@ -180,6 +180,35 @@ class FilterTreeCleaner {
         $type   = $column['type'] ?? 'string';
         $negate = $op !== '!=' && str_starts_with($op, '!');
         $base   = $negate ? substr($op, 1) : $op;
+
+        // Column-ref mode (paling awal): value = { kind: "column", ref: ... }
+        if (is_array($value) && ($value['kind'] ?? null) === 'column') {
+            // in_period/set/!set tidak valid di mode column
+            if (in_array($base, ['in_period', 'set'], true)) {
+                return false;
+            }
+            $refs = $value['ref'] ?? null;
+            $refs = is_array($refs) ? $refs : ($refs !== null ? [$refs] : []);
+            if (empty($refs)) {
+                return false;
+            }
+            // Resolve & type-compat tiap ref
+            $validRefs = $this->resolveRefsForColumnMode($refs, $type);
+            if (empty($validRefs)) {
+                return false;
+            }
+            // Jumlah ref sesuai operator
+            $required = match ($base) {
+                'in'      => null, // ≥1
+                'between' => 2,
+                default   => 1,
+            };
+            if ($required !== null) {
+                return count($validRefs) === $required;
+            }
+
+            return count($validRefs) >= 1;
+        }
 
         // Relasi
         if ($type === 'relation') {
@@ -211,6 +240,11 @@ class FilterTreeCleaner {
                 : $this->isNumeric($a) && $this->isNumeric($b);
         }
 
+        // has (formStatuses: validasi sebagai list ≥1)
+        if ($base === 'has') {
+            return count($this->scalarList($value)) >= 1;
+        }
+
         // In (semua type list)
         if ($base === 'in') {
             return count($this->scalarList($value)) >= 1;
@@ -223,8 +257,8 @@ class FilterTreeCleaner {
 
         return match ($type) {
             'number', 'currency' => $this->isNumeric($value),
-            'time'               => $this->isTime($value),
-            default              => $this->isFilled($value),
+            'time'  => $this->isTime($value),
+            default => $this->isFilled($value),
         };
     }
 
@@ -340,15 +374,28 @@ class FilterTreeCleaner {
 
     // ---- Column / operator resolution (mirror FilterEvaluator) -----------
 
-    private function isOperatorValid(array $column, string $op): bool {
-        if (in_array($op, ['set', '!set'], true)) {
+    private function isOperatorValid(array $column, string $op, mixed $value = null): bool {
+        $isColumnMode = is_array($value) && ($value['kind'] ?? null) === 'column';
+
+        if (! $isColumnMode && in_array($op, ['set', '!set'], true)) {
             return true;
         }
 
         $type    = $column['type'] ?? 'string';
         $allowed = $this->operatorsByType[$type] ?? [];
 
-        return in_array($op, $allowed, true);
+        if (in_array($op, $allowed, true)) {
+            return true;
+        }
+
+        // Mode column: date/datetime menerima operator komparasi penuh
+        if ($isColumnMode && in_array($type, ['date', 'datetime'], true)) {
+            $columnOps = ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'];
+
+            return in_array($op, $columnOps, true);
+        }
+
+        return false;
     }
 
     /**
@@ -359,6 +406,66 @@ class FilterTreeCleaner {
      */
     private function resolveColumn(string $key, mixed $value = null): ?array {
         return $this->resolver->resolve($key, $value);
+    }
+
+    /**
+     * Resolve kolom ref untuk mode column (dukung dot-notation).
+     *
+     * @return array<string,mixed>|null
+     */
+    private function resolveRefColumn(string $key): ?array {
+        return $this->resolver->resolve($key);
+    }
+
+    /**
+     * Resolve & validasi daftar ref untuk mode column.
+     * Mengembalikan hanya ref yang valid (ter-resolve, searchable, type-compat).
+     *
+     * @param  list<mixed>  $refs
+     * @return list<array<string,mixed>>
+     */
+    private function resolveRefsForColumnMode(array $refs, string $leftType): array {
+        $validRefs = [];
+        foreach ($refs as $ref) {
+            if (! is_string($ref) || $ref === '') {
+                continue;
+            }
+            $col = $this->resolveRefColumn($ref);
+            if ($col === null) {
+                continue;
+            }
+            if (($col['searchable'] ?? true) === false) {
+                continue;
+            }
+            $rightType = $col['type'] ?? 'string';
+            if (! $this->isTypeCompatible($leftType, $rightType)) {
+                continue;
+            }
+            $validRefs[] = $col;
+        }
+
+        return $validRefs;
+    }
+
+    /**
+     * Cek kompatibilitas type kolom kiri & kanan untuk mode column.
+     */
+    private function isTypeCompatible(string $leftType, string $rightType): bool {
+        $categorize = function (string $type): string {
+            return match ($type) {
+                'number', 'currency' => 'numeric',
+                'string' => 'string',
+                'date', 'datetime' => 'date',
+                'time'    => 'time',
+                'boolean' => 'boolean',
+                'relation', 'relations' => 'relation',
+                'formStatus', 'formStatuses' => 'status',
+                'enum'  => 'enum',
+                default => $type,
+            };
+        };
+
+        return $categorize($leftType) === $categorize($rightType);
     }
 
     private function isGroup(mixed $node): bool {

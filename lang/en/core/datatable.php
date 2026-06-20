@@ -23,7 +23,11 @@ return [
         ],
         'select_operator' => 'Select Operator',
         'select_value'    => 'Select :name',
-        'group.options'   => [
+        'mode'            => [
+            'to_column' => 'Compare with another column',
+            'to_value'  => 'Compare with a value',
+        ],
+        'group.options' => [
             'and' => 'Match All',
             'or'  => 'Match Any',
         ],
