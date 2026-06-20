@@ -7,6 +7,8 @@ use App\Services\Core\LinkModelFilterConverter;
 use App\Utils;
 use Error;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
@@ -294,6 +296,112 @@ class ModelController extends Controller {
         return response()->json([
             'total' => $queryForCount->count(),
             'data'  => $results,
+        ]);
+    }
+
+    public function selectData(Request $request) {
+        $parent = \str_replace('/', '\\', (string) $request->model);
+        if (! \class_exists($parent) || ! \is_subclass_of($parent, Model::class)) {
+            return response()->json(['message' => 'Model class not found'], 422);
+        }
+
+        $target       = $parent;
+        $parentColumn = null;
+        if ($select = $request->select) {
+            if (! \method_exists($parent, $select)) {
+                return response()->json(['message' => "Relation '{$select}' does not exist"], 422);
+            }
+            $relation = (new $parent)->$select();
+            if (! $relation instanceof Relation) {
+                return response()->json(['message' => "Relation '{$select}' does not exist"], 422);
+            }
+            $target = \get_class($relation->getRelated());
+
+            // per-item: eager-load relasi balik parent + tandai kolomnya.
+            if ($parentRel = $target::$parentRelation ?? null) {
+                $request->merge(['with' => \array_values(\array_unique([...($request->with ?? []), $parentRel]))]);
+                $parentColumn = Str::snake($parentRel);
+            }
+        }
+
+        $columns       = $target::getColumns(1);
+        $showedColumns = $request->columns ?? [];
+
+        // Per-item: relasi parent kerap ber-`ignore:true` di configColumns (mis.
+        // WorkOrderItem::workOrder) sehingga getColumns membuangnya. Re-inject entri
+        // kolom relasi parent agar (a) tampil di metadata, dan (b) terlihat sbg
+        // relasi visible oleh adaptive-select macro (collectRelation → eager-load
+        // parent + SELECT FK). Tanpa ini, parentColumn ada tapi data parent null.
+        if ($parentColumn && ! isset($columns[$parentColumn])) {
+            // nameOfFunction = relasi balik di model TARGET (child) menuju parent
+            // (mis. WorkOrderItem::workOrder) — bukan $select (relasi parent→child).
+            // adaptive-select memanggil $target->{$parentRel}() untuk ambil FK.
+            $columns[$parentColumn] = [
+                'name'           => $parentColumn,
+                'type'           => 'relation',
+                'typeRelation'   => 'basic',
+                'nameOfFunction' => $parentRel,
+                'related'        => $parent,
+                'route'          => null,
+                'sortable'       => false,
+                'searchable'     => true,
+                'show'           => true,
+                'primaryKey'     => (new $parent)->getKeyName(),
+                'titleTrans'     => (new $target)->translateKey
+                    ? (new $target)->translateKey . '.columns.' . $parentColumn
+                    : null,
+                'columns' => [],
+            ];
+        }
+
+        foreach ($columns as $key => $column) {
+            // un-ignore kolom parent (per-item) walau ter-ignore di configColumns.
+            if ($parentColumn && $column['name'] === $parentColumn) {
+                $columns[$key]['show'] = true;
+            }
+            if (\count($showedColumns) > 0 && $column['name'] !== $parentColumn) {
+                $columns[$key]['show'] = false;
+                foreach ($showedColumns as $order => $showedCol) {
+                    if ($column['name'] === $showedCol) {
+                        $columns[$key]['show']  = true;
+                        $columns[$key]['order'] = $order;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Tiga jalur filter (semua AND): baseFilters (tree LinkModel) + filters
+        // ({root:{k,o,v,c}} native) di sini; fid/sort/paginate/submitable via macro.
+        $query = $target::query();
+
+        // Per-item: macro `dataTable` membangun ulang kolom via getColumns(1)
+        // (mengabaikan re-inject di atas) sehingga adaptive-select tak tahu perlu
+        // FK relasi parent yang ber-`ignore:true`. SELECT FK eksplisit di sini agar
+        // belongsTo parent dapat di-resolve (addSelect akumulatif dgn macro).
+        if ($parentColumn && isset($parentRel)) {
+            $parentRelation = (new $target)->{$parentRel}();
+            if ($parentRelation instanceof BelongsTo) {
+                $targetTable = (new $target)->getTable();
+                $query->addSelect("{$targetTable}.{$parentRelation->getForeignKeyName()}");
+            }
+        }
+
+        if ($baseFilters = $request->baseFilters) {
+            $this->applyLinkModelFilters($query, $baseFilters);
+        }
+        if ($filters = $request->filters) {
+            (new FilterEvaluator($columns))->apply($query, $filters);
+        }
+        $result = $query->dataTable($request, $showedColumns);
+
+        return response()->json([
+            'model'        => $target,
+            'route'        => Str::plural((new $target)->getNameClass()),
+            'translateKey' => (new $target)->translateKey ?? null,
+            'columns'      => $columns,
+            'parentColumn' => $parentColumn,
+            'data'         => $result['data'],
         ]);
     }
 

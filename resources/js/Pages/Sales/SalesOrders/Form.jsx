@@ -63,7 +63,7 @@ export default memo(function Form() {
     return net_amount + tax_amount - (data?.discount_amount ?? 0);
   }, [net_amount, tax_amount, data.discount_amount]);
   const mergeItems = useCallback(
-    (value, model) => {
+    ({ items, model }) => {
       setData((prev) => {
         const oldItems = prev.items ?? [];
 
@@ -75,14 +75,14 @@ export default memo(function Form() {
           ]),
         );
 
-        value.forEach((item) => {
+        items.forEach((item) => {
           const key = `${model}_${item.id}`;
           const newItem = {
             // ...item,
             id: generateRandom(5),
             item: item.item,
             description: item.description,
-            quantity: item.remaining_quantity,
+            quantity: item.quantity, // sudah ter-alias dari remaining_quantity (columnAlias)
             unit: item.unit,
             referenceable_type: model,
             referenceable_id: item.id,
@@ -113,15 +113,16 @@ export default memo(function Form() {
   useEffect(() => {
     if (!loadFrom) return;
     const fetchData = async () => {
-      const data = await loadFromModel(
+      const result = await loadFromModel(
         loadFrom?.model,
         loadFrom?.id,
         loadFrom?.select,
+        t,
       );
-      mergeItems(data.value, data.model);
+      if (result) mergeItems(result);
     };
     fetchData().catch(console.error);
-  }, []);
+  }, [loadFrom, mergeItems, t]);
 
   const handleBarcodeSelect = useCallback(
     (selected) => {
@@ -495,15 +496,24 @@ export default memo(function Form() {
               from={{
                 "App\\Models\\Service\\WorkOrder": {
                   columns: ["code", "date"],
+                  columnAlias: {
+                    quantity: "remaining_quantity",
+                  },
                   filters: {
                     status: "submitted",
                   },
-                  select: {
+                  selects: {
                     items: {
                       filters: {
                         status: "submitted",
                       },
-                      columns: ["work_order", "item", "quantity", "unit"],
+                      columns: [
+                        "work_order",
+                        "item",
+                        "quantity",
+                        "remaining_quantity",
+                        "unit",
+                      ],
                     },
                   },
                 },

@@ -117,6 +117,9 @@ Route::post('/model', ModelController::class)
 Route::post('/model/datatable', [ModelController::class, 'datatable'])
     ->middleware(middleware: ['auth'])
     ->name('model.datatable');
+Route::post('/model/select-data', [ModelController::class, 'selectData'])
+    ->middleware(middleware: ['auth'])
+    ->name('model.selectData');
 Route::get('/model/{model}', [ModelController::class, 'columns'])
     ->where('model', '.*')
     ->middleware(middleware: ['auth'])

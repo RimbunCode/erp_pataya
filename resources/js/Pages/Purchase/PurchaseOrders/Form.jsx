@@ -46,7 +46,7 @@ function Form() {
   }, [net_amount, tax_amount]);
 
   const mergeItems = useCallback(
-    (value, model) => {
+    ({ items, model }) => {
       setData((prev) => {
         const oldItems = prev.items ?? [];
 
@@ -58,7 +58,7 @@ function Form() {
           ]),
         );
 
-        value.forEach((item) => {
+        items.forEach((item) => {
           const key = `${model}_${item.id}`;
           const newItem = {
             // ...item,
@@ -98,15 +98,16 @@ function Form() {
   useEffect(() => {
     if (!loadFrom) return;
     const fetchData = async () => {
-      const data = await loadFromModel(
+      const result = await loadFromModel(
         loadFrom?.model,
         loadFrom?.id,
         loadFrom?.select,
+        t,
       );
-      mergeItems(data.value, data.model);
+      if (result) mergeItems(result);
     };
     fetchData().catch(console.error);
-  }, [loadFrom, mergeItems]);
+  }, [loadFrom, mergeItems, t]);
 
   const handleBarcodeSelect = useCallback(
     (selected) => {
@@ -434,7 +435,7 @@ function Form() {
                   filters: {
                     status: "submitted",
                   },
-                  select: {
+                  selects: {
                     items: {
                       filters: {
                         status: "submitted",
@@ -454,7 +455,7 @@ function Form() {
                   filters: {
                     status: "submitted",
                   },
-                  select: {
+                  selects: {
                     items: {
                       filters: {
                         status: "submitted",

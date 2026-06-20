@@ -25,7 +25,7 @@ function Form() {
   );
 
   const mergeItems = useCallback(
-    (value, model) => {
+    ({ items, model }) => {
       setData((prev) => {
         const oldItems = prev.items ?? [];
 
@@ -37,7 +37,7 @@ function Form() {
           ]),
         );
 
-        value.forEach((item) => {
+        items.forEach((item) => {
           const key = `${model}_${item.id}`;
           const newItem = {
             // ...item,
