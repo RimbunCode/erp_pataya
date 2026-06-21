@@ -157,7 +157,7 @@ class FilterEvaluator {
 
         // Period (date/datetime)
         if ($base === 'in_period') {
-            $this->applyPeriod($query, $this->qualifiedColumn($key), $value, $negate, $boolean);
+            $this->applyPeriod($query, $this->qualifiedColumn($key), $type, $value, $negate, $boolean);
 
             return;
         }
@@ -198,7 +198,7 @@ class FilterEvaluator {
         // tabel relasi terdalam) — pakai boolean "and" di dalam scope relasi.
         $leaf = function (Builder $q) use ($columnName, $type, $base, $negate, $value): void {
             if ($base === 'in_period') {
-                $this->applyPeriod($q, $columnName, $value, $negate, 'and');
+                $this->applyPeriod($q, $columnName, $type, $value, $negate, 'and');
 
                 return;
             }
@@ -710,7 +710,7 @@ class FilterEvaluator {
      *
      * @param  array<string,mixed>  $value
      */
-    private function applyPeriod(Builder $query, string $col, mixed $value, bool $negate, string $boolean): void {
+    private function applyPeriod(Builder $query, string $col, string $type, mixed $value, bool $negate, string $boolean): void {
         if (! is_array($value) || empty($value['period']) || empty($value['operator'])) {
             return;
         }
@@ -729,20 +729,22 @@ class FilterEvaluator {
             return;
         }
 
-        [$start] = $fromRange;
-        [, $end] = $toRange;
+        [$start]    = $fromRange;
+        [, $end]    = $toRange;
+        $startValue = $type === 'date' ? $start->toDateString() : $start;
+        $endValue   = $type === 'date' ? $end->toDateString() : $end;
 
-        $apply = function (Builder $q) use ($col, $operator, $start, $end) {
+        $apply = function (Builder $q) use ($col, $operator, $startValue, $endValue) {
             match ($operator) {
-                'is'           => $q->whereBetween($col, [$start, $end]),
-                'is-not'       => $q->whereNotBetween($col, [$start, $end]),
-                'after'        => $q->where($col, '>', $end),
-                'on-or-after'  => $q->where($col, '>=', $start),
-                'before'       => $q->where($col, '<', $start),
-                'on-or-before' => $q->where($col, '<=', $end),
-                'between'      => $q->whereBetween($col, [$start, $end]),
-                'not-between'  => $q->whereNotBetween($col, [$start, $end]),
-                default        => $q->whereBetween($col, [$start, $end]),
+                'is'           => $q->whereBetween($col, [$startValue, $endValue]),
+                'is-not'       => $q->whereNotBetween($col, [$startValue, $endValue]),
+                'after'        => $q->where($col, '>', $endValue),
+                'on-or-after'  => $q->where($col, '>=', $startValue),
+                'before'       => $q->where($col, '<', $startValue),
+                'on-or-before' => $q->where($col, '<=', $endValue),
+                'between'      => $q->whereBetween($col, [$startValue, $endValue]),
+                'not-between'  => $q->whereNotBetween($col, [$startValue, $endValue]),
+                default        => $q->whereBetween($col, [$startValue, $endValue]),
             };
         };
 
