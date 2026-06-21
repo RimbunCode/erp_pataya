@@ -2,16 +2,24 @@
 
 namespace App\Models\Finances;
 
+use App\Enums\Permission;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
+use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseOrderItem;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseInvoiceItem extends Model {
     use HasUlids, SoftDeletes;
+
+    /** Izin lihat kolom harga beli: pembuat PurchaseOrder atau PurchaseInvoice. */
+    private const PRICE_VISIBILITY = [
+        [PurchaseOrder::class, [Permission::Write, Permission::Create]],
+        [PurchaseInvoice::class, [Permission::Write, Permission::Create]],
+    ];
 
     public static $parentRelation = 'purchaseInvoice';
     public string $translateKey   = 'finances.purchaseInvoice.item';
@@ -37,14 +45,18 @@ class PurchaseInvoiceItem extends Model {
             'order' => 2,
         ],
         'rate' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 3,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 3,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'basic_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 4,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 4,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'tax' => [
             'type'  => 'relation',
@@ -52,19 +64,24 @@ class PurchaseInvoiceItem extends Model {
             'order' => 5,
         ],
         'tax_rate' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 6,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 6,
+            'linkable' => true,
         ],
         'tax_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 7,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 7,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 8,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 8,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'targetWarehouse' => [
             'type'  => 'relation',

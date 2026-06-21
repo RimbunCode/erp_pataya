@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\Core\FilterEvaluator;
 use App\Services\Core\LinkModelFilterConverter;
+use App\Services\Core\PermissionChecker;
 use App\Utils;
 use Error;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,6 +17,15 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class ModelController extends Controller {
+    /**
+     * Atribut meta appends (LinkModel::getArrayableAppends) yang BUKAN kolom data
+     * tapi dibutuhkan komponen LinkModel/SelectModel (navigasi, render label, state UI).
+     * Selalu lolos pembatasan kolom lookup.
+     */
+    private const ALWAYS_ALLOWED_ATTRIBUTES = [
+        'route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel', 'templateLink', 'disabledOn',
+    ];
+
     private function filterOperator(Builder|JoinClause $query, $key, $operatorFilter, $value, $boolean = 'and', bool $valueIsColumn = false) {
         preg_match('/^([^\[\]]+)/', $operatorFilter, $matches);
         $operatorFilter = $matches[1] ?? '';
@@ -96,6 +106,209 @@ class ModelController extends Controller {
         $columns = $query->getModel()::getColumns(1);
         $tree    = (new LinkModelFilterConverter($columns))->toTree($filters);
         (new FilterEvaluator($columns))->apply($query, $tree);
+    }
+
+    /**
+     * Nama kolom yang dirujuk templateLink model. Token bisa:
+     *   :name                  → search & display dari `name`
+     *   :name{:title}          → search dari `name`, display dari `title`
+     *   :relation.col          → relasi (segmen pertama = nama relasi)
+     * Untuk `:name{:title}` KEDUA kolom (search `name` + display `title`) harus
+     * lolos lookup. Tiap kolom diambil segmen pertamanya (relasi-safe; kolom anak
+     * relasi dibatasi rekursi).
+     *
+     * @return list<string>
+     */
+    private function templateLinkColumns(string $model): array {
+        if (! \method_exists($model, 'templateLink')) {
+            return [];
+        }
+        \preg_match_all('/:((\w[\w]+{:[\w.]+})|(\w[\w.]*))/', (string) $model::templateLink(), $matches);
+
+        $names = [];
+        foreach ($matches[0] ?? [] as $token) {
+            $token = \ltrim($token, ':');
+            // bagian display dalam {:...}
+            if (\preg_match('/{:([\w.]+)}/', $token, $m)) {
+                $names[] = \explode('.', $m[1])[0];
+            }
+            // bagian search/utama (sebelum {})
+            $search  = \preg_replace('/{:.*}/', '', $token);
+            $names[] = \explode('.', $search)[0];
+        }
+
+        return \array_values(\array_unique(\array_filter($names, fn ($n) => $n !== '')));
+    }
+
+    /**
+     * Himpunan nama kolom yang AMAN dikembalikan lookup untuk sebuah model:
+     *   templateLink + id + (requested ∩ linkable) − (visibleFor gagal izin).
+     * Relasi (type relation/relations) yang diminta/ditemplate diizinkan sbg key
+     * agar payload relasi tetap ada (kolom anaknya dibatasi rekursif saat map data).
+     *
+     * @param  list<string>  $requested  kolom yang diminta form (fields/columns)
+     * @return array<string,bool> set nama kolom aman (key)
+     */
+    private function safeLookupColumns(string $model, array $requested, PermissionChecker $perm): array {
+        $columns = $model::getColumns(1);
+        $byName  = [];
+        foreach ($columns as $col) {
+            if (isset($col['name'])) {
+                $byName[$col['name']] = $col;
+            }
+        }
+
+        $safe = [];
+        // id + primary key selalu (untuk identitas opsi dropdown).
+        $safe[(new $model)->getKeyName()] = true;
+        $safe['id']                       = true;
+
+        // Atribut meta appends (LinkModel::getArrayableAppends) — bukan kolom data,
+        // melainkan meta yang LinkModel/SelectModel butuh utk navigasi/render. Selalu lolos.
+        foreach (self::ALWAYS_ALLOWED_ATTRIBUTES as $attr) {
+            $safe[$attr] = true;
+        }
+
+        // templateLink.
+        foreach ($this->templateLinkColumns($model) as $name) {
+            $safe[$name] = true;
+        }
+
+        $requestedSet = \array_flip($requested);
+        foreach ($byName as $name => $col) {
+            $type       = $col['type'] ?? null;
+            $isRelation = \in_array($type, ['relation', 'relations'], true);
+
+            // Relasi: izinkan sbg key bila diminta langsung, diminta lewat field
+            // dot-notation (mis. "items.price" → izinkan "items"), atau sudah di
+            // templateLink. Kolom anaknya dibatasi rekursif.
+            if ($isRelation) {
+                $hasDotField = false;
+                foreach ($requested as $f) {
+                    if (\str_starts_with((string) $f, $name . '.')) {
+                        $hasDotField = true;
+                        break;
+                    }
+                }
+                if (isset($requestedSet[$name]) || isset($safe[$name]) || $hasDotField) {
+                    $safe[$name] = true;
+                }
+
+                continue;
+            }
+
+            // Kolom non-relasi di luar templateLink: harus diminta DAN linkable.
+            if (! isset($safe[$name])) {
+                if (! isset($requestedSet[$name]) || ($col['linkable'] ?? false) !== true) {
+                    continue;
+                }
+            }
+
+            // Gate visibleFor (bila ada): buang bila user tak memenuhi.
+            if (! empty($col['visibleFor']) && ! $perm->satisfies((array) $col['visibleFor'])) {
+                unset($safe[$name]);
+
+                continue;
+            }
+
+            $safe[$name] = true;
+        }
+
+        return $safe;
+    }
+
+    /**
+     * Subset `$fields` dot-notation yang berada DI BAWAH relasi `$rel`, dengan
+     * prefiks relasi dilepas. Mis. fields ["items.price","items.tax.rate","code"],
+     * rel "items" → ["price","tax.rate"]. Untuk membatasi kolom relasi sesuai
+     * kebutuhan form (multi-level via dot).
+     *
+     * @param  list<string>  $fields
+     * @return list<string>
+     */
+    private function relationFields(array $fields, string $rel): array {
+        $prefix = $rel . '.';
+        $out    = [];
+        foreach ($fields as $f) {
+            if (\str_starts_with((string) $f, $prefix)) {
+                $out[] = \substr((string) $f, \strlen($prefix));
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Saring satu row hasil toArray() ke kolom aman; relasi yang ikut di-load
+     * dibatasi rekursif memakai kolom aman model relasinya. Kolom relasi dibatasi
+     * sesuai `$fields` dot-notation (mis. "items.price"). Relasi pada `$passthrough`
+     * (mis. parentColumn per-item) diteruskan apa adanya — kolom dokumen induk yang
+     * sengaja di-surface, bukan lookup bebas.
+     *
+     * @param  array<string,mixed>  $row
+     * @param  array<string,bool>  $safe  set kolom aman model ini
+     * @param  array<string,string>  $relatedModels  nameRelasi → FQCN model relasi
+     * @param  list<string>  $fields  kolom diminta (dot-notation utk relasi)
+     * @param  array<string,bool>  $passthrough  nama relasi yang TIDAK dibatasi kolom-anaknya
+     */
+    private function filterRowColumns(array $row, array $safe, array $relatedModels, PermissionChecker $perm, array $fields = [], array $passthrough = []): array {
+        $out = [];
+        foreach ($row as $key => $value) {
+            if (! isset($safe[$key])) {
+                continue;
+            }
+
+            // Relasi passthrough (parentColumn): teruskan apa adanya.
+            if (isset($passthrough[$key])) {
+                $out[$key] = $value;
+
+                continue;
+            }
+
+            // Relasi ter-load: batasi kolom anaknya sesuai fields "<rel>.<col>".
+            if (isset($relatedModels[$key]) && \is_array($value)) {
+                $relModel  = $relatedModels[$key];
+                $relFields = $this->relationFields($fields, $key);
+                $relSafe   = $this->safeLookupColumns($relModel, $relFields, $perm);
+                $relRels   = $this->relatedModelMap($relModel);
+                // Relasi plural (list of rows) vs singular (satu row).
+                $isList = \array_is_list($value) && (\count($value) === 0 || \is_array($value[0] ?? null));
+                if ($isList) {
+                    $out[$key] = \array_map(
+                        fn ($child) => \is_array($child) ? $this->filterRowColumns($child, $relSafe, $relRels, $perm, $relFields) : $child,
+                        $value,
+                    );
+                } else {
+                    $out[$key] = $this->filterRowColumns($value, $relSafe, $relRels, $perm, $relFields);
+                }
+
+                continue;
+            }
+
+            $out[$key] = $value;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Peta nama-relasi (snake, sesuai key kolom getColumns) → FQCN model relasi.
+     *
+     * @return array<string,string>
+     */
+    private function relatedModelMap(string $model): array {
+        $map = [];
+        foreach ($model::getColumns(1) as $col) {
+            if (
+                \in_array($col['type'] ?? null, ['relation', 'relations'], true)
+                && ! empty($col['name'])
+                && ! empty($col['related'])
+            ) {
+                $map[$col['name']] = $col['related'];
+            }
+        }
+
+        return $map;
     }
 
     private function filterToQuery(Builder|JoinClause $query, $filters, $boolean = 'and', array &$with = []) {
@@ -288,10 +501,18 @@ class ModelController extends Controller {
             $orders = explode(':', $request->order);
             $query->orderBy($orders[0], $orders[1] ?? 'asc');
         }
-        $data    = $query->get()->toArray() ?? [];
-        $results = array_map(fn ($value) => [
-            ...$value,
-        ], $data);
+        $data = $query->get()->toArray() ?? [];
+
+        // Batasi kolom yang dikembalikan ke kolom aman (templateLink + fields∩linkable
+        // − visibleFor gagal). Mencegah over-fetch & kebocoran kolom sensitif.
+        $perm     = PermissionChecker::forUser($request);
+        $fields   = \is_array($request->fields ?? null) ? \array_values($request->fields) : [];
+        $safe     = $this->safeLookupColumns($model, $fields, $perm);
+        $relModes = $this->relatedModelMap($model);
+        $results  = array_map(
+            fn ($value) => $this->filterRowColumns($value, $safe, $relModes, $perm, $fields),
+            $data,
+        );
 
         return response()->json([
             'total' => $queryForCount->count(),
@@ -395,13 +616,38 @@ class ModelController extends Controller {
         }
         $result = $query->dataTable($request, $showedColumns);
 
+        // Batasi kolom tiap row paginate ke kolom aman (templateLink + columns∩linkable
+        // − visibleFor gagal). `columns` (showedColumns) berperan sbg kolom diminta;
+        // parentColumn (relasi balik per-item) selalu diizinkan agar tetap tampil.
+        $perm      = PermissionChecker::forUser($request);
+        $requested = $parentColumn ? [...$showedColumns, $parentColumn] : $showedColumns;
+        $safe      = $this->safeLookupColumns($target, $requested, $perm);
+        $relModels = $this->relatedModelMap($target);
+        if ($parentColumn && isset($parentRel, $parent)) {
+            $safe[$parentColumn]      = true;
+            $relModels[$parentColumn] = $parent;
+        }
+        $passthrough = $parentColumn ? [$parentColumn => true] : [];
+        $reqFields   = \array_values($requested);
+        $paginated   = $result['data'];
+        if (\is_object($paginated) && \method_exists($paginated, 'through')) {
+            $paginated->through(fn ($row) => $this->filterRowColumns(
+                \is_array($row) ? $row : $row->toArray(),
+                $safe,
+                $relModels,
+                $perm,
+                $reqFields,
+                $passthrough,
+            ));
+        }
+
         return response()->json([
             'model'        => $target,
             'route'        => Str::plural((new $target)->getNameClass()),
             'translateKey' => (new $target)->translateKey ?? null,
             'columns'      => $columns,
             'parentColumn' => $parentColumn,
-            'data'         => $result['data'],
+            'data'         => $paginated,
         ]);
     }
 

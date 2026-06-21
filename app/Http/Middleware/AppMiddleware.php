@@ -28,7 +28,7 @@ class AppMiddleware extends Middleware {
             $permissionsVersion       = $request->session()->get('permissions_version');
             $latestPermissionsVersion = $this->resolvePermissionsVersion($user->id);
             if ($permissions === null || $permissionsVersion !== $latestPermissionsVersion) {
-                $permissions = $this->resolvePermissions($user->id);
+                $permissions = self::resolvePermissionsFor($user->id);
                 $request->session()->put('permissions', $permissions);
                 $request->session()->put('permissions_version', $latestPermissionsVersion);
             }
@@ -48,7 +48,7 @@ class AppMiddleware extends Middleware {
         return parent::handle($request, $next);
     }
 
-    private function resolvePermissions(string $userId): array {
+    public static function resolvePermissionsFor(string $userId): array {
         return RolePermission::select('role_permissions.model', 'role_permissions.permissions', 'role_permissions.level', 'role_permissions.only_creator')
             ->join('user_role', 'user_role.role_id', '=', 'role_permissions.role_id')
             ->join('roles', 'roles.id', '=', 'user_role.role_id')

@@ -46,6 +46,9 @@ import { useRef } from "react";
  * @param props.limit
  * @param props.filters
  * @param props.joins
+ * @param props.fields kolom non-templateLink yang form butuh (di luar tampilan dropdown).
+ *   Hanya kolom ber-`linkable` di server yang akan keluar; kolom sensitif tetap di-gate
+ *   `visibleFor`. Default `[]` (hanya kolom templateLink). Lihat spec linkmodel-column-security.
  * @param props.keywords
  * @param props.cache boolean | { enabled?: boolean, refreshMs?: number }
  * @param props.cacheStorage "memory" | "localStorage" | "sessionStorage" | "indexedDB"
@@ -81,6 +84,7 @@ export default memo(
       postOption,
       onKeyDown,
       with: _with,
+      fields,
       order,
       customNavigation,
     },
@@ -428,6 +432,7 @@ export default memo(
           limit: limit ?? 10,
           search,
           with: _with,
+          fields,
           filters: {
             ...filters,
             ...filterForDefaultValue,

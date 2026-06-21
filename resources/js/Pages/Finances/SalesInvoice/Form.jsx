@@ -269,6 +269,14 @@ export default function Form() {
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
                 ]}
+                // Kolom harga (gated visibleFor) yang form butuh dari SO + items.
+                fields={[
+                  "amount",
+                  "items.price",
+                  "items.basic_amount",
+                  "items.tax_rate",
+                  "items.tax_amount",
+                ]}
                 value={data.sales_order}
                 onValueChange={(val) => {
                   setData((prev) => {
@@ -393,6 +401,12 @@ export default function Form() {
                     "items.item",
                     "items.tax",
                     "items.unit",
+                  ]}
+                  fields={[
+                    "items.price",
+                    "items.basic_amount",
+                    "items.tax_rate",
+                    "items.tax_amount",
                   ]}
                   value={data.return_against}
                   onValueChange={(val) => {
