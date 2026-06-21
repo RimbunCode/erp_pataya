@@ -1,7 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
-import { cn, formatRp } from "@/lib/utils";
+import { formatRp } from "@/lib/utils";
 
-import useCart from "@/Hooks/useCart";
 import { useState } from "react";
 export default function CartPanel({
   cartItems,
@@ -10,8 +9,6 @@ export default function CartPanel({
   onCheckout,
 }) {
   const [selected, setSelected] = useState(cartItems.map((i) => i.id));
-  const [showCheckout, setShowCheckout] = useState(false);
-  const [showPayment, setShowPayment] = useState(false);
 
   const toggleSelect = (id) =>
     setSelected((prev) =>
@@ -156,19 +153,19 @@ export default function CartPanel({
                   {/* Thumbnail */}
                   <div className="w-14 h-12 rounded-xl overflow-hidden flex-shrink-0">
                     <Avatar className="relative w-full h-auto border rounded-xl aspect-square  group">
-                      {cartItems.thumbnail && (
+                      {item.thumbnail && (
                         <AvatarImage
                           src={
-                            route("files.preview", cartItems.thumbnail) +
-                            `?v=${new Date(cartItems.updated_at).getTime()}`
+                            route("files.preview", item.thumbnail) +
+                            `?v=${new Date(item.updated_at).getTime()}`
                           }
-                          alt={cartItems.name}
+                          alt={item.title}
                         />
                       )}
                       <AvatarFallback className="rounded-lg object-fit">
                         <img
                           src="/storage/images/logo-default.png"
-                          alt={cartItems.title}
+                          alt={item.title}
                           className="w-full h-full object-fit"
                         />
                       </AvatarFallback>
@@ -243,60 +240,6 @@ export default function CartPanel({
           </div>
         )}
       </div>
-      {showCheckout && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* backdrop */}
-          <div
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowCheckout(false)}
-          />
-
-          {/* modal box */}
-          <div className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl p-6 z-10">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-black uppercase tracking-widest text-foreground">
-                Checkout Summary
-              </h3>
-
-              <button
-                onClick={() => setShowCheckout(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* isi sama kayak order summary lo */}
-            <div className="flex flex-col gap-3 max-h-64 overflow-y-auto">
-              {cartItems.map((item) => (
-                <div key={item.id} className="flex justify-between">
-                  <p className="text-xs text-muted-foreground font-semibold">
-                    {item.title}
-                  </p>
-                  <p className="text-xs font-black text-foreground">
-                    {formatRp(item.price)}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <hr className="my-4 border-border" />
-
-            <div className="flex justify-between mb-4">
-              <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">
-                Total
-              </span>
-              <span className="text-lg font-black text-foreground">
-                {formatRp(total)}
-              </span>
-            </div>
-
-            <button className="w-full bg-primary hover:bg-primary-hover text-white text-xs font-extrabold uppercase tracking-widest py-3 rounded-xl">
-              Pay Now
-            </button>
-          </div>
-        </div>
-      )}
     </>
   );
 }

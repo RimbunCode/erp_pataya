@@ -45,7 +45,7 @@ export default function CourseCard({
                   route("files.preview", course.thumbnail) +
                   `?v=${new Date(course.updated_at).getTime()}`
                 }
-                alt={course.name}
+                alt={course.title}
               />
             )}
             <AvatarFallback className="rounded-lg">
@@ -143,7 +143,7 @@ export default function CourseCard({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Image */}
-      <div className="relative h-100 overflow-hidden">
+      <div className="relative h-48 overflow-hidden">
         <Avatar
           onClick={() =>
             router.visit(route("student.course.preview", course.id))
@@ -156,7 +156,7 @@ export default function CourseCard({
                 route("files.preview", course.thumbnail) +
                 `?v=${new Date(course.updated_at).getTime()}`
               }
-              alt={course.name}
+              alt={course.title}
             />
           )}
           <AvatarFallback className="rounded-lg">

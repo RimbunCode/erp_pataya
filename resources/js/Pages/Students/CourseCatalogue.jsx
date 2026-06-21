@@ -1,18 +1,13 @@
-// resources/js/Pages/Students/WishlistCart.jsx
-
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import Mainlayout from "@/Layouts/MainLayout";
 import useCart from "@/Hooks/useCart";
+import { useSessionStorage } from "@/Hooks/useSessionStorage";
 import CartPanel from "./Components/CartPanel";
 import CheckoutModal from "@/Components/CheckoutModal";
 import CourseCard from "./Components/CourseCard";
 import CourseCompare from "./Components/CourseCompare";
 
-// Logo default perusahaan — ganti path sesuai asset kamu
-const DEFAULT_THUMBNAIL = "/storage/images/logo-default.png";
-
-// ── Main Page ─────────────────────────────────────
 export default function CourseCatalogue() {
   const { courses: initialCourses = [], cartCourses: initialCart = [] } =
     usePage().props;
@@ -27,16 +22,8 @@ export default function CourseCatalogue() {
   const [checkoutItems, setCheckoutItems] = useState([]);
   const [compareList, setCompareList] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
-  const [viewMode, setViewMode] = useState(
-    sessionStorage.getItem("catalogViewMode") || "grid", // ← baca saat load
-  );
+  const [viewMode, setViewMode] = useSessionStorage("catalogViewMode", "grid");
 
-  const handleViewMode = (mode) => {
-    setViewMode(mode);
-    sessionStorage.setItem("catalogViewMode", mode); // ← simpan saat berubah
-  };
-
-  console.log(courses);
   const filtered = courses.filter((c) => {
     const matchSearch =
       c.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -122,7 +109,7 @@ export default function CourseCatalogue() {
             </p> */}
             <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
               <button
-                onClick={() => handleViewMode("grid")}
+                onClick={() => setViewMode("grid")}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors
                   ${viewMode === "grid" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
@@ -135,7 +122,7 @@ export default function CourseCatalogue() {
                 </svg>
               </button>
               <button
-                onClick={() => handleViewMode("list")}
+                onClick={() => setViewMode("list")}
                 className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors
                   ${viewMode === "list" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >

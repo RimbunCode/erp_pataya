@@ -14,12 +14,10 @@ class CourseController extends Controller {
     public function index() {
         $user = Auth::user();
 
-        // Ambil course ID yang sudah dienroll
         $enrolledIds = Enrollment::where('user_id', $user->id)
             ->pluck('course_id')
             ->toArray();
 
-        // Ambil course ID yang ada di cart
         $cartIds = Cart::where('user_id', $user->id)
             ->pluck('course_id')
             ->toArray();
@@ -28,25 +26,29 @@ class CourseController extends Controller {
             ->where('is_published', true)
             ->whereNotIn('id', $enrolledIds)
             ->get()
-            ->map(fn ($course) => [
-                'id'             => $course->id,
-                'title'          => $course->title,
-                'description'    => $course->description,
-                'price'          => $course->price,
-                'level'          => $course->level,
-                'total_hours'    => $course->total_hours,
-                'total_sessions' => $course->total_sessions,
-                'certified'      => ! is_null($course->certificate_type),
-                'rating'         => 4.8,
-                'reviews'        => 0,
-                'instructor'     => $course->creator?->name,
-                'categories'     => $course->categories->pluck('name'),
-                'tags'           => $course->categories->pluck('name')->take(2)->toArray(),
-                'thumbnail'      => $course->thumbnail
-                    ? asset('storage/' . $course->thumbnail)
-                    : null,
-                'inCart' => in_array($course->id, $cartIds),
-            ]);
+            ->map(function ($course) use ($cartIds) {
+                $categoryNames = $course->categories->pluck('name');
+
+                return [
+                    'id'             => $course->id,
+                    'title'          => $course->title,
+                    'description'    => $course->description,
+                    'price'          => $course->price,
+                    'level'          => $course->level,
+                    'total_hours'    => $course->total_hours,
+                    'total_sessions' => $course->total_sessions,
+                    'certified'      => ! is_null($course->certificate_type),
+                    'rating'         => 4.8,
+                    'reviews'        => 0,
+                    'instructor'     => $course->creator?->name,
+                    'categories'     => $categoryNames,
+                    'tags'           => $categoryNames->take(2)->values()->toArray(),
+                    'thumbnail'      => $course->thumbnail
+                        ? asset('storage/' . $course->thumbnail)
+                        : null,
+                    'inCart' => in_array($course->id, $cartIds),
+                ];
+            });
 
         $cartCourses = Course::with(['creator'])
             ->whereIn('id', $cartIds)
