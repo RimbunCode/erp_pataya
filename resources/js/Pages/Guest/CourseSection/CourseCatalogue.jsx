@@ -344,7 +344,7 @@ function CourseCard({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Thumbnail */}
-      <div className="relative h-69 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-primary to-indigo-700">
+      <div className="relative h-44 rounded-xl overflow-hidden flex-shrink-0 bg-gradient-to-br from-primary to-indigo-700">
         <Avatar className="relative w-full h-full border rounded-xl aspect-square  group">
           {course.thumbnail && (
             <AvatarImage

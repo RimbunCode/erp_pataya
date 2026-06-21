@@ -50,7 +50,9 @@ class LocaleKeysTest extends TestCase {
         }
 
         foreach (File::allFiles($path) as $file) {
-            $relativePath = str_replace([$this->langPath . '/' . $locale . '/', '.php'], '', $file->getRealPath());
+            $realPath     = str_replace('\\', '/', $file->getRealPath());
+            $basePath     = str_replace('\\', '/', $this->langPath . '/' . $locale . '/');
+            $relativePath = str_replace([$basePath, '.php'], '', $realPath);
             $translations = require $file->getRealPath();
             $keys         = array_merge($keys, $this->flattenArrayKeys($translations, $relativePath));
         }

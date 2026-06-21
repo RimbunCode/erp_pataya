@@ -21,10 +21,7 @@ class LandingPageSettingTest extends TestCase {
 
         $this->actingAs($admin)
             ->get(route('admin.landing-page-settings.index'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/LandingPageSettings/index')
-                ->has('content.home.hero.title.type'));
+            ->assertRedirect(route('guest.home', ['liveEdit' => 1]));
 
         $payload = [
             'theme' => [
