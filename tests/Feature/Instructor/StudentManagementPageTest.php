@@ -211,6 +211,7 @@ class StudentManagementPageTest extends TestCase {
             'database/migrations/2026_05_22_134117_add_rejection_reason_to_payments_table.php',
             'database/migrations/2026_04_28_074710_create_user_progress_table.php',
             'database/migrations/2026_04_29_074108_create_submissions_table.php',
+            'database/migrations/2026_06_08_024831_add_grade_feedback_to_submissions_table.php',
             'database/migrations/2025_01_30_134342_create_files_table.php',
             'database/migrations/2025_02_08_194506_create_fileables_table.php',
         ];

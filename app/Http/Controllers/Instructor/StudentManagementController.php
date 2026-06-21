@@ -5,16 +5,19 @@ namespace App\Http\Controllers\Instructor;
 use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Enrollment;
-use App\Models\Submission;
-use App\Models\UserProgress;
 use App\Services\CourseProgressService;
-use Carbon\CarbonInterface;
-use Illuminate\Support\Collection;
+use App\Services\Instructor\StudentProgressBuilder;
+use App\Traits\HasInitials;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class StudentManagementController extends Controller {
-    public function __construct(private CourseProgressService $courseProgressService) {}
+    use HasInitials;
+
+    public function __construct(
+        private CourseProgressService $courseProgressService,
+        private StudentProgressBuilder $progressBuilder,
+    ) {}
 
     public function index(): Response {
         $instructorId = (string) auth()->id();
@@ -44,9 +47,9 @@ class StudentManagementController extends Controller {
             ->unique()
             ->values();
 
-        [$completedLookupByUser, $completedAtByUserContent] = $this->buildCompletedContentMaps($studentIds, $contentIds);
-        [$submittedLookupByUser, $submittedAtByUserContent] = $this->buildSubmittedContentMaps($studentIds, $contentIds);
-        $submissionsByUserContent                           = $this->buildSubmissionsWithFiles($studentIds, $contentIds);
+        [$completedLookupByUser, $completedAtByUserContent] = $this->progressBuilder->buildCompletedContentMaps($studentIds, $contentIds);
+        [$submittedLookupByUser, $submittedAtByUserContent] = $this->progressBuilder->buildSubmittedContentMaps($studentIds, $contentIds);
+        $submissionsByUserContent                           = $this->progressBuilder->buildSubmissionsWithFiles($studentIds, $contentIds);
 
         $students = $enrollments->map(function ($enrollment) use ($completedLookupByUser, $completedAtByUserContent, $submittedLookupByUser, $submittedAtByUserContent, $submissionsByUserContent) {
             $userId         = (string) $enrollment->user_id;
@@ -61,7 +64,7 @@ class StudentManagementController extends Controller {
                 $submittedLookup,
             );
 
-            $lastActiveAt = $this->resolveLastActiveAt(
+            $lastActiveAt = $this->progressBuilder->resolveLastActiveAt(
                 $enrollment->enrolled_at,
                 $courseContents->pluck('id')->map(static fn ($contentId) => (string) $contentId),
                 $completedAtByUserContent[$userId] ?? [],
@@ -120,166 +123,5 @@ class StudentManagementController extends Controller {
             'students' => $students,
             'courses'  => $courses,
         ]);
-    }
-
-    /**
-     * @param  Collection<int, string>  $studentIds
-     * @param  Collection<int, string>  $contentIds
-     * @return array{
-     *     0: array<string, array<string, bool>>,
-     *     1: array<string, array<string, CarbonInterface>>
-     * }
-     */
-    private function buildCompletedContentMaps(Collection $studentIds, Collection $contentIds): array {
-        if ($studentIds->isEmpty() || $contentIds->isEmpty()) {
-            return [[], []];
-        }
-
-        $progressRecords = UserProgress::query()
-            ->whereIn('user_id', $studentIds)
-            ->whereIn('content_id', $contentIds)
-            ->where('is_completed', true)
-            ->get(['user_id', 'content_id', 'completed_at']);
-
-        $completedLookupByUser    = [];
-        $completedAtByUserContent = [];
-
-        foreach ($progressRecords as $record) {
-            $userId    = (string) $record->user_id;
-            $contentId = (string) $record->content_id;
-
-            $completedLookupByUser[$userId][$contentId] = true;
-
-            if ($record->completed_at !== null) {
-                $completedAtByUserContent[$userId][$contentId] = $record->completed_at;
-            }
-        }
-
-        return [$completedLookupByUser, $completedAtByUserContent];
-    }
-
-    /**
-     * @param  Collection<int, string>  $studentIds
-     * @param  Collection<int, string>  $contentIds
-     * @return array{
-     *     0: array<string, array<string, bool>>,
-     *     1: array<string, array<string, CarbonInterface>>
-     * }
-     */
-    private function buildSubmittedContentMaps(Collection $studentIds, Collection $contentIds): array {
-        if ($studentIds->isEmpty() || $contentIds->isEmpty()) {
-            return [[], []];
-        }
-
-        $submissions = Submission::query()
-            ->whereIn('user_id', $studentIds)
-            ->whereIn('content_id', $contentIds)
-            ->with('files')
-            ->get(['id', 'user_id', 'content_id', 'submitted_at']);
-
-        $submittedLookupByUser    = [];
-        $submittedAtByUserContent = [];
-
-        foreach ($submissions as $submission) {
-            if ($submission->files->isEmpty()) {
-                continue;
-            }
-
-            $userId    = (string) $submission->user_id;
-            $contentId = (string) $submission->content_id;
-
-            $submittedLookupByUser[$userId][$contentId] = true;
-
-            if ($submission->submitted_at !== null) {
-                $submittedAtByUserContent[$userId][$contentId] = $submission->submitted_at;
-            }
-        }
-
-        return [$submittedLookupByUser, $submittedAtByUserContent];
-    }
-
-    /**
-     * @param  Collection<int, string>  $courseContentIds
-     * @param  array<string, CarbonInterface>  $completedAtByContent
-     * @param  array<string, CarbonInterface>  $submittedAtByContent
-     */
-    private function resolveLastActiveAt(
-        CarbonInterface $enrolledAt,
-        Collection $courseContentIds,
-        array $completedAtByContent,
-        array $submittedAtByContent,
-    ): CarbonInterface {
-        $latestAt = $enrolledAt;
-
-        foreach ($courseContentIds as $contentId) {
-            if (isset($completedAtByContent[$contentId]) && $completedAtByContent[$contentId]->gt($latestAt)) {
-                $latestAt = $completedAtByContent[$contentId];
-            }
-
-            if (isset($submittedAtByContent[$contentId]) && $submittedAtByContent[$contentId]->gt($latestAt)) {
-                $latestAt = $submittedAtByContent[$contentId];
-            }
-        }
-
-        return $latestAt;
-    }
-
-    /**
-     * @param  Collection<int, string>  $studentIds
-     * @param  Collection<int, string>  $contentIds
-     * @return array<string, array<string, array<string, mixed>>>
-     */
-    private function buildSubmissionsWithFiles(Collection $studentIds, Collection $contentIds): array {
-        if ($studentIds->isEmpty() || $contentIds->isEmpty()) {
-            return [];
-        }
-
-        $submissions = Submission::query()
-            ->whereIn('user_id', $studentIds)
-            ->whereIn('content_id', $contentIds)
-            ->with('files')
-            ->get(['id', 'user_id', 'content_id', 'notes', 'status', 'grade', 'feedback', 'submitted_at', 'graded_at']);
-
-        $result = [];
-
-        foreach ($submissions as $submission) {
-            if ($submission->files->isEmpty()) {
-                continue;
-            }
-
-            $userId    = (string) $submission->user_id;
-            $contentId = (string) $submission->content_id;
-
-            $result[$userId][$contentId] = [
-                'id'           => (string) $submission->id,
-                'submitted_at' => $submission->submitted_at?->format('d M Y H:i'),
-                'notes'        => $submission->notes,
-                'grade'        => $submission->grade,
-                'feedback'     => $submission->feedback,
-                'graded_at'    => $submission->graded_at?->format('d M Y H:i'),
-                'files'        => $submission->files->map(fn ($file) => [
-                    'id'        => (string) $file->id,
-                    'fullname'  => $file->fullname,
-                    'name'      => $file->name,
-                    'extension' => $file->extension,
-                ])->values()->all(),
-            ];
-        }
-
-        return $result;
-    }
-
-    private function initials(string $name): string {
-        $parts = preg_split('/\s+/', trim($name)) ?: [];
-        $parts = array_values(array_filter($parts));
-
-        if (\count($parts) === 0) {
-            return 'NA';
-        }
-
-        $first  = mb_substr($parts[0], 0, 1);
-        $second = \count($parts) > 1 ? mb_substr($parts[1], 0, 1) : '';
-
-        return mb_strtoupper($first . $second);
     }
 }
