@@ -1,4 +1,5 @@
 <?php
+use App\Http\Controllers\Admin\OrganizationInvitationController;
 use App\Http\Controllers\Admin\CourseApprovalController;
 use App\Http\Controllers\Admin\CourseCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -177,6 +178,12 @@ Route::middleware(['auth'])->group(function () {
             Route::patch('/user/requests/{roleRequest}/approve', [UserDirectoryController::class, 'approveRequest'])->name('user.requests.approve');
             Route::patch('/user/requests/{roleRequest}/reject', [UserDirectoryController::class, 'rejectRequest'])->name('user.requests.reject');
             Route::patch('/user/users/{user}/status', [UserDirectoryController::class, 'updateUserStatus'])->name('user.users.status');
+
+            // Organization invitations
+            Route::post('/user/organizations/invite', [OrganizationInvitationController::class, 'store'])->name('user.organizations.invite');
+            Route::patch('/user/organizations/{invitation}/review', [OrganizationInvitationController::class, 'review'])->name('user.organizations.review');
+            Route::post('/user/organizations/{invitation}/resend', [OrganizationInvitationController::class, 'resend'])->name('user.organizations.resend');
+            Route::delete('/user/organizations/{invitation}', [OrganizationInvitationController::class, 'destroy'])->name('user.organizations.destroy');
         });
 
         Route::middleware(['admin.permission:content_admin,super_admin'])->group(function () {

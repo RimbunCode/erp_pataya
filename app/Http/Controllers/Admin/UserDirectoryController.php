@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RejectInstructorRoleRequestRequest;
 use App\Http\Requests\Admin\UpdateAdminPermissionsRequest;
 use App\Http\Requests\Admin\UpdateUserStatusRequest;
+use App\Models\OrganizationInvitation;
 use App\Models\RoleRequest;
 use App\Models\User\User;
 use App\Services\Admin\AdminPermissionService;
@@ -65,15 +66,40 @@ class UserDirectoryController extends Controller {
 
         $authUser = request()->user();
 
+        $orgInvitations = OrganizationInvitation::query()
+            ->with(['invitedBy:id,name', 'reviewedBy:id,name', 'user:id,name'])
+            ->latest('created_at')
+            ->get();
+
+        $orgsPayload = $orgInvitations->map(fn (OrganizationInvitation $inv) => [
+            'id'               => (string) $inv->id,
+            'organizationName' => $inv->organization_name,
+            'email'            => $inv->email,
+            'contactPerson'    => $inv->contact_person,
+            'address'          => $inv->address,
+            'phone'            => $inv->phone,
+            'website'          => $inv->website,
+            'industry'         => $inv->industry,
+            'employeeCount'    => $inv->employee_count,
+            'status'           => $inv->status->value,
+            'invitedBy'        => $inv->invitedBy?->name ?? '-',
+            'invitedAt'        => $inv->created_at->toIso8601String(),
+            'submittedAt'      => $inv->submitted_at?->toIso8601String(),
+            'reviewedBy'       => $inv->reviewedBy?->name,
+            'reviewedAt'       => $inv->reviewed_at?->toIso8601String(),
+            'rejectionReason'  => $inv->rejection_reason,
+            'userId'           => $inv->user_id ? (string) $inv->user_id : null,
+            'isExpired'        => $inv->isExpired(),
+        ])->values();
+
         return Inertia::render('Admin/UserDirectory/index', [
             'users'                     => $usersPayload,
             'requests'                  => $requestsPayload,
             'admins'                    => $adminsPayload,
             'canManageAdminPermissions' => $authUser ? $this->adminPermissionService->canManageAdminPermissions($authUser) : false,
-            'orgs'                      => [],
+            'orgs'                      => $orgsPayload,
             'orgsMeta'                  => [
-                'ready'   => false,
-                'message' => 'Organizations backend integration is not implemented yet.',
+                'ready' => true,
             ],
         ]);
     }

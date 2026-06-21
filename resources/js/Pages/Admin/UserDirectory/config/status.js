@@ -34,4 +34,9 @@ export const STATUS_CFG = {
     dot: "bg-red-500",
     pill: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
   },
+  submitted: {
+    label: "Submitted",
+    dot: "bg-amber-500",
+    pill: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  },
 };

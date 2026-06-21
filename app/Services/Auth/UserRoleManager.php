@@ -24,6 +24,19 @@ class UserRoleManager {
         $this->attachRole($user, $instructorRole->id);
     }
 
+    public function attachOrganizationRole(User $user): void {
+        $organizationRole = Role::query()
+            ->where('name', 'organization')
+            ->where('is_disabled', false)
+            ->first();
+
+        if (! $organizationRole) {
+            return;
+        }
+
+        $this->attachRole($user, $organizationRole->id);
+    }
+
     public function applyPublicRegistrationRoles(User $user, bool $wantsInstructor): void {
         $this->ensureStudentRole($user);
 
