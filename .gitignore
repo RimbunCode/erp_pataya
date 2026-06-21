@@ -5,6 +5,7 @@
 /lang/php_*.json
 #----------------------
 
+.codegraph/
 .claude/skills
 .github/skills
 .kiro/skills
