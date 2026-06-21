@@ -45,10 +45,11 @@ class FinancialController extends Controller {
                 $grossAmount   = (float) $earning->gross_amount;
                 $companyAmount = (float) $earning->company_amount;
 
-                $status = 'eligible';
                 if ($earning->released_at) {
-                    $status = 'paid';
+                    $status = 'released';
                 } elseif ($earning->available_at && $earning->available_at->lte($now)) {
+                    $status = 'eligible';
+                } else {
                     $status = 'pending';
                 }
 
