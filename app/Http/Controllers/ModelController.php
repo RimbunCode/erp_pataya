@@ -103,9 +103,13 @@ class ModelController extends Controller {
     }
 
     private function applyLinkModelFilters(Builder $query, array $filters): void {
-        $columns = $query->getModel()::getColumns(1);
+        // includeHidden=true: sertakan FK (ber-flag hidden/searchable:false) agar
+        // FilterColumnResolver dapat me-resolve filter atas FK. FilterEvaluator
+        // dijalankan dgn allowNonSearchable=true sehingga FK yg searchable:false
+        // tetap lolos whitelist. Kolom ini TIDAK dikembalikan ke response (UI).
+        $columns = $query->getModel()::getColumns(1, true);
         $tree    = (new LinkModelFilterConverter($columns))->toTree($filters);
-        (new FilterEvaluator($columns))->apply($query, $tree);
+        (new FilterEvaluator($columns, true))->apply($query, $tree);
     }
 
     /**

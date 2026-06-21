@@ -122,6 +122,8 @@ export function variableDropListener(
     const traverse = (columns, parentPath = "", parentType = "") => {
       if (!Array.isArray(columns)) return;
       for (const col of columns) {
+        // Skip FK/ignored cols (flag hidden/ignore) dari daftar variabel.
+        if (col.hidden || col.ignore) continue;
         const label = getDisplayLabel(col, t);
         const colType = col.type || "";
 

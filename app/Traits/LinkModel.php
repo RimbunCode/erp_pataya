@@ -63,75 +63,75 @@ trait LinkModel {
 
     public function initializeLinkModel() {
         $this->defaultConfigColumns = array_merge([
-            'is_example'        => [
+            'is_example' => [
                 'ignore' => true,
             ],
-            'created_at'        => [
+            'created_at' => [
                 'titleTrans' => 'core.form.created_at',
             ],
-            'updated_at'        => [
+            'updated_at' => [
                 'titleTrans' => 'core.form.updated_at',
             ],
-            'deleted_at'        => [
+            'deleted_at' => [
                 'titleTrans' => 'core.form.deleted_at',
             ],
-            'canceled_at'       => [
+            'canceled_at' => [
                 'titleTrans' => 'core.form.canceled_at',
             ],
-            'submitted_at'      => [
+            'submitted_at' => [
                 'titleTrans' => 'core.form.submitted_at',
             ],
-            'logs'              => [
+            'logs' => [
                 'titleTrans' => 'core.form.logs',
                 'filter'     => [
                     'type' => 'comment',
                 ],
             ],
-            'tags'              => [
+            'tags' => [
                 'titleTrans' => 'core.form.tags',
             ],
-            'files'             => [
+            'files' => [
                 'titleTrans' => 'core.form.files',
             ],
             'have_transactions' => [
                 'ignore' => true,
             ],
-            'submitted_format'  => [
+            'submitted_format' => [
                 'ignore' => true,
             ],
-            'createdBy'         => [
+            'createdBy' => [
                 'titleTrans' => 'core.form.created_by',
             ],
-            'status'            => [
+            'status' => [
                 'titleTrans' => 'core.form.status',
                 'width'      => 'minimum',
                 'valueTrans' => 'status',
             ],
-            'branch'            => [
+            'branch' => [
                 'titleTrans' => 'core.branch.branch',
             ],
-            'templateLink'      => [
+            'templateLink' => [
                 'ignore' => true,
             ],
-            'additional_data'   => [
+            'additional_data' => [
                 'ignore' => true,
             ],
-            'amendedFrom'       => [
+            'amendedFrom' => [
                 'titleTrans' => 'core.form.amended_from',
             ],
-            'revision_number'   => [
+            'revision_number' => [
                 'ignore' => true,
             ],
-            'lft'               => [
+            'lft' => [
                 'ignore' => true,
             ],
-            'rgt'               => [
+            'rgt' => [
                 'ignore' => true,
             ],
-            'depth'             => [
+            'depth' => [
                 'ignore' => true,
             ],
-            'appendStatus'      => [
+            'appendStatus' => [
                 'ignore' => true,
             ],
         ]);
@@ -156,8 +156,8 @@ trait LinkModel {
             ...static::loadRelationsOnShow() ?? [],
             ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
         ];
-        $relations        = (\is_string($relations) ? [$relations] : ($relations ?? []));
-        $relations        = [...$defaultRelations, ...$relations];
+        $relations = (\is_string($relations) ? [$relations] : ($relations ?? []));
+        $relations = [...$defaultRelations, ...$relations];
 
         $instance = new static;
         $toLoad   = [];
@@ -368,12 +368,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -407,21 +407,21 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
 
         return [
             // "db_type"   => $type,
-            'name'    => $dataColumn['name'],
+            'name' => $dataColumn['name'],
             // "length"    => $length,    // alias precision untuk decimal/float
             // "precision" => $precision, // panjang digit total
             // "scale"     => $scale,     // digit setelah koma (0 kalau tidak ada)
@@ -474,10 +474,21 @@ trait LinkModel {
      * Summary of getColumns
      *
      * @param  int  $maxDepth  0 = unlimited
+     * @param  bool  $includeHidden  true = sertakan FK + kolom `ignore` (ditandai
+     *                               flag hidden/ignore/searchable:false/show:false)
+     *                               agar FilterColumnResolver mengenalinya sebagai
+     *                               bagian schema. UI tetap meng-gate flag tsb.
+     *                               Default false = perilaku lama (FK ter-unset,
+     *                               ignore ter-skip).
      * @param  array[]  $excepts
      * @return array
      */
-    public static function getColumns(int $maxDepth = 0, ...$excepts) {
+    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts) {
+        // Flag yang dipaksakan pada kolom tersembunyi (FK/ignore) saat includeHidden:
+        // searchable/show:false → consumer UI (FilterItem2, Sort, dll) mengeksklusi;
+        // FilterEvaluator (allowNonSearchable=true) tetap dapat memfilter atasnya.
+        $hiddenFlags = ['hidden' => true, 'searchable' => false, 'show' => false];
+
         $instance      = new static;
         $columns       = Schema::getColumns($instance->getTable());
         $casts         = $instance->getCasts();
@@ -487,7 +498,7 @@ trait LinkModel {
             $instance->defaultConfigColumns ?? [],
             $instance->configColumns ?? [],
         );
-        $translateKey  = $instance->translateKey ?? null;
+        $translateKey = $instance->translateKey ?? null;
 
         $newColumns = [];
 
@@ -496,10 +507,11 @@ trait LinkModel {
                 continue;
             }
 
-            $col    = static::parseColumnType($value, $casts);
-            $config = static::getColumnConfig($configColumns, $value['name']);
+            $col      = static::parseColumnType($value, $casts);
+            $config   = static::getColumnConfig($configColumns, $value['name']);
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if (isset($config['ignore']) && $config['ignore']) {
+            if ($isIgnore && ! $includeHidden) {
                 continue;
             }
             if ($col) {
@@ -510,15 +522,18 @@ trait LinkModel {
                     'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
                     ...$config,
                     'primaryKey' => $instance->getKeyName(),
+                    // Kolom ignore tetap di-emit (untuk resolver) tapi ditandai hidden.
+                    ...($isIgnore ? $hiddenFlags : []),
                 ];
             }
         }
         $forcedColumns = \array_filter($configColumns, fn ($col) => $col['forceAppend'] ?? false);
         foreach ($forcedColumns as $key => $config) {
-            $key    = \is_string($key) ? $key : $config;
-            $config = \is_array($config) ? $config : [];
+            $key      = \is_string($key) ? $key : $config;
+            $config   = \is_array($config) ? $config : [];
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if (isset($config['ignore']) && $config['ignore']) {
+            if ($isIgnore && ! $includeHidden) {
                 continue;
             }
             $newColumns[$key] = [
@@ -529,6 +544,7 @@ trait LinkModel {
                 'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
                 ...$config,
                 'primaryKey' => $instance->getKeyName(),
+                ...($isIgnore ? $hiddenFlags : []),
             ];
         }
 
@@ -536,9 +552,10 @@ trait LinkModel {
             if (in_array($value, $hidden)) {
                 continue;
             }
-            $config = static::getColumnConfig($configColumns, $value);
+            $config   = static::getColumnConfig($configColumns, $value);
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if (isset($config['ignore']) && $config['ignore']) {
+            if ($isIgnore && ! $includeHidden) {
                 continue;
             }
             $newColumns[$value] = [
@@ -549,6 +566,7 @@ trait LinkModel {
                 'primaryKey' => $instance->getKeyName(),
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
                 ...$config,
+                ...($isIgnore ? $hiddenFlags : []),
             ];
         }
 
@@ -577,12 +595,14 @@ trait LinkModel {
             }
             if ($rel instanceof MorphTo) {
                 $newKey = $rel->getRelationName();
-                unset($newColumns[$rel->getForeignKeyName()]);
-                unset($newColumns[$rel->getMorphType()]);
+                // FK + morph type: di-unset dari daftar UI (default). Saat includeHidden,
+                // tetap di-emit tapi ditandai hidden agar resolver dapat me-resolve-nya.
+                static::hideOrUnsetForeignKey($newColumns, $rel->getForeignKeyName(), $includeHidden, $hiddenFlags);
+                static::hideOrUnsetForeignKey($newColumns, $rel->getMorphType(), $includeHidden, $hiddenFlags);
                 $type         = 'relation';
                 $typeRelation = 'morph';
             } elseif ($rel instanceof BelongsTo) {
-                unset($newColumns[$rel->getForeignKeyName()]);
+                static::hideOrUnsetForeignKey($newColumns, $rel->getForeignKeyName(), $includeHidden, $hiddenFlags);
                 $type   = 'relation';
                 $route  = $rel->getRelated()->route;
                 $newKey = Str::snake($key);
@@ -602,7 +622,8 @@ trait LinkModel {
             } else {
                 $newKey = Str::snake($key);
             }
-            if (isset($config['ignore']) && $config['ignore']) {
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
+            if ($isIgnore && ! $includeHidden) {
                 continue;
             }
             $newColumns[$newKey] = [
@@ -616,13 +637,34 @@ trait LinkModel {
                 'sortable'       => false,
                 'searchable'     => true,
                 'titleTrans'     => $translateKey ? "$translateKey.columns.$newKey" : null,
-                'columns'        => $isContinueGetRelationColumns ? $classRelation::getColumns($maxDepth, static::class, ...$excepts ?? []) : [],
+                'columns'        => $isContinueGetRelationColumns ? $classRelation::getColumns($maxDepth, $includeHidden, static::class, ...$excepts ?? []) : [],
                 ...$config,
+                ...($isIgnore ? $hiddenFlags : []),
             ];
         }
 
         \usort($newColumns, fn ($a, $b) => $a['name'] <=> $b['name']);
 
         return $newColumns;
+    }
+
+    /**
+     * Sembunyikan atau buang kolom FK relasi dari daftar getColumns.
+     * - default (includeHidden=false): unset kolom (perilaku lama — bersih utk UI).
+     * - includeHidden=true: pertahankan entri tapi tandai flag hidden agar
+     *   FilterColumnResolver dapat me-resolve FK; UI tetap meng-gate flag hidden.
+     *
+     * @param  array<string,array<string,mixed>>  $newColumns
+     * @param  array<string,mixed>  $hiddenFlags
+     */
+    private static function hideOrUnsetForeignKey(array &$newColumns, string $fkName, bool $includeHidden, array $hiddenFlags): void {
+        if (! isset($newColumns[$fkName])) {
+            return;
+        }
+        if ($includeHidden) {
+            $newColumns[$fkName] = [...$newColumns[$fkName], ...$hiddenFlags];
+        } else {
+            unset($newColumns[$fkName]);
+        }
     }
 }

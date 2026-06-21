@@ -42,10 +42,12 @@ class FilterEvaluator {
     ];
 
     private FilterColumnResolver $resolver;
+    private bool $allowNonSearchable;
 
     /** @param array<string,array<string,mixed>> $columns hasil Model::getColumns(), keyed by name */
-    public function __construct(private array $columns) {
-        $this->resolver = new FilterColumnResolver($columns);
+    public function __construct(private array $columns, bool $allowNonSearchable = false) {
+        $this->resolver           = new FilterColumnResolver($columns);
+        $this->allowNonSearchable = $allowNonSearchable;
     }
 
     /**
@@ -112,7 +114,7 @@ class FilterEvaluator {
             return; // kolom tidak ter-resolve
         }
         $column = $path['column'];
-        if (($column['searchable'] ?? true) === false) {
+        if (! $this->allowNonSearchable && ($column['searchable'] ?? true) === false) {
             return; // whitelist kolom
         }
         if (! $this->isOperatorValid($column, $op, $value)) {

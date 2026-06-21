@@ -47,8 +47,11 @@ export function filterRelationColumns(dataTableColumns, relationName) {
     return [];
   }
 
-  // Exclude many-relation (type "relations") columns, include everything else
-  return relationNode.columns.filter((col) => col?.type !== "relations");
+  // Exclude many-relation (type "relations") columns + FK/ignored (hidden/ignore),
+  // include everything else
+  return relationNode.columns.filter(
+    (col) => col?.type !== "relations" && !col?.hidden && !col?.ignore,
+  );
 }
 
 /**

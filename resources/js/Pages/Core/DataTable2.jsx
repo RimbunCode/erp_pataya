@@ -244,6 +244,9 @@ export default memo(
       (t, columns, parentColumn) => {
         let newColumns = {};
         Object.values(columns ?? {}).forEach((col) => {
+          // FK/ignored cols (flag hidden/ignore) tak pernah dirender di UI —
+          // skip di hulu agar tabel, Sort list, & ColumnsFilter semua bersih.
+          if (col.hidden || col.ignore) return;
           const title = col.title ?? t(col.titleTrans);
           const colName = !parentColumn
             ? col.name

@@ -66,9 +66,10 @@ export function applyColumnAlias(rows, alias) {
  * @returns {Object<string, Object>}
  */
 function buildColumnMap(columns) {
-  const sorted = [...(columns ?? [])].sort(
-    (a, b) => (a.order ?? Infinity) - (b.order ?? Infinity),
-  );
+  const sorted = [...(columns ?? [])]
+    // FK/ignored cols (flag hidden/ignore) tak boleh masuk peta kolom UI.
+    .filter((col) => !col.hidden && !col.ignore)
+    .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity));
   const map = {};
   sorted.forEach((col) => {
     map[col.name] = col;

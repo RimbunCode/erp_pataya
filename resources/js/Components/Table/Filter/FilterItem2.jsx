@@ -58,7 +58,7 @@ function FilterItem2({ id, depth = 0 }) {
 
   const buildColumnNode = useCallback(
     function build(col, parentPath = "") {
-      if (col.searchable === false) return null;
+      if (col.searchable === false || col.hidden || col.ignore) return null;
       // `col.name` bisa berupa nama segmen ("type") ATAU sudah berkualifikasi
       // penuh ("category.type") — tergantung sumber kolom: hasil getColumns
       // frontend (DataTable2) memprefix nama anak relasi, sedangkan kolom dari
@@ -106,7 +106,13 @@ function FilterItem2({ id, depth = 0 }) {
 
   const columnOptions = useMemo(() => {
     return toArrayColumns(columns)
-      .filter((col) => !col.parentCol && col.searchable !== false)
+      .filter(
+        (col) =>
+          !col.parentCol &&
+          col.searchable !== false &&
+          !col.hidden &&
+          !col.ignore,
+      )
       .map((col) => buildColumnNode(col));
   }, [columns, buildColumnNode, toArrayColumns, cacheVersion]);
 
