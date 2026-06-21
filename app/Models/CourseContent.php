@@ -41,15 +41,31 @@ class CourseContent extends Model {
         return in_array($this->type, ['pre_assessment', 'assignment'], true);
     }
 
+    public function deadlineCutoff(): ?\Illuminate\Support\Carbon {
+        if (! $this->deadline) {
+            return null;
+        }
+
+        if ($this->deadline_time) {
+            return \Illuminate\Support\Carbon::parse(
+                $this->deadline->format('Y-m-d') . ' ' . $this->deadline_time
+            );
+        }
+
+        return \Illuminate\Support\Carbon::parse($this->deadline);
+    }
+
     public function deadlineLabel(): ?string {
-        return $this->deadline?->format('d M Y, H:i T');
+        return $this->deadlineCutoff()?->format('d M Y, H:i');
     }
 
     public function hasDeadlinePassed(?CarbonInterface $at = null): bool {
-        if (! $this->deadline) {
+        $cutoff = $this->deadlineCutoff();
+
+        if (! $cutoff) {
             return false;
         }
 
-        return $this->deadline->lte($at ?? now());
+        return $cutoff->lte($at ?? now());
     }
 }

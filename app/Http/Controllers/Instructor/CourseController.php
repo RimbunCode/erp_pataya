@@ -44,6 +44,10 @@ class CourseController extends Controller {
 
     // ── Show ───────────────────────────────────────────────────────────────────
     public function show(Course $course): Response {
+        if ($course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
         $course->load(['categories', 'sections.contents', 'latestPublishRequest']);
 
         return Inertia::render('Instructors/CourseDetail', [
@@ -156,6 +160,10 @@ class CourseController extends Controller {
     }
 
     public function update(Request $request, Course $course) {
+        if ($course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
         $validated = $request->validate([
             'title'         => 'required|string|max:255',
             'description'   => 'required|string',
@@ -260,6 +268,10 @@ class CourseController extends Controller {
 
     // ── Toggle Publish ─────────────────────────────────────────────────────────
     public function togglePublish(Course $course) {
+        if ($course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
         if ($course->is_published) {
             $course->update(['is_published' => false]);
 
@@ -309,6 +321,10 @@ class CourseController extends Controller {
     }
 
     public function updateThumbnail(Request $request, Course $course) {
+        if ($course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
         DB::beginTransaction();
 
         try {

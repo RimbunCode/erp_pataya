@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 class CourseContentController extends Controller {
     // POST /instructor/classes/{courseId}/sections/{sectionId}/contents
     public function store(Request $request, CourseSection $section) {
+        if ($section->course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
         $validated = $request->validate([
             'title' => 'required|string|max:255',
             'type'  => 'required|in:pre_assessment,material,assignment',
@@ -35,17 +39,22 @@ class CourseContentController extends Controller {
 
     // PATCH /instructor/classes/{courseId}/sections/{sectionId}/contents/{id}
     public function update(Request $request, CourseContent $content) {
+        if ($content->section->course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
         $validated = $request->validate([
-            'title'       => 'sometimes|string|max:255',
-            'description' => 'sometimes|nullable|string',
-            'deadline'    => 'sometimes|nullable|date',
-            'is_optional' => 'sometimes|boolean',
-            'url'         => 'sometimes|nullable|url|max:2048',
+            'title'         => 'sometimes|string|max:255',
+            'description'   => 'sometimes|nullable|string',
+            'deadline'      => 'sometimes|nullable|date',
+            'deadline_time' => 'sometimes|nullable|date_format:H:i',
+            'is_optional'   => 'sometimes|boolean',
+            'url'           => 'sometimes|nullable|url|max:2048',
         ]);
 
         if (array_key_exists('deadline', $validated)) {
             $validated['deadline'] = $validated['deadline']
-                ? Carbon::parse($validated['deadline'])->seconds(0)
+                ? Carbon::parse($validated['deadline'])->startOfDay()
                 : null;
         }
 
@@ -56,6 +65,10 @@ class CourseContentController extends Controller {
 
     // DELETE /instructor/classes/{courseId}/sections/{sectionId}/contents/{id}
     public function destroy(CourseContent $content) {
+        if ($content->section->course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
         $content->delete();
 
         return back()->with('success', 'Content deleted.');
@@ -63,21 +76,34 @@ class CourseContentController extends Controller {
 
     // POST /instructor/classes/{courseId}/sections/{sectionId}/contents/{id}/upload
     public function upload(Request $request, CourseContent $content) {
+        if ($content->section->course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
         DB::beginTransaction();
-        File::uploadFile($request, 'Content File', function ($file) use ($content) {
-            Fileable::create([
-                'fileable_id'   => $content->id,
-                'fileable_type' => CourseContent::class,
-                'file_id'       => $file->id,
-            ]);
-        });
-        DB::commit();
+        try {
+            File::uploadFile($request, 'Content File', function ($file) use ($content) {
+                Fileable::create([
+                    'fileable_id'   => $content->id,
+                    'fileable_type' => CourseContent::class,
+                    'file_id'       => $file->id,
+                ]);
+            });
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
+        }
 
         return back()->with('success', 'Content file updated.');
     }
 
-    public function destroyFile(string $content, File $file) {
-        Fileable::where('fileable_id', $content)
+    public function destroyFile(CourseContent $content, File $file) {
+        if ($content->section->course->created_by !== Auth::id()) {
+            abort(403);
+        }
+
+        Fileable::where('fileable_id', $content->id)
             ->where('fileable_type', CourseContent::class)
             ->where('file_id', $file->id)
             ->forceDelete();
