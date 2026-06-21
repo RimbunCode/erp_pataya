@@ -642,7 +642,7 @@ export default [
 
       // Hooks
       "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "off",
+      "react-hooks/exhaustive-deps": "warn",
       "react-hooks/immutability": "off",
       "react-hooks/preserve-manual-memoization": "off",
       "react-hooks/purity": "off",
