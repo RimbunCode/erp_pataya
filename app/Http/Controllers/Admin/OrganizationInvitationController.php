@@ -58,15 +58,3 @@ class OrganizationInvitationController extends Controller {
         return back()->with('success', 'Undangan organisasi telah dibatalkan.');
     }
 }
-<?php
-
-namespace App\Http\Controllers\Admin;
-
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-
-class OrganizationInvitationController extends Controller
-{
-    //
-}

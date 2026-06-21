@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\FormStatus;
 use App\Models\OrganizationInvitation;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -17,7 +18,7 @@ class OrganizationInvitationFactory extends Factory {
             'organization_name' => fake()->company(),
             'email'             => fake()->companyEmail(),
             'contact_person'    => fake()->name(),
-            'status'            => 'invited',
+            'status'            => FormStatus::INVITED,
             'invited_by'        => User::factory(),
             'expired_at'        => now()->addDays(7),
         ];
@@ -36,14 +37,14 @@ class OrganizationInvitationFactory extends Factory {
 
     public function submitted(): static {
         return $this->withProfile()->state(fn (array $attributes) => [
-            'status'       => 'submitted',
+            'status'       => FormStatus::SUBMITTED,
             'submitted_at' => now(),
         ]);
     }
 
     public function approved(): static {
         return $this->submitted()->state(fn (array $attributes) => [
-            'status'      => 'approved',
+            'status'      => FormStatus::APPROVED,
             'reviewed_by' => User::factory(),
             'reviewed_at' => now(),
         ]);
@@ -51,7 +52,7 @@ class OrganizationInvitationFactory extends Factory {
 
     public function rejected(): static {
         return $this->submitted()->state(fn (array $attributes) => [
-            'status'           => 'rejected',
+            'status'           => FormStatus::REJECTED,
             'reviewed_by'      => User::factory(),
             'reviewed_at'      => now(),
             'rejection_reason' => fake()->sentence(),

@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Guest;
 
+use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guest\CompleteOrganizationProfileRequest;
 use App\Models\OrganizationInvitation;
 use App\Services\Admin\OrganizationInvitationService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -26,7 +26,7 @@ class OrganizationCompletionController extends Controller {
             ]);
         }
 
-        if ($invitation->status->value !== 'invited') {
+        if ($invitation->status !== FormStatus::INVITED) {
             return Inertia::render('Guest/OrganizationComplete', [
                 'invitation'  => $this->transformInvitation($invitation),
                 'alreadyDone' => true,
@@ -44,7 +44,7 @@ class OrganizationCompletionController extends Controller {
 
         $logoFileId = null;
         if ($request->hasFile('logo')) {
-            $path = $request->file('logo')->store('organization-logos', 'public');
+            $path       = $request->file('logo')->store('organization-logos', 'public');
             $logoFileId = $path;
         }
 
@@ -72,16 +72,4 @@ class OrganizationCompletionController extends Controller {
             'status'           => $invitation->status->value,
         ];
     }
-}
-<?php
-
-namespace App\Http\Controllers\Guest;
-
-use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Inertia\Inertia;
-
-class OrganizationCompletionController extends Controller
-{
-    //
 }

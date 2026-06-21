@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Guest;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\Password;
 
@@ -11,7 +12,7 @@ class CompleteOrganizationProfileRequest extends FormRequest {
     }
 
     /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
         return [
@@ -25,34 +26,6 @@ class CompleteOrganizationProfileRequest extends FormRequest {
             'employee_count'    => ['nullable', 'string', 'in:1-10,11-50,51-200,201-500,500+'],
             'logo'              => ['nullable', 'image', 'max:2048'],
             'password'          => ['required', 'string', 'confirmed', Password::min(8)],
-        ];
-    }
-}
-<?php
-
-namespace App\Http\Requests\Guest;
-
-use App\Http\Requests\BaseFormRequest;
-
-class CompleteOrganizationProfileRequest extends BaseFormRequest
-{
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
-    public function rules(): array
-    {
-        return [
-            //
         ];
     }
 }

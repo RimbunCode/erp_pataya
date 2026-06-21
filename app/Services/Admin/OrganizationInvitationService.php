@@ -27,7 +27,7 @@ class OrganizationInvitationService {
                 'organization_name' => $data['organization_name'],
                 'email'             => $data['email'],
                 'contact_person'    => $data['contact_person'],
-                'status'            => FormStatus::INVITED->value,
+                'status'            => FormStatus::INVITED,
                 'invited_by'        => $invitedBy->id,
                 'expired_at'        => now()->addDays(7),
             ]);
@@ -48,7 +48,7 @@ class OrganizationInvitationService {
             ]);
         }
 
-        if ($invitation->status->value !== FormStatus::INVITED->value) {
+        if ($invitation->status !== FormStatus::INVITED) {
             throw ValidationException::withMessages([
                 'token' => 'Undangan ini sudah diproses.',
             ]);
@@ -66,7 +66,7 @@ class OrganizationInvitationService {
                 'employee_count'    => $data['employee_count'] ?? null,
                 'logo_file_id'      => $data['logo_file_id'] ?? null,
                 'password'          => $data['password'],
-                'status'            => FormStatus::SUBMITTED->value,
+                'status'            => FormStatus::SUBMITTED,
                 'submitted_at'      => now(),
             ]);
 
@@ -75,7 +75,7 @@ class OrganizationInvitationService {
     }
 
     public function approve(OrganizationInvitation $invitation, User $reviewer): void {
-        if ($invitation->status->value !== FormStatus::SUBMITTED->value) {
+        if ($invitation->status !== FormStatus::SUBMITTED) {
             throw ValidationException::withMessages([
                 'invitation' => 'Undangan ini belum dikirimkan oleh organisasi.',
             ]);
@@ -85,7 +85,7 @@ class OrganizationInvitationService {
             $user = User::where('email', $invitation->email)->first();
 
             if ($user) {
-                if ($user->status->value === FormStatus::INVITED->value) {
+                if ($user->status === FormStatus::INVITED) {
                     $user->update([
                         'name'     => $invitation->contact_person,
                         'password' => Hash::make($invitation->password),
@@ -110,7 +110,7 @@ class OrganizationInvitationService {
             }
 
             $invitation->update([
-                'status'      => FormStatus::APPROVED->value,
+                'status'      => FormStatus::APPROVED,
                 'reviewed_by' => $reviewer->id,
                 'reviewed_at' => now(),
                 'user_id'     => $user->id,
@@ -124,14 +124,14 @@ class OrganizationInvitationService {
     }
 
     public function reject(OrganizationInvitation $invitation, User $reviewer, string $reason): void {
-        if ($invitation->status->value !== FormStatus::SUBMITTED->value) {
+        if ($invitation->status !== FormStatus::SUBMITTED) {
             throw ValidationException::withMessages([
                 'invitation' => 'Undangan ini belum dikirimkan oleh organisasi.',
             ]);
         }
 
         $invitation->update([
-            'status'           => FormStatus::REJECTED->value,
+            'status'           => FormStatus::REJECTED,
             'reviewed_by'      => $reviewer->id,
             'reviewed_at'      => now(),
             'rejection_reason' => $reason,
@@ -144,7 +144,7 @@ class OrganizationInvitationService {
     }
 
     public function resendInvitation(OrganizationInvitation $invitation): void {
-        if ($invitation->status->value !== FormStatus::INVITED->value) {
+        if ($invitation->status !== FormStatus::INVITED) {
             throw ValidationException::withMessages([
                 'invitation' => 'Hanya undangan yang belum diproses yang bisa dikirim ulang.',
             ]);
@@ -161,7 +161,7 @@ class OrganizationInvitationService {
     }
 
     private function dispatchNotification(OrganizationInvitation $invitation, object $notification): void {
-        $notifiable = new AnonymousNotifiable();
+        $notifiable = new AnonymousNotifiable;
         $notifiable->route('mail', $invitation->email);
         $notifiable->notify($notification);
     }

@@ -1,9 +1,9 @@
 <?php
-use App\Http\Controllers\Admin\OrganizationInvitationController;
 use App\Http\Controllers\Admin\CourseApprovalController;
 use App\Http\Controllers\Admin\CourseCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\LandingPageSettingController;
+use App\Http\Controllers\Admin\OrganizationInvitationController;
 use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\SystemFinanceController;
 use App\Http\Controllers\Admin\UserDirectoryController;
@@ -78,6 +78,13 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
 Route::get('/', function () {
     return redirect('/');
 });
+
+// Organization completion (public guest routes — must be before auth group)
+use App\Http\Controllers\Guest\OrganizationCompletionController;
+
+Route::get('/organization/complete/success', [OrganizationCompletionController::class, 'success'])->name('organization.success');
+Route::get('/organization/complete/{token}', [OrganizationCompletionController::class, 'show'])->name('organization.complete');
+Route::post('/organization/complete/{token}', [OrganizationCompletionController::class, 'store'])->name('organization.complete.store');
 
 Route::middleware(['auth'])->group(function () {
 
