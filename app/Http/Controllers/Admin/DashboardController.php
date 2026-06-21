@@ -45,8 +45,15 @@ class DashboardController extends Controller {
         $recentPayments  = [];
 
         if ($isFinance) {
-            $totalRevenue    = (float) Payment::where('status', FormStatus::APPROVED->value)->sum('amount');
-            $pendingPayments = Payment::where('status', FormStatus::PENDING->value)->count();
+            $paymentStats = Payment::query()
+                ->selectRaw('
+                    SUM(CASE WHEN status = ? THEN amount ELSE 0 END) as total_revenue,
+                    SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending_count
+                ', [FormStatus::APPROVED->value, FormStatus::PENDING->value])
+                ->first();
+
+            $totalRevenue    = (float) ($paymentStats->total_revenue ?? 0);
+            $pendingPayments = (int) ($paymentStats->pending_count ?? 0);
             $pendingPayouts  = InstructorPayoutRequest::whereIn('status', ['pending', 'approved'])->count();
 
             $recentPayments = Payment::query()

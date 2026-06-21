@@ -73,7 +73,9 @@ class AdminModulePermissionTest extends TestCase {
         $this->assignRole($admin, 'admin');
         $this->grantAdminPermission($admin, 'content_admin');
 
-        $this->actingAs($admin)->get(route('admin.landing-page-settings.index'))->assertOk();
+        $this->actingAs($admin)
+            ->get(route('admin.landing-page-settings.index'))
+            ->assertRedirect(route('guest.home', ['liveEdit' => 1]));
 
         $this->actingAs($admin)->get(route('admin.approval'))
             ->assertRedirect(route('admin.dashboard'))
@@ -131,7 +133,9 @@ class AdminModulePermissionTest extends TestCase {
         $this->actingAs($superAdmin)->get(route('admin.approval'))->assertOk();
         $this->actingAs($superAdmin)->get(route('admin.finance'))->assertOk();
         $this->actingAs($superAdmin)->get(route('admin.user'))->assertOk();
-        $this->actingAs($superAdmin)->get(route('admin.landing-page-settings.index'))->assertOk();
+        $this->actingAs($superAdmin)
+            ->get(route('admin.landing-page-settings.index'))
+            ->assertRedirect(route('guest.home', ['liveEdit' => 1]));
         $this->actingAs($superAdmin)->get(route('admin.course-categories.index'))->assertOk();
 
         $response = $this->actingAs($superAdmin)->patch(

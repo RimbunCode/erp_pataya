@@ -10,9 +10,9 @@ use App\Http\Requests\Admin\UpdateUserStatusRequest;
 use App\Models\RoleRequest;
 use App\Models\User\User;
 use App\Services\Admin\AdminPermissionService;
+use App\Services\Admin\UserTransformer;
 use App\Services\Auth\UserRoleManager;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -22,6 +22,7 @@ class UserDirectoryController extends Controller {
     public function __construct(
         private UserRoleManager $userRoleManager,
         private AdminPermissionService $adminPermissionService,
+        private UserTransformer $userTransformer,
     ) {}
 
     public function index(): Response {
@@ -34,39 +35,9 @@ class UserDirectoryController extends Controller {
             ->latest('created_at')
             ->get();
 
-        $usersPayload = $users->map(function (User $user): array {
-            $roleNames = $user->roles
-                ->pluck('name')
-                ->map(fn ($roleName) => strtolower((string) $roleName))
-                ->values()
-                ->all();
-
-            $displayRole = $this->resolveDisplayRole($roleNames);
-
-            return [
-                'id'               => (string) $user->id,
-                'name'             => (string) $user->name,
-                'email'            => (string) $user->email,
-                'avatar'           => $this->initials((string) $user->name),
-                'role'             => $displayRole,
-                'roles'            => $roleNames,
-                'status'           => $this->statusValue($user->status),
-                'joinedAt'         => $user->created_at?->toIso8601String(),
-                'inactiveReason'   => $user->inactive_reason,
-                'inactiveBy'       => $user->inactive_by,
-                'inactiveByName'   => $user->inactiveByUser?->name,
-                'inactiveAt'       => $user->inactive_at?->toIso8601String(),
-                'enrolledCourses'  => 0,
-                'completedCourses' => 0,
-                'totalSpent'       => 0,
-                'courses'          => 0,
-                'totalStudents'    => 0,
-                'totalEarnings'    => 0,
-                'members'          => 0,
-                'activeLicenses'   => 0,
-                'plan'             => null,
-            ];
-        })->values();
+        $usersPayload = $users->map(
+            fn (User $user) => $this->userTransformer->transformUser($user),
+        )->values();
 
         $roleRequests = RoleRequest::query()
             ->with([
@@ -80,65 +51,16 @@ class UserDirectoryController extends Controller {
             ->get();
 
         $requestsByContext = $roleRequests->groupBy(
-            fn (RoleRequest $request) => $this->roleRequestHistoryKey($request),
+            fn (RoleRequest $request) => $this->userTransformer->roleRequestHistoryKey($request),
         );
 
-        $requestsPayload = $roleRequests
-            ->map(function (RoleRequest $request) use ($requestsByContext): array {
-                $requesterRoleNames = $request->user
-                    ? $request->user->roles
-                        ->pluck('name')
-                        ->map(fn ($roleName) => strtolower((string) $roleName))
-                        ->all()
-                    : [];
-                $history = $this->mapRoleRequestRejectionHistory(
-                    $request,
-                    $requestsByContext->get($this->roleRequestHistoryKey($request), collect()),
-                );
-
-                return [
-                    'id'            => (string) $request->id,
-                    'userId'        => (string) ($request->user_id ?? ''),
-                    'userName'      => (string) ($request->user?->name ?? '-'),
-                    'userEmail'     => (string) ($request->user?->email ?? '-'),
-                    'avatar'        => $this->initials((string) ($request->user?->name ?? 'NA')),
-                    'currentRole'   => $this->resolveDisplayRole($requesterRoleNames),
-                    'requestedRole' => (string) $request->requested_role,
-                    'submittedAt'   => $request->created_at?->toIso8601String(),
-                    'status'        => (string) $request->status,
-                    'reason'        => (string) $request->reason,
-                    'proofUrl'      => route('files.preview', $request->proof_file_id),
-                    'proofFileName' => $request->proofFile
-                        ? trim("{$request->proofFile->name}.{$request->proofFile->extension}", '.')
-                        : null,
-                    'approvedBy'            => $request->status === FormStatus::APPROVED->value ? $request->reviewer?->name : null,
-                    'approvedAt'            => $request->status === FormStatus::APPROVED->value ? $request->reviewed_at?->toIso8601String() : null,
-                    'rejectedBy'            => $request->status === FormStatus::REJECTED->value ? $request->reviewer?->name : null,
-                    'rejectedAt'            => $request->status === FormStatus::REJECTED->value ? $request->reviewed_at?->toIso8601String() : null,
-                    'rejectReason'          => $request->rejection_reason,
-                    'rejectionHistory'      => $history,
-                    'rejectionHistoryCount' => $history->count(),
-                ];
-            })
-            ->values();
+        $requestsPayload = $roleRequests->map(
+            fn (RoleRequest $request) => $this->userTransformer->transformRoleRequest($request, $requestsByContext),
+        )->values();
 
         $adminsPayload = $users
             ->filter(fn (User $user) => $user->roles->pluck('name')->map(fn ($roleName) => strtolower((string) $roleName))->contains('admin'))
-            ->map(function (User $user): array {
-                $permissions = $this->adminPermissionService->resolveUserPermissionNames($user);
-
-                return [
-                    'id'          => (string) $user->id,
-                    'name'        => (string) $user->name,
-                    'email'       => (string) $user->email,
-                    'avatar'      => $this->initials((string) $user->name),
-                    'role'        => \in_array('super_admin', $permissions, true) ? 'super_admin' : 'admin',
-                    'status'      => $this->statusValue($user->status),
-                    'permissions' => $permissions,
-                    'lastActive'  => $user->updated_at?->toIso8601String(),
-                    'createdAt'   => $user->created_at?->toIso8601String(),
-                ];
-            })
+            ->map(fn (User $user) => $this->userTransformer->transformAdmin($user, $this->adminPermissionService))
             ->values();
 
         $authUser = request()->user();
@@ -217,39 +139,6 @@ class UserDirectoryController extends Controller {
         return back()->with('success', 'Permission admin berhasil diperbarui.');
     }
 
-    private function roleRequestHistoryKey(RoleRequest $roleRequest): string {
-        return "{$roleRequest->user_id}|{$roleRequest->requested_role}";
-    }
-
-    /**
-     * @param  Collection<int, RoleRequest>  $relatedRequests
-     * @return Collection<int, array{id: string, reason: string, reviewedBy: string, reviewedAt: ?string, submittedAt: ?string}>
-     */
-    private function mapRoleRequestRejectionHistory(
-        RoleRequest $roleRequest,
-        Collection $relatedRequests,
-    ): Collection {
-        return $relatedRequests
-            ->filter(function (RoleRequest $historyRequest) use ($roleRequest): bool {
-                return (string) $historyRequest->id !== (string) $roleRequest->id
-                    && (string) $historyRequest->status === FormStatus::REJECTED->value
-                    && filled($historyRequest->rejection_reason);
-            })
-            ->sortByDesc(fn (RoleRequest $historyRequest) => $historyRequest->reviewed_at ?? $historyRequest->updated_at ?? $historyRequest->created_at)
-            ->map(function (RoleRequest $historyRequest): array {
-                $reviewedAt = $historyRequest->reviewed_at ?? $historyRequest->updated_at ?? $historyRequest->created_at;
-
-                return [
-                    'id'          => (string) $historyRequest->id,
-                    'reason'      => (string) $historyRequest->rejection_reason,
-                    'reviewedBy'  => (string) ($historyRequest->reviewer?->name ?? '-'),
-                    'reviewedAt'  => $reviewedAt?->toIso8601String(),
-                    'submittedAt' => $historyRequest->created_at?->toIso8601String(),
-                ];
-            })
-            ->values();
-    }
-
     private function ensurePendingInstructorRequest(RoleRequest $roleRequest): void {
         if (
             $roleRequest->requested_role !== 'instructor'
@@ -259,40 +148,5 @@ class UserDirectoryController extends Controller {
                 'request' => 'Request ini tidak dapat diproses.',
             ]);
         }
-    }
-
-    /**
-     * @param  array<int, string>  $roles
-     */
-    private function resolveDisplayRole(array $roles): string {
-        foreach (['admin', 'organization', 'instructor', 'student'] as $roleName) {
-            if (\in_array($roleName, $roles, true)) {
-                return $roleName;
-            }
-        }
-
-        return 'student';
-    }
-
-    private function statusValue(mixed $status): string {
-        if ($status instanceof FormStatus) {
-            return $status->value;
-        }
-
-        return strtolower(trim((string) $status));
-    }
-
-    private function initials(string $name): string {
-        $parts = preg_split('/\s+/', trim($name)) ?: [];
-        $parts = array_values(array_filter($parts));
-
-        if (\count($parts) === 0) {
-            return 'NA';
-        }
-
-        $first  = mb_substr($parts[0], 0, 1);
-        $second = \count($parts) > 1 ? mb_substr($parts[1], 0, 1) : '';
-
-        return mb_strtoupper($first . $second);
     }
 }
