@@ -4,6 +4,8 @@ namespace App\Services\Core;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
+use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Schema;
@@ -124,13 +126,15 @@ class DataTableColumnSelector {
                 continue;
             }
 
-            if ($type === 'relation') {
+            // Relasi singular (relation) & plural (relations) sama-sama di-collect:
+            // collectSafeRelation membuat closure child-select dari kolom-aman child
+            // (safeRelationColumns) bila ada — sehingga relasi yang diminta `with`
+            // ikut ter-eager-load DAN kolom anaknya tersaring di level SELECT.
+            // Bila tak ada child-safe (mis. index view yg suplai []), childSelectClosure
+            // return null → eager-load apa adanya (SELECT * child), perilaku lama aman.
+            if ($type === 'relation' || $type === 'relations') {
                 $this->collectSafeRelation($model, $col, $safeRelationColumns, $select, $with);
 
-                continue;
-            }
-            if ($type === 'relations') {
-                // Plural tidak auto-with (meniru resolve()); via ?with eksplisit di scope.
                 continue;
             }
 
@@ -188,8 +192,20 @@ class DataTableColumnSelector {
             $select[] = $relation->getForeignKeyName();
         }
 
+        // Relasi has-many/has-one (termasuk morph plural): FK (dan morph type)
+        // ada di tabel CHILD, bukan parent. Eloquent butuh kolom-kolom itu di
+        // SELECT child agar bisa menghidrasi & mencocokkan ke parent — kalau tak
+        // di-select, relasi balik kosong. Kumpulkan untuk dipaksa masuk closure.
+        $childKeys = [];
+        if ($relation instanceof HasOneOrMany) {
+            $childKeys[] = $relation->getForeignKeyName();
+            if ($relation instanceof MorphOneOrMany) {
+                $childKeys[] = $relation->getMorphType();
+            }
+        }
+
         $childSafe = $safeRelationColumns[$fn] ?? null;
-        $with[$fn] = $this->childSelectClosure($model, $fn, $childSafe);
+        $with[$fn] = $this->childSelectClosure($model, $fn, $childSafe, $childKeys);
     }
 
     /**
@@ -202,8 +218,10 @@ class DataTableColumnSelector {
      * `SELECT *`), mempertahankan perilaku lama agar render tak kehilangan kolom.
      *
      * @param  array<string, bool>|null  $childSafe
+     * @param  list<string>  $childKeys  FK/morph-type di tabel child yang WAJIB
+     *                                   di-select agar hidrasi has-many/morph jalan
      */
-    private function childSelectClosure(Model $model, string $fn, ?array $childSafe): ?\Closure {
+    private function childSelectClosure(Model $model, string $fn, ?array $childSafe, array $childKeys = []): ?\Closure {
         $relation    = $model->{$fn}();
         $related     = $relation->getRelated();
         $relatedKey  = $related->getKeyName();
@@ -219,14 +237,63 @@ class DataTableColumnSelector {
         if ($cols === []) {
             return null;
         }
+
+        // SELECT presisi child HANYA boleh kolom DB nyata — templateLink bisa
+        // merujuk accessor (mis. File::':fullname'), yang akan memicu SQL error.
+        // Intersect dgn kolom DB child membuang accessor (di-resolve dari
+        // $appends/dependsOn saat hidrasi, bukan SELECT langsung).
+        $childDbColumns = $this->dbColumns($related);
+        $cols           = array_values(array_intersect($cols, $childDbColumns));
+
+        // PK + FK/morph-type child wajib ikut (hidrasi & match ke parent).
         $cols[] = $relatedKey;
-        $cols   = array_values(array_unique($cols));
+        foreach ($childKeys as $key) {
+            if (is_string($key) && $key !== '') {
+                $cols[] = $key;
+            }
+        }
+        // Kolom yang global scope rujuk (soft delete, is_example, dll) wajib ikut
+        // agar WHERE scope tak menabrak kolom yang tak di-SELECT pada DB tertentu.
+        foreach ($this->scopeColumns($related) as $key) {
+            if (in_array($key, $childDbColumns, true)) {
+                $cols[] = $key;
+            }
+        }
+        $cols = array_values(array_unique($cols));
+
+        // Qualify dgn nama tabel child: relasi *ToMany (belongsToMany/morphToMany)
+        // JOIN tabel pivot, sehingga kolom seperti `deleted_at`/`id` ambigu antara
+        // tabel child & pivot. Prefix tabel child menghilangkan ambiguitas dan tetap
+        // valid untuk relasi non-pivot (hasMany/belongsTo).
+        $childTable = $related->getTable();
+        $cols       = array_map(fn ($c) => "{$childTable}.{$c}", $cols);
 
         // $q adalah Relation (BelongsTo/HasMany/...) saat dipakai di with([rel => fn]);
         // select() diproksikan ke Builder via __call. Jangan type-hint Builder.
         return function ($q) use ($cols): void {
             $q->select($cols);
         };
+    }
+
+    /**
+     * Kolom yang global scope umum (SoftDeletes, HasExampleData) rujuk di WHERE,
+     * sehingga harus ikut di SELECT presisi child agar query tak menabrak kolom
+     * tak-terselect. Konservatif: hanya nama kolom yang dipakai scope tsb.
+     *
+     * @return list<string>
+     */
+    private function scopeColumns(Model $model): array {
+        $cols = [];
+        if (method_exists($model, 'getDeletedAtColumn')) {
+            $deletedAt = $model->getDeletedAtColumn();
+            if (is_string($deletedAt) && $deletedAt !== '') {
+                $cols[] = $deletedAt;
+            }
+        }
+        // HasExampleData mendaftarkan global scope `where is_example = false`.
+        $cols[] = 'is_example';
+
+        return $cols;
     }
 
     /**
@@ -243,9 +310,11 @@ class DataTableColumnSelector {
         $out = [];
         if (preg_match_all('/:((\w[\w]+\{:[\w.]+\})|(\w[\w.]+))/', $templateLink, $matches)) {
             foreach ($matches[1] as $raw) {
-                if (preg_match('/.*?\{:(.*?)\}/', $raw, $aliasMatch)) {
-                    $raw = $aliasMatch[1];
-                }
+                // Alias `:nama{:alias}`: `nama` = kolom DB (queryable, di-SELECT);
+                // `alias` = nilai tampil (accessor, TAK bisa di-query). Untuk SELECT
+                // ambil `nama` (buang `{:alias}`) — render label pakai alias terpisah
+                // via convertTemplateLink.
+                $raw  = preg_replace('/\{:.*?\}/', '', $raw);
                 $head = str_contains($raw, '.') ? explode('.', $raw)[0] : $raw;
                 if ($head !== '') {
                     $out[] = $head;
@@ -433,9 +502,11 @@ class DataTableColumnSelector {
     }
 
     /**
-     * Ekstrak placeholder utuh (boleh dot-notation) dari templateLink. Alias
-     * `name{:title}` → pakai `title`. Beda dgn templateLinkHeads yang mereduksi ke
-     * head: di sini path utuh dipertahankan untuk penelusuran rantai relasi.
+     * Ekstrak placeholder utuh (boleh dot-notation) dari templateLink untuk
+     * penelusuran rantai relasi & SELECT. Alias `:nama{:alias}` → pakai `nama`
+     * (kolom DB queryable yang di-SELECT/ditelusuri), BUKAN `alias` (nilai tampil
+     * accessor yang tak bisa di-query). Render label pakai `alias` terpisah via
+     * convertTemplateLink. Path utuh (dot-notation) dipertahankan untuk telusur relasi.
      *
      * @return list<string>
      */
@@ -447,9 +518,7 @@ class DataTableColumnSelector {
         $out = [];
         if (preg_match_all('/:((\w[\w]+\{:[\w.]+\})|(\w[\w.]+))/', $templateLink, $matches)) {
             foreach ($matches[1] as $raw) {
-                if (preg_match('/.*?\{:(.*?)\}/', $raw, $aliasMatch)) {
-                    $raw = $aliasMatch[1];
-                }
+                $raw = preg_replace('/\{:.*?\}/', '', $raw);
                 if ($raw !== '') {
                     $out[] = $raw;
                 }
@@ -505,9 +574,13 @@ class DataTableColumnSelector {
     }
 
     /**
-     * Himpunan kolom top-level yang efektif visible. Dari cookie bila ada;
-     * selain itu kolom config `show !== false`. Key ber-dot direduksi ke segmen
-     * pertama; key asing (tak ada di metadata) diabaikan di pemanggil.
+     * Himpunan kolom top-level yang efektif visible. Dari cookie bila ada; selain
+     * itu HANYA kolom yang `show === true` eksplisit. configColumns adalah katalog
+     * metadata (semua relasi/attribute didaftarkan agar dikenali fitur lain) —
+     * terdaftar TAK berarti dibutuhkan. Indikator butuh: `show:true` atau diminta
+     * client (cookie/fields/with). Default (`show` tak diset) → TIDAK visible,
+     * supaya relasi metadata-only (files/tags/logs) tak ikut ter-load/prune.
+     * Key ber-dot direduksi ke segmen pertama; key asing diabaikan di pemanggil.
      *
      * @param  array<string, array<string, mixed>>  $byName
      * @param  array<int, string>|null  $visibleKeys
@@ -517,7 +590,7 @@ class DataTableColumnSelector {
         if ($visibleKeys === null || $visibleKeys === []) {
             $heads = [];
             foreach ($byName as $name => $col) {
-                if (($col['show'] ?? true) !== false) {
+                if (($col['show'] ?? false) === true) {
                     $heads[] = $name;
                 }
             }

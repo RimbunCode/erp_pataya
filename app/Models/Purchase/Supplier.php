@@ -65,5 +65,6 @@ class Supplier extends Model {
         ],
         'country',
         'branchOf',
+        'branches',
     ];
 }

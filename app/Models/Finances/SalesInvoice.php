@@ -101,6 +101,7 @@ class SalesInvoice extends Model {
             'show'  => true,
             'order' => 10,
         ],
+        'paymentSchedules',
     ];
 
     protected static function loadRelationsOnShow() {

@@ -64,6 +64,7 @@ class DeliveryNote extends Model {
             'order' => 5,
         ],
         'returnAgainst',
+        'referenceTo',
         'items' => [
             'show'  => true,
             'order' => 10,

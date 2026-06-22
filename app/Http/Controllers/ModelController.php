@@ -153,9 +153,10 @@ class ModelController extends Controller {
      * agar payload relasi tetap ada (kolom anaknya dibatasi rekursif saat map data).
      *
      * @param  list<string>  $requested  kolom yang diminta form (fields/columns)
+     * @param  list<string>  $withRelations  relasi top-level diminta lewat `with` (eager-load)
      * @return array<string,bool> set nama kolom aman (key)
      */
-    private function safeLookupColumns(string $model, array $requested, PermissionChecker $perm): array {
+    private function safeLookupColumns(string $model, array $requested, PermissionChecker $perm, array $withRelations = []): array {
         $columns = $model::getColumns(1);
         $byName  = [];
         foreach ($columns as $col) {
@@ -181,13 +182,15 @@ class ModelController extends Controller {
         }
 
         $requestedSet = \array_flip($requested);
+        $withSet      = \array_flip($withRelations);
         foreach ($byName as $name => $col) {
             $type       = $col['type'] ?? null;
             $isRelation = \in_array($type, ['relation', 'relations'], true);
 
             // Relasi: izinkan sbg key bila diminta langsung, diminta lewat field
-            // dot-notation (mis. "items.price" → izinkan "items"), atau sudah di
-            // templateLink. Kolom anaknya dibatasi rekursif.
+            // dot-notation (mis. "items.price" → izinkan "items"), sudah di
+            // templateLink, atau diminta lewat `with` (eager-load) DAN ber-linkable.
+            // Kolom anaknya dibatasi rekursif.
             if ($isRelation) {
                 $hasDotField = false;
                 foreach ($requested as $f) {
@@ -196,7 +199,16 @@ class ModelController extends Controller {
                         break;
                     }
                 }
-                if (isset($requestedSet[$name]) || isset($safe[$name]) || $hasDotField) {
+                // `with` adalah kontrak relasi eksplisit dari form (eager-load): relasi
+                // yang diminta lolos sbg key TANPA syarat `linkable` (linkable adalah
+                // gate kolom skalar, bukan relasi). Kolom ANAK relasi tetap disaring
+                // rekursif (safeRelationColumns/filterRowColumns) sesuai aturan kolom.
+                if (isset($requestedSet[$name]) || isset($safe[$name]) || $hasDotField || isset($withSet[$name])) {
+                    // Gate visibleFor (bila ada): jangan loloskan relasi sensitif
+                    // ke user yang tak memenuhi izin.
+                    if (! empty($col['visibleFor']) && ! $perm->satisfies((array) $col['visibleFor'])) {
+                        continue;
+                    }
                     $safe[$name] = true;
                 }
 
@@ -530,6 +542,21 @@ class ModelController extends Controller {
         $with = $request->with ?? [];
         $with = $isCache ? ($model::getRelationKeys(relations: $with) ?? []) : $with;
 
+        // Nama relasi top-level yang diminta lewat `with` (numeric/assoc/dot-notation
+        // dinormalisasi ke segmen pertama, mis. "branches.city" → "branches").
+        // Di-snake_case agar match key getColumns: relasi method camelCase
+        // (mis. defaultUom/childrenUnsafe) di-emit getColumns sbg snake (default_uom/
+        // children_unsafe), sedangkan `with` request memakai nama method camelCase.
+        // Dipakai gate kolom agar relasi yang diminta via `with` tak di-prune.
+        $withRelations = [];
+        foreach ((array) $with as $k => $v) {
+            $rel = \is_int($k) ? $v : $k;
+            if (\is_string($rel) && $rel !== '') {
+                $withRelations[] = Str::snake(\explode('.', $rel)[0]);
+            }
+        }
+        $withRelations = \array_values(\array_unique($withRelations));
+
         if ($request->has('joins')) {
             foreach ($request->joins as $key => $join) {
                 if (isset($join['columns'])) {
@@ -566,7 +593,7 @@ class ModelController extends Controller {
         // hanya baca kolom aman) DAN filterRowColumns (lapis kedua, response).
         $perm     = PermissionChecker::forUser($request);
         $fields   = \is_array($request->fields ?? null) ? \array_values($request->fields) : [];
-        $safe     = $this->safeLookupColumns($model, $fields, $perm);
+        $safe     = $this->safeLookupColumns($model, $fields, $perm, $withRelations);
         $relModes = $this->relatedModelMap($model);
 
         // SELECT-level pruning: hanya bila TIDAK ada join (jalur join pakai addSelect
