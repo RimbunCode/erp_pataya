@@ -28,10 +28,10 @@ class PurchaseInvoiceService {
         $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
         $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
-        $defaultCurrency              = Preference::find('default_currency_id')->value;
-        $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
-        $data['base_currency_code']   = $defaultCurrency;
-        $data['exchange_rate']      ??= 1;
+        $defaultCurrency            = Preference::find('default_currency_id')->value;
+        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
+        $data['base_currency_code'] = $defaultCurrency;
+        $data['exchange_rate'] ??= 1;
 
         return $data;
     }
@@ -70,7 +70,7 @@ class PurchaseInvoiceService {
             $item = $purchaseInvoice->items()->create($item);
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount   += $item->tax_amount;
+            $taxAmount += $item->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
@@ -96,7 +96,7 @@ class PurchaseInvoiceService {
         $purchaseInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
-        $itemIds       = collect($data['items'])
+        $itemIds = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -125,7 +125,7 @@ class PurchaseInvoiceService {
             }
 
             $basicAmount += $itemModel->basic_amount;
-            $taxAmount   += $itemModel->tax_amount;
+            $taxAmount += $itemModel->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseInvoice->discount_on, $purchaseInvoice->discount_amount);
@@ -137,7 +137,7 @@ class PurchaseInvoiceService {
         $purchaseInvoice->paymentSchedules()
             ->whereNotIn('id', array_column($paymentSchedules, 'id'))
             ->delete();
-        $paymentScheduleIds       = collect($paymentSchedules)
+        $paymentScheduleIds = collect($paymentSchedules)
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -226,7 +226,7 @@ class PurchaseInvoiceService {
 
             foreach ($items as $item) {
                 $basicAmount += $item->basic_amount;
-                $taxAmount   += $item->tax_amount;
+                $taxAmount += $item->tax_amount;
 
                 $poItem = $item->purchaseOrderItem;
                 $qty    = $item->quantity;
@@ -242,8 +242,8 @@ class PurchaseInvoiceService {
                     $isAlreadyReceived = $poItem->received_quantity > 0;
 
                     if ($isAlreadyReceived) {
-                        $stockGLForItem  = $this->updatePendingSLEs($poItem, $purchaseOrder, $qty, $rate, $purchaseInvoice);
-                        $totalStockGL   += $stockGLForItem;
+                        $stockGLForItem = $this->updatePendingSLEs($poItem, $purchaseOrder, $qty, $rate, $purchaseInvoice);
+                        $totalStockGL += $stockGLForItem;
                     }
                     // ALUR-2: Receipt belum ada → tidak ada SLE pending, skip
                 }
@@ -428,7 +428,7 @@ class PurchaseInvoiceService {
                 }
             }
 
-            $totalValue   += $rate * $allocateQty;
+            $totalValue += $rate * $allocateQty;
             $remainingQty -= $allocateQty;
         }
 

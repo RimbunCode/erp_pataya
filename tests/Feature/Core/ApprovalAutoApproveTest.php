@@ -20,9 +20,10 @@ use Tests\TestCase;
 // Dokumen stub — cukup punya id & created_by_id
 class ApprovalTestDocument extends AppModel {
     use HasUlids;
-    protected $table      = 'approval_test_documents';
-    protected $guarded    = ['id'];
-    public    $timestamps = false;
+
+    protected $table   = 'approval_test_documents';
+    protected $guarded = ['id'];
+    public $timestamps = false;
 
     public function getRouteKeyName(): string {
         return 'id';
@@ -31,6 +32,7 @@ class ApprovalTestDocument extends AppModel {
 
 class ApprovalAutoApproveTest extends TestCase {
     use RefreshDatabase;
+
     private string $permissionId;
 
     protected function setUp(): void {

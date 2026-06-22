@@ -73,7 +73,7 @@ class SalesOrderService {
 
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount   += $item->tax_amount;
+            $taxAmount += $item->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
         $salesOrder->update([
@@ -96,7 +96,7 @@ class SalesOrderService {
         $salesOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
-        $itemIds       = collect($data['items'])
+        $itemIds = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -105,8 +105,8 @@ class SalesOrderService {
             ->whereIn('id', $itemIds)
             ->get()
             ->keyBy('id');
-        $basicAmount   = 0;
-        $taxAmount     = 0;
+        $basicAmount = 0;
+        $taxAmount   = 0;
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $salesOrder);
 
@@ -124,7 +124,7 @@ class SalesOrderService {
 
             $itemModel->refresh();
             $basicAmount += $itemModel->basic_amount;
-            $taxAmount   += $itemModel->tax_amount;
+            $taxAmount += $itemModel->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesOrder->discount_on, $salesOrder->discount_amount);
         $salesOrder->fill([
@@ -135,7 +135,7 @@ class SalesOrderService {
         $salesOrder->paymentSchedules()
             ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
             ->delete();
-        $paymentScheduleIds       = collect($data['payment_schedules'])
+        $paymentScheduleIds = collect($data['payment_schedules'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -329,8 +329,8 @@ class SalesOrderService {
                 $groups = collect();
 
                 foreach ($invItems as $ii) {
-                    $key                                    = "{$ii->price}|{$ii->tax_id}|{$ii->tax_rate}|{$soItem->source_warehouse_id}";
-                    $existing                               = $groups->get($key, [
+                    $key      = "{$ii->price}|{$ii->tax_id}|{$ii->tax_rate}|{$soItem->source_warehouse_id}";
+                    $existing = $groups->get($key, [
                         'qty'                      => 0,
                         'price'                    => $ii->price,
                         'tax_id'                   => $ii->tax_id,
@@ -339,15 +339,15 @@ class SalesOrderService {
                         'source_invoice_item_ids'  => [],
                         'source_delivery_item_ids' => [],
                     ]);
-                    $existing['qty']                       += $ii->quantity;
-                    $existing['source_invoice_item_ids'][]  = $ii->id;
+                    $existing['qty'] += $ii->quantity;
+                    $existing['source_invoice_item_ids'][] = $ii->id;
                     $groups->put($key, $existing);
                 }
 
                 foreach ($delItems as $di) {
-                    $wh                                      = $di->source_warehouse_id ?? $soItem->source_warehouse_id;
-                    $key                                     = "{$soItem->price}|{$soItem->tax_id}|{$soItem->tax_rate}|{$wh}";
-                    $existing                                = $groups->get($key, [
+                    $wh       = $di->source_warehouse_id ?? $soItem->source_warehouse_id;
+                    $key      = "{$soItem->price}|{$soItem->tax_id}|{$soItem->tax_rate}|{$wh}";
+                    $existing = $groups->get($key, [
                         'qty'                      => 0,
                         'price'                    => $soItem->price,
                         'tax_id'                   => $soItem->tax_id,
@@ -356,8 +356,8 @@ class SalesOrderService {
                         'source_invoice_item_ids'  => [],
                         'source_delivery_item_ids' => [],
                     ]);
-                    $existing['qty']                        += $di->quantity;
-                    $existing['source_delivery_item_ids'][]  = $di->id;
+                    $existing['qty'] += $di->quantity;
+                    $existing['source_delivery_item_ids'][] = $di->id;
                     $groups->put($key, $existing);
                 }
 
@@ -380,7 +380,7 @@ class SalesOrderService {
                     $soItem->delete();
 
                     foreach ($groups as $g) {
-                        $newItem     = $soItem->replicate()->fill([
+                        $newItem = $soItem->replicate()->fill([
                             'quantity'            => $g['qty'],
                             'price'               => $g['price'],
                             'tax_id'              => $g['tax_id'],
@@ -396,7 +396,7 @@ class SalesOrderService {
 
                         $newDelivered = empty($g['source_delivery_item_ids']) ? 0
                             : DeliveryNoteItem::whereIn('id', $g['source_delivery_item_ids'])->sum('quantity');
-                        $newBilled    = empty($g['source_invoice_item_ids']) ? 0
+                        $newBilled = empty($g['source_invoice_item_ids']) ? 0
                             : SalesInvoiceItem::whereIn('id', $g['source_invoice_item_ids'])->sum('quantity');
                         $newItem->update([
                             'delivered_quantity' => $newDelivered,
@@ -519,7 +519,7 @@ class SalesOrderService {
             $additionalData['order'] = false;
             $salesOrder->referenceable->update(['additional_data' => $additionalData]);
         }
-        $items  = $salesOrder->items()
+        $items = $salesOrder->items()
             ->get();
         $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))

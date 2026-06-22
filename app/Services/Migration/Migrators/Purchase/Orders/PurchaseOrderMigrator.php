@@ -55,9 +55,9 @@ class PurchaseOrderMigrator extends BaseMigrator {
                             'legacy_status'     => $record->status ?? null,
                             'legacy_inv_number' => $record->inv_number ?? null,
                         ],
-                        'deleted_at'           => $record->deleted_at,
-                        'created_at'           => $record->created_at,
-                        'updated_at'           => $record->updated_at,
+                        'deleted_at' => $record->deleted_at,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(

@@ -31,13 +31,13 @@ class DeliveryNoteService {
     }
 
     private function fillItemRelations(array $item) {
-        $item['item_id']                  = $item['item']['id'];
-        $item['item_unit_id']             = $item['unit']['id'];
-        $item['source_warehouse_id']      = $item['source_warehouse']['id'] ?? null;
-        $item['conversion_factor']        = $item['unit']['conversion_factor'];
-        $item['quantity']               ??= 0;
-        $item['valuation_rates']          = [];
-        $item['return_against_item_id']   = $item['return_against_item']['id'] ?? null;
+        $item['item_id']             = $item['item']['id'];
+        $item['item_unit_id']        = $item['unit']['id'];
+        $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
+        $item['conversion_factor']   = $item['unit']['conversion_factor'];
+        $item['quantity'] ??= 0;
+        $item['valuation_rates']        = [];
+        $item['return_against_item_id'] = $item['return_against_item']['id'] ?? null;
 
         return $item;
     }
@@ -62,7 +62,7 @@ class DeliveryNoteService {
         $deliveryNote->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
-        $itemIds       = collect($data['items'])
+        $itemIds = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -229,13 +229,13 @@ class DeliveryNoteService {
             $offset = $rentedQuantity;
 
             if ($returnAgainst) {
-                $valuationRates  = $item->returnAgainstItem->valuation_rates;
-                $remainingQueue  = [
+                $valuationRates = $item->returnAgainstItem->valuation_rates;
+                $remainingQueue = [
                     ...$queue,
                     ...$valuationRates ?? [],
                 ];
-                $amountPicked    = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $valuationRates ?? []));
-                $totalPicked    += $amountPicked;
+                $amountPicked = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $valuationRates ?? []));
+                $totalPicked += $amountPicked;
                 $item->returnAgainstItem->update([
                     'returned_quantity' => $item->returnAgainstItem->returned_quantity + $quantity,
                 ]);
@@ -333,7 +333,7 @@ class DeliveryNoteService {
             (new SalesOrderService)->updateSalesOrderStatus($toReference);
             $status = $toReference->status;
         } else {
-            $undeliveredItems      = $toReference->items()
+            $undeliveredItems = $toReference->items()
                 ->leftJoin('item_variants', 'item_variants.id', '=', 'items.item_variant_id')
                 ->where('is_stock_item', true)
                 ->select(['undelivered_quantity', 'quantity'])->get();
@@ -376,7 +376,7 @@ class DeliveryNoteService {
                 ->where('root_type', 'asset')
                 ->where('account_type', 'stock')
                 ->latest()->first();
-            $debitAccount  = Account::lockForUpdate()
+            $debitAccount = Account::lockForUpdate()
                 ->where('root_type', 'income')
                 ->where('account_type', 'cost_of_goods_sold')
                 ->latest()->first();

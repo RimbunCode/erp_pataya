@@ -69,9 +69,9 @@ class SalesInvoiceMigrator extends BaseMigrator {
                             'legacy_choices'      => $record->choices ?? null,
                             'legacy_trans_type'   => $record->trans_type ?? null,
                         ],
-                        'deleted_at'           => $record->deleted_at,
-                        'created_at'           => $record->created_at,
-                        'updated_at'           => $record->updated_at,
+                        'deleted_at' => $record->deleted_at,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(

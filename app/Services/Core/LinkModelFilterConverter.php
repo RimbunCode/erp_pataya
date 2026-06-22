@@ -252,15 +252,15 @@ class LinkModelFilterConverter {
 
     private function mapDatePeriod(string $key, string $operator, mixed $value): ?array {
         $mapped = match ($operator) {
-            '>'  => ['in_period', 'after'],
-            '>=' => ['in_period', 'on-or-after'],
-            '<'  => ['in_period', 'before'],
-            '<=' => ['in_period', 'on-or-before'],
-            '=', 'equal' => ['in_period', 'is'],
+            '>'                     => ['in_period', 'after'],
+            '>='                    => ['in_period', 'on-or-after'],
+            '<'                     => ['in_period', 'before'],
+            '<='                    => ['in_period', 'on-or-before'],
+            '=', 'equal'            => ['in_period', 'is'],
             'not', '!=', 'notEqual' => ['!in_period', 'is'],
-            'between'    => ['in_period', 'between'],
-            'notBetween' => ['!in_period', 'between'],
-            default      => null, // in/notIn atau lainnya -> skip
+            'between'               => ['in_period', 'between'],
+            'notBetween'            => ['!in_period', 'between'],
+            default                 => null, // in/notIn atau lainnya -> skip
         };
 
         if ($mapped === null) {
@@ -294,17 +294,17 @@ class LinkModelFilterConverter {
 
     private function mapOperator(string $operator): ?string {
         return match ($operator) {
-            '=', '==', 'equal' => '=',
-            '!=', 'not', 'notEqual' => '!=',
-            '>', '>=', '<', '<=' => $operator,
-            'in'         => 'in',
-            'notIn'      => '!in',
-            'between'    => 'between',
-            'notBetween' => '!between',
-            'like'       => 'matches',
-            'notLike'    => '!matches',
+            '=', '==', 'equal'                                                                             => '=',
+            '!=', 'not', 'notEqual'                                                                        => '!=',
+            '>', '>=', '<', '<='                                                                           => $operator,
+            'in'                                                                                           => 'in',
+            'notIn'                                                                                        => '!in',
+            'between'                                                                                      => 'between',
+            'notBetween'                                                                                   => '!between',
+            'like'                                                                                         => 'matches',
+            'notLike'                                                                                      => '!matches',
             'matches', 'starts_with', 'ends_with', 'has', '!has', 'set', '!set', 'in_period', '!in_period' => $operator,
-            default => null, // Skip tak dikenal
+            default                                                                                        => null, // Skip tak dikenal
         };
     }
 

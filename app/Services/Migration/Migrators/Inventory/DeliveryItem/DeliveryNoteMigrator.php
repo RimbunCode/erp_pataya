@@ -18,10 +18,12 @@ class DeliveryNoteMigrator extends BaseMigrator {
     protected string $sourceInternalOrderTable = 'internal_orders';
     protected string $targetTable              = 'delivery_notes';
     protected string $targetModel              = DeliveryNote::class;
+
     /**
      * @var array<string, string>
      */
     protected array $legacySalesOrderCreatorCache = [];
+
     /**
      * @var array<string, string>
      */
@@ -90,9 +92,9 @@ class DeliveryNoteMigrator extends BaseMigrator {
                             'legacy_comments_receive'   => $record->comments_receive ?? null,
                             'legacy_shipment_reference' => $record->shipment_reference ?? null,
                         ],
-                        'deleted_at'         => null,
-                        'created_at'         => $record->created_at,
-                        'updated_at'         => $record->updated_at,
+                        'deleted_at' => null,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(
@@ -159,9 +161,9 @@ class DeliveryNoteMigrator extends BaseMigrator {
                             'legacy_comments_receive'   => $record->comments_receive ?? null,
                             'legacy_shipment_reference' => $record->shipment_reference ?? null,
                         ],
-                        'deleted_at'         => null,
-                        'created_at'         => $record->created_at,
-                        'updated_at'         => $record->updated_at,
+                        'deleted_at' => null,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(

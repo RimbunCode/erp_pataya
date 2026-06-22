@@ -55,9 +55,9 @@ class WorkOrderMigrator extends BaseMigrator {
                             'legacy_type'      => $record->type ?? null,
                             'legacy_status'    => $record->status ?? null,
                         ],
-                        'deleted_at'           => $record->deleted_at,
-                        'created_at'           => $record->created_at,
-                        'updated_at'           => $record->updated_at,
+                        'deleted_at' => $record->deleted_at,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(

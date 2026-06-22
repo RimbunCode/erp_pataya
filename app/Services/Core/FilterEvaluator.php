@@ -514,15 +514,15 @@ class FilterEvaluator {
     private function isTypeCompatible(string $leftType, string $rightType): bool {
         $categorize = function (string $type): string {
             return match ($type) {
-                'number', 'currency' => 'numeric',
-                'string' => 'string',
-                'date', 'datetime' => 'date',
-                'time'    => 'time',
-                'boolean' => 'boolean',
-                'relation', 'relations' => 'relation',
+                'number', 'currency'         => 'numeric',
+                'string'                     => 'string',
+                'date', 'datetime'           => 'date',
+                'time'                       => 'time',
+                'boolean'                    => 'boolean',
+                'relation', 'relations'      => 'relation',
                 'formStatus', 'formStatuses' => 'status',
-                'enum'  => 'enum',
-                default => $type,
+                'enum'                       => 'enum',
+                default                      => $type,
             };
         };
 
@@ -922,9 +922,9 @@ class FilterEvaluator {
     private function normalizeScalar(string $type, mixed $value): mixed {
         if ($type === 'boolean') {
             return match ($value) {
-                'true', true, 1, '1' => true,
+                'true', true, 1, '1'   => true,
                 'false', false, 0, '0' => false,
-                default => (bool) $value,
+                default                => (bool) $value,
             };
         }
 

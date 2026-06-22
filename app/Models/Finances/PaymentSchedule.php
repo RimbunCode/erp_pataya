@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaymentSchedule extends Model {
     use DataTable, HasUlids, SoftDeletes;
+
     protected $withs = [
         'referenceTo',
     ];
@@ -27,27 +28,28 @@ class PaymentSchedule extends Model {
     public static function templateLink() {
         return ':referenceTo';
     }
+
     protected array $configColumns = [
-        'referenceTo'             => [
+        'referenceTo' => [
             'type'               => 'relation',
             'order'              => 0,
             'show'               => true,
             'disabledNavigation' => true,
             'isLink'             => true,
         ],
-        'due_date'                => [
+        'due_date' => [
             'order' => 1,
             'show'  => true,
         ],
-        'payment_amount'          => [
+        'payment_amount' => [
             'order' => 2,
             'show'  => true,
         ],
-        'outstanding_amount'      => [
+        'outstanding_amount' => [
             'order' => 3,
             'show'  => true,
         ],
-        'status'                  => [
+        'status' => [
             'type'       => 'string',
             'order'      => 4,
             'show'       => true,
@@ -56,22 +58,22 @@ class PaymentSchedule extends Model {
         ],
         'paymentMethod',
 
-        'base_currency_code'      => [
+        'base_currency_code' => [
             'ignore' => true,
         ],
         'base_outstanding_amount' => [
             'ignore' => true,
         ],
-        'base_paid_amount'        => [
+        'base_paid_amount' => [
             'ignore' => true,
         ],
-        'base_payment_amount'     => [
+        'base_payment_amount' => [
             'ignore' => true,
         ],
     ];
-    protected       $appends       = ['status'];
-    public string   $translateKey  = 'finances.paymentSchedule';
-    protected       $casts         = [
+    protected $appends          = ['status'];
+    public string $translateKey = 'finances.paymentSchedule';
+    protected $casts            = [
         'for_internal'  => 'boolean',
         'due_date'      => 'datetime',
         'payment_date'  => 'datetime',
@@ -79,7 +81,7 @@ class PaymentSchedule extends Model {
         'discount_date' => 'datetime',
         'logs'          => Json::class,
     ];
-    protected       $guarded       = ['id'];
+    protected $guarded = ['id'];
 
     public function status(): Attribute {
         return new Attribute(

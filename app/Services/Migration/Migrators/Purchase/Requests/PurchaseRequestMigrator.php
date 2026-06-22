@@ -49,9 +49,9 @@ class PurchaseRequestMigrator extends BaseMigrator {
                             'legacy_breakdown_arr'     => $record->breakdown_arr ?? null,
                             'legacy_comments_internal' => $record->comments_internal ?? null,
                         ],
-                        'deleted_at'      => null,
-                        'created_at'      => $record->created_at ?? null,
-                        'updated_at'      => $record->updated_at ?? null,
+                        'deleted_at' => null,
+                        'created_at' => $record->created_at ?? null,
+                        'updated_at' => $record->updated_at ?? null,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(

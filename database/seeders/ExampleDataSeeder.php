@@ -222,10 +222,10 @@ class ExampleDataSeeder extends Seeder {
 
         $suppliersData = [
             [
-                'name'       => 'PT Sumber Material Utama',
-                'email'      => 'sales@sumbermaterial.co.id',
-                'phone'      => '021-6671234',
-                'banks'      => [
+                'name'  => 'PT Sumber Material Utama',
+                'email' => 'sales@sumbermaterial.co.id',
+                'phone' => '021-6671234',
+                'banks' => [
                     ['bank' => 'Bank Mandiri', 'no_acc' => '1234567890', 'account' => 'PT Sumber Material Utama'],
                 ],
                 'street'     => 'Jl. Industri Raya No. 12',
@@ -235,10 +235,10 @@ class ExampleDataSeeder extends Seeder {
                 'country_id' => $countryCode,
             ],
             [
-                'name'       => 'CV Teknik Mandiri',
-                'email'      => 'info@teknikmandiri.com',
-                'phone'      => '022-4456789',
-                'banks'      => [
+                'name'  => 'CV Teknik Mandiri',
+                'email' => 'info@teknikmandiri.com',
+                'phone' => '022-4456789',
+                'banks' => [
                     ['bank' => 'Bank BCA', 'no_acc' => '9876543210', 'account' => 'CV Teknik Mandiri'],
                 ],
                 'street'     => 'Jl. Soekarno Hatta No. 200',
@@ -414,12 +414,12 @@ class ExampleDataSeeder extends Seeder {
             $orderItems  = [];
 
             foreach ($scenario['items'] as $i => $itemIndex) {
-                $item         = $items[$itemIndex];
-                $qty          = $scenario['quantities'][$i];
-                $price        = $item->getAttribute('example_price');
-                $basicAmount  = $price * $qty;
-                $taxAmount    = $basicAmount * ($tax->rate / 100);
-                $amount       = $basicAmount + $taxAmount;
+                $item        = $items[$itemIndex];
+                $qty         = $scenario['quantities'][$i];
+                $price       = $item->getAttribute('example_price');
+                $basicAmount = $price * $qty;
+                $taxAmount   = $basicAmount * ($tax->rate / 100);
+                $amount      = $basicAmount + $taxAmount;
                 $totalAmount += $amount;
 
                 $orderItems[] = [
@@ -521,12 +521,12 @@ class ExampleDataSeeder extends Seeder {
             $invoiceItems = [];
 
             foreach ($scenario['items'] as $i => $itemIndex) {
-                $item         = $items[$itemIndex];
-                $qty          = $scenario['quantities'][$i];
-                $price        = $item->getAttribute('example_price');
-                $basicAmount  = $price * $qty;
-                $taxAmount    = $basicAmount * ($tax->rate / 100);
-                $subtotal    += $basicAmount;
+                $item        = $items[$itemIndex];
+                $qty         = $scenario['quantities'][$i];
+                $price       = $item->getAttribute('example_price');
+                $basicAmount = $price * $qty;
+                $taxAmount   = $basicAmount * ($tax->rate / 100);
+                $subtotal += $basicAmount;
 
                 $invoiceItems[] = [
                     'item'         => $item,
@@ -625,12 +625,12 @@ class ExampleDataSeeder extends Seeder {
             $orderItems  = [];
 
             foreach ($scenario['items'] as $i => $itemIndex) {
-                $item         = $items[$itemIndex];
-                $qty          = $scenario['quantities'][$i];
-                $rate         = $scenario['rates'][$i];
-                $basicAmount  = $rate * $qty;
-                $taxAmount    = $basicAmount * ($tax->rate / 100);
-                $amount       = $basicAmount + $taxAmount;
+                $item        = $items[$itemIndex];
+                $qty         = $scenario['quantities'][$i];
+                $rate        = $scenario['rates'][$i];
+                $basicAmount = $rate * $qty;
+                $taxAmount   = $basicAmount * ($tax->rate / 100);
+                $amount      = $basicAmount + $taxAmount;
                 $totalAmount += $amount;
 
                 $orderItems[] = [
@@ -728,13 +728,13 @@ class ExampleDataSeeder extends Seeder {
             $invoiceItems = [];
 
             foreach ($scenario['items'] as $i => $itemIndex) {
-                $item         = $items[$itemIndex];
-                $qty          = $scenario['quantities'][$i];
-                $rate         = $scenario['rates'][$i];
-                $basicAmount  = $rate * $qty;
-                $taxAmount    = $basicAmount * ($tax->rate / 100);
-                $amount       = $basicAmount + $taxAmount;
-                $subtotal    += $basicAmount;
+                $item        = $items[$itemIndex];
+                $qty         = $scenario['quantities'][$i];
+                $rate        = $scenario['rates'][$i];
+                $basicAmount = $rate * $qty;
+                $taxAmount   = $basicAmount * ($tax->rate / 100);
+                $amount      = $basicAmount + $taxAmount;
+                $subtotal += $basicAmount;
 
                 $invoiceItems[] = [
                     'item'         => $item,
@@ -828,9 +828,9 @@ class ExampleDataSeeder extends Seeder {
                 ->first();
 
             $deliveryNote = DeliveryNote::query()->create([
-                'code'               => 'HQ/DN-' . str_pad($index + 1, 4, '0', STR_PAD_LEFT) . '/EX',
-                'delivery_date'      => $scenario['date'],
-                'reference_to_id'    => Permission::query()->where('model', 'LIKE', '%SalesOrder%')->value('id')
+                'code'            => 'HQ/DN-' . str_pad($index + 1, 4, '0', STR_PAD_LEFT) . '/EX',
+                'delivery_date'   => $scenario['date'],
+                'reference_to_id' => Permission::query()->where('model', 'LIKE', '%SalesOrder%')->value('id')
                     ?? Permission::query()->value('id'),
                 'referenceable_type' => SalesOrder::class,
                 'referenceable_id'   => SalesOrder::exampleData()->value('id') ?? $customer->id,

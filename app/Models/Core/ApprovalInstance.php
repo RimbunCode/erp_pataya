@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 
 class ApprovalInstance extends Model {
     use HasUlids, SoftDeletes;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'status'  => FormStatusCast::class,
@@ -27,8 +28,8 @@ class ApprovalInstance extends Model {
     //     ]);
     // }
 
-    protected       $with          = ['steps', 'document'];
-    public string   $translateKey  = 'core.approvalInstance';
+    protected $with                = ['steps', 'document'];
+    public string $translateKey    = 'core.approvalInstance';
     protected array $configColumns = [
         'document' => [
             'isLink' => true,

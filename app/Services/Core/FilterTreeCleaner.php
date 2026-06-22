@@ -257,8 +257,8 @@ class FilterTreeCleaner {
 
         return match ($type) {
             'number', 'currency' => $this->isNumeric($value),
-            'time'  => $this->isTime($value),
-            default => $this->isFilled($value),
+            'time'               => $this->isTime($value),
+            default              => $this->isFilled($value),
         };
     }
 
@@ -453,15 +453,15 @@ class FilterTreeCleaner {
     private function isTypeCompatible(string $leftType, string $rightType): bool {
         $categorize = function (string $type): string {
             return match ($type) {
-                'number', 'currency' => 'numeric',
-                'string' => 'string',
-                'date', 'datetime' => 'date',
-                'time'    => 'time',
-                'boolean' => 'boolean',
-                'relation', 'relations' => 'relation',
+                'number', 'currency'         => 'numeric',
+                'string'                     => 'string',
+                'date', 'datetime'           => 'date',
+                'time'                       => 'time',
+                'boolean'                    => 'boolean',
+                'relation', 'relations'      => 'relation',
                 'formStatus', 'formStatuses' => 'status',
-                'enum'  => 'enum',
-                default => $type,
+                'enum'                       => 'enum',
+                default                      => $type,
             };
         };
 

@@ -36,16 +36,16 @@ class SalesInvoiceService {
     }
 
     private function fillItemRelations(array $data, SalesInvoice $salesInvoice) {
-        $data['item_id']               = $data['item']['id'];
-        $data['item_unit_id']          = $data['unit']['id'];
-        $data['conversion_factor']     = $data['unit']['conversion_factor'];
-        $data['tax_id']                = $data['tax']['id'];
-        $data['tax_rate']              = $data['tax']['rate'];
-        $data['currency_code']         = $salesInvoice->currency_code;
-        $data['base_currency_code']    = $salesInvoice->base_currency_code;
-        $data['exchange_rate']         = $salesInvoice->exchange_rate;
-        $data['price']               ??= 0;
-        $data['price_base_currency']   = 0;
+        $data['item_id']            = $data['item']['id'];
+        $data['item_unit_id']       = $data['unit']['id'];
+        $data['conversion_factor']  = $data['unit']['conversion_factor'];
+        $data['tax_id']             = $data['tax']['id'];
+        $data['tax_rate']           = $data['tax']['rate'];
+        $data['currency_code']      = $salesInvoice->currency_code;
+        $data['base_currency_code'] = $salesInvoice->base_currency_code;
+        $data['exchange_rate']      = $salesInvoice->exchange_rate;
+        $data['price'] ??= 0;
+        $data['price_base_currency'] = 0;
 
         return $data;
     }
@@ -72,7 +72,7 @@ class SalesInvoiceService {
 
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount   += $item->tax_amount;
+            $taxAmount += $item->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
@@ -97,7 +97,7 @@ class SalesInvoiceService {
         $salesInvoice->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
-        $itemIds       = collect($data['items'])
+        $itemIds = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -122,7 +122,7 @@ class SalesInvoiceService {
             }
             $itemModel->refresh();
             $basicAmount += $itemModel->basic_amount;
-            $taxAmount   += $itemModel->tax_amount;
+            $taxAmount += $itemModel->tax_amount;
         }
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $salesInvoice->discount_on, $salesInvoice->discount_amount);
 
@@ -134,7 +134,7 @@ class SalesInvoiceService {
         $salesInvoice->paymentSchedules()
             ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
             ->delete();
-        $paymentScheduleIds       = collect($data['payment_schedules'])
+        $paymentScheduleIds = collect($data['payment_schedules'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -225,7 +225,7 @@ class SalesInvoiceService {
 
             foreach ($items as $item) {
                 $basicAmount += $item->basic_amount;
-                $taxAmount   += $item->tax_amount;
+                $taxAmount += $item->tax_amount;
                 if ($returnAgainst) {
                     $item->returnAgainstItem->increment('returned_quantity', $item->quantity);
                     $item->salesOrderItem->decrement('billed_quantity', $item->quantity);

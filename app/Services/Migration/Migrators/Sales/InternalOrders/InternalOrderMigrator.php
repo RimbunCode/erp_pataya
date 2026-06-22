@@ -43,9 +43,9 @@ class InternalOrderMigrator extends BaseMigrator {
                             'legacy_reference'    => $record->reference ?? null,
                             'legacy_status'       => $record->status ?? null,
                         ],
-                        'deleted_at'      => $record->deleted_at,
-                        'created_at'      => $record->created_at,
-                        'updated_at'      => $record->updated_at,
+                        'deleted_at' => $record->deleted_at,
+                        'created_at' => $record->created_at,
+                        'updated_at' => $record->updated_at,
                     ];
 
                     DB::table($this->targetTable)->updateOrInsert(

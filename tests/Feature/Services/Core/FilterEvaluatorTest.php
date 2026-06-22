@@ -97,9 +97,9 @@ class FilterEvaluatorTest extends TestCase {
             'born_on'     => ['name' => 'born_on', 'type' => 'date', 'searchable' => true],
             'deadline_on' => ['name' => 'deadline_on', 'type' => 'date', 'searchable' => true],
             'started_at'  => ['name' => 'started_at', 'type' => 'datetime', 'searchable' => true],
-            'tags'       => ['name' => 'tags', 'type' => 'formStatuses', 'searchable' => true, 'options' => ['draft', 'approved', 'closed', 'pending']],
-            'secret'     => ['name' => 'secret', 'type' => 'string', 'searchable' => false],
-            'category'   => [
+            'tags'        => ['name' => 'tags', 'type' => 'formStatuses', 'searchable' => true, 'options' => ['draft', 'approved', 'closed', 'pending']],
+            'secret'      => ['name' => 'secret', 'type' => 'string', 'searchable' => false],
+            'category'    => [
                 'name'           => 'category',
                 'type'           => 'relation',
                 'typeRelation'   => 'basic',

@@ -25,10 +25,10 @@ class PurchaseOrderService {
         $data['supplier_id']   = $data['supplier']['id'];
         $data['supplier_name'] = $data['supplier']['name'];
 
-        $defaultCurrency              = Preference::find('default_currency_id')->value;
-        $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
-        $data['base_currency_code']   = $defaultCurrency;
-        $data['exchange_rate']      ??= 1;
+        $defaultCurrency            = Preference::find('default_currency_id')->value;
+        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
+        $data['base_currency_code'] = $defaultCurrency;
+        $data['exchange_rate'] ??= 1;
 
         return $data;
     }
@@ -68,7 +68,7 @@ class PurchaseOrderService {
             $item = $purchaseOrder->items()->create($item);
             $item->refresh();
             $basicAmount += $item->basic_amount;
-            $taxAmount   += $item->tax_amount;
+            $taxAmount += $item->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
@@ -96,7 +96,7 @@ class PurchaseOrderService {
         $purchaseOrder->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
-        $itemIds       = collect($data['items'])
+        $itemIds = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -124,7 +124,7 @@ class PurchaseOrderService {
             }
 
             $basicAmount += $itemModel->basic_amount;
-            $taxAmount   += $itemModel->tax_amount;
+            $taxAmount += $itemModel->tax_amount;
         }
 
         $totalAmount = Utils::countAmount($basicAmount, $taxAmount, $purchaseOrder->discount_on, $purchaseOrder->discount_amount);
@@ -138,7 +138,7 @@ class PurchaseOrderService {
             $purchaseOrder->paymentSchedules()
                 ->whereNotIn('id', array_column($data['payment_schedules'], 'id'))
                 ->delete();
-            $paymentScheduleIds       = collect($data['payment_schedules'])
+            $paymentScheduleIds = collect($data['payment_schedules'])
                 ->pluck('id')
                 ->filter(fn ($id) => Ulid::isValid((string) $id))
                 ->values()
@@ -254,7 +254,7 @@ class PurchaseOrderService {
     }
 
     private function rolllbackItems(PurchaseOrder $purchaseOrder) {
-        $items  = $purchaseOrder->items()
+        $items = $purchaseOrder->items()
             ->get();
         $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
@@ -340,8 +340,8 @@ class PurchaseOrderService {
                 $groups = collect();
 
                 foreach ($invItems as $ii) {
-                    $key                                    = "{$ii->rate}|{$ii->tax_id}|{$ii->tax_rate}|{$poItem->target_warehouse_id}";
-                    $existing                               = $groups->get($key, [
+                    $key      = "{$ii->rate}|{$ii->tax_id}|{$ii->tax_rate}|{$poItem->target_warehouse_id}";
+                    $existing = $groups->get($key, [
                         'qty'                     => 0,
                         'rate'                    => $ii->rate,
                         'tax_id'                  => $ii->tax_id,
@@ -350,8 +350,8 @@ class PurchaseOrderService {
                         'source_invoice_item_ids' => [],
                         'source_receipt_item_ids' => [],
                     ]);
-                    $existing['qty']                       += $ii->quantity;
-                    $existing['source_invoice_item_ids'][]  = $ii->id;
+                    $existing['qty'] += $ii->quantity;
+                    $existing['source_invoice_item_ids'][] = $ii->id;
                     $groups->put($key, $existing);
                 }
 
@@ -365,7 +365,7 @@ class PurchaseOrderService {
                         $existing['source_receipt_item_ids'][] = $ri->id;
                         $groups->put($key, $existing);
                     } else {
-                        $existing                               = $groups->get($key, [
+                        $existing = $groups->get($key, [
                             'qty'                     => 0,
                             'rate'                    => $poItem->rate,
                             'tax_id'                  => $poItem->tax_id,
@@ -374,8 +374,8 @@ class PurchaseOrderService {
                             'source_invoice_item_ids' => [],
                             'source_receipt_item_ids' => [],
                         ]);
-                        $existing['qty']                       += $ri->quantity;
-                        $existing['source_receipt_item_ids'][]  = $ri->id;
+                        $existing['qty'] += $ri->quantity;
+                        $existing['source_receipt_item_ids'][] = $ri->id;
                         $groups->put($key, $existing);
                     }
                 }
@@ -397,7 +397,7 @@ class PurchaseOrderService {
                     $poItem->delete();
 
                     foreach ($groups as $g) {
-                        $newItem     = $poItem->replicate()->fill([
+                        $newItem = $poItem->replicate()->fill([
                             'quantity'            => $g['qty'],
                             'rate'                => $g['rate'],
                             'tax_id'              => $g['tax_id'],
@@ -414,7 +414,7 @@ class PurchaseOrderService {
                         // Hitung qty proporsional dari source IDs group (FK tidak diubah)
                         $newReceived = empty($g['source_receipt_item_ids']) ? 0
                             : PurchaseReceiptItem::whereIn('id', $g['source_receipt_item_ids'])->sum('quantity');
-                        $newBilled   = empty($g['source_invoice_item_ids']) ? 0
+                        $newBilled = empty($g['source_invoice_item_ids']) ? 0
                             : PurchaseInvoiceItem::whereIn('id', $g['source_invoice_item_ids'])->sum('quantity');
                         $newItem->update([
                             'received_quantity' => $newReceived,

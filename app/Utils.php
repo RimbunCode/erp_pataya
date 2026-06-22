@@ -37,7 +37,7 @@ class Utils {
         $charactersLength = strlen($characters);
         $counter          = 0;
         while ($counter < $length) {
-            $result  .= $characters[rand(0, $charactersLength - 1)];
+            $result .= $characters[rand(0, $charactersLength - 1)];
             $counter += 1;
         }
 
