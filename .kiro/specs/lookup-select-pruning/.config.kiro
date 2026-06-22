@@ -1,0 +1,6 @@
+{
+  "specId": "49a207af-c0fe-4914-97e2-8eaf2fce0958",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Batasi SELECT level pada endpoint lookup (/model, /model/select-data) ke kolom aman saja (DB tak baca kolom sensitif), reuse DataTableColumnSelector. Perketat DataTable2: hapus fallbackAll, dependsOn wajib. Audit dependsOn semua model + meta accessor global."
+}

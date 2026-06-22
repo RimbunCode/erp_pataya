@@ -38,6 +38,9 @@ class Widget extends Model {
     }
 
     protected array $configColumns = [
+        'translateModelKey' => [
+            'dependsOn' => ['model_class'],
+        ],
         'title' => [
             'show'   => true,
             'order'  => 0,

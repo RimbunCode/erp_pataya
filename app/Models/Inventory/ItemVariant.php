@@ -50,10 +50,11 @@ class ItemVariant extends Model {
 
     protected array $configColumns = [
         'image' => [
-            'show'  => true,
-            'order' => 0,
-            'type'  => 'image',
-            'width' => 'fit',
+            'show'      => true,
+            'order'     => 0,
+            'type'      => 'image',
+            'width'     => 'fit',
+            'dependsOn' => ['image_id'],
         ],
         'code' => [
             'show'  => true,

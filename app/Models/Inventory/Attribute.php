@@ -46,8 +46,9 @@ class Attribute extends Model {
             'order'  => 1,
         ],
         'options' => [
-            'show'  => true,
-            'order' => 2,
+            'show'      => true,
+            'order'     => 2,
+            'dependsOn' => ['values'],
         ],
         'values' => [
             'ignore' => true,

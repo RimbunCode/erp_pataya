@@ -80,32 +80,35 @@ class DataTableScope implements Scope {
             $sortKey       = $this->isTableIncluded($sortKeyRaw) ? $sortKeyRaw : "$nameOfTable.$sortKeyRaw";
             $query         = $query->orderBy($sortKey, $sortDirection);
 
-            // Pruning adaptif: SELECT hanya kolom visible (+PK+FK relasi+dependsOn append)
-            // dan with() hanya relasi visible. Kolom sort lokal non-visible diikutkan via
-            // extraKeys agar orderBy tetap valid. Relasi yang hanya difilter/disort tidak
-            // ikut with(). Anomali/append tanpa dependsOn → fallbackAll (SELECT *).
-            $extraKeys = $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw];
-            // templateLink dirender di mobile view (convertTemplateLink) → kolom/relasi
-            // yang dirujuknya wajib ikut select/with walau tak visible di cookie.
+            // Pruning adaptif (strict, tanpa fallbackAll): SELECT hanya kolom visible
+            // (+PK+FK relasi+dependsOn append) dan with() hanya relasi visible. Kolom
+            // sort lokal non-visible diikutkan via extraKeys agar orderBy tetap valid.
+            // templateLink (mobile view convertTemplateLink) di-resolve nested rekursif
+            // oleh resolveForSafe → kolom/relasi yang dirujuknya wajib ikut select/with.
+            $extraKeys    = $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw];
             $modelClass   = \get_class($query->getModel());
             $templateLink = \method_exists($modelClass, 'templateLink') ? $modelClass::templateLink() : null;
-            $resolved     = (new DataTableColumnSelector(new FilterColumnResolver($dataTableColumns)))
-                ->resolve($dataTableColumns, $query->getModel(), $visibleKeys, $extraKeys, $templateLink);
+            $selector     = new DataTableColumnSelector(new FilterColumnResolver($dataTableColumns));
+            // Relasi child index dirender via templateLink child (convertTemplateLink) —
+            // ditangani Arah A di resolveForSafe; tak perlu safeRelationColumns eksplisit.
+            $safeColumns = $selector->safeColumnsFromVisible($dataTableColumns, $visibleKeys, $extraKeys);
+            $resolved    = $selector->resolveForSafe($dataTableColumns, $query->getModel(), $safeColumns, [], $templateLink);
 
-            if ($resolved['fallbackAll']) {
-                $query->addSelect("$nameOfTable.*");
-            } else {
-                $query->addSelect(\array_map(fn ($c) => "$nameOfTable.$c", $resolved['select']));
-            }
+            $query->addSelect(\array_map(fn ($c) => "$nameOfTable.$c", $resolved['select']));
 
+            // with: map relasi => closure child-select (resolveForSafe) digabung relasi
+            // manual dari ?with (tanpa closure). Key map menang bila duplikat.
             $with = $resolved['with'];
             if ($request->has('with')) {
-                $with = [
-                    ...$with,
-                    ...$request->with,
-                ];
+                foreach ((array) $request->with as $k => $v) {
+                    $rel = \is_int($k) ? $v : $k;
+                    if (\is_string($rel) && ! \array_key_exists($rel, $with)) {
+                        $with[$rel] = \is_int($k) ? null : $v;
+                    }
+                }
             }
-            $query = $query->with(\array_values(\array_unique($with)));
+            // null entries → eager-load apa adanya (numeric); closure no-op merusak morphTo.
+            $query = $query->with(DataTableColumnSelector::withArray($with));
             if ($request->has('id')) {
                 $data = $query->find($request->id);
 

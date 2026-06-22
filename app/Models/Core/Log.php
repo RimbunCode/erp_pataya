@@ -37,6 +37,9 @@ class Log extends Model {
 
     public $translateKey           = 'core.log';
     protected array $configColumns = [
+        'code' => [
+            'dependsOn' => ['created_at', 'user.name'],
+        ],
         'activity' => [
             'show'  => true,
             'order' => 1,

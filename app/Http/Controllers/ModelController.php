@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Core\DataTableColumnSelector;
+use App\Services\Core\FilterColumnResolver;
 use App\Services\Core\FilterEvaluator;
 use App\Services\Core\LinkModelFilterConverter;
 use App\Services\Core\PermissionChecker;
@@ -289,6 +291,21 @@ class ModelController extends Controller {
                 continue;
             }
 
+            // Relasi morph (tak ada di relatedModels — class child berbeda per-row).
+            // SELECT-level tak bisa prune morph child, jadi saring DI SINI per-row:
+            // FQCN dari kolom `<key>_type` di ROW INDUK, lalu batasi ke kolom amannya.
+            if (\is_array($value) && ($morphClass = $this->morphClassFromRow($key, $row)) !== null) {
+                if (! \method_exists($morphClass, 'getColumns')) {
+                    continue; // fail-closed: class morph asing → buang seluruh relasi.
+                }
+                $relFields = $this->relationFields($fields, $key);
+                $relSafe   = $this->safeLookupColumns($morphClass, $relFields, $perm);
+                $relRels   = $this->relatedModelMap($morphClass);
+                $out[$key] = $this->filterRowColumns($value, $relSafe, $relRels, $perm, $relFields);
+
+                continue;
+            }
+
             $out[$key] = $value;
         }
 
@@ -296,7 +313,50 @@ class ModelController extends Controller {
     }
 
     /**
+     * Tentukan FQCN class child relasi morph dari ROW INDUK. Morph type tersimpan
+     * di kolom `<key>_type` induk (konvensi Eloquent morphTo, mis. `document_type`).
+     * Return null bila bukan morph (tak ada `<key>_type` valid) → bukan kandidat
+     * penyaringan morph (relasi biasa sudah ditangani via relatedModels).
+     *
+     * @param  array<string,mixed>  $row  row induk (hasil toArray)
+     * @return class-string|null
+     */
+    private function morphClassFromRow(string $key, array $row): ?string {
+        $class = $row[$key . '_type'] ?? null;
+        if (\is_string($class) && $class !== '' && \class_exists($class)) {
+            return $class;
+        }
+
+        return null;
+    }
+
+    /**
+     * Peta relasi aman → kolom aman child, untuk SELECT-level pruning relasi
+     * (resolveForSafe). Hanya relasi non-morph yang ada di `$safe` (type relation)
+     * di-resolve; morph dilewati (child SELECT *, tak bisa prune build-time).
+     *
+     * @param  array<string,bool>  $safe  kolom aman model utama
+     * @param  array<string,string>  $relModels  relasi → FQCN (relatedModelMap)
+     * @param  list<string>  $fields  kolom diminta (dot-notation utk relasi)
+     * @return array<string,array<string,bool>>
+     */
+    private function safeRelationColumns(array $safe, array $relModels, array $fields, PermissionChecker $perm): array {
+        $out = [];
+        foreach ($relModels as $rel => $childClass) {
+            if (! isset($safe[$rel]) || ! \class_exists($childClass) || ! \method_exists($childClass, 'getColumns')) {
+                continue;
+            }
+            $childFields = $this->relationFields($fields, $rel);
+            $out[$rel]   = $this->safeLookupColumns($childClass, $childFields, $perm);
+        }
+
+        return $out;
+    }
+
+    /**
      * Peta nama-relasi (snake, sesuai key kolom getColumns) → FQCN model relasi.
+     * Relasi MORPH dikecualikan: class child-nya berbeda per-row (tak bisa dari
+     * metadata) sehingga ditangani per-row via morphClassFromRow di filterRowColumns.
      *
      * @return array<string,string>
      */
@@ -305,6 +365,7 @@ class ModelController extends Controller {
         foreach ($model::getColumns(1) as $col) {
             if (
                 \in_array($col['type'] ?? null, ['relation', 'relations'], true)
+                && ($col['typeRelation'] ?? null) !== 'morph'
                 && ! empty($col['name'])
                 && ! empty($col['related'])
             ) {
@@ -500,6 +561,36 @@ class ModelController extends Controller {
         if (! $isCache && $request->has('limit')) {
             $query->limit($request->limit);
         }
+
+        // Kolom aman dihitung lebih dulu agar dipakai BOTH untuk SELECT-level (DB
+        // hanya baca kolom aman) DAN filterRowColumns (lapis kedua, response).
+        $perm     = PermissionChecker::forUser($request);
+        $fields   = \is_array($request->fields ?? null) ? \array_values($request->fields) : [];
+        $safe     = $this->safeLookupColumns($model, $fields, $perm);
+        $relModes = $this->relatedModelMap($model);
+
+        // SELECT-level pruning: hanya bila TIDAK ada join (jalur join pakai addSelect
+        // manual + SELECT *, konflik dgn select presisi). Cache mode tetap aman.
+        if (! $request->has('joins')) {
+            $columns      = $model::getColumns(1);
+            $templateLink = \method_exists($model, 'templateLink') ? $model::templateLink() : null;
+            $safeRelCols  = $this->safeRelationColumns($safe, $relModes, $fields, $perm);
+            $selector     = new DataTableColumnSelector(new FilterColumnResolver($columns));
+            $resolved     = $selector->resolveForSafe($columns, new $model, $safe, $safeRelCols, $templateLink);
+
+            $query->select($resolved['select']);
+            // with map (closure child-select / null→SELECT*) digabung relasi manual.
+            $withMap = $resolved['with'];
+            foreach ((array) $with as $k => $v) {
+                $rel = \is_int($k) ? $v : $k;
+                if (\is_string($rel) && ! \array_key_exists($rel, $withMap)) {
+                    $withMap[$rel] = \is_int($k) ? null : $v;
+                }
+            }
+            // null entries → eager-load apa adanya (numeric); closure no-op merusak morphTo.
+            $with = DataTableColumnSelector::withArray($withMap);
+        }
+
         $query->with($with);
         if ($request->has('order')) {
             $orders = explode(':', $request->order);
@@ -507,13 +598,9 @@ class ModelController extends Controller {
         }
         $data = $query->get()->toArray() ?? [];
 
-        // Batasi kolom yang dikembalikan ke kolom aman (templateLink + fields∩linkable
-        // − visibleFor gagal). Mencegah over-fetch & kebocoran kolom sensitif.
-        $perm     = PermissionChecker::forUser($request);
-        $fields   = \is_array($request->fields ?? null) ? \array_values($request->fields) : [];
-        $safe     = $this->safeLookupColumns($model, $fields, $perm);
-        $relModes = $this->relatedModelMap($model);
-        $results  = array_map(
+        // Lapis kedua (defense-in-depth): saring tiap row ke kolom aman, termasuk
+        // relasi morph child yang tak bisa di-prune di SELECT.
+        $results = array_map(
             fn ($value) => $this->filterRowColumns($value, $safe, $relModes, $perm, $fields),
             $data,
         );

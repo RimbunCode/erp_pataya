@@ -491,6 +491,7 @@ trait LinkModel {
 
         $instance      = new static;
         $columns       = Schema::getColumns($instance->getTable());
+        $hasStatusCol  = \in_array('status', \array_column($columns, 'name'), true);
         $casts         = $instance->getCasts();
         $hidden        = [...$instance->getHidden(), ...$instance->getGuarded()];
         $appends       = $instance->getAppends();
@@ -541,7 +542,7 @@ trait LinkModel {
                 'sortable'   => true,
                 'searchable' => true,
                 'type'       => 'string',
-                'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
+                'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $key) : null,
                 ...$config,
                 'primaryKey' => $instance->getKeyName(),
                 ...($isIgnore ? $hiddenFlags : []),
@@ -558,6 +559,14 @@ trait LinkModel {
             if ($isIgnore && ! $includeHidden) {
                 continue;
             }
+            // Baseline meta global `appendStatus` (getAppendStatusAttribute membaca
+            // $this->status): wajib dependsOn:['status'] agar SELECT presisi tak throw
+            // saat strict — TAPI hanya bila model punya kolom `status` di DB. Model
+            // tanpa kolom status: accessor tetap jalan/tampil, `status` tak di-SELECT.
+            $baselineDepends = ($value === 'appendStatus' && $hasStatusCol && ! isset($config['dependsOn']))
+                ? ['dependsOn' => ['status']]
+                : [];
+
             $newColumns[$value] = [
                 'name'       => $value,
                 'type'       => 'attribute',
@@ -565,6 +574,7 @@ trait LinkModel {
                 'searchable' => false,
                 'primaryKey' => $instance->getKeyName(),
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
+                ...$baselineDepends,
                 ...$config,
                 ...($isIgnore ? $hiddenFlags : []),
             ];

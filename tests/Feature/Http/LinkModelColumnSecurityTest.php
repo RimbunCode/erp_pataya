@@ -7,6 +7,7 @@ use App\Models\Model as AppModel;
 use App\Services\Core\PermissionChecker;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
@@ -106,5 +107,47 @@ class LinkModelColumnSecurityTest extends TestCase {
 
         $this->assertArrayHasKey('priced', $row);
         $this->assertSame('PP', $row['priced']);
+    }
+
+    // ---- SELECT-level: kolom non-aman tak DIBACA DB (bukan cuma disaring) -------
+
+    /**
+     * Tangkap SQL SELECT terhadap tabel utama dari query log.
+     */
+    private function captureMainSelectSql(callable $run): string {
+        DB::enableQueryLog();
+        DB::flushQueryLog();
+        $run();
+        $sqls = array_column(DB::getQueryLog(), 'query');
+        DB::disableQueryLog();
+
+        foreach ($sqls as $sql) {
+            if (str_contains($sql, 'sec_lookup_records') && stripos($sql, 'select') === 0) {
+                return $sql;
+            }
+        }
+
+        return '';
+    }
+
+    public function test_select_level_does_not_read_non_safe_columns(): void {
+        // Default (templateLink :name{:title}) → SQL hanya baca id/name/title,
+        // BUKAN secret/extra/priced. Membuktikan SELECT-level, bukan filter PHP saja.
+        $sql = $this->captureMainSelectSql(fn () => $this->lookup([]));
+
+        $this->assertNotSame('', $sql, 'query SELECT tabel utama harus tertangkap');
+        $this->assertStringContainsString('name', $sql);
+        $this->assertStringNotContainsString('secret', $sql);
+        $this->assertStringNotContainsString('priced', $sql);
+        // Pastikan bukan SELECT * (tak ada fallbackAll).
+        $this->assertStringNotContainsString('.*', $sql);
+    }
+
+    public function test_select_level_reads_requested_linkable_column(): void {
+        // Minta `extra` (linkable) → SQL memuat extra, tetap tanpa secret.
+        $sql = $this->captureMainSelectSql(fn () => $this->lookup(['fields' => ['extra']]));
+
+        $this->assertStringContainsString('extra', $sql);
+        $this->assertStringNotContainsString('secret', $sql);
     }
 }

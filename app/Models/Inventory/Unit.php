@@ -44,6 +44,9 @@ class Unit extends Model {
             'show'  => true,
             'order' => 2,
         ],
+        'canDelete' => [
+            'dependsOn' => ['is_default'],
+        ],
     ];
 
     public function canDelete() {
