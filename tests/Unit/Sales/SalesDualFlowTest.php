@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Sales;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Finances\SalesInvoiceService;
@@ -132,7 +132,6 @@ class SalesDualFlowTest extends TestCase {
         $service = new SalesOrderService;
         $this->assertTrue(method_exists($service, 'syncItems'));
     }
-
     // =========================================================================
     // SYNC ITEMS LOGIC
     // =========================================================================

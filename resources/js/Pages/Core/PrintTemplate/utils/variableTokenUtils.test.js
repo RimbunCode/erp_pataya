@@ -1,21 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
-
-// Mock formatValue dari CurrencyInput karena merupakan dependensi eksternal
-vi.mock("@/Components/CurrencyInput", () => ({
-  formatValue: ({ value, intlConfig, decimalScale }) => {
-    // Simulasi sederhana: format angka sesuai locale "id" dan currency
-    const num = parseFloat(value);
-    if (isNaN(num)) return value;
-    if (intlConfig?.currency) {
-      return `Rp ${num.toLocaleString("id-ID")}`;
-    }
-    const decimals = decimalScale ?? 0;
-    return num.toLocaleString("id-ID", {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  },
-}));
+import { describe, it, expect } from "vitest";
 
 import {
   formatColumnValue,
@@ -39,55 +22,45 @@ describe("formatColumnValue", () => {
     expect(formatColumnValue("", { type: "number" })).toBe("");
   });
 
-  it("formats currency value with default IDR", () => {
-    const result = formatColumnValue(50000, { type: "currency" });
-    expect(result).toContain("Rp");
-    expect(result).toContain("50");
+  it("formats currency value with default IDR symbol and ID format", () => {
+    // grup ".", desimal ",", decimalScale 2, prefix "Rp "
+    expect(formatColumnValue(50000, { type: "currency" })).toBe("Rp 50.000,00");
   });
 
-  it("formats currency value with custom currency from column", () => {
-    const result = formatColumnValue(100, {
-      type: "currency",
-      currency: "USD",
-    });
-    expect(result).toContain("Rp"); // Mock always returns Rp format
+  it("uses symbol from column when provided", () => {
+    expect(
+      formatColumnValue(100, { type: "currency", symbol: "$" }),
+    ).toBe("$ 100,00");
   });
 
-  it("formats currency value from formatOptions.currency", () => {
-    const result = formatColumnValue(100, {
-      type: "currency",
-      formatOptions: { currency: "EUR" },
-    });
-    expect(result).toContain("Rp");
+  it("uses symbol from column.currency.symbol when provided", () => {
+    expect(
+      formatColumnValue(1234.5, {
+        type: "currency",
+        currency: { symbol: "€" },
+        decimalScale: 2,
+      }),
+    ).toBe("€ 1.234,50");
   });
 
-  it("formats numeric value with default 0 decimals", () => {
-    const result = formatColumnValue(1234.567, { type: "numeric" });
-    expect(result).toBeDefined();
-    expect(result).not.toBe("");
+  it("formats numeric value with default 0 decimals (ID format)", () => {
+    expect(formatColumnValue(1234.567, { type: "numeric" })).toBe("1.235");
   });
 
   it("formats number type with specified decimalScale", () => {
-    const result = formatColumnValue(1234.5, {
-      type: "number",
-      decimalScale: 2,
-    });
-    expect(result).toBeDefined();
-    expect(result).not.toBe("");
+    expect(
+      formatColumnValue(1234.5, { type: "number", decimalScale: 2 }),
+    ).toBe("1.234,50");
   });
 
   it("formats number type with formatOptions.decimals", () => {
-    const result = formatColumnValue(99.9, {
-      type: "number",
-      formatOptions: { decimals: 3 },
-    });
-    expect(result).toBeDefined();
+    expect(
+      formatColumnValue(99.9, { type: "number", formatOptions: { decimals: 3 } }),
+    ).toBe("99,900");
   });
 
   it("handles string numeric value for number type", () => {
-    const result = formatColumnValue("42.5", { type: "numeric" });
-    expect(result).toBeDefined();
-    expect(result).not.toBe("");
+    expect(formatColumnValue("42.5", { type: "numeric" })).toBe("43");
   });
 
   it("returns string value for NaN numeric input", () => {

@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Purchase;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use PHPUnit\Framework\TestCase;
 
 /**

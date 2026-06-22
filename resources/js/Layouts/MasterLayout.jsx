@@ -1,4 +1,3 @@
-import { Alert, AlertIcon, AlertTitle } from "@/Components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,10 +11,7 @@ import {
 import { memo, useEffect } from "react";
 
 import DeleteDialog from "./AlertDialogs/DeleteDialog";
-import { RiErrorWarningFill } from "@remixicon/react";
-import { Toaster } from "@/Components/ui/sonner";
 import { TooltipProvider } from "@/Components/ui/tooltip";
-import { toast } from "sonner";
 import { useAlertDraftForm } from "@/Hooks/useDraftForm";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -117,134 +113,7 @@ AlertDialogs.displayName = "AlertDialogs";
 const MasterLayout = memo(({ children }) => {
   const { theme, currentTheme, setCurrentTheme } = useTheme();
   const { debug: isDebug } = usePage().props;
-  const { t } = useLaravelReactI18n();
 
-  useEffect(() => {
-    if (isDebug) return;
-    const translateWithFallback = (key, fallback) => {
-      const translated = t(key);
-      return translated === key ? fallback : translated;
-    };
-    const getHttpErrorMessage = (status) => {
-      const messages = {
-        400: translateWithFallback(
-          "core.errors.http.400",
-          "Permintaan tidak valid. Silakan periksa data yang dikirim.",
-        ),
-        401: translateWithFallback(
-          "core.errors.http.401",
-          "Sesi Anda berakhir atau belum login. Silakan login kembali.",
-        ),
-        403: translateWithFallback(
-          "core.errors.http.403",
-          "Anda tidak memiliki izin untuk melakukan aksi ini.",
-        ),
-        404: translateWithFallback(
-          "core.errors.http.404",
-          "Data atau halaman yang diminta tidak ditemukan.",
-        ),
-        405: translateWithFallback(
-          "core.errors.http.405",
-          "Metode request tidak diizinkan untuk endpoint ini.",
-        ),
-        409: translateWithFallback(
-          "core.errors.http.409",
-          "Terjadi konflik data. Silakan muat ulang halaman dan coba lagi.",
-        ),
-        419: translateWithFallback(
-          "core.errors.http.419",
-          "Halaman kedaluwarsa. Silakan refresh lalu coba lagi.",
-        ),
-        422: translateWithFallback(
-          "core.errors.http.422",
-          "Data tidak valid. Silakan periksa kembali input Anda.",
-        ),
-        429: translateWithFallback(
-          "core.errors.http.429",
-          "Terlalu banyak permintaan. Coba lagi beberapa saat lagi.",
-        ),
-        500: translateWithFallback(
-          "core.errors.http.500",
-          "Terjadi kesalahan server internal.",
-        ),
-        502: translateWithFallback(
-          "core.errors.http.502",
-          "Server upstream sedang bermasalah.",
-        ),
-        503: translateWithFallback(
-          "core.errors.http.503",
-          "Layanan sementara tidak tersedia.",
-        ),
-        504: translateWithFallback(
-          "core.errors.http.504",
-          "Waktu tunggu ke server habis.",
-        ),
-      };
-
-      return (
-        messages[status] ||
-        translateWithFallback(
-          "core.errors.http.default",
-          "Terjadi kesalahan saat memproses permintaan Anda.",
-        )
-      );
-    };
-    const showHttpErrorToast = (status) => {
-      if (typeof status !== "number" || status < 400 || status >= 600) {
-        return;
-      }
-      toast.custom((toastId) => (
-        <Alert
-          variant="destructive"
-          icon="destructive"
-          onClose={() => toast.dismiss(toastId)}
-        >
-          <AlertIcon>
-            <RiErrorWarningFill />
-          </AlertIcon>
-          <AlertTitle>{getHttpErrorMessage(status)}</AlertTitle>
-        </Alert>
-      ));
-    };
-    const onInertiaInvalid = (event) => {
-      const status = event?.detail?.response?.status;
-      if (typeof status !== "number" || status < 400 || status >= 600) {
-        return;
-      }
-
-      showHttpErrorToast(status);
-      event.preventDefault();
-    };
-    const onInertiaException = (event) => {
-      const status = event?.detail?.exception?.response?.status;
-      if (typeof status === "number" && status >= 400 && status < 600) {
-        showHttpErrorToast(status);
-        event.preventDefault();
-        return;
-      }
-
-      toast.error(
-        translateWithFallback("core.errors.network.title", "Koneksi gagal"),
-        {
-          description: translateWithFallback(
-            "core.errors.network.description",
-            "Tidak dapat menghubungi server. Periksa koneksi Anda.",
-          ),
-        },
-      );
-      event.preventDefault();
-    };
-
-    document.addEventListener("inertia:invalid", onInertiaInvalid);
-    document.addEventListener("inertia:exception", onInertiaException);
-
-    return () => {
-      document.removeEventListener("inertia:invalid", onInertiaInvalid);
-      document.removeEventListener("inertia:exception", onInertiaException);
-    };
-  }, [isDebug, t]);
-
-  // const isDebug = true;
   useEffect(() => {
     const contentsOfLocalStorage = Object.entries(localStorage);
     contentsOfLocalStorage.forEach(([key, value]) => {
@@ -321,7 +190,6 @@ const MasterLayout = memo(({ children }) => {
   return (
     <>
       <TooltipProvider>{children}</TooltipProvider>
-      <Toaster />
       <AlertDialogs />
     </>
   );

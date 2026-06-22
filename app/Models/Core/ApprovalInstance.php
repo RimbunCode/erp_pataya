@@ -4,7 +4,7 @@ namespace App\Models\Core;
 
 use App\Casts\FormStatusCast;
 use App\Casts\Json;
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;

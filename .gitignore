@@ -5,9 +5,14 @@
 /lang/php_*.json
 #----------------------
 
+.codegraph/
 .claude/skills
+.claude/settings.local.json
 .github/skills
 .kiro/skills
+.qoder/repowiki
+.qoder/agents
+.qoder/skills
 
 # opencode (project-local; junctions to .claude/.agents sources)
 /.opencode/command

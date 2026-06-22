@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import FormInput from "@/Components/FormInput";
 import { FormPageContent } from "@/Pages/Core/FormPage";
 import Select from "@/Components/Select";
@@ -105,7 +105,7 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
             disabled={!data?.discount_on}
             label={`${t("sales.salesOrder.columns.additional_discount_rate")}`}
           >
-            <CurrencyInput
+            <NumberInput
               className="text-right"
               value={data.discount_rate}
               decimalScale={2}
@@ -113,7 +113,7 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
               suffix="%"
               min={0}
               max={100}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
 
           <FormInput
@@ -121,9 +121,10 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
             disabled={!data?.discount_on}
             label={`${t("sales.salesOrder.columns.additional_discount_amount")}`}
           >
-            <CurrencyInput
+            <NumberInput
               className="text-right "
               value={data.discount_amount}
+              decimalScale={2}
               onValueChange={(val) => setDiscount("discount_amount", val)}
               currencyCode={data?.currency?.code ?? "default"}
               min={0}
@@ -132,7 +133,7 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
                   ? netAmount
                   : netAmount + taxAmount
               }
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
         </div>
       </FormPageContent>
@@ -145,11 +146,12 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
                   readOnly
                   label={`${t("sales.salesOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
                 >
-                  <CurrencyInput
+                  <NumberInput
                     className="text-right"
+                    decimalScale={2}
                     value={amount * (data?.exchange_rate ?? 1)}
                     currencyCode="default"
-                  ></CurrencyInput>
+                  ></NumberInput>
                 </FormInput>
               )}
             <FormInput
@@ -157,12 +159,12 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
               label={`${t("sales.salesOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
               className="col-start-2"
             >
-              <CurrencyInput
+              <NumberInput
                 className="text-right"
                 decimalScale={2}
                 value={amount}
                 currencyCode={data?.currency?.code ?? "default"}
-              ></CurrencyInput>
+              ></NumberInput>
             </FormInput>
           </div>
         </FormPageContent>

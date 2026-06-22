@@ -1,7 +1,7 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
 import AccountLinkModel from "./AccountLinkModel";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -210,7 +210,7 @@ export default function Form() {
               name="tax_rate"
               label={t("finances.account.columns.tax_rate")}
             >
-              <CurrencyInput
+              <NumberInput
                 value={data.tax_rate}
                 decimalScale={2}
                 suffix="%"

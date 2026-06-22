@@ -1,0 +1,6 @@
+{
+  "specId": "862cfc42-4b61-4fcf-bac0-f96b758263dc",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Migrasi total CurrencyInput, native input type=number, dan helper formatValue ke komponen NumberInput dan function formatNumber di seluruh codebase frontend (resources/js), tanpa merusak fitur, plus update docs."
+}

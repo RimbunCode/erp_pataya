@@ -17,7 +17,7 @@ import { Progress } from "@/Components/ui/progress";
 import { Transition } from "@headlessui/react";
 import axios from "axios";
 import { router } from "@inertiajs/react";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 

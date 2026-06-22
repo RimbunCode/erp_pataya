@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Sales\InternalOrders;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Sales\InternalOrder;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -87,4 +87,3 @@ class InternalOrderMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

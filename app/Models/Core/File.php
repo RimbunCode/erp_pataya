@@ -22,6 +22,9 @@ class File extends Model {
     public $translateKey              = 'core.file';
     public static $allow_only_creator = true;
     protected array $configColumns    = [
+        'fullname' => [
+            'dependsOn' => ['name', 'extension'],
+        ],
         'name' => [
             'show'  => true,
             'order' => 0,

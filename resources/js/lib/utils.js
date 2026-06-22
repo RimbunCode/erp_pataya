@@ -12,6 +12,7 @@ import {
 import { Buffer } from "buffer";
 import axios from "axios";
 import { clsx } from "clsx";
+import { gooeyToast } from "@/lib/gooeyToast";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs) {
@@ -439,13 +440,18 @@ export const getFonts = async () => {
  * @returns {Promise<Record<string, unknown> | Array<Record<string, unknown>>>}
  */
 export const getDataModel = async (model, filters, options = {}) => {
-  const result = await axios.post(window.route("model"), {
-    model,
-    filters,
-    ...options,
-  });
-  const data = result?.data?.data;
-  return options.limit == 1 ? data[0] : data;
+  try {
+    const result = await axios.post(window.route("model"), {
+      model,
+      filters,
+      ...options,
+    });
+    const data = result?.data?.data;
+    return options.limit == 1 ? data[0] : data;
+  } catch (error) {
+    gooeyToast.error("Gagal memuat data. Silakan coba lagi.");
+    throw error;
+  }
 };
 /**
  * Mengecek izin aksi pada model di level tertentu.

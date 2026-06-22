@@ -17,7 +17,12 @@ class RolePermission extends Model {
         'is_submitable' => 'boolean',
         'only_creator'  => 'boolean',
     ];
-    protected $appends = ['permissionKeys'];
+    protected $appends             = ['permissionKeys'];
+    protected array $configColumns = [
+        'permissionKeys' => [
+            'dependsOn' => ['level', 'permissions', 'permission.permissions'],
+        ],
+    ];
 
     protected static function loadRelationsOnShow() {
         return [

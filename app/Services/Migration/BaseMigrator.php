@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\Log as ActivityLog;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;

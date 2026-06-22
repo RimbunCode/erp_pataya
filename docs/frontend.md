@@ -26,7 +26,7 @@
   - [LinkModel](#linkmodel) — selector relasi model
   - [FormInput](#forminput) — wrapper field (label/error/disabled)
   - [FormTable](#formtable) — editable table baris item
-  - [CurrencyInput](#currencyinput) — input mata uang
+  - [NumberInput](#numberinput) — input angka & mata uang (format-on-blur)
   - [BadgeStatus](#badgestatus) — badge status dokumen
   - [DatetimePicker](#datetimepicker) — date/time/range picker
   - [Select, MultiSelect, NestedSelect, SelectModel](#select-multiselect-nestedselect-selectmodel)
@@ -68,7 +68,7 @@ resources/js/
     ui/               shadcn/ui (Radix-based)
     Table/            Komponen tabel internal
     Navbar/  Sidebar/ Navigasi
-    CurrencyInput/    Sub-komponen CurrencyInput
+    NumberInput/      Komponen NumberInput + helper formatNumber
   Hooks/              Custom React hooks
   Layouts/            AppLayout, MasterLayout, GuestLayout
   Pages/              Halaman Inertia per modul (lihat Katalog di bawah)
@@ -406,7 +406,7 @@ const itemColumns = [
     name: "quantity", titleTrans: "...columns.quantity", type: "number", required: true,
     cell({ data, setData, attributes, dataRow }) {
       return (
-        <CurrencyInput
+        <NumberInput
           {...attributes}
           disabled={!dataRow?.item}
           value={data}
@@ -423,21 +423,33 @@ const itemColumns = [
 />
 ```
 
-### CurrencyInput
-**File:** `resources/js/Components/CurrencyInput.jsx`. Input angka format mata uang (ribuan separator + desimal), `forwardRef`. Format mengikuti `currencyCode` (atau `default_currency_id` dari preferences). Dukung nilai spesial display `∞` / `-`.
+### NumberInput
+**File:** `resources/js/Components/NumberInput/index.jsx`. Input angka & mata uang, implementasi internal (pure-JS), `forwardRef`. Grouping ribuan realtime saat mengetik, pembulatan `decimalScale` ditunda hingga `onBlur` (round half-up tahan floating-point). Format separator bersumber dari `default_number_format` (preferences), dapat di-override per prop. Symbol mata uang via `currencyCode` (string code → resolve+cache, atau object data currency `{ code, symbol }` → pakai langsung tanpa fetch) dijadikan prefix.
 
 | Prop | Tipe | Deskripsi |
 |---|---|---|
-| `value` | number/string | Nilai (string `"∞"`/`"-"` untuk display khusus) |
-| `onValueChange` | `(num) => void` | Callback nilai numerik |
-| `currencyCode` | string | Kode mata uang format (mis. `"idr"`, `"default"`) |
-| `decimalScale` | number | Jumlah desimal |
-| `min` / `max` | number | Batas nilai |
+| `value` | number/string/null | Nilai (float) |
+| `onValueChange` | `(float, values) => void` | Callback; `values = { float, formatted, value }` |
+| `currencyCode` | string \| object | Kode mata uang (`"idr"`/`"default"`) **atau** object `{ code, symbol }` untuk symbol prefix |
+| `decimalScale` | number | Jumlah desimal (pembulatan saat blur) |
+| `numberFormat` | string | Pola `#,###.##` — override grup/desimal/scale |
+| `allowDecimals` | boolean | `false` → integer (decimalScale 0) |
+| `min` / `max` | number | Batas nilai (clamp saat blur) |
+| `prefix` / `suffix` | string | Teks depan/belakang (mis. `"%"`) |
 | `disabled` / `readOnly` | boolean | State |
 
 ```jsx
-<CurrencyInput value={data.price} currencyCode={data?.currency?.code}
+<NumberInput value={data.price} currencyCode={data?.currency?.code}
   decimalScale={2} onValueChange={(v) => setData("price", v)} />
+```
+
+**Helper `formatNumber`** — `resources/js/Components/NumberInput/formatNumber.js`. Fungsi pure sinkron untuk memformat angka jadi string display (di luar komponen, mis. tabel/print/handlebars). Menggantikan `formatValue` lama.
+
+```jsx
+import { formatNumber } from "@/Components/NumberInput/formatNumber";
+formatNumber(1234567.5, { decimalScale: 2 });            // "1,234,567.50"
+formatNumber(1000, { decimalScale: 2, prefix: "Rp " });  // "Rp 1,000.00"
+formatNumber(1234.5, { numberFormat: "#.###,##" });      // "1.234,50" (gaya ID/EU)
 ```
 
 ### BadgeStatus

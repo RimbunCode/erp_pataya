@@ -81,21 +81,24 @@ class Branch extends Model {
     public string $translateKey    = 'core.branch';
     protected array $configColumns = [
         'title' => [
-            'isLink' => true,
-            'show'   => true,
-            'order'  => 0,
+            'isLink'    => true,
+            'show'      => true,
+            'order'     => 0,
+            'dependsOn' => ['name', 'is_main_branch'],
         ],
         'is_main_branch' => [
             'show'  => true,
             'order' => 1,
         ],
         'shippingAddress' => [
-            'show'  => true,
-            'order' => 2,
+            'show'      => true,
+            'order'     => 2,
+            'dependsOn' => ['shipping_street', 'shipping_city', 'shipping_state', 'shipping_zip_code', 'shippingCountry.name'],
         ],
-        'billingAdrress' => [
-            'show'  => true,
-            'order' => 3,
+        'billingAddress' => [
+            'show'      => true,
+            'order'     => 3,
+            'dependsOn' => ['billing_street', 'billing_city', 'billing_state', 'billing_zip_code', 'billingCountry.name'],
         ],
         'billingCountry',
         'shippingCountry',

@@ -140,7 +140,7 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
 
   const buildColumnNode = useCallback(
     function build(col, parentPath = "") {
-      if (col.searchable === false) return null;
+      if (col.searchable === false || col.hidden || col.ignore) return null;
       const value = parentPath ? `${parentPath}.${col.name}` : col.name;
       const isRelation = col.type === "relation" || col.type === "relations";
       const children =
@@ -303,7 +303,13 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
 
   const columnOptions = useMemo(() => {
     return toArrayColumns(columns)
-      .filter((col) => !col.parentCol && col.searchable !== false)
+      .filter(
+        (col) =>
+          !col.parentCol &&
+          col.searchable !== false &&
+          !col.hidden &&
+          !col.ignore,
+      )
       .map((col) => buildColumnNode(col));
   }, [columns, buildColumnNode, toArrayColumns]);
   return (

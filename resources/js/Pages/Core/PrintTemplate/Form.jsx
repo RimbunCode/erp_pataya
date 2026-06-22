@@ -7,7 +7,7 @@ import {
   getFonts,
 } from "@/lib/utils";
 
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -375,7 +375,7 @@ export default function Form() {
                 required
                 label={t("core.printTemplate.columns.width")}
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={data?.width ?? ""}
@@ -401,7 +401,7 @@ export default function Form() {
                 required
                 label={t("core.printTemplate.columns.height")}
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={data?.height ?? ""}
@@ -430,7 +430,7 @@ export default function Form() {
                 label={t("core.printTemplate.columns.margin_top")}
                 className="col-start-1"
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={data?.margin_top ?? ""}
@@ -443,7 +443,7 @@ export default function Form() {
                 required
                 label={t("core.printTemplate.columns.margin_bottom")}
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={data?.margin_bottom ?? ""}
@@ -457,7 +457,7 @@ export default function Form() {
                 label={t("core.printTemplate.columns.margin_left")}
                 className="col-start-1"
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={data?.margin_left ?? ""}
@@ -470,7 +470,7 @@ export default function Form() {
                 required
                 label={t("core.printTemplate.columns.margin_right")}
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={data?.margin_right ?? ""}

@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Http\Requests\BaseFormRequest;
 use App\Models\User\User;
 use Illuminate\Auth\Events\Lockout;

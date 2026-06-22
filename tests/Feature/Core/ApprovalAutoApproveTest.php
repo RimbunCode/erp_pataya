@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Core;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;

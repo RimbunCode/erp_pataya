@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Core;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\ApprovalDecisionRequest;
 use App\Models\Core\ApprovalInstance;

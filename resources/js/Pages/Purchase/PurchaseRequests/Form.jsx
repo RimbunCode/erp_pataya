@@ -1,7 +1,7 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback } from "react";
 
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
@@ -25,7 +25,7 @@ function Form() {
   );
 
   const mergeItems = useCallback(
-    (value, model) => {
+    ({ items, model }) => {
       setData((prev) => {
         const oldItems = prev.items ?? [];
 
@@ -37,7 +37,7 @@ function Form() {
           ]),
         );
 
-        value.forEach((item) => {
+        items.forEach((item) => {
           const key = `${model}_${item.id}`;
           const newItem = {
             // ...item,
@@ -150,7 +150,7 @@ function Form() {
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item}
               readOnly={

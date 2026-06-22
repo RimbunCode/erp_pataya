@@ -1,0 +1,8 @@
+{
+  "specId": "c7f2a9d4-3b6e-4e21-9c8a-1d5f7e0a4b62",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Rewrite komponen SelectModel: satu endpoint gabungan model.selectData (columns+data paginated), prop `from` distandarkan (selects plural, config tetap di frontend, struktur disederhanakan), filter via filter-tree + SavedFilter (fid) selaras DataTable2 (non-ephemeral), mode per-item flatten lintas parent dengan kolom parent, model selector pakai Select.jsx, onSelected breaking lebih rapi, pagination/show/filter UI eksplisit di dialog, SELF_OPTION dipertahankan, dead code dihapus",
+  "createdAt": "2026-06-20T00:00:00.000Z",
+  "createdBy": "Claude"
+}

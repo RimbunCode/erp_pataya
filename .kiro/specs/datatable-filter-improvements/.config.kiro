@@ -1,0 +1,6 @@
+{
+  "specId": "40e1a3f4-cfcf-4f5b-8c0f-49b3397e18cc",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Perbaikan filtering DataTable2: (1) fix bug kolom formStatuses (JSON array) pada operator in/!in/has/!has yang memakai whereIn alih-alih JSON contains; (2) fitur baru bandingkan nilai antar-kolom (value-source toggle) untuk same-table & relasi cross-table, semua operator per-type kecuali in_period."
+}

@@ -3,7 +3,7 @@
 namespace App\Models\Finances;
 
 use App\Casts\Json;
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Casts\Attribute;

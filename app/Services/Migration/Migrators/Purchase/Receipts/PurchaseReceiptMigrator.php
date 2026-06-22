@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Purchase\Receipts;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -129,4 +129,3 @@ class PurchaseReceiptMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

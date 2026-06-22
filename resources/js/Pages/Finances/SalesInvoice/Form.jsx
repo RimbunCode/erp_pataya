@@ -9,7 +9,7 @@ import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -143,7 +143,7 @@ export default function Form() {
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item}
               readOnly={
@@ -207,7 +207,7 @@ export default function Form() {
         width: 1,
         cell({ data: price, setData, attributes, dataRow }) {
           return (
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               currencyCode={data?.currency?.code}
               disabled={!dataRow?.item}
@@ -269,6 +269,14 @@ export default function Form() {
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
                 ]}
+                // Kolom harga (gated visibleFor) yang form butuh dari SO + items.
+                fields={[
+                  "amount",
+                  "items.price",
+                  "items.basic_amount",
+                  "items.tax_rate",
+                  "items.tax_amount",
+                ]}
                 value={data.sales_order}
                 onValueChange={(val) => {
                   setData((prev) => {
@@ -326,7 +334,7 @@ export default function Form() {
               name="exchange_rate"
               readOnly
             >
-              <CurrencyInput
+              <NumberInput
                 disabled={
                   !(
                     data?.currency?.code &&
@@ -393,6 +401,12 @@ export default function Form() {
                     "items.item",
                     "items.tax",
                     "items.unit",
+                  ]}
+                  fields={[
+                    "items.price",
+                    "items.basic_amount",
+                    "items.tax_rate",
+                    "items.tax_amount",
                   ]}
                   value={data.return_against}
                   onValueChange={(val) => {
@@ -537,11 +551,12 @@ export default function Form() {
                 readOnly
                 label={`${t("finances.salesInvoice.columns.basic_amount")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -549,12 +564,12 @@ export default function Form() {
             label={`${t("finances.salesInvoice.columns.basic_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               className="text-right"
               value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
@@ -562,11 +577,12 @@ export default function Form() {
                 readOnly
                 label={`${t("finances.salesInvoice.columns.tax_amount")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={tax_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -574,12 +590,12 @@ export default function Form() {
             label={`${t("finances.salesInvoice.columns.tax_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               className="text-right"
               value={tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
@@ -587,11 +603,12 @@ export default function Form() {
                 readOnly
                 label={`${t("finances.salesInvoice.columns.total")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={(net_amount + tax_amount) * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -599,12 +616,12 @@ export default function Form() {
             label={`${t("finances.salesInvoice.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               className="text-right"
               decimalScale={2}
               value={net_amount + tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
         </div>
       </FormPageContent>

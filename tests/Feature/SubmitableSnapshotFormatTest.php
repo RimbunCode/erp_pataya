@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Traits\Submitable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;

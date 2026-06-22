@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Purchase\Requests;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Purchase\PurchaseRequest;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -118,4 +118,3 @@ class PurchaseRequestMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

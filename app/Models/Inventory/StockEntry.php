@@ -2,7 +2,7 @@
 
 namespace App\Models\Inventory;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Finances\Account;
 use App\Models\Finances\AdditionalCost;
@@ -61,6 +61,9 @@ class StockEntry extends Model {
         'status' => [
             'show'  => true,
             'order' => 3,
+        ],
+        'total_incoming_value' => [
+            'type' => 'currency',
         ],
         'items',
         'additionalCosts',

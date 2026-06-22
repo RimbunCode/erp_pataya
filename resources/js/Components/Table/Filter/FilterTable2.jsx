@@ -35,7 +35,7 @@ import { Input } from "../../ui/input";
 import LoadingIcon from "@/Components/LoadingIcon";
 import axios from "axios";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { validateTree } from "./filterValidation";
 

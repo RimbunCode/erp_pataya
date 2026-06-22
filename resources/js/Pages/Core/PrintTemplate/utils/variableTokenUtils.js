@@ -5,11 +5,18 @@
  * @module variableTokenUtils
  */
 
-import { formatValue } from "@/Components/CurrencyInput";
+import { formatNumber } from "@/Components/NumberInput/formatNumber";
+
+// Format angka gaya Indonesia (locale "id"): pemisah ribuan "." dan desimal ",".
+const ID_GROUP_SEPARATOR = ".";
+const ID_DECIMAL_SEPARATOR = ",";
 
 /**
  * Memformat nilai berdasarkan tipe kolom dan opsi format dari DataTableColumns.
  * Mendukung tipe "currency" (format mata uang) dan "numeric"/"number" (format angka desimal).
+ *
+ * Memakai `formatNumber` (helper internal). Symbol currency diambil dari kolom
+ * (`column.symbol` / `column.currency.symbol`) bila tersedia, fallback "Rp".
  * @param {number|string|null} value - Nilai yang akan diformat
  * @param {object} column - Definisi kolom dari DataTableColumns
  * @returns {string} Nilai yang sudah diformat atau string asli
@@ -19,26 +26,25 @@ export function formatColumnValue(value, column) {
 
   const type = column?.type;
   const decimalScale = column?.decimalScale ?? column?.formatOptions?.decimals;
-  const currency = column?.currency ?? column?.formatOptions?.currency ?? "IDR";
 
-  // Format sebagai mata uang menggunakan Intl.NumberFormat
+  // Format sebagai mata uang.
   if (type === "currency") {
     try {
-      const numericValue =
-        typeof value === "number" ? value.toString() : String(value);
-      return formatValue({
-        value: numericValue,
-        intlConfig: {
-          locale: "id",
-          currency: currency,
-        },
+      const decimals = typeof decimalScale === "number" ? decimalScale : 2;
+      const symbol = column?.symbol ?? column?.currency?.symbol ?? "Rp";
+      const formatted = formatNumber(value, {
+        groupSeparator: ID_GROUP_SEPARATOR,
+        decimalSeparator: ID_DECIMAL_SEPARATOR,
+        decimalScale: decimals,
+        prefix: `${symbol} `,
       });
+      return formatted === "" ? String(value) : formatted;
     } catch {
       return String(value);
     }
   }
 
-  // Format sebagai angka desimal dengan jumlah digit tertentu
+  // Format sebagai angka desimal dengan jumlah digit tertentu.
   if (type === "numeric" || type === "number") {
     try {
       const numericValue =
@@ -46,13 +52,12 @@ export function formatColumnValue(value, column) {
       if (isNaN(numericValue)) return String(value);
 
       const decimals = typeof decimalScale === "number" ? decimalScale : 0;
-      return formatValue({
-        value: numericValue.toFixed(decimals),
-        intlConfig: {
-          locale: "id",
-        },
+      const formatted = formatNumber(numericValue, {
+        groupSeparator: ID_GROUP_SEPARATOR,
+        decimalSeparator: ID_DECIMAL_SEPARATOR,
         decimalScale: decimals,
       });
+      return formatted === "" ? String(value) : formatted;
     } catch {
       return String(value);
     }

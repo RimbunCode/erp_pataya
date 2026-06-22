@@ -1,0 +1,6 @@
+{
+  "specId": "255d108e-a081-4e5f-9707-d6c038d33e39",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Amankan endpoint lookup /model & model.selectData dari over-fetch & IDOR kolom sensitif. Tiga lapis: linkable (whitelist kolom), fields (kebutuhan per-form), visibleFor (izin per-kolom type-safe). Default lookup hanya kolom templateLink."
+}

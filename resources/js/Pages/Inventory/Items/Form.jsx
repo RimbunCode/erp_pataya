@@ -16,7 +16,7 @@ import { WhenVisible, usePage } from "@inertiajs/react";
 
 import AttributeLinkModel from "../Attributes/AttributeLinkModel";
 import { Checkbox } from "@/Components/ui/checkbox";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import FormBarcodes from "./FormBarcodes";
 import FormDetail from "./FormDetail";
 import FormInput from "@/Components/FormInput";
@@ -496,7 +496,7 @@ export default memo(function Form() {
         required: true,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.code}
               readOnly={attributes.disabled || !dataRow?.isCustom}

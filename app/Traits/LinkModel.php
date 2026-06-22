@@ -5,7 +5,7 @@ namespace App\Traits;
 use App\Casts\FormStatusCast;
 use App\Casts\FormStatusesCast;
 use App\Casts\Json;
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
 use App\Services\Core\CommandSearchIndexService;
@@ -474,12 +474,24 @@ trait LinkModel {
      * Summary of getColumns
      *
      * @param  int  $maxDepth  0 = unlimited
+     * @param  bool  $includeHidden  true = sertakan FK + kolom `ignore` (ditandai
+     *                               flag hidden/ignore/searchable:false/show:false)
+     *                               agar FilterColumnResolver mengenalinya sebagai
+     *                               bagian schema. UI tetap meng-gate flag tsb.
+     *                               Default false = perilaku lama (FK ter-unset,
+     *                               ignore ter-skip).
      * @param  array[]  $excepts
      * @return array
      */
-    public static function getColumns(int $maxDepth = 0, ...$excepts) {
+    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts) {
+        // Flag yang dipaksakan pada kolom tersembunyi (FK/ignore) saat includeHidden:
+        // searchable/show:false → consumer UI (FilterItem2, Sort, dll) mengeksklusi;
+        // FilterEvaluator (allowNonSearchable=true) tetap dapat memfilter atasnya.
+        $hiddenFlags = ['hidden' => true, 'searchable' => false, 'show' => false];
+
         $instance      = new static;
         $columns       = Schema::getColumns($instance->getTable());
+        $hasStatusCol  = \in_array('status', \array_column($columns, 'name'), true);
         $casts         = $instance->getCasts();
         $hidden        = [...$instance->getHidden(), ...$instance->getGuarded()];
         $appends       = $instance->getAppends();
@@ -496,10 +508,11 @@ trait LinkModel {
                 continue;
             }
 
-            $col    = static::parseColumnType($value, $casts);
-            $config = static::getColumnConfig($configColumns, $value['name']);
+            $col      = static::parseColumnType($value, $casts);
+            $config   = static::getColumnConfig($configColumns, $value['name']);
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if (isset($config['ignore']) && $config['ignore']) {
+            if ($isIgnore && ! $includeHidden) {
                 continue;
             }
             if ($col) {
@@ -510,15 +523,18 @@ trait LinkModel {
                     'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
                     ...$config,
                     'primaryKey' => $instance->getKeyName(),
+                    // Kolom ignore tetap di-emit (untuk resolver) tapi ditandai hidden.
+                    ...($isIgnore ? $hiddenFlags : []),
                 ];
             }
         }
         $forcedColumns = \array_filter($configColumns, fn ($col) => $col['forceAppend'] ?? false);
         foreach ($forcedColumns as $key => $config) {
-            $key    = \is_string($key) ? $key : $config;
-            $config = \is_array($config) ? $config : [];
+            $key      = \is_string($key) ? $key : $config;
+            $config   = \is_array($config) ? $config : [];
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if (isset($config['ignore']) && $config['ignore']) {
+            if ($isIgnore && ! $includeHidden) {
                 continue;
             }
             $newColumns[$key] = [
@@ -526,9 +542,10 @@ trait LinkModel {
                 'sortable'   => true,
                 'searchable' => true,
                 'type'       => 'string',
-                'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
+                'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $key) : null,
                 ...$config,
                 'primaryKey' => $instance->getKeyName(),
+                ...($isIgnore ? $hiddenFlags : []),
             ];
         }
 
@@ -536,11 +553,20 @@ trait LinkModel {
             if (in_array($value, $hidden)) {
                 continue;
             }
-            $config = static::getColumnConfig($configColumns, $value);
+            $config   = static::getColumnConfig($configColumns, $value);
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if (isset($config['ignore']) && $config['ignore']) {
+            if ($isIgnore && ! $includeHidden) {
                 continue;
             }
+            // Baseline meta global `appendStatus` (getAppendStatusAttribute membaca
+            // $this->status): wajib dependsOn:['status'] agar SELECT presisi tak throw
+            // saat strict — TAPI hanya bila model punya kolom `status` di DB. Model
+            // tanpa kolom status: accessor tetap jalan/tampil, `status` tak di-SELECT.
+            $baselineDepends = ($value === 'appendStatus' && $hasStatusCol && ! isset($config['dependsOn']))
+                ? ['dependsOn' => ['status']]
+                : [];
+
             $newColumns[$value] = [
                 'name'       => $value,
                 'type'       => 'attribute',
@@ -548,7 +574,9 @@ trait LinkModel {
                 'searchable' => false,
                 'primaryKey' => $instance->getKeyName(),
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
+                ...$baselineDepends,
                 ...$config,
+                ...($isIgnore ? $hiddenFlags : []),
             ];
         }
 
@@ -577,12 +605,14 @@ trait LinkModel {
             }
             if ($rel instanceof MorphTo) {
                 $newKey = $rel->getRelationName();
-                unset($newColumns[$rel->getForeignKeyName()]);
-                unset($newColumns[$rel->getMorphType()]);
+                // FK + morph type: di-unset dari daftar UI (default). Saat includeHidden,
+                // tetap di-emit tapi ditandai hidden agar resolver dapat me-resolve-nya.
+                static::hideOrUnsetForeignKey($newColumns, $rel->getForeignKeyName(), $includeHidden, $hiddenFlags);
+                static::hideOrUnsetForeignKey($newColumns, $rel->getMorphType(), $includeHidden, $hiddenFlags);
                 $type         = 'relation';
                 $typeRelation = 'morph';
             } elseif ($rel instanceof BelongsTo) {
-                unset($newColumns[$rel->getForeignKeyName()]);
+                static::hideOrUnsetForeignKey($newColumns, $rel->getForeignKeyName(), $includeHidden, $hiddenFlags);
                 $type   = 'relation';
                 $route  = $rel->getRelated()->route;
                 $newKey = Str::snake($key);
@@ -602,7 +632,8 @@ trait LinkModel {
             } else {
                 $newKey = Str::snake($key);
             }
-            if (isset($config['ignore']) && $config['ignore']) {
+            $isIgnore = isset($config['ignore']) && $config['ignore'];
+            if ($isIgnore && ! $includeHidden) {
                 continue;
             }
             $newColumns[$newKey] = [
@@ -616,13 +647,34 @@ trait LinkModel {
                 'sortable'       => false,
                 'searchable'     => true,
                 'titleTrans'     => $translateKey ? "$translateKey.columns.$newKey" : null,
-                'columns'        => $isContinueGetRelationColumns ? $classRelation::getColumns($maxDepth, static::class, ...$excepts ?? []) : [],
+                'columns'        => $isContinueGetRelationColumns ? $classRelation::getColumns($maxDepth, $includeHidden, static::class, ...$excepts ?? []) : [],
                 ...$config,
+                ...($isIgnore ? $hiddenFlags : []),
             ];
         }
 
         \usort($newColumns, fn ($a, $b) => $a['name'] <=> $b['name']);
 
         return $newColumns;
+    }
+
+    /**
+     * Sembunyikan atau buang kolom FK relasi dari daftar getColumns.
+     * - default (includeHidden=false): unset kolom (perilaku lama — bersih utk UI).
+     * - includeHidden=true: pertahankan entri tapi tandai flag hidden agar
+     *   FilterColumnResolver dapat me-resolve FK; UI tetap meng-gate flag hidden.
+     *
+     * @param  array<string,array<string,mixed>>  $newColumns
+     * @param  array<string,mixed>  $hiddenFlags
+     */
+    private static function hideOrUnsetForeignKey(array &$newColumns, string $fkName, bool $includeHidden, array $hiddenFlags): void {
+        if (! isset($newColumns[$fkName])) {
+            return;
+        }
+        if ($includeHidden) {
+            $newColumns[$fkName] = [...$newColumns[$fkName], ...$hiddenFlags];
+        } else {
+            unset($newColumns[$fkName]);
+        }
     }
 }

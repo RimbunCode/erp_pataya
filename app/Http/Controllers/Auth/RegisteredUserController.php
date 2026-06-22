@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Models\User\User;
 use Illuminate\Auth\Events\Registered;

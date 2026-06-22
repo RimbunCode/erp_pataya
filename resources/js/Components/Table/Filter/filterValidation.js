@@ -9,6 +9,7 @@
 // messageKey memetakan ke lang "core.datatable.filter.validation.*".
 
 import { columnHasOptions, getOperators } from "./operators";
+import { isColumnRef } from "./columnRef";
 
 import { isNullOrWhitespace } from "@/lib/utils";
 
@@ -92,12 +93,14 @@ const resolveColumn = (columns, key) => {
  * dengan ValueField. Mengembalikan null bila tak ter-resolve.
  * @param column
  * @param operator
+ * @param mode
  */
-const valueInputFor = (column, operator) => {
+const valueInputFor = (column, operator, mode) => {
   if (!column?.type || !operator) return null;
   const ops = getOperators(column.type, {
     typeRelation: column.typeRelation,
     hasOptions: columnHasOptions(column),
+    mode,
   });
   return ops[operator]?.valueInput ?? null;
 };
@@ -118,8 +121,11 @@ const validateItem = (item, column) => {
   if (isNullOrWhitespace(key)) return MSG.required;
   if (isNullOrWhitespace(operator)) return MSG.required;
 
+  // Mode column (column-ref) di-infer dari bentuk value.
+  const mode = isColumnRef(value) ? "column" : "value";
+
   // Kolom tak ter-resolve (mis. relasi belum di-load): presence-only.
-  const valueInput = column ? valueInputFor(column, operator) : "text";
+  const valueInput = column ? valueInputFor(column, operator, mode) : "text";
   if (valueInput === null) {
     return isFilledScalar(value) ? null : MSG.required;
   }
@@ -127,6 +133,25 @@ const validateItem = (item, column) => {
   switch (valueInput) {
     case "none":
       return null;
+
+    case "columnref":
+      return isFilledScalar(value?.ref) ? null : MSG.required;
+
+    case "columnrefMulti": {
+      const refs = Array.isArray(value?.ref)
+        ? value.ref.filter(isFilledScalar)
+        : [];
+      return refs.length >= 1 ? null : MSG.selectOne;
+    }
+
+    case "columnref2": {
+      const refs = Array.isArray(value?.ref) ? value.ref : [];
+      return refs.length === 2 &&
+        isFilledScalar(refs[0]) &&
+        isFilledScalar(refs[1])
+        ? null
+        : MSG.rangeTwo;
+    }
 
     case "checkbox":
       return null; // boolean; default false dianggap valid

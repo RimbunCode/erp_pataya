@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\Country;
 use App\Models\Core\Currency;

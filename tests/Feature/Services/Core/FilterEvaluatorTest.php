@@ -59,6 +59,7 @@ class FilterEvaluatorTest extends TestCase {
         Schema::create('filter_test_categories', function ($t) {
             $t->ulid('id')->primary();
             $t->string('type')->nullable();
+            $t->integer('threshold')->nullable();
             $t->boolean('is_example')->default(false);
             $t->timestamps();
         });
@@ -67,26 +68,38 @@ class FilterEvaluatorTest extends TestCase {
             $t->ulid('id')->primary();
             $t->ulid('category_id')->nullable();
             $t->string('name')->nullable();
+            $t->string('alias')->nullable();
             $t->integer('qty')->nullable();
+            $t->integer('min_qty')->nullable();
             $t->decimal('price', 12, 2)->nullable();
+            $t->decimal('cost', 12, 2)->nullable();
+            $t->decimal('max_price', 12, 2)->nullable();
             $t->boolean('is_active')->default(false);
             $t->string('status')->nullable();
             $t->date('born_on')->nullable();
+            $t->date('deadline_on')->nullable();
             $t->datetime('started_at')->nullable();
+            $t->json('tags')->nullable();
             $t->boolean('is_example')->default(false);
             $t->timestamps();
         });
 
         $this->columns = [
-            'name'       => ['name' => 'name', 'type' => 'string', 'searchable' => true],
-            'qty'        => ['name' => 'qty', 'type' => 'number', 'searchable' => true],
-            'price'      => ['name' => 'price', 'type' => 'currency', 'searchable' => true],
-            'is_active'  => ['name' => 'is_active', 'type' => 'boolean', 'searchable' => true],
-            'status'     => ['name' => 'status', 'type' => 'enum', 'searchable' => true, 'options' => ['draft', 'active', 'closed']],
-            'born_on'    => ['name' => 'born_on', 'type' => 'date', 'searchable' => true],
-            'started_at' => ['name' => 'started_at', 'type' => 'datetime', 'searchable' => true],
-            'secret'     => ['name' => 'secret', 'type' => 'string', 'searchable' => false],
-            'category'   => [
+            'name'        => ['name' => 'name', 'type' => 'string', 'searchable' => true],
+            'alias'       => ['name' => 'alias', 'type' => 'string', 'searchable' => true],
+            'qty'         => ['name' => 'qty', 'type' => 'number', 'searchable' => true],
+            'min_qty'     => ['name' => 'min_qty', 'type' => 'number', 'searchable' => true],
+            'price'       => ['name' => 'price', 'type' => 'currency', 'searchable' => true],
+            'cost'        => ['name' => 'cost', 'type' => 'currency', 'searchable' => true],
+            'max_price'   => ['name' => 'max_price', 'type' => 'currency', 'searchable' => true],
+            'is_active'   => ['name' => 'is_active', 'type' => 'boolean', 'searchable' => true],
+            'status'      => ['name' => 'status', 'type' => 'enum', 'searchable' => true, 'options' => ['draft', 'active', 'closed']],
+            'born_on'     => ['name' => 'born_on', 'type' => 'date', 'searchable' => true],
+            'deadline_on' => ['name' => 'deadline_on', 'type' => 'date', 'searchable' => true],
+            'started_at'  => ['name' => 'started_at', 'type' => 'datetime', 'searchable' => true],
+            'tags'        => ['name' => 'tags', 'type' => 'formStatuses', 'searchable' => true, 'options' => ['draft', 'approved', 'closed', 'pending']],
+            'secret'      => ['name' => 'secret', 'type' => 'string', 'searchable' => false],
+            'category'    => [
                 'name'           => 'category',
                 'type'           => 'relation',
                 'typeRelation'   => 'basic',
@@ -96,6 +109,7 @@ class FilterEvaluatorTest extends TestCase {
                 'searchable'     => true,
                 'columns'        => [
                     ['name' => 'type', 'type' => 'string', 'searchable' => true],
+                    ['name' => 'threshold', 'type' => 'number', 'searchable' => true],
                 ],
             ],
         ];
@@ -165,6 +179,98 @@ class FilterEvaluatorTest extends TestCase {
     public function test_enum_in(): void {
         $this->seedRecords();
         $this->assertEqualsCanonicalizing(['r1', 'r3'], $this->applyAnd(['i' => ['k' => 'status', 'o' => 'in', 'v' => 'active,closed']])->pluck('id')->all());
+    }
+
+    /**
+     * Kolom formStatuses disimpan sebagai JSON array; in/!in/has/!has harus
+     * memakai JSON-contains (keanggotaan elemen), bukan whereIn pada blob.
+     */
+    public function test_form_statuses_json_array_membership(): void {
+        FilterTestRecord::insert([
+            ['id' => 's1', 'tags' => json_encode(['draft']), 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 's2', 'tags' => json_encode(['draft', 'approved']), 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 's3', 'tags' => json_encode(['closed']), 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 's4', 'tags' => null, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // in [draft] → memuat draft (s1, s2). NULL (s4) tidak match.
+        $this->assertEqualsCanonicalizing(['s1', 's2'], $this->applyAnd(['i' => ['k' => 'tags', 'o' => 'in', 'v' => ['draft']]])->pluck('id')->all());
+        // in [approved, closed] → s2 (approved) & s3 (closed).
+        $this->assertEqualsCanonicalizing(['s2', 's3'], $this->applyAnd(['i' => ['k' => 'tags', 'o' => 'in', 'v' => ['approved', 'closed']]])->pluck('id')->all());
+        // !in [draft] → tidak memuat draft: s3 (closed) & s4 (null).
+        $this->assertEqualsCanonicalizing(['s3', 's4'], $this->applyAnd(['i' => ['k' => 'tags', 'o' => '!in', 'v' => ['draft']]])->pluck('id')->all());
+        // has == in ; !has == !in (semantik identik untuk formStatuses).
+        $this->assertEqualsCanonicalizing(['s1', 's2'], $this->applyAnd(['i' => ['k' => 'tags', 'o' => 'has', 'v' => ['draft']]])->pluck('id')->all());
+        $this->assertEqualsCanonicalizing(['s3', 's4'], $this->applyAnd(['i' => ['k' => 'tags', 'o' => '!has', 'v' => ['draft']]])->pluck('id')->all());
+    }
+
+    /**
+     * Mode column same-table: bandingkan kolom kiri dengan kolom lain di tabel
+     * yang sama via whereColumn (komparasi, in, between).
+     */
+    public function test_column_comparison_same_table(): void {
+        FilterTestRecord::insert([
+            ['id' => 'r1', 'qty' => 10, 'min_qty' => 5, 'price' => 100.00, 'cost' => 60.00, 'max_price' => 150.00, 'name' => 'Apple', 'alias' => 'Apple', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r2', 'qty' => 3, 'min_qty' => 8, 'price' => 200.00, 'cost' => 60.00, 'max_price' => 150.00, 'name' => 'Banana', 'alias' => 'Berry', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'r3', 'qty' => 7, 'min_qty' => 7, 'price' => 80.00, 'cost' => 60.00, 'max_price' => 150.00, 'name' => 'Cherry', 'alias' => 'Cherry', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $col = fn (string $ref) => ['kind' => 'column', 'ref' => $ref];
+
+        // qty > min_qty → r1 (10>5). r2 (3>8 no), r3 (7>7 no).
+        $this->assertEqualsCanonicalizing(['r1'], $this->applyAnd(['i' => ['k' => 'qty', 'o' => '>', 'v' => $col('min_qty')]])->pluck('id')->all());
+        // qty >= min_qty → r1, r3.
+        $this->assertEqualsCanonicalizing(['r1', 'r3'], $this->applyAnd(['i' => ['k' => 'qty', 'o' => '>=', 'v' => $col('min_qty')]])->pluck('id')->all());
+        // name = alias → r1 (Apple), r3 (Cherry).
+        $this->assertEqualsCanonicalizing(['r1', 'r3'], $this->applyAnd(['i' => ['k' => 'name', 'o' => '=', 'v' => $col('alias')]])->pluck('id')->all());
+        // price between cost..max_price → r1 (100 in 60..150), r3 (80 in 60..150). r2 (200 no).
+        $this->assertEqualsCanonicalizing(['r1', 'r3'], $this->applyAnd(['i' => ['k' => 'price', 'o' => 'between', 'v' => ['kind' => 'column', 'ref' => ['cost', 'max_price']]]])->pluck('id')->all());
+    }
+
+    /**
+     * Mode column date/datetime: hanya tersedia di mode column (komparasi),
+     * bandingkan dua kolom tanggal langsung.
+     */
+    public function test_column_comparison_dates(): void {
+        FilterTestRecord::insert([
+            ['id' => 'd1', 'born_on' => '2025-01-01', 'deadline_on' => '2025-06-01', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'd2', 'born_on' => '2025-09-01', 'deadline_on' => '2025-06-01', 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // born_on < deadline_on → d1 (Jan<Jun). d2 (Sep<Jun no).
+        $this->assertEqualsCanonicalizing(['d1'], $this->applyAnd(['i' => ['k' => 'born_on', 'o' => '<', 'v' => ['kind' => 'column', 'ref' => 'deadline_on']]])->pluck('id')->all());
+    }
+
+    /**
+     * Mode column lintas tabel (relasi): qty > category.threshold via
+     * correlated subquery (whereHas dengan kolom terkualifikasi tabel).
+     */
+    public function test_column_comparison_cross_table(): void {
+        FilterTestCategory::insert([
+            ['id' => 'c1', 'type' => 'a', 'threshold' => 5, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'c2', 'type' => 'b', 'threshold' => 20, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        FilterTestRecord::insert([
+            ['id' => 'x1', 'category_id' => 'c1', 'qty' => 10, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'x2', 'category_id' => 'c2', 'qty' => 10, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'x3', 'category_id' => 'c1', 'qty' => 3, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // qty > category.threshold → x1 (10>5). x2 (10>20 no), x3 (3>5 no).
+        $this->assertEqualsCanonicalizing(['x1'], $this->applyAnd(['i' => ['k' => 'qty', 'o' => '>', 'v' => ['kind' => 'column', 'ref' => 'category.threshold']]])->pluck('id')->all());
+    }
+
+    /**
+     * Type tidak kompatibel (string vs number) → item di-drop, hasil tak berubah.
+     */
+    public function test_column_comparison_type_incompatible_dropped(): void {
+        FilterTestRecord::insert([
+            ['id' => 'a1', 'name' => 'foo', 'qty' => 1, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 'a2', 'name' => 'bar', 'qty' => 2, 'is_example' => false, 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        // name > qty (string vs number) → drop → semua baris.
+        $this->assertCount(2, $this->applyAnd(['i' => ['k' => 'name', 'o' => '>', 'v' => ['kind' => 'column', 'ref' => 'qty']]])->get());
     }
 
     public function test_relation_dot_notation_column_uses_where_has(): void {

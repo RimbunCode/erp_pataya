@@ -1,4 +1,3 @@
-import { Alert, AlertIcon, AlertTitle } from "./ui/alert";
 import {
   Command,
   CommandEmpty,
@@ -7,11 +6,7 @@ import {
   CommandSeparator,
 } from "./ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import {
-  RiBarcodeBoxLine,
-  RiCheckboxCircleLine,
-  RiErrorWarningFill,
-} from "@remixicon/react";
+import { RiBarcodeBoxLine } from "@remixicon/react";
 import {
   forwardRef,
   memo,
@@ -29,7 +24,7 @@ import React from "react";
 import axios from "axios";
 import { cn } from "@/lib/utils";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 /**
@@ -140,20 +135,7 @@ export default memo(
         })
         .catch((e) => {
           console.error(e);
-          toast.custom((toastId) => (
-            <Alert
-              variant="destructive"
-              icon="destructive"
-              onClose={() => toast.dismiss(toastId)}
-            >
-              <AlertIcon>
-                <RiErrorWarningFill />
-              </AlertIcon>
-              <AlertTitle>
-                {t("core.form.errors.something_went_wrong")}
-              </AlertTitle>
-            </Alert>
-          ));
+          toast.error(t("core.form.errors.something_went_wrong"));
         })
         .finally(() => {
           setLoading(false);
@@ -206,20 +188,7 @@ export default memo(
         keyword,
         (data) => {
           if (isScanner && (!data || data.length === 0)) {
-            toast.custom((toastId) => (
-              <Alert
-                variant="warning"
-                icon="warning"
-                onClose={() => toast.dismiss(toastId)}
-              >
-                <AlertIcon>
-                  <RiErrorWarningFill />
-                </AlertIcon>
-                <AlertTitle>
-                  {t("core.form.input_barcode.no_barcode")}
-                </AlertTitle>
-              </Alert>
-            ));
+            toast.warning(t("core.form.input_barcode.no_barcode"));
           }
           afterFetch?.(data);
         },
@@ -231,26 +200,16 @@ export default memo(
         setOpen(false);
         setSearch("");
         _onSelect?.(value);
-        toast.custom((toastId) => (
-          <Alert
-            variant="success"
-            icon="success"
-            onClose={() => toast.dismiss(toastId)}
-          >
-            <AlertIcon>
-              <RiCheckboxCircleLine />
-            </AlertIcon>
-            <div className="flex flex-col w-full">
-              <AlertTitle>{t("core.form.input_barcode.success")}</AlertTitle>
-              <p
-                className="text-sm"
-                dangerouslySetInnerHTML={{
-                  __html: convertTemplateLink(value, "", true),
-                }}
-              />
-            </div>
-          </Alert>
-        ));
+        toast.success(t("core.form.input_barcode.success"), {
+          description: (
+            <p
+              className="text-sm"
+              dangerouslySetInnerHTML={{
+                __html: convertTemplateLink(value, "", true),
+              }}
+            />
+          ),
+        });
       },
       [_onSelect],
     );
