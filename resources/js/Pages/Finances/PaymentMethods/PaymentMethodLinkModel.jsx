@@ -15,7 +15,7 @@ export default forwardRef(function PaymentMethodLinkModel(
       onValueChange={onValueChange}
       model="App\Models\Finances\PaymentMethod"
       titleDialog={t("finances.paymentMethod.new")}
-      classNameDialog="max-w-xl"
+      classNameDialog="max-w-4xl"
       form={<Form />}
       {...props}
       ref={ref}

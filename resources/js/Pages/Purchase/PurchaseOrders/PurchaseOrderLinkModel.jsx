@@ -15,7 +15,7 @@ export default forwardRef(function PurchaseOrderLinkModel(
       onValueChange={onValueChange}
       model="App\Models\Purchase\PurchaseOrder"
       titleDialog={t("purchase.purchaseOrder.new")}
-      classNameDialog="max-w-xl"
+      classNameDialog="max-w-4xl"
       form={<Form />}
       {...props}
       ref={ref}

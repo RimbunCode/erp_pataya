@@ -16,7 +16,7 @@ class UnitController extends Controller {
 
     protected function enforcePermission(string $method) {
         if ($method === 'getGroups') {
-            return true;
+            return ['create', 'write'];
         }
     }
 

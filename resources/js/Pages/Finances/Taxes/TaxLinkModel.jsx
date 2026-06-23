@@ -15,7 +15,7 @@ export default forwardRef(function TaxLinkModel(
       onValueChange={onValueChange}
       model="App\Models\Finances\Tax"
       titleDialog={t("finances.taxes.new")}
-      classNameDialog="max-w-xl"
+      classNameDialog="max-w-4xl"
       form={<Form />}
       {...props}
       ref={ref}
