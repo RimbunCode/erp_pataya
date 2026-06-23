@@ -1600,21 +1600,36 @@ const FormPageDialog = memo(
       routeParams,
       ignoreDraft = false,
       sidebarContent,
+      open: openProps,
+      onOpenChange,
+      onSuccess,
+      postOption = {},
     },
     ref,
   ) {
     const { t } = useLaravelReactI18n();
     const route = window.route;
-    const [open, setOpen] = useState(false);
+    const [internalOpen, setInternalOpen] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(true);
+    const isControlled = openProps !== undefined;
+    const open = isControlled ? openProps : internalOpen;
+
+    const handleOpenChange = (val) => {
+      if (isControlled && onOpenChange) {
+        onOpenChange(val);
+      } else {
+        setInternalOpen(val);
+      }
+    };
+
     const hasSidebar = sidebarContent !== false;
     useImperativeHandle(
       ref,
       () => ({
-        open: () => setOpen(true),
-        close: () => setOpen(false),
+        open: () => handleOpenChange(true),
+        close: () => handleOpenChange(false),
       }),
-      [],
+      [isControlled, onOpenChange],
     );
     const { loadDraft, ...form } = useDraftForm(name, defaultValue ?? {}, {
       // onContinueDraft: () => {
@@ -1692,7 +1707,7 @@ const FormPageDialog = memo(
     const onClose = (val) => {
       if (val) return;
       setLeave(() => {
-        setOpen(false);
+        handleOpenChange(false);
         setShowAlert(false);
         setIsDirty(false);
         cancel();
@@ -1701,7 +1716,7 @@ const FormPageDialog = memo(
         removeFromLocalStorage(key);
       });
       setSaveAsDraft(() => {
-        setOpen(false);
+        handleOpenChange(false);
         setShowAlert(false);
         if (key) setKeepDraftOnClean(key, true);
         setIsDirty(false);
@@ -1712,11 +1727,22 @@ const FormPageDialog = memo(
         setShowAlert(true);
       } else {
         setShowAlert(false);
-        setOpen(val);
+        handleOpenChange(val);
         reset();
         clearErrors();
+        if (isControlled) {
+          setData?.({});
+        }
       }
     };
+
+    useDidMountEffect(() => {
+      if (form.recentlySuccessful && isControlled) {
+        handleOpenChange(false);
+        reset();
+      }
+    }, [form.recentlySuccessful, isControlled]);
+
     const _onSubmit = (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1727,18 +1753,40 @@ const FormPageDialog = memo(
       // filesId[] → File::uploadFile cabang filesId → Fileable dibuat &
       // is_draft di-clear. form.transform agar tak memutasi data reaktif.
       const files = Array.isArray(data?.files) ? data.files : [];
-      form.transform((payload) => ({
-        ...payload,
-        filesId: files.map((f) => f.id).filter(Boolean),
-      }));
-      submit(method, route(pluralized, routeParams), {
-        preserveState: true,
-        preserveUrl: false,
-        onSuccess: () => {
-          _setData(defaultValue ?? {});
-          setOpen(false);
-        },
+      form.transform((payload) => {
+        const payloadData = { ...payload };
+        const fileIds = files.map((f) => f.id).filter(Boolean);
+
+        if (fileIds.length > 0) {
+          payloadData.filesId = fileIds;
+        }
+
+        return payloadData;
       });
+
+      const methodToUse = postOption?.method ?? method;
+
+      const excludedKeys = ["initalData", "method"];
+      const filteredOption = Object.fromEntries(
+        Object.entries(postOption ?? {}).filter(
+          ([key]) => !excludedKeys.includes(key),
+        ),
+      );
+
+      const routerOption = {
+        preserveState: true,
+        preserveUrl: isControlled ? true : false,
+        ...filteredOption,
+        onSuccess: (e) => {
+          _setData(defaultValue ?? {});
+          if (!isControlled) {
+            handleOpenChange(false);
+          }
+          if (onSuccess) onSuccess(e);
+        },
+      };
+
+      submit(methodToUse, route(pluralized, routeParams), routerOption);
     };
     return (
       <AlertDialog open={open}>
@@ -1874,258 +1922,6 @@ const FormPageDialog = memo(
                   </FormPageProvider>
                 )}
               </div>
-              <AlertDialogFooter className="pb-6 mt-4">
-                <AlertDialogCancel
-                  className="h-8"
-                  onClick={() => onClose(false)}
-                >
-                  {t("core.form.cancel")}
-                </AlertDialogCancel>
-                <AlertDialogAction
-                  className="h-8"
-                  type="submit"
-                  onClick={() => {}}
-                >
-                  {t("core.form.save")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </form>
-          </TooltipProvider>
-        </AlertDialogContent>
-      </AlertDialog>
-    );
-  }),
-);
-
-const FormPageLinkModelDialog = memo(
-  forwardRef(function FormPageDialog(
-    {
-      title,
-      name,
-      disabled: disabledProps,
-      fieldNameTrans,
-      defaultMenu,
-      className,
-      open,
-      onOpenChange,
-      children,
-      badge,
-      defaultValue,
-      onSuccess,
-      postOption = {},
-    },
-    ref,
-  ) {
-    const { t } = useLaravelReactI18n();
-    const route = window.route;
-    const {
-      setLeave,
-      setSaveAsDraft,
-      setIsDirty,
-      setShowAlert,
-      setKeepDraftOnClean,
-    } = useIsDirtyForm();
-    const { cancel } = useAlertDraftForm();
-    const {
-      data,
-      setData: _setData,
-      post,
-      put,
-      patch,
-      processing,
-      errors,
-      isDirty,
-      recentlySuccessful,
-      reset,
-      setDefaults,
-      clearErrors,
-      loadDraft,
-      key,
-    } = useDraftForm(name, defaultValue ?? {}, {
-      // onContinueDraft: () => {
-      //   onOpenChange?.(true);
-      // },
-      isDialog: true,
-      isCreate: true,
-    });
-    useEffect(() => {
-      setDefaults(defaultValue ?? {});
-      _setData(defaultValue ?? {});
-    }, [defaultValue]);
-    useEffect(() => {
-      if (!open) return;
-      else {
-        loadDraft();
-      }
-      reset();
-      clearErrors();
-    }, [open]);
-    const disabled = disabledProps ?? processing;
-    const formRef = useRef();
-    const setData = useCallback(
-      (...args) => {
-        if (disabled) return;
-        _setData(...args);
-      },
-      [disabled, _setData],
-    );
-    const onKeyDown = useCallback(
-      (e) => {
-        if (e.ctrlKey && e.key == "s") {
-          e.preventDefault();
-          e.stopPropagation();
-          const form = formRef.current;
-
-          if (form) {
-            if (typeof form.requestSubmit === "function") {
-              form.requestSubmit();
-            } else {
-              form.dispatchEvent(new Event("submit", { cancelable: true }));
-            }
-          }
-        }
-      },
-      [formRef],
-    );
-
-    // const onClose = (val) => {
-    //   if (val) return;
-    //   onOpenChange(val);
-    //   setData?.({});
-    // };
-    const onClose = (val) => {
-      if (val) return;
-      setLeave(() => {
-        onOpenChange(false);
-        setShowAlert(false);
-        setIsDirty(false);
-        cancel();
-        reset();
-        clearErrors();
-        removeFromLocalStorage(key);
-      });
-      setSaveAsDraft(() => {
-        onOpenChange(false);
-        setShowAlert(false);
-        if (key) setKeepDraftOnClean(key, true);
-        setIsDirty(false);
-        clearErrors();
-        reset();
-      });
-      if (isDirty) {
-        setShowAlert(true);
-      } else {
-        setShowAlert(false);
-        onOpenChange(val);
-        setData?.({});
-        clearErrors();
-      }
-    };
-
-    const _onSubmit = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (disabled) return;
-      if (!name) return;
-      const pluralized = `${pluralize.plural(name ?? "")}.store`;
-
-      const excludedKeys = ["initalData", "method"];
-
-      const filteredOption = Object.fromEntries(
-        Object.entries(postOption ?? {}).filter(
-          ([key]) => !excludedKeys.includes(key),
-        ),
-      );
-
-      const routerOption = {
-        preserveScroll: true,
-        preserveState: true,
-        preserveUrl: true,
-        replace: true,
-        ...filteredOption,
-        onSuccess: (e) => {
-          _setData(defaultValue ?? {});
-          if (onSuccess) onSuccess(e);
-        },
-      };
-
-      switch (postOption.method) {
-        case "put":
-          put(route(pluralized), routerOption);
-          break;
-        case "patch":
-          patch(route(pluralized), routerOption);
-          break;
-        default:
-          post(route(pluralized), routerOption);
-      }
-    };
-    useDidMountEffect(() => {
-      if (recentlySuccessful) {
-        onOpenChange(false);
-        reset();
-      }
-    }, [recentlySuccessful]);
-    return (
-      <AlertDialog open={open}>
-        <AlertDialogContent className={cn(className, "py-0 overflow-hidden")}>
-          <TooltipProvider>
-            <form
-              ref={formRef}
-              onKeyDown={onKeyDown}
-              onSubmit={_onSubmit}
-              disabled={disabled}
-              className={cn(
-                "max-h-screen overflow-y-hidden flex flex-col",
-                disabled &&
-                  " **:[[role=title]]:pointer-events-none **:[[role=forminput]]:pointer-events-none [&_button[role=save]]:hidden ",
-              )}
-            >
-              <AlertDialogHeader className="pt-6 mb-4 border-b border-muted-foreground/30">
-                <AlertDialogTitle className="flex items-center mb-1 gap-x-2">
-                  {title}
-                  {isDirty && (
-                    <span className="text-sm badge warning">
-                      {t("core.form.not_saved")}
-                    </span>
-                  )}
-                  {badge}
-                </AlertDialogTitle>
-                <AlertDialogDescription className="sr-only"></AlertDialogDescription>
-              </AlertDialogHeader>
-              <div className="overflow-y-auto">
-                {errors && Object.keys(errors).length > 0 && (
-                  <div className="flex-col w-full mt-4 alert error">
-                    <h3 className="text-base font-semibold">
-                      {t("core.form.errors.title")}
-                    </h3>
-                    <ul className="block pl-5">
-                      {Object.entries(errors).map(([key, value]) => (
-                        <li key={key} className="list-disc">
-                          {fieldNameTrans
-                            ? value.replace(key, t(`${fieldNameTrans}.${key}`))
-                            : value}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                <FormChildren
-                  ref={ref}
-                  isCreate={true}
-                  disabled={disabled}
-                  defaultMenu={defaultMenu}
-                  className={className}
-                  showHeader={false}
-                  errors={errors}
-                  fieldNameTrans={fieldNameTrans}
-                  data={data}
-                  setData={setData}
-                >
-                  {children}
-                </FormChildren>
-              </div>
-
               <AlertDialogFooter className="pb-6 mt-4">
                 <AlertDialogCancel
                   className="h-8"
@@ -2300,7 +2096,6 @@ export {
   FormPageContentTitle,
   FormPageContentDescription,
   FormPageDialog,
-  FormPageLinkModelDialog,
   FormPageDiff,
   useFormPage,
   useFormPageMeta,
