@@ -15,7 +15,7 @@ export default forwardRef(function DashboardLinkModel(
       onValueChange={onValueChange}
       model="App\Models\Core\Dashboard"
       titleDialog={t("settings.dashboard.new")}
-      classNameDialog="max-w-4xl"
+      classNameDialog="max-w-4xl!"
       form={<Form />}
       {...props}
       ref={ref}

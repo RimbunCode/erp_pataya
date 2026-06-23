@@ -29,7 +29,7 @@ export default function Index() {
           </p>
         </Link>
       )}
-      classNameDialog="max-w-xl!"
+      classNameDialog="max-w-4xl!"
       form={<Form />}
     />
   );

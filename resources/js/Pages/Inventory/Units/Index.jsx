@@ -30,7 +30,7 @@ export default function Index() {
           )}
         </div>
       )}
-      classNameDialog="max-w-4xl"
+      classNameDialog="max-w-4xl!"
       form={<Form />}
     />
   );

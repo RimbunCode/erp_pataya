@@ -15,7 +15,7 @@ export default forwardRef(function CategoryLinkModel(
       onValueChange={onValueChange}
       model="App\Models\Inventory\Category"
       titleDialog={t("inventory.category.new")}
-      classNameDialog="max-w-4xl"
+      classNameDialog="max-w-4xl!"
       form={<Form />}
       {...props}
       ref={ref}
