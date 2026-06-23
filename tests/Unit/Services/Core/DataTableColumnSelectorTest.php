@@ -20,7 +20,7 @@ class SelectorRelatedStub extends Model {
     protected $guarded = [];
 
     /** @return list<array<string,mixed>> */
-    public static function getColumns(int $maxDepth = 0): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
         return [
             ['name' => 'id', 'type' => 'integer'],
             ['name' => 'name', 'type' => 'string'],

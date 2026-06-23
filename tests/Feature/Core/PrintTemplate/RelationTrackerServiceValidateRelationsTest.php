@@ -11,7 +11,7 @@ class RelationTrackerServiceValidateRelationsTest extends TestCase {
     public function test_validate_relations_handles_cached_invalid_segments_without_crashing(): void {
         $modelClass = get_class(new class extends Model
         {
-            public static function getColumns($schema = null): array {
+            public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
                 return [
                     ['name' => 'id'],
                     ['name' => 'parent_id'],
@@ -67,7 +67,7 @@ class RelationTrackerServiceValidateRelationsTest extends TestCase {
 }
 
 class RelationTrackerValidateRelationsStockEntryModel extends Model {
-    public static function getColumns($schema = null): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
         return [
             ['name' => 'id'],
             ['name' => 'branch_id'],
@@ -85,7 +85,7 @@ class RelationTrackerValidateRelationsBranchModel extends Model {
         'billingCountry',
     ];
 
-    public static function getColumns($schema = null): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
         return [
             ['name' => 'id'],
             ['name' => 'shipping_country_id'],
@@ -103,7 +103,7 @@ class RelationTrackerValidateRelationsBranchModel extends Model {
 }
 
 class RelationTrackerValidateRelationsCountryModel extends Model {
-    public static function getColumns($schema = null): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
         return [
             ['name' => 'code'],
             ['name' => 'name'],

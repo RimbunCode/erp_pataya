@@ -11,7 +11,7 @@ use Tests\TestCase;
  */
 class ResolverRelatedStub {
     /** @return list<array<string,mixed>> */
-    public static function getColumns(int $maxDepth = 0): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
         return [
             ['name' => 'type', 'type' => 'string', 'searchable' => true],
             ['name' => 'code', 'type' => 'string', 'searchable' => true],
@@ -21,7 +21,7 @@ class ResolverRelatedStub {
 
 class ResolverMorphStub {
     /** @return list<array<string,mixed>> */
-    public static function getColumns(int $maxDepth = 0): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
         return [
             ['name' => 'title', 'type' => 'string', 'searchable' => true],
         ];

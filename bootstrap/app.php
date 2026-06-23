@@ -1,5 +1,6 @@
 <?php
 use App\Console\Commands\Feature;
+use App\Console\Commands\ModelCacheCommand;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -53,6 +54,7 @@ return Application::configure(dirname(__DIR__))
     })
     ->withCommands([
         Feature::class,
+        ModelCacheCommand::class,
     ])
     ->withExceptions(function (Exceptions $exceptions) {
         $exceptions->respond(function (Response $response, Throwable $exception, Request $request): Response {

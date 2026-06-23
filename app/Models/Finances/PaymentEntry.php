@@ -19,7 +19,7 @@ class PaymentEntry extends Model {
     protected $guarded = ['id'];
 
     public static function templateLink() {
-        return ':name';
+        return ':code';
     }
 
     protected static function loadRelationsOnShow() {

@@ -31,7 +31,6 @@ class PaymentSchedule extends Model {
 
     protected array $configColumns = [
         'referenceTo' => [
-            'type'               => 'relation',
             'order'              => 0,
             'show'               => true,
             'disabledNavigation' => true,
