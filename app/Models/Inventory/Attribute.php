@@ -51,7 +51,7 @@ class Attribute extends Model {
             'dependsOn' => ['values'],
         ],
         'values' => [
-            'ignore' => true,
+            'linkable' => true,
         ],
     ];
 }
