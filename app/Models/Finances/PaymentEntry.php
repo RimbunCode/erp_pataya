@@ -65,10 +65,10 @@ class PaymentEntry extends Model {
         'accountPaidTo',
         'accountPaidFrom',
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_paid_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
     ];
     public string $translateKey = 'finances.paymentEntry';

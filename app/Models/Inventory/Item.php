@@ -58,7 +58,8 @@ class Item extends Model {
             'order' => 2,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'defaultUnit',
         'image',

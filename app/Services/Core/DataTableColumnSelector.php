@@ -110,7 +110,8 @@ class DataTableColumnSelector {
         $dbColumns = $this->dbColumns($model);
 
         $pk     = $model->getKeyName();
-        $select = [$pk];
+        $table  = $model->getTable();
+        $select = ["{$table}.{$pk}"];
         $with   = [];
 
         foreach (array_keys($safeColumns) as $name) {
@@ -119,7 +120,8 @@ class DataTableColumnSelector {
 
             if ($col === null) {
                 // Tak ada di metadata — bila kolom DB nyata tetap SELECT (mis. id/PK).
-                if (in_array($name, $dbColumns, true)) {
+                // Skip PK — sudah di-select dengan prefix tabel di atas.
+                if ($name !== $pk && in_array($name, $dbColumns, true)) {
                     $select[] = $name;
                 }
 

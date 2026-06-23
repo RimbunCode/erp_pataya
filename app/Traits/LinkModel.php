@@ -64,75 +64,75 @@ trait LinkModel {
 
     public function initializeLinkModel() {
         $this->defaultConfigColumns = array_merge([
-            'is_example' => [
+            'is_example'        => [
                 'ignore' => true,
             ],
-            'created_at' => [
+            'created_at'        => [
                 'titleTrans' => 'core.form.created_at',
             ],
-            'updated_at' => [
+            'updated_at'        => [
                 'titleTrans' => 'core.form.updated_at',
             ],
-            'deleted_at' => [
+            'deleted_at'        => [
                 'titleTrans' => 'core.form.deleted_at',
             ],
-            'canceled_at' => [
+            'canceled_at'       => [
                 'titleTrans' => 'core.form.canceled_at',
             ],
-            'submitted_at' => [
+            'submitted_at'      => [
                 'titleTrans' => 'core.form.submitted_at',
             ],
-            'logs' => [
+            'logs'              => [
                 'titleTrans' => 'core.form.logs',
                 'filter'     => [
                     'type' => 'comment',
                 ],
             ],
-            'tags' => [
+            'tags'              => [
                 'titleTrans' => 'core.form.tags',
             ],
-            'files' => [
+            'files'             => [
                 'titleTrans' => 'core.form.files',
             ],
             'have_transactions' => [
                 'ignore' => true,
             ],
-            'submitted_format' => [
+            'submitted_format'  => [
                 'ignore' => true,
             ],
-            'createdBy' => [
+            'createdBy'         => [
                 'titleTrans' => 'core.form.created_by',
             ],
-            'status' => [
+            'status'            => [
                 'titleTrans' => 'core.form.status',
                 'width'      => 'minimum',
                 'valueTrans' => 'status',
             ],
-            'branch' => [
+            'branch'            => [
                 'titleTrans' => 'core.branch.branch',
             ],
-            'templateLink' => [
+            'templateLink'      => [
                 'ignore' => true,
             ],
-            'additional_data' => [
+            'additional_data'   => [
                 'ignore' => true,
             ],
-            'amendedFrom' => [
+            'amendedFrom'       => [
                 'titleTrans' => 'core.form.amended_from',
             ],
-            'revision_number' => [
+            'revision_number'   => [
                 'ignore' => true,
             ],
-            'lft' => [
+            'lft'               => [
                 'ignore' => true,
             ],
-            'rgt' => [
+            'rgt'               => [
                 'ignore' => true,
             ],
-            'depth' => [
+            'depth'             => [
                 'ignore' => true,
             ],
-            'appendStatus' => [
+            'appendStatus'      => [
                 'ignore' => true,
             ],
         ]);
@@ -157,8 +157,8 @@ trait LinkModel {
             ...static::loadRelationsOnShow() ?? [],
             ...((static::$is_submitable ?? false) ? ['approvalable', 'amendedFrom'] : []),
         ];
-        $relations = (\is_string($relations) ? [$relations] : ($relations ?? []));
-        $relations = [...$defaultRelations, ...$relations];
+        $relations        = (\is_string($relations) ? [$relations] : ($relations ?? []));
+        $relations        = [...$defaultRelations, ...$relations];
 
         $instance = new static;
         $toLoad   = [];
@@ -422,7 +422,7 @@ trait LinkModel {
 
         return [
             // "db_type"   => $type,
-            'name' => $dataColumn['name'],
+            'name'    => $dataColumn['name'],
             // "length"    => $length,    // alias precision untuk decimal/float
             // "precision" => $precision, // panjang digit total
             // "scale"     => $scale,     // digit setelah koma (0 kalau tidak ada)
@@ -474,31 +474,33 @@ trait LinkModel {
     /**
      * Hitung kolom flat 1 model (tanpa rekursi ke relasi anak).
      * Entri relasi disertakan dengan `columns: []`.
-     * Selalu dipanggil dengan includeHidden=true untuk menyimpan superset ke cache.
+     * Selalu dipanggil dengan includeIgnore=true untuk menyimpan superset ke cache.
      *
      * @return array<string, mixed>
      */
-    public static function computeColumnsFlat(bool $includeHidden): array {
-        $hiddenFlags = ['hidden' => true, 'searchable' => false, 'show' => false];
+    public static function computeColumnsFlat(bool $includeIgnore): array {
+        $ignoreFlags = ['ignore' => true, 'hidden' => true, 'searchable' => false, 'show' => false];
 
         $instance      = new static;
         $columns       = Schema::getColumns($instance->getTable());
         $hasStatusCol  = \in_array('status', \array_column($columns, 'name'), true);
         $casts         = $instance->getCasts();
-        $hidden        = [...$instance->getHidden(), ...$instance->getGuarded()];
+        $hiddens       = $instance->getHidden();
+        $guardeds      = $instance->getGuarded();
         $appends       = $instance->getAppends();
         $configColumns = static::mergeConfigColumns(
             $instance->defaultConfigColumns ?? [],
             $instance->configColumns ?? [],
         );
-        $translateKey = $instance->translateKey ?? null;
+        $translateKey  = $instance->translateKey ?? null;
 
         $newColumns = [];
 
         foreach ($columns as $value) {
-            $isHidden = \in_array($value['name'], $hidden, true);
+            $isHidden = \in_array($value['name'], $hiddens, true);
+            $isGuard  = \in_array($value['name'], $guardeds, true);
 
-            if ($isHidden && ! $includeHidden) {
+            if ($isHidden) {
                 continue;
             }
 
@@ -506,7 +508,7 @@ trait LinkModel {
             $config   = static::getColumnConfig($configColumns, $value['name']);
             $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if ($isIgnore && ! $includeHidden) {
+            if ($isIgnore && ! $includeIgnore) {
                 continue;
             }
             if ($col) {
@@ -517,23 +519,24 @@ trait LinkModel {
                     'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
                     ...$config,
                     'primaryKey' => $instance->getKeyName(),
-                    ...(($isIgnore || $isHidden) ? $hiddenFlags : []),
+                    ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
+                    ...($isGuard ? ['ignore' => false] : []),
                 ];
             }
         }
 
         $forcedColumns = \array_filter($configColumns, fn ($col) => $col['forceAppend'] ?? false);
         foreach ($forcedColumns as $key => $config) {
-            $isHidden = \in_array($key, $hidden, true);
+            $isHidden = \in_array($key, $hiddens, true);
 
-            if ($isHidden && ! $includeHidden) {
+            if ($isHidden) {
                 continue;
             }
             $key      = \is_string($key) ? $key : $config;
             $config   = \is_array($config) ? $config : [];
             $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if ($isIgnore && ! $includeHidden) {
+            if ($isIgnore && ! $includeIgnore) {
                 continue;
             }
             $newColumns[$key] = [
@@ -544,20 +547,20 @@ trait LinkModel {
                 'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $key) : null,
                 ...$config,
                 'primaryKey' => $instance->getKeyName(),
-                ...(($isIgnore || $isHidden) ? $hiddenFlags : []),
+                ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }
 
         foreach ($appends as $value) {
-            $isHidden = \in_array($value, $hidden, true);
+            $isHidden = \in_array($value, $hiddens, true);
 
-            if ($isHidden && ! $includeHidden) {
+            if ($isHidden) {
                 continue;
             }
             $config   = static::getColumnConfig($configColumns, $value);
             $isIgnore = isset($config['ignore']) && $config['ignore'];
 
-            if ($isIgnore && ! $includeHidden) {
+            if ($isIgnore && ! $includeIgnore) {
                 continue;
             }
             $baselineDepends = ($value === 'appendStatus' && $hasStatusCol && ! isset($config['dependsOn']))
@@ -573,7 +576,7 @@ trait LinkModel {
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
                 ...$baselineDepends,
                 ...$config,
-                ...(($isIgnore || $isHidden) ? $hiddenFlags : []),
+                ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }
 
@@ -596,12 +599,12 @@ trait LinkModel {
 
             if ($rel instanceof MorphTo) {
                 $newKey = $rel->getRelationName();
-                static::hideOrUnsetForeignKey($newColumns, $rel->getForeignKeyName(), $includeHidden, $hiddenFlags);
-                static::hideOrUnsetForeignKey($newColumns, $rel->getMorphType(), $includeHidden, $hiddenFlags);
+                static::hideOrUnsetForeignKey($newColumns, $rel->getForeignKeyName(), $includeIgnore, $ignoreFlags);
+                static::hideOrUnsetForeignKey($newColumns, $rel->getMorphType(), $includeIgnore, $ignoreFlags);
                 $type         = 'relation';
                 $typeRelation = 'morph';
             } elseif ($rel instanceof BelongsTo) {
-                static::hideOrUnsetForeignKey($newColumns, $rel->getForeignKeyName(), $includeHidden, $hiddenFlags);
+                static::hideOrUnsetForeignKey($newColumns, $rel->getForeignKeyName(), $includeIgnore, $ignoreFlags);
                 $type   = 'relation';
                 $route  = $rel->getRelated()->route;
                 $newKey = Str::snake($key);
@@ -618,7 +621,7 @@ trait LinkModel {
             }
 
             $isIgnore = isset($config['ignore']) && $config['ignore'];
-            if ($isIgnore && ! $includeHidden) {
+            if ($isIgnore && ! $includeIgnore) {
                 continue;
             }
 
@@ -635,7 +638,7 @@ trait LinkModel {
                 'titleTrans'     => $translateKey ? "$translateKey.columns.$newKey" : null,
                 'columns'        => [],
                 ...$config,
-                ...($isIgnore ? $hiddenFlags : []),
+                ...($isIgnore ? $ignoreFlags : []),
             ];
 
             unset($route);
@@ -650,7 +653,7 @@ trait LinkModel {
      * Summary of getColumns
      *
      * @param  int  $maxDepth  0 = unlimited
-     * @param  bool  $includeHidden  true = sertakan FK + kolom `ignore` (ditandai
+     * @param  bool  $includeIgnore  true = sertakan FK + kolom `ignore` (ditandai
      *                               flag hidden/ignore/searchable:false/show:false)
      *                               agar FilterColumnResolver mengenalinya sebagai
      *                               bagian schema. UI tetap meng-gate flag tsb.
@@ -658,18 +661,18 @@ trait LinkModel {
      *                               ignore ter-skip).
      * @param  array[]  $excepts
      */
-    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
         try {
             $flat = DataTableConfigCache::flat(static::class);
         } catch (\Throwable) {
             $flat = static::computeColumnsFlat(true);
         }
 
-        if (! $includeHidden) {
-            $flat = \array_values(\array_filter($flat, fn ($col) => ! ($col['hidden'] ?? false)));
+        if (! $includeIgnore) {
+            $flat = \array_values(\array_filter($flat, fn ($col) => ! ($col['ignore'] ?? false)));
         }
 
-        return static::assembleNested($flat, $maxDepth, $includeHidden, static::class, ...$excepts);
+        return static::assembleNested($flat, $maxDepth, $includeIgnore, static::class, ...$excepts);
     }
 
     /**
@@ -679,7 +682,7 @@ trait LinkModel {
      * @param  string[]  $excepts
      * @return array<string, mixed>
      */
-    private static function assembleNested(array $flat, int $maxDepth, bool $includeHidden, string $selfClass, ...$excepts): array {
+    private static function assembleNested(array $flat, int $maxDepth, bool $includeIgnore, string $selfClass, ...$excepts): array {
         $isContinueGetRelationColumns = $maxDepth == 0 || $maxDepth > 1;
         $childDepth                   = $maxDepth > 1 ? $maxDepth - 1 : $maxDepth;
 
@@ -702,7 +705,7 @@ trait LinkModel {
 
             $childColumns = [];
             if ($isContinueGetRelationColumns && $classRelation && \method_exists($classRelation, 'getColumns')) {
-                $childColumns = $classRelation::getColumns($childDepth, $includeHidden, $selfClass, ...$excepts);
+                $childColumns = $classRelation::getColumns($childDepth, $includeIgnore, $selfClass, ...$excepts);
             }
 
             $result[$col['name']] = [
@@ -716,19 +719,19 @@ trait LinkModel {
 
     /**
      * Sembunyikan atau buang kolom FK relasi dari daftar getColumns.
-     * - default (includeHidden=false): unset kolom (perilaku lama — bersih utk UI).
-     * - includeHidden=true: pertahankan entri tapi tandai flag hidden agar
+     * - default (includeIgnore=false): unset kolom (perilaku lama — bersih utk UI).
+     * - includeIgnore=true: pertahankan entri tapi tandai flag hidden agar
      *   FilterColumnResolver dapat me-resolve FK; UI tetap meng-gate flag hidden.
      *
      * @param  array<string,array<string,mixed>>  $newColumns
-     * @param  array<string,mixed>  $hiddenFlags
+     * @param  array<string,mixed>  $ignoreFlags
      */
-    private static function hideOrUnsetForeignKey(array &$newColumns, string $fkName, bool $includeHidden, array $hiddenFlags): void {
+    private static function hideOrUnsetForeignKey(array &$newColumns, string $fkName, bool $includeIgnore, array $ignoreFlags): void {
         if (! isset($newColumns[$fkName])) {
             return;
         }
-        if ($includeHidden) {
-            $newColumns[$fkName] = [...$newColumns[$fkName], ...$hiddenFlags];
+        if ($includeIgnore) {
+            $newColumns[$fkName] = [...$newColumns[$fkName], ...$ignoreFlags];
         } else {
             unset($newColumns[$fkName]);
         }

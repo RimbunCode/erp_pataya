@@ -86,19 +86,20 @@ class SalesInvoiceItem extends Model {
             'order' => 10,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'exchange_rate' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'price_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'salesInvoice' => [
             'ignore' => true,

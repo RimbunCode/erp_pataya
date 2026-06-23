@@ -81,6 +81,9 @@ class ItemVariant extends Model {
         'image_id' => [
             'ignore' => true,
         ],
+        'conversion_factor' => [
+            'linkable' => true,
+        ],
         'values',
         'item',
         'stocks',
@@ -88,7 +91,8 @@ class ItemVariant extends Model {
         'defaultUnit',
         'category',
         'defaultUom' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
     ];
     public string $formComponent = 'Inventory/Items/FormVariant';

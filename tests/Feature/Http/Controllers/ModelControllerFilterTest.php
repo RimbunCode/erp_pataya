@@ -51,7 +51,7 @@ class FilterEndpointTestRecord extends AppModel {
     }
 
     // Stub getColumns untuk Test
-    public static function getColumns(int $maxDepth = 0, bool $includeHidden = false, ...$excepts): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
         return [
             'name'      => ['name' => 'name', 'type' => 'string', 'searchable' => true],
             'qty'       => ['name' => 'qty', 'type' => 'number', 'searchable' => true],

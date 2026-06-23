@@ -367,6 +367,7 @@ export default memo(function Form() {
           filters: {
             group: normalizedGroup,
           },
+          fields: ["group", "conversion_factor"],
         })
         .then((res) => {
           if (latestGetUnitsRequestRef.current !== requestId) {
@@ -591,6 +592,7 @@ export default memo(function Form() {
               }}
               placeholder={t("inventory.item.columns.attribute.placeholder")}
               value={dataRow.attribute}
+              fields={["values"]}
               {...attributes}
             />
           );

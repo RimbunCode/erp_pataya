@@ -114,28 +114,29 @@ class SalesOrderItem extends Model {
             'order' => 14,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'exchange_rate' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'price_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'basic_amount_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'tax_amount_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'amount_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'salesOrder' => [
             'ignore' => true,

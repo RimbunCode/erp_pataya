@@ -35,13 +35,20 @@ class ItemUnit extends Model {
             'isJoinResult' => true,
         ],
         'is_default' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'is_manual' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'generated_by_default_unit' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
+        ],
+        'conversion_factor' => [
+            'hidden'   => true,
+            'linkable' => true,
         ],
     ];
 
