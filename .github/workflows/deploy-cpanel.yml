@@ -2,7 +2,7 @@ name: Deploy (Zero Downtime + Rollback)
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev-1]
     types: [closed]
   workflow_dispatch:
 
@@ -81,4 +81,8 @@ jobs:
 
             chmod +x .scripts/*.sh
             cd ./.scripts
-            bash ./deploy.sh staging
+            if [ "${{ github.base_ref || github.ref_name }}" == "main" ]; then
+              bash ./deploy.sh production
+            else
+              bash ./deploy.sh staging
+            fi
