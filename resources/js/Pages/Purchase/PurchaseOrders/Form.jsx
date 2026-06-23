@@ -4,7 +4,7 @@ import SelectModel, { loadFromModel } from "@/Components/SelectModel";
 import { calculateArray, generateRandom } from "@/lib/utils";
 
 import AdditionalDiscount from "@/Pages/Finances/Components/AdditionalDiscount";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
@@ -46,7 +46,7 @@ function Form() {
   }, [net_amount, tax_amount]);
 
   const mergeItems = useCallback(
-    (value, model) => {
+    ({ items, model }) => {
       setData((prev) => {
         const oldItems = prev.items ?? [];
 
@@ -58,7 +58,7 @@ function Form() {
           ]),
         );
 
-        value.forEach((item) => {
+        items.forEach((item) => {
           const key = `${model}_${item.id}`;
           const newItem = {
             // ...item,
@@ -98,15 +98,16 @@ function Form() {
   useEffect(() => {
     if (!loadFrom) return;
     const fetchData = async () => {
-      const data = await loadFromModel(
+      const result = await loadFromModel(
         loadFrom?.model,
         loadFrom?.id,
         loadFrom?.select,
+        t,
       );
-      mergeItems(data.value, data.model);
+      if (result) mergeItems(result);
     };
     fetchData().catch(console.error);
-  }, [loadFrom, mergeItems]);
+  }, [loadFrom, mergeItems, t]);
 
   const handleBarcodeSelect = useCallback(
     (selected) => {
@@ -229,7 +230,7 @@ function Form() {
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item}
               readOnly={
@@ -298,7 +299,7 @@ function Form() {
         required: true,
         cell({ data: value, setData, attributes, dataRow }) {
           return (
-            <CurrencyInput
+            <NumberInput
               disabled={!dataRow?.item}
               currencyCode={data?.currency?.code}
               decimalScale={2}
@@ -399,10 +400,16 @@ function Form() {
               label={t("purchase.purchaseOrder.columns.exchange_rate")}
               name="exchange_rate"
             >
-              <CurrencyInput
+              <NumberInput
                 disabled={!data.currency}
                 className="text-left"
-                currencyCode="default"
+                currencyCode={data.currency}
+                enableExchangeRate
+                onExchangeRate={(result) => {
+                  if (result) {
+                    setData("exchange_rate", result.rate);
+                  }
+                }}
                 decimalScale={2}
                 value={data.exchange_rate}
                 onValueChange={(value) => {
@@ -428,7 +435,7 @@ function Form() {
                   filters: {
                     status: "submitted",
                   },
-                  select: {
+                  selects: {
                     items: {
                       filters: {
                         status: "submitted",
@@ -448,7 +455,7 @@ function Form() {
                   filters: {
                     status: "submitted",
                   },
-                  select: {
+                  selects: {
                     items: {
                       filters: {
                         status: "submitted",
@@ -536,11 +543,12 @@ function Form() {
                 readOnly
                 label={`${t("purchase.purchaseOrder.columns.basic_amount")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={net_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -548,12 +556,12 @@ function Form() {
             label={`${t("purchase.purchaseOrder.columns.basic_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               className="text-right"
               value={net_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
@@ -561,11 +569,12 @@ function Form() {
                 readOnly
                 label={`${t("purchase.purchaseOrder.columns.tax_amount")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={tax_amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -573,12 +582,12 @@ function Form() {
             label={`${t("purchase.purchaseOrder.columns.tax_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               decimalScale={2}
               className="text-right"
               value={tax_amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
           {data?.currency?.code &&
             data?.currency?.code !== default_currency_id && (
@@ -586,11 +595,12 @@ function Form() {
                 readOnly
                 label={`${t("purchase.purchaseOrder.columns.total")} (${default_currency_id.toUpperCase()})`}
               >
-                <CurrencyInput
+                <NumberInput
                   className="text-right"
+                  decimalScale={2}
                   value={amount * (data?.exchange_rate ?? 1)}
                   currencyCode="default"
-                ></CurrencyInput>
+                ></NumberInput>
               </FormInput>
             )}
           <FormInput
@@ -598,12 +608,12 @@ function Form() {
             label={`${t("purchase.purchaseOrder.columns.total")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
             className="col-start-2"
           >
-            <CurrencyInput
+            <NumberInput
               className="text-right"
               decimalScale={2}
               value={amount}
               currencyCode={data?.currency?.code ?? "default"}
-            ></CurrencyInput>
+            ></NumberInput>
           </FormInput>
         </div>
       </FormPageContent>

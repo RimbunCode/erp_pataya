@@ -19,7 +19,7 @@ import {
 import { Button } from "@/Components/ui/button";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
-import { Input } from "@/Components/ui/input";
+import NumberInput from "@/Components/NumberInput";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -94,13 +94,15 @@ export default memo(
             </FormInput>
             {(rule.model?.allow_only_creator ?? rule.model?.is_submitable) && (
               <FormInput label={t("user.role.columns.level")}>
-                <Input
-                  type="number"
+                <NumberInput
+                  className="text-left"
+                  allowDecimals={false}
+                  decimalScale={0}
                   value={rule.level}
-                  onChange={(e) => {
+                  onValueChange={(val) => {
                     setRule((prev) => ({
                       ...prev,
-                      level: e.target.value,
+                      level: val,
                     }));
                   }}
                   min={0}

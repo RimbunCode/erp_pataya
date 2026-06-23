@@ -16,7 +16,10 @@ class CurrencyFactory extends Factory {
      */
     public function definition(): array {
         return [
-            //
+            'code'          => strtoupper(fake()->unique()->lexify('???')),
+            'name'          => fake()->word() . ' currency',
+            'symbol'        => fake()->randomElement(['$', '€', '£', '¥', 'Rp']),
+            'number_format' => '#,###.##',
         ];
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Models\Purchase;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
@@ -48,8 +48,9 @@ class PurchaseRequest extends Model {
             'order' => 2,
         ],
         'status' => [
-            'show'  => true,
-            'order' => 3,
+            'show'      => true,
+            'order'     => 3,
+            'dependsOn' => ['status', 'items.quantity', 'items.ordered_quantity'],
         ],
         'items' => [
             'show'  => true,

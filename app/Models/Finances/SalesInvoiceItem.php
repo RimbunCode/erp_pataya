@@ -2,15 +2,23 @@
 
 namespace App\Models\Finances;
 
+use App\Enums\Permission;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
+use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesInvoiceItem extends Model {
     use HasUlids, SoftDeletes;
+
+    /** Izin lihat kolom harga jual: pembuat SalesOrder atau SalesInvoice. */
+    private const PRICE_VISIBILITY = [
+        [SalesOrder::class, [Permission::Write, Permission::Create]],
+        [SalesInvoice::class, [Permission::Write, Permission::Create]],
+    ];
 
     public static $parentRelation  = 'salesInvoice';
     public string $translateKey    = 'finances.salesInvoice.item';
@@ -32,14 +40,18 @@ class SalesInvoiceItem extends Model {
             'order' => 2,
         ],
         'price' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 3,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 3,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'basic_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 4,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 4,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'tax' => [
             'type'  => 'relation',
@@ -47,14 +59,17 @@ class SalesInvoiceItem extends Model {
             'order' => 5,
         ],
         'tax_rate' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 6,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 6,
+            'linkable' => true,
         ],
         'tax_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 7,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 7,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'description' => [
             'show'  => false,
@@ -71,19 +86,20 @@ class SalesInvoiceItem extends Model {
             'order' => 10,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'exchange_rate' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'price_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'salesInvoice' => [
             'ignore' => true,

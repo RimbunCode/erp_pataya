@@ -1,10 +1,4 @@
 import {
-  Alert,
-  AlertIcon,
-  AlertTitle,
-  AlertToolbar,
-} from "@/Components/ui/alert";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -27,7 +21,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/Components/ui/collapsible";
-import { Deferred, Head, WhenVisible, usePage } from "@inertiajs/react";
+import { Deferred, Head, WhenVisible, router, usePage } from "@inertiajs/react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -70,7 +64,6 @@ import FormInput from "@/Components/FormInput";
 import Link from "@/Components/Link";
 import LinkModel from "@/Components/LinkModel";
 import LoadingIcon from "@/Components/LoadingIcon";
-import { RiErrorWarningFill } from "@remixicon/react";
 import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
@@ -78,7 +71,7 @@ import { convertTemplateLink } from "@/lib/linkModelUtils";
 import { evaluate } from "@marcbachmann/cel-js";
 import { format } from "date-fns";
 import pluralize from "pluralize";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsDirtyForm } from "@/Hooks/useIsDirtyForm";
@@ -674,6 +667,7 @@ const FormPage = memo(
       banner,
       printable: _printable,
       usePasswordConfirmationForDelete,
+      primaryKey = "id",
     },
     ref,
   ) {
@@ -717,9 +711,15 @@ const FormPage = memo(
       (e) => {
         e.preventDefault();
         if (e.action == "submit") {
-          put(route(`${pluralize.plural(name ?? "")}.submit`, defaultData.id), {
-            isSubmit: true,
-          });
+          put(
+            route(
+              `${pluralize.plural(name ?? "")}.submit`,
+              defaultData[primaryKey],
+            ),
+            {
+              isSubmit: true,
+            },
+          );
           return;
         }
 
@@ -736,7 +736,12 @@ const FormPage = memo(
         }
 
         form.transform((payload) => payload);
-        put(route(`${pluralize.plural(name ?? "")}.update`, defaultData.id));
+        put(
+          route(
+            `${pluralize.plural(name ?? "")}.update`,
+            defaultData[primaryKey],
+          ),
+        );
       },
       [route, name, isCreate, defaultData, data, form],
     );
@@ -807,10 +812,17 @@ const FormPage = memo(
       setShowAlertBeforeCancel(true);
     }, []);
     const onCancel = useCallback(() => {
-      put(route(`${pluralize.plural(name ?? "")}.cancel`, defaultData.id));
+      put(
+        route(
+          `${pluralize.plural(name ?? "")}.cancel`,
+          defaultData[primaryKey],
+        ),
+      );
     }, []);
     const amend = useCallback(() => {
-      put(route(`${pluralize.plural(name ?? "")}.amend`, defaultData.id));
+      put(
+        route(`${pluralize.plural(name ?? "")}.amend`, defaultData[primaryKey]),
+      );
     }, []);
     return (
       <AppLayout
@@ -886,7 +898,7 @@ const FormPage = memo(
                         <Link
                           href={route(
                             `${pluralize.plural(name ?? "")}.print`,
-                            defaultData.id,
+                            defaultData[primaryKey],
                           )}
                         >
                           <PrinterIcon />
@@ -900,38 +912,19 @@ const FormPage = memo(
                         className="p-2! size-fit h-8"
                         disabled={processing}
                         onClick={() => {
-                          toast.custom(
-                            (e) => (
-                              <Alert
-                                variant="destructive"
-                                icon="destructive"
-                                onClose={() => toast.dismiss(e)}
-                              >
-                                <AlertIcon>
-                                  <RiErrorWarningFill />
-                                </AlertIcon>
-                                <AlertTitle>
-                                  {t("core.form.print.errors.no_template")}
-                                </AlertTitle>
-                                <AlertToolbar>
-                                  <Button>
-                                    <Link
-                                      href={route(
-                                        `${pluralize.plural(name ?? "")}.createPrintTemplate`,
-                                      )}
-                                    >
-                                      {t(
-                                        "core.form.print.errors.no_template.create",
-                                      )}
-                                    </Link>
-                                  </Button>
-                                </AlertToolbar>
-                              </Alert>
-                            ),
-                            {
-                              duration: 5000,
+                          toast.error(t("core.form.print.errors.no_template"), {
+                            action: {
+                              label: t(
+                                "core.form.print.errors.no_template.create",
+                              ),
+                              onClick: () =>
+                                router.visit(
+                                  route(
+                                    `${pluralize.plural(name ?? "")}.createPrintTemplate`,
+                                  ),
+                                ),
                             },
-                          );
+                          });
                         }}
                       >
                         <PrinterIcon />
@@ -958,7 +951,7 @@ const FormPage = memo(
                                 href={route(
                                   `${pluralize.plural(name ?? "")}.print`,
                                   {
-                                    [name]: defaultData.id,
+                                    [name]: defaultData[primaryKey],
                                     printTemplate: print.id,
                                   },
                                 )}
@@ -1002,7 +995,7 @@ const FormPage = memo(
                     onClick={() =>
                       deleteItem(
                         `${pluralize.plural(name ?? "")}.destroy`,
-                        defaultData.id,
+                        defaultData[primaryKey],
                         {
                           usePasswordConfirmation:
                             usePasswordConfirmationForDelete,
@@ -1237,71 +1230,6 @@ const FormPage = memo(
     );
   }),
 );
-
-// const Connections = memo(
-//   forwardRef(function Connections(_, ref) {
-//     const route = window.route;
-//     const { t } = useLaravelReactI18n();
-//     const { connections } = usePage().props;
-//     const LoadingIndicator = useMemo(() => {
-//       return (
-//         <div className="text-base! font-normal text-foreground flex gap-x-4">
-//           <LoadingIcon className="size-4" />
-//           <span>{t("core.form.loading")} ...</span>
-//         </div>
-//       );
-//     }, [t]);
-//     return (
-//       <TabsContent value="connections" className="mt-0" ref={ref}>
-//         <div className="p-4 mt-0! border-b-0">
-//           <WhenVisible data={["connections"]} fallback={LoadingIndicator}>
-//             <div className="columns-sm space-y-4 gap-x-4">
-//               {connections &&
-//                 connections?.map((connection) => {
-//                   return (
-//                     <HoverCard key={connection.reference_type}>
-//                       <HoverCardTrigger asChild>
-//                         <Link
-//                           className="badge secondary gap-x-2 shadow-md"
-//                           href={route(connection.route)}
-//                         >
-//                           {connection.model}
-//                           <span className="rounded-full size-6 flex justify-center items-center bg-foreground/90 text-muted!">
-//                             {connection.count}
-//                           </span>
-//                         </Link>
-//                       </HoverCardTrigger>
-//                       <HoverCardContent
-//                         className="max-w-full sm:max-w-80 w-auto"
-//                         side="right"
-//                         align="start"
-//                       >
-//                         <ScrollArea className="max-h-96">
-//                           {connection.items?.map((item) => {
-//                             return (
-//                               <div key={item.id}>
-//                                 <Link
-//                                   href={route(item.route, item.reference_id)}
-//                                   className="text-blue-800 dark:text-blue-200 hover:underline"
-//                                 >
-//                                   {item.reference_display}
-//                                 </Link>
-//                               </div>
-//                             );
-//                           })}
-//                         </ScrollArea>
-//                         <HoverCardArrow />
-//                       </HoverCardContent>
-//                     </HoverCard>
-//                   );
-//                 })}
-//             </div>
-//           </WhenVisible>
-//         </div>
-//       </TabsContent>
-//     );
-//   }),
-// );
 
 const ApprovalActedByDetail = memo(function ApprovalActedByDetail({
   acted_by,

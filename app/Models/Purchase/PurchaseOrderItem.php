@@ -2,6 +2,8 @@
 
 namespace App\Models\Purchase;
 
+use App\Enums\Permission;
+use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
@@ -12,6 +14,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseOrderItem extends Model {
     use HasUlids, SoftDeletes;
+
+    /** Izin lihat kolom harga beli: pembuat PurchaseOrder atau PurchaseInvoice. */
+    private const PRICE_VISIBILITY = [
+        [PurchaseOrder::class, [Permission::Write, Permission::Create]],
+        [PurchaseInvoice::class, [Permission::Write, Permission::Create]],
+    ];
 
     public static $parentRelation = 'purchaseOrder';
     public string $translateKey   = 'purchase.purchaseOrder.item';
@@ -36,14 +44,18 @@ class PurchaseOrderItem extends Model {
             'order' => 2,
         ],
         'rate' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 3,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 3,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'basic_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 4,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 4,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'tax' => [
             'type'  => 'relation',
@@ -51,19 +63,24 @@ class PurchaseOrderItem extends Model {
             'order' => 5,
         ],
         'tax_rate' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 6,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 6,
+            'linkable' => true,
         ],
         'tax_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 7,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 7,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 8,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 8,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'targetWarehouse' => [
             'type'  => 'relation',
@@ -100,7 +117,8 @@ class PurchaseOrderItem extends Model {
             'order' => 15,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'item_name' => [
             'ignore' => true,

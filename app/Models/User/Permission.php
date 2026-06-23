@@ -16,16 +16,23 @@ class Permission extends Model {
         'is_submitable'      => 'boolean',
         'allow_only_creator' => 'boolean',
     ];
-    protected $appends = ['translateKey'];
+    protected $appends             = ['translateKey'];
+    protected array $configColumns = [
+        'translateKey' => [
+            'dependsOn' => ['model'],
+        ],
+    ];
 
     public static function templateLink() {
         return '<title>:name</title><b>:name</b><br/><span>:module</span>';
     }
 
     protected function getTranslateKeyAttribute() {
-        $model    = $this->model;
-        $instance = new $model;
+        $model = $this->model;
+        if (! is_string($model) || ! class_exists($model)) {
+            return null;
+        }
 
-        return $instance->translateKey;
+        return (new $model)->translateKey;
     }
 }

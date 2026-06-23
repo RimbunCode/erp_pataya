@@ -46,4 +46,9 @@ return [
         'redirect'      => env('GOOGLE_REDIRECT', config('app.url') . '/auth/google/callback'),
     ],
 
+    'restcountries' => [
+        'key' => env('RC_API_KEY'),
+        'url' => 'https://api.restcountries.com/countries/v5',
+    ],
+
 ];

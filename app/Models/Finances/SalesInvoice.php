@@ -77,16 +77,16 @@ class SalesInvoice extends Model {
             'ignore' => true,
         ],
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_outstanding_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_paid_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'customer_branch_name' => [
             'ignore' => true,
@@ -101,6 +101,7 @@ class SalesInvoice extends Model {
             'show'  => true,
             'order' => 10,
         ],
+        'paymentSchedules',
     ];
 
     protected static function loadRelationsOnShow() {

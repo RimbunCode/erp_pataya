@@ -16,7 +16,7 @@ import { WhenVisible, usePage } from "@inertiajs/react";
 
 import AttributeLinkModel from "../Attributes/AttributeLinkModel";
 import { Checkbox } from "@/Components/ui/checkbox";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import FormBarcodes from "./FormBarcodes";
 import FormDetail from "./FormDetail";
 import FormInput from "@/Components/FormInput";
@@ -367,6 +367,7 @@ export default memo(function Form() {
           filters: {
             group: normalizedGroup,
           },
+          fields: ["group", "conversion_factor"],
         })
         .then((res) => {
           if (latestGetUnitsRequestRef.current !== requestId) {
@@ -496,7 +497,7 @@ export default memo(function Form() {
         required: true,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.code}
               readOnly={attributes.disabled || !dataRow?.isCustom}
@@ -591,6 +592,7 @@ export default memo(function Form() {
               }}
               placeholder={t("inventory.item.columns.attribute.placeholder")}
               value={dataRow.attribute}
+              fields={["values"]}
               {...attributes}
             />
           );

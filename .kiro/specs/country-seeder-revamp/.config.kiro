@@ -1,0 +1,6 @@
+{
+  "specId": "a951017e-731f-4944-a45b-59ac6a4ce992",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Perbaiki CountrySeeder dari API restcountries v3.1 (usang) ke v5. Perluas schema countries & currencies dengan field baru. Tambah halaman CRUD Countries & Currencies di module Core/Settings."
+}

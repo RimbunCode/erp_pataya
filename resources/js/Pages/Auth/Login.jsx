@@ -21,7 +21,6 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 export default function Login({ errors }) {
   const { t, loading } = useLaravelReactI18n();
   const route = window.route;
-  // const { addToast } = useToasts();
   const { data, setData, post, processing, reset } = useForm({
     usernameOrEmail: "",
     password: "",

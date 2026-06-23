@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Service\WorkOrders;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Service\WorkOrder;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -121,4 +121,3 @@ class WorkOrderMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

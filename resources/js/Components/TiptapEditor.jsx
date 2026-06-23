@@ -43,7 +43,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import TiptapMentionList from "./TiptapMentionList";
 import Underline from "@tiptap/extension-underline";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function ToolbarButton({ onClick, active, disabled, title, children }) {

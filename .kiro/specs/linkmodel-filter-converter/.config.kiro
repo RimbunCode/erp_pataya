@@ -1,0 +1,6 @@
+{
+  "specId": "7f20e516-e21a-40a7-80c8-5fb4356092f8",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Upgrade ModelController::filterToQuery agar setara FilterEvaluator dengan mengonversi tree LinkModel ke format {root:{k,o,v,c}} lalu delegasi ke FilterEvaluator. Termasuk helper konversi PHP & JS (dua arah) yang renderable di FilterBuilder."
+}

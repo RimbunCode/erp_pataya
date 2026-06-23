@@ -62,7 +62,7 @@ import Table2 from "@/Components/Table/Table2";
 import axios from "axios";
 import { createFilterGroup, createFilterItem } from "@/Hooks/useNestedFilters";
 import pluralize from "pluralize";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import useDeleteModal from "@/Hooks/useDeleteModal";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useIsMobile } from "@/Hooks/use-mobile";
@@ -244,6 +244,9 @@ export default memo(
       (t, columns, parentColumn) => {
         let newColumns = {};
         Object.values(columns ?? {}).forEach((col) => {
+          // FK/ignored cols (flag hidden/ignore) tak pernah dirender di UI —
+          // skip di hulu agar tabel, Sort list, & ColumnsFilter semua bersih.
+          if (col.hidden || col.ignore) return;
           const title = col.title ?? t(col.titleTrans);
           const colName = !parentColumn
             ? col.name

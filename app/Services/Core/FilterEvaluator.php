@@ -42,10 +42,12 @@ class FilterEvaluator {
     ];
 
     private FilterColumnResolver $resolver;
+    private bool $allowNonSearchable;
 
     /** @param array<string,array<string,mixed>> $columns hasil Model::getColumns(), keyed by name */
-    public function __construct(private array $columns) {
-        $this->resolver = new FilterColumnResolver($columns);
+    public function __construct(private array $columns, bool $allowNonSearchable = false) {
+        $this->resolver           = new FilterColumnResolver($columns);
+        $this->allowNonSearchable = $allowNonSearchable;
     }
 
     /**
@@ -112,11 +114,18 @@ class FilterEvaluator {
             return; // kolom tidak ter-resolve
         }
         $column = $path['column'];
-        if (($column['searchable'] ?? true) === false) {
+        if (! $this->allowNonSearchable && ($column['searchable'] ?? true) === false) {
             return; // whitelist kolom
         }
-        if (! $this->isOperatorValid($column, $op)) {
+        if (! $this->isOperatorValid($column, $op, $value)) {
             return; // whitelist operator
+        }
+
+        // Column comparison mode: value is { kind: "column", ref: ... }
+        if (is_array($value) && ($value['kind'] ?? null) === 'column') {
+            $this->applyColumnComparison($query, $path, $op, $value, $boolean);
+
+            return;
         }
 
         // Key dot-notation pada kolom DALAM relasi (mis. "category.type"):
@@ -139,9 +148,18 @@ class FilterEvaluator {
             return;
         }
 
+        // formStatuses (JSON array) — whereJsonContains
+        if ($type === 'formStatuses') {
+            $normBase   = ($base === 'has') ? 'in' : $base;
+            $normNegate = ($op === '!has') ? true : $negate;
+            $this->applyJsonArray($query, $this->qualifiedColumn($key), $normBase, $normNegate, $value, $boolean);
+
+            return;
+        }
+
         // Period (date/datetime)
         if ($base === 'in_period') {
-            $this->applyPeriod($query, $this->qualifiedColumn($key), $value, $negate, $boolean);
+            $this->applyPeriod($query, $this->qualifiedColumn($key), $type, $value, $negate, $boolean);
 
             return;
         }
@@ -165,11 +183,29 @@ class FilterEvaluator {
         $negate = $op !== '!=' && str_starts_with($op, '!');
         $base   = $negate ? substr($op, 1) : $op;
 
+        // Column comparison mode (right side may also be in a relation).
+        if (is_array($value) && ($value['kind'] ?? null) === 'column') {
+            $this->applyColumnComparison($query, $path, $op, $value, $boolean);
+
+            return;
+        }
+
+        // formStatuses (JSON array) — normalize has→in / !has→!in
+        if ($type === 'formStatuses') {
+            $base   = ($base === 'has') ? 'in' : $base;
+            $negate = ($op === '!has') ? true : $negate;
+        }
+
         // Closure terdalam: kondisi pada kolom akhir (nama relatif terhadap
         // tabel relasi terdalam) — pakai boolean "and" di dalam scope relasi.
         $leaf = function (Builder $q) use ($columnName, $type, $base, $negate, $value): void {
             if ($base === 'in_period') {
-                $this->applyPeriod($q, $columnName, $value, $negate, 'and');
+                $this->applyPeriod($q, $columnName, $type, $value, $negate, 'and');
+
+                return;
+            }
+            if ($type === 'formStatuses' && in_array($base, ['in'], true)) {
+                $this->applyJsonArray($q, $columnName, $base, $negate, $value, 'and');
 
                 return;
             }
@@ -189,6 +225,346 @@ class FilterEvaluator {
         $outerRelation = $relations[0]['function'];
         $method        = $this->method($boolean, 'whereHas');
         $query->{$method}($outerRelation, $callback);
+    }
+
+    // ---- Column comparison handlers -------------------------------------
+
+    /**
+     * Bandingkan kolom kiri dengan kolom kanan (mode column).
+     * Value berbentuk { kind: "column", ref: <key|key[]> }.
+     *
+     * @param  array{relations:list<array{function:string,isMorph:bool}>,column:array<string,mixed>,columnName:string}  $leftPath
+     * @param  array{kind:string,ref:string|list<string>}  $value
+     */
+    private function applyColumnComparison(Builder $query, array $leftPath, string $op, array $value, string $boolean): void {
+        $refs = $value['ref'] ?? null;
+        $refs = is_array($refs) ? $refs : ($refs !== null ? [$refs] : []);
+        if (empty($refs)) {
+            return;
+        }
+
+        $leftType = $leftPath['column']['type'] ?? 'string';
+        $negate   = $op !== '!=' && str_starts_with($op, '!');
+        $base     = $negate ? substr($op, 1) : $op;
+
+        // in_period/set/!set tidak valid di mode column
+        if (in_array($base, ['in_period', 'set'], true)) {
+            return;
+        }
+
+        // Resolve tiap ref; drop yang tidak valid / tidak searchable / tidak type-compat
+        $resolvedRefs = [];
+        foreach ($refs as $ref) {
+            if (! is_string($ref) || $ref === '') {
+                continue;
+            }
+            $refPath = $this->resolver->resolvePath($ref, null);
+            if ($refPath === null) {
+                continue;
+            }
+            if (($refPath['column']['searchable'] ?? true) === false) {
+                continue;
+            }
+            $refType = $refPath['column']['type'] ?? 'string';
+            if (! $this->isTypeCompatible($leftType, $refType)) {
+                continue;
+            }
+            $resolvedRefs[] = $refPath;
+        }
+        if (empty($resolvedRefs)) {
+            return;
+        }
+
+        // Validasi jumlah ref sesuai operator
+        $requiredCount = match ($base) {
+            'in'      => null, // ≥1
+            'between' => 2,
+            default   => 1,
+        };
+        if ($requiredCount !== null && count($resolvedRefs) !== $requiredCount) {
+            return;
+        }
+        if ($base === 'in' && count($resolvedRefs) < 1) {
+            return;
+        }
+
+        $leftCross  = ! empty($leftPath['relations']);
+        $rightCross = false;
+        foreach ($resolvedRefs as $rp) {
+            if (! empty($rp['relations'])) {
+                $rightCross = true;
+
+                break;
+            }
+        }
+
+        if (! $leftCross && ! $rightCross) {
+            $this->applySameTable($query, $leftPath['columnName'], $base, $negate, $resolvedRefs, $boolean);
+        } else {
+            $this->applyCrossTable($query, $leftPath, $base, $negate, $resolvedRefs, $boolean);
+        }
+    }
+
+    /**
+     * Perbandingan kolom pada tabel yang sama memakai whereColumn.
+     *
+     * @param  list<array{relations:list<array{function:string,isMorph:bool}>,column:array<string,mixed>,columnName:string}>  $refs
+     */
+    private function applySameTable(Builder $query, string $leftCol, string $base, bool $negate, array $refs, string $boolean): void {
+        switch ($base) {
+            case 'in':
+                $query->{$this->method($boolean, $negate ? 'whereNot' : 'where')}(function (Builder $q) use ($leftCol, $refs) {
+                    foreach ($refs as $i => $ref) {
+                        $q->whereColumn($leftCol, '=', $ref['columnName'], $i === 0 ? 'and' : 'or');
+                    }
+                });
+
+                return;
+            case 'between':
+                if (count($refs) !== 2) {
+                    return;
+                }
+                $query->{$this->method($boolean, $negate ? 'whereNot' : 'where')}(function (Builder $q) use ($leftCol, $refs) {
+                    $q->whereColumn($leftCol, '>=', $refs[0]['columnName'])
+                        ->whereColumn($leftCol, '<=', $refs[1]['columnName']);
+                });
+
+                return;
+            default:
+                // = != > >= < <=
+                $operator = $this->comparisonOperator($base);
+                $query->{$this->method($boolean, 'whereColumn')}($leftCol, $operator, $refs[0]['columnName']);
+        }
+    }
+
+    /**
+     * Perbandingan kolom lintas tabel memakai correlated subquery (nested whereHas)
+     * dengan nama kolom terkualifikasi tabel agar referensi tabel luar valid.
+     *
+     * @param  array{relations:list<array{function:string,isMorph:bool}>,column:array<string,mixed>,columnName:string}  $leftPath
+     * @param  list<array{relations:list<array{function:string,isMorph:bool}>,column:array<string,mixed>,columnName:string}>  $refs
+     */
+    private function applyCrossTable(Builder $query, array $leftPath, string $base, bool $negate, array $refs, string $boolean): void {
+        $baseTableName = $query->getModel()->getTable();
+        $leftColName   = $leftPath['columnName'];
+        $leftHasRel    = ! empty($leftPath['relations']);
+
+        // Closure kondisi di leaf whereHas — bandingkan kolom terkualifikasi.
+        $buildLeaf = function (Builder $q, string $qualifiedLeftCol) use ($base, $negate, $refs): void {
+            switch ($base) {
+                case 'in':
+                    if ($negate) {
+                        $q->whereNot(function (Builder $inner) use ($qualifiedLeftCol, $refs) {
+                            foreach ($refs as $i => $r) {
+                                $rTable = $inner->getModel()->getTable();
+                                $rCol   = "{$rTable}.{$r['columnName']}";
+                                $inner->whereColumn($qualifiedLeftCol, '=', $rCol, $i === 0 ? 'and' : 'or');
+                            }
+                        });
+                    } else {
+                        foreach ($refs as $i => $r) {
+                            $rTable = $q->getModel()->getTable();
+                            $rCol   = "{$rTable}.{$r['columnName']}";
+                            $q->whereColumn($qualifiedLeftCol, '=', $rCol, $i === 0 ? 'and' : 'or');
+                        }
+                    }
+
+                    return;
+                case 'between':
+                    if (count($refs) !== 2) {
+                        return;
+                    }
+                    $apply = function (Builder $inner) use ($qualifiedLeftCol, $refs) {
+                        $rTable = $inner->getModel()->getTable();
+                        $inner->whereColumn($qualifiedLeftCol, '>=', "{$rTable}.{$refs[0]['columnName']}")
+                            ->whereColumn($qualifiedLeftCol, '<=', "{$rTable}.{$refs[1]['columnName']}");
+                    };
+                    if ($negate) {
+                        $q->whereNot($apply);
+                    } else {
+                        $apply($q);
+                    }
+
+                    return;
+                default:
+                    $rTable   = $q->getModel()->getTable();
+                    $rightCol = "{$rTable}.{$refs[0]['columnName']}";
+                    $operator = $this->comparisonOperator($base);
+                    $q->whereColumn($qualifiedLeftCol, $operator, $rightCol);
+            }
+        };
+
+        // Case 1: Right side in relation → whereHas dari kanan
+        $rightHasRel = false;
+        foreach ($refs as $rp) {
+            if (! empty($rp['relations'])) {
+                $rightHasRel = true;
+
+                break;
+            }
+        }
+
+        if ($rightHasRel) {
+            $firstRef  = $refs[0];
+            $rightRels = $firstRef['relations'];
+
+            // Qualified left: prefix base table (atau relation table bila kiri juga di relasi)
+            if ($leftHasRel) {
+                $leftRelTable     = $query->getModel()->getTable();
+                $qualifiedLeftCol = "{$leftRelTable}.{$leftColName}";
+            } else {
+                $qualifiedLeftCol = "{$baseTableName}.{$leftColName}";
+            }
+
+            $leaf = function (Builder $q) use ($buildLeaf, $qualifiedLeftCol): void {
+                $buildLeaf($q, $qualifiedLeftCol);
+            };
+
+            $callback = $leaf;
+            for ($i = count($rightRels) - 1; $i >= 1; $i--) {
+                $rel      = $rightRels[$i]['function'];
+                $inner    = $callback;
+                $callback = function (Builder $q) use ($rel, $inner): void {
+                    $q->whereHas($rel, $inner);
+                };
+            }
+
+            $outerRel = $rightRels[0]['function'];
+            $method   = $this->method($boolean, 'whereHas');
+            $query->{$method}($outerRel, $callback);
+
+            return;
+        }
+
+        // Case 2: Left side in relation only → whereHas dari kiri
+        if ($leftHasRel) {
+            $leftRels = $leftPath['relations'];
+
+            $leaf = function (Builder $q) use ($buildLeaf, $leftColName) {
+                // Di dalam whereHas kiri: left col relatif, right col di base table (qualified)
+                $buildLeaf($q, $leftColName);
+            };
+
+            // Override buildLeaf untuk qualify right column dengan base table
+            $buildLeafQualified = function (Builder $q, string $qualifiedLeftCol) use ($base, $negate, $refs, $baseTableName): void {
+                switch ($base) {
+                    case 'in':
+                        if ($negate) {
+                            $q->whereNot(function (Builder $inner) use ($qualifiedLeftCol, $refs, $baseTableName) {
+                                foreach ($refs as $i => $r) {
+                                    $rCol = "{$baseTableName}.{$r['columnName']}";
+                                    $inner->whereColumn($qualifiedLeftCol, '=', $rCol, $i === 0 ? 'and' : 'or');
+                                }
+                            });
+                        } else {
+                            foreach ($refs as $i => $r) {
+                                $rCol = "{$baseTableName}.{$r['columnName']}";
+                                $q->whereColumn($qualifiedLeftCol, '=', $rCol, $i === 0 ? 'and' : 'or');
+                            }
+                        }
+
+                        return;
+                    case 'between':
+                        if (count($refs) !== 2) {
+                            return;
+                        }
+                        $apply = function (Builder $inner) use ($qualifiedLeftCol, $refs, $baseTableName) {
+                            $inner->whereColumn($qualifiedLeftCol, '>=', "{$baseTableName}.{$refs[0]['columnName']}")
+                                ->whereColumn($qualifiedLeftCol, '<=', "{$baseTableName}.{$refs[1]['columnName']}");
+                        };
+                        if ($negate) {
+                            $q->whereNot($apply);
+                        } else {
+                            $apply($q);
+                        }
+
+                        return;
+                    default:
+                        $rightCol = "{$baseTableName}.{$refs[0]['columnName']}";
+                        $operator = $this->comparisonOperator($base);
+                        $q->whereColumn($qualifiedLeftCol, $operator, $rightCol);
+                }
+            };
+
+            $leaf = function (Builder $q) use ($buildLeafQualified, $leftColName): void {
+                $buildLeafQualified($q, $leftColName);
+            };
+
+            $callback = $leaf;
+            for ($i = count($leftRels) - 1; $i >= 1; $i--) {
+                $rel      = $leftRels[$i]['function'];
+                $inner    = $callback;
+                $callback = function (Builder $q) use ($rel, $inner): void {
+                    $q->whereHas($rel, $inner);
+                };
+            }
+
+            $outerRel = $leftRels[0]['function'];
+            $method   = $this->method($boolean, 'whereHas');
+            $query->{$method}($outerRel, $callback);
+        }
+    }
+
+    // ---- Type compatibility ----------------------------------------------
+
+    /**
+     * Cek kompatibilitas type kolom kiri & kanan untuk mode column.
+     * Kategori: numeric(number/currency), string, date(date/datetime), time, boolean.
+     */
+    private function isTypeCompatible(string $leftType, string $rightType): bool {
+        $categorize = function (string $type): string {
+            return match ($type) {
+                'number', 'currency'         => 'numeric',
+                'string'                     => 'string',
+                'date', 'datetime'           => 'date',
+                'time'                       => 'time',
+                'boolean'                    => 'boolean',
+                'relation', 'relations'      => 'relation',
+                'formStatus', 'formStatuses' => 'status',
+                'enum'                       => 'enum',
+                default                      => $type,
+            };
+        };
+
+        return $categorize($leftType) === $categorize($rightType);
+    }
+
+    // ---- JSON array handler ----------------------------------------------
+
+    /**
+     * Filter kolom JSON array (formStatuses) memakai whereJsonContains.
+     * Operator sudah dinormalisasi: has→in, !has→!in.
+     */
+    private function applyJsonArray(Builder $query, string $col, string $base, bool $negate, mixed $value, string $boolean): void {
+        $values = $this->toList($value);
+        if (empty($values)) {
+            return;
+        }
+
+        // base === 'in' (sudah dinormalisasi dari 'has')
+        if ($base === 'in') {
+            if (! $negate) {
+                // in/has: baris yang JSON array-nya memuat minimal salah satu value
+                $query->{$this->method($boolean, 'where')}(function (Builder $q) use ($col, $values) {
+                    foreach ($values as $i => $v) {
+                        $q->whereJsonContains($col, $v, boolean: $i === 0 ? 'and' : 'or');
+                    }
+                });
+            } else {
+                // !in/!has: baris yang JSON array-nya tidak memuat satupun value.
+                // (tags IS NULL) OR (doesntContain(a) AND doesntContain(b) ...):
+                // di MySQL json_contains(NULL,..) = NULL → NOT NULL = NULL, jadi
+                // baris NULL tereksklusi tanpa cabang IS NULL eksplisit. Semantik
+                // "tidak memuat satupun" mengharuskan NULL/tak-ada ikut match.
+                $query->{$this->method($boolean, 'where')}(function (Builder $q) use ($col, $values) {
+                    $q->whereNull($col)->orWhere(function (Builder $w) use ($col, $values) {
+                        foreach ($values as $v) {
+                            $w->whereJsonDoesntContain($col, $v);
+                        }
+                    });
+                });
+            }
+        }
     }
 
     // ---- Scalar handlers ------------------------------------------------
@@ -336,7 +712,7 @@ class FilterEvaluator {
      *
      * @param  array<string,mixed>  $value
      */
-    private function applyPeriod(Builder $query, string $col, mixed $value, bool $negate, string $boolean): void {
+    private function applyPeriod(Builder $query, string $col, string $type, mixed $value, bool $negate, string $boolean): void {
         if (! is_array($value) || empty($value['period']) || empty($value['operator'])) {
             return;
         }
@@ -355,20 +731,22 @@ class FilterEvaluator {
             return;
         }
 
-        [$start] = $fromRange;
-        [, $end] = $toRange;
+        [$start]    = $fromRange;
+        [, $end]    = $toRange;
+        $startValue = $type === 'date' ? $start->toDateString() : $start;
+        $endValue   = $type === 'date' ? $end->toDateString() : $end;
 
-        $apply = function (Builder $q) use ($col, $operator, $start, $end) {
+        $apply = function (Builder $q) use ($col, $operator, $startValue, $endValue) {
             match ($operator) {
-                'is'           => $q->whereBetween($col, [$start, $end]),
-                'is-not'       => $q->whereNotBetween($col, [$start, $end]),
-                'after'        => $q->where($col, '>', $end),
-                'on-or-after'  => $q->where($col, '>=', $start),
-                'before'       => $q->where($col, '<', $start),
-                'on-or-before' => $q->where($col, '<=', $end),
-                'between'      => $q->whereBetween($col, [$start, $end]),
-                'not-between'  => $q->whereNotBetween($col, [$start, $end]),
-                default        => $q->whereBetween($col, [$start, $end]),
+                'is'           => $q->whereBetween($col, [$startValue, $endValue]),
+                'is-not'       => $q->whereNotBetween($col, [$startValue, $endValue]),
+                'after'        => $q->where($col, '>', $endValue),
+                'on-or-after'  => $q->where($col, '>=', $startValue),
+                'before'       => $q->where($col, '<', $startValue),
+                'on-or-before' => $q->where($col, '<=', $endValue),
+                'between'      => $q->whereBetween($col, [$startValue, $endValue]),
+                'not-between'  => $q->whereNotBetween($col, [$startValue, $endValue]),
+                default        => $q->whereBetween($col, [$startValue, $endValue]),
             };
         };
 
@@ -472,17 +850,29 @@ class FilterEvaluator {
 
     // ---- Column resolution ----------------------------------------------
 
-    private function isOperatorValid(array $column, string $op): bool {
+    private function isOperatorValid(array $column, string $op, mixed $value = null): bool {
         $type = $column['type'] ?? 'string';
 
-        // set/!set universal
-        if (in_array($op, ['set', '!set'], true)) {
+        // set/!set universal (tidak valid di mode column)
+        $isColumnMode = is_array($value) && ($value['kind'] ?? null) === 'column';
+        if (! $isColumnMode && in_array($op, ['set', '!set'], true)) {
             return true;
         }
 
         $allowed = $this->operatorsByType[$type] ?? [];
 
-        return in_array($op, $allowed, true);
+        if (in_array($op, $allowed, true)) {
+            return true;
+        }
+
+        // Mode column: date/datetime menerima operator komparasi penuh
+        if ($isColumnMode && in_array($type, ['date', 'datetime'], true)) {
+            $columnOps = ['=', '!=', '>', '>=', '<', '<=', 'in', '!in', 'between', '!between'];
+
+            return in_array($op, $columnOps, true);
+        }
+
+        return false;
     }
 
     // ---- Helpers --------------------------------------------------------

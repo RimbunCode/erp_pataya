@@ -173,6 +173,10 @@ export function buildTitleTransLookupMap(dataTableColumns) {
       if (!colName) {
         continue;
       }
+      // Skip FK/ignored cols (flag hidden/ignore) dari peta lookup token.
+      if (col?.hidden || col?.ignore) {
+        continue;
+      }
 
       let fullKey;
       if (

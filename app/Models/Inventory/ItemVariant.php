@@ -50,10 +50,11 @@ class ItemVariant extends Model {
 
     protected array $configColumns = [
         'image' => [
-            'show'  => true,
-            'order' => 0,
-            'type'  => 'image',
-            'width' => 'fit',
+            'show'      => true,
+            'order'     => 0,
+            'type'      => 'image',
+            'width'     => 'fit',
+            'dependsOn' => ['image_id'],
         ],
         'code' => [
             'show'  => true,
@@ -80,6 +81,9 @@ class ItemVariant extends Model {
         'image_id' => [
             'ignore' => true,
         ],
+        'conversion_factor' => [
+            'linkable' => true,
+        ],
         'values',
         'item',
         'stocks',
@@ -87,7 +91,8 @@ class ItemVariant extends Model {
         'defaultUnit',
         'category',
         'defaultUom' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
     ];
     public string $formComponent = 'Inventory/Items/FormVariant';

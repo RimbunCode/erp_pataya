@@ -14,9 +14,8 @@ class DatabaseSeeder extends Seeder {
         $this->call(UnitSeeder::class);
         $this->call(PreferenceSeeder::class);
         $this->call(AdministratorSeeder::class);
-        $this->call(CurrencySeeder::class);
-        $this->call(AccountSeeder::class);
         $this->call(CountrySeeder::class);
+        $this->call(AccountSeeder::class);
 
         if (config('app.debug')) {
             $this->call(DataTableNonSubmitableSeeder::class);

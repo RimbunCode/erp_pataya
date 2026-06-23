@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useEditor } from "@grapesjs/react";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import {
   PlusIcon,
   Trash2Icon,
@@ -9,7 +9,7 @@ import {
   ChevronDownIcon,
 } from "lucide-react";
 import { Button } from "@/Components/ui/button";
-import { Input } from "@/Components/ui/input";
+import NumberInput from "@/Components/NumberInput";
 import { Label } from "@/Components/ui/label";
 import {
   canAddHeaderRow,
@@ -416,24 +416,26 @@ function CustomModeHeaderEditor({ tableComponent }) {
               <Label className="text-xs">
                 {t("core.printTemplate.editor.colspan", {}, "Colspan")}
               </Label>
-              <Input
-                type="number"
+              <NumberInput
+                allowDecimals={false}
+                decimalScale={0}
                 min={1}
                 value={colspanInput}
-                onChange={(e) => setColspanInput(e.target.value)}
-                className="h-7 text-xs"
+                onValueChange={(val) => setColspanInput(val)}
+                className="h-7 text-xs text-left"
               />
             </div>
             <div className="flex-1 space-y-1">
               <Label className="text-xs">
                 {t("core.printTemplate.editor.rowspan", {}, "Rowspan")}
               </Label>
-              <Input
-                type="number"
+              <NumberInput
+                allowDecimals={false}
+                decimalScale={0}
                 min={1}
                 value={rowspanInput}
-                onChange={(e) => setRowspanInput(e.target.value)}
-                className="h-7 text-xs"
+                onValueChange={(val) => setRowspanInput(val)}
+                className="h-7 text-xs text-left"
               />
             </div>
           </div>

@@ -51,7 +51,8 @@ class InternalOrderItem extends Model {
             'order' => 6,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'internalOrder' => [
             'ignore' => true,

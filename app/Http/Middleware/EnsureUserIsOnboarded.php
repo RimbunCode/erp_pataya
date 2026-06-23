@@ -2,7 +2,7 @@
 
 namespace App\Http\Middleware;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;

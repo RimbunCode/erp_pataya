@@ -33,6 +33,11 @@ export function buildTreeOptions(columns, path = "", parentType = "data") {
       continue;
     }
 
+    // FK/ignored cols (flag hidden/ignore) tak boleh muncul di token picker.
+    if (column.hidden || column.ignore) {
+      continue;
+    }
+
     const name = column.name || "";
     const columnType = column.type || "";
 

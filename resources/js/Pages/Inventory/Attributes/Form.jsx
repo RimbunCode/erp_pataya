@@ -5,6 +5,7 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import { Input } from "@/Components/ui/input";
+import NumberInput from "@/Components/NumberInput";
 import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -75,31 +76,31 @@ export default function Form() {
                 required={true}
                 label={t("inventory.attribute.columns.range.from")}
               >
-                <Input
-                  type="number"
+                <NumberInput
+                  className="text-left"
                   value={data.from_range ?? 0}
-                  onChange={(e) => setData("from_range", e.target.value)}
+                  onValueChange={(val) => setData("from_range", val)}
                 />
               </FormInput>
               <FormInput
                 required={true}
                 label={t("inventory.attribute.columns.range.to")}
               >
-                <Input
-                  type="number"
+                <NumberInput
+                  className="text-left"
                   value={data.to_range ?? 0}
-                  onChange={(e) => setData("to_range", e.target.value)}
+                  onValueChange={(val) => setData("to_range", val)}
                 />
               </FormInput>
               <FormInput
                 required={true}
                 label={t("inventory.attribute.columns.range.increment")}
               >
-                <Input
-                  type="number"
-                  min="0"
+                <NumberInput
+                  className="text-left"
+                  min={0}
                   value={data.increment ?? 0}
-                  onChange={(e) => setData("increment", e.target.value)}
+                  onValueChange={(val) => setData("increment", val)}
                 />
               </FormInput>
             </>

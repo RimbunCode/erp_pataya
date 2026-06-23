@@ -1,0 +1,6 @@
+{
+  "specId": "54c9e183-392f-45ae-945b-b948f088c354",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Clone fresh komponen CurrencyInput menjadi NumberInput (forwardRef) + fungsi formatNumber standalone, tanpa dependensi package vendored. Format angka bersumber tunggal dari preference default_number_format (di-set dari Currency.number_format saat simpan preference). currencyCode hanya menarik symbol untuk prefix, dengan cache localStorage."
+}

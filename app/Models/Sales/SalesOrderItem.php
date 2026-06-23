@@ -2,6 +2,8 @@
 
 namespace App\Models\Sales;
 
+use App\Enums\Permission;
+use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
@@ -12,6 +14,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class SalesOrderItem extends Model {
     use HasUlids, SoftDeletes;
+
+    /** Izin lihat kolom harga jual: pembuat SalesOrder atau SalesInvoice. */
+    private const PRICE_VISIBILITY = [
+        [SalesOrder::class, [Permission::Write, Permission::Create]],
+        [SalesInvoice::class, [Permission::Write, Permission::Create]],
+    ];
 
     public static $parentRelation = 'salesOrder';
     public string $translateKey   = 'sales.salesOrder.item';
@@ -38,14 +46,18 @@ class SalesOrderItem extends Model {
             'order' => 2,
         ],
         'price' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 3,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 3,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'basic_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 4,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 4,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'tax' => [
             'type'  => 'relation',
@@ -53,19 +65,24 @@ class SalesOrderItem extends Model {
             'order' => 5,
         ],
         'tax_rate' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 6,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 6,
+            'linkable' => true,
         ],
         'tax_amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 7,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 7,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'amount' => [
-            'type'  => 'currency',
-            'show'  => true,
-            'order' => 8,
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 8,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'description' => [
             'show'  => false,
@@ -97,28 +114,29 @@ class SalesOrderItem extends Model {
             'order' => 14,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'exchange_rate' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'price_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'basic_amount_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'tax_amount_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'amount_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'salesOrder' => [
             'ignore' => true,

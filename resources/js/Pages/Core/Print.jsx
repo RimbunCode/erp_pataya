@@ -22,7 +22,7 @@ import {
 
 import AppLayout from "@/Layouts/AppLayout";
 import { Button } from "@/Components/ui/button";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -387,7 +387,7 @@ function Print({ data: _data, printTemplate, lang }) {
                 required
                 label={t("core.printTemplate.columns.width")}
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={template?.width ?? ""}
@@ -413,7 +413,7 @@ function Print({ data: _data, printTemplate, lang }) {
                 required
                 label={t("core.printTemplate.columns.height")}
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={template?.height ?? ""}
@@ -442,7 +442,7 @@ function Print({ data: _data, printTemplate, lang }) {
                 label={t("core.printTemplate.columns.margin_top")}
                 className="col-start-1"
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={template?.margin_top ?? ""}
@@ -455,7 +455,7 @@ function Print({ data: _data, printTemplate, lang }) {
                 required
                 label={t("core.printTemplate.columns.margin_bottom")}
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={template?.margin_bottom ?? ""}
@@ -469,7 +469,7 @@ function Print({ data: _data, printTemplate, lang }) {
                 label={t("core.printTemplate.columns.margin_left")}
                 className="col-start-1"
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={template?.margin_left ?? ""}
@@ -482,7 +482,7 @@ function Print({ data: _data, printTemplate, lang }) {
                 required
                 label={t("core.printTemplate.columns.margin_right")}
               >
-                <CurrencyInput
+                <NumberInput
                   decimalScale={2}
                   className="text-left"
                   value={template?.margin_right ?? ""}

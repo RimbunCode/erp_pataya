@@ -1,8 +1,10 @@
 import "../css/app.css";
+import "goey-toast/styles.css";
 import "./bootstrap";
 
 import { createRoot, hydrateRoot } from "react-dom/client";
 
+import GooeyToastRoot from "@/Components/ui/GooeyToastRoot";
 import { LaravelReactI18nProvider } from "laravel-react-i18n";
 import { createInertiaApp } from "@inertiajs/react";
 import { resolvePageComponent } from "laravel-vite-plugin/inertia-helpers";
@@ -11,7 +13,7 @@ const appName = import.meta.env.VITE_APP_NAME || "Laravel";
 
 createInertiaApp({
   defaults: {
-    visitOptions: (href, options) => ({
+    visitOptions: (_href, options) => ({
       ...options,
       viewTransition: true,
     }),
@@ -30,6 +32,7 @@ createInertiaApp({
         files={import.meta.glob("/lang/*.json")}
       >
         <App {...props} />
+        <GooeyToastRoot />
       </LaravelReactI18nProvider>
     );
     if (import.meta.env.SSR) {

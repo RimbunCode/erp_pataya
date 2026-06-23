@@ -1,4 +1,3 @@
-import { Alert, AlertIcon, AlertTitle } from "@/Components/ui/alert";
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import React, { useCallback, useRef } from "react";
@@ -8,10 +7,9 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormNewRule from "./FormNewRule";
 import { Input } from "@/Components/ui/input";
-import { RiErrorWarningFill } from "@remixicon/react";
 import { Textarea } from "@/Components/ui/textarea";
 import { generateRandom } from "@/lib/utils";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function Form() {
@@ -19,23 +17,7 @@ function Form() {
   const { t } = useLaravelReactI18n();
   const ruleRef = useRef();
   const showDuplicateRuleAlert = useCallback(() => {
-    toast.custom(
-      (e) => (
-        <Alert
-          variant="destructive"
-          icon="destructive"
-          onClose={() => toast.dismiss(e)}
-        >
-          <AlertIcon>
-            <RiErrorWarningFill />
-          </AlertIcon>
-          <AlertTitle>{t("user.role.errors.alert_already_exists")}</AlertTitle>
-        </Alert>
-      ),
-      {
-        duration: 5000,
-      },
-    );
+    toast.error(t("user.role.errors.alert_already_exists"));
   }, [t]);
 
   const hasDuplicateRule = useCallback(

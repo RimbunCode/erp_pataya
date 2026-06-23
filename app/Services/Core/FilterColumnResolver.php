@@ -226,7 +226,9 @@ class FilterColumnResolver {
      */
     private static function columnsForModel(string $relatedClass): array {
         if (! isset(static::$modelColumnsCache[$relatedClass])) {
-            $cols                                     = $relatedClass::getColumns(1);
+            // includeHidden=true: child cols menyertakan FK relasi nested ber-flag
+            // hidden agar dot-notation atas FK ter-resolve (UI tetap meng-gate hidden).
+            $cols                                     = $relatedClass::getColumns(1, true);
             static::$modelColumnsCache[$relatedClass] = array_values(is_array($cols) ? $cols : []);
         }
 
@@ -321,8 +323,10 @@ class FilterColumnResolver {
             $name = $col['name'] ?? null;
             $rest = is_string($name) ? ($byHead[$name] ?? null) : null;
 
-            if ($rest !== null
-                && in_array($col['type'] ?? null, ['relation', 'relations'], true)) {
+            if (
+                $rest !== null
+                && in_array($col['type'] ?? null, ['relation', 'relations'], true)
+            ) {
                 $children = $col['columns'] ?? [];
                 if (empty($children)) {
                     $value        = $rest[0][1] ?? null;

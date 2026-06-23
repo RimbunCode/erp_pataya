@@ -27,6 +27,7 @@ import TiptapEditor from "@/Components/TiptapEditor";
 import { TZDate } from "@date-fns/tz";
 import axios from "axios";
 import { format } from "date-fns";
+import { gooeyToast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function CommentBody({ activity }) {
@@ -105,6 +106,7 @@ export default memo(function Comments() {
             });
             resolve(res.data.map((x) => ({ id: x.id, label: x.name })));
           } catch {
+            gooeyToast.error(t("core.errors.fetch_failed"));
             resolve([]);
           }
         }, 300);

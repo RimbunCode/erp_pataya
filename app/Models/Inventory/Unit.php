@@ -41,8 +41,15 @@ class Unit extends Model {
             'order'  => 1,
         ],
         'group' => [
-            'show'  => true,
-            'order' => 2,
+            'show'     => true,
+            'order'    => 2,
+            'linkable' => true,
+        ],
+        'conversion_factor' => [
+            'linkable' => true,
+        ],
+        'canDelete' => [
+            'dependsOn' => ['is_default'],
         ],
     ];
 

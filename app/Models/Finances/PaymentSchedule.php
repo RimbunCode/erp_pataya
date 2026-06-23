@@ -3,7 +3,7 @@
 namespace App\Models\Finances;
 
 use App\Casts\Json;
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -31,7 +31,6 @@ class PaymentSchedule extends Model {
 
     protected array $configColumns = [
         'referenceTo' => [
-            'type'               => 'relation',
             'order'              => 0,
             'show'               => true,
             'disabledNavigation' => true,
@@ -59,16 +58,16 @@ class PaymentSchedule extends Model {
         'paymentMethod',
 
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_outstanding_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_paid_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_payment_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
     ];
     protected $appends          = ['status'];

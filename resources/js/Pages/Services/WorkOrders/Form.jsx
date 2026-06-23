@@ -2,7 +2,7 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 import React, { useCallback, useMemo } from "react";
 
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -38,6 +38,7 @@ export default function Form() {
             <ItemVariantLinkModel
               placeholder={t("service.workOrder.columns.item.placeholder")}
               value={data}
+              fields={["default_uom", "conversion_factor"]}
               onValueChange={(val) => {
                 const defaultUnit = val?.default_uom;
                 setData({
@@ -84,7 +85,7 @@ export default function Form() {
         width: 1,
         cell({ dataRow, data, setData, attributes }) {
           return (
-            <CurrencyInput
+            <NumberInput
               {...attributes}
               disabled={!dataRow?.item}
               readOnly={
@@ -108,6 +109,7 @@ export default function Form() {
               disabled={!dataRow?.item}
               placeholder={t("service.workOrder.columns.unit.placeholder")}
               value={data}
+              fields={["conversion_factor"]}
               onValueChange={(val) =>
                 setData({
                   unit: val,

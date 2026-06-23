@@ -3,15 +3,17 @@ import { useMemo } from "react";
 
 import { Button } from "@/Components/ui/button";
 import Checkbox from "@/Components/Checkbox";
-import CurrencyInput from "@/Components/CurrencyInput";
 import DateSelector from "./DateSelector";
 import { Input } from "@/Components/ui/input";
 import LinkModel from "@/Components/LinkModel";
 import MultiSelect from "@/Components/MultiSelect";
+import NestedSelect from "@/Components/NestedSelect";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import Select from "@/Components/Select";
 import { columnHasOptions, getOperators } from "./operators";
+import { columnTypeCategory } from "./columnRef";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import NumberInput from "@/Components/NumberInput";
 
 /**
  * ValueField — merender input value yang sesuai dengan (column.type, operator).
@@ -19,12 +21,31 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * (lihat operators.js), sehingga selalu sinkron dengan daftar operator.
  *
  * Props:
- *   column   : node kolom { type, related, typeRelation, options, ... }
- *   operator : string operator aktif
- *   value    : nilai saat ini
- *   onChange : (value) => void
+ *   column        : node kolom kiri { type, related, typeRelation, options, ... }
+ *   operator      : string operator aktif
+ *   value         : nilai saat ini
+ *   onChange      : (value) => void
+ *   mode          : "value" | "column" (default "value")
+ *   columnOptions : tree kolom (untuk picker kolom kanan di mode column)
+ *   fetchColumnChildren : (node) => Promise<children> (lazy-load kolom relasi)
+ * @param root0
+ * @param root0.column
+ * @param root0.operator
+ * @param root0.value
+ * @param root0.onChange
+ * @param root0.mode
+ * @param root0.columnOptions
+ * @param root0.fetchColumnChildren
  */
-export default function ValueField({ column, operator, value, onChange }) {
+export default function ValueField({
+  column,
+  operator,
+  value,
+  onChange,
+  mode = "value",
+  columnOptions = [],
+  fetchColumnChildren,
+}) {
   const { t } = useLaravelReactI18n();
 
   const valueInput = useMemo(() => {
@@ -32,9 +53,29 @@ export default function ValueField({ column, operator, value, onChange }) {
     const ops = getOperators(column.type, {
       typeRelation: column.typeRelation,
       hasOptions: columnHasOptions(column),
+      mode,
     });
     return ops[operator]?.valueInput ?? null;
-  }, [column?.type, column?.typeRelation, column?.options, operator]);
+  }, [column?.type, column?.typeRelation, column?.options, operator, mode]);
+
+  // Picker kolom kanan: hanya kolom type-compatible dgn kolom kiri; node
+  // relasi tetap ditampilkan agar bisa drill-down ke kolom anaknya.
+  const refColumnOptions = useMemo(() => {
+    if (mode !== "column" || !column?.type) return [];
+    const leftCat = columnTypeCategory(column.type);
+    const filterTree = (nodes) =>
+      (nodes ?? [])
+        .map((node) => {
+          const isRelation =
+            node.type === "relation" || node.type === "relations";
+          if (isRelation) {
+            return { ...node, children: filterTree(node.children) };
+          }
+          return columnTypeCategory(node.type) === leftCat ? node : null;
+        })
+        .filter(Boolean);
+    return filterTree(columnOptions);
+  }, [mode, column?.type, columnOptions]);
 
   const options = useMemo(() => {
     const opts = column?.options ?? [];
@@ -60,7 +101,7 @@ export default function ValueField({ column, operator, value, onChange }) {
 
     case "currency":
       return (
-        <CurrencyInput
+        <NumberInput
           className="text-left"
           value={value}
           onValueChange={onChange}
@@ -71,11 +112,7 @@ export default function ValueField({ column, operator, value, onChange }) {
       return (
         <RangePair
           render={(v, set) => (
-            <CurrencyInput
-              className="text-left"
-              value={v}
-              onValueChange={set}
-            />
+            <NumberInput className="text-left" value={v} onValueChange={set} />
           )}
           value={value}
           onChange={onChange}
@@ -206,6 +243,60 @@ export default function ValueField({ column, operator, value, onChange }) {
         />
       );
 
+    case "columnref": {
+      // value = { kind: "column", ref: <string> }
+      const ref = typeof value?.ref === "string" ? value.ref : "";
+      return (
+        <ColumnRefPicker
+          options={refColumnOptions}
+          fetchChildren={fetchColumnChildren}
+          value={ref}
+          onChange={(r) => onChange({ kind: "column", ref: r })}
+          placeholder={t("core.datatable.filter.select_column")}
+        />
+      );
+    }
+
+    case "columnrefMulti": {
+      // value = { kind: "column", ref: <string[]> }
+      const refs = Array.isArray(value?.ref) ? value.ref : [];
+      return (
+        <MultiGrow
+          value={refs}
+          onChange={(arr) => onChange({ kind: "column", ref: arr })}
+          render={(v, set) => (
+            <ColumnRefPicker
+              options={refColumnOptions}
+              fetchChildren={fetchColumnChildren}
+              value={v ?? ""}
+              onChange={set}
+              placeholder={t("core.datatable.filter.select_column")}
+            />
+          )}
+        />
+      );
+    }
+
+    case "columnref2": {
+      // value = { kind: "column", ref: [a, b] }
+      const refs = Array.isArray(value?.ref) ? value.ref : [null, null];
+      return (
+        <RangePair
+          value={refs}
+          onChange={(arr) => onChange({ kind: "column", ref: arr })}
+          render={(v, set) => (
+            <ColumnRefPicker
+              options={refColumnOptions}
+              fetchChildren={fetchColumnChildren}
+              value={v ?? ""}
+              onChange={set}
+              placeholder={t("core.datatable.filter.select_column")}
+            />
+          )}
+        />
+      );
+    }
+
     default:
       return (
         <Input value={value ?? ""} onChange={(e) => onChange(e.target.value)} />
@@ -213,7 +304,41 @@ export default function ValueField({ column, operator, value, onChange }) {
   }
 }
 
-/** Dua input berdampingan untuk operator between. value = [a, b]. */
+/**
+ * Picker satu kolom kanan (mode column) — NestedSelect dgn lazy-load relasi.
+ * @param root0
+ * @param root0.options
+ * @param root0.fetchChildren
+ * @param root0.value
+ * @param root0.onChange
+ * @param root0.placeholder
+ */
+function ColumnRefPicker({
+  options,
+  fetchChildren,
+  value,
+  onChange,
+  placeholder,
+}) {
+  return (
+    <NestedSelect
+      options={options}
+      value={value}
+      onValueChange={onChange}
+      placeholder={placeholder}
+      className="min-w-[10rem]"
+      fetchChildren={fetchChildren}
+    />
+  );
+}
+
+/**
+ * Dua input berdampingan untuk operator between. value = [a, b].
+ * @param root0
+ * @param root0.render
+ * @param root0.value
+ * @param root0.onChange
+ */
 function RangePair({ render, value, onChange }) {
   const arr = Array.isArray(value) ? value : [null, null];
   const setAt = (i, v) => {
@@ -233,6 +358,11 @@ function RangePair({ render, value, onChange }) {
 /**
  * MultiGrow — daftar field yang otomatis bertambah saat field terakhir
  * terisi; tiap field punya tombol hapus. value = array.
+ * @param root0
+ * @param root0.value
+ * @param root0.onChange
+ * @param root0.render
+ * @param root0.isFilled
  */
 function MultiGrow({ value, onChange, render, isFilled }) {
   const items = Array.isArray(value) && value.length > 0 ? value : [null];
@@ -279,8 +409,13 @@ function MultiGrow({ value, onChange, render, isFilled }) {
  * MorphField — dua langkah untuk relasi morph: pilih morph type
  * (PermissionLinkModel) lalu pilih record (LinkModel dgn model dari step 1).
  * value = { type, id }.
+ * @param root0
+ * @param root0.column
+ * @param root0._column
+ * @param root0.value
+ * @param root0.onChange
  */
-function MorphField({ column, value, onChange }) {
+function MorphField({ _column, value, onChange }) {
   const morphType = value?.type ?? null;
 
   return (

@@ -29,6 +29,7 @@ import { FormPageDialog } from "../Core/FormPage";
 import { Head } from "@inertiajs/react";
 import axios from "axios";
 import { cn } from "@/lib/utils";
+import { gooeyToast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function SortableWidgetCard({ itemId, children }) {
@@ -246,6 +247,7 @@ export default function Dashboard({ dashboards }) {
 
       void persistDashboardOrder(reorderedDashboards).catch(() => {
         setDashboardItems(previousDashboards);
+        gooeyToast.error(t("core.errors.fetch_failed"));
       });
     },
     [dashboardItems, persistDashboardOrder],
@@ -275,6 +277,7 @@ export default function Dashboard({ dashboards }) {
               : dashboard,
           ),
         );
+        gooeyToast.error(t("core.errors.fetch_failed"));
       });
     },
     [persistWidgetOrder],

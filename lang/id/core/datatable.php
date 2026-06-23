@@ -23,7 +23,11 @@ return [
         ],
         'select_operator' => 'Pilih Operator',
         'select_value'    => 'Pilih :name',
-        'group.options'   => [
+        'mode'            => [
+            'to_column' => 'Bandingkan dengan kolom lain',
+            'to_value'  => 'Bandingkan dengan nilai',
+        ],
+        'group.options' => [
             'and' => 'Cocokkan Semua (AND)',
             'or'  => 'Cocokkan Salah Satu (OR)',
         ],

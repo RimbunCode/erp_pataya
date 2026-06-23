@@ -2,7 +2,7 @@
 
 namespace App\Services\Sales;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Inventory\Stock;
 use App\Models\Sales\InternalOrder;

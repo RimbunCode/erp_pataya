@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Purchase\Orders;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Purchase\PurchaseOrder;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -121,4 +121,3 @@ class PurchaseOrderMigrator extends BaseMigrator {
         return $stringValue === '' ? null : $stringValue;
     }
 }
-

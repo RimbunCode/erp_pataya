@@ -1,4 +1,3 @@
-import { Alert, AlertIcon, AlertTitle } from "@/Components/ui/alert";
 import {
   FormPageContent,
   FormPageContentTitle,
@@ -8,7 +7,7 @@ import React, { useCallback } from "react";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import { Button } from "@/Components/ui/button";
-import CurrencyInput from "@/Components/CurrencyInput";
+import NumberInput from "@/Components/NumberInput";
 import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import CustomerLinkModel from "@/Pages/Sales/Customers/CustomerLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -16,11 +15,10 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import LinkModel from "@/Components/LinkModel";
 import PaymentMethodLinkModel from "../PaymentMethods/PaymentMethodLinkModel";
-import { RiCheckboxCircleLine } from "@remixicon/react";
 import Select from "@/Components/Select";
 import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
-import { toast } from "sonner";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
@@ -68,7 +66,7 @@ export default function Form() {
       width: 1,
       cell({ dataRow, data, attributes }) {
         return (
-          <CurrencyInput
+          <NumberInput
             disabled={!dataRow.invoice_portion}
             decimalScale={2}
             currencyCode={data?.currency?.code}
@@ -126,7 +124,7 @@ export default function Form() {
       width: 1,
       cell({ data: discount, dataRow, attributes }) {
         return (
-          <CurrencyInput
+          <NumberInput
             className="text-left"
             value={discount}
             currencyCode={
@@ -134,7 +132,7 @@ export default function Form() {
                 ? undefined
                 : data?.currency?.code
             }
-            decimalsLimit={2}
+            decimalScale={2}
             suffix={dataRow.discount_type == "percentage" ? "%" : ""}
             min={dataRow.discount_type == "percentage" && 0}
             max={dataRow.discount_type == "percentage" && 100}
@@ -186,20 +184,7 @@ export default function Form() {
           [keyAccount]: account ?? prev?.[keyAccount],
         };
       });
-      toast.custom((toastId) => (
-        <Alert
-          variant="success"
-          icon="success"
-          onClose={() => toast.dismiss(toastId)}
-        >
-          <AlertIcon>
-            <RiCheckboxCircleLine />
-          </AlertIcon>
-          <AlertTitle>
-            {t("finances.paymentTermTemplate.alert.success")}
-          </AlertTitle>
-        </Alert>
-      ));
+      toast.success(t("finances.paymentTermTemplate.alert.success"));
     },
     [setData],
   );
@@ -502,7 +487,7 @@ export default function Form() {
                 disabled={!data.paymentable}
                 label={t("finances.paymentEntry.columns.exchange_rate")}
               >
-                <CurrencyInput
+                <NumberInput
                   disabled={!data.currency}
                   className="text-left"
                   value={data.exchange_rate}
@@ -516,7 +501,7 @@ export default function Form() {
             className="col-start-1"
             label={t("finances.paymentEntry.columns.paid_amount")}
           >
-            <CurrencyInput
+            <NumberInput
               className="text-left"
               decimalScale={2}
               currencyCode={data?.currency?.code}

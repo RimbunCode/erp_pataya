@@ -21,25 +21,34 @@ class ItemUnit extends Model {
         'item',
         'unit',
         'code' => [
-            'isLink'      => true,
-            'show'        => true,
-            'order'       => 0,
-            'forceAppend' => true,
+            'isLink'       => true,
+            'show'         => true,
+            'order'        => 0,
+            'forceAppend'  => true,
+            'isJoinResult' => true,
         ],
         'name' => [
-            'isLink'      => true,
-            'show'        => true,
-            'order'       => 1,
-            'forceAppend' => true,
+            'isLink'       => true,
+            'show'         => true,
+            'order'        => 1,
+            'forceAppend'  => true,
+            'isJoinResult' => true,
         ],
         'is_default' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'is_manual' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'generated_by_default_unit' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
+        ],
+        'conversion_factor' => [
+            'hidden'   => true,
+            'linkable' => true,
         ],
     ];
 

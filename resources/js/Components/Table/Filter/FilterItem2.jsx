@@ -20,6 +20,8 @@ import ValueField from "./ValueField";
 import axios from "axios";
 import { cn } from "@/lib/utils";
 import { columnHasOptions, getOperators } from "./operators";
+import { isColumnRef } from "./columnRef";
+import { Switch } from "@/Components/ui/switch";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function FilterItem2({ id, depth = 0 }) {
@@ -56,7 +58,7 @@ function FilterItem2({ id, depth = 0 }) {
 
   const buildColumnNode = useCallback(
     function build(col, parentPath = "") {
-      if (col.searchable === false) return null;
+      if (col.searchable === false || col.hidden || col.ignore) return null;
       // `col.name` bisa berupa nama segmen ("type") ATAU sudah berkualifikasi
       // penuh ("category.type") — tergantung sumber kolom: hasil getColumns
       // frontend (DataTable2) memprefix nama anak relasi, sedangkan kolom dari
@@ -104,7 +106,13 @@ function FilterItem2({ id, depth = 0 }) {
 
   const columnOptions = useMemo(() => {
     return toArrayColumns(columns)
-      .filter((col) => !col.parentCol && col.searchable !== false)
+      .filter(
+        (col) =>
+          !col.parentCol &&
+          col.searchable !== false &&
+          !col.hidden &&
+          !col.ignore,
+      )
       .map((col) => buildColumnNode(col));
   }, [columns, buildColumnNode, toArrayColumns, cacheVersion]);
 
@@ -117,15 +125,19 @@ function FilterItem2({ id, depth = 0 }) {
     if (!filter?.key) return null;
     return findNodeByValue(columnOptions, filter.key);
   }, [columnOptions, filter?.key, findNodeByValue]);
+  // Mode di-infer dari bentuk value: column-ref → mode column.
+  const mode = isColumnRef(filter?.value) ? "column" : "value";
   const operators = useMemo(() => {
     return getOperators(selectedColumn?.type, {
       typeRelation: selectedColumn?.typeRelation,
       hasOptions: columnHasOptions(selectedColumn),
+      mode,
     });
   }, [
     selectedColumn?.type,
     selectedColumn?.typeRelation,
     selectedColumn?.options,
+    mode,
   ]);
 
   const onFilterChanged = (payload) => {
@@ -140,20 +152,44 @@ function FilterItem2({ id, depth = 0 }) {
     onFilterChanged({ key: val, operator: "", value: "" });
   };
 
+  // Value kosong sesuai mode: di mode column harus tetap column-ref agar mode
+  // (yang di-infer dari bentuk value) tidak hilang saat value direset.
+  const emptyValue = () =>
+    mode === "column" ? { kind: "column", ref: "" } : "";
+
   const onOperatorsChanged = (val) => {
     if (!selectedColumn) return;
     const newOperator = operators[val];
     if (!newOperator) {
-      onFilterChanged({ operator: "", value: "" });
+      onFilterChanged({ operator: "", value: emptyValue() });
       return;
     }
     // Reset value bila jenis input value berubah antar operator.
     const oldInput = operators[filter?.operator]?.valueInput;
     if (newOperator.valueInput !== oldInput) {
-      onFilterChanged({ operator: val, value: "" });
+      onFilterChanged({ operator: val, value: emptyValue() });
       return;
     }
     onFilterChanged({ operator: val });
+  };
+
+  // Switch mode value↔column. Value-shape selalu berbeda antar mode (literal
+  // vs { kind:"column", ref }) → selalu reset value. Operator dipertahankan
+  // HANYA jika masih didukung di mode tujuan; jika tidak → reset ke "".
+  const onModeChanged = (toColumn) => {
+    if (!selectedColumn) return;
+    const nextMode = toColumn ? "column" : "value";
+    const nextValue = toColumn ? { kind: "column", ref: "" } : "";
+    const nextOps = getOperators(selectedColumn.type, {
+      typeRelation: selectedColumn.typeRelation,
+      hasOptions: columnHasOptions(selectedColumn),
+      mode: nextMode,
+    });
+    const keepOperator = filter.operator && nextOps[filter.operator];
+    onFilterChanged({
+      operator: keepOperator ? filter.operator : "",
+      value: nextValue,
+    });
   };
 
   const onValueChanged = (val) => {
@@ -207,19 +243,44 @@ function FilterItem2({ id, depth = 0 }) {
         className="min-w-[12rem]"
         fetchChildren={fetchRelationColumns}
       />
-      <Select
-        disabled={!filter.key}
-        value={filter.operator}
-        onValueChange={onOperatorsChanged}
-        optionTrans="core.datatable.filter.operator"
-        options={operatorOptions}
-        placeholder={t("core.datatable.filter.select_operator")}
-      />
+      <div className="flex items-center gap-2">
+        {filter.key && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex shrink-0 items-center">
+                <Switch
+                  checked={mode === "column"}
+                  onCheckedChange={onModeChanged}
+                />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t(
+                mode === "column"
+                  ? "core.datatable.filter.mode.to_value"
+                  : "core.datatable.filter.mode.to_column",
+              )}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        <Select
+          disabled={!filter.key}
+          value={filter.operator}
+          onValueChange={onOperatorsChanged}
+          optionTrans="core.datatable.filter.operator"
+          options={operatorOptions}
+          placeholder={t("core.datatable.filter.select_operator")}
+          className="flex-1"
+        />
+      </div>
       <ValueField
         column={selectedColumn}
         operator={filter.operator}
         value={filter.value}
         onChange={onValueChanged}
+        mode={mode}
+        columnOptions={columnOptions}
+        fetchColumnChildren={fetchRelationColumns}
       />
       <Tooltip>
         <TooltipTrigger asChild>

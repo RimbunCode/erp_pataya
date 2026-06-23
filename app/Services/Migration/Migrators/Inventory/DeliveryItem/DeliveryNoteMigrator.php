@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Inventory\DeliveryItem;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Sales\InternalOrder;
 use App\Models\Sales\SalesOrder;
@@ -307,4 +307,3 @@ class DeliveryNoteMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

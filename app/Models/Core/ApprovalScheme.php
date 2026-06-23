@@ -3,7 +3,7 @@
 namespace App\Models\Core;
 
 use App\Casts\Json;
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Models\User\Permission;
 use App\Traits\DataTable;

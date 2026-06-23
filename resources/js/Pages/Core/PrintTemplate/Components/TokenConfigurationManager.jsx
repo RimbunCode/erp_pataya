@@ -357,6 +357,10 @@ function flattenVariableOptions(
     if (!column?.name && !Array.isArray(column?.columns)) {
       return;
     }
+    // Skip FK/ignored cols (flag hidden/ignore) dari opsi variabel.
+    if (column?.hidden || column?.ignore) {
+      return;
+    }
 
     if (column.type === "doc" || column.type === "company") {
       entries.push(

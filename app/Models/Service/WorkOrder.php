@@ -66,9 +66,7 @@ class WorkOrder extends Model {
             'show'  => true,
             'order' => 1,
         ],
-        'branch' => [
-            'ignore' => true,
-        ],
+        'branch',
         'for_internal' => [
             'type'      => 'boolean',
             'show'      => true,

@@ -1,0 +1,6 @@
+{
+  "specId": "0ca0339a-fc2c-4a7f-9aba-124ebe8f6682",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Cache hasil Model::getColumns (config kolom DataTable) ke DB sebagai flat per-model dengan invalidasi signature-based + command artisan model:cache (warm/clear) yang sekaligus memvalidasi config secara strict."
+}

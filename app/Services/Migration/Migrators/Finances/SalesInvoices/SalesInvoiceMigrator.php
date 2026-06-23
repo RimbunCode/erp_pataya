@@ -2,7 +2,7 @@
 
 namespace App\Services\Migration\Migrators\Finances\SalesInvoices;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
@@ -174,4 +174,3 @@ class SalesInvoiceMigrator extends BaseMigrator {
         return $timestamp ? date('y', $timestamp) : date('y');
     }
 }
-

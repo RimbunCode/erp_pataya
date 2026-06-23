@@ -29,27 +29,31 @@ function ColumnsFilter({ columns: initColumn, onApply, onReset, open }) {
         <DialogDescription className="sr-only">Select Column</DialogDescription>
       </DialogHeader>
       <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
-        {columns.map(({ name, title, titleTrans, show, type }) => {
-          if (type == "relations" || type == "mixed" || type == "json") return;
-          return (
-            <FormCheckbox
-              key={name}
-              checked={show}
-              onCheckedChange={(val) => {
-                setColumns((x) => {
-                  return x.map((y) => {
-                    if (y.name === name) {
-                      return { ...y, show: val };
-                    }
-                    return y;
+        {columns.map(
+          ({ name, title, titleTrans, show, type, hidden, ignore }) => {
+            if (type == "relations" || type == "mixed" || type == "json")
+              return;
+            if (hidden || ignore) return;
+            return (
+              <FormCheckbox
+                key={name}
+                checked={show}
+                onCheckedChange={(val) => {
+                  setColumns((x) => {
+                    return x.map((y) => {
+                      if (y.name === name) {
+                        return { ...y, show: val };
+                      }
+                      return y;
+                    });
                   });
-                });
-              }}
-              label={title ?? t(titleTrans)}
-              className="overflow-x-hidden [&_label]:truncate"
-            />
-          );
-        })}
+                }}
+                label={title ?? t(titleTrans)}
+                className="overflow-x-hidden [&_label]:truncate"
+              />
+            );
+          },
+        )}
       </div>
       <DialogFooter className="flex justify-end">
         <Button className="h-8 px-2!" variant="outline" onClick={onReset}>

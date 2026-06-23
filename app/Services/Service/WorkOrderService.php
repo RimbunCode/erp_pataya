@@ -2,7 +2,7 @@
 
 namespace App\Services\Service;
 
-use App\FormStatus;
+use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Service\WorkOrder;
 use App\Utils;
