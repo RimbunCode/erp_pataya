@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Customer extends Model {
     use DataTable, HasUlids, SoftDeletes;
+
     protected $guarded = ['id'];
     protected $casts   = [
         'is_disabled' => 'boolean',
@@ -19,18 +20,19 @@ class Customer extends Model {
     public static function templateLink() {
         return ':name';
     }
-    public          $translateKey  = 'sales.customer';
+
+    public $translateKey           = 'sales.customer';
     protected array $configColumns = [
-        'name'    => [
+        'name' => [
             'isLink' => true,
             'show'   => true,
             'order'  => 0,
         ],
-        'phone'   => [
+        'phone' => [
             'show'  => true,
             'order' => 1,
         ],
-        'email'   => [
+        'email' => [
             'show'  => true,
             'order' => 2,
         ],
@@ -42,7 +44,7 @@ class Customer extends Model {
         'country',
         'branches',
     ];
-    protected       $appends       = [
+    protected $appends = [
         'address',
     ];
 
