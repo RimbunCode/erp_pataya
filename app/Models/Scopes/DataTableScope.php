@@ -94,7 +94,7 @@ class DataTableScope implements Scope {
             $safeColumns = $selector->safeColumnsFromVisible($dataTableColumns, $visibleKeys, $extraKeys);
             $resolved    = $selector->resolveForSafe($dataTableColumns, $query->getModel(), $safeColumns, [], $templateLink);
 
-            $query->addSelect(\array_map(fn ($c) => "$nameOfTable.$c", $resolved['select']));
+            $query->addSelect(\array_map(fn ($c) => \str_contains($c, '.') ? $c : "$nameOfTable.$c", $resolved['select']));
 
             // with: map relasi => closure child-select (resolveForSafe) digabung relasi
             // manual dari ?with (tanpa closure). Key map menang bila duplikat.
