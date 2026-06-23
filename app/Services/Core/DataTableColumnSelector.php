@@ -388,7 +388,22 @@ class DataTableColumnSelector {
         if ($relation instanceof BelongsTo) {
             $select[] = $relation->getForeignKeyName();
         }
-        $with[$first] = $this->childSelectClosure($model, $first, $safeRelationColumns[$first] ?? null);
+
+        $existingClosure = $this->childSelectClosure($model, $first, $safeRelationColumns[$first] ?? null);
+        $targetColumn    = $path['columnName'] ?? null;
+
+        if ($targetColumn && $existingClosure) {
+            $relatedClass = get_class($relation->getRelated());
+            $relatedTable = (new $relatedClass)->getTable();
+            $fullColumn   = "{$relatedTable}.{$targetColumn}";
+
+            $with[$first] = function ($q) use ($existingClosure, $fullColumn): void {
+                $existingClosure($q);
+                $q->addSelect($fullColumn);
+            };
+        } else {
+            $with[$first] = $existingClosure;
+        }
     }
 
     /**
