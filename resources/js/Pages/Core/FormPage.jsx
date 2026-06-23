@@ -727,10 +727,16 @@ const FormPage = memo(
           // Sertakan buffer sidebar create: tags (buffered_tags) & file draft
           // (filesId). File sudah ter-upload sebagai draft, kirim id saja.
           const files = Array.isArray(data?.files) ? data.files : [];
-          form.transform((payload) => ({
-            ...payload,
-            filesId: files.map((f) => f.id).filter(Boolean),
-          }));
+          form.transform((payload) => {
+            const payloadData = { ...payload };
+            const fileIds = files.map((f) => f.id).filter(Boolean);
+
+            if (fileIds.length > 0) {
+              payloadData.filesId = fileIds;
+            }
+
+            return payloadData;
+          });
           post(route(`${pluralize.plural(name ?? "")}.store`));
           return;
         }
