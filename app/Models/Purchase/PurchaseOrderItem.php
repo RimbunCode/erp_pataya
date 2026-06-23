@@ -117,7 +117,8 @@ class PurchaseOrderItem extends Model {
             'order' => 15,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'item_name' => [
             'ignore' => true,

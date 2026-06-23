@@ -19,6 +19,7 @@ class RolePermission extends Model {
     ];
     protected $appends             = ['permissionKeys'];
     protected array $configColumns = [
+        'permission',
         'permissionKeys' => [
             'dependsOn' => ['level', 'permissions', 'permission.permissions'],
         ],

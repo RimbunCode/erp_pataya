@@ -26,6 +26,7 @@ class PaymentTermTemplate extends Model {
             'order' => 1,
             'show'  => true,
         ],
+        'items',
     ];
     public string $translateKey = 'finances.paymentTermTemplate';
 

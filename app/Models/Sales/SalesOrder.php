@@ -79,9 +79,7 @@ class SalesOrder extends Model {
         ],
         'customerBranch',
         'currency',
-        'branch' => [
-            'ignore' => true,
-        ],
+        'branch',
         'customer_name' => [
             'ignore' => true,
         ],
@@ -89,16 +87,16 @@ class SalesOrder extends Model {
             'ignore' => true,
         ],
         'discount_amount_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'amount' => [
             'ignore' => true,
         ],
         'amount_base_currency' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'referenceable',
         'referenceSo',

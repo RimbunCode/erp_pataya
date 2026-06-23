@@ -11,7 +11,7 @@ use Tests\TestCase;
  */
 class CleanerCategoryStub {
     /** @return list<array<string,mixed>> */
-    public static function getColumns(int $maxDepth = 0): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
         return [
             ['name' => 'type', 'type' => 'string', 'searchable' => true],
             ['name' => 'threshold', 'type' => 'number', 'searchable' => true],

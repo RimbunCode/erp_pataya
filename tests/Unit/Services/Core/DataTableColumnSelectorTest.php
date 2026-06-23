@@ -20,7 +20,7 @@ class SelectorRelatedStub extends Model {
     protected $guarded = [];
 
     /** @return list<array<string,mixed>> */
-    public static function getColumns(int $maxDepth = 0): array {
+    public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
         return [
             ['name' => 'id', 'type' => 'integer'],
             ['name' => 'name', 'type' => 'string'],
@@ -157,7 +157,7 @@ class DataTableColumnSelectorTest extends TestCase {
             null,
         );
 
-        $this->assertContains('id', $res['select']);
+        $this->assertContains('selector_parents.id', $res['select']);
         $this->assertContains('code', $res['select']);
         $this->assertNotContains('amount', $res['select']);
         $this->assertNotContains('secret_note', $res['select']);

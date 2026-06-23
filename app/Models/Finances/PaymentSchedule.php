@@ -31,7 +31,6 @@ class PaymentSchedule extends Model {
 
     protected array $configColumns = [
         'referenceTo' => [
-            'type'               => 'relation',
             'order'              => 0,
             'show'               => true,
             'disabledNavigation' => true,
@@ -59,16 +58,16 @@ class PaymentSchedule extends Model {
         'paymentMethod',
 
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_outstanding_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_paid_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'base_payment_amount' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
     ];
     protected $appends          = ['status'];

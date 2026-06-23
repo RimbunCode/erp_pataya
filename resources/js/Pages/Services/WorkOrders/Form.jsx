@@ -38,6 +38,7 @@ export default function Form() {
             <ItemVariantLinkModel
               placeholder={t("service.workOrder.columns.item.placeholder")}
               value={data}
+              fields={["default_uom", "conversion_factor"]}
               onValueChange={(val) => {
                 const defaultUnit = val?.default_uom;
                 setData({
@@ -108,6 +109,7 @@ export default function Form() {
               disabled={!dataRow?.item}
               placeholder={t("service.workOrder.columns.unit.placeholder")}
               value={data}
+              fields={["conversion_factor"]}
               onValueChange={(val) =>
                 setData({
                   unit: val,

@@ -58,6 +58,7 @@ composer dump-autoload -o
 php artisan migrate --force
 php artisan optimize:clear
 php artisan optimize
+php artisan model:cache --strict
 
 # 7. Switch Symlink
 ln -sfn "$NEW_RELEASE" "$CURRENT"

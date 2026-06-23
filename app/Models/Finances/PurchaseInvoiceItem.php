@@ -103,7 +103,8 @@ class PurchaseInvoiceItem extends Model {
             'order' => 12,
         ],
         'conversion_factor' => [
-            'ignore' => true,
+            'hidden'   => true,
+            'linkable' => true,
         ],
         'item_name' => [
             'ignore' => true,

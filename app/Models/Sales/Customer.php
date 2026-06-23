@@ -42,13 +42,14 @@ class Customer extends Model {
             'dependsOn' => ['street', 'city', 'province', 'zip_code', 'country.name'],
         ],
         'country',
+        'branches',
     ];
     protected $appends = [
         'address',
     ];
 
     public function getAddressAttribute() {
-        return "{$this->street}, {$this->city}, {$this->province}, {$this->country->name} {$this->zip_code}";
+        return "{$this->street}, {$this->city}, {$this->province}, {$this->country?->name} {$this->zip_code}";
     }
 
     protected static function loadRelationsOnShow() {

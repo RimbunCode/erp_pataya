@@ -17,6 +17,7 @@ export default forwardRef(function UnitLinkModel(
       titleDialog={t("inventory.unit.new")}
       form={<Form />}
       keywords={["group", "name", "code"]}
+      fields={["group"]}
       {...props}
       ref={ref}
     />

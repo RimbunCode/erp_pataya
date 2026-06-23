@@ -23,8 +23,10 @@ class IncludeHiddenCategory extends AppModel {
 
 /**
  * Model uji nyata yang memakai trait LinkModel asli (getColumns sesungguhnya).
- * - `category_id` adalah FK BelongsTo (default di-unset dari getColumns).
- * - `secret_note` ditandai `ignore:true` via configColumns (default di-skip).
+ * - `category_id` adalah FK BelongsTo — di-flag ignore (default ter-skip).
+ * - `secret_note` ditandai `ignore:true` via configColumns (default ter-skip).
+ * - `visible_note` ditandai `hidden:true` via configColumns — tetap tampil di getColumns default,
+ *   tersembunyi di FE (ColumnsFilter, FilterItem, dll).
  */
 class IncludeHiddenRecord extends AppModel {
     use HasUlids;
@@ -33,8 +35,9 @@ class IncludeHiddenRecord extends AppModel {
     protected $guarded             = ['id'];
     public $timestamps             = true;
     protected array $configColumns = [
-        'secret_note' => ['ignore' => true],
-        'category'    => [],
+        'secret_note'  => ['ignore' => true],
+        'visible_note' => ['hidden' => true, 'linkable' => true],
+        'category'     => [],
     ];
 
     public function category(): BelongsTo {
@@ -59,6 +62,7 @@ class GetColumnsIncludeHiddenTest extends TestCase {
             $t->ulid('category_id')->nullable();
             $t->string('name')->nullable();
             $t->string('secret_note')->nullable();
+            $t->string('visible_note')->nullable();
             $t->timestamps();
         });
     }
@@ -83,21 +87,32 @@ class GetColumnsIncludeHiddenTest extends TestCase {
         $this->assertNotNull($this->byName($columns, 'category'), 'relasi category tetap ada');
     }
 
-    public function test_include_hidden_emits_fk_with_hidden_flag(): void {
+    public function test_hidden_column_present_in_default_getcolumns(): void {
+        $columns = IncludeHiddenRecord::getColumns(1);
+
+        $col = $this->byName($columns, 'visible_note');
+        $this->assertNotNull($col, 'kolom hidden:true harus tetap ada di getColumns default');
+        $this->assertTrue($col['hidden'] ?? false, 'kolom harus ber-flag hidden');
+        $this->assertFalse($col['ignore'] ?? false, 'kolom hidden:true tidak boleh ber-flag ignore');
+        $this->assertTrue($col['linkable'] ?? false, 'kolom hidden:true harus tetap linkable');
+    }
+
+    public function test_include_ignore_emits_fk_with_ignore_flag(): void {
         $columns = IncludeHiddenRecord::getColumns(1, true);
 
         $fk = $this->byName($columns, 'category_id');
-        $this->assertNotNull($fk, 'FK column harus muncul saat includeHidden=true');
+        $this->assertNotNull($fk, 'FK column harus muncul saat includeIgnore=true');
+        $this->assertTrue($fk['ignore'] ?? false, 'FK harus ber-flag ignore');
         $this->assertTrue($fk['hidden'] ?? false, 'FK harus ber-flag hidden');
         $this->assertFalse($fk['searchable'] ?? true, 'FK harus searchable:false');
         $this->assertFalse($fk['show'] ?? true, 'FK harus show:false');
     }
 
-    public function test_include_hidden_emits_ignored_with_ignore_flag(): void {
+    public function test_include_ignore_emits_ignored_with_ignore_flag(): void {
         $columns = IncludeHiddenRecord::getColumns(1, true);
 
         $col = $this->byName($columns, 'secret_note');
-        $this->assertNotNull($col, 'kolom ignore harus muncul saat includeHidden=true');
+        $this->assertNotNull($col, 'kolom ignore harus muncul saat includeIgnore=true');
         $this->assertTrue($col['ignore'] ?? false, 'kolom harus ber-flag ignore');
         $this->assertTrue($col['hidden'] ?? false, 'kolom ignore harus ber-flag hidden');
         $this->assertFalse($col['searchable'] ?? true, 'kolom ignore harus searchable:false');
@@ -119,5 +134,13 @@ class GetColumnsIncludeHiddenTest extends TestCase {
         $resolver = new FilterColumnResolver($columns);
 
         $this->assertNull($resolver->resolve('category_id'), 'tanpa superset FK tak ter-resolve');
+    }
+
+    public function test_resolver_can_resolve_hidden_column_from_default_set(): void {
+        // hidden:true (bukan ignore) ada di getColumns default — resolver harus menemukannya
+        $columns  = IncludeHiddenRecord::getColumns(1);
+        $resolver = new FilterColumnResolver($columns);
+
+        $this->assertNotNull($resolver->resolve('visible_note'), 'kolom hidden:true harus ter-resolve dari default set');
     }
 }

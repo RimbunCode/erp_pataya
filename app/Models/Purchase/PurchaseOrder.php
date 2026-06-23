@@ -52,7 +52,7 @@ class PurchaseOrder extends Model {
         ],
         'currency_code',
         'base_currency_code' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
         'items' => [
             'show'  => true,

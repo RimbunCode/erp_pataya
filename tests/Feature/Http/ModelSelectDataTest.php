@@ -42,12 +42,27 @@ class ModelSelectDataTest extends TestCase {
             $table->timestamps();
             $table->softDeletes();
         });
+        // Induk khusus menguji gate relasi via `with` di endpoint `model`
+        // (LinkModel lookup). Punya templateLink (dibutuhkan __invoke).
+        Schema::create('link_stub_parents', function ($table): void {
+            $table->id();
+            $table->string('code')->nullable();
+            $table->boolean('is_example')->default(false);
+            $table->timestamps();
+            $table->softDeletes();
+        });
     }
 
     private function submit(array $body) {
         return $this->actingAs(User::factory()->create())
             ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
             ->postJson(route('model.selectData'), $body);
+    }
+
+    private function submitModel(array $body) {
+        return $this->actingAs(User::factory()->create())
+            ->withHeaders(['X-Requested-With' => 'XMLHttpRequest'])
+            ->postJson(route('model'), $body);
     }
 
     public function test_returns_paginated_shape_without_select(): void {
@@ -252,6 +267,97 @@ class ModelSelectDataTest extends TestCase {
         $this->assertNull($res->json('parentColumn'));
         $this->assertSame(1, $res->json('data.total'));
     }
+
+    // --- Endpoint `model` (LinkModel lookup): gate relasi via `with` + linkable. ---
+
+    public function test_with_loads_linkable_relation(): void {
+        $parent = LinkStubParent::create(['code' => 'P-1']);
+        SelectStubChild::insert([
+            ['select_stub_parent_id' => $parent->id, 'item' => 'A', 'quantity' => 5],
+            ['select_stub_parent_id' => $parent->id, 'item' => 'B', 'quantity' => 3],
+        ]);
+
+        $res = $this->submitModel([
+            'model' => LinkStubParent::class,
+            'with'  => ['children'],
+        ]);
+
+        $res->assertOk();
+        // Relasi yang diminta via `with` harus ikut ter-load di tiap row.
+        $row = $res->json('data.0');
+        $this->assertArrayHasKey('children', $row, 'relasi `children` harus ada di row');
+        $this->assertCount(2, $row['children']);
+        // Opsi B: kolom anak DISARING di SELECT — `item`/`quantity` non-linkable
+        // tak diminta `fields`, jadi tak boleh bocor; hanya PK/FK/meta yang lolos.
+        $this->assertArrayNotHasKey('item', $row['children'][0]);
+        $this->assertArrayNotHasKey('quantity', $row['children'][0]);
+    }
+
+    public function test_without_with_relation_is_not_loaded(): void {
+        $parent = LinkStubParent::create(['code' => 'P-2']);
+        SelectStubChild::insert([
+            ['select_stub_parent_id' => $parent->id, 'item' => 'A', 'quantity' => 5],
+        ]);
+
+        $res = $this->submitModel(['model' => LinkStubParent::class]);
+
+        $res->assertOk();
+        // Tanpa `with`, relasi tetap di-prune (perilaku gate lama).
+        $this->assertArrayNotHasKey('children', $res->json('data.0'));
+    }
+
+    public function test_with_relation_loads_without_linkable_flag(): void {
+        $parent = LinkStubParent::create(['code' => 'P-3']);
+        SelectStubChild::insert([
+            ['select_stub_parent_id' => $parent->id, 'item' => 'A', 'quantity' => 5],
+        ]);
+
+        $res = $this->submitModel([
+            'model' => LinkStubParent::class,
+            'with'  => ['childrenUnsafe'],
+        ]);
+
+        $res->assertOk();
+        // `with` adalah kontrak relasi eksplisit form: relasi lolos TANPA syarat
+        // `linkable` (linkable hanya gate kolom skalar). Kolom anak tetap disaring.
+        // Response key snake_case (Eloquent $snakeAttributes): `childrenUnsafe`
+        // dikirim camel di `with`, diterima `children_unsafe`.
+        $this->assertArrayHasKey('children_unsafe', $res->json('data.0'));
+    }
+
+    /**
+     * Jalur join MELEWATI SELECT-level pruning (blok `! has('joins')`), tapi
+     * `$withRelations` diambil sebelum cabang join & `$query->with($with)` tetap
+     * jalan. Relasi linkable yang diminta via `with` harus tetap ter-load dan
+     * lolos filterRowColumns walau ada attribute `joins`.
+     */
+    public function test_with_linkable_relation_survives_join(): void {
+        $parent = LinkStubParent::create(['code' => 'P-4']);
+        SelectStubChild::insert([
+            ['select_stub_parent_id' => $parent->id, 'item' => 'A', 'quantity' => 5],
+            ['select_stub_parent_id' => $parent->id, 'item' => 'B', 'quantity' => 3],
+        ]);
+
+        $res = $this->submitModel([
+            'model' => LinkStubParent::class,
+            'with'  => ['children'],
+            'joins' => [
+                'select_stub_children' => [
+                    'type' => 'left',
+                    'on'   => [
+                        'select_stub_children.select_stub_parent_id',
+                        '=',
+                        'link_stub_parents.id',
+                    ],
+                ],
+            ],
+        ]);
+
+        $res->assertOk();
+        $row = $res->json('data.0');
+        $this->assertArrayHasKey('children', $row, 'relasi linkable harus tetap ter-load via with walau ada join');
+        $this->assertCount(2, $row['children']);
+    }
 }
 
 /**
@@ -306,5 +412,35 @@ class SelectStubChildNoParent extends Model {
 
     public function parent(): BelongsTo {
         return $this->belongsTo(SelectStubParent::class, 'select_stub_parent_id');
+    }
+}
+
+/**
+ * Stub induk untuk endpoint `model` (LinkModel lookup). Kedua relasi TIDAK
+ * ber-`linkable` — meniru produksi di mana relasi yang diminta `with`
+ * (mis. PurchaseOrder::items/supplier) memang tak ditandai linkable. Gate
+ * meloloskan relasi `with` tanpa syarat linkable; kolom anak tetap disaring.
+ */
+class LinkStubParent extends Model {
+    use DataTable;
+
+    protected $table               = 'link_stub_parents';
+    public string $translateKey    = 'stub.link';
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'children',
+        'childrenUnsafe',
+    ];
+
+    public static function templateLink() {
+        return ':code';
+    }
+
+    public function children(): HasMany {
+        return $this->hasMany(SelectStubChild::class, 'select_stub_parent_id');
+    }
+
+    public function childrenUnsafe(): HasMany {
+        return $this->hasMany(SelectStubChild::class, 'select_stub_parent_id');
     }
 }
