@@ -12,7 +12,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
-import { cn, getCookieByName } from "@/lib/utils";
+import { cn, getCookieByName, setCookie } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import { Input } from "@/Components/ui/input";
@@ -23,7 +23,7 @@ import { cva } from "class-variance-authority";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { useScreen } from "@/Hooks/useScreen";
 
-export const SIDEBAR_COOKIE_NAME = "sidebar:state";
+export const SIDEBAR_COOKIE_NAME = "sidebar_state";
 export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
@@ -58,26 +58,28 @@ const SidebarProvider = React.forwardRef(
     const [openMobile, setOpenMobile] = React.useState(false);
     // This is the internal state of the sidebar.
     // We use openProp and setOpenProp for control from outside the component.
-    const [_open, _setOpen] = React.useState(
-      getCookieByName(SIDEBAR_COOKIE_NAME) === null
+    const [_open, _setOpen] = React.useState(() => {
+      const cookieVal = getCookieByName(SIDEBAR_COOKIE_NAME);
+      return cookieVal == null
         ? defaultOpen
-        : getCookieByName(SIDEBAR_COOKIE_NAME) === "true",
-    );
+        : getCookieByName(SIDEBAR_COOKIE_NAME) == "true";
+    });
     const open = openProp ?? _open;
-    const setOpen = React.useCallback(
-      (value) => {
-        const openState = typeof value === "function" ? value(open) : value;
-        if (setOpenProp) {
-          setOpenProp(openState);
-        } else {
-          _setOpen(openState);
-        }
+    const setOpen = (value) => {
+      const openState = typeof value === "function" ? value(open) : value;
+      if (setOpenProp) {
+        setOpenProp(openState);
+      } else {
+        _setOpen(openState);
+      }
 
-        // This sets the cookie to keep the sidebar state.
-        document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
-      },
-      [setOpenProp, open],
-    );
+      // This sets the cookie to keep the sidebar state.
+      setCookie(SIDEBAR_COOKIE_NAME, openState, {
+        days: 7,
+        path: "/",
+        sameSite: "Lax",
+      });
+    };
 
     // Helper to toggle the sidebar.
     const toggleSidebar = React.useCallback(() => {
