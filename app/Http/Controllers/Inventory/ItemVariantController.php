@@ -102,4 +102,10 @@ class ItemVariantController extends Controller {
 
         return back();
     }
+
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Inventory/Items/ShowVariant');
+    }
 }

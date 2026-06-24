@@ -28,8 +28,14 @@ const utilsDir = resolve(
 );
 
 const sidebarSource = readFileSync(`${componentsDir}/Sidebar.jsx`, "utf8");
-const dropUtilsSource = readFileSync(`${utilsDir}/variableDropUtils.js`, "utf8");
-const variableItemSource = readFileSync(`${componentsDir}/VariableItem.jsx`, "utf8");
+const dropUtilsSource = readFileSync(
+  `${utilsDir}/variableDropUtils.js`,
+  "utf8",
+);
+const variableItemSource = readFileSync(
+  `${componentsDir}/VariableItem.jsx`,
+  "utf8",
+);
 
 // ---------------------------------------------------------------------------
 // Sidebar panel selection state tests
@@ -44,7 +50,9 @@ describe("Sidebar panel switching — source code verification (Task 6.4)", () =
 
   it("listens to component:deselected to clear selectedComponent state", () => {
     expect(sidebarSource).toContain("component:deselected");
-    expect(sidebarSource).toMatch(/setSelectedComponent\s*\(\s*selected\s*\|\|\s*null\s*\)/);
+    expect(sidebarSource).toMatch(
+      /setSelectedComponent\s*\(\s*selected\s*\|\|\s*null\s*\)/,
+    );
   });
 
   it("computes isRelationsTableSelected from selectedComponent type — requirement 1.4", () => {
@@ -60,9 +68,7 @@ describe("Sidebar panel switching — source code verification (Task 6.4)", () =
   });
 
   it("reverts to VariableManager when isRelationsTableSelected is false — requirement 2.6", () => {
-    expect(sidebarSource).toMatch(
-      /<VariableManager\s*\/>/,
-    );
+    expect(sidebarSource).toMatch(/<VariableManager\s*\/>/);
   });
 
   it("suppresses TokenConfigurationManager for gjsRelationsTable — requirement 1.4", () => {
@@ -83,7 +89,11 @@ describe("Sidebar panel switching — source code verification (Task 6.4)", () =
 // ---------------------------------------------------------------------------
 
 describe("isValidBodyDropTarget — drop validation unit tests (Task 6.4)", () => {
-  function makeComponent(tagName, parentTagName = null, grandParentTagName = null) {
+  function makeComponent(
+    tagName,
+    parentTagName = null,
+    grandParentTagName = null,
+  ) {
     const grandParentMock = grandParentTagName
       ? {
           get: (k) => (k === "tagName" ? grandParentTagName : undefined),

@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 /**
  * Toggle switch for activating or deactivating Custom Mode on a gjsRelationsTable.
  * Shows a confirmation dialog before switching in either direction.
- *
  * @param {object} props
  * @param {boolean} props.isCustomMode - Current custom mode state
  * @param {function} props.onModeChange - Called with (enabled: boolean) after user confirms
@@ -100,8 +99,16 @@ function CustomModeToggle({ isCustomMode, onModeChange }) {
               onClick={handleConfirm}
             >
               {isCustomMode
-                ? t("core.printTemplate.editor.deactivate_confirm", {}, "Deactivate")
-                : t("core.printTemplate.editor.activate_confirm", {}, "Activate")}
+                ? t(
+                    "core.printTemplate.editor.deactivate_confirm",
+                    {},
+                    "Deactivate",
+                  )
+                : t(
+                    "core.printTemplate.editor.activate_confirm",
+                    {},
+                    "Activate",
+                  )}
             </Button>
           </DialogFooter>
         </DialogContent>

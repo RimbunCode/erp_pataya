@@ -31,8 +31,15 @@ class PaymentTermTemplateController extends Controller {
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request, ?string $ref = null) {
-        //
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Finances/PaymentTermTemplate/Form',
+            'paymentTermTemplate',
+            null,
+            new ($this->model),
+        );
     }
 
     /**

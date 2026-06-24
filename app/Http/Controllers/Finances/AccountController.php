@@ -35,7 +35,7 @@ class AccountController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        $this->setBreadcrumbs('finance.accounts.new');
+        $this->setBreadcrumbs();
 
         $parentAccounts = Account::where('is_group', true)
             ->select('id', 'account_name', 'account_number')

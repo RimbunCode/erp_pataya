@@ -3,7 +3,7 @@ import { FormPage } from "@/Pages/Core/FormPage";
 
 export default function Show({ approvalScheme }) {
   return (
-    <FormPage name="approvalScheme" title={approvalScheme.name}>
+    <FormPage isCreate={!approvalScheme} name="approvalScheme">
       <Form />
     </FormPage>
   );

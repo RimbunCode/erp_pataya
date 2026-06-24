@@ -14,7 +14,6 @@ export default function Show({ deliveryNote, defaultData, flash }) {
     <FormPage
       isCreate={!deliveryNote}
       name="deliveryNote"
-      title={deliveryNote ? deliveryNote.code : t("inventory.deliveryNote.new")}
       disabled={deliveryNote?.submitted_at}
       submitable
       ignoreDraft={defaultData}

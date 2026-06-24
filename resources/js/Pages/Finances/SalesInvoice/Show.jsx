@@ -23,7 +23,6 @@ export default function Show({ salesInvoice, defaultData }) {
       isCreate={!salesInvoice}
       ignoreDraft={defaultData}
       name="salesInvoice"
-      title={salesInvoice ? salesInvoice.code : t("finances.salesInvoice.new")}
       disabled={salesInvoice?.submitted_at}
       submitable
       controls={() => {

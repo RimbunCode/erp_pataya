@@ -34,6 +34,12 @@ class CountryController extends Controller {
         ]);
     }
 
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Settings/Countries/Show');
+    }
+
     public function store(CountryRequest $request) {
         $data = $request->validated();
         DB::beginTransaction();

@@ -30,7 +30,16 @@ class ItemAlternativeController extends Controller {
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request) {}
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Inventory/ItemAlternatives/Form',
+            'itemAlternative',
+            null,
+            new ($this->model),
+        );
+    }
 
     /**
      * Store a newly created resource in storage.

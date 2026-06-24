@@ -22,7 +22,7 @@ class TicketController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'updateTicket' => 'write',
-            default                    => null,
+            default => null,
         };
     }
 
@@ -31,6 +31,12 @@ class TicketController extends Controller {
         Ticket::dataTable($request);
 
         return Inertia::render('Helpdesk/Tickets/Index');
+    }
+
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Helpdesk/Tickets/Show');
     }
 
     public function store(TicketRequest $request) {

@@ -6,10 +6,10 @@ export default function Show({ stockEntry, flash, defaultData }) {
   const { t } = useLaravelReactI18n();
   return (
     <FormPage
+      isCreate={!stockEntry}
       name="stockEntry"
       ignoreDraft={defaultData}
       defaultValues={defaultData}
-      title={stockEntry?.code}
       disabled={stockEntry?.submitted_at}
       submitable
       banner={

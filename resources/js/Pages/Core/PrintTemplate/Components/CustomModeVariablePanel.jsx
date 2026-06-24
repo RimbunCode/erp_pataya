@@ -11,7 +11,6 @@ import { filterRelationColumns } from "../utils/customModeUtils";
  *
  * Includes basic columns and single-relation (type "relation") columns.
  * Excludes many-relation (type "relations") columns.
- *
  * @param {object} props
  * @param {string} props.relationName - The relation name bound to the gjsRelationsTable
  */
@@ -37,7 +36,11 @@ function CustomModeVariablePanel({ relationName }) {
   return (
     <div className="space-y-2 p-3">
       <h3 className="text-sm font-semibold text-muted-foreground">
-        {t("core.printTemplate.editor.relation_columns", {}, "Relation Columns")}
+        {t(
+          "core.printTemplate.editor.relation_columns",
+          {},
+          "Relation Columns",
+        )}
         {relationName && (
           <span className="ml-1 font-mono text-xs text-primary">
             ({relationName})

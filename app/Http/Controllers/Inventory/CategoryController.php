@@ -30,7 +30,14 @@ class CategoryController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        //
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Inventory/Categories/Form',
+            'category',
+            null,
+            new ($this->model),
+        );
     }
 
     /**

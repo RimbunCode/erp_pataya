@@ -50,8 +50,8 @@ export default function Show({ user }) {
   return (
     <>
       <FormPage
+        isCreate={!user}
         name="user"
-        title={user?.name ?? t("user.user.new")}
         sidebarContent={(defaultComp) => (
           <>
             <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>

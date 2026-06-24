@@ -304,6 +304,7 @@ const mixedRelationTreeArb = fc.array(
 
 /**
  * Count the number of named columns in a source array.
+ * @param columns
  */
 function countValidColumns(columns) {
   if (!Array.isArray(columns)) return 0;
@@ -313,6 +314,8 @@ function countValidColumns(columns) {
 
 /**
  * Get the maximum nesting depth of a source columns array.
+ * @param columns
+ * @param currentDepth
  */
 function getSourceDepth(columns, currentDepth = 0) {
   if (!Array.isArray(columns) || columns.length === 0) return currentDepth;
@@ -339,6 +342,8 @@ function getSourceDepth(columns, currentDepth = 0) {
 
 /**
  * Get the maximum nesting depth of the output tree.
+ * @param options
+ * @param currentDepth
  */
 function getTreeDepth(options, currentDepth = 0) {
   if (!Array.isArray(options) || options.length === 0) return currentDepth;
@@ -356,6 +361,7 @@ function getTreeDepth(options, currentDepth = 0) {
 
 /**
  * Collect all nodes from a filtered tree (flattened).
+ * @param tree
  */
 function collectAllNodes(tree) {
   const nodes = [];
@@ -370,6 +376,7 @@ function collectAllNodes(tree) {
 
 /**
  * Check if a node has any descendant with type "relations".
+ * @param node
  */
 function nodeHasRelationsDescendant(node) {
   if (!node || !Array.isArray(node.children)) return false;
@@ -1350,6 +1357,7 @@ const tokenNoRelationsTreeArb = fc.array(
 
 /**
  * Collect all nodes from a tree (flattened) for inspection.
+ * @param tree
  */
 function collectAllFilteredNodes(tree) {
   const nodes = [];
@@ -1365,6 +1373,7 @@ function collectAllFilteredNodes(tree) {
 /**
  * Collect all non-relations nodes from input that are NOT descendants of a "relations" node.
  * These are the nodes that SHOULD appear in the output.
+ * @param tree
  */
 function collectExpectedRetainedNodes(tree) {
   const retained = [];
@@ -1384,6 +1393,7 @@ function collectExpectedRetainedNodes(tree) {
 /**
  * Collect all nodes that are descendants of "relations" nodes in the input.
  * These should NOT appear in the output.
+ * @param tree
  */
 function collectRelationsDescendants(tree) {
   const descendants = [];

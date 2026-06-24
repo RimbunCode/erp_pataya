@@ -3,7 +3,7 @@
  * Menampilkan panel style properties (dikelompokkan per section), class manager,
  * dan editor CSS manual untuk komponen yang sedang dipilih di canvas GrapesJS.
  * @module CustomStyleManager
- * @param {Object} props
+ * @param {object} props
  * @param {Array} props.sectors - Daftar sector style dari GrapesJS StyleManager,
  *   berisi properti-properti CSS yang tersedia untuk komponen terpilih
  */
@@ -128,7 +128,7 @@ function groupSectionProperties(sectionId, properties) {
  * Mendeteksi mode layout dari komponen yang dipilih.
  * Memeriksa style display dan tipe komponen untuk menentukan apakah
  * komponen menggunakan grid atau flex layout.
- * @param {Object|null} component - Komponen GrapesJS yang dipilih
+ * @param {object | null} component - Komponen GrapesJS yang dipilih
  * @returns {"grid"|"flex"|null} Mode layout atau null jika tidak terdeteksi
  */
 function detectLayoutMode(component) {

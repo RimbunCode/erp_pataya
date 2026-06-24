@@ -55,7 +55,16 @@ composer install --no-dev --optimize-autoloader
 composer dump-autoload -o
 
 # 6. Database & Cache
-php artisan migrate:fresh --seed
+# Deteksi apakah ini deploy pertama berdasarkan ada tidaknya riwayat release sebelumnya
+if [ -z "$PREVIOUS" ]; then
+  echo "🌱 First deployment detected! Running migrations with seeds..."
+  php artisan migrate --force
+  php artisan db:seed --force
+else
+  echo "🔄 Running migrations..."
+  php artisan migrate --force
+fi
+
 php artisan optimize:clear
 php artisan optimize
 php artisan model:cache --strict

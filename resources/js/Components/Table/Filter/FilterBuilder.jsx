@@ -1,4 +1,4 @@
-import { AlertTriangle, Plus } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useEffect, useRef } from "react";
 import useNestedFilters, {
   getMaxDepth,
@@ -24,6 +24,11 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * State builder dipegang `useNestedFilters` (headless). FilterBuilder hanya
  * menyediakan Provider + UI; konsumen lain boleh memakai `FilterBuilderBody`
  * langsung bila sudah berada dalam NestedFiltersProvider.
+ * @param root0
+ * @param root0.columns
+ * @param root0.value
+ * @param root0.onChange
+ * @param root0.className
  */
 export default function FilterBuilder({ columns, value, onChange, className }) {
   return (
@@ -41,10 +46,14 @@ export default function FilterBuilder({ columns, value, onChange, className }) {
  * Body builder — harus dipakai di dalam NestedFiltersProvider. Mengangkat state
  * tree ke `onChange` dan menyinkronkan kembali bila `value` controlled berubah
  * dari luar.
+ * @param root0
+ * @param root0.value
+ * @param root0.onChange
+ * @param root0.className
  */
 export function FilterBuilderBody({ value, onChange, className }) {
   const { t } = useLaravelReactI18n();
-  const { filters, setFromInitial, resetFilters, addItemToGroup } =
+  const { filters, setFromInitial, resetFilters, _addItemToGroup } =
     useNestedFilters();
 
   // Angkat perubahan tree ke parent. Bandingkan referensi agar tak loop dengan

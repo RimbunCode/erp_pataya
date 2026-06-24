@@ -31,7 +31,14 @@ class TaxesController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        //
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Finances/Taxes/Form',
+            'tax',
+            null,
+            new ($this->model),
+        );
     }
 
     /**

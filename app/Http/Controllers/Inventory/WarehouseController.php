@@ -47,7 +47,14 @@ class WarehouseController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        //
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Inventory/Warehouses/Form',
+            'warehouse',
+            null,
+            new ($this->model),
+        );
     }
 
     /**

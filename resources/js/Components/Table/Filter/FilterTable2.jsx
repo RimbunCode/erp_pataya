@@ -462,6 +462,7 @@ function SavedFilterBar({ items, loading, activeFid, onPick, onRemove }) {
  * @param root0.savedItems
  * @param root0.onSaved
  * @param root0.onSavingChange
+ * @param root0.disabled
  */
 function SaveFilterControl({
   model,

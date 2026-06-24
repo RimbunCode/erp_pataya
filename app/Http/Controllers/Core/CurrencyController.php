@@ -34,6 +34,12 @@ class CurrencyController extends Controller {
         ]);
     }
 
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Settings/Currencies/Show');
+    }
+
     public function store(CurrencyRequest $request) {
         $data = $request->validated();
         DB::beginTransaction();
