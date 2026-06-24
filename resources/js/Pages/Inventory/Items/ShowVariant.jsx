@@ -9,6 +9,7 @@ export default function ShowVariant({ itemVariant }) {
   const route = window.route;
   return (
     <FormPage
+      isCreate={!itemVariant}
       title={itemVariant.code}
       name="itemVariant"
       deleteable={false}

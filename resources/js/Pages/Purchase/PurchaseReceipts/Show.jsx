@@ -13,11 +13,6 @@ export default function Show({ purchaseReceipt, defaultData }) {
       isCreate={!purchaseReceipt}
       ignoreDraft={defaultData}
       name="purchaseReceipt"
-      title={
-        purchaseReceipt
-          ? purchaseReceipt.code
-          : t("purchase.purchaseReceipt.new")
-      }
       defaultValues={defaultData}
       disabled={(purchaseReceipt?.status ?? "draft") != "draft"}
       submitable

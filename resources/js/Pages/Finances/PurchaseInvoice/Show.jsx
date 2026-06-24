@@ -21,11 +21,6 @@ export default function Show({ purchaseInvoice, defaultData }) {
       isCreate={!purchaseInvoice}
       ignoreDraft={defaultData}
       name="purchaseInvoice"
-      title={
-        purchaseInvoice
-          ? purchaseInvoice.code
-          : t("finances.purchaseInvoice.new")
-      }
       disabled={(purchaseInvoice?.status ?? "draft") != "draft"}
       submitable
       controls={() => {

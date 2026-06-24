@@ -153,4 +153,15 @@ class FormatingSeriesController extends Controller {
 
         return back();
     }
+
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Settings/FormatingSeries/Show',
+            'formatingSeries',
+            null,
+            new ($this->model),
+        );
+    }
 }

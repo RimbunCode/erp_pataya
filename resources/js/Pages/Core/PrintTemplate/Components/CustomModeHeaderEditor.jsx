@@ -15,7 +15,6 @@ import {
   canAddHeaderRow,
   canRemoveHeaderRow,
   validateSpan,
-  buildOccupancyGrid,
   computeVisualColIndex,
 } from "../utils/customModeUtils";
 
@@ -58,7 +57,6 @@ function buildHeaderGridFromRows(rows) {
 
 /**
  * Editor for managing header rows, colspan/rowspan configuration in Custom Mode.
- *
  * @param {object} props
  * @param {object} props.tableComponent - GrapesJS gjsRelationsTable component
  */
@@ -202,14 +200,14 @@ function CustomModeHeaderEditor({ tableComponent }) {
     // Find the cell position in the grid
     const rows = getHeaderCellRows(thead);
     let cellRowIndex = -1;
-    let cellColIndex = -1;
+    let _cellColIndex = -1;
     let cellVisualColIndex = -1;
 
     rows.forEach((row, rIdx) => {
       row.forEach((cell, cIdx) => {
         if (cell === selectedCell) {
           cellRowIndex = rIdx;
-          cellColIndex = cIdx;
+          _cellColIndex = cIdx;
           cellVisualColIndex = computeVisualColIndex(rows, rIdx, cIdx);
         }
       });

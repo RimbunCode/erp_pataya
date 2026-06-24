@@ -1,7 +1,4 @@
-import {
-  FormPageContent,
-  useFormPage,
-} from "@/Pages/Core/FormPage";
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";

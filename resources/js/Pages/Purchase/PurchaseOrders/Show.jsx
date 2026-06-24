@@ -35,9 +35,7 @@ function QtyBadge({ delta }) {
         {delta} Under
       </span>
     );
-  return (
-    <span className="ml-1 text-xs font-medium text-gray-500">Match</span>
-  );
+  return <span className="ml-1 text-xs font-medium text-gray-500">Match</span>;
 }
 
 function ItemsQtyTable({ items }) {
@@ -62,7 +60,9 @@ function ItemsQtyTable({ items }) {
             const deltaBill = (item.billed_quantity ?? 0) - item.quantity;
             return (
               <tr key={item.id} className="border-t">
-                <td className="px-3 py-2">{item.item_name ?? item.item?.name}</td>
+                <td className="px-3 py-2">
+                  {item.item_name ?? item.item?.name}
+                </td>
                 <td className="px-3 py-2 text-right">{item.quantity}</td>
                 <td className="px-3 py-2 text-right">
                   {item.received_quantity ?? 0}
@@ -110,7 +110,7 @@ export default function Show({ purchaseOrder, defaultData }) {
           setLoading(false);
           setSyncDialogOpen(false);
         },
-      }
+      },
     );
   };
 
@@ -126,7 +126,7 @@ export default function Show({ purchaseOrder, defaultData }) {
             setMismatchErrors(
               Array.isArray(errors.mismatches)
                 ? errors.mismatches
-                : JSON.parse(errors.mismatches)
+                : JSON.parse(errors.mismatches),
             );
           }
           setLoading(false);
@@ -135,7 +135,7 @@ export default function Show({ purchaseOrder, defaultData }) {
           setLoading(false);
           setMarkDoneDialogOpen(false);
         },
-      }
+      },
     );
   };
 
@@ -145,9 +145,6 @@ export default function Show({ purchaseOrder, defaultData }) {
         isCreate={!purchaseOrder}
         ignoreDraft={defaultData}
         name="purchaseOrder"
-        title={
-          purchaseOrder ? purchaseOrder.code : t("purchase.purchaseOrder.new")
-        }
         disabled={purchaseOrder?.submitted_at}
         submitable
         defaultValues={defaultData}
@@ -193,7 +190,7 @@ export default function Show({ purchaseOrder, defaultData }) {
                         })}
                       >
                         {t(
-                          "purchase.purchaseOrder.actions.create_purchase_receipt"
+                          "purchase.purchaseOrder.actions.create_purchase_receipt",
                         )}
                       </Link>
                     </DropdownMenuItem>
@@ -204,7 +201,7 @@ export default function Show({ purchaseOrder, defaultData }) {
                         })}
                       >
                         {t(
-                          "purchase.purchaseOrder.actions.create_purchase_invoice"
+                          "purchase.purchaseOrder.actions.create_purchase_invoice",
                         )}
                       </Link>
                     </DropdownMenuItem>

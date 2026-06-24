@@ -11,7 +11,6 @@ import { usePage } from "@inertiajs/react";
 /**
  * Main panel displayed in the sidebar when a gjsRelationsTable is selected.
  * Coordinates Custom Mode toggle, variable panel, and header editor.
- *
  * @param {object} props
  * @param {object} props.selectedComponent - GrapesJS gjsRelationsTable component
  */

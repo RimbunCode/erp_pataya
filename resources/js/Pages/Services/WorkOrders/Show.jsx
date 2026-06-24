@@ -29,8 +29,8 @@ export default function Show({ workOrder }) {
 
   return (
     <FormPage
+      isCreate={!workOrder}
       name="workOrder"
-      title={workOrder.code}
       disabled={workOrder?.submitted_at}
       submitable
       controls={({ form }) => {

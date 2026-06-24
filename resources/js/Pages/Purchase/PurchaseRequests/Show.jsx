@@ -16,11 +16,6 @@ export default function Show({ purchaseRequest, defaultData }) {
       ignoreDraft={defaultData}
       defaultValues={defaultData}
       name="purchaseRequest"
-      title={
-        purchaseRequest
-          ? purchaseRequest.code
-          : t("purchase.purchaseRequest.new")
-      }
       disabled={purchaseRequest?.submitted_at}
       submitable
       controls={() => {

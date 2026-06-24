@@ -31,7 +31,14 @@ class PaymentMethodController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        //
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Finances/PaymentMethods/Form',
+            'paymentMethod',
+            null,
+            new ($this->model),
+        );
     }
 
     /**

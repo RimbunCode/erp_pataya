@@ -10,7 +10,6 @@
  * Preview ditempatkan sebelum wrapper editor agar tampil sebagai latar belakang
  * di bagian atas halaman. Fungsi ini juga mendaftarkan listener "load" agar
  * preview otomatis dipasang ulang saat editor dimuat ulang.
- *
  * @param {object} editor - Instance editor GrapesJS
  * @param {object} options - Opsi konfigurasi letterhead
  * @param {string} options.html - Markup HTML letterhead yang akan ditampilkan

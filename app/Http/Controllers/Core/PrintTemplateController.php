@@ -41,6 +41,12 @@ class PrintTemplateController extends Controller {
     /**
      * Store a newly created resource in storage.
      */
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Core/PrintTemplate/Show');
+    }
+
     public function store(PrintTemplateRequest $request) {
         if (! $this->isInertiaRequest($request)) {
             $printTemplate = PrintTemplate::find($request->id);

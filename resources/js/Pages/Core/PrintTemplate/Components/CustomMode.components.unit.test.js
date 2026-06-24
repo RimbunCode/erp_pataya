@@ -38,10 +38,7 @@ const panelSource = readFileSync(
   `${componentsDir}/CustomModePanel.jsx`,
   "utf8",
 );
-const sidebarSource = readFileSync(
-  `${componentsDir}/Sidebar.jsx`,
-  "utf8",
-);
+const sidebarSource = readFileSync(`${componentsDir}/Sidebar.jsx`, "utf8");
 
 // ---------------------------------------------------------------------------
 // CustomModeToggle
@@ -50,7 +47,7 @@ const sidebarSource = readFileSync(
 
 describe("CustomModeToggle (Task 5.5)", () => {
   it("renders a toggle button with role='switch' and aria-checked", () => {
-    expect(toggleSource).toContain("role=\"switch\"");
+    expect(toggleSource).toContain('role="switch"');
     expect(toggleSource).toContain("aria-checked={isCustomMode}");
   });
 
@@ -108,16 +105,12 @@ describe("CustomModeVariablePanel (Task 5.5)", () => {
 
   it("renders VariableItem for each filtered column — requirement 2.2, 2.3", () => {
     expect(variablePanelSource).toContain("VariableItem");
-    expect(variablePanelSource).toMatch(
-      /relationColumns\.map\(/,
-    );
+    expect(variablePanelSource).toMatch(/relationColumns\.map\(/);
   });
 
   it("shows empty state message when no columns — requirement 2.7", () => {
     expect(variablePanelSource).toContain("no_relation_variables");
-    expect(variablePanelSource).toMatch(
-      /relationColumns\.length\s*===\s*0/,
-    );
+    expect(variablePanelSource).toMatch(/relationColumns\.length\s*===\s*0/);
   });
 
   it("passes path set to relation prefix for VariableItem — requirement 2.1", () => {

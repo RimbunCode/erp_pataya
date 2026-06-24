@@ -1319,7 +1319,7 @@ const ApprovalItem = memo(function ApprovalItem({
     <li key={id} className="mb-3 first:mt-2 ms-6">
       <div
         className={cn(
-          "p-2 -mt-1.5 size-[34px] -inset-s-[18px] border-muted flex justify-center items-center absolute rounded-full",
+          "p-2 -mt-1.5 size-[34px] inset-s-[-18px] border-muted flex justify-center items-center absolute rounded-full",
         )}
       >
         <span

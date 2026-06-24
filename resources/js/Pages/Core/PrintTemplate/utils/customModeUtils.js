@@ -12,7 +12,6 @@
  *
  * The search traverses: top-level doc group → nested "relations"/"relation" children
  * matching the given relationName.
- *
  * @param {Array} dataTableColumns - Full column tree from page props
  * @param {string} relationName - The relation name to scope to (e.g., "items")
  * @returns {Array} Filtered columns for the relation (excluding many-relation type)
@@ -25,6 +24,7 @@ export function filterRelationColumns(dataTableColumns, relationName) {
   /**
    * Recursively search for a column node with matching name and type "relations" or "relation"
    * that represents our target relation table.
+   * @param columns
    */
   function findRelation(columns) {
     for (const col of columns) {
@@ -56,7 +56,6 @@ export function filterRelationColumns(dataTableColumns, relationName) {
 
 /**
  * Returns true if a new header row can be added (maximum 5 rows).
- *
  * @param {number} currentRowCount - Current number of header rows
  * @returns {boolean}
  */
@@ -66,7 +65,6 @@ export function canAddHeaderRow(currentRowCount) {
 
 /**
  * Returns true if a header row can be removed (minimum 1 row must remain).
- *
  * @param {number} currentRowCount - Current number of header rows
  * @returns {boolean}
  */
@@ -80,13 +78,12 @@ export function canRemoveHeaderRow(currentRowCount) {
  *
  * A cell occupies positions from (rowIndex, colIndex) to
  * (rowIndex + rowspan - 1, colIndex + colspan - 1).
- *
  * @param {object[][]} grid - 2D occupancy grid where each truthy entry means occupied
  * @param {number} rowIndex - Zero-based row index of the cell
  * @param {number} colIndex - Zero-based column index of the cell
  * @param {number} colspan - Number of columns the cell spans
  * @param {number} rowspan - Number of rows the cell spans
- * @param {boolean} [excludeSelf=false] - If true, the cell's own current span is excluded
+ * @param {boolean} [excludeSelf] - If true, the cell's own current span is excluded
  *   from the occupied check (used when updating an existing cell's span)
  * @returns {boolean} True if any overlapping occupied cell is detected
  */
@@ -118,7 +115,6 @@ export function detectOverlap(
  * Checks:
  * 1. Bounds: 1 ≤ colspan ≤ totalColumns, 1 ≤ rowspan ≤ totalRows
  * 2. Overlap: the spanned area does not intersect other occupied cells
- *
  * @param {object} headerGrid - HeaderGrid with rows, totalRows, totalColumns
  * @param {number} rowIndex - Zero-based row index of the cell
  * @param {number} colIndex - Zero-based column index of the cell
@@ -187,7 +183,6 @@ export function validateSpan(headerGrid, rowIndex, colIndex, colspan, rowspan) {
 /**
  * Computes the visual column index for a cell in a row, accounting for
  * colspan/rowspan from previous rows that extend into this row.
- *
  * @param {object[][]} allRows - All header rows (array of component arrays)
  * @param {number} targetRowIndex - The row index of the cell
  * @param {number} targetCellIndex - The child index of the cell in its row
@@ -247,7 +242,6 @@ export function computeVisualColIndex(
 /**
  * Builds a 2D boolean occupancy grid from the header rows.
  * Each position is true if it is occupied by some cell's span.
- *
  * @param {object[][]} rows - Array of row arrays of HeaderCell objects
  * @param {number} totalRows
  * @param {number} totalColumns
@@ -286,7 +280,6 @@ export function buildOccupancyGrid(rows, totalRows, totalColumns) {
 /**
  * Returns whether a component is a valid drop target for VariableItem in Custom Mode body.
  * Only direct <td> cells within the body section are valid targets.
- *
  * @param {object} component - GrapesJS component
  * @returns {boolean}
  */
@@ -314,7 +307,6 @@ export function isValidBodyDropTarget(component) {
 /**
  * Returns whether a new row can be added to the body section.
  * Body is always limited to exactly one row.
- *
  * @param {number} currentRowCount - Current number of rows in body
  * @returns {boolean} Always false — body is limited to 1 row
  */
@@ -326,7 +318,6 @@ export function canAddBodyRow(currentRowCount) {
 /**
  * Returns whether colspan/rowspan can be applied to a body cell.
  * Column grouping is never permitted in the body section.
- *
  * @param {number} colspan
  * @param {number} rowspan
  * @returns {boolean} Always false — no grouping in body
@@ -342,7 +333,6 @@ export function canApplyBodySpan(colspan, rowspan) {
  * Variable tokens in header cells are rendered as {{label "doc.<relation>.<col>"}} tokens.
  * Colspan, rowspan, and inline styles are preserved.
  * Static HTML content is output verbatim.
- *
  * @param {object} theadComponent - GrapesJS thead component
  * @param {string} relationName - Relation name (e.g., "items")
  * @returns {string} Serialized <thead> HTML string
@@ -382,7 +372,6 @@ export function serializeCustomModeHeader(theadComponent, relationName) {
  * Serializes the <tbody> of a Custom Mode gjsRelationsTable to an HTML string.
  * The single body row is wrapped with {{#each doc.<relation>}} / {{/each}}.
  * Body cell tokens use {{this.<col>}} for basic columns and {{relation this.<col>}} for relation columns.
- *
  * @param {object} tbodyComponent - GrapesJS tbody component
  * @param {string} relationName - Relation name (e.g., "items")
  * @returns {string} Serialized <tbody> HTML string
@@ -422,7 +411,6 @@ export function serializeCustomModeBody(tbodyComponent, relationName) {
 
 /**
  * Builds inline style attribute string from a component's styles.
- *
  * @param {object} component - GrapesJS component
  * @returns {string} e.g. ' style="text-align:center"' or ""
  */
@@ -440,7 +428,6 @@ function buildInlineStyleAttr(component) {
 
 /**
  * Builds the attribute string for a <th> or <td> cell, including colspan, rowspan, and style.
- *
  * @param {object} cell - GrapesJS cell component
  * @param {string} _labelPrefix - Unused here; kept for signature consistency
  * @returns {string}
@@ -471,7 +458,6 @@ function buildCellAttributes(cell, _labelPrefix) {
 /**
  * Serializes the content of a header cell, converting data-token spans to
  * {{label "..."}} tokens and outputting static HTML verbatim.
- *
  * @param {object} cell - GrapesJS cell component
  * @param {string} labelRelationPrefix - e.g. "doc.items"
  * @returns {string}
@@ -515,8 +501,8 @@ function serializeCellContent(cell, labelRelationPrefix) {
 /**
  * Serializes the content of a body cell, converting data-token spans to
  * {{this.<col>}} or {{relation this.<col>}} tokens.
- *
  * @param {object} cell - GrapesJS cell component
+ * @param relationName
  * @returns {string}
  */
 function serializeBodyCellContent(cell, relationName = "") {
@@ -572,7 +558,6 @@ function serializeBodyCellContent(cell, relationName = "") {
  * Extracts or constructs a label token path from a raw token string and prefix.
  * If the token already is a valid {{label "..."}} form, extract the key.
  * Otherwise build {{label "prefix.colName"}} from the token.
- *
  * @param {string} token - Raw token string, e.g. "{{label "doc.items.name"}}" or "{{this.name}}"
  * @param {string} labelRelationPrefix - e.g. "doc.items"
  * @returns {string} Full label helper string, e.g. {{label "doc.items.name"}}

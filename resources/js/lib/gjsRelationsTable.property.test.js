@@ -6,7 +6,6 @@ import { getColumnLabel } from "./gjsRelationsTable";
  * Generates the toHTML output for a gjsRelationsTable component.
  * This replicates the logic from the toHTML() method in gjsRelationsTable.js
  * without requiring the full GrapesJS editor context.
- *
  * @param {object} options
  * @param {string} options.relationName - The relation name (data-relations attribute)
  * @param {Array} options.columnsConfig - Array of column definitions with show, order, name, type, expression

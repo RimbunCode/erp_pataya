@@ -21,7 +21,6 @@ import { cn, getLocaleDate, mergeRefs } from "@/lib/utils";
 import { format, parse } from "date-fns";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
-import { Command } from "@/Components/ui/command";
 
 /**
  * DateSelector (wrapper) — value field untuk operator in_period / !in_period
@@ -35,7 +34,7 @@ import { Command } from "@/Components/ui/command";
  *     halfYear?, rangeStart?, rangeEnd? }
  *   operator: is | after | on-or-after | before | on-or-before | between
  *   period  : day | month | quarter | half-year | year
- *   *Date diserialisasi ke ISO string (filter tree disimpan JSON).
+ *   Date diserialisasi ke ISO string (filter tree disimpan JSON).
  *
  * Props rentang tahun diteruskan ke panel reui:
  *   yearRange — jumlah/span tahun (lihat ui/date-selector)
@@ -85,7 +84,7 @@ export default memo(
     const isDatetime = type === "datetime";
     const [open, setOpen] = useState(false);
     const inputRef = useRef(null);
-    const commandRef = useRef(null);
+    const _commandRef = useRef(null);
 
     // i18n labels untuk panel reui + display/parse ringkasan.
     const i18nLabels = useMemo(
@@ -529,6 +528,7 @@ function subValue(token) {
  * - lain : rangeEnd = rangeStart (atap dari year + unit index)
  * Mengembalikan objek baru (tak memutasi input). Bila bukan between atau end
  * sudah ada, kembalikan apa adanya.
+ * @param v
  */
 function completeRange(v) {
   if (!v || v.operator !== "between") return v;

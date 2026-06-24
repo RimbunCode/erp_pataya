@@ -25,7 +25,10 @@ export default memo(function Attachments() {
   const propAttachments = usePage().props.attachments;
   const bufferedFiles = data?.files ?? [];
   const attachments = isCreate
-    ? bufferedFiles.map((f, i) => ({ id: f.id ?? i, name: f.name || f.file?.name }))
+    ? bufferedFiles.map((f, i) => ({
+        id: f.id ?? i,
+        name: f.name || f.file?.name,
+      }))
     : propAttachments;
   const [openAttachment, setOpenAttachment] = useState(false);
 
@@ -121,7 +124,8 @@ export default memo(function Attachments() {
             open={openAttachment}
             onBuffer={
               isCreate
-                ? (items) => setData("files", [...(data?.files ?? []), ...items])
+                ? (items) =>
+                    setData("files", [...(data?.files ?? []), ...items])
                 : null
             }
             onClose={() => {

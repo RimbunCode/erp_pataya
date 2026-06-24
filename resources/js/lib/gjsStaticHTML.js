@@ -131,7 +131,6 @@ export default function gjsStaticHTML(editor) {
       /**
        * Update the component content with sanitized HTML.
        * Called from the StaticHTMLComponent modal on save.
-       *
        * @param {string} rawHTML - The raw user-provided HTML
        */
       setCustomHTML(rawHTML) {

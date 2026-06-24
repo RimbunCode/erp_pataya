@@ -32,7 +32,9 @@ class WorkOrderController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        //
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Services/WorkOrders/Show');
     }
 
     /**

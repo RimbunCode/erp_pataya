@@ -5,7 +5,6 @@ export default function Show({ paymentEntry, defaultData }) {
   return (
     <FormPage
       name="paymentEntry"
-      title={paymentEntry?.code}
       disabled={paymentEntry?.submitted_at}
       submitable
       isCreate={!paymentEntry}

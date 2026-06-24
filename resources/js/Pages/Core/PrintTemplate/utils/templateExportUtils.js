@@ -10,7 +10,6 @@ import { formatHandlebarTemplate } from "./templateFormatUtils";
  * Menghapus style khusus editor (.gjs-static-html-wrapper) dari CSS yang diekspor.
  * Style ini hanya digunakan untuk tampilan di canvas editor (border dashed, pseudo-element)
  * dan tidak boleh ikut tersimpan ke template final.
- *
  * @param {string} css - String CSS mentah dari editor GrapesJS
  * @returns {string} CSS yang sudah dibersihkan dari rule wrapper editor
  */
@@ -38,9 +37,8 @@ export function stripEditorOnlyWrapperStyles(css) {
  * Mengekstrak template HTML dan CSS saat ini dari instance editor GrapesJS.
  * Melakukan formatting pada HTML (normalisasi token Handlebar) dan
  * membersihkan CSS dari style khusus editor sebelum dikembalikan.
- *
  * @param {object} editor - Instance editor GrapesJS yang aktif
- * @param {object} [fallbackTemplate={}] - Template fallback jika editor tidak tersedia atau terjadi error
+ * @param {object} [fallbackTemplate] - Template fallback jika editor tidak tersedia atau terjadi error
  * @param {string} [fallbackTemplate.html] - HTML fallback
  * @param {string} [fallbackTemplate.css] - CSS fallback
  * @returns {{html: string, css: string}} Objek berisi HTML dan CSS template yang sudah diproses

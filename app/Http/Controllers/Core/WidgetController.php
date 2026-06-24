@@ -223,7 +223,9 @@ class WidgetController extends Controller {
     }
 
     public function create() {
-        // create
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Settings/Widget/Show');
     }
 
     /**

@@ -4,7 +4,13 @@ import { FormPage } from "./Core/FormPage";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
-export default function ShowGeneral({ name, title, formPathname, settings }) {
+export default function ShowGeneral({
+  name,
+  title,
+  formPathname,
+  settings,
+  isCreate = false,
+}) {
   const { t } = useLaravelReactI18n();
   // Menggunakan useMemo untuk memuat komponen hanya ketika namefile berubah
   const FormComponent = useMemo(() => {
@@ -21,7 +27,7 @@ export default function ShowGeneral({ name, title, formPathname, settings }) {
   }, [formPathname]);
 
   return (
-    <FormPage name={name} title={title} {...settings}>
+    <FormPage name={name} title={title} isCreate={isCreate} {...settings}>
       {FormComponent ? (
         <Suspense
           fallback={
@@ -31,7 +37,7 @@ export default function ShowGeneral({ name, title, formPathname, settings }) {
             </div>
           }
         >
-          <FormComponent />
+          <FormComponent isCreate={isCreate} />
         </Suspense>
       ) : (
         <div>Form tidak ditemukan</div>

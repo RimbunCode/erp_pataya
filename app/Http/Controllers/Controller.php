@@ -109,7 +109,8 @@ abstract class Controller {
             return;
         }
         Inertia::share([
-            'model' => $model,
+            'model'        => $model,
+            'translateKey' => (new $model)->translateKey ?? null,
         ]);
 
         if (! $this->ignorePermission) {
@@ -219,7 +220,10 @@ abstract class Controller {
     }
 
     protected function renderShow($formPathname, $name, $title, $data, $props = [], $settings = []) {
+        $isCreate = $data instanceof Model ? ! $data->exists : false;
+
         return Inertia::render('ShowGeneral', array_merge([
+            'isCreate'     => $isCreate,
             'name'         => $name,
             'title'        => $title,
             'formPathname' => $formPathname ?? (new $this->model)->formComponent ?? '',

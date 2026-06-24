@@ -3,7 +3,7 @@ import { FormPage } from "@/Pages/Core/FormPage";
 
 export default function Show({ country }) {
   return (
-    <FormPage name="country" primaryKey="code" title={country.name}>
+    <FormPage isCreate={!country} name="country" primaryKey="code">
       <Form />
     </FormPage>
   );

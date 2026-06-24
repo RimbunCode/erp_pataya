@@ -7,6 +7,9 @@ import {
 import { Button } from "../ui/button";
 
 function Notifications() {
+  //  TODO: Create a notification component that shows the notifications
+
+  return null;
   return (
     <Popover>
       <PopoverTrigger asChild>

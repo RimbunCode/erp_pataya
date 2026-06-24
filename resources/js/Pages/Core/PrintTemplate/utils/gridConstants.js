@@ -11,7 +11,7 @@ export const GRID_CLASS = "gjs-grid";
 /** @type {string} Nama class CSS untuk sub-grid (baris variabel) */
 export const SUBGRID_CLASS = "gjs-subgrid";
 
-/** @type {Readonly<Object>} Style CSS untuk container grid utama */
+/** @type {Readonly<object>} Style CSS untuk container grid utama */
 export const GRID_RULE_STYLE = Object.freeze({
   display: "grid",
   "grid-template-columns": "max-content 1fr",
@@ -20,7 +20,7 @@ export const GRID_RULE_STYLE = Object.freeze({
   "padding-bottom": "10px",
 });
 
-/** @type {Readonly<Object>} Style CSS untuk sub-grid (baris variabel) */
+/** @type {Readonly<object>} Style CSS untuk sub-grid (baris variabel) */
 export const SUBGRID_RULE_STYLE = Object.freeze({
   display: "grid",
   "grid-template-columns": "subgrid",

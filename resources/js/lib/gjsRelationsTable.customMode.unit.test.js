@@ -25,7 +25,13 @@ import { resolve } from "node:path";
 // Mock helpers (same as property test file)
 // ---------------------------------------------------------------------------
 
-function mockComponent({ tagName = "td", content = "", attributes = {}, style = {}, children = [] } = {}) {
+function mockComponent({
+  tagName = "td",
+  content = "",
+  attributes = {},
+  style = {},
+  children = [],
+} = {}) {
   return {
     get: (key) => {
       if (key === "tagName") return tagName;
@@ -39,7 +45,10 @@ function mockComponent({ tagName = "td", content = "", attributes = {}, style = 
   };
 }
 
-function mockCell(tagName, { children = [], colspan, rowspan, style = {} } = {}) {
+function mockCell(
+  tagName,
+  { children = [], colspan, rowspan, style = {} } = {},
+) {
   const attributes = {};
   if (colspan !== undefined) attributes.colspan = colspan;
   if (rowspan !== undefined) attributes.rowspan = rowspan;
@@ -59,7 +68,11 @@ function mockTbody(rows) {
 }
 
 function mockTokenSpan(token) {
-  return mockComponent({ tagName: "span", attributes: { "data-token": token }, content: token });
+  return mockComponent({
+    tagName: "span",
+    attributes: { "data-token": token },
+    content: token,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +80,6 @@ function mockTokenSpan(token) {
 // ---------------------------------------------------------------------------
 
 describe("gjsRelationsTable Custom Mode toHTML — Unit Tests (Task 4.3)", () => {
-
   // ─── Standard mode source code verification ───────────────────────────────
 
   describe("standard mode unchanged", () => {

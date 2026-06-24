@@ -8,7 +8,7 @@ import * as fc from "fast-check";
  * updates the component's property (e.g., `tagName`) without affecting the
  * component's children array. This model replicates that behavior for testing.
  */
-class MultiContainerModel {
+class _MultiContainerModel {
   constructor({ tagName = "div", children = [] } = {}) {
     this.tagName = tagName;
     this.children = children.map((child) => ({ ...child }));
@@ -19,6 +19,7 @@ class MultiContainerModel {
    * Simulates the GrapesJS `changeProp: true` behavior for the tagName trait.
    * When the user selects a new tag from the trait selector, GrapesJS updates
    * the `tagName` property on the model. Children remain untouched.
+   * @param newTag
    */
   changeTag(newTag) {
     this.tagName = newTag;

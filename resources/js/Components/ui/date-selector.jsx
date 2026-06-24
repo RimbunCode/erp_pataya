@@ -42,7 +42,7 @@ import {
  *     halfYear?, rangeStart?, rangeEnd? }
  *   period   : "day" | "month" | "quarter" | "half-year" | "year"
  *   operator : "is" | "before" | "after" | "between"
- *   *Date    : objek Date (period=day)
+ *   Date    : objek Date (period=day)
  *   range*   : { year, value } (period non-day)
  */
 
@@ -832,6 +832,13 @@ export const DateSelectorDayPicker = memo(
 /**
  * MonthYearPicker — overlay pilih bulan / tahun di header calendar (pola
  * DatetimePicker). mode: "month" | "year".
+ * @param root0
+ * @param root0.mode
+ * @param root0.current
+ * @param root0.months
+ * @param root0.years
+ * @param root0.onPick
+ * @param root0.className
  */
 function MonthYearPicker({ mode, current, months, years, onPick, className }) {
   const yearRef = useRef(null);
@@ -1121,6 +1128,11 @@ function TimeColumn({
  * DaySelectorTimePicker — panel pilih HH:mm. Dipakai sebagai overlay absolute di
  * area calendar (dibuka dari trigger time di header), jadi tinggi mengisi penuh
  * (`h-full`) agar tak menambah tinggi vertikal popup.
+ * @param root0
+ * @param root0.value
+ * @param root0.onChange
+ * @param root0.scrollTick
+ * @param root0.className
  */
 export function DaySelectorTimePicker({
   value,
@@ -1162,12 +1174,11 @@ export function DaySelectorTimePicker({
 }
 
 /**
- * @typedef {Object} PeriodRange Titik range periode non-day (month/quarter/half-year/year).
+ * @typedef {object} PeriodRange Titik range periode non-day (month/quarter/half-year/year).
  * @property {number} year  Tahun penuh (mis. 2026).
  * @property {number} value Index 0-based dalam tahun: month 0–11, quarter 0–3,
  *   half-year 0–1; untuk period=year tak terpakai (0).
- *
- * @typedef {Object} DateSelectorValue Nilai terkontrol DateSelector.
+ * @typedef {object} DateSelectorValue Nilai terkontrol DateSelector.
  * @property {"day"|"month"|"quarter"|"half-year"|"year"} period Granularitas.
  * @property {"is"|"after"|"on-or-after"|"before"|"on-or-before"|"between"} operator
  *   Sub-operator periode. Negasi (≠ / not-between) ditangani operator `!in_period`
@@ -1191,25 +1202,24 @@ export function DaySelectorTimePicker({
  *
  * Time picker (HH:mm) hanya muncul saat `withTime` aktif, period=day, dan operator
  * non-range — waktu mempersempit batas query di backend (FilterEvaluator).
- *
- * @param {Object} props
+ * @param {object} props
  * @param {DateSelectorValue} [props.value] Nilai terkontrol. Komponen hydrate state
  *   internal dari sini saat mount.
  * @param {(value: DateSelectorValue) => void} [props.onChange] Dipanggil saat pilihan
  *   berubah. Diproteksi loop-guard (JSON-compare) agar emit hanya saat konten berubah.
- * @param {boolean} [props.allowRange=true] Izinkan operator `between` (mode range).
+ * @param {boolean} [props.allowRange] Izinkan operator `between` (mode range).
  * @param {Array<"day"|"month"|"quarter"|"half-year"|"year">} [props.periodTypes]
  *   Batasi granularitas yang tersedia. Default: semua.
- * @param {"day"|"month"|"quarter"|"half-year"|"year"} [props.defaultPeriodType="day"]
+ * @param {"day"|"month"|"quarter"|"half-year"|"year"} [props.defaultPeriodType]
  *   Granularitas awal bila `value.period` kosong.
- * @param {DateSelectorValue["operator"]} [props.defaultFilterType="is"] Operator awal
+ * @param {DateSelectorValue["operator"]} [props.defaultFilterType] Operator awal
  *   bila `value.operator` kosong.
  * @param {DateSelectorValue["operator"]} [props.presetMode] Kunci operator ke nilai ini
  *   (sembunyikan dropdown Condition); menimpa `filterType`.
- * @param {boolean} [props.showTwoMonths=true] Tampilkan dua bulan berdampingan di calendar.
+ * @param {boolean} [props.showTwoMonths] Tampilkan dua bulan berdampingan di calendar.
  * @param {string} [props.label] Label opsional di atas komponen.
  * @param {string} [props.className] Kelas tambahan untuk container root.
- * @param {number} [props.yearRange=10] Jumlah tahun terdaftar (berpusat pada `baseYear`).
+ * @param {number} [props.yearRange] Jumlah tahun terdaftar (berpusat pada `baseYear`).
  *   Diabaikan bila `minYear`+`maxYear` di-set.
  * @param {number} [props.baseYear] Tahun pusat daftar tahun. Default: tahun ini.
  * @param {number} [props.minYear] Batas bawah tahun (override `yearRange` bila bersama `maxYear`).
@@ -1217,7 +1227,7 @@ export function DaySelectorTimePicker({
  * @param {Partial<typeof DEFAULT_DATE_SELECTOR_I18N>} [props.i18n] Override teks i18n
  *   (label operator/periode, nama bulan/kuartal/semester, dll).
  * @param {0|1|2|3|4|5|6} [props.weekStartsOn] Hari awal pekan (0=Minggu).
- * @param {boolean} [props.withTime=false] Aktifkan time picker (lihat aturan di atas).
+ * @param {boolean} [props.withTime] Aktifkan time picker (lihat aturan di atas).
  * @returns {JSX.Element}
  */
 export function DateSelector({
