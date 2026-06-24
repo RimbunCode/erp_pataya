@@ -22,7 +22,7 @@ import {
 import { Button } from "./ui/button";
 import ClickAwayListener from "react-click-away-listener";
 import { Command as CommandPrimitive } from "cmdk";
-import { FormPageLinkModelDialog } from "@/Pages/Core/FormPage";
+import { FormPageDialog } from "@/Pages/Core/FormPage";
 import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import axios from "axios";
@@ -570,7 +570,7 @@ export default memo(
       }
     };
 
-    const onSuccessFormPageLinkModelDialog = (e) => {
+    const onSuccessFormPageDialog = (e) => {
       setOpen(false);
       axios
         .post(route("model"), {
@@ -841,18 +841,18 @@ export default memo(
               )}
             </Command>
             {!disabledAdd && (
-              <FormPageLinkModelDialog
+              <FormPageDialog
                 title={titleDialog}
                 name={name}
                 open={openDialog}
                 onOpenChange={setOpenDialog}
-                className={cn("max-w-lg", classNameDialog)}
+                className={cn("max-w-4xl", classNameDialog)}
                 defaultValue={defaultValueForm}
-                onSuccess={onSuccessFormPageLinkModelDialog}
+                onSuccess={onSuccessFormPageDialog}
                 postOption={postOption}
               >
                 {form}
-              </FormPageLinkModelDialog>
+              </FormPageDialog>
             )}
           </Popover>
         </div>

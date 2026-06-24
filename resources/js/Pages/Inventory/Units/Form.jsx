@@ -11,7 +11,7 @@ import React, {
   useState,
 } from "react";
 
-import { ArrowLeftRightIcon } from "lucide-react";
+import { ArrowLeftRightIcon, Loader2Icon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
@@ -20,6 +20,7 @@ import QueryString from "qs";
 import Select from "@/Components/Select";
 import axios from "axios";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
+import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
@@ -32,6 +33,7 @@ export default function Form() {
   const [searchGroup, setSearchGroup] = useState("");
   const [fromValue, setFromValue] = useState("");
   const [toValue, setToValue] = useState("");
+  const [loadingGroups, setLoadingGroups] = useState(false);
   const latestGroupRequestId = useRef(0);
   const unitOptions = useMemo(() => {
     const options = units.map((unit) => ({
@@ -61,20 +63,32 @@ export default function Form() {
     [unitOptions],
   );
 
-  const loadGroups = useCallback((search) => {
-    const requestId = ++latestGroupRequestId.current;
-    axios
-      .get(route("units.groups", search ?? ""))
-      .then((res) => {
-        if (requestId !== latestGroupRequestId.current) {
-          return;
-        }
-        setGroups(res.data);
-      })
-      .catch((err) => {
-        console.log(err);
-      });
-  }, []);
+  const loadGroups = useCallback(
+    (search) => {
+      const requestId = ++latestGroupRequestId.current;
+      setLoadingGroups(true);
+      axios
+        .get(route("units.groups", search ?? ""))
+        .then((res) => {
+          if (requestId !== latestGroupRequestId.current) {
+            return;
+          }
+          setGroups(res.data);
+        })
+        .catch((err) => {
+          console.log(err);
+          if (requestId === latestGroupRequestId.current) {
+            toast.error(t("core.form.errors.something_went_wrong"));
+          }
+        })
+        .finally(() => {
+          if (requestId === latestGroupRequestId.current) {
+            setLoadingGroups(false);
+          }
+        });
+    },
+    [t],
+  );
   const loadUnits = useCallback((group) => {
     axios
       .get(
@@ -152,20 +166,27 @@ export default function Form() {
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
           <FormInput required={true} label={t("inventory.unit.columns.group")}>
-            <Select
-              options={groups}
-              value={data.group ?? ""}
-              onValueChange={(val) =>
-                setData((prev) => ({
-                  ...prev,
-                  group: val,
-                  customable:
-                    val === "Others" ? true : (prev.customable ?? false),
-                }))
-              }
-              onSearchChange={(val) => setSearchGroup(val)}
-              placeholder={t("inventory.unit.columns.group.placeholder")}
-            />
+            <div className="relative flex items-center">
+              <Select
+                options={groups}
+                value={data.group ?? ""}
+                onValueChange={(val) =>
+                  setData((prev) => ({
+                    ...prev,
+                    group: val,
+                    customable:
+                      val === "Others" ? true : (prev.customable ?? false),
+                  }))
+                }
+                onSearchChange={(val) => setSearchGroup(val)}
+                placeholder={t("inventory.unit.columns.group.placeholder")}
+              />
+              {loadingGroups && (
+                <div className="absolute right-8 pointer-events-none text-muted-foreground">
+                  <Loader2Icon className="size-4 animate-spin" />
+                </div>
+              )}
+            </div>
           </FormInput>
           <FormInput required={true} label={t("inventory.unit.columns.code")}>
             <Input
