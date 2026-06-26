@@ -68,7 +68,8 @@ class AccountController extends Controller {
             DB::commit();
 
             return redirect()->route('accounts.show', $account)
-                ->with('success', 'Account successfully created!');
+                ->with('success', 'Account successfully created!')
+                ->with('id', $account->id);
         } catch (\Throwable $th) {
             DB::rollBack();
             throw $th;

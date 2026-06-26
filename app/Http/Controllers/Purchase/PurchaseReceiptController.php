@@ -131,7 +131,7 @@ class PurchaseReceiptController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('purchaseReceipts.show', $purchaseReceipt);
+        return redirect()->route('purchaseReceipts.show', $purchaseReceipt)->with('id', $purchaseReceipt->id);
     }
 
     /**

@@ -59,7 +59,7 @@ class RoleController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('roles.show', $role);
+        return redirect()->route('roles.show', $role)->with('id', $role->id);
     }
 
     /**

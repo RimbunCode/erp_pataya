@@ -47,7 +47,7 @@ class WorkOrderController extends Controller {
         $wo                = $this->service->create($data);
         DB::commit();
 
-        return redirect()->route('workOrders.show', $wo);
+        return redirect()->route('workOrders.show', $wo)->with('id', $wo->id);
     }
 
     /**

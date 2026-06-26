@@ -53,7 +53,7 @@ class InternalOrderController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('internalOrders.show', $io);
+        return redirect()->route('internalOrders.show', $io)->with('id', $io->id);
     }
 
     /**

@@ -77,7 +77,7 @@ class StockEntryController extends Controller {
         $stockEntry = $this->service->create($data);
         DB::commit();
 
-        return redirect()->route('stockEntries.show', $stockEntry);
+        return redirect()->route('stockEntries.show', $stockEntry)->with('id', $stockEntry->id);
     }
 
     /**

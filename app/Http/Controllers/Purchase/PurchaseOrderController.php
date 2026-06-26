@@ -107,7 +107,7 @@ class PurchaseOrderController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('purchaseOrders.show', $po);
+        return redirect()->route('purchaseOrders.show', $po)->with('id', $po->id);
     }
 
     /**

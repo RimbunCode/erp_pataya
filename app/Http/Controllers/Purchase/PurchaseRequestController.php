@@ -84,7 +84,7 @@ class PurchaseRequestController extends Controller {
         $wo = $this->service->create($data);
         DB::commit();
 
-        return redirect()->route('purchaseRequests.show', $wo);
+        return redirect()->route('purchaseRequests.show', $wo)->with('id', $wo->id);
     }
 
     /**

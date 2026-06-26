@@ -157,7 +157,7 @@ class SalesInvoiceController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('salesInvoices.show', $so);
+        return redirect()->route('salesInvoices.show', $so)->with('id', $so->id);
     }
 
     /**

@@ -186,7 +186,8 @@ class DeliveryNoteController extends Controller {
             DB::commit();
 
             return redirect()->route('deliveryNotes.show', $deliveryNote)
-                ->with('success', 'DeliveryNote successfully created!');
+                ->with('success', 'DeliveryNote successfully created!')
+                ->with('id', $deliveryNote->id);
         } catch (\Throwable $th) {
             DB::rollBack();
             throw $th;

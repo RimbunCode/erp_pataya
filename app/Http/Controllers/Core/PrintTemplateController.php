@@ -89,7 +89,7 @@ class PrintTemplateController extends Controller {
         $printTemplate->logForCreated();
         DB::commit();
 
-        return redirect()->route('printTemplates.show', $printTemplate);
+        return redirect()->route('printTemplates.show', $printTemplate)->with('id', $printTemplate->id);
     }
 
     /**
