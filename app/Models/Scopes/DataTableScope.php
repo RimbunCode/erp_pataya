@@ -85,7 +85,10 @@ class DataTableScope implements Scope {
             // sort lokal non-visible diikutkan via extraKeys agar orderBy tetap valid.
             // templateLink (mobile view convertTemplateLink) di-resolve nested rekursif
             // oleh resolveForSafe → kolom/relasi yang dirujuknya wajib ikut select/with.
-            $extraKeys    = $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw];
+            $extraKeys = array_merge(
+                $this->isTableIncluded($sortKeyRaw) ? [] : [$sortKeyRaw],
+                ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel', 'templateLink', 'disabledOn'],
+            );
             $modelClass   = \get_class($query->getModel());
             $templateLink = \method_exists($modelClass, 'templateLink') ? $modelClass::templateLink() : null;
             $selector     = new DataTableColumnSelector(new FilterColumnResolver($dataTableColumns));
