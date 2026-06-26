@@ -3,6 +3,7 @@
 namespace App\Services\Finances;
 
 use App\Enums\FormStatus;
+use App\Models\Core\Currency;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -18,7 +19,7 @@ class PaymentEntryService {
     private function fillRelations(array $data) {
         $data['default_account_id']   = $data['default_account']['id'] ?? null;
         $defaultCurrency              = Preference::find('default_currency_id')->value;
-        $data['currency_code']        = $data['currency']['code'] ?? $defaultCurrency;
+        $data['currency_code']        = Currency::find($data['currency']['id'] ?? null)?->code ?? $defaultCurrency;
         $data['base_currency_code']   = $defaultCurrency;
         $data['partyable_id']         = $data['partyable']['id'];
         $data['partyable_type']       = $data['payment_type'] == 'pay' ? Supplier::class : Customer::class;

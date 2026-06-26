@@ -8,6 +8,7 @@ use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\PurchaseInvoiceItem;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseOrder;
@@ -26,20 +27,28 @@ class PurchaseReceiptService {
         return $data;
     }
 
-    private function fillItemRelations(array $data) {
+    private function fillItemRelations(array $data, array $units = []) {
+        $unit                        = $units[$data['unit']['id']] ?? null;
         $data['item_id']             = $data['item']['id'];
         $data['item_unit_id']        = $data['unit']['id'];
-        $data['conversion_factor']   = $data['unit']['conversion_factor'];
+        $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? '';
 
         return $data;
     }
 
+    private function batchLoadUnits(array $data): array {
+        $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
+
+        return ItemUnit::whereIn('id', $unitIds)->get()->keyBy('id')->all();
+    }
+
     public function create(array $data) {
         $data['code']    = FormatingSeries::generate(PurchaseReceipt::class, $data, true);
         $purchaseReceipt = PurchaseReceipt::create($this->fillRelations($data));
+        $units           = $this->batchLoadUnits($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item);
+            $item = $this->fillItemRelations($item, $units);
             $purchaseReceipt->items()->create($item);
         }
         $purchaseReceipt->logForCreated();
@@ -62,8 +71,9 @@ class PurchaseReceiptService {
             ->whereIn('id', $itemIds)
             ->get()
             ->keyBy('id');
+        $units = $this->batchLoadUnits($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item);
+            $item = $this->fillItemRelations($item, $units);
 
             if (Ulid::isValid($item['id'])) {
                 $existingItems->get($item['id'])?->update($item);
