@@ -480,7 +480,7 @@ const Table2 = forwardRef(function Table2(
       JSON.stringify(newShowedColumns),
       {
         days: DATATABLE_COLUMNS_EXPIRED,
-        path: window.location.pathname,
+        path: "/",
         sameSite: "lax",
       },
     );
@@ -741,6 +741,19 @@ const Table2 = forwardRef(function Table2(
             columns={columns}
             open={openColumnsFilter}
             onApply={(val) => {
+              if (!skipCookie) {
+                const newShowedColumns = {};
+                getShowedColumns(val)
+                  .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
+                  .forEach((col, index) => {
+                    newShowedColumns[col.name] = { size: col.size, order: index };
+                  });
+                setCookie(
+                  datatableColumnsCookieKey(window.location.pathname),
+                  JSON.stringify(newShowedColumns),
+                  { days: DATATABLE_COLUMNS_EXPIRED, path: "/", sameSite: "lax" },
+                );
+              }
               setColumns(val);
               reload?.(val);
               setOpenColumnsFilter(false);
