@@ -294,7 +294,7 @@ export default memo(
       (val) => {
         if (disabled || readOnly) return;
         if (val) {
-          const isValid = validate(val, filters);
+          const isValid = validate(val, model);
           if (!isValid) return;
         }
         if (isControlled) {
@@ -360,12 +360,12 @@ export default memo(
         return;
       }
       if (!(option || value)) return;
-      const isValid = validate(option || value, filters);
+      const isValid = validate(option || value, model);
 
       if (!isValid) {
         setOption(null);
       }
-    }, [filters, option, value]);
+    }, [filters, option, value, model]);
 
     useEffect(() => {
       if (!cacheConfig.enabled) return;
@@ -601,9 +601,7 @@ export default memo(
 
     const filteredOptions = useMemo(() => {
       if (!cacheConfig.enabled) return options;
-      let list = filters
-        ? options.filter((opt) => validate(opt, filters))
-        : options;
+      let list = options.filter((opt) => validate(opt, model));
       if (cacheConfig.enabled && order) {
         const [col, dir = "asc"] = (order ?? "").split(":");
         list = [...list].sort((a, b) => {
