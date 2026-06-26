@@ -40,7 +40,7 @@ class PurchaseReceiptService {
     private function batchLoadUnits(array $data): array {
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
 
-        return ItemUnit::whereIn('id', $unitIds)->get()->keyBy('id')->all();
+        return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
     public function create(array $data) {
@@ -62,7 +62,7 @@ class PurchaseReceiptService {
         $purchaseReceipt->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->delete();
-        $itemIds = collect($data['items'])
+        $itemIds       = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -71,7 +71,7 @@ class PurchaseReceiptService {
             ->whereIn('id', $itemIds)
             ->get()
             ->keyBy('id');
-        $units = $this->batchLoadUnits($data);
+        $units         = $this->batchLoadUnits($data);
         foreach ($data['items'] as $item) {
             $item = $this->fillItemRelations($item, $units);
 
@@ -116,7 +116,7 @@ class PurchaseReceiptService {
 
         $purchaseOrder = $purchaseReceipt->purchaseOrder;
 
-        $items = $purchaseReceipt->items()
+        $items         = $purchaseReceipt->items()
             ->with([
                 'item',
                 'item.item',
@@ -125,7 +125,7 @@ class PurchaseReceiptService {
                 'targetWarehouse',
                 'returnAgainstItem',
             ])->get();
-        $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+        $stocks        = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('target_warehouse_id'))
             ->lockForUpdate()
             ->get()
@@ -273,7 +273,7 @@ class PurchaseReceiptService {
 
                     $invoiceItem->increment('allocated_qty', $allocateQty);
                     $totalRatesForGL += $rate * $allocateQty;
-                    $remainingQty -= $allocateQty;
+                    $remainingQty    -= $allocateQty;
                 }
 
                 // Sisa qty over-receipt → SLE pending
