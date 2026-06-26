@@ -262,6 +262,7 @@ export const useDraftForm = (
           skipSaveRef.current = true; // jangan tulis ulang draft sesaat setelah sukses
           clearAutosaveTimer();
           lastSavedFingerprintRef.current = null;
+          if (key) removeFromLocalStorage(key);
           if (options?.onSuccess) options.onSuccess(e);
         },
         onBefore: (e) => {
@@ -269,9 +270,6 @@ export const useDraftForm = (
           skipSaveRef.current = true; // hentikan autosave selama submit
           clearAutosaveTimer();
           lastSavedFingerprintRef.current = null;
-          if (key) {
-            removeFromLocalStorage(key);
-          }
           if (options?.onBefore) options.onBefore(e);
         },
         onError: (errors) => {

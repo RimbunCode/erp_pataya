@@ -1637,6 +1637,19 @@ const FormPageDialog = memo(
       }),
       [isControlled, onOpenChange],
     );
+
+    // Tutup dialog saat Inertia terima non-JSON response (Whoops/HTML) agar
+    // Radix focus trap tidak memblokir Whoops page, lalu buka kembali setelah
+    // satu tick sehingga Whoops tampil di belakang dialog.
+    useEffect(() => {
+      if (!open) return;
+      const handler = () => {
+        handleOpenChange(false);
+        setTimeout(() => handleOpenChange(true), 100);
+      };
+      document.addEventListener("inertia:invalid", handler);
+      return () => document.removeEventListener("inertia:invalid", handler);
+    }, [open]);
     const { loadDraft, ...form } = useDraftForm(name, defaultValue ?? {}, {
       // onContinueDraft: () => {
       //   onOpenChange?.(true);
