@@ -62,6 +62,10 @@ trait DataTable {
             if ($model instanceof File) {
                 return;
             }
+            // Model bisa opt-out dari auto-attach dengan $skipAttachmentOnCreate = true.
+            if (property_exists($model, 'skipAttachmentOnCreate') && $model->skipAttachmentOnCreate) {
+                return;
+            }
             $request = request();
             if (
                 ! $request->hasAny(['buffered_tags', 'buffered_files', 'filesId'])

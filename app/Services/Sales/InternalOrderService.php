@@ -4,6 +4,7 @@ namespace App\Services\Sales;
 
 use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Sales\InternalOrder;
 use Illuminate\Support\Facades\DB;
@@ -15,20 +16,28 @@ class InternalOrderService {
         return $data;
     }
 
-    private function fillItemRelations(array $data) {
+    private function fillItemRelations(array $data, array $units = []) {
+        $unit                        = $units[$data['unit']['id']] ?? null;
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $data['unit']['unit_id'];
-        $data['conversion_factor']   = $data['unit']['conversion_factor'];
+        $data['unit_id']             = $unit?->unit_id ?? $data['unit']['id'];
+        $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['source_warehouse_id'] = $data['source_warehouse']['id'];
 
         return $data;
     }
 
+    private function batchLoadUnits(array $data): array {
+        $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
+
+        return ItemUnit::whereIn('id', $unitIds)->get()->keyBy('id')->all();
+    }
+
     public function create(array $data) {
         $data['code']  = FormatingSeries::generate(InternalOrder::class, $data, true);
         $internalOrder = InternalOrder::create($this->fillRelations($data));
+        $units         = $this->batchLoadUnits($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item);
+            $item = $this->fillItemRelations($item, $units);
             $internalOrder->items()->create($item);
         }
         $internalOrder->logForCreated();
@@ -52,8 +61,9 @@ class InternalOrderService {
             ->get()
             ->keyBy('id');
 
+        $units = $this->batchLoadUnits($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item);
+            $item = $this->fillItemRelations($item, $units);
 
             if (Ulid::isValid($item['id'])) {
                 $existingItems->get($item['id'])?->update($item);

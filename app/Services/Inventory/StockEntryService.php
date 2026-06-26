@@ -6,6 +6,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\FormatingSeries;
 use App\Models\Finances\Account;
 use App\Models\Finances\GeneralLedger;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockEntry;
 use App\Models\Inventory\StockLedgerEntry;
@@ -24,14 +25,16 @@ class StockEntryService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, StockEntry $stockEntry, array &$stockSourceCache = []) {
+    private function fillItemRelations(array $data, StockEntry $stockEntry, array &$stockSourceCache = [], array $units = [], array $defaultUnits = []) {
         $data['item_id']             = $data['item']['id'];
         $data['item_unit_id']        = $data['unit']['id'];
         $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? null;
 
-        $defaultConvertionFactor            = $data['item']['conversion_factor'];
-        $data['conversion_factor']          = $data['unit']['conversion_factor'];
+        $unit                               = $units[$data['unit']['id']] ?? null;
+        $defaultUnit                        = $defaultUnits[$data['item']['id']] ?? null;
+        $defaultConvertionFactor            = $defaultUnit?->conversion_factor ?? 1;
+        $data['conversion_factor']          = $unit?->conversion_factor ?? 1;
         $data['qty_needed_in_default_unit'] = $data['quantity'] * ($data['conversion_factor'] / $defaultConvertionFactor ?: 1);
         if ($stockEntry->type != 'item_receipt') {
             $stockKey = $this->getStockKey($data['item_id'], $data['source_warehouse_id']);
@@ -41,7 +44,7 @@ class StockEntryService {
                     'warehouse_id'    => $data['source_warehouse_id'],
                 ], [
                     'conversion_factor' => $defaultConvertionFactor,
-                    'unit_id'           => $data['unit']['unit_id'],
+                    'unit_id'           => $unit?->unit_id,
                     'stock_queue'       => [],
                 ]);
             }
@@ -82,6 +85,38 @@ class StockEntryService {
         return $data;
     }
 
+    private function batchLoadUnits(array $data): array {
+        $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
+
+        return ItemUnit::whereIn('id', $unitIds)->get()->keyBy('id')->all();
+    }
+
+    private function batchLoadDefaultUnits(array $data): array {
+        $itemIds = collect($data['items'])->pluck('item.id')->filter()->unique()->values();
+
+        return ItemUnit::whereIn('item_id', $itemIds)->where('is_default', true)->get()->keyBy('item_id')->all();
+    }
+
+    private function preloadStockSourceCache(array $data, StockEntry $stockEntry): array {
+        if ($stockEntry->type === 'item_receipt') {
+            return [];
+        }
+
+        $sourceItemIds      = collect($data['items'])->pluck('item.id')->filter()->values();
+        $sourceWarehouseIds = collect($data['items'])->pluck('source_warehouse.id')->filter()->values();
+
+        if ($sourceItemIds->isEmpty() || $sourceWarehouseIds->isEmpty()) {
+            return [];
+        }
+
+        return Stock::whereIn('item_variant_id', $sourceItemIds)
+            ->whereIn('warehouse_id', $sourceWarehouseIds)
+            ->lockForUpdate()
+            ->get()
+            ->keyBy(fn ($stock) => $this->getStockKey($stock->item_variant_id, $stock->warehouse_id))
+            ->all();
+    }
+
     public function create(array $data) {
         $data['code'] = FormatingSeries::generate(StockEntry::class, $data, true);
         $stockEntry   = StockEntry::create($this->fillRelations($data));
@@ -91,21 +126,11 @@ class StockEntryService {
                 $stockEntry->additionalCosts()->create($this->fillAdditionalCostRelations($additional_cost));
             }
         }
-        $stockSourceCache = [];
-        if ($stockEntry->type != 'item_receipt') {
-            $sourceItemIds      = collect($data['items'])->pluck('item.id')->filter()->values();
-            $sourceWarehouseIds = collect($data['items'])->pluck('source_warehouse.id')->filter()->values();
+        $units            = $this->batchLoadUnits($data);
+        $defaultUnits     = $this->batchLoadDefaultUnits($data);
+        $stockSourceCache = $this->preloadStockSourceCache($data, $stockEntry);
 
-            if ($sourceItemIds->isNotEmpty() && $sourceWarehouseIds->isNotEmpty()) {
-                $stockSourceCache = Stock::whereIn('item_variant_id', $sourceItemIds)
-                    ->whereIn('warehouse_id', $sourceWarehouseIds)
-                    ->lockForUpdate()
-                    ->get()
-                    ->keyBy(fn ($stock) => $this->getStockKey($stock->item_variant_id, $stock->warehouse_id))
-                    ->all();
-            }
-        }
-        $data['items'] = array_map(fn ($item) => $this->fillItemRelations($item, $stockEntry, $stockSourceCache), $data['items']);
+        $data['items'] = array_map(fn ($item) => $this->fillItemRelations($item, $stockEntry, $stockSourceCache, $units, $defaultUnits), $data['items']);
 
         $totalAdditionalCost  = \array_sum(array_column($data['additional_costs'] ?? [], 'amount'));
         $totalBasicAmountItem = \array_sum(array_column($data['items'], 'basic_amount'));
@@ -158,21 +183,11 @@ class StockEntryService {
             $stockEntry->additionalCosts()->delete();
         }
 
-        $stockSourceCache = [];
-        if ($stockEntry->type != 'item_receipt') {
-            $sourceItemIds      = collect($data['items'])->pluck('item.id')->filter()->values();
-            $sourceWarehouseIds = collect($data['items'])->pluck('source_warehouse.id')->filter()->values();
+        $units            = $this->batchLoadUnits($data);
+        $defaultUnits     = $this->batchLoadDefaultUnits($data);
+        $stockSourceCache = $this->preloadStockSourceCache($data, $stockEntry);
 
-            if ($sourceItemIds->isNotEmpty() && $sourceWarehouseIds->isNotEmpty()) {
-                $stockSourceCache = Stock::whereIn('item_variant_id', $sourceItemIds)
-                    ->whereIn('warehouse_id', $sourceWarehouseIds)
-                    ->lockForUpdate()
-                    ->get()
-                    ->keyBy(fn ($stock) => $this->getStockKey($stock->item_variant_id, $stock->warehouse_id))
-                    ->all();
-            }
-        }
-        $data['items'] = array_map(fn ($item) => $this->fillItemRelations($item, $stockEntry, $stockSourceCache), $data['items']);
+        $data['items'] = array_map(fn ($item) => $this->fillItemRelations($item, $stockEntry, $stockSourceCache, $units, $defaultUnits), $data['items']);
 
         $totalAdditionalCost  = \array_sum(array_column($data['additional_costs'] ?? [], 'amount'));
         $totalBasicAmountItem = \array_sum(array_column($data['items'], 'basic_amount'));
