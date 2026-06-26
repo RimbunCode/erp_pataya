@@ -142,15 +142,24 @@ class DataTableConfigValidator {
         $colName = $col['name'] ?? '(unknown)';
 
         if (! str_contains($dep, '.')) {
-            if (! in_array($dep, $dbColumns, true)) {
-                return [
-                    'rule'    => 2,
-                    'column'  => $colName,
-                    'message' => "dependsOn '{$dep}' di '{$colName}' bukan kolom DB yang ada.",
-                ];
+            if (in_array($dep, $dbColumns, true)) {
+                return null;
             }
 
-            return null;
+            // Lolos jika dep adalah relasi, accessor, atau join result yang dikenal
+            foreach ($columns as $c) {
+                $cName      = $c['name'] ?? null;
+                $nameOfFunc = $c['nameOfFunction'] ?? null;
+                if ($cName === $dep || $nameOfFunc === $dep || Str::snake($dep) === $cName || Str::camel((string) $cName) === $dep) {
+                    return null;
+                }
+            }
+
+            return [
+                'rule'    => 2,
+                'column'  => $colName,
+                'message' => "dependsOn '{$dep}' di '{$colName}' bukan kolom DB yang ada.",
+            ];
         }
 
         $segments = explode('.', $dep);
