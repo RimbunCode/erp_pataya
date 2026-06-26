@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Database\Eloquent\Relations\MorphOneOrMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -53,6 +55,37 @@ class DataTableColumnSelector {
         }
 
         return $out;
+    }
+
+    /**
+     * Filter `$appends` tiap model ke hanya accessor yang visible di `$safeColumns`.
+     * Idempoten: `setAppends([])` valid bila tidak ada accessor yang visible.
+     *
+     * `LengthAwarePaginator` dicek sebelum `Collection` karena paginator bukan
+     * subclass Collection — match akan salah dispatch bila urutannya terbalik.
+     *
+     * @param  array<int|string, array<string, mixed>>  $dataTableColumns  hasil getColumns(1)
+     * @param  array<string, bool>  $safeColumns  kolom visible {nama => true}
+     */
+    public static function applyAppends(
+        Model|Collection|LengthAwarePaginator $target,
+        array $dataTableColumns,
+        array $safeColumns,
+    ): void {
+        $byName = collect($dataTableColumns)->keyBy('name');
+        $needed = array_keys(array_filter(
+            $safeColumns,
+            fn ($_, $name) => ($byName->get($name)['type'] ?? null) === 'attribute',
+            ARRAY_FILTER_USE_BOTH,
+        ));
+
+        $apply = fn (Model $m) => $m->setAppends($needed);
+
+        match (true) {
+            $target instanceof LengthAwarePaginator => $target->getCollection()->each($apply),
+            $target instanceof Collection           => $target->each($apply),
+            default                                 => $apply($target),
+        };
     }
 
     /**

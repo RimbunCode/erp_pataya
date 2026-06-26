@@ -114,6 +114,9 @@ class DataTableScope implements Scope {
             $query = $query->with(DataTableColumnSelector::withArray($with));
             if ($request->has('id')) {
                 $data = $query->find($request->id);
+                if ($data instanceof Model) {
+                    DataTableColumnSelector::applyAppends($data, $dataTableColumns, $safeColumns);
+                }
 
                 return [
                     'data'             => $data,
@@ -144,8 +147,10 @@ class DataTableScope implements Scope {
                 }
             }
 
+            $paginator = $query->paginate($show);
+            DataTableColumnSelector::applyAppends($paginator, $dataTableColumns, $safeColumns);
             $data = [
-                'data' => $query->paginate($show),
+                'data' => $paginator,
             ];
             if (! Utils::isInertiaRequest($request)) {
                 return $data;

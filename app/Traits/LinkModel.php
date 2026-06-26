@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
@@ -374,12 +375,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -413,14 +414,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
@@ -486,9 +487,23 @@ trait LinkModel {
     public static function computeColumnsFlat(bool $includeIgnore): array {
         $ignoreFlags = ['ignore' => true, 'hidden' => true, 'searchable' => false, 'show' => false];
 
-        $instance      = new static;
-        $columns       = Schema::getColumns($instance->getTable());
-        $hasStatusCol  = \in_array('status', \array_column($columns, 'name'), true);
+        $instance     = new static;
+        $columns      = Schema::getColumns($instance->getTable());
+        $columnNames  = \array_column($columns, 'name');
+        $hasStatusCol = \in_array('status', $columnNames, true);
+        $hasHtCol     = \in_array('have_transactions', $columnNames, true);
+        $isPivot      = $instance instanceof Pivot;
+        // Pivot FK hanya diketahui dari konteks relasi parent, bukan dari instance standalone.
+        // Untuk non-pivot: primaryKey scalar untuk metadata kolom.
+        // Fallback ke kolom pertama jika getKeyName() tidak ada di tabel.
+        $pkName = \in_array($instance->getKeyName(), $columnNames, true)
+            ? $instance->getKeyName()
+            : ($columnNames[0] ?? $instance->getKeyName());
+        // Untuk dependsOn fallback: Pivot butuh semua kolom tabel karena FK-nya
+        // hanya diketahui dari konteks relasi parent (tidak ada di instance standalone).
+        $pkDepends = $isPivot
+            ? ($columnNames ?: [$pkName])
+            : [$pkName];
         $casts         = $instance->getCasts();
         $hiddens       = $instance->getHidden();
         $guardeds      = $instance->getGuarded();
@@ -523,7 +538,7 @@ trait LinkModel {
                     ...$col,
                     'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
                     ...$config,
-                    'primaryKey' => $instance->getKeyName(),
+                    'primaryKey' => $pkName,
                     ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
                     ...($isGuard ? ['ignore' => false] : []),
                 ];
@@ -551,7 +566,7 @@ trait LinkModel {
                 'type'       => 'string',
                 'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $key) : null,
                 ...$config,
-                'primaryKey' => $instance->getKeyName(),
+                'primaryKey' => $pkName,
                 ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }
@@ -570,18 +585,23 @@ trait LinkModel {
             }
 
             $baselineDepends = [];
-            if ($value === 'appendStatus' && $hasStatusCol && ! isset($config['dependsOn'])) {
-                $baselineDepends = ['dependsOn' => ['status']];
+            if ($value === 'appendStatus' && ! isset($config['dependsOn'])) {
+                $baselineDepends = ['dependsOn' => $hasStatusCol ? ['status'] : $pkDepends];
             } elseif ($value === 'canDelete' && ! isset($config['dependsOn'])) {
-                $baselineDepends = ['dependsOn' => (static::$is_submitable ?? false) && $hasStatusCol ? ['status'] : ['have_transactions']];
+                $isSubmitable = static::$is_submitable ?? false;
+                if ($isSubmitable && $hasStatusCol) {
+                    $baselineDepends = ['dependsOn' => ['status']];
+                } elseif (! $isSubmitable && $hasHtCol) {
+                    $baselineDepends = ['dependsOn' => ['have_transactions']];
+                } else {
+                    $baselineDepends = ['dependsOn' => $pkDepends];
+                }
             } elseif (in_array($value, ['route', 'keyModel', 'thisModel', 'disabledOn'])) {
-                // These meta attributes only depend on the ID / primary key, which is already selected
-                $baselineDepends = ['dependsOn' => [$instance->getKeyName()]];
+                $baselineDepends = ['dependsOn' => $pkDepends];
             } elseif ($value === 'templateLink') {
-                // templateLink requires the columns it formats
                 $baselineDepends = ['dependsOn' => method_exists(static::class, 'templateLink')
-                    ? DataTableColumnSelector::templateLinkPlaceholders(static::templateLink()) ?: [$instance->getKeyName()]
-                    : [$instance->getKeyName()]];
+                    ? DataTableColumnSelector::templateLinkPlaceholders(static::templateLink()) ?: $pkDepends
+                    : $pkDepends];
             }
 
             $newColumns[$value] = [
@@ -589,7 +609,7 @@ trait LinkModel {
                 'type'       => 'attribute',
                 'sortable'   => false,
                 'searchable' => false,
-                'primaryKey' => $instance->getKeyName(),
+                'primaryKey' => $pkName,
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
                 ...$baselineDepends,
                 ...$config,
