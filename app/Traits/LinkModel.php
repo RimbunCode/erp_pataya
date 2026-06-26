@@ -9,6 +9,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
 use App\Services\Core\CommandSearchIndexService;
+use App\Services\Core\DataTableColumnSelector;
 use App\Services\Core\DataTableConfigCache;
 use App\Services\Core\HaveTransactionsSyncService;
 use App\Utils;
@@ -197,13 +198,17 @@ trait LinkModel {
         }
     }
 
-    protected function getArrayableAppends() {
-        $this->appends = array_unique(array_merge(
+    public function getAppends() {
+        return array_values(array_unique(array_merge(
             $this->appends,
             ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel'],
-            \method_exists(static::class, 'templateLink') ? ['templateLink'] : [],
-            \method_exists(static::class, 'disabledOn') ? ['disabledOn'] : [],
-        ));
+            method_exists(static::class, 'templateLink') ? ['templateLink'] : [],
+            method_exists(static::class, 'disabledOn') ? ['disabledOn'] : [],
+        )));
+    }
+
+    protected function getArrayableAppends() {
+        $this->appends = $this->getAppends();
 
         return parent::getArrayableAppends();
     }
@@ -369,12 +374,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -408,14 +413,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
@@ -563,9 +568,21 @@ trait LinkModel {
             if ($isIgnore && ! $includeIgnore) {
                 continue;
             }
-            $baselineDepends = ($value === 'appendStatus' && $hasStatusCol && ! isset($config['dependsOn']))
-                ? ['dependsOn' => ['status']]
-                : [];
+
+            $baselineDepends = [];
+            if ($value === 'appendStatus' && $hasStatusCol && ! isset($config['dependsOn'])) {
+                $baselineDepends = ['dependsOn' => ['status']];
+            } elseif ($value === 'canDelete' && ! isset($config['dependsOn'])) {
+                $baselineDepends = ['dependsOn' => (static::$is_submitable ?? false) && $hasStatusCol ? ['status'] : ['have_transactions']];
+            } elseif (in_array($value, ['route', 'keyModel', 'thisModel', 'disabledOn'])) {
+                // These meta attributes only depend on the ID / primary key, which is already selected
+                $baselineDepends = ['dependsOn' => [$instance->getKeyName()]];
+            } elseif ($value === 'templateLink') {
+                // templateLink requires the columns it formats
+                $baselineDepends = ['dependsOn' => method_exists(static::class, 'templateLink')
+                    ? DataTableColumnSelector::templateLinkPlaceholders(static::templateLink()) ?: [$instance->getKeyName()]
+                    : [$instance->getKeyName()]];
+            }
 
             $newColumns[$value] = [
                 'name'       => $value,

@@ -432,7 +432,7 @@ class DataTableColumnSelector {
 
         $dbColumns = $this->dbColumns($model);
 
-        foreach ($this->templateLinkPlaceholders($templateLink) as $placeholder) {
+        foreach (self::templateLinkPlaceholders($templateLink) as $placeholder) {
             if (! str_contains($placeholder, '.')) {
                 // Head skalar / relasi top-level.
                 $this->resolveTemplateHead($model, $placeholder, $safeRelationColumns, $dbColumns, $select, $with, $visited, $depth);
@@ -527,7 +527,7 @@ class DataTableColumnSelector {
      *
      * @return list<string>
      */
-    private function templateLinkPlaceholders(?string $templateLink): array {
+    public static function templateLinkPlaceholders(?string $templateLink): array {
         if (! is_string($templateLink) || $templateLink === '') {
             return [];
         }
