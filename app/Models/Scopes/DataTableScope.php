@@ -96,7 +96,6 @@ class DataTableScope implements Scope {
             // ditangani Arah A di resolveForSafe; tak perlu safeRelationColumns eksplisit.
             $safeColumns = $selector->safeColumnsFromVisible($dataTableColumns, $visibleKeys, $extraKeys);
             $resolved    = $selector->resolveForSafe($dataTableColumns, $query->getModel(), $safeColumns, [], $templateLink);
-
             $query->addSelect(\array_map(fn ($c) => \str_contains($c, '.') ? $c : "$nameOfTable.$c", $resolved['select']));
 
             // with: map relasi => closure child-select (resolveForSafe) digabung relasi
@@ -146,7 +145,6 @@ class DataTableScope implements Scope {
                     $query->where('created_by_id', $request->user()->id);
                 }
             }
-
             $paginator = $query->paginate($show);
             DataTableColumnSelector::applyAppends($paginator, $dataTableColumns, $safeColumns);
             $data = [

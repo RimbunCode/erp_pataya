@@ -2,6 +2,7 @@
 use App\Console\Commands\Feature;
 use App\Console\Commands\ModelCacheCommand;
 use App\Http\Middleware\AppMiddleware;
+use App\Http\Middleware\EncryptCookies;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\HandleTheme;
@@ -34,11 +35,10 @@ return Application::configure(dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Cookie yang di-set dari sisi klien (JS) disimpan plaintext, jadi
-        // dikecualikan dari enkripsi agar `$request->cookie()` membaca nilai mentah.
-        // `datatable_columns*` (glob) mencakup nama per-path: datatable_columns,
-        // datatable_columns_items, datatable_columns_sales, dst.
-        $middleware->encryptCookies(except: ['theme', 'datatable_show', 'datatable_columns*']);
+        // Cookie JS (plaintext) dikecualikan dari enkripsi via custom EncryptCookies
+        // yang override isDisabled() — karena encryptCookies(except:[]) tidak support
+        // prefix/glob, hanya exact match.
+        $middleware->replaceInGroup('web', Illuminate\Cookie\Middleware\EncryptCookies::class, EncryptCookies::class);
 
         $middleware->web(append: [
             HandleTheme::class,
