@@ -59,12 +59,12 @@ composer dump-autoload -o
 if [ -z "$PREVIOUS" ]; then
   echo "🌱 First deployment detected! Running migrations with seeds..."
   php artisan migrate --force
-  php artisan db:seed --force
 else
   echo "🔄 Running migrations..."
   php artisan migrate --force
 fi
 
+php artisan db:seed --force
 php artisan optimize:clear
 php artisan optimize
 php artisan model:cache --strict

@@ -65,6 +65,7 @@ else
   php artisan migrate --force
 fi
 
+php artisan db:seed --force
 php artisan optimize:clear
 php artisan optimize
 php artisan model:cache --strict
