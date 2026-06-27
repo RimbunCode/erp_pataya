@@ -8,6 +8,15 @@ on:
     branches: [dev-1]
     types: [closed]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
 
 jobs:
   deploy:
@@ -86,6 +95,8 @@ jobs:
             cd ./.scripts
             if [ "${{ github.event_name }}" == "push" ]; then
               bash ./deploy.sh production
+            elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+              bash ./deploy.sh ${{ github.event.inputs.environment }}
             else
               bash ./deploy.sh staging
             fi
