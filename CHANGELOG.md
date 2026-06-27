@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.3](https://github.com/RimbunCode/erp_pataya/compare/v1.1.2...v1.1.3) (2026-06-27)
+
+
+### Bug Fixes
+
+* **deploy:** workflow_dispatch now selects environment (production/staging) ([e00803e](https://github.com/RimbunCode/erp_pataya/commit/e00803e646676a84e19c0b668e24ee23e6d5f503))
+* **deploy:** workflow_dispatch now selects environment (production/staging) ([e07d57a](https://github.com/RimbunCode/erp_pataya/commit/e07d57abb7dfb9d87ceb1f540de8a813a23247ee))
+
 ## [1.1.2](https://github.com/RimbunCode/erp_pataya/compare/v1.1.1...v1.1.2) (2026-06-27)
 
 
