@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1](https://github.com/RimbunCode/erp_pataya/compare/v1.1.0...v1.1.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* **release-please:** use PAT to allow deploy workflow trigger from tag push ([a01a0a0](https://github.com/RimbunCode/erp_pataya/commit/a01a0a00103c64db37ce377be074b4db91584f9c))
+* **release-please:** use PAT to allow deploy workflow trigger from tag push ([3076a7c](https://github.com/RimbunCode/erp_pataya/commit/3076a7c975540705c5df0c0521cc7fdb2d836ea7))
+* **release-please:** use PAT to allow deploy workflow trigger from tag push ([a162819](https://github.com/RimbunCode/erp_pataya/commit/a1628193a757be6fcb034ad2e3a16d33ec3b597b))
+
 ## [1.1.0](https://github.com/RimbunCode/erp_pataya/compare/v1.0.0...v1.1.0) (2026-06-27)
 
 
