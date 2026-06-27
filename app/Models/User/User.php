@@ -19,10 +19,8 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable {
     /** @use HasFactory<UserFactory> */
     use DataTable, HasFactory, HasUlids, LinkModel, Notifiable, SoftDeletes;
-
-    public $translateKey = 'user.user';
-    protected $guarded   = ['id'];
-
+    public    $translateKey = 'user.user';
+    protected $guarded      = ['id'];
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -43,34 +41,34 @@ class User extends Authenticatable {
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'status'            => FormStatusCast::class,
+            'birthdate'         => 'datetime',
         ];
     }
 
     public static function templateLink() {
         return ':name';
     }
-
     protected array $configColumns = [
-        'image' => [
+        'image'      => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
             'width' => 'fit',
         ],
-        'name' => [
+        'name'       => [
             'show'   => true,
             'order'  => 1,
             'isLink' => true,
         ],
-        'username' => [
+        'username'   => [
             'show'  => true,
             'order' => 2,
         ],
-        'email' => [
+        'email'      => [
             'show'  => true,
             'order' => 3,
         ],
-        'status' => [
+        'status'     => [
             'show'  => true,
             'order' => 4,
         ],
