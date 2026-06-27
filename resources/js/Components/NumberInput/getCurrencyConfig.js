@@ -19,7 +19,9 @@ const CACHE_EXPIRY_DAYS = 7;
  * @returns {Promise<{ symbol: string|null }|null>}
  */
 export async function getCurrencyConfig(code, defaultCode) {
-  const resolvedCode = code === "default" ? defaultCode : code;
+  const raw = code === "default" ? defaultCode : code;
+  // Normalisasi uppercase agar cocok dengan currencies.code di DB (e.g. "IDR").
+  const resolvedCode = raw ? raw.toUpperCase() : null;
 
   if (!resolvedCode) {
     return null;

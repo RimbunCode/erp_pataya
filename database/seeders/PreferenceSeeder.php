@@ -28,7 +28,7 @@ class PreferenceSeeder extends Seeder {
             'state'                 => 'Jawa Timur',
             'zip_code'              => '60293',
             'country_id'            => 'ID',
-            'default_currency_id'   => 'idr',
+            'default_currency_id'   => 'IDR',
             'default_number_format' => '#.###,##',
             'timezone'              => 'Asia/Jakarta',
         ];
