@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.2](https://github.com/RimbunCode/erp_pataya/compare/v1.1.1...v1.1.2) (2026-06-27)
+
+
+### Bug Fixes
+
+* **deploy:** run db:seed on every deploy to ensure seeder data exists ([14f01d7](https://github.com/RimbunCode/erp_pataya/commit/14f01d75cf20b0aa247494f9eb0867cf52cc56ae))
+* **deploy:** run db:seed on every deploy to ensure seeder data exists ([1d0e026](https://github.com/RimbunCode/erp_pataya/commit/1d0e026dfe72bf6142c181f6499e9c8bffcc2785))
+
 ## [1.1.1](https://github.com/RimbunCode/erp_pataya/compare/v1.1.0...v1.1.1) (2026-06-27)
 
 
