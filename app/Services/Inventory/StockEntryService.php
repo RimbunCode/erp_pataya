@@ -63,11 +63,11 @@ class StockEntryService {
                         'quantity' => $quantityRequest,
                     ];
                     // sisa batch dikembalikan ke antrean
-                    $q['quantity']   -= $quantityRequest;
-                    $quantityRequest  = 0;
+                    $q['quantity'] -= $quantityRequest;
+                    $quantityRequest = 0;
                 } else {
                     $quantityRequest -= $q['quantity'];
-                    $picked[]         = $q;
+                    $picked[] = $q;
                 }
             }
             $data['basic_amount'] = \array_sum(array_map(fn ($q) => $q['rate'] * $q['quantity'], $picked));
@@ -161,7 +161,7 @@ class StockEntryService {
             $stockEntry->additionalCosts()
                 ->whereNotIn('id', array_column($data['additional_costs'] ?? [], 'id'))
                 ->update(['deleted_at' => now()]);
-            $additionalCostIds       = collect($data['additional_costs'] ?? [])
+            $additionalCostIds = collect($data['additional_costs'] ?? [])
                 ->pluck('id')
                 ->filter(fn ($id) => Ulid::isValid((string) $id))
                 ->values()
@@ -195,7 +195,7 @@ class StockEntryService {
         $stockEntry->items()
             ->whereNotIn('id', array_column($data['items'], 'id'))
             ->update(['deleted_at' => now()]);
-        $itemIds       = collect($data['items'])
+        $itemIds = collect($data['items'])
             ->pluck('id')
             ->filter(fn ($id) => Ulid::isValid((string) $id))
             ->values()
@@ -227,7 +227,7 @@ class StockEntryService {
     }
 
     private function rolllbackItems(StockEntry $stockEntry) {
-        $items  = $stockEntry->items()
+        $items = $stockEntry->items()
             ->get();
         $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
             ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
@@ -257,10 +257,10 @@ class StockEntryService {
         ]);
         if (\in_array($stockEntry->type, ['item_issue', 'item_transfer', 'item_consumption'])) {
 
-            $items      = $stockEntry->items()
+            $items = $stockEntry->items()
                 ->with(['item', 'item.item', 'item.sourceWarehouse'])
                 ->get();
-            $stocks     = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
+            $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
                 ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
                 ->lockForUpdate()
                 ->get()
@@ -545,7 +545,7 @@ class StockEntryService {
             }
         }
 
-        $debitAccount  = Account::lockForUpdate()
+        $debitAccount = Account::lockForUpdate()
             ->where('root_type', 'asset')
             ->where('account_type', 'stock')
             ->latest()->first();
