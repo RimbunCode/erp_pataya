@@ -38,9 +38,9 @@ class PreferenceSeeder extends Seeder {
         ])->values();
 
         foreach ($preferences as $key => $value) {
-            Preference::updateOrCreate(['key' => $value['key']], ['value' => $value['value']]);
+            Preference::firstOrCreate(['key' => $value['key']], ['value' => $value['value']]);
         }
-        Branch::updateOrCreate([
+        Branch::firstOrCreate([
             'code' => $preferencesArr['short_name'],
         ], [
             'name'                => $preferencesArr['company_name'],
