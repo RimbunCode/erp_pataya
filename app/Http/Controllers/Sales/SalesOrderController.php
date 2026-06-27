@@ -97,7 +97,7 @@ class SalesOrderController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('salesOrders.show', $so);
+        return redirect()->route('salesOrders.show', $so)->with('id', $so->id);
     }
 
     /**

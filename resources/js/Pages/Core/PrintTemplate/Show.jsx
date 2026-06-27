@@ -13,9 +13,9 @@ export default function Show({ printTemplate }) {
 
   return (
     <FormPage
+      isCreate={!printTemplate}
       ignoreDraft={loadFrom}
       name="printTemplate"
-      title={printTemplate.name}
       controls={() => {
         return (
           <Button type="button" asChild className="h-8 w-fit">

@@ -138,7 +138,6 @@ const MultiSelect = memo(
         setSearch(labelOfValues(values));
         setIsDirty(false);
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
     const onInputKeyDown = useCallback(
@@ -239,7 +238,8 @@ const MultiSelect = memo(
                       "focus:border-0! bg-inherit! disabled:opacity-100! h-8 w-full rounded-none! pr-2! border-0! focus-visible:ring-0! focus-visible:ring-offset-0!",
                     )}
                     placeholder={
-                      placeholder ?? (values?.length ? labelOfValues(values) : "")
+                      placeholder ??
+                      (values?.length ? labelOfValues(values) : "")
                     }
                   />
                   <div className="flex items-center h-8 pr-2 gap-x-2">
@@ -250,7 +250,9 @@ const MultiSelect = memo(
                         size="icon"
                         className={cn(
                           "size-6",
-                          (!(values?.length || search) || disabled || readOnly) &&
+                          (!(values?.length || search) ||
+                            disabled ||
+                            readOnly) &&
                             "hidden",
                         )}
                         onClick={() => {

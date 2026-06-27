@@ -3,14 +3,19 @@
 namespace App\Services\Sales;
 
 use App\Enums\FormStatus;
+use App\Models\Core\Branch;
+use App\Models\Core\Currency;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\SalesInvoiceItem;
+use App\Models\Finances\Tax;
 use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\DeliveryNoteItem;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
+use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Utils;
@@ -22,26 +27,26 @@ use Symfony\Component\Uid\Ulid;
 
 class SalesOrderService {
     private function fillRelations(array $data) {
-        $data['customer_id']   = $data['customer']['id'];
-        $data['customer_name'] = $data['customer']['name'];
-
-        // relasi cabang customer
+        $data['customer_id']          = $data['customer']['id'];
+        $data['customer_name']        = Customer::find($data['customer']['id'])?->name;
         $data['customer_branch_id']   = $data['customer_branch']['id'];
-        $data['customer_branch_name'] = $data['customer_branch']['name'];
+        $data['customer_branch_name'] = Branch::find($data['customer_branch']['id'])?->name;
 
         $defaultCurrency            = Preference::find('default_currency_id')->value;
-        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
+        $data['currency_code']      = Currency::find($data['currency']['id'] ?? null)?->code ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
 
         return $data;
     }
 
-    private function fillItemRelations(array $data, SalesOrder $salesOrder) {
+    private function fillItemRelations(array $data, SalesOrder $salesOrder, array $units = [], array $taxes = []) {
+        $unit                        = $units[$data['unit']['id']] ?? null;
+        $tax                         = $taxes[$data['tax']['id'] ?? ''] ?? null;
         $data['item_id']             = $data['item']['id'];
         $data['item_unit_id']        = $data['unit']['id'];
-        $data['conversion_factor']   = $data['unit']['conversion_factor'];
+        $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['tax_id']              = $data['tax']['id'];
-        $data['tax_rate']            = $data['tax']['rate'];
+        $data['tax_rate']            = $tax?->rate ?? 0;
         $data['currency_code']       = $salesOrder->currency_code;
         $data['base_currency_code']  = $salesOrder->base_currency_code;
         $data['exchange_rate']       = $salesOrder->exchange_rate;
@@ -67,8 +72,14 @@ class SalesOrderService {
         $salesOrder   = SalesOrder::create($this->fillRelations($data));
         $basicAmount  = 0;
         $taxAmount    = 0;
+
+        $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
+        $units   = ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
+        $taxIds  = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
+        $taxes   = Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
+
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesOrder);
+            $item = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
             $item = $salesOrder->items()->create($item);
 
             $item->refresh();
@@ -107,8 +118,14 @@ class SalesOrderService {
             ->keyBy('id');
         $basicAmount = 0;
         $taxAmount   = 0;
+
+        $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
+        $units   = ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
+        $taxIds  = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
+        $taxes   = Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
+
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesOrder);
+            $item = $this->fillItemRelations($item, $salesOrder, $units, $taxes);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);

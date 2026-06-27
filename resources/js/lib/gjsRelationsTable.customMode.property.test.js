@@ -48,7 +48,10 @@ function mockComponent({
   };
 }
 
-function mockCell(tagName, { children = [], colspan, rowspan, style = {} } = {}) {
+function mockCell(
+  tagName,
+  { children = [], colspan, rowspan, style = {} } = {},
+) {
   const attributes = {};
   if (colspan !== undefined) attributes.colspan = colspan;
   if (rowspan !== undefined) attributes.rowspan = rowspan;
@@ -76,7 +79,7 @@ function mockTokenSpan(token) {
   });
 }
 
-function mockTextNode(text) {
+function _mockTextNode(text) {
   return mockComponent({ tagName: "span", content: text });
 }
 
@@ -97,7 +100,9 @@ const colNameArb = identArb;
 const basicBodyTokenArb = colNameArb.map((col) => `{{this.${col}}}`);
 
 /** Generate a "relation" body token like {{relation this.colName}}. */
-const relationBodyTokenArb = colNameArb.map((col) => `{{relation this.${col}}}`);
+const relationBodyTokenArb = colNameArb.map(
+  (col) => `{{relation this.${col}}}`,
+);
 
 /** Generate either a basic or relation body token. */
 const bodyTokenArb = fc.oneof(basicBodyTokenArb, relationBodyTokenArb);
@@ -107,253 +112,249 @@ const bodyTokenArb = fc.oneof(basicBodyTokenArb, relationBodyTokenArb);
 // Validates: Requirements 7.1, 7.2, 7.3, 7.6
 // ---------------------------------------------------------------------------
 
-describe(
-  "Feature: gjs-table-relation-custom-mode, Property 6: Custom Mode toHTML Serialization Structure",
-  () => {
-    it("serializeCustomModeHeader outputs exactly N <tr> elements for N header rows", () => {
-      fc.assert(
-        fc.property(
-          relationNameArb,
-          fc.integer({ min: 1, max: 5 }),
-          fc.integer({ min: 1, max: 8 }),
-          (relationName, numRows, numCols) => {
-            const rows = Array.from({ length: numRows }, () => {
-              const cells = Array.from({ length: numCols }, () =>
-                mockCell("th"),
-              );
-              return mockRow(cells);
-            });
+describe("Feature: gjs-table-relation-custom-mode, Property 6: Custom Mode toHTML Serialization Structure", () => {
+  it("serializeCustomModeHeader outputs exactly N <tr> elements for N header rows", () => {
+    fc.assert(
+      fc.property(
+        relationNameArb,
+        fc.integer({ min: 1, max: 5 }),
+        fc.integer({ min: 1, max: 8 }),
+        (relationName, numRows, numCols) => {
+          const rows = Array.from({ length: numRows }, () => {
+            const cells = Array.from({ length: numCols }, () => mockCell("th"));
+            return mockRow(cells);
+          });
 
-            const thead = mockThead(rows);
-            const html = serializeCustomModeHeader(thead, relationName);
-
-            // Count <tr> occurrences in output
-            const trCount = (html.match(/<tr/g) || []).length;
-            expect(trCount).toBe(numRows);
-          },
-        ),
-        { numRuns: 100 },
-      );
-    });
-
-    it("serializeCustomModeHeader wraps output in <thead>...</thead>", () => {
-      fc.assert(
-        fc.property(relationNameArb, (relationName) => {
-          const thead = mockThead([mockRow([mockCell("th")])]);
+          const thead = mockThead(rows);
           const html = serializeCustomModeHeader(thead, relationName);
 
-          expect(html).toMatch(/^<thead>/);
-          expect(html).toMatch(/<\/thead>$/);
-        }),
-        { numRuns: 100 },
-      );
-    });
+          // Count <tr> occurrences in output
+          const trCount = (html.match(/<tr/g) || []).length;
+          expect(trCount).toBe(numRows);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
 
-    it("serializeCustomModeBody wraps body row with {{#each doc.<relation>}} / {{/each}}", () => {
-      fc.assert(
-        fc.property(relationNameArb, colNameArb, (relationName, colName) => {
-          const bodyRow = mockRow([mockCell("td", { children: [mockTokenSpan(`{{this.${colName}}}`)] })]);
-          const tbody = mockTbody([bodyRow]);
-          const html = serializeCustomModeBody(tbody, relationName);
+  it("serializeCustomModeHeader wraps output in <thead>...</thead>", () => {
+    fc.assert(
+      fc.property(relationNameArb, (relationName) => {
+        const thead = mockThead([mockRow([mockCell("th")])]);
+        const html = serializeCustomModeHeader(thead, relationName);
 
-          const expectedEach = `{{#each doc.${relationName}}}`;
-          expect(html).toContain(expectedEach);
-          expect(html).toContain("{{/each}}");
+        expect(html).toMatch(/^<thead>/);
+        expect(html).toMatch(/<\/thead>$/);
+      }),
+      { numRuns: 100 },
+    );
+  });
 
-          // {{#each}} must come before <tr> and {{/each}} must come after </tr>
-          const eachPos = html.indexOf(expectedEach);
-          const trPos = html.indexOf("<tr");
-          const trEndPos = html.lastIndexOf("</tr>");
-          const eachEndPos = html.indexOf("{{/each}}");
+  it("serializeCustomModeBody wraps body row with {{#each doc.<relation>}} / {{/each}}", () => {
+    fc.assert(
+      fc.property(relationNameArb, colNameArb, (relationName, colName) => {
+        const bodyRow = mockRow([
+          mockCell("td", { children: [mockTokenSpan(`{{this.${colName}}}`)] }),
+        ]);
+        const tbody = mockTbody([bodyRow]);
+        const html = serializeCustomModeBody(tbody, relationName);
 
-          expect(eachPos).toBeLessThan(trPos);
-          expect(trEndPos).toBeLessThan(eachEndPos);
-        }),
-        { numRuns: 100 },
-      );
-    });
+        const expectedEach = `{{#each doc.${relationName}}}`;
+        expect(html).toContain(expectedEach);
+        expect(html).toContain("{{/each}}");
 
-    it("serializeCustomModeBody wraps in <tbody>...</tbody>", () => {
-      fc.assert(
-        fc.property(relationNameArb, (relationName) => {
+        // {{#each}} must come before <tr> and {{/each}} must come after </tr>
+        const eachPos = html.indexOf(expectedEach);
+        const trPos = html.indexOf("<tr");
+        const trEndPos = html.lastIndexOf("</tr>");
+        const eachEndPos = html.indexOf("{{/each}}");
+
+        expect(eachPos).toBeLessThan(trPos);
+        expect(trEndPos).toBeLessThan(eachEndPos);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("serializeCustomModeBody wraps in <tbody>...</tbody>", () => {
+    fc.assert(
+      fc.property(relationNameArb, (relationName) => {
+        const tbody = mockTbody([mockRow([mockCell("td")])]);
+        const html = serializeCustomModeBody(tbody, relationName);
+
+        expect(html).toMatch(/^<tbody>/);
+        expect(html).toMatch(/<\/tbody>$/);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("serializeCustomModeBody preserves {{this.<col>}} tokens verbatim", () => {
+    fc.assert(
+      fc.property(relationNameArb, colNameArb, (relationName, colName) => {
+        const token = `{{this.${colName}}}`;
+        const bodyRow = mockRow([
+          mockCell("td", { children: [mockTokenSpan(token)] }),
+        ]);
+        const tbody = mockTbody([bodyRow]);
+        const html = serializeCustomModeBody(tbody, relationName);
+
+        expect(html).toContain(token);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("serializeCustomModeBody preserves {{relation this.<col>}} tokens verbatim", () => {
+    fc.assert(
+      fc.property(relationNameArb, colNameArb, (relationName, colName) => {
+        const token = `{{relation this.${colName}}}`;
+        const bodyRow = mockRow([
+          mockCell("td", { children: [mockTokenSpan(token)] }),
+        ]);
+        const tbody = mockTbody([bodyRow]);
+        const html = serializeCustomModeBody(tbody, relationName);
+
+        expect(html).toContain(token);
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("colspan and rowspan attributes are preserved in serialized <th> output", () => {
+    fc.assert(
+      fc.property(
+        relationNameArb,
+        fc.integer({ min: 2, max: 5 }),
+        fc.integer({ min: 2, max: 5 }),
+        (relationName, colspan, rowspan) => {
+          const cell = mockCell("th", { colspan, rowspan });
+          const thead = mockThead([mockRow([cell])]);
+          const html = serializeCustomModeHeader(thead, relationName);
+
+          expect(html).toContain(`colspan="${colspan}"`);
+          expect(html).toContain(`rowspan="${rowspan}"`);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+
+  it("relation name without doc. prefix gets doc. added in #each wrapper", () => {
+    fc.assert(
+      fc.property(
+        identArb.filter((n) => !n.startsWith("doc.")),
+        (relationName) => {
           const tbody = mockTbody([mockRow([mockCell("td")])]);
           const html = serializeCustomModeBody(tbody, relationName);
 
-          expect(html).toMatch(/^<tbody>/);
-          expect(html).toMatch(/<\/tbody>$/);
-        }),
-        { numRuns: 100 },
-      );
-    });
+          expect(html).toContain(`{{#each doc.${relationName}}}`);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
 
-    it("serializeCustomModeBody preserves {{this.<col>}} tokens verbatim", () => {
-      fc.assert(
-        fc.property(relationNameArb, colNameArb, (relationName, colName) => {
-          const token = `{{this.${colName}}}`;
-          const bodyRow = mockRow([
-            mockCell("td", { children: [mockTokenSpan(token)] }),
-          ]);
-          const tbody = mockTbody([bodyRow]);
-          const html = serializeCustomModeBody(tbody, relationName);
+  it("relation name already with doc. prefix is not doubled", () => {
+    fc.assert(
+      fc.property(identArb, (name) => {
+        const tbody = mockTbody([mockRow([mockCell("td")])]);
+        const html = serializeCustomModeBody(tbody, `doc.${name}`);
 
-          expect(html).toContain(token);
-        }),
-        { numRuns: 100 },
-      );
-    });
-
-    it("serializeCustomModeBody preserves {{relation this.<col>}} tokens verbatim", () => {
-      fc.assert(
-        fc.property(relationNameArb, colNameArb, (relationName, colName) => {
-          const token = `{{relation this.${colName}}}`;
-          const bodyRow = mockRow([
-            mockCell("td", { children: [mockTokenSpan(token)] }),
-          ]);
-          const tbody = mockTbody([bodyRow]);
-          const html = serializeCustomModeBody(tbody, relationName);
-
-          expect(html).toContain(token);
-        }),
-        { numRuns: 100 },
-      );
-    });
-
-    it("colspan and rowspan attributes are preserved in serialized <th> output", () => {
-      fc.assert(
-        fc.property(
-          relationNameArb,
-          fc.integer({ min: 2, max: 5 }),
-          fc.integer({ min: 2, max: 5 }),
-          (relationName, colspan, rowspan) => {
-            const cell = mockCell("th", { colspan, rowspan });
-            const thead = mockThead([mockRow([cell])]);
-            const html = serializeCustomModeHeader(thead, relationName);
-
-            expect(html).toContain(`colspan="${colspan}"`);
-            expect(html).toContain(`rowspan="${rowspan}"`);
-          },
-        ),
-        { numRuns: 100 },
-      );
-    });
-
-    it("relation name without doc. prefix gets doc. added in #each wrapper", () => {
-      fc.assert(
-        fc.property(
-          identArb.filter((n) => !n.startsWith("doc.")),
-          (relationName) => {
-            const tbody = mockTbody([mockRow([mockCell("td")])]);
-            const html = serializeCustomModeBody(tbody, relationName);
-
-            expect(html).toContain(`{{#each doc.${relationName}}}`);
-          },
-        ),
-        { numRuns: 100 },
-      );
-    });
-
-    it("relation name already with doc. prefix is not doubled", () => {
-      fc.assert(
-        fc.property(identArb, (name) => {
-          const tbody = mockTbody([mockRow([mockCell("td")])]);
-          const html = serializeCustomModeBody(tbody, `doc.${name}`);
-
-          expect(html).toContain(`{{#each doc.${name}}}`);
-          expect(html).not.toContain("{{#each doc.doc.");
-        }),
-        { numRuns: 100 },
-      );
-    });
-  },
-);
+        expect(html).toContain(`{{#each doc.${name}}}`);
+        expect(html).not.toContain("{{#each doc.doc.");
+      }),
+      { numRuns: 100 },
+    );
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Property 7: Custom Mode Content Serialization Fidelity
 // Validates: Requirements 7.4, 7.5, 7.7
 // ---------------------------------------------------------------------------
 
-describe(
-  "Feature: gjs-table-relation-custom-mode, Property 7: Custom Mode Content Serialization Fidelity",
-  () => {
-    it("inline CSS styles are serialized as style attributes on cells", () => {
-      fc.assert(
-        fc.property(
-          relationNameArb,
-          fc.record({
-            "text-align": fc.constantFrom("left", "center", "right"),
-            "font-weight": fc.constantFrom("bold", "normal"),
-          }),
-          (relationName, style) => {
-            const cell = mockCell("th", { style });
-            const thead = mockThead([mockRow([cell])]);
-            const html = serializeCustomModeHeader(thead, relationName);
-
-            expect(html).toContain("style=");
-            for (const [prop, val] of Object.entries(style)) {
-              expect(html).toContain(`${prop}:${val}`);
-            }
-          },
-        ),
-        { numRuns: 100 },
-      );
-    });
-
-    it("cells without styles produce no style attribute", () => {
-      fc.assert(
-        fc.property(relationNameArb, (relationName) => {
-          const cell = mockCell("th", { style: {} });
+describe("Feature: gjs-table-relation-custom-mode, Property 7: Custom Mode Content Serialization Fidelity", () => {
+  it("inline CSS styles are serialized as style attributes on cells", () => {
+    fc.assert(
+      fc.property(
+        relationNameArb,
+        fc.record({
+          "text-align": fc.constantFrom("left", "center", "right"),
+          "font-weight": fc.constantFrom("bold", "normal"),
+        }),
+        (relationName, style) => {
+          const cell = mockCell("th", { style });
           const thead = mockThead([mockRow([cell])]);
           const html = serializeCustomModeHeader(thead, relationName);
 
-          // No style attr when style object is empty
-          expect(html).not.toContain('style="');
-        }),
-        { numRuns: 100 },
-      );
-    });
+          expect(html).toContain("style=");
+          for (const [prop, val] of Object.entries(style)) {
+            expect(html).toContain(`${prop}:${val}`);
+          }
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
 
-    it("multiple children in a body cell are all present in output (DOM order)", () => {
-      fc.assert(
-        fc.property(
-          relationNameArb,
-          fc.array(colNameArb, { minLength: 2, maxLength: 5 }),
-          (relationName, colNames) => {
-            const children = colNames.map((col) =>
-              mockTokenSpan(`{{this.${col}}}`),
-            );
-            const bodyRow = mockRow([mockCell("td", { children })]);
-            const tbody = mockTbody([bodyRow]);
-            const html = serializeCustomModeBody(tbody, relationName);
+  it("cells without styles produce no style attribute", () => {
+    fc.assert(
+      fc.property(relationNameArb, (relationName) => {
+        const cell = mockCell("th", { style: {} });
+        const thead = mockThead([mockRow([cell])]);
+        const html = serializeCustomModeHeader(thead, relationName);
 
-            // All tokens must appear in html
-            for (const col of colNames) {
-              expect(html).toContain(`{{this.${col}}}`);
-            }
+        // No style attr when style object is empty
+        expect(html).not.toContain('style="');
+      }),
+      { numRuns: 100 },
+    );
+  });
 
-            // Verify DOM order is preserved (each token appears before the next)
-            let lastPos = 0;
-            for (const col of colNames) {
-              const pos = html.indexOf(`{{this.${col}}}`, lastPos);
-              expect(pos).toBeGreaterThanOrEqual(lastPos);
-              lastPos = pos;
-            }
-          },
-        ),
-        { numRuns: 100 },
-      );
-    });
+  it("multiple children in a body cell are all present in output (DOM order)", () => {
+    fc.assert(
+      fc.property(
+        relationNameArb,
+        fc.array(colNameArb, { minLength: 2, maxLength: 5 }),
+        (relationName, colNames) => {
+          const children = colNames.map((col) =>
+            mockTokenSpan(`{{this.${col}}}`),
+          );
+          const bodyRow = mockRow([mockCell("td", { children })]);
+          const tbody = mockTbody([bodyRow]);
+          const html = serializeCustomModeBody(tbody, relationName);
 
-    it("null/undefined thead returns empty thead tag", () => {
-      expect(serializeCustomModeHeader(null, "items")).toBe("<thead></thead>");
-      expect(serializeCustomModeHeader(undefined, "items")).toBe("<thead></thead>");
-    });
+          // All tokens must appear in html
+          for (const col of colNames) {
+            expect(html).toContain(`{{this.${col}}}`);
+          }
 
-    it("null/undefined tbody returns empty tbody tag", () => {
-      expect(serializeCustomModeBody(null, "items")).toBe("<tbody></tbody>");
-      expect(serializeCustomModeBody(undefined, "items")).toBe("<tbody></tbody>");
-    });
-  },
-);
+          // Verify DOM order is preserved (each token appears before the next)
+          let lastPos = 0;
+          for (const col of colNames) {
+            const pos = html.indexOf(`{{this.${col}}}`, lastPos);
+            expect(pos).toBeGreaterThanOrEqual(lastPos);
+            lastPos = pos;
+          }
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+
+  it("null/undefined thead returns empty thead tag", () => {
+    expect(serializeCustomModeHeader(null, "items")).toBe("<thead></thead>");
+    expect(serializeCustomModeHeader(undefined, "items")).toBe(
+      "<thead></thead>",
+    );
+  });
+
+  it("null/undefined tbody returns empty tbody tag", () => {
+    expect(serializeCustomModeBody(null, "items")).toBe("<tbody></tbody>");
+    expect(serializeCustomModeBody(undefined, "items")).toBe("<tbody></tbody>");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Property 8: Custom Mode Persistence Round-Trip
@@ -362,66 +363,63 @@ describe(
 // Validates: Requirements 1.5, 8.1, 8.2
 // ---------------------------------------------------------------------------
 
-describe(
-  "Feature: gjs-table-relation-custom-mode, Property 8: Custom Mode Persistence Round-Trip",
-  () => {
-    it("serialized body always contains exactly one <tr> block per row", () => {
-      fc.assert(
-        fc.property(
-          relationNameArb,
-          fc.integer({ min: 1, max: 5 }),
-          (relationName, numCols) => {
-            const cells = Array.from({ length: numCols }, () => mockCell("td"));
-            const tbody = mockTbody([mockRow(cells)]);
-            const html = serializeCustomModeBody(tbody, relationName);
+describe("Feature: gjs-table-relation-custom-mode, Property 8: Custom Mode Persistence Round-Trip", () => {
+  it("serialized body always contains exactly one <tr> block per row", () => {
+    fc.assert(
+      fc.property(
+        relationNameArb,
+        fc.integer({ min: 1, max: 5 }),
+        (relationName, numCols) => {
+          const cells = Array.from({ length: numCols }, () => mockCell("td"));
+          const tbody = mockTbody([mockRow(cells)]);
+          const html = serializeCustomModeBody(tbody, relationName);
 
-            const trCount = (html.match(/<tr/g) || []).length;
-            expect(trCount).toBe(1);
-          },
-        ),
-        { numRuns: 100 },
-      );
-    });
+          const trCount = (html.match(/<tr/g) || []).length;
+          expect(trCount).toBe(1);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
 
-    it("serialized header row count matches input row count", () => {
-      fc.assert(
-        fc.property(
-          relationNameArb,
-          fc.integer({ min: 1, max: 5 }),
-          (relationName, numRows) => {
-            const rows = Array.from({ length: numRows }, () =>
-              mockRow([mockCell("th")]),
-            );
-            const thead = mockThead(rows);
-            const html = serializeCustomModeHeader(thead, relationName);
+  it("serialized header row count matches input row count", () => {
+    fc.assert(
+      fc.property(
+        relationNameArb,
+        fc.integer({ min: 1, max: 5 }),
+        (relationName, numRows) => {
+          const rows = Array.from({ length: numRows }, () =>
+            mockRow([mockCell("th")]),
+          );
+          const thead = mockThead(rows);
+          const html = serializeCustomModeHeader(thead, relationName);
 
-            const trCount = (html.match(/<tr/g) || []).length;
-            expect(trCount).toBe(numRows);
-          },
-        ),
-        { numRuns: 100 },
-      );
-    });
+          const trCount = (html.match(/<tr/g) || []).length;
+          expect(trCount).toBe(numRows);
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
 
-    it("every body token in input appears in serialized output", () => {
-      fc.assert(
-        fc.property(
-          relationNameArb,
-          fc.array(bodyTokenArb, { minLength: 1, maxLength: 6 }),
-          (relationName, tokens) => {
-            const cells = tokens.map((token) =>
-              mockCell("td", { children: [mockTokenSpan(token)] }),
-            );
-            const tbody = mockTbody([mockRow(cells)]);
-            const html = serializeCustomModeBody(tbody, relationName);
+  it("every body token in input appears in serialized output", () => {
+    fc.assert(
+      fc.property(
+        relationNameArb,
+        fc.array(bodyTokenArb, { minLength: 1, maxLength: 6 }),
+        (relationName, tokens) => {
+          const cells = tokens.map((token) =>
+            mockCell("td", { children: [mockTokenSpan(token)] }),
+          );
+          const tbody = mockTbody([mockRow(cells)]);
+          const html = serializeCustomModeBody(tbody, relationName);
 
-            for (const token of tokens) {
-              expect(html).toContain(token);
-            }
-          },
-        ),
-        { numRuns: 100 },
-      );
-    });
-  },
-);
+          for (const token of tokens) {
+            expect(html).toContain(token);
+          }
+        },
+      ),
+      { numRuns: 100 },
+    );
+  });
+});

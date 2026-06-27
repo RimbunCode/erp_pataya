@@ -7,6 +7,7 @@ use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Finances\Account;
 use App\Models\Inventory\DeliveryNote;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Sales\SalesOrder;
@@ -30,11 +31,12 @@ class DeliveryNoteService {
         return $data;
     }
 
-    private function fillItemRelations(array $item) {
+    private function fillItemRelations(array $item, array $units = []) {
         $item['item_id']             = $item['item']['id'];
         $item['item_unit_id']        = $item['unit']['id'];
         $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
-        $item['conversion_factor']   = $item['unit']['conversion_factor'];
+        $unit                        = $units[$item['unit']['id']] ?? null;
+        $item['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $item['quantity'] ??= 0;
         $item['valuation_rates']        = [];
         $item['return_against_item_id'] = $item['return_against_item']['id'] ?? null;
@@ -42,12 +44,19 @@ class DeliveryNoteService {
         return $item;
     }
 
+    private function batchLoadUnits(array $data): array {
+        $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
+
+        return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
+    }
+
     public function create(array $data) {
         $data['code'] = FormatingSeries::generate(DeliveryNote::class, $data, true);
         $deliveryNote = DeliveryNote::create($this->fillRelations($data));
 
+        $units = $this->batchLoadUnits($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item);
+            $item = $this->fillItemRelations($item, $units);
             $deliveryNote->items()->create($item);
         }
 
@@ -72,8 +81,9 @@ class DeliveryNoteService {
             ->get()
             ->keyBy('id');
 
+        $units = $this->batchLoadUnits($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item);
+            $item = $this->fillItemRelations($item, $units);
 
             if (Ulid::isValid($item['id'])) {
                 $existingItems->get($item['id'])?->update($item);

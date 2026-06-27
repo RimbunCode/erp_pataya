@@ -20,7 +20,7 @@ import { checkPermission, checkUrlPath } from "@/lib/utils";
 
 import { ChevronRight } from "lucide-react";
 import Link from "../Link";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useIsMobile } from "@/Hooks/use-mobile";
 import { usePage } from "@inertiajs/react";
 import { useScreen } from "@/Hooks/useScreen";
@@ -30,8 +30,15 @@ export function NavMain({ items: _items }) {
   const isLargeDesktop = useScreen("108rem");
   const { permissions } = usePage().props;
   const { open, setOpen } = useSidebar();
+
+  // Track initial mount to prevent overriding cookie state on navigation
+  const isMounted = useRef(false);
   useEffect(() => {
-    setOpen(isLargeDesktop);
+    if (isMounted.current) {
+      setOpen(isLargeDesktop);
+    } else {
+      isMounted.current = true;
+    }
   }, [isLargeDesktop]);
 
   const items = _items.map((item) => {

@@ -84,7 +84,9 @@ class UserController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        //
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Users/ManageUsers/Show');
     }
 
     /**
@@ -125,10 +127,10 @@ class UserController extends Controller {
         DB::beginTransaction();
         if ($user->id != $request->user()->id) {
             $data['status'] = \in_array($user->status, [FormStatus::ACTIVE, FormStatus::INACTIVE]) ? $user->status : FormStatus::ACTIVE;
+            $user->roles()->sync($data['roles']);
+            $user->branches()->sync($data['branches']);
         }
-        $user->fillForUpdate($data, true);
-        $user->roles()->sync($data['roles']);
-        $user->branches()->sync($data['branches']);
+        $user->fillForUpdate($data);
         $user->logForUpdated();
         DB::commit();
 

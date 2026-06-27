@@ -15,7 +15,7 @@ export default forwardRef(function CustomerLinkModel(
       onValueChange={onValueChange}
       model="App\Models\Sales\Customer"
       titleDialog={t("sales.customer.new")}
-      classNameDialog="max-w-xl"
+      classNameDialog="max-w-4xl!"
       form={<Form />}
       {...props}
       ref={ref}

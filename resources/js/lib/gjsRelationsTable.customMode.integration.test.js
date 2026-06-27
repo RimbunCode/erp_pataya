@@ -25,7 +25,13 @@ import {
 // Mock helpers
 // ---------------------------------------------------------------------------
 
-function mockComponent({ tagName = "td", content = "", attributes = {}, style = {}, children = [] } = {}) {
+function mockComponent({
+  tagName = "td",
+  content = "",
+  attributes = {},
+  style = {},
+  children = [],
+} = {}) {
   return {
     get: (key) => {
       if (key === "tagName") return tagName;
@@ -39,7 +45,10 @@ function mockComponent({ tagName = "td", content = "", attributes = {}, style = 
   };
 }
 
-function mockCell(tagName, { children = [], colspan, rowspan, style = {} } = {}) {
+function mockCell(
+  tagName,
+  { children = [], colspan, rowspan, style = {} } = {},
+) {
   const attrs = {};
   if (colspan != null) attrs.colspan = colspan;
   if (rowspan != null) attrs.rowspan = rowspan;
@@ -59,7 +68,10 @@ function mockTbody(rows) {
 }
 
 function mockTokenSpan(token) {
-  return mockComponent({ tagName: "span", attributes: { "data-token": token } });
+  return mockComponent({
+    tagName: "span",
+    attributes: { "data-token": token },
+  });
 }
 
 /**
@@ -84,6 +96,8 @@ function buildProjectData(componentJson) {
 /**
  * Simulates loading a component from project data (GrapesJS deserialization).
  * Returns the first component in the wrapper's children that matches the type.
+ * @param projectData
+ * @param type
  */
 function loadComponentFromProjectData(projectData, type) {
   const wrapper = projectData.pages?.[0]?.component;
@@ -95,7 +109,6 @@ function loadComponentFromProjectData(projectData, type) {
 // ---------------------------------------------------------------------------
 
 describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
-
   // ─── Requirement 8.1: Save persists customMode flag and layout ─────────────
 
   describe("save: Custom Mode flag persisted in project data", () => {
@@ -112,7 +125,10 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       };
 
       const projectData = buildProjectData(componentJson);
-      const loaded = loadComponentFromProjectData(projectData, "gjsRelationsTable");
+      const loaded = loadComponentFromProjectData(
+        projectData,
+        "gjsRelationsTable",
+      );
 
       expect(loaded).not.toBeNull();
       expect(loaded.customMode).toBe(true);
@@ -127,7 +143,10 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       };
 
       const projectData = buildProjectData(componentJson);
-      const loaded = loadComponentFromProjectData(projectData, "gjsRelationsTable");
+      const loaded = loadComponentFromProjectData(
+        projectData,
+        "gjsRelationsTable",
+      );
 
       // In standard mode, customMode is absent (defaults to false)
       expect(loaded.customMode).toBeUndefined();
@@ -140,7 +159,10 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       const componentJson = {
         type: "gjsRelationsTable",
         customMode: true,
-        attributes: { "data-relations": "items", class: "table table-bordered w-100" },
+        attributes: {
+          "data-relations": "items",
+          class: "table table-bordered w-100",
+        },
         components: [
           { tagName: "thead", components: [headerRow] },
           { tagName: "tbody", components: [bodyRow] },
@@ -148,7 +170,10 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       };
 
       const projectData = buildProjectData(componentJson);
-      const loaded = loadComponentFromProjectData(projectData, "gjsRelationsTable");
+      const loaded = loadComponentFromProjectData(
+        projectData,
+        "gjsRelationsTable",
+      );
 
       const thead = loaded.components.find((c) => c.tagName === "thead");
       const tbody = loaded.components.find((c) => c.tagName === "tbody");
@@ -175,7 +200,10 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       };
 
       const projectData = buildProjectData(componentJson);
-      const loaded = loadComponentFromProjectData(projectData, "gjsRelationsTable");
+      const loaded = loadComponentFromProjectData(
+        projectData,
+        "gjsRelationsTable",
+      );
 
       // The loaded component should be recognized as Custom Mode
       expect(loaded.customMode).toBe(true);
@@ -214,14 +242,19 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       };
 
       const projectData = buildProjectData(componentJson);
-      const loaded = loadComponentFromProjectData(projectData, "gjsRelationsTable");
+      const loaded = loadComponentFromProjectData(
+        projectData,
+        "gjsRelationsTable",
+      );
       const thead = loaded.components.find((c) => c.tagName === "thead");
 
       expect(thead.components).toHaveLength(2);
     });
 
     it("cell styles are preserved in serialized output — requirement 8.2", () => {
-      const styledCell = mockCell("td", { style: { "text-align": "right", "font-weight": "bold" } });
+      const styledCell = mockCell("td", {
+        style: { "text-align": "right", "font-weight": "bold" },
+      });
       const tbody = mockTbody([mockRow([styledCell])]);
       const html = serializeCustomModeBody(tbody, "items");
 
@@ -250,7 +283,9 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       const source = readFileSync(sourcePath, "utf8");
 
       expect(source).toContain("customMode:layoutRestoreError");
-      expect(source).toMatch(/customMode.*true[\s\S]*components\(\)\.length.*===.*0/);
+      expect(source).toMatch(
+        /customMode.*true[\s\S]*components\(\)\.length.*===.*0/,
+      );
     });
 
     it("Editor.jsx listens for customMode:layoutRestoreError and shows toast.error", () => {
@@ -275,7 +310,10 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       };
 
       const projectData = buildProjectData(componentJson);
-      const loaded = loadComponentFromProjectData(projectData, "gjsRelationsTable");
+      const loaded = loadComponentFromProjectData(
+        projectData,
+        "gjsRelationsTable",
+      );
 
       // Flag must still be preserved (not cleared)
       expect(loaded.customMode).toBe(true);
@@ -293,13 +331,13 @@ describe("Custom Mode Save/Load Integration Tests (Task 7.2)", () => {
       const bodyHtml = serializeCustomModeBody(tbody, "items");
       const html = `<table class="table table-bordered w-100" data-relations="items" data-custom-mode="true">${headerHtml}${bodyHtml}</table>`;
 
-      expect(html).toContain('<table');
+      expect(html).toContain("<table");
       expect(html).toContain('data-relations="items"');
       expect(html).toContain('data-custom-mode="true"');
-      expect(html).toContain('<thead>');
-      expect(html).toContain('<tbody>');
-      expect(html).toContain('{{#each doc.items}}');
-      expect(html).toContain('{{/each}}');
+      expect(html).toContain("<thead>");
+      expect(html).toContain("<tbody>");
+      expect(html).toContain("{{#each doc.items}}");
+      expect(html).toContain("{{/each}}");
     });
 
     it("colspan/rowspan attributes survive round-trip through serializeCustomModeHeader", () => {

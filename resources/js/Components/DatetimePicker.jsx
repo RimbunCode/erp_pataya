@@ -217,20 +217,34 @@ export default memo(
 
     const years = useMemo(() => {
       const currentYear = baseYear ?? new Date().getFullYear();
-      const effectiveMinYear = minYear ?? (minDate ? minDate.getFullYear() : undefined);
-      const effectiveMaxYear = maxYear ?? (maxDate ? maxDate.getFullYear() : undefined);
+      const effectiveMinYear =
+        minYear ?? (minDate ? minDate.getFullYear() : undefined);
+      const effectiveMaxYear =
+        maxYear ?? (maxDate ? maxDate.getFullYear() : undefined);
       const hasMin = effectiveMinYear !== undefined;
       const hasMax = effectiveMaxYear !== undefined;
       if (hasMin && hasMax) {
-        return Array.from({ length: effectiveMaxYear - effectiveMinYear + 1 }, (_, i) => effectiveMinYear + i);
+        return Array.from(
+          { length: effectiveMaxYear - effectiveMinYear + 1 },
+          (_, i) => effectiveMinYear + i,
+        );
       }
       if (hasMin) {
-        return Array.from({ length: yearRange + 1 }, (_, i) => effectiveMinYear + i);
+        return Array.from(
+          { length: yearRange + 1 },
+          (_, i) => effectiveMinYear + i,
+        );
       }
       if (hasMax) {
-        return Array.from({ length: yearRange + 1 }, (_, i) => effectiveMaxYear - yearRange + i);
+        return Array.from(
+          { length: yearRange + 1 },
+          (_, i) => effectiveMaxYear - yearRange + i,
+        );
       }
-      return Array.from({ length: yearRange }, (_, i) => currentYear - Math.floor(yearRange / 2) + i);
+      return Array.from(
+        { length: yearRange },
+        (_, i) => currentYear - Math.floor(yearRange / 2) + i,
+      );
     }, [baseYear, yearRange, minYear, maxYear, minDate, maxDate]);
 
     const clampDateValue = useCallback(

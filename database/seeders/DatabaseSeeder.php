@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder {
         $this->call(CountrySeeder::class);
         $this->call(AccountSeeder::class);
 
-        if (config('app.debug')) {
+        if (config('app.debug') && app()->isLocal()) {
             $this->call(DataTableNonSubmitableSeeder::class);
             $this->call(ExampleDataSeeder::class);
         }

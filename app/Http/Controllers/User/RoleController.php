@@ -37,7 +37,7 @@ class RoleController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        $this->setBreadcrumbs('__(user.role.new)');
+        $this->setBreadcrumbs();
 
         return Inertia::render('Users/Roles/Show');
     }
@@ -59,7 +59,7 @@ class RoleController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('roles.show', $role);
+        return redirect()->route('roles.show', $role)->with('id', $role->id);
     }
 
     /**

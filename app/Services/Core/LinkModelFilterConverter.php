@@ -142,6 +142,11 @@ class LinkModelFilterConverter {
      * @return list<array{k?: string, o?: string, v?: mixed, c?: array<mixed>}>
      */
     private function parseColumn(string $key, mixed $value): array {
+        // Empty array (mis. {} dari JSON dengan semua value undefined) → skip
+        if (is_array($value) && empty($value)) {
+            return [];
+        }
+
         // Scalar value -> shorthand untuk '='
         if (! is_array($value) || array_is_list($value) || (isset($value['id']) && count(array_intersect_key($value, array_flip(['id', 'type']))) > 0)) {
             // Relasi by-id ({id:...} atau list) juga diteruskan sebagai '='
@@ -158,15 +163,21 @@ class LinkModelFilterConverter {
             $opKeyStr   = (string) $opKey;
             $lowerOpKey = strtolower($opKeyStr);
 
-            // Jika dalam object operator ada "and" / "or" (LinkModel kadang men-support ini)
+            // "and" / "or" dalam operator object → parse $val sebagai operator-map untuk $key (rekursif)
             if ($lowerOpKey === 'and' || $lowerOpKey === 'or') {
                 if (is_array($val)) {
-                    $items[] = [
-                        'k' => $lowerOpKey,
-                        'c' => $this->parseGroup($val),
-                    ];
+                    $nested = $this->parseOperatorGroup($key, $val);
+                    if (! empty($nested)) {
+                        $items[] = ['k' => $lowerOpKey, 'c' => $nested];
+                    }
                 }
 
+                continue;
+            }
+
+            // Skip operator yang butuh list/range bila value-nya kosong
+            $needsNonEmpty = ['in', 'notIn', 'between', 'notBetween'];
+            if (in_array($opKeyStr, $needsNonEmpty, true) && is_array($val) && empty($val)) {
                 continue;
             }
 
@@ -192,6 +203,53 @@ class LinkModelFilterConverter {
         }
 
         return $items;
+    }
+
+    /**
+     * Parse operator-map untuk satu kolom secara rekursif, mendukung nested and/or.
+     * Single-child group di-unwrap langsung tanpa wrapper group node.
+     *
+     * @param  array<string, mixed>  $ops
+     * @return array<string, mixed>
+     */
+    private function parseOperatorGroup(string $key, array $ops): array {
+        $subItems = [];
+
+        foreach ($ops as $opKey => $val) {
+            $lowerOp = strtolower((string) $opKey);
+
+            // Nested and/or → rekursi
+            if ($lowerOp === 'and' || $lowerOp === 'or') {
+                if (is_array($val)) {
+                    $nested = $this->parseOperatorGroup($key, $val);
+                    if (! empty($nested)) {
+                        if (count($nested) === 1) {
+                            // Unwrap single-child — tidak perlu wrap group
+                            foreach ($nested as $id => $child) {
+                                $subItems[$id] = $child;
+                            }
+                        } else {
+                            $subItems[$this->generateId()] = ['k' => $lowerOp, 'c' => $nested];
+                        }
+                    }
+                }
+
+                continue;
+            }
+
+            // Skip operator yang butuh list/range bila value-nya kosong
+            $needsNonEmpty = ['in', 'notIn', 'between', 'notBetween'];
+            if (in_array((string) $opKey, $needsNonEmpty, true) && is_array($val) && empty($val)) {
+                continue;
+            }
+
+            $item = $this->mapItem($key, (string) $opKey, $val);
+            if ($item !== null) {
+                $subItems[$this->generateId()] = $item;
+            }
+        }
+
+        return $subItems;
     }
 
     /**

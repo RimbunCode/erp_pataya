@@ -162,6 +162,9 @@ export default function Form() {
                 branch_id: currentBranch?.is_main_branch
                   ? undefined
                   : currentBranch?.id,
+                id: {
+                  not: dataRow.target_warehouse?.id,
+                },
               }}
               {...attributes}
             />
@@ -190,6 +193,9 @@ export default function Form() {
                 branch_id: currentBranch?.is_main_branch
                   ? undefined
                   : currentBranch?.id,
+                id: {
+                  not: dataRow.source_warehouse?.id,
+                },
               }}
             />
           );

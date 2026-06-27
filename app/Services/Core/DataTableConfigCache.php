@@ -81,9 +81,26 @@ class DataTableConfigCache {
                 continue;
             }
 
-            if (in_array(LinkModel::class, class_uses_recursive($class), true)) {
-                $models[] = $class;
+            $ref = new \ReflectionClass($class);
+            if ($ref->isAbstract()) {
+                continue;
             }
+
+            if (! in_array(LinkModel::class, class_uses_recursive($class), true)) {
+                continue;
+            }
+
+            // Skip models without a real DB table (base/abstract-like classes)
+            try {
+                $table = (new $class)->getTable();
+                if (! Schema::hasTable($table)) {
+                    continue;
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+
+            $models[] = $class;
         }
 
         return $models;

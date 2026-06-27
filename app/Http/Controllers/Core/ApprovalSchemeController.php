@@ -32,7 +32,9 @@ class ApprovalSchemeController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        //
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Settings/ApprovalScheme/Show');
     }
 
     private function fillStepRelation(array $step, int $index): array {
@@ -124,7 +126,7 @@ class ApprovalSchemeController extends Controller {
         $approvalScheme->logForCreated();
         DB::commit();
 
-        return redirect()->back();
+        return redirect()->back()->with('id', $approvalScheme->id);
     }
 
     /**

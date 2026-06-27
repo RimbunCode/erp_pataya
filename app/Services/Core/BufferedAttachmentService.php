@@ -32,7 +32,7 @@ class BufferedAttachmentService {
                 continue;
             }
             Taggable::firstOrCreate([
-                'taggable_id'   => $model->id,
+                'taggable_id'   => $model->getKey(),
                 'taggable_type' => get_class($model),
                 'tag_id'        => $tagModel->id,
             ]);
@@ -50,7 +50,7 @@ class BufferedAttachmentService {
                 $file->update(['is_draft' => false]);
             }
             Fileable::firstOrCreate([
-                'fileable_id'   => $model->id,
+                'fileable_id'   => $model->getKey(),
                 'fileable_type' => get_class($model),
                 'file_id'       => $file->id,
             ]);

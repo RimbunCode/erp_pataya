@@ -41,6 +41,12 @@ class PrintTemplateController extends Controller {
     /**
      * Store a newly created resource in storage.
      */
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Core/PrintTemplate/Show');
+    }
+
     public function store(PrintTemplateRequest $request) {
         if (! $this->isInertiaRequest($request)) {
             $printTemplate = PrintTemplate::find($request->id);
@@ -83,7 +89,7 @@ class PrintTemplateController extends Controller {
         $printTemplate->logForCreated();
         DB::commit();
 
-        return redirect()->route('printTemplates.show', $printTemplate);
+        return redirect()->route('printTemplates.show', $printTemplate)->with('id', $printTemplate->id);
     }
 
     /**

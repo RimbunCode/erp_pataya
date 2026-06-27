@@ -1,7 +1,4 @@
-import {
-  FormPageContent,
-  useFormPage,
-} from "@/Pages/Core/FormPage";
+import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
@@ -15,11 +12,9 @@ const IANA_TIMEZONES = Intl.supportedValuesOf("timeZone").map((tz) => ({
   value: tz,
 }));
 
-const toTableValue = (timezones) =>
-  (timezones ?? []).map((tz) => ({ tz }));
+const toTableValue = (timezones) => (timezones ?? []).map((tz) => ({ tz }));
 
-const fromTableValue = (rows) =>
-  rows.map((row) => row.tz).filter(Boolean);
+const fromTableValue = (rows) => rows.map((row) => row.tz).filter(Boolean);
 
 export default memo(function Form() {
   const { data, setData, isCreate } = useFormPage();
@@ -76,10 +71,7 @@ export default memo(function Form() {
             onChange={(e) => setData("name", e.target.value)}
           />
         </FormInput>
-        <FormInput
-          label={t("core.country.columns.lang_code")}
-          name="lang_code"
-        >
+        <FormInput label={t("core.country.columns.lang_code")} name="lang_code">
           <Input
             value={data.lang_code ?? ""}
             onChange={(e) => setData("lang_code", e.target.value)}

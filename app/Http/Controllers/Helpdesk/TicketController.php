@@ -33,6 +33,12 @@ class TicketController extends Controller {
         return Inertia::render('Helpdesk/Tickets/Index');
     }
 
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Helpdesk/Tickets/Show');
+    }
+
     public function store(TicketRequest $request) {
         $data              = $request->validated();
         $data['branch_id'] = $request->session()->get('currentBranch');
@@ -40,7 +46,7 @@ class TicketController extends Controller {
         $ticket = $this->service->create($data);
         DB::commit();
 
-        return redirect()->route('tickets.show', $ticket);
+        return redirect()->route('tickets.show', $ticket)->with('id', $ticket->id);
     }
 
     public function show(Ticket $ticket) {

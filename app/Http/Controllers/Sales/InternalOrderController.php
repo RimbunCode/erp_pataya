@@ -32,7 +32,9 @@ class InternalOrderController extends Controller {
      * Show the form for creating a new resource.
      */
     public function create() {
-        //
+        $this->setBreadcrumbs();
+
+        return Inertia::render('Sales/InternalOrders/Show');
     }
 
     /**
@@ -51,7 +53,7 @@ class InternalOrderController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('internalOrders.show', $io);
+        return redirect()->route('internalOrders.show', $io)->with('id', $io->id);
     }
 
     /**

@@ -474,16 +474,8 @@ class ModelController extends Controller {
 
             return;
         }
-        $isCache = $request->boolean('cacheMode');
-        $model   = $request->model;
-        if ($request->has('id')) {
-            $dataModel = $model::find($request->id);
-            if ($request->has('with')) {
-                $dataModel->load($request->with);
-            }
-
-            return response()->json($dataModel);
-        }
+        $isCache  = $request->boolean('cacheMode');
+        $model    = $request->model;
         $search   = $isCache ? '' : ($request->search ?? '');
         $template = $model::templateLink();
         // Ekstrak daftar atribut dari template
@@ -618,12 +610,32 @@ class ModelController extends Controller {
             $with = DataTableColumnSelector::withArray($withMap);
         }
 
+        // Single-item lookup by id: direlokasi ke sini agar $safe dan $columns sudah tersedia
+        // untuk applyAppends. find() langsung via model (tanpa search constraints $query).
+        if ($request->has('id')) {
+            $dataModel = $model::find($request->id);
+            if ($dataModel !== null) {
+                if ($request->has('with')) {
+                    $dataModel->load($request->with);
+                }
+                if (! $request->has('joins') && isset($columns)) {
+                    DataTableColumnSelector::applyAppends($dataModel, $columns, $safe);
+                }
+            }
+
+            return response()->json($dataModel);
+        }
+
         $query->with($with);
         if ($request->has('order')) {
             $orders = explode(':', $request->order);
             $query->orderBy($orders[0], $orders[1] ?? 'asc');
         }
-        $data = $query->get()->toArray() ?? [];
+        $collection = $query->get();
+        if (! $request->has('joins') && isset($columns)) {
+            DataTableColumnSelector::applyAppends($collection, $columns, $safe);
+        }
+        $data = $collection->toArray() ?? [];
 
         // Lapis kedua (defense-in-depth): saring tiap row ke kolom aman, termasuk
         // relasi morph child yang tak bisa di-prune di SELECT.

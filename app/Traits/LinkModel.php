@@ -9,6 +9,7 @@ use App\Enums\FormStatus;
 use App\Models\Core\ModelConnection;
 use App\Models\Scopes\DataTableScope;
 use App\Services\Core\CommandSearchIndexService;
+use App\Services\Core\DataTableColumnSelector;
 use App\Services\Core\DataTableConfigCache;
 use App\Services\Core\HaveTransactionsSyncService;
 use App\Utils;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Schema;
@@ -197,13 +199,17 @@ trait LinkModel {
         }
     }
 
-    protected function getArrayableAppends() {
-        $this->appends = array_unique(array_merge(
+    public function getAppends() {
+        return array_values(array_unique(array_merge(
             $this->appends,
             ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel'],
-            \method_exists(static::class, 'templateLink') ? ['templateLink'] : [],
-            \method_exists(static::class, 'disabledOn') ? ['disabledOn'] : [],
-        ));
+            method_exists(static::class, 'templateLink') ? ['templateLink'] : [],
+            method_exists(static::class, 'disabledOn') ? ['disabledOn'] : [],
+        )));
+    }
+
+    protected function getArrayableAppends() {
+        $this->appends = $this->getAppends();
 
         return parent::getArrayableAppends();
     }
@@ -481,9 +487,23 @@ trait LinkModel {
     public static function computeColumnsFlat(bool $includeIgnore): array {
         $ignoreFlags = ['ignore' => true, 'hidden' => true, 'searchable' => false, 'show' => false];
 
-        $instance      = new static;
-        $columns       = Schema::getColumns($instance->getTable());
-        $hasStatusCol  = \in_array('status', \array_column($columns, 'name'), true);
+        $instance     = new static;
+        $columns      = Schema::getColumns($instance->getTable());
+        $columnNames  = \array_column($columns, 'name');
+        $hasStatusCol = \in_array('status', $columnNames, true);
+        $hasHtCol     = \in_array('have_transactions', $columnNames, true);
+        $isPivot      = $instance instanceof Pivot;
+        // Pivot FK hanya diketahui dari konteks relasi parent, bukan dari instance standalone.
+        // Untuk non-pivot: primaryKey scalar untuk metadata kolom.
+        // Fallback ke kolom pertama jika getKeyName() tidak ada di tabel.
+        $pkName = \in_array($instance->getKeyName(), $columnNames, true)
+            ? $instance->getKeyName()
+            : ($columnNames[0] ?? $instance->getKeyName());
+        // Untuk dependsOn fallback: Pivot butuh semua kolom tabel karena FK-nya
+        // hanya diketahui dari konteks relasi parent (tidak ada di instance standalone).
+        $pkDepends = $isPivot
+            ? ($columnNames ?: [$pkName])
+            : [$pkName];
         $casts         = $instance->getCasts();
         $hiddens       = $instance->getHidden();
         $guardeds      = $instance->getGuarded();
@@ -518,7 +538,7 @@ trait LinkModel {
                     ...$col,
                     'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $col['name']) : null,
                     ...$config,
-                    'primaryKey' => $instance->getKeyName(),
+                    'primaryKey' => $pkName,
                     ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
                     ...($isGuard ? ['ignore' => false] : []),
                 ];
@@ -546,7 +566,7 @@ trait LinkModel {
                 'type'       => 'string',
                 'titleTrans' => $translateKey ? ($translateKey . '.columns.' . $key) : null,
                 ...$config,
-                'primaryKey' => $instance->getKeyName(),
+                'primaryKey' => $pkName,
                 ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }
@@ -563,16 +583,33 @@ trait LinkModel {
             if ($isIgnore && ! $includeIgnore) {
                 continue;
             }
-            $baselineDepends = ($value === 'appendStatus' && $hasStatusCol && ! isset($config['dependsOn']))
-                ? ['dependsOn' => ['status']]
-                : [];
+
+            $baselineDepends = [];
+            if ($value === 'appendStatus' && ! isset($config['dependsOn'])) {
+                $baselineDepends = ['dependsOn' => $hasStatusCol ? ['status'] : $pkDepends];
+            } elseif ($value === 'canDelete' && ! isset($config['dependsOn'])) {
+                $isSubmitable = static::$is_submitable ?? false;
+                if ($isSubmitable && $hasStatusCol) {
+                    $baselineDepends = ['dependsOn' => ['status']];
+                } elseif (! $isSubmitable && $hasHtCol) {
+                    $baselineDepends = ['dependsOn' => ['have_transactions']];
+                } else {
+                    $baselineDepends = ['dependsOn' => $pkDepends];
+                }
+            } elseif (in_array($value, ['route', 'keyModel', 'thisModel', 'disabledOn'])) {
+                $baselineDepends = ['dependsOn' => $pkDepends];
+            } elseif ($value === 'templateLink') {
+                $baselineDepends = ['dependsOn' => method_exists(static::class, 'templateLink')
+                    ? DataTableColumnSelector::templateLinkPlaceholders(static::templateLink()) ?: $pkDepends
+                    : $pkDepends];
+            }
 
             $newColumns[$value] = [
                 'name'       => $value,
                 'type'       => 'attribute',
                 'sortable'   => false,
                 'searchable' => false,
-                'primaryKey' => $instance->getKeyName(),
+                'primaryKey' => $pkName,
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
                 ...$baselineDepends,
                 ...$config,

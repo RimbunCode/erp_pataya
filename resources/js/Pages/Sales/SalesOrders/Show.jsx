@@ -37,9 +37,7 @@ function QtyBadge({ delta }) {
         {delta} Under
       </span>
     );
-  return (
-    <span className="ml-1 text-xs font-medium text-gray-500">Match</span>
-  );
+  return <span className="ml-1 text-xs font-medium text-gray-500">Match</span>;
 }
 
 function ItemsQtyTable({ items }) {
@@ -64,7 +62,9 @@ function ItemsQtyTable({ items }) {
             const deltaBill = (item.billed_quantity ?? 0) - item.quantity;
             return (
               <tr key={item.id} className="border-t">
-                <td className="px-3 py-2">{item.item_name ?? item.item?.name}</td>
+                <td className="px-3 py-2">
+                  {item.item_name ?? item.item?.name}
+                </td>
                 <td className="px-3 py-2 text-right">{item.quantity}</td>
                 <td className="px-3 py-2 text-right">
                   {item.delivered_quantity ?? 0}
@@ -112,7 +112,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
           setLoading(false);
           setSyncDialogOpen(false);
         },
-      }
+      },
     );
   };
 
@@ -128,7 +128,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
             setMismatchErrors(
               Array.isArray(errors.mismatches)
                 ? errors.mismatches
-                : JSON.parse(errors.mismatches)
+                : JSON.parse(errors.mismatches),
             );
           }
           setLoading(false);
@@ -137,7 +137,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
           setLoading(false);
           setMarkDoneDialogOpen(false);
         },
-      }
+      },
     );
   };
 
@@ -147,7 +147,6 @@ export default function Show({ salesOrder, defaultData, flash }) {
         isCreate={!salesOrder}
         ignoreDraft={defaultData}
         name="salesOrder"
-        title={salesOrder ? salesOrder.code : t("sales.salesOrder.new")}
         disabled={salesOrder?.submitted_at}
         submitable
         defaultValues={defaultData}
@@ -226,7 +225,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
                               })}
                             >
                               {t(
-                                "sales.salesOrder.actions.create_sales_invoice"
+                                "sales.salesOrder.actions.create_sales_invoice",
                               )}
                             </Link>
                           </DropdownMenuItem>
@@ -243,7 +242,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
                               })}
                             >
                               {t(
-                                "sales.salesOrder.actions.create_delivery_note"
+                                "sales.salesOrder.actions.create_delivery_note",
                               )}
                             </Link>
                           </DropdownMenuItem>
@@ -259,9 +258,7 @@ export default function Show({ salesOrder, defaultData, flash }) {
         <Form />
 
         {/* Tabel tracking qty per item */}
-        {salesOrder?.submitted_at && (
-          <ItemsQtyTable items={salesOrder.items} />
-        )}
+        {salesOrder?.submitted_at && <ItemsQtyTable items={salesOrder.items} />}
       </FormPage>
 
       {/* Dialog konfirmasi Sync Items */}

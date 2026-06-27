@@ -31,8 +31,15 @@ class PaymentTermTemplateController extends Controller {
     /**
      * Show the form for creating a new resource.
      */
-    public function create(Request $request, ?string $ref = null) {
-        //
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Finances/PaymentTermTemplate/Form',
+            'paymentTermTemplate',
+            null,
+            new ($this->model),
+        );
     }
 
     /**
@@ -41,9 +48,9 @@ class PaymentTermTemplateController extends Controller {
     public function store(PaymentTermTemplateRequest $request) {
         $data = $request->validated();
 
-        $this->service->create($data);
+        $paymentTermTemplate = $this->service->create($data);
 
-        return redirect()->back();
+        return redirect()->back()->with('id', $paymentTermTemplate->id);
     }
 
     /**

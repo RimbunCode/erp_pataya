@@ -28,9 +28,9 @@ describe("formatColumnValue", () => {
   });
 
   it("uses symbol from column when provided", () => {
-    expect(
-      formatColumnValue(100, { type: "currency", symbol: "$" }),
-    ).toBe("$ 100,00");
+    expect(formatColumnValue(100, { type: "currency", symbol: "$" })).toBe(
+      "$ 100,00",
+    );
   });
 
   it("uses symbol from column.currency.symbol when provided", () => {
@@ -48,14 +48,17 @@ describe("formatColumnValue", () => {
   });
 
   it("formats number type with specified decimalScale", () => {
-    expect(
-      formatColumnValue(1234.5, { type: "number", decimalScale: 2 }),
-    ).toBe("1.234,50");
+    expect(formatColumnValue(1234.5, { type: "number", decimalScale: 2 })).toBe(
+      "1.234,50",
+    );
   });
 
   it("formats number type with formatOptions.decimals", () => {
     expect(
-      formatColumnValue(99.9, { type: "number", formatOptions: { decimals: 3 } }),
+      formatColumnValue(99.9, {
+        type: "number",
+        formatOptions: { decimals: 3 },
+      }),
     ).toBe("99,900");
   });
 

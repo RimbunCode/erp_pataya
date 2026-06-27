@@ -180,42 +180,9 @@ function validateWithOperators(value, operators, logic = "and") {
   }
   return logic == "and";
 }
-export function validate(value, filters, logic = "and") {
-  if (!filters || typeof filters !== "object" || Array.isArray(filters)) {
-    return true;
-  }
-
-  for (let keyFilter in filters) {
-    const valFilter = filters[keyFilter];
-    keyFilter = keyFilter.match(/^([^\[\]]+)/)?.[1] ?? keyFilter;
-
-    const keys = keyFilter.split(/\.|->/);
-    let val = value;
-
-    for (let key of keys) {
-      if (!val) break;
-      val = val[key];
-    }
-
-    let result = false;
-    if (/^raw\((.+)\)$/.test(keyFilter)) {
-      result = true;
-    } else if (keyFilter === "and" || keyFilter === "or") {
-      result = validate(value, valFilter, keyFilter);
-    } else if (valFilter === undefined) {
-      result = true;
-    } else if (Array.isArray(valFilter)) {
-      result = JSON.stringify(val) === JSON.stringify(valFilter);
-    } else if (typeof valFilter !== "object" || valFilter === null) {
-      result = val == valFilter;
-    } else {
-      result = validateWithOperators(val, valFilter);
-    }
-    if (logic === "and" && !result) return false;
-    if (logic === "or" && result) return true;
-  }
-
-  return logic === "and";
+export function validate(value, model) {
+  if (!value || !model) return true;
+  return value.thisModel === model;
 }
 export const convertTemplateLink = (value, search, asObject = false) => {
   if (!value) return "";

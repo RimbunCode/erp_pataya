@@ -27,6 +27,17 @@ class AttributeController extends Controller {
     /**
      * Store a newly created resource in storage.
      */
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Inventory/Attributes/Form',
+            'attribute',
+            null,
+            new ($this->model),
+        );
+    }
+
     public function store(AttributeRequest $request) {
         $data = $request->validated();
         DB::beginTransaction();

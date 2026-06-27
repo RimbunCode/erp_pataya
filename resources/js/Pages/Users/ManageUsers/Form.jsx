@@ -169,6 +169,8 @@ function Form() {
               disabled={authUser.id != data?.id}
               type="date"
               value={data.birthdate}
+              maxYear={new Date().getFullYear() - 15}
+              yearRange={70}
               onValueChange={(val) => setData("birthdate", val)}
             />
           </FormInput>

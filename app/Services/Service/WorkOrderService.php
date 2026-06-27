@@ -3,7 +3,11 @@
 namespace App\Services\Service;
 
 use App\Enums\FormStatus;
+use App\Models\Core\Branch;
 use App\Models\Core\FormatingSeries;
+use App\Models\Inventory\ItemUnit;
+use App\Models\Inventory\ItemVariant;
+use App\Models\Sales\Customer;
 use App\Models\Service\WorkOrder;
 use App\Utils;
 use Symfony\Component\Uid\Ulid;
@@ -12,36 +16,44 @@ class WorkOrderService {
     private function fillRelations(array $data) {
         if (! ($data['for_internal'] ?? false)) {
             $data['customer_id']   = $data['customer']['id'];
-            $data['customer_name'] = $data['customer']['name'];
+            $data['customer_name'] = Customer::find($data['customer']['id'])?->name;
         } else {
             $data['customer_id']   = null;
             $data['customer_name'] = null;
         }
         $data['customer_branch_id']   = $data['customer_branch']['id'];
-        $data['customer_branch_name'] = $data['customer_branch']['name'];
+        $data['customer_branch_name'] = Branch::find($data['customer_branch']['id'])?->name;
         $data['address']              = [];
         $data['item_service_id']      = $data['item_service']['id'];
-        $data['item_service_name']    = $data['item_service']['code'];
+        $data['item_service_name']    = ItemVariant::find($data['item_service']['id'])?->code;
 
         return $data;
     }
 
-    private function fillItemRelations(array $data) {
+    private function fillItemRelations(array $data, array $units = []) {
+        $unit                      = $units[$data['unit']['id']] ?? null;
         $data['item_variant_id']   = $data['item']['id'];
         $data['item_name']         = $data['item']['code'];
         $data['item_unit_id']      = $data['unit']['id'];
-        $data['unit_name']         = $data['unit']['name'];
-        $data['conversion_factor'] = $data['unit']['conversion_factor'];
+        $data['unit_name']         = $unit?->unit?->name ?? null;
+        $data['conversion_factor'] = $unit?->conversion_factor ?? 1;
 
         return $data;
+    }
+
+    private function batchLoadUnits(array $data): array {
+        $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
+
+        return ItemUnit::with('unit')->whereIn('id', $unitIds)->get()->keyBy('id')->all();
     }
 
     public function create(array $data) {
         $data['code'] = FormatingSeries::generate(WorkOrder::class, $data, true);
         $wo           = WorkOrder::create($this->fillRelations($data));
+        $units        = $this->batchLoadUnits($data);
 
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item);
+            $item = $this->fillItemRelations($item, $units);
             $wo->items()->create($item);
         }
         $wo->logForCreated();
@@ -65,8 +77,10 @@ class WorkOrderService {
             ->get()
             ->keyBy('id');
 
+        $units = $this->batchLoadUnits($data);
+
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item);
+            $item = $this->fillItemRelations($item, $units);
 
             if (Ulid::isValid($item['id'])) {
                 unset($item['item']);

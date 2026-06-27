@@ -14,8 +14,8 @@ export default function Show({ internalOrder }) {
   );
   return (
     <FormPage
+      isCreate={!internalOrder}
       name="internalOrder"
-      title={internalOrder.code}
       disabled={internalOrder?.submitted_at}
       submitable
       controls={() => {

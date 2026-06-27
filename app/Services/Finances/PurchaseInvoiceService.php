@@ -3,15 +3,19 @@
 namespace App\Services\Finances;
 
 use App\Enums\FormStatus;
+use App\Models\Core\Currency;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
 use App\Models\Finances\Account;
 use App\Models\Finances\PurchaseInvoice;
+use App\Models\Finances\Tax;
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseOrder;
 use App\Models\Purchase\PurchaseReceipt;
+use App\Models\Purchase\Supplier;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -21,7 +25,7 @@ class PurchaseInvoiceService {
     private function fillRelations(array $data) {
         $data['purchase_order_id'] = $data['purchase_order']['id'];
         $data['supplier_id']       = $data['supplier']['id'];
-        $data['supplier_name']     = $data['supplier']['name'] ?? null;
+        $data['supplier_name']     = Supplier::find($data['supplier']['id'])?->name;
 
         // account relations
         $data['credit_account_id']       = $data['credit_account']['id'] ?? null;
@@ -29,22 +33,36 @@ class PurchaseInvoiceService {
         $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
         $defaultCurrency            = Preference::find('default_currency_id')->value;
-        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
+        $data['currency_code']      = Currency::find($data['currency']['id'] ?? null)?->code ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
         $data['exchange_rate'] ??= 1;
 
         return $data;
     }
 
-    private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice) {
+    private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice, array $units = [], array $taxes = []) {
+        $unit                      = $units[$data['unit']['id']] ?? null;
+        $tax                       = $taxes[$data['tax']['id'] ?? ''] ?? null;
         $data['item_id']           = $data['item']['id'];
         $data['item_unit_id']      = $data['unit']['id'];
-        $data['conversion_factor'] = $data['unit']['conversion_factor'];
+        $data['conversion_factor'] = $unit?->conversion_factor ?? 1;
         $data['exchange_rate']     = $purchaseInvoice->exchange_rate;
         $data['tax_id']            = $data['tax']['id'];
-        $data['tax_rate']          = $data['tax']['rate'] ?? 0;
+        $data['tax_rate']          = $tax?->rate ?? 0;
 
         return $data;
+    }
+
+    private function batchLoadUnits(array $data): array {
+        $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
+
+        return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
+    }
+
+    private function batchLoadTaxes(array $data): array {
+        $taxIds = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
+
+        return Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
     }
 
     private function fillPaymentScheduleRelations(array $data, PurchaseInvoice $purchaseInvoice) {
@@ -65,8 +83,11 @@ class PurchaseInvoiceService {
         $basicAmount = 0;
         $taxAmount   = 0;
 
+        $units = $this->batchLoadUnits($data);
+        $taxes = $this->batchLoadTaxes($data);
+
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseInvoice);
+            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes);
             $item = $purchaseInvoice->items()->create($item);
             $item->refresh();
             $basicAmount += $item->basic_amount;
@@ -106,8 +127,11 @@ class PurchaseInvoiceService {
             ->get()
             ->keyBy('id');
 
+        $units = $this->batchLoadUnits($data);
+        $taxes = $this->batchLoadTaxes($data);
+
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseInvoice);
+            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);

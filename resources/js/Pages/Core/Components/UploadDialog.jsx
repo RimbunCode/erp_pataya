@@ -136,37 +136,37 @@ function UploadDialog({
         return;
       }
       const formData = new FormData();
-    if (menu == "library") {
-      files.forEach((id) => {
-        formData.append(`filesId[]`, id);
+      if (menu == "library") {
+        files.forEach((id) => {
+          formData.append(`filesId[]`, id);
+        });
+      } else {
+        files.forEach((file, index) => {
+          formData.append(`files[${index}]`, file.file);
+          formData.append(`isPublic[${index}]`, file.isPublic ?? false);
+          formData.append(`name[${index}]`, file.name || file.file.name);
+        });
+      }
+      const currentPath = window.location.pathname.replace(/\/$/, "");
+      const currentQueryString = window.location.search;
+      const basePath = `${currentPath}/file`;
+      router.post(routeProp ?? `${basePath}${currentQueryString}`, formData, {
+        reset: ["attachments"],
+        forceFormData: true,
+        replace: true,
+        preserveState: true,
+        preserveScroll: true,
+        showProgress: true,
+        ...optionsProp,
+        onProgress: (e) => {
+          setProgress(e);
+        },
+        onSuccess: () => {
+          setFiles([]);
+          onClose();
+          setProgress(false);
+        },
       });
-    } else {
-      files.forEach((file, index) => {
-        formData.append(`files[${index}]`, file.file);
-        formData.append(`isPublic[${index}]`, file.isPublic ?? false);
-        formData.append(`name[${index}]`, file.name || file.file.name);
-      });
-    }
-    const currentPath = window.location.pathname.replace(/\/$/, "");
-    const currentQueryString = window.location.search;
-    const basePath = `${currentPath}/file`;
-    router.post(routeProp ?? `${basePath}${currentQueryString}`, formData, {
-      reset: ["attachments"],
-      forceFormData: true,
-      replace: true,
-      preserveState: true,
-      preserveScroll: true,
-      showProgress: true,
-      ...optionsProp,
-      onProgress: (e) => {
-        setProgress(e);
-      },
-      onSuccess: () => {
-        setFiles([]);
-        onClose();
-        setProgress(false);
-      },
-    });
     },
     [onBuffer, onClose, optionsProp, routeProp],
   );

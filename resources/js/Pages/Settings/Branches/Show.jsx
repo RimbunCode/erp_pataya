@@ -6,8 +6,8 @@ export default function Show({ branch }) {
   const { t } = useLaravelReactI18n();
   return (
     <FormPage
+      isCreate={!branch}
       name="branch"
-      title={branch.name}
       disabled={branch.is_main_branch}
       badge={
         <>

@@ -16,7 +16,7 @@ class UnitController extends Controller {
 
     protected function enforcePermission(string $method) {
         if ($method === 'getGroups') {
-            return true;
+            return ['create', 'write'];
         }
     }
 
@@ -76,6 +76,17 @@ class UnitController extends Controller {
     /**
      * Store a newly created resource in storage.
      */
+    public function create() {
+        $this->setBreadcrumbs();
+
+        return $this->renderShow(
+            'Inventory/Units/Form',
+            'unit',
+            null,
+            new ($this->model),
+        );
+    }
+
     public function store(UnitRequest $request) {
         $data = $request->validated();
         DB::beginTransaction();

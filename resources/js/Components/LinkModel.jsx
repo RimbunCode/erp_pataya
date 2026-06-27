@@ -22,7 +22,7 @@ import {
 import { Button } from "./ui/button";
 import ClickAwayListener from "react-click-away-listener";
 import { Command as CommandPrimitive } from "cmdk";
-import { FormPageLinkModelDialog } from "@/Pages/Core/FormPage";
+import { FormPageDialog } from "@/Pages/Core/FormPage";
 import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import axios from "axios";
@@ -294,7 +294,7 @@ export default memo(
       (val) => {
         if (disabled || readOnly) return;
         if (val) {
-          const isValid = validate(val, filters);
+          const isValid = validate(val, model);
           if (!isValid) return;
         }
         if (isControlled) {
@@ -360,12 +360,12 @@ export default memo(
         return;
       }
       if (!(option || value)) return;
-      const isValid = validate(option || value, filters);
+      const isValid = validate(option || value, model);
 
       if (!isValid) {
         setOption(null);
       }
-    }, [filters, option, value]);
+    }, [filters, option, value, model]);
 
     useEffect(() => {
       if (!cacheConfig.enabled) return;
@@ -570,7 +570,7 @@ export default memo(
       }
     };
 
-    const onSuccessFormPageLinkModelDialog = (e) => {
+    const onSuccessFormPageDialog = (e) => {
       setOpen(false);
       axios
         .post(route("model"), {
@@ -601,9 +601,7 @@ export default memo(
 
     const filteredOptions = useMemo(() => {
       if (!cacheConfig.enabled) return options;
-      let list = filters
-        ? options.filter((opt) => validate(opt, filters))
-        : options;
+      let list = options.filter((opt) => validate(opt, model));
       if (cacheConfig.enabled && order) {
         const [col, dir = "asc"] = (order ?? "").split(":");
         list = [...list].sort((a, b) => {
@@ -841,18 +839,18 @@ export default memo(
               )}
             </Command>
             {!disabledAdd && (
-              <FormPageLinkModelDialog
+              <FormPageDialog
                 title={titleDialog}
                 name={name}
                 open={openDialog}
                 onOpenChange={setOpenDialog}
-                className={cn("max-w-lg", classNameDialog)}
+                className={cn("max-w-4xl", classNameDialog)}
                 defaultValue={defaultValueForm}
-                onSuccess={onSuccessFormPageLinkModelDialog}
+                onSuccess={onSuccessFormPageDialog}
                 postOption={postOption}
               >
                 {form}
-              </FormPageLinkModelDialog>
+              </FormPageDialog>
             )}
           </Popover>
         </div>

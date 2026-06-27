@@ -42,7 +42,7 @@ function Index() {
           </Link>
         );
       }}
-      classNameDialog="max-w-xl!"
+      classNameDialog="max-w-4xl!"
       form={<Form />}
     />
   );

@@ -94,8 +94,8 @@ describe("getCurrentTemplateFromEditor", () => {
         }),
         getAll: () => [],
       },
-      getHtml: vi.fn(({ component }) => "<p>Hello</p>"),
-      getCss: vi.fn(({ component }) => "p { color: blue; }"),
+      getHtml: vi.fn(({ _component }) => "<p>Hello</p>"),
+      getCss: vi.fn(({ _component }) => "p { color: blue; }"),
     };
 
     const result = getCurrentTemplateFromEditor(mockEditor);
@@ -115,8 +115,8 @@ describe("getCurrentTemplateFromEditor", () => {
         getSelected: () => null,
         getAll: () => [{ getMainComponent: () => mockComponent }],
       },
-      getHtml: vi.fn(({ component }) => "<div>content</div>"),
-      getCss: vi.fn(({ component }) => "div { padding: 8px; }"),
+      getHtml: vi.fn(({ _component }) => "<div>content</div>"),
+      getCss: vi.fn(({ _component }) => "div { padding: 8px; }"),
     };
 
     const result = getCurrentTemplateFromEditor(mockEditor);

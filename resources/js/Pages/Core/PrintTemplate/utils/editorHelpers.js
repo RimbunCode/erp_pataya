@@ -35,8 +35,8 @@ export function clampSidebarWidth(width) {
  * Menentukan kode unit pengukuran dari objek printTemplate.
  * Mendukung format unit berupa string langsung atau objek dengan properti `code`.
  * Jika unit tidak valid atau kosong, mengembalikan "mm" sebagai default.
- * @param {Object} printTemplate - Objek konfigurasi print template
- * @param {string|Object} [printTemplate.unit] - Unit pengukuran (string atau objek {code: string})
+ * @param {object} printTemplate - Objek konfigurasi print template
+ * @param {string | object} [printTemplate.unit] - Unit pengukuran (string atau objek {code: string})
  * @returns {string} Kode unit pengukuran (contoh: "mm", "cm", "in", "px")
  */
 export function resolveTemplateUnitCode(printTemplate) {
@@ -68,7 +68,7 @@ export function parseNumericValue(value, fallbackValue) {
 /**
  * Memvalidasi sintaks template Handlebar.
  * Menggunakan Handlebars.parse() untuk memeriksa apakah template memiliki sintaks yang benar.
- * @param {string} [template=""] - String template Handlebar yang akan divalidasi
+ * @param {string} [template] - String template Handlebar yang akan divalidasi
  * @returns {{valid: boolean, message: string}} Objek hasil validasi dengan status dan pesan error
  */
 export function validateHandlebarTemplate(template = "") {

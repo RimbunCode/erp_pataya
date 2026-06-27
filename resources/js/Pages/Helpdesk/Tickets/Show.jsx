@@ -16,7 +16,6 @@ import { sanitizeHTML } from "@/lib/htmlSanitizer";
 import { router, usePage } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useRef, useState } from "react";
-import { convertTemplateLink } from "@/lib/linkModelUtils";
 
 // ─── TicketResponseDiff ──────────────────────────────────────────
 function TicketResponseDiff({ current, previous }) {
@@ -72,7 +71,10 @@ function TicketResponseDiff({ current, previous }) {
           const val = f.format(current[f.key], current);
           if (!val || val === "-") return null;
           return (
-            <div key={f.key} className="text-muted-foreground flex gap-1 text-xs">
+            <div
+              key={f.key}
+              className="text-muted-foreground flex gap-1 text-xs"
+            >
               <span className="w-24 shrink-0 font-medium">{f.label}</span>
               <span>:</span>
               <span>{val}</span>
@@ -84,7 +86,8 @@ function TicketResponseDiff({ current, previous }) {
   }
 
   const changes = fields.filter((f) => {
-    if (f.key === "assign_to_id") return current.assign_to_id !== previous.assign_to_id;
+    if (f.key === "assign_to_id")
+      return current.assign_to_id !== previous.assign_to_id;
     return current[f.key] !== previous[f.key];
   });
 
@@ -205,7 +208,6 @@ export default function Show({ ticket, defaultData }) {
         isCreate={!ticket}
         ignoreDraft={defaultData}
         name="ticket"
-        title={ticket ? convertTemplateLink(ticket) : t("helpdesk.ticket.new")}
         disabled
         deleteable={false}
         defaultValues={defaultData}
