@@ -56,7 +56,7 @@ class PurchaseInvoiceService {
     private function batchLoadUnits(array $data): array {
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
 
-        return ItemUnit::whereIn('id', $unitIds)->get()->keyBy('id')->all();
+        return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
     private function batchLoadTaxes(array $data): array {

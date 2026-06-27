@@ -218,4 +218,55 @@ class LinkModelFilterConverterTest extends TestCase {
         // raw(...) skip
         $this->assertEqualsCanonicalizing(['r1', 'r2', 'r3'], $this->applyLinkModel(['raw(1=1)' => 'yes'])->pluck('id')->all());
     }
+
+    public function test_empty_filter_values_are_skipped(): void {
+        $this->seedRecords();
+
+        // Bug 1: empty object {} → [] harus di-skip, return semua rows
+        $this->assertEqualsCanonicalizing(['r1', 'r2', 'r3'], $this->applyLinkModel(['name' => []])->pluck('id')->all());
+
+        // Bug 2a: in dengan list kosong harus di-skip
+        $this->assertEqualsCanonicalizing(['r1', 'r2', 'r3'], $this->applyLinkModel(['name' => ['in' => []]])->pluck('id')->all());
+
+        // Bug 2b: notIn dengan list kosong harus di-skip
+        $this->assertEqualsCanonicalizing(['r1', 'r2', 'r3'], $this->applyLinkModel(['name' => ['notIn' => []]])->pluck('id')->all());
+
+        // Bug 2c: between dengan array kosong harus di-skip
+        $this->assertEqualsCanonicalizing(['r1', 'r2', 'r3'], $this->applyLinkModel(['qty' => ['between' => []]])->pluck('id')->all());
+
+        // Filter valid setelah empty filter tetap bekerja (kombinasi)
+        $this->assertEqualsCanonicalizing(['r1'], $this->applyLinkModel(['name' => [], 'qty' => 5])->pluck('id')->all());
+    }
+
+    public function test_or_and_within_operator_object(): void {
+        $this->seedRecords();
+
+        // flat or — qty > 20 OR qty < 10
+        $this->assertEqualsCanonicalizing(['r1', 'r3'], $this->applyLinkModel(['qty' => ['or' => ['>' => 20, '<' => 10]]])->pluck('id')->all());
+
+        // flat and — qty > 4 AND qty < 20
+        $this->assertEqualsCanonicalizing(['r1', 'r2'], $this->applyLinkModel(['qty' => ['and' => ['>' => 4, '<' => 20]]])->pluck('id')->all());
+
+        // nested: qty > 20 OR (qty > 4 AND qty < 10) → r1(5), r3(25)
+        $this->assertEqualsCanonicalizing(['r1', 'r3'], $this->applyLinkModel(['qty' => [
+            'or' => [
+                '>'   => 20,
+                'and' => ['>' => 4, '<' => 10],
+            ],
+        ]])->pluck('id')->all());
+
+        // deeply nested: qty > 10 OR (qty <= 10 AND qty != 5)
+        // r1=5: false OR (true AND false) → excluded
+        // r2=15: true → included
+        // r3=25: true → included
+        $this->assertEqualsCanonicalizing(['r2', 'r3'], $this->applyLinkModel(['qty' => [
+            'or' => [
+                '>'   => 10,
+                'and' => ['<=' => 10, '!=' => 5],
+            ],
+        ]])->pluck('id')->all());
+
+        // unwrap: single-child or — identik dengan filter langsung
+        $this->assertEqualsCanonicalizing(['r2', 'r3'], $this->applyLinkModel(['qty' => ['or' => ['>' => 10]]])->pluck('id')->all());
+    }
 }

@@ -88,13 +88,13 @@ class StockEntryService {
     private function batchLoadUnits(array $data): array {
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
 
-        return ItemUnit::whereIn('id', $unitIds)->get()->keyBy('id')->all();
+        return ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
     }
 
     private function batchLoadDefaultUnits(array $data): array {
         $itemIds = collect($data['items'])->pluck('item.id')->filter()->unique()->values();
 
-        return ItemUnit::whereIn('item_id', $itemIds)->where('is_default', true)->get()->keyBy('item_id')->all();
+        return ItemUnit::whereIn('item_units.item_id', $itemIds)->where('item_units.is_default', true)->get()->keyBy('item_id')->all();
     }
 
     private function preloadStockSourceCache(array $data, StockEntry $stockEntry): array {

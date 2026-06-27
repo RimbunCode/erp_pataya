@@ -126,7 +126,7 @@ class ApprovalSchemeController extends Controller {
         $approvalScheme->logForCreated();
         DB::commit();
 
-        return redirect()->back();
+        return redirect()->back()->with('id', $approvalScheme->id);
     }
 
     /**

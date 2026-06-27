@@ -74,7 +74,7 @@ class SalesOrderService {
         $taxAmount    = 0;
 
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
-        $units   = ItemUnit::whereIn('id', $unitIds)->get()->keyBy('id')->all();
+        $units   = ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
         $taxIds  = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
         $taxes   = Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
 
@@ -120,7 +120,7 @@ class SalesOrderService {
         $taxAmount   = 0;
 
         $unitIds = collect($data['items'])->pluck('unit.id')->filter()->unique()->values();
-        $units   = ItemUnit::whereIn('id', $unitIds)->get()->keyBy('id')->all();
+        $units   = ItemUnit::whereIn('item_units.id', $unitIds)->get()->keyBy('id')->all();
         $taxIds  = collect($data['items'])->pluck('tax.id')->filter()->unique()->values();
         $taxes   = Tax::whereIn('id', $taxIds)->get()->keyBy('id')->all();
 

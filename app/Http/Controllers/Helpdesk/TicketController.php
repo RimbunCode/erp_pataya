@@ -46,7 +46,7 @@ class TicketController extends Controller {
         $ticket = $this->service->create($data);
         DB::commit();
 
-        return redirect()->route('tickets.show', $ticket);
+        return redirect()->route('tickets.show', $ticket)->with('id', $ticket->id);
     }
 
     public function show(Ticket $ticket) {

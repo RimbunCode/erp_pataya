@@ -150,7 +150,7 @@ class PurchaseInvoiceController extends Controller {
 
         DB::commit();
 
-        return redirect()->route('purchaseInvoices.show', $purchaseInvoice);
+        return redirect()->route('purchaseInvoices.show', $purchaseInvoice)->with('id', $purchaseInvoice->id);
     }
 
     /**

@@ -134,7 +134,7 @@ class PaymentEntryController extends Controller {
         $data['branch_id'] = $request->session()->get('currentBranch');
         $paymentEntry      = $this->service->create($data);
 
-        return redirect()->route('paymentEntries.show', $paymentEntry);
+        return redirect()->route('paymentEntries.show', $paymentEntry)->with('id', $paymentEntry->id);
     }
 
     /**
