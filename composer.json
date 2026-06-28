@@ -11,6 +11,7 @@
   "require": {
     "php": "^8.2",
     "ddzobov/laravel-pivot-softdeletes": "^2.3",
+    "google/apiclient": "^2.0",
     "inertiajs/inertia-laravel": "^2.0",
     "itsgoingd/clockwork": "^5.3",
     "laravel/breeze": "^2.3",

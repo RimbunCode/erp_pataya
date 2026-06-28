@@ -1,6 +1,7 @@
 import MainLayout from "@/Layouts/MainLayout";
 import { usePage } from "@inertiajs/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import StudentManagementModal from "./Components/StudentManagementModal";
 import StudentManagementRow from "./Components/StudentManagementRow";
 import StudentManagementStatCard from "./Components/StudentManagementStatCard";
@@ -107,7 +108,13 @@ function buildStatCards({ total, active, completed, pending }) {
 }
 
 export default function StudentManagement() {
-  const { students = [], courses = ["All Courses"] } = usePage().props;
+  const { students = [], courses = ["All Courses"], flash = {} } = usePage().props;
+
+  useEffect(() => {
+    if (flash?.success) toast.success(flash.success);
+    if (flash?.info) toast.info(flash.info);
+    if (flash?.error) toast.error(flash.error);
+  }, [flash?.success, flash?.info, flash?.error]);
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");

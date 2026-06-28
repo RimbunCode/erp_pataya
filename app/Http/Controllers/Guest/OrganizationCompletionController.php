@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Guest;
 use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Guest\CompleteOrganizationProfileRequest;
+use App\Models\Core\File;
 use App\Models\OrganizationInvitation;
 use App\Services\Admin\OrganizationInvitationService;
 use Illuminate\Http\RedirectResponse;
@@ -44,8 +45,17 @@ class OrganizationCompletionController extends Controller {
 
         $logoFileId = null;
         if ($request->hasFile('logo')) {
-            $path       = $request->file('logo')->store('organization-logos', 'public');
-            $logoFileId = $path;
+            $uploaded   = $request->file('logo');
+            $path       = $uploaded->store('organization-logos', 'public');
+            $fileRecord = File::create([
+                'name'      => pathinfo((string) $uploaded->getClientOriginalName(), PATHINFO_FILENAME),
+                'path'      => $path,
+                'extension' => $uploaded->getClientOriginalExtension(),
+                'mime_type' => $uploaded->getMimeType(),
+                'is_public' => true,
+                'user_id'   => null,
+            ]);
+            $logoFileId = $fileRecord->id;
         }
 
         $data = array_merge($validated, [

@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { router } from "@inertiajs/react";
+import { toast } from "sonner";
 import {
   avatarColors,
   statusCfg,
@@ -10,6 +12,23 @@ import StudentFullReport from "./StudentFullReport";
 
 export default function StudentManagementModal({ student, index, onClose }) {
   const [showReport, setShowReport] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+
+  const handleIssueCertificate = () => {
+    if (issuing) return;
+    setIssuing(true);
+    router.post(
+      route("instructor.enrollments.issue-certificate", student.id),
+      {},
+      {
+        preserveScroll: true,
+        onFinish: () => setIssuing(false),
+        onError: (errors) => {
+          if (errors.certificate) toast.error(errors.certificate);
+        },
+      },
+    );
+  };
 
   const avatarSource = useMemo(() => {
     if (!student?.image) return null;
@@ -234,6 +253,60 @@ export default function StudentManagementModal({ student, index, onClose }) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Certificate Section */}
+        <div className="px-7 pb-4 flex-shrink-0">
+          {student.certificate ? (
+            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-[9px] font-black tracking-widest text-amber-600 uppercase">Certificate Issued</p>
+                  <p className="text-[10px] font-bold text-amber-800 mt-0.5">{student.certificate.credentialId} · {student.certificate.issuedAt}</p>
+                </div>
+              </div>
+              <a
+                href={student.certificate.viewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[9px] font-black tracking-widest uppercase text-amber-600 hover:text-amber-800 transition-colors"
+              >
+                View
+              </a>
+            </div>
+          ) : (
+            <button
+              onClick={handleIssueCertificate}
+              disabled={issuing || student.progress < 100}
+              className={`w-full py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all flex items-center justify-center gap-2
+                ${student.progress === 100
+                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+                }`}
+            >
+              {issuing ? (
+                <>
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Issuing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                  </svg>
+                  {student.progress < 100 ? "Course Not Yet Complete" : "Issue Certificate"}
+                </>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="flex gap-3 px-7 py-4 border-t border-border flex-shrink-0">

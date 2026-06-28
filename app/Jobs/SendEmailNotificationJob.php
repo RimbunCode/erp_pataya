@@ -16,9 +16,9 @@ class SendEmailNotificationJob implements ShouldQueue {
     /**
      * Create a new job instance.
      */
-    private object $notifiable;
+    public object $notifiable;
 
-    private Notification $notification;
+    public Notification $notification;
 
     public function __construct(object $notifiable, Notification $notification) {
         $this->notifiable   = $notifiable;

@@ -46,4 +46,10 @@ return [
         'redirect'      => env('GOOGLE_REDIRECT', config('app.url') . '/auth/google/callback'),
     ],
 
+    'google_docs' => [
+        'credentials'    => env('GOOGLE_APPLICATION_CREDENTIALS', 'credentials/serviceAccount.json'),
+        'template_doc_id' => env('GOOGLE_CERT_TEMPLATE_DOC_ID'),
+        'drive_folder_id' => env('GOOGLE_CERT_DRIVE_FOLDER_ID'),
+    ],
+
 ];

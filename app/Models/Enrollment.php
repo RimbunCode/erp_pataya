@@ -6,6 +6,7 @@ use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Enrollment extends Model {
     use HasUlids;
@@ -25,5 +26,9 @@ class Enrollment extends Model {
 
     public function payment(): BelongsTo {
         return $this->belongsTo(Payment::class);
+    }
+
+    public function certificate(): HasOne {
+        return $this->hasOne(Certificate::class);
     }
 }

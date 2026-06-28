@@ -94,6 +94,38 @@ class AdminModulePermissionTest extends TestCase {
             ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
     }
 
+    public function test_content_admin_can_access_certificate_templates(): void {
+        $admin = User::factory()->create();
+        $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'content_admin');
+
+        $this->actingAs($admin)
+            ->get(route('admin.certificate-templates.index'))
+            ->assertOk();
+    }
+
+    public function test_course_admin_cannot_access_certificate_templates(): void {
+        $admin = User::factory()->create();
+        $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'course_admin');
+
+        $this->actingAs($admin)
+            ->get(route('admin.certificate-templates.index'))
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
+    }
+
+    public function test_finance_admin_cannot_access_certificate_templates(): void {
+        $admin = User::factory()->create();
+        $this->assignRole($admin, 'admin');
+        $this->grantAdminPermission($admin, 'finance_admin');
+
+        $this->actingAs($admin)
+            ->get(route('admin.certificate-templates.index'))
+            ->assertRedirect(route('admin.dashboard'))
+            ->assertSessionHas('error', 'Anda tidak memiliki akses ke modul ini.');
+    }
+
     public function test_admin_without_module_assignment_can_access_dashboard_and_profile_but_not_modules(): void {
         $admin = User::factory()->create();
         $this->assignRole($admin, 'admin');
@@ -137,6 +169,7 @@ class AdminModulePermissionTest extends TestCase {
             ->get(route('admin.landing-page-settings.index'))
             ->assertRedirect(route('guest.home', ['liveEdit' => 1]));
         $this->actingAs($superAdmin)->get(route('admin.course-categories.index'))->assertOk();
+        $this->actingAs($superAdmin)->get(route('admin.certificate-templates.index'))->assertOk();
 
         $response = $this->actingAs($superAdmin)->patch(
             route('admin.user.admins.permissions', ['user' => $targetAdmin->id]),
@@ -352,6 +385,9 @@ class AdminModulePermissionTest extends TestCase {
             'database/migrations/2026_05_24_141817_create_instructor_earnings_table.php',
             'database/migrations/2026_05_24_141817_create_instructor_payout_requests_table.php',
             'database/migrations/2026_05_24_141818_create_instructor_payout_request_items_table.php',
+            'database/migrations/2026_06_21_172044_create_organization_invitations_table.php',
+            'database/migrations/2026_06_27_000001_create_certificate_templates_table.php',
+            'database/migrations/2026_06_27_000002_create_certificates_table.php',
         ];
     }
 

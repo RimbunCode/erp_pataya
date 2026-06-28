@@ -1,35 +1,6 @@
 import { useState } from "react";
+import { router } from "@inertiajs/react";
 import MainLayout from "@/Layouts/MainLayout";
-
-const certificates = [
-  {
-    id: 1,
-    title: "BIM Associate Certification",
-    issuer: "INKINDO Learning Center",
-    issuedDate: "12 Jan 2025",
-    expiryDate: "12 Jan 2027",
-    credentialId: "INK-2025-BIM-001",
-    status: "active",
-  },
-  {
-    id: 2,
-    title: "AutoCAD Professional",
-    issuer: "INKINDO Learning Center",
-    issuedDate: "3 Mar 2025",
-    expiryDate: "3 Mar 2027",
-    credentialId: "INK-2025-CAD-002",
-    status: "active",
-  },
-  {
-    id: 3,
-    title: "Safety Engineering Fundamentals",
-    issuer: "INKINDO Learning Center",
-    issuedDate: "20 Apr 2023",
-    expiryDate: "20 Apr 2025",
-    credentialId: "INK-2023-SAF-003",
-    status: "expired",
-  },
-];
 
 const statusConfig = {
   active: {
@@ -44,187 +15,32 @@ const statusConfig = {
     bg: "bg-red-50",
     dot: "bg-red-400",
   },
+  revoked: {
+    label: "Revoked",
+    color: "text-gray-400",
+    bg: "bg-gray-100",
+    dot: "bg-gray-400",
+  },
 };
-
-// ── Add Certificate Modal ─────────────────────────
-function AddCertificateModal({ onClose }) {
-  const [form, setForm] = useState({
-    title: "",
-    issuer: "",
-    credentialId: "",
-    issuedDate: "",
-    expiryDate: "",
-  });
-
-  const isComplete =
-    form.title.trim() &&
-    form.issuer.trim() &&
-    form.credentialId.trim() &&
-    form.issuedDate.trim();
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
-    >
-      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-lg p-8 relative">
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 text-muted-foreground hover:text-muted-foreground transition-colors"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-            <svg
-              className="w-5 h-5 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-lg font-black text-foreground uppercase tracking-tight">
-              Add Certificate
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Add an external certification to your profile.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4">
-          <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-              Certificate Title
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. BIM Associate Certification"
-              value={form.title}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, title: e.target.value }))
-              }
-              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-              Issuing Organization
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. INKINDO Learning Center"
-              value={form.issuer}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, issuer: e.target.value }))
-              }
-              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-              Credential ID
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. INK-2025-BIM-001"
-              value={form.credentialId}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, credentialId: e.target.value }))
-              }
-              className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-                Issue Date
-              </label>
-              <input
-                type="date"
-                value={form.issuedDate}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, issuedDate: e.target.value }))
-                }
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
-                Expiry Date{" "}
-                <span className="normal-case text-muted-foreground">
-                  (optional)
-                </span>
-              </label>
-              <input
-                type="date"
-                value={form.expiryDate}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, expiryDate: e.target.value }))
-                }
-                className="w-full bg-muted border border-border rounded-xl px-4 py-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:bg-card hover:border-border shadow-sm transition-all"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-7">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-3 text-xs font-extrabold tracking-widest text-muted-foreground uppercase border border-border rounded-xl hover:bg-muted transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            disabled={!isComplete}
-            className={`flex-1 px-4 py-3 text-xs font-extrabold tracking-widest uppercase rounded-xl transition-all duration-200
-              ${
-                isComplete
-                  ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20 hover:-translate-y-0.5"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              }`}
-          >
-            Add Certificate
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Verify Modal ──────────────────────────────────
 function VerifyModal({ cert, onClose }) {
   const [status, setStatus] = useState("idle"); // idle | loading | success | failed
+  const [result, setResult] = useState(null);
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     setStatus("loading");
-    setTimeout(() => {
-      setStatus(cert.status === "active" ? "success" : "failed");
-    }, 1500);
+    try {
+      const res = await fetch(
+        route("student.certificates.verify", cert.credentialId),
+      );
+      const data = await res.json();
+      setResult(data);
+      setStatus(data.valid ? "success" : "failed");
+    } catch {
+      setStatus("failed");
+      setResult(null);
+    }
   };
 
   return (
@@ -413,7 +229,7 @@ function VerifyModal({ cert, onClose }) {
 function CertRow({ cert, onVerify }) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const config = statusConfig[cert.status];
+  const config = statusConfig[cert.status] ?? statusConfig.active;
 
   return (
     <div
@@ -494,15 +310,24 @@ function CertRow({ cert, onVerify }) {
         </button>
         {menuOpen && (
           <div className="absolute right-0 top-9 bg-card border border-border rounded-xl shadow-lg py-1 z-10 w-36">
-            {["Download PDF", "Share", "Remove"].map((item) => (
-              <button
-                key={item}
-                className={`w-full text-left px-4 py-2 text-xs font-semibold transition-colors hover:bg-muted
-                  ${item === "Remove" ? "text-red-400 hover:text-red-500" : "text-foreground"}`}
-              >
-                {item}
-              </button>
-            ))}
+            <a
+              href={cert.downloadUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full text-left px-4 py-2 text-xs font-semibold transition-colors hover:bg-muted text-foreground block"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Download PDF
+            </a>
+            <a
+              href={cert.viewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full text-left px-4 py-2 text-xs font-semibold transition-colors hover:bg-muted text-foreground block"
+              onClick={(e) => e.stopPropagation()}
+            >
+              View Certificate
+            </a>
           </div>
         )}
       </div>
@@ -521,8 +346,37 @@ function CertRow({ cert, onVerify }) {
   );
 }
 
+// ── Empty State ───────────────────────────────────
+function EmptyState() {
+  return (
+    <div className="text-center py-20">
+      <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-4">
+        <svg
+          className="w-8 h-8 text-amber-300"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+          />
+        </svg>
+      </div>
+      <p className="text-sm font-black text-foreground uppercase tracking-widest">
+        No Certificates Yet
+      </p>
+      <p className="text-xs text-muted-foreground mt-2">
+        Complete a course to earn your first certificate.
+      </p>
+    </div>
+  );
+}
+
 // ── Page ─────────────────────────────────────────
-export default function Certificates() {
+export default function Certificates({ certificates = [] }) {
   const [search, setSearch] = useState("");
   const [verifyTarget, setVerifyTarget] = useState(null);
 
@@ -564,14 +418,17 @@ export default function Certificates() {
               <CertRow key={cert.id} cert={cert} onVerify={setVerifyTarget} />
             ))
           ) : (
-            <div className="text-center py-20 text-muted-foreground">
-              <p className="text-sm font-bold uppercase tracking-widest">
-                No certificates found
-              </p>
-            </div>
+            <EmptyState />
           )}
         </div>
       </div>
+
+      {verifyTarget && (
+        <VerifyModal
+          cert={verifyTarget}
+          onClose={() => setVerifyTarget(null)}
+        />
+      )}
     </MainLayout>
   );
 }

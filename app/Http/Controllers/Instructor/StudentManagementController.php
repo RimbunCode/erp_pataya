@@ -35,7 +35,8 @@ class StudentManagementController extends Controller {
                 'user:id,name,email,image,updated_at',
                 'course:id,title,created_by',
                 'course.sections:id,course_id,title,order',
-                'course.sections.contents:id,section_id,title,type,order',
+                'course.sections.contents:id,section_id,title,type,order,is_optional',
+                'certificate:id,enrollment_id,credential_id,issued_at,gdrive_view_url',
             ])
             ->orderByDesc('enrolled_at')
             ->get();
@@ -95,23 +96,28 @@ class StudentManagementController extends Controller {
                 ->all();
 
             return [
-                'id'         => (string) $enrollment->id,
-                'name'       => (string) $enrollment->user->name,
-                'avatar'     => $this->initials((string) $enrollment->user->name),
-                'image'      => $enrollment->user->image !== null ? (string) $enrollment->user->image : null,
-                'updated_at' => $enrollment->user->updated_at?->toIso8601String(),
-                'email'      => (string) $enrollment->user->email,
-                'course'     => (string) $enrollment->course->title,
-                'progress'   => $progress,
-                'status'     => $this->courseProgressService->resolveStatusFromProgress($progress),
-                'joinDate'   => $enrollment->enrolled_at->format('d M Y'),
-                'lastActive' => $lastActiveAt->diffForHumans(),
-                'modules'    => $this->courseProgressService->buildModules(
+                'id'           => (string) $enrollment->id,
+                'name'         => (string) $enrollment->user->name,
+                'avatar'       => $this->initials((string) $enrollment->user->name),
+                'image'        => $enrollment->user->image !== null ? (string) $enrollment->user->image : null,
+                'updated_at'   => $enrollment->user->updated_at?->toIso8601String(),
+                'email'        => (string) $enrollment->user->email,
+                'course'       => (string) $enrollment->course->title,
+                'progress'     => $progress,
+                'status'       => $this->courseProgressService->resolveStatusFromProgress($progress),
+                'joinDate'     => $enrollment->enrolled_at->format('d M Y'),
+                'lastActive'   => $lastActiveAt->diffForHumans(),
+                'modules'      => $this->courseProgressService->buildModules(
                     $enrollment->course->sections,
                     $completedLookup,
                     $submittedLookup,
                 ),
-                'submissions' => $submissions,
+                'submissions'  => $submissions,
+                'certificate'  => $enrollment->certificate ? [
+                    'credentialId' => $enrollment->certificate->credential_id,
+                    'issuedAt'     => $enrollment->certificate->issued_at->format('d M Y'),
+                    'viewUrl'      => $enrollment->certificate->gdrive_view_url,
+                ] : null,
             ];
         })->values();
 

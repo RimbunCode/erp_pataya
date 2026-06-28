@@ -123,6 +123,10 @@ class MyMailMessage extends MailMessage {
         return $this;
     }
 
+    public function data(): array {
+        return $this->toArray();
+    }
+
     public function toArray() {
         return [
             'title'                => $this->title,

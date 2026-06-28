@@ -17,6 +17,7 @@ use App\Http\Controllers\Instructor\CourseSectionNoteController;
 use App\Http\Controllers\Instructor\DashboardController as InstructorDashboardController;
 use App\Http\Controllers\Instructor\FinancialController as InstructorFinancialController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
+use App\Http\Controllers\Instructor\CertificateIssueController;
 use App\Http\Controllers\Instructor\StudentManagementController;
 use App\Http\Controllers\Instructor\SubmissionController as InstructorSubmissionController;
 use App\Http\Controllers\ModelController;
@@ -28,6 +29,8 @@ use App\Http\Controllers\Student\EnrollmentController;
 use App\Http\Controllers\Student\InstructorRoleRequestController;
 use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ProgressController;
+use App\Http\Controllers\Student\CertificateController as StudentCertificateController;
+use App\Http\Controllers\Admin\CertificateTemplateController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Services\Auth\RoleResolver;
 use Illuminate\Http\Request;
@@ -107,7 +110,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/instructor-requests', [InstructorRoleRequestController::class, 'store'])->name('student.instructor-requests.store');
         Route::post('/profile/avatar', [StudentProfileController::class, 'updateAvatar'])->name('student.avatar.update');
         Route::delete('/profile/avatar', [StudentProfileController::class, 'destroyImage'])->name('student.image.delete');
-        Route::get('/certificates', fn () => inertia('Students/Certificates'))->name('student.certificates');
+        Route::get('/certificates', [StudentCertificateController::class, 'index'])->name('student.certificates');
+        Route::get('/certificates/{credentialId}/verify', [StudentCertificateController::class, 'verify'])->name('student.certificates.verify');
     });
 
     Route::middleware(['role:instructor'])->prefix('/instructor')->name('instructor.')->group(function () {
@@ -138,6 +142,7 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::get('/students', [StudentManagementController::class, 'index'])->name('students');
         Route::patch('/enrollments/{enrollment}/submissions/{submission}/grade', [InstructorSubmissionController::class, 'grade'])->name('enrollments.submissions.grade');
+        Route::post('/enrollments/{enrollment}/issue-certificate', [CertificateIssueController::class, 'issue'])->name('enrollments.issue-certificate');
         Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('growth');
         Route::get('/financial', [InstructorFinancialController::class, 'index'])->name('financial');
         Route::post('/financial/payout-requests', [InstructorFinancialController::class, 'storePayoutRequest'])->name('financial.payout-requests.store');
@@ -197,6 +202,10 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/landing-page-settings', [LandingPageSettingController::class, 'index'])->name('landing-page-settings.index');
             Route::patch('/landing-page-settings', [LandingPageSettingController::class, 'update'])->name('landing-page-settings.update');
             Route::post('/landing-page-settings/media', [LandingPageSettingController::class, 'uploadMedia'])->name('landing-page-settings.media.upload');
+            Route::get('/certificate-templates', [CertificateTemplateController::class, 'index'])->name('certificate-templates.index');
+            Route::post('/certificate-templates', [CertificateTemplateController::class, 'store'])->name('certificate-templates.store');
+            Route::patch('/certificate-templates/{certificateTemplate}', [CertificateTemplateController::class, 'update'])->name('certificate-templates.update');
+            Route::delete('/certificate-templates/{certificateTemplate}', [CertificateTemplateController::class, 'destroy'])->name('certificate-templates.destroy');
         });
 
         Route::middleware(['admin.permission:super_admin'])->group(function () {

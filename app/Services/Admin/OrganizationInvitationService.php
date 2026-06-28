@@ -8,10 +8,10 @@ use App\Models\User\User;
 use App\Notifications\OrganizationApprovedNotification;
 use App\Notifications\OrganizationInvitationNotification;
 use App\Notifications\OrganizationRejectedNotification;
+use App\Notifications\OrganizationSubmittedNotification;
 use App\Services\Auth\UserRoleManager;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -70,6 +70,13 @@ class OrganizationInvitationService {
                 'submitted_at'      => now(),
             ]);
 
+            $invitation->loadMissing('invitedBy');
+            if ($invitation->invitedBy) {
+                $invitation->invitedBy->notify(
+                    new OrganizationSubmittedNotification($invitation),
+                );
+            }
+
             return $invitation->refresh();
         });
     }
@@ -84,23 +91,30 @@ class OrganizationInvitationService {
         DB::transaction(function () use ($invitation, $reviewer): void {
             $user = User::where('email', $invitation->email)->first();
 
+            // getRawOriginal returns the already-hashed value stored in DB.
+            // Both OrganizationInvitation and User have 'password' => 'hashed' cast,
+            // so we bypass User's cast by using forceFill + saveQuietly.
+            $hashedPassword = $invitation->getRawOriginal('password');
+
             if ($user) {
                 if ($user->status === FormStatus::INVITED) {
-                    $user->update([
+                    $user->forceFill([
                         'name'     => $invitation->contact_person,
-                        'password' => Hash::make($invitation->password),
+                        'password' => $hashedPassword,
                         'phone'    => $invitation->phone,
                         'status'   => FormStatus::ACTIVE,
-                    ]);
+                    ])->saveQuietly();
                 }
             } else {
-                $user = User::create([
+                $user = new User();
+                $user->forceFill([
                     'name'     => $invitation->contact_person,
                     'email'    => $invitation->email,
-                    'password' => Hash::make($invitation->password),
+                    'password' => $hashedPassword,
                     'phone'    => $invitation->phone,
                     'status'   => FormStatus::ACTIVE,
                 ]);
+                $user->save();
             }
 
             $this->userRoleManager->attachOrganizationRole($user);
@@ -115,6 +129,11 @@ class OrganizationInvitationService {
                 'reviewed_at' => now(),
                 'user_id'     => $user->id,
             ]);
+
+            // Clear the stored password from invitations table after account is created
+            DB::table('organization_invitations')
+                ->where('id', $invitation->id)
+                ->update(['password' => null]);
 
             $this->dispatchNotification(
                 $invitation,

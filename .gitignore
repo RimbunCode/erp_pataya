@@ -1,5 +1,6 @@
 # for dev only
 #----------------------
+/credentials/
 /bootstrap/ssr
 /public/build
 /lang/php_*.json

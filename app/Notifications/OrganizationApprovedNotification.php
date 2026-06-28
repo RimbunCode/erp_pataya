@@ -27,6 +27,8 @@ class OrganizationApprovedNotification extends BaseNotification implements Shoul
             ->subject('Organisasi Anda Telah Disetujui - INKINDO')
             ->greeting("Halo {$this->invitation->contact_person},")
             ->note("Selamat! Pendaftaran organisasi **{$this->invitation->organization_name}** telah disetujui oleh admin INKINDO. Anda sekarang dapat mengakses dashboard organisasi dan mulai mengelola pelatihan korporat.")
+            ->note("Email login Anda: **{$this->invitation->email}**")
+            ->note("Gunakan password yang Anda buat saat mengisi formulir pendaftaran.")
             ->button('Login ke Dashboard', $loginUrl)
             ->regards('Tim INKINDO');
     }
