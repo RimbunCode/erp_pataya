@@ -139,25 +139,29 @@ class ItemVariant extends Model {
     public function showStocks() {
         Inertia::share([
             'stocks' => Inertia::defer(function () {
-                $warehouses = Warehouse::with([
-                    'stocks' => fn ($query) => $query->where('item_variant_id', $this->id),
-                    'stocks.unit',
-                    'branch',
-                ]);
+                $query = Stock::with([
+                    'warehouse',
+                    'warehouse.branch',
+                    'unit',
+                ])->where('item_variant_id', $this->id);
+
                 if (Session::has('currentBranch')) {
                     $branch = Branch::find(Session::get('currentBranch'));
                     if (! $branch->is_main_branch) {
-                        $warehouses->where('warehouses.branch_id', $branch->id);
+                        $query->whereHas('warehouse', fn ($q) => $q->where('branch_id', $branch->id));
                     }
                 }
-                $warehouses = $warehouses->get()
-                    ->map(fn (Warehouse $warehouse) => [
-                        ...$warehouse->toArray(),
-                        'actual_stock'   => $warehouse->stocks->sum('quantity'),
-                        'reserved_stock' => 0,
-                    ]);
 
-                return $warehouses;
+                return $query->get()
+                    ->map(fn (Stock $stock) => [
+                        ...$stock->warehouse->toArray(),
+                        'id'                => $stock->warehouse->id,
+                        'templateLink'      => Warehouse::templateLink(),
+                        'actual_quantity'   => $stock->actual_quantity,
+                        'incoming_quantity' => $stock->incoming_quantity,
+                        'rented_quantity'   => $stock->rented_quantity,
+                        'reserved_quantity' => $stock->reserved_quantity,
+                    ]);
             }),
         ]);
     }
