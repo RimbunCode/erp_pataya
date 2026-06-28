@@ -28,7 +28,7 @@ class PreferenceSeeder extends Seeder {
             'state'                 => 'Jawa Timur',
             'zip_code'              => '60293',
             'country_id'            => 'ID',
-            'default_currency_id'   => 'idr',
+            'default_currency_id'   => 'IDR',
             'default_number_format' => '#.###,##',
             'timezone'              => 'Asia/Jakarta',
         ];
@@ -38,9 +38,9 @@ class PreferenceSeeder extends Seeder {
         ])->values();
 
         foreach ($preferences as $key => $value) {
-            Preference::updateOrCreate(['key' => $value['key']], ['value' => $value['value']]);
+            Preference::firstOrCreate(['key' => $value['key']], ['value' => $value['value']]);
         }
-        Branch::updateOrCreate([
+        Branch::firstOrCreate([
             'code' => $preferencesArr['short_name'],
         ], [
             'name'                => $preferencesArr['company_name'],

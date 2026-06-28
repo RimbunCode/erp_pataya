@@ -364,11 +364,15 @@ trait DataTable {
                 if (! \array_key_exists($key, $logs)) {
                     $logs[$key] = [];
                 }
-                $formatingSeries->update([
-                    'name'   => Str::singular($alias),
-                    'format' => static::$defaultFormatCode ?? '@[iiii]',
-                    'logs'   => $logs,
-                ]);
+                if (app()->isLocal()) {
+                    $formatingSeries->update([
+                        'name'   => Str::singular($alias),
+                        'format' => static::$defaultFormatCode ?? '@[iiii]',
+                        'logs'   => $logs,
+                    ]);
+                } else {
+                    $formatingSeries->update(['logs' => $logs]);
+                }
             }
             if (! Schema::hasColumn($tableName, 'code')) {
                 Schema::table($tableName, function (Blueprint $table) {
@@ -430,41 +434,43 @@ trait DataTable {
                 });
             }
         } else {
-            // if (Schema::hasColumn($tableName, 'created_by_id')) {
-            //   Schema::table($tableName, function (Blueprint $table) {
-            //     $table->dropColumn('created_by_id');
-            //   });
-            // }
-            if (Schema::hasColumn($tableName, 'submitted_at')) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->dropColumn('submitted_at');
-                });
-            }
-            if (Schema::hasColumn($tableName, 'canceled_at')) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->dropColumn('canceled_at');
-                });
-            }
-            if (Schema::hasColumn($tableName, 'revision_number')) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->dropColumn('revision_number');
-                });
-            }
+            if (app()->isLocal()) {
+                // if (Schema::hasColumn($tableName, 'created_by_id')) {
+                //   Schema::table($tableName, function (Blueprint $table) {
+                //     $table->dropColumn('created_by_id');
+                //   });
+                // }
+                if (Schema::hasColumn($tableName, 'submitted_at')) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->dropColumn('submitted_at');
+                    });
+                }
+                if (Schema::hasColumn($tableName, 'canceled_at')) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->dropColumn('canceled_at');
+                    });
+                }
+                if (Schema::hasColumn($tableName, 'revision_number')) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->dropColumn('revision_number');
+                    });
+                }
 
-            if (Schema::hasColumn($tableName, 'amended_from_id')) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->dropColumn('amended_from_id');
-                });
-            }
-            if (Schema::hasColumn($tableName, 'additional_data')) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->dropColumn('additional_data');
-                });
-            }
-            if (Schema::hasColumn($tableName, 'submitted_format')) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->dropColumn('submitted_format');
-                });
+                if (Schema::hasColumn($tableName, 'amended_from_id')) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->dropColumn('amended_from_id');
+                    });
+                }
+                if (Schema::hasColumn($tableName, 'additional_data')) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->dropColumn('additional_data');
+                    });
+                }
+                if (Schema::hasColumn($tableName, 'submitted_format')) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->dropColumn('submitted_format');
+                    });
+                }
             }
 
             if (! Schema::hasColumn($tableName, 'have_transactions')) {
@@ -492,20 +498,22 @@ trait DataTable {
                 });
             }
         } else {
-            if (Schema::hasColumn($tableName, 'parent_id')) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->dropColumn('parent_id');
-                });
-            }
-            if (Schema::hasColumns($tableName, ['lft', 'rgt', 'depth'])) {
-                Schema::table($tableName, function (Blueprint $table) {
-                    $table->dropIndex('lft_index');
-                    $table->dropIndex('rgt_index');
-                    $table->dropIndex('depth_index');
-                    $table->dropIndex('idx_depth_lft');
-                    $table->dropIndex('idx_parent_lft');
-                    $table->dropColumn(['lft', 'rgt', 'depth']);
-                });
+            if (app()->isLocal()) {
+                if (Schema::hasColumn($tableName, 'parent_id')) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->dropColumn('parent_id');
+                    });
+                }
+                if (Schema::hasColumns($tableName, ['lft', 'rgt', 'depth'])) {
+                    Schema::table($tableName, function (Blueprint $table) {
+                        $table->dropIndex('lft_index');
+                        $table->dropIndex('rgt_index');
+                        $table->dropIndex('depth_index');
+                        $table->dropIndex('idx_depth_lft');
+                        $table->dropIndex('idx_parent_lft');
+                        $table->dropColumn(['lft', 'rgt', 'depth']);
+                    });
+                }
             }
         }
 

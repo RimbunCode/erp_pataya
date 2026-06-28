@@ -73,10 +73,12 @@ class CountrySeeder extends Seeder {
      * Run the database seeds.
      */
     public function run(): void {
-        Schema::disableForeignKeyConstraints();
-        Country::truncate();
-        Currency::truncate();
-        Schema::enableForeignKeyConstraints();
+        if (app()->isLocal()) {
+            Schema::disableForeignKeyConstraints();
+            Country::truncate();
+            Currency::truncate();
+            Schema::enableForeignKeyConstraints();
+        }
 
         $countries   = $this->fetchAllCountries();
         $timezoneMap = $this->buildTimezoneMap();
@@ -101,8 +103,7 @@ class CountrySeeder extends Seeder {
                 $ianaNames = array_merge($ianaNames, $timezoneMap[$offset] ?? []);
             }
 
-            Country::create([
-                'code'      => $code,
+            Country::updateOrCreate(['code' => $code], [
                 'name'      => $country['names']['common'] ?? $code,
                 'lang_code' => $country['languages'][0]['bcp47'] ?? null,
                 'url_flag'  => $country['flag']['url_svg'] ?? null,
@@ -128,7 +129,7 @@ class CountrySeeder extends Seeder {
         }
 
         foreach ($currencies as $currency) {
-            Currency::create($currency);
+            Currency::updateOrCreate(['code' => $currency['code']], $currency);
         }
 
         $this->command->info('Seeded ' . count($countries) . ' countries and ' . count($currencies) . ' currencies.');

@@ -155,7 +155,7 @@ class DataTableColumnSelector {
                 // Tak ada di metadata — bila kolom DB nyata tetap SELECT (mis. id/PK).
                 // Skip PK — sudah di-select dengan prefix tabel di atas.
                 if ($name !== $pk && in_array($name, $dbColumns, true)) {
-                    $select[] = $name;
+                    $select[] = "{$table}.{$name}";
                 }
 
                 continue;
@@ -180,7 +180,7 @@ class DataTableColumnSelector {
 
             // Kolom DB nyata (apa pun type render) → SELECT langsung.
             if (in_array($col['name'] ?? $name, $dbColumns, true)) {
-                $select[] = $col['name'] ?? $name;
+                $select[] = "{$table}." . ($col['name'] ?? $name);
 
                 continue;
             }
@@ -215,16 +215,18 @@ class DataTableColumnSelector {
         }
 
         $relation = $model->{$fn}();
+        $table    = $model->getTable();
+
         if ($relation instanceof MorphTo) {
-            $select[] = $relation->getForeignKeyName();
-            $select[] = $relation->getMorphType();
+            $select[] = "{$table}." . $relation->getForeignKeyName();
+            $select[] = "{$table}." . $relation->getMorphType();
             $with[$fn] ??= null; // morph: tak bisa prune child.
 
             return;
         }
 
         if ($relation instanceof BelongsTo) {
-            $select[] = $relation->getForeignKeyName();
+            $select[] = "{$table}." . $relation->getForeignKeyName();
         }
 
         // Relasi has-many/has-one (termasuk morph plural): FK (dan morph type)
@@ -380,12 +382,13 @@ class DataTableColumnSelector {
             );
         }
 
+        $table = $model->getTable();
         foreach ($dependsOn as $dep) {
             if (! is_string($dep) || $dep === '') {
                 continue;
             }
             if (! str_contains($dep, '.')) {
-                $select[] = $dep;
+                $select[] = "{$table}.{$dep}";
 
                 continue;
             }
@@ -412,16 +415,18 @@ class DataTableColumnSelector {
             return;
         }
 
-        $relation = $model->{$first}();
+        $relation    = $model->{$first}();
+        $parentTable = $model->getTable();
+
         if ($relation instanceof MorphTo) {
-            $select[] = $relation->getForeignKeyName();
-            $select[] = $relation->getMorphType();
+            $select[] = "{$parentTable}." . $relation->getForeignKeyName();
+            $select[] = "{$parentTable}." . $relation->getMorphType();
             $with[$first] ??= null;
 
             return;
         }
         if ($relation instanceof BelongsTo) {
-            $select[] = $relation->getForeignKeyName();
+            $select[] = "{$parentTable}." . $relation->getForeignKeyName();
         }
 
         $existingClosure = $this->childSelectClosure($model, $first, $safeRelationColumns[$first] ?? null);
@@ -488,8 +493,10 @@ class DataTableColumnSelector {
      * @param  array<string, bool>  $visited
      */
     private function resolveTemplateHead(Model $model, string $head, array $safeRelationColumns, array $dbColumns, array &$select, array &$with, array &$visited, int $depth): void {
+        $table = $model->getTable();
+
         if (in_array($head, $dbColumns, true)) {
-            $select[] = $head;
+            $select[] = "{$table}.{$head}";
 
             return;
         }
@@ -498,14 +505,14 @@ class DataTableColumnSelector {
         }
         $relation = $model->{$head}();
         if ($relation instanceof MorphTo) {
-            $select[] = $relation->getForeignKeyName();
-            $select[] = $relation->getMorphType();
+            $select[] = "{$table}." . $relation->getForeignKeyName();
+            $select[] = "{$table}." . $relation->getMorphType();
             $with[$head] ??= null;
 
             return;
         }
         if ($relation instanceof BelongsTo) {
-            $select[] = $relation->getForeignKeyName();
+            $select[] = "{$table}." . $relation->getForeignKeyName();
         }
         if (! ($relation instanceof Relation)) {
             return;
@@ -537,16 +544,18 @@ class DataTableColumnSelector {
         if (! is_string($first) || ! method_exists($model, $first)) {
             return;
         }
-        $relation = $model->{$first}();
+        $relation    = $model->{$first}();
+        $parentTable = $model->getTable();
+
         if ($relation instanceof MorphTo) {
-            $select[] = $relation->getForeignKeyName();
-            $select[] = $relation->getMorphType();
+            $select[] = "{$parentTable}." . $relation->getForeignKeyName();
+            $select[] = "{$parentTable}." . $relation->getMorphType();
             $with[$first] ??= null;
 
             return;
         }
         if ($relation instanceof BelongsTo) {
-            $select[] = $relation->getForeignKeyName();
+            $select[] = "{$parentTable}." . $relation->getForeignKeyName();
         }
         $with[$first] = $this->childSelectClosure($model, $first, $safeRelationColumns[$first] ?? null);
     }
