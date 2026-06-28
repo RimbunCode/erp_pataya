@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.0](https://github.com/RimbunCode/erp_pataya/compare/v1.1.3...v1.2.0) (2026-06-28)
+
+
+### Features
+
+* **deploy:** deploy ticket sync + in-app changelog ([5f52a3a](https://github.com/RimbunCode/erp_pataya/commit/5f52a3a8fd7730f2ca16d00d19d3cc35c9027de6))
+* merge dev-1 into main ([eb8dcdf](https://github.com/RimbunCode/erp_pataya/commit/eb8dcdf4d43c58d09306aabac7b4f5436fc47da9))
+
+
+### Bug Fixes
+
+* apply lint fixer (eslint + pint) ([c745371](https://github.com/RimbunCode/erp_pataya/commit/c74537146b80ab6004fba79ccc283cb3573f1a9a))
+* **currency:** fix repeated exchange rate fetch and update Company settings fields ([5c6b431](https://github.com/RimbunCode/erp_pataya/commit/5c6b4314dfa847f0a4a30da66b40cf8825bbba44))
+* **model:** qualify all SELECT columns with table prefix in DataTableColumnSelector ([39f6134](https://github.com/RimbunCode/erp_pataya/commit/39f61345ced6aa85b14d65161853137f87f5998f))
+* **model:** qualify SELECT columns with table prefix to fix ambiguous column error ([8128c78](https://github.com/RimbunCode/erp_pataya/commit/8128c780884b156b7db5e664004e04a19ebe122f))
+* **seeder:** make production seeder operations non-destructive ([df24476](https://github.com/RimbunCode/erp_pataya/commit/df24476f8bcc221d1945c3afe49e75fb7bbe5212))
+
 ## [1.1.3](https://github.com/RimbunCode/erp_pataya/compare/v1.1.2...v1.1.3) (2026-06-27)
 
 
