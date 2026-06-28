@@ -33,7 +33,7 @@ class AdministratorSeeder extends Seeder {
 
             $passwordAdmin = config('app.debug') ? 'admin' : Utils::generateRandom(10, true);
             $adminUser     = User::withoutGlobalScope('exclude_example_data')
-                ->updateOrCreate(
+                ->firstOrCreate(
                     ['username' => 'admin'],
                     [
                         'name'              => 'Administrator',
@@ -45,6 +45,10 @@ class AdministratorSeeder extends Seeder {
                         'status'            => FormStatus::ACTIVE,
                     ],
                 );
+            $adminUser->update([
+                'default_branch_id' => $defaultBranch->id,
+                'status'            => FormStatus::ACTIVE,
+            ]);
 
             $roleIds = [];
             foreach ($this->defaultRoles() as $roleDefinition) {

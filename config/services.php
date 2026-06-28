@@ -51,4 +51,8 @@ return [
         'url' => 'https://api.restcountries.com/countries/v5',
     ],
 
+    'deploy' => [
+        'webhook_token' => env('DEPLOY_WEBHOOK_TOKEN'),
+    ],
+
 ];

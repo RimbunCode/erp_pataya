@@ -27,6 +27,34 @@ import { useIsMobile } from "@/Hooks/use-mobile";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
+function ChangelogBadge() {
+  const count = usePage().props.unread_changelogs_count || 0;
+
+  return (
+    <Link
+      href="/changelogs"
+      className="relative rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+      aria-label="Changelog"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="size-5"
+        viewBox="0 0 24 24"
+      >
+        <path
+          fill="currentColor"
+          d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2m-5 14H7v-2h7zm3-4H7v-2h10zm0-4H7V7h10z"
+        />
+      </svg>
+      {count > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 min-w-[1rem] h-4 rounded-full bg-blue-500 px-1 text-[10px] font-bold leading-4 text-white text-center">
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 export default memo(function Navbar({ actions, onOpenSearch }) {
   const { t, loading } = useLaravelReactI18n();
   const breadcrumbs = usePage().props.breadcrumbs;
@@ -140,7 +168,7 @@ export default memo(function Navbar({ actions, onOpenSearch }) {
           </kbd>
         </Button>
         <ToggleTheme className="size-4" />
-
+        <ChangelogBadge />
         <Notifications />
         <UserInfo />
       </div>

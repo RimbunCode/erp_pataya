@@ -100,3 +100,20 @@ jobs:
             else
               bash ./deploy.sh staging
             fi
+
+      - name: Notify deploy webhook
+        if: github.event_name == 'push'
+        env:
+          DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          VERSION=$(cat .release-please-manifest.json | jq -r '."."')
+
+          TICKETS=$(grep -oP '\[#\K[^\]]+' CHANGELOG.md 2>/dev/null | head -50 | jq -Rsc 'split("\n")[:-1]' || echo '[]')
+
+          CHANGELOG=$(awk "/^## \[${VERSION}\]/{found=1} found{print} /^## \[/{if(found && !/^## \[${VERSION}\]/) exit}" CHANGELOG.md 2>/dev/null | jq -Rs . || echo '""')
+
+          curl -sf -X POST "${APP_URL}/api/webhooks/deploy" \
+            -H "Authorization: Bearer ${DEPLOY_WEBHOOK_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tickets\": ${TICKETS}, \"environment\": \"production\", \"version\": \"${VERSION}\", \"changelog\": ${CHANGELOG}}"

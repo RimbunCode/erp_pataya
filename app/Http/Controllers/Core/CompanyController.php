@@ -27,15 +27,19 @@ class CompanyController extends Controller {
             ->get(['key', 'value']);
         $preferences = $oriPreferences->mapWithKeys(fn ($pref) => [$pref->key => $pref->value]);
 
+        $company = $preferences->toArray();
+
+        // Resolve LinkModel object untuk field yang butuh object di FE.
+        if (! empty($company['default_currency_id'])) {
+            $company['default_currency_id'] = Currency::find(strtoupper($company['default_currency_id']));
+        }
+        if (! empty($company['country_id'])) {
+            $company['country_id'] = Country::find(strtoupper($company['country_id']));
+        }
+
         return Inertia::render('Settings/Company', [
-            'model'      => Preference::class,
-            'company'    => $preferences->toArray(),
-            'currencies' => Inertia::defer(function () {
-                return Currency::all()->toArray();
-            }),
-            'countries' => Inertia::defer(function () {
-                return Country::all();
-            }),
+            'model'       => Preference::class,
+            'company'     => $company,
             'breadcrumbs' => [
                 ['name' => 'Company Details'],
             ],
@@ -45,13 +49,24 @@ class CompanyController extends Controller {
 
     public function update(Request $request) {
         $preferences = $request->all();
+
+        // FE mengirim LinkModel fields sebagai object payload {code, name, ...} atau string code.
+        // Ekstrak code dan simpan uppercase sebagai Preference value.
+        foreach (['default_currency_id', 'country_id'] as $codeField) {
+            if (array_key_exists($codeField, $preferences)) {
+                $raw                     = $preferences[$codeField];
+                $preferences[$codeField] = strtoupper(
+                    is_array($raw) ? ($raw['code'] ?? '') : (string) $raw,
+                );
+            }
+        }
+
         DB::beginTransaction();
         foreach ($preferences as $key => $value) {
             Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
                 ->updateOrCreate(['key' => $key], ['value' => $value]);
         }
         // Derive aplikasi-wide number format dari currency default terpilih.
-        // Currency.number_format hanya jadi sumber nilai untuk default_number_format.
         if (isset($preferences['default_currency_id'])) {
             $currency = Currency::find($preferences['default_currency_id']);
             Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)

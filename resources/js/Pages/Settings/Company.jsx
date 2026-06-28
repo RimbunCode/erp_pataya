@@ -19,11 +19,12 @@ import { Trash2Icon, UploadIcon } from "lucide-react";
 import { AvatarImage } from "@/Components/ui/avatar";
 import { Button } from "@/Components/ui/button";
 import { Checkbox } from "@/Components/ui/checkbox";
-import Combobox from "@/Components/Combobox";
-import { CommandItem } from "@/Components/ui/command";
+import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
+import CurrencyLinkModel from "@/Pages/Core/CurrencyLinkModel";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import NumberInput from "@/Components/NumberInput";
+import SelectComponent from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import UploadDialog from "../Core/Components/UploadDialog";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -31,7 +32,7 @@ import { usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { currencies, countries, timezones } = usePage().props;
+  const { timezones } = usePage().props;
   const { data, setData } = useFormPage();
   const [newPerPage, setNewPerPage] = useState(null);
   const onUpdatePerPageOptions = (list) => {
@@ -125,31 +126,12 @@ function Form() {
             label={t("core.company.company_details.country")}
             required={true}
           >
-            <Combobox
-              options={countries}
+            <CountryLinkModel
               value={data.country_id}
               placeholder={t(
                 "core.company.company_details.country.placeholder",
               )}
-              templateTrigger={(country_code) => {
-                const country = countries?.find((c) => c.code === country_code);
-                return <span>{country?.name}</span>;
-              }}
-              templateItem={(country) => {
-                return (
-                  <CommandItem
-                    key={country.code}
-                    value={`${country.name} ${country.code}`}
-                    keywords={[country.code, country.name]}
-                    onSelect={() => {
-                      setData("shipping_country_id", country.code);
-                    }}
-                    className="block px-4 "
-                  >
-                    {country.name}
-                  </CommandItem>
-                );
-              }}
+              onValueChange={(val) => setData("country_id", val)}
             />
           </FormInput>
         </div>
@@ -265,38 +247,13 @@ function Form() {
             required={true}
             className=""
           >
-            <Combobox
-              options={currencies}
+            <CurrencyLinkModel
               value={data.default_currency_id}
               placeholder={t(
                 "core.company.preferences.default_currency.placeholder",
               )}
-              templateTrigger={(currency_code) => {
-                const currency = currencies?.find(
-                  (c) => c.code === currency_code,
-                );
-                return (
-                  <span>
-                    {currency?.name}{" "}
-                    <span className="uppercase">({currency?.code})</span>
-                  </span>
-                );
-              }}
-              templateItem={(currency) => {
-                return (
-                  <CommandItem
-                    key={currency.code}
-                    value={`${currency.name} ${currency.code}`}
-                    keywords={[currency.code, currency.name]}
-                    onSelect={() => {
-                      setData("default_currency_id", currency.code);
-                    }}
-                    className="block px-4 "
-                  >
-                    {currency.name}{" "}
-                    <span className="uppercase">({currency.code})</span>
-                  </CommandItem>
-                );
+              onValueChange={(val) => {
+                setData("default_currency_id", val);
               }}
             />
           </FormInput>
@@ -305,28 +262,11 @@ function Form() {
             required={true}
             className=""
           >
-            <Combobox
+            <SelectComponent
               options={timezones}
               value={data.timezone}
               placeholder={t("core.company.preferences.timezone.placeholder")}
-              templateTrigger={(timezone) => {
-                return <span>{timezone}</span>;
-              }}
-              templateItem={(timezone) => {
-                return (
-                  <CommandItem
-                    key={timezone}
-                    value={timezone}
-                    keywords={[timezone]}
-                    onSelect={() => {
-                      setData("timezone", timezone);
-                    }}
-                    className="block px-4 "
-                  >
-                    {timezone}
-                  </CommandItem>
-                );
-              }}
+              onValueChange={(val) => setData("timezone", val)}
             />
           </FormInput>
           <div className="grid [&>div]:px-3 gap-x-1 grid-cols-[auto_1fr_auto] text-sm [&>div>*]:px-1h max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center [&>div>*]:py-2 [&>div>*:not(:last-child)]:border-0">

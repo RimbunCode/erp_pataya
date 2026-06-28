@@ -75,6 +75,39 @@ class TicketService {
         return $ticket;
     }
 
+    public function resolveFromDeploy(Ticket $ticket, string $version): bool {
+        $alreadySettled = in_array($ticket->status->value, ['resolved', 'done']);
+
+        if (! $alreadySettled) {
+            $ticket->update([
+                'status'       => 'resolved',
+                'progress'     => 90,
+                'end_date'     => now(),
+                'assign_to_id' => $ticket->created_by_id,
+            ]);
+        }
+
+        TicketResponse::create([
+            'ticket_id'    => $ticket->id,
+            'user_id'      => null,
+            'assign_to_id' => $ticket->created_by_id,
+            'type'         => $ticket->type,
+            'priority'     => $ticket->priority,
+            'subject'      => $ticket->subject,
+            'status'       => 'resolved',
+            'progress'     => 90,
+            'start_date'   => $ticket->start_date,
+            'due_date'     => $ticket->due_date,
+            'end_date'     => now(),
+            'content'      => "Diselesaikan pada deploy {$version}.",
+            'content_json' => null,
+        ]);
+
+        $ticket->logForUpdated();
+
+        return $alreadySettled;
+    }
+
     public function updateTicket(Ticket $ticket, array $data): TicketResponse {
         $assignToId = $data['assign_to']['id'] ?? null;
 

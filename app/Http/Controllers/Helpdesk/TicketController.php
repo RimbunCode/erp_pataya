@@ -27,6 +27,12 @@ class TicketController extends Controller {
     }
 
     public function index(Request $request) {
+        if ($request->code) {
+            $ticket = Ticket::where('code', $request->code)->firstOrFail();
+
+            return redirect()->route('tickets.show', $ticket);
+        }
+
         $this->setBreadcrumbs();
         Ticket::dataTable($request);
 

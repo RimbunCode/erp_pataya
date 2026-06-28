@@ -3,6 +3,7 @@ use App\Enums\FormStatus;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Http\Controllers\Core\ApprovalSchemeController;
 use App\Http\Controllers\Core\BranchController;
+use App\Http\Controllers\Core\ChangelogController;
 use App\Http\Controllers\Core\CommandSearchController;
 use App\Http\Controllers\Core\CompanyController;
 use App\Http\Controllers\Core\CompanyLogoController;
@@ -268,6 +269,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('ticket', TicketController::class);
     Route::put('/tickets/{ticket}/markDone', [TicketController::class, 'markDone'])->name('tickets.markDone');
     Route::put('/tickets/{ticket}/updateTicket', [TicketController::class, 'updateTicket'])->name('tickets.updateTicket');
+    // Changelog
+    Route::get('/changelogs', [ChangelogController::class, 'index'])->name('changelogs.index');
     // / Helpdesk Group End
 
     // / Sales Groups
