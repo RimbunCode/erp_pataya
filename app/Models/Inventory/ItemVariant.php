@@ -12,12 +12,11 @@ use Inertia\Inertia;
 
 class ItemVariant extends Model {
     use DataTable, HasUlids, SoftDeletes;
-
-    public $keyBreadcrumb       = 'code';
-    public $aliasBreadcrumb     = 'Variant';
-    public string $translateKey = 'inventory.item';
-    protected $guarded          = ['id'];
-    protected $casts            = [
+    public        $keyBreadcrumb   = 'code';
+    public        $aliasBreadcrumb = 'Variant';
+    public string $translateKey    = 'inventory.item';
+    protected     $guarded         = ['id'];
+    protected     $casts           = [
         'is_disabled'            => 'boolean',
         'allow_alternative_item' => 'boolean',
         'is_stock_item'          => 'boolean',
@@ -47,38 +46,38 @@ class ItemVariant extends Model {
     protected function getImageAttribute() {
         return $this->image_id ?? null;
     }
-
     protected array $configColumns = [
-        'image' => [
+        'image'             => [
             'show'      => true,
             'order'     => 0,
             'type'      => 'image',
             'width'     => 'fit',
             'dependsOn' => ['image_id'],
         ],
-        'code' => [
+        'code'              => [
             'show'  => true,
             'order' => 0,
         ],
-        'item_code' => [
+        'item_code'         => [
             'show'  => true,
             'order' => 1,
         ],
-        'item_name' => [
+        'item_name'         => [
             'show'  => true,
             'order' => 2,
         ],
-        'is_disabled' => [
+        'is_disabled'       => [
             'type'  => 'boolean',
             'show'  => true,
             'order' => 3,
         ],
-        'is_stock_item' => [
-            'type'  => 'boolean',
-            'show'  => true,
-            'order' => 4,
+        'is_stock_item'     => [
+            'type'     => 'boolean',
+            'show'     => true,
+            'order'    => 4,
+            'linkable' => true,
         ],
-        'image_id' => [
+        'image_id'          => [
             'ignore' => true,
         ],
         'conversion_factor' => [
@@ -90,12 +89,12 @@ class ItemVariant extends Model {
         'uoms',
         'defaultUnit',
         'category',
-        'defaultUom' => [
+        'defaultUom'        => [
             'hidden'   => true,
             'linkable' => true,
         ],
     ];
-    public string $formComponent = 'Inventory/Items/FormVariant';
+    public string   $formComponent = 'Inventory/Items/FormVariant';
 
     public static function templateLink() {
         return '<title>:code - :item_name</title><b>:code</b><br/><span>:item_name</span>';

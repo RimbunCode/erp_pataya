@@ -13,7 +13,7 @@ use Inertia\Inertia;
 class ItemVariantController extends Controller {
     private $itemService;
 
-    protected function enforcePermission($method) {
+    protected function exceptPermission($method) {
         if ($method == 'info') {
             return true;
         }

@@ -165,6 +165,7 @@ export default memo(function Form() {
         return (
           <ItemVariantLinkModel
             placeholder={t("sales.salesOrder.columns.item.placeholder")}
+            fields={["is_stock_item"]}
             value={dataRow.item}
             onValueChange={(val) => {
               const defaultUnit = val?.default_uom;
@@ -217,7 +218,7 @@ export default memo(function Form() {
             value={value}
             onValueChange={(val) => setData("source_warehouse", val)}
             {...attributes}
-            readOnly={data.submitted_at && !isLockDoc}
+            readOnly={attributes.readOnly && !(data.submitted_at && isLockDoc)}
           />
         );
       },
