@@ -85,7 +85,7 @@ class ItemController extends Controller {
         }
 
         return Inertia::render('Inventory/Items/Show', [
-            'item' => function () use ($item) {
+            'item'     => function () use ($item) {
                 $item->loadRelations();
                 $item->uoms = $item->uoms();
                 $itemArray  = $item->toArray();

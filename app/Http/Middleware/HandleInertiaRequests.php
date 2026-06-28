@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Core\Changelog;
 use App\Models\Core\Country;
 use App\Models\Core\Preference;
 use App\Models\User\User;
@@ -66,7 +67,10 @@ class HandleInertiaRequests extends Middleware {
                 \ARRAY_FILTER_USE_KEY,
             ),
             ...($isDebug ? ['debug' => $isDebug] : []),
-            'preferences' => fn () => $this->resolveSharedPreferences($request),
+            'preferences'             => fn () => $this->resolveSharedPreferences($request),
+            'unread_changelogs_count' => fn () => $user
+                ? Changelog::whereDoesntHave('reads', fn ($q) => $q->where('user_id', $user->id))->count()
+                : 0,
         ];
     }
 

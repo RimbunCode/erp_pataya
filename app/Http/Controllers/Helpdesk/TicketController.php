@@ -22,11 +22,17 @@ class TicketController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'updateTicket' => 'write',
-            default                    => null,
+            default => null,
         };
     }
 
     public function index(Request $request) {
+        if ($request->code) {
+            $ticket = Ticket::where('code', $request->code)->firstOrFail();
+
+            return redirect()->route('tickets.show', $ticket);
+        }
+
         $this->setBreadcrumbs();
         Ticket::dataTable($request);
 

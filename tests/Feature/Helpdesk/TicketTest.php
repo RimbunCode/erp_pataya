@@ -256,6 +256,22 @@ class TicketTest extends TestCase {
         ]);
     }
 
+    public function test_index_redirects_to_show_when_code_param_given(): void {
+        $ticket = Ticket::factory()->create(['code' => '26/0001']);
+
+        $response = $this->authenticatedRequest()
+            ->get(route('tickets.index', ['code' => '26/0001']));
+
+        $response->assertRedirect(route('tickets.show', $ticket));
+    }
+
+    public function test_index_returns_404_when_code_not_found(): void {
+        $response = $this->authenticatedRequest()
+            ->get(route('tickets.index', ['code' => 'INVALID']));
+
+        $response->assertStatus(404);
+    }
+
     public function test_delete_ticket_is_forbidden(): void {
         $ticket = Ticket::factory()->create();
 

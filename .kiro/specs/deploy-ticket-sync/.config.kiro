@@ -1,0 +1,6 @@
+{
+  "specId": "aab359f8-74e6-4008-927e-eb2fe54e2cb1",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Sinkronisasi otomatis status tiket helpdesk setelah deploy production selesai — GitHub Actions mengekstrak kode tiket dari changelog/commit, lalu memanggil endpoint API Laravel untuk mengubah status tiket menjadi resolved dengan progress 90%."
+}
