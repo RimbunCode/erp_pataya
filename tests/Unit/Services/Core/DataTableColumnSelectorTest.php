@@ -158,9 +158,9 @@ class DataTableColumnSelectorTest extends TestCase {
         );
 
         $this->assertContains('selector_parents.id', $res['select']);
-        $this->assertContains('code', $res['select']);
-        $this->assertNotContains('amount', $res['select']);
-        $this->assertNotContains('secret_note', $res['select']);
+        $this->assertContains('selector_parents.code', $res['select']);
+        $this->assertNotContains('selector_parents.amount', $res['select']);
+        $this->assertNotContains('selector_parents.secret_note', $res['select']);
     }
 
     public function test_resolve_for_safe_belongs_to_adds_fk_and_with_with_child_select(): void {
@@ -172,7 +172,7 @@ class DataTableColumnSelectorTest extends TestCase {
             null,
         );
 
-        $this->assertContains('customer_id', $res['select']);
+        $this->assertContains('selector_parents.customer_id', $res['select']);
         $this->assertArrayHasKey('customer', $res['with']);
         // Relasi non-morph → closure child-select (callable), bukan list nama.
         $this->assertIsCallable($res['with']['customer']);
@@ -188,8 +188,8 @@ class DataTableColumnSelectorTest extends TestCase {
             null,
         );
 
-        $this->assertContains('referenceable_id', $res['select']);
-        $this->assertContains('referenceable_type', $res['select']);
+        $this->assertContains('selector_parents.referenceable_id', $res['select']);
+        $this->assertContains('selector_parents.referenceable_type', $res['select']);
         $this->assertArrayHasKey('referenceable', $res['with']);
         $this->assertNotInstanceOf(\Closure::class, $res['with']['referenceable']);
     }
@@ -204,7 +204,7 @@ class DataTableColumnSelectorTest extends TestCase {
         );
 
         $this->assertNotContains('joined_label', $res['select']);
-        $this->assertContains('code', $res['select']);
+        $this->assertContains('selector_parents.code', $res['select']);
     }
 
     public function test_resolve_for_safe_append_with_depends_on_selects_source(): void {
@@ -216,8 +216,8 @@ class DataTableColumnSelectorTest extends TestCase {
             null,
         );
 
-        $this->assertContains('start_date', $res['select']);
-        $this->assertContains('end_date', $res['select']);
+        $this->assertContains('selector_parents.start_date', $res['select']);
+        $this->assertContains('selector_parents.end_date', $res['select']);
     }
 
     public function test_resolve_for_safe_append_without_depends_on_always_throws(): void {
@@ -256,7 +256,7 @@ class DataTableColumnSelectorTest extends TestCase {
             ':code - :secret_note',
         );
 
-        $this->assertContains('secret_note', $res['select']);
+        $this->assertContains('selector_parents.secret_note', $res['select']);
     }
 
     public function test_resolve_for_safe_template_link_relation_adds_with_and_fk(): void {
@@ -269,7 +269,7 @@ class DataTableColumnSelectorTest extends TestCase {
         );
 
         $this->assertArrayHasKey('customer', $res['with']);
-        $this->assertContains('customer_id', $res['select']);
+        $this->assertContains('selector_parents.customer_id', $res['select']);
     }
 
     // ---- safeColumnsFromVisible (konversi visibleKeys cookie → map) -----------
