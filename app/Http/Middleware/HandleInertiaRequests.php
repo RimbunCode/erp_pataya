@@ -70,6 +70,37 @@ class HandleInertiaRequests extends Middleware {
                 'admin_permissions'            => $adminPermissions,
                 'can_manage_admin_permissions' => $canManageAdminPermissions,
             ],
+            'notifications' => function () use ($user) {
+                if (! $user) {
+                    return ['unread_count' => 0, 'menu_badges' => (object) [], 'items' => []];
+                }
+
+                $unread = $user->unreadNotifications()
+                    ->latest()
+                    ->take(20)
+                    ->get()
+                    ->map(fn ($n) => [
+                        'id'         => $n->id,
+                        'type'       => $n->data['type'] ?? 'info',
+                        'title'      => $n->data['title'] ?? '',
+                        'body'       => $n->data['body'] ?? '',
+                        'action_url' => $n->data['action_url'] ?? '#',
+                        'menu_key'   => $n->data['menu_key'] ?? null,
+                        'created_at' => $n->created_at->diffForHumans(),
+                    ]);
+
+                $menuBadges = $unread
+                    ->filter(fn ($n) => ! empty($n['menu_key']))
+                    ->groupBy('menu_key')
+                    ->map->count()
+                    ->toArray();
+
+                return [
+                    'unread_count' => $user->unreadNotifications()->count(),
+                    'menu_badges'  => $menuBadges ?: (object) [],
+                    'items'        => $unread->values(),
+                ];
+            },
             'lang'  => $request->cookie('lang') ?? 'en',
             'ziggy' => fn () => [
                 ...(new Ziggy)->toArray(),

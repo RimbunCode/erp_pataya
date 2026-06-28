@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Instructor\StorePayoutRequestRequest;
 use App\Models\Finance\InstructorEarning;
 use App\Models\Finance\InstructorPayoutRequest;
+use App\Models\User\User;
+use App\Notifications\PayoutRequestedNotification;
 use App\Services\Finance\InstructorPayoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -125,11 +128,21 @@ class FinancialController extends Controller {
         }
 
         $validated = $request->validated();
-        $this->instructorPayoutService->createInstructorRequest(
+        $payoutRequest = $this->instructorPayoutService->createInstructorRequest(
             $user,
             (float) $validated['requested_amount'],
             $validated['note'] ?? null,
         );
+
+        // Notifikasi ke semua admin dengan permission finance_admin atau super_admin
+        $adminRecipients = User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+            ->whereHas('adminPermissions', fn ($q) => $q->whereIn('name', ['finance_admin', 'super_admin']))
+            ->get();
+
+        if ($adminRecipients->isNotEmpty() && $payoutRequest) {
+            Notification::send($adminRecipients, new PayoutRequestedNotification($payoutRequest));
+        }
 
         return back()->with('success', 'Request payout berhasil dikirim.');
     }

@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ProfileController as AdminProfileController;
 use App\Http\Controllers\Admin\SystemFinanceController;
 use App\Http\Controllers\Admin\UserDirectoryController;
 use App\Http\Controllers\Core\CompanyLogoController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Instructor\CourseContentController;
@@ -90,6 +91,10 @@ Route::get('/organization/complete/{token}', [OrganizationCompletionController::
 Route::post('/organization/complete/{token}', [OrganizationCompletionController::class, 'store'])->name('organization.complete.store');
 
 Route::middleware(['auth'])->group(function () {
+
+    // Notifications
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
 
     //     // Files
     Route::resourceDetail('file', FileController::class);

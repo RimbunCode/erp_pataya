@@ -8,9 +8,12 @@ use App\Models\Category;
 use App\Models\Core\File;
 use App\Models\Course;
 use App\Models\CoursePublishRequest;
+use App\Models\User\User;
+use App\Notifications\CourseApprovalRequestedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -305,7 +308,7 @@ class CourseController extends Controller {
             ]);
         }
 
-        CoursePublishRequest::query()->create([
+        $publishRequest = CoursePublishRequest::query()->create([
             'course_id'               => $course->id,
             'requested_by'            => Auth::id(),
             'status'                  => FormStatus::PENDING->value,
@@ -313,6 +316,17 @@ class CourseController extends Controller {
             'submitted_discount'      => $course->discount,
             'submitted_discount_type' => $course->discount_type,
         ]);
+
+        // Notifikasi ke admin dengan permission course_admin atau super_admin
+        $adminRecipients = User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+            ->whereHas('adminPermissions', fn ($q) => $q->whereIn('name', ['course_admin', 'super_admin']))
+            ->get();
+
+        if ($adminRecipients->isNotEmpty()) {
+            $publishRequest->load(['course', 'requester']);
+            Notification::send($adminRecipients, new CourseApprovalRequestedNotification($publishRequest));
+        }
 
         return back()->with(
             'success',

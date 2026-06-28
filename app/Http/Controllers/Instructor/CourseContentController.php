@@ -7,10 +7,12 @@ use App\Models\Core\File;
 use App\Models\Core\Fileable;
 use App\Models\CourseContent;
 use App\Models\CourseSection;
+use App\Notifications\NewCourseContentNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class CourseContentController extends Controller {
     // POST /instructor/classes/{courseId}/sections/{sectionId}/contents
@@ -27,12 +29,25 @@ class CourseContentController extends Controller {
 
         $order = $section->contents()->max('order') + 1;
 
-        $section->contents()->create([
+        $content = $section->contents()->create([
             'title' => $validated['title'],
             'type'  => $validated['type'],
             'url'   => $validated['url'] ?? null,
             'order' => $order,
         ]);
+
+        // Notifikasi ke semua student yang enrolled
+        $enrolledStudents = $section->course
+            ?->enrollments()
+            ?->with('user')
+            ?->get()
+            ?->pluck('user')
+            ?->filter() ?? collect();
+
+        if ($enrolledStudents->isNotEmpty()) {
+            $content->load('section.course');
+            Notification::send($enrolledStudents, new NewCourseContentNotification($content));
+        }
 
         return back()->with('success', 'Content added.');
     }

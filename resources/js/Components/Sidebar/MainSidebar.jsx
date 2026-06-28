@@ -5,6 +5,7 @@ import { navConfig } from "@/Components/Navbar/NavConfig";
 import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
 
+
 export default function MainSidebar({
   collapsed,
   onToggleCollapsed,
@@ -12,10 +13,11 @@ export default function MainSidebar({
   currentPath,
   onLogout,
 }) {
-  const { auth } = usePage().props;
+  const { auth, notifications } = usePage().props;
   const adminPermissions = Array.isArray(auth?.admin_permissions)
     ? auth.admin_permissions
     : [];
+  const menuBadges = notifications?.menu_badges ?? {};
   const isSuperAdmin = adminPermissions.includes("super_admin");
 
   const config = useMemo(() => {
@@ -128,6 +130,7 @@ export default function MainSidebar({
 
         {config?.items.map((item) => {
           const isActive = currentPath === item.href;
+          const hasBadge = (menuBadges[item.key] ?? 0) > 0;
           return (
             <Link
               key={item.key}
@@ -142,18 +145,23 @@ export default function MainSidebar({
               }`}
             >
               <span
-                className={`flex-shrink-0 ${
+                className={`relative flex-shrink-0 ${
                   isActive ? "text-primary-foreground" : "text-muted-foreground"
                 }`}
               >
                 {item.icon}
+                {hasBadge && collapsed && (
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-role-dot" />
+                )}
               </span>
               {!collapsed && (
                 <>
                   {item.label}
-                  {isActive && (
+                  {hasBadge ? (
+                    <span className="ml-auto flex-shrink-0 w-2 h-2 rounded-full bg-role-dot animate-pulse" />
+                  ) : isActive ? (
                     <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-foreground opacity-80" />
-                  )}
+                  ) : null}
                 </>
               )}
             </Link>

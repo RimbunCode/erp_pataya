@@ -7,6 +7,8 @@ use App\Models\Core\File;
 use App\Models\Core\Fileable;
 use App\Models\CourseContent;
 use App\Models\Submission;
+use App\Models\User\User;
+use App\Notifications\SubmissionReceivedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -96,6 +98,22 @@ class SubmissionController extends Controller {
                 }
             }
         });
+
+        // Notifikasi ke instructor pemilik course
+        $instructorId = $content->section?->course?->created_by ?? $content->course?->created_by ?? null;
+        if ($instructorId) {
+            $instructor = User::find($instructorId);
+            if ($instructor) {
+                $submission = Submission::query()
+                    ->where('user_id', $request->user()->id)
+                    ->where('content_id', $content->id)
+                    ->latest()
+                    ->first();
+                if ($submission) {
+                    $instructor->notify(new SubmissionReceivedNotification($submission));
+                }
+            }
+        }
 
         return back()->with('success', 'Berhasil dikumpulkan!');
     }
