@@ -3,7 +3,6 @@
 namespace App\Services\Finances;
 
 use App\Enums\FormStatus;
-use App\Models\Core\Currency;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -14,13 +13,20 @@ use App\Models\Purchase\Supplier;
 use App\Models\Sales\Customer;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class PaymentEntryService {
     private function fillRelations(array $data) {
-        $data['default_account_id']   = $data['default_account']['id'] ?? null;
-        $defaultCurrency              = Preference::find('default_currency_id')->value;
-        $data['currency_code']        = Currency::find($data['currency']['id'] ?? null)?->code ?? $defaultCurrency;
-        $data['base_currency_code']   = $defaultCurrency;
+        $data['default_account_id'] = $data['default_account']['id'] ?? null;
+        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
+        $data['base_currency_code'] = $defaultCurrency;
+
+        if ($data['currency_code'] != $defaultCurrency && empty($data['exchange_rate'])) {
+            throw ValidationException::withMessages(['exchange_rate' => 'Exchange rate is required for non-default currency.']);
+        }
+
+        $data['exchange_rate']        = $data['currency_code'] == $defaultCurrency ? 1 : $data['exchange_rate'];
         $data['partyable_id']         = $data['partyable']['id'];
         $data['partyable_type']       = $data['payment_type'] == 'pay' ? Supplier::class : Customer::class;
         $data['paymentable_id']       = $data['paymentable']['id'];
@@ -79,7 +85,8 @@ class PaymentEntryService {
         $paymentable      = $paymentEntry->paymentable;
         $paymentSchedules = $paymentEntry->paymentable->paymentSchedules;
 
-        $outstandingAmount = $paymentEntry->paid_amount;
+        $totalPaid         = $paymentEntry->paid_amount;
+        $outstandingAmount = $totalPaid;
         foreach ($paymentSchedules as $paymentSchedule) {
             $paymentAmount = $paymentSchedule->outstanding_amount;
             if ($outstandingAmount >= $paymentAmount) {
@@ -95,7 +102,7 @@ class PaymentEntryService {
             }
         }
 
-        $paymentable->paid_amount += $outstandingAmount;
+        $paymentable->paid_amount += $totalPaid;
 
         if ($paymentable->paid_amount >= $paymentable->amount) {
             $status = Utils::replaceStatus(

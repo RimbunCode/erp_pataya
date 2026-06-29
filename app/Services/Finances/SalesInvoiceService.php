@@ -4,7 +4,6 @@ namespace App\Services\Finances;
 
 use App\Enums\FormStatus;
 use App\Models\Core\Branch;
-use App\Models\Core\Currency;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -31,9 +30,15 @@ class SalesInvoiceService {
         $data['customer_branch_id']   = $data['customer_branch']['id'];
         $data['customer_branch_name'] = Branch::find($data['customer_branch']['id'])?->name;
 
-        $defaultCurrency            = Preference::find('default_currency_id')->value;
-        $data['currency_code']      = Currency::find($data['currency']['id'] ?? null)?->code ?? $defaultCurrency;
+        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
+
+        if ($data['currency_code'] != $defaultCurrency && empty($data['exchange_rate'])) {
+            throw ValidationException::withMessages(['exchange_rate' => 'Exchange rate is required for non-default currency.']);
+        }
+
+        $data['exchange_rate'] = $data['currency_code'] == $defaultCurrency ? 1 : $data['exchange_rate'];
 
         $data['return_against_id'] = $data['return_against']['id'] ?? null;
 

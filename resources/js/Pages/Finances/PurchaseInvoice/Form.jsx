@@ -319,26 +319,22 @@ export default function Form() {
               />
             </FormInput>
 
-            <FormInput
-              label={t("finances.purchaseInvoice.exchange_rate")}
-              name="exchange_rate"
-              readOnly
-            >
-              <NumberInput
-                disabled={
-                  !(
-                    data?.currency?.code &&
-                    data?.currency?.code !== default_currency_id
-                  )
-                }
-                className="text-left"
-                decimalScale={2}
-                value={data.exchange_rate}
-                onValueChange={(value) => {
-                  setData("exchange_rate", value);
-                }}
-              />
-            </FormInput>
+            {data?.currency?.code && data.currency.code !== default_currency_id && (
+              <FormInput
+                label={t("finances.purchaseInvoice.exchange_rate")}
+                name="exchange_rate"
+                readOnly
+              >
+                <NumberInput
+                  className="text-left"
+                  decimalScale={2}
+                  value={data.exchange_rate}
+                  onValueChange={(value) => {
+                    setData("exchange_rate", value);
+                  }}
+                />
+              </FormInput>
+            )}
           </div>
           <div>
             <FormCheckbox

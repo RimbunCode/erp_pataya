@@ -3,7 +3,6 @@
 namespace App\Services\Purchase;
 
 use App\Enums\FormStatus;
-use App\Models\Core\Currency;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -29,10 +28,15 @@ class PurchaseOrderService {
         $data['supplier_id']   = $data['supplier']['id'];
         $data['supplier_name'] = Supplier::find($data['supplier']['id'])?->name;
 
-        $defaultCurrency            = Preference::find('default_currency_id')->value;
-        $data['currency_code']      = Currency::find($data['currency']['id'] ?? null)?->code ?? $defaultCurrency;
+        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
-        $data['exchange_rate'] ??= 1;
+
+        if ($data['currency_code'] != $defaultCurrency && empty($data['exchange_rate'])) {
+            throw ValidationException::withMessages(['exchange_rate' => 'Exchange rate is required for non-default currency.']);
+        }
+
+        $data['exchange_rate'] = $data['currency_code'] == $defaultCurrency ? 1 : $data['exchange_rate'];
 
         return $data;
     }

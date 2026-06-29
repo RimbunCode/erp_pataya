@@ -22,7 +22,7 @@ class Currency extends Model {
     ];
 
     public static function templateLink() {
-        return ":name <span class='uppercase'>(:code)</span>";
+        return ':name (:code)';
     }
 
     public static function convertMoney(float $amount, float $exchangeRate = 1) {
