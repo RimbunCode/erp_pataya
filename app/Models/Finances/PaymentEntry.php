@@ -14,7 +14,10 @@ class PaymentEntry extends Model {
 
     protected static string $defaultFormatCode = 'PaymentEntry-@[iiii]/@[yy]';
     protected $casts                           = [
-        'date' => 'datetime',
+        'date'             => 'datetime',
+        'paid_amount'      => 'float',
+        'base_paid_amount' => 'float',
+        'exchange_rate'    => 'float',
     ];
     protected $guarded = ['id'];
 

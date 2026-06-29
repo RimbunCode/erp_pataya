@@ -20,10 +20,16 @@ class SalesOrder extends Model {
     public $keyBreadcrumb = 'code';
     public $translateKey  = 'sales.salesOrder';
     protected $casts      = [
-        'date'       => 'datetime',
-        'is_rent'    => 'boolean',
-        'start_date' => 'datetime',
-        'end_date'   => 'datetime',
+        'date'                          => 'datetime',
+        'is_rent'                       => 'boolean',
+        'start_date'                    => 'datetime',
+        'end_date'                      => 'datetime',
+        'exchange_rate'                 => 'float',
+        'discount_amount'               => 'float',
+        'discount_rate'                 => 'float',
+        'discount_amount_base_currency' => 'float',
+        'amount'                        => 'float',
+        'amount_base_currency'          => 'float',
     ];
     protected $appends = [
         'rent_date',

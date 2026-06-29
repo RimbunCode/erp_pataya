@@ -10,8 +10,17 @@ class StockEntryItem extends Model {
     use HasUlids;
     use SoftDeletes;
 
-    public static $parentRelation  = 'stockEntry';
-    protected $guarded             = ['id'];
+    public static $parentRelation = 'stockEntry';
+    protected $guarded            = ['id'];
+    protected $casts              = [
+        'quantity'          => 'float',
+        'conversion_factor' => 'float',
+        'valuation_rate'    => 'float',
+        'actual_quantity'   => 'float',
+        'incoming_quantity' => 'float',
+        'outgoing_quantity' => 'float',
+        'incoming_rate'     => 'float',
+    ];
     public $translateKey           = 'inventory.stockEntry.item_columns';
     protected array $configColumns = [
         'sourceWarehouse' => [

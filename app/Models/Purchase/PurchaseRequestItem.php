@@ -50,7 +50,13 @@ class PurchaseRequestItem extends Model {
         ],
     ];
     protected $casts = [
-        'required_date' => 'datetime',
+        'required_date'       => 'datetime',
+        'quantity'            => 'float',
+        'ordered_quantity'    => 'float',
+        'unordered_quantity'  => 'float',
+        'received_quantity'   => 'float',
+        'unreceived_quantity' => 'float',
+        'conversion_factor'   => 'float',
     ];
 
     public function purchaseRequest() {

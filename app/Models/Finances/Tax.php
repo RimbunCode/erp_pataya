@@ -11,6 +11,7 @@ class Tax extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
     protected $guarded = ['id'];
+    protected $casts   = ['rate' => 'float'];
 
     public static function templateLink() {
         return ':name (:rate%)';

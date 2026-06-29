@@ -12,9 +12,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseReceiptItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation  = 'purchaseReceipt';
-    public string $translateKey    = 'purchase.purchaseReceipt.item';
-    protected $guarded             = ['id'];
+    public static $parentRelation = 'purchaseReceipt';
+    public string $translateKey   = 'purchase.purchaseReceipt.item';
+    protected $guarded            = ['id'];
+    protected $casts              = [
+        'quantity'          => 'float',
+        'conversion_factor' => 'float',
+        'unit_price'        => 'float',
+        'subtotal'          => 'float',
+    ];
     protected array $configColumns = [
         'item' => [
             'type'  => 'relation',

@@ -12,7 +12,8 @@ class Unit extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'is_default' => 'boolean',
+        'is_default'        => 'boolean',
+        'conversion_factor' => 'float',
     ];
 
     public static function templateLink() {

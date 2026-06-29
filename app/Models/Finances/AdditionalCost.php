@@ -10,6 +10,7 @@ class AdditionalCost extends Model {
     use HasUlids, SoftDeletes;
 
     protected $guarded       = ['id'];
+    protected $casts         = ['amount' => 'float'];
     protected $with          = ['expenseAccount'];
     protected $confgiColumns = [
         'purpose' => [

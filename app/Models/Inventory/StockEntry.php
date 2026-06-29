@@ -17,9 +17,11 @@ class StockEntry extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'date'          => 'datetime',
-        'received_date' => 'datetime',
-        'using_transit' => 'boolean',
+        'date'                 => 'datetime',
+        'received_date'        => 'datetime',
+        'using_transit'        => 'boolean',
+        'total_outgoing_value' => 'float',
+        'total_incoming_value' => 'float',
     ];
     public string $keyBreadcrumb               = 'code';
     protected static string $defaultFormatCode = '@[branch_code]/StockEntry-@[iiii]/@[yy]';
