@@ -10,14 +10,20 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 
 class DataTableConfigCache {
+    private static array $signatureCache = [];
+
     public static function signatureFor(string $modelClass): string {
+        if (isset(self::$signatureCache[$modelClass])) {
+            return self::$signatureCache[$modelClass];
+        }
+
         $reflection    = new \ReflectionClass($modelClass);
         $modelFile     = $reflection->getFileName();
         $linkModelFile = (new \ReflectionClass(LinkModel::class))->getFileName();
 
         $schemaHash = md5(json_encode(Schema::getColumnListing((new $modelClass)->getTable())));
 
-        return md5(json_encode([
+        return self::$signatureCache[$modelClass] = md5(json_encode([
             $schemaHash,
             $modelFile ? filemtime($modelFile) : 0,
             $linkModelFile ? filemtime($linkModelFile) : 0,
@@ -53,6 +59,7 @@ class DataTableConfigCache {
     public static function forget(string $modelClass): void {
         $signature = static::signatureFor($modelClass);
         Cache::forget(static::cacheKey($modelClass, $signature));
+        unset(self::$signatureCache[$modelClass]);
     }
 
     public static function warm(string $modelClass): array {
