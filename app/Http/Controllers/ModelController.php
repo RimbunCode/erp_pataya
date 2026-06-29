@@ -501,7 +501,7 @@ class ModelController extends Controller {
 
                 $flatAttributes = [];
                 // Tiap entry: ['relations' => [{function, isMorph},...], 'columnName' => 'col']
-                $resolvedPaths  = [];
+                $resolvedPaths = [];
 
                 foreach ($allAttrs as $attr) {
                     $path = $resolver->resolvePath($attr);
@@ -509,7 +509,7 @@ class ModelController extends Controller {
                         continue; // token tidak valid / tidak ditemukan di getColumns
                     }
 
-                    $colType = $path['column']['type'] ?? null;
+                    $colType    = $path['column']['type'] ?? null;
                     $isRelation = \in_array($colType, ['relation', 'relations'], true);
 
                     if (empty($path['relations']) && ! $isRelation) {
@@ -534,7 +534,7 @@ class ModelController extends Controller {
                                 if (! \in_array($childColType, ['relation', 'relations'], true)) {
                                     // Tambahkan sebagai path dengan 1 relasi
                                     $resolvedPaths[] = [
-                                        'relations'  => [[
+                                        'relations' => [[
                                             'function' => $path['column']['nameOfFunction'] ?? $path['columnName'],
                                             'isMorph'  => ($path['column']['typeRelation'] ?? 'basic') === 'morph',
                                         ]],
@@ -557,8 +557,8 @@ class ModelController extends Controller {
 
             // Closure rekursif untuk membangun nested whereHas dari chain relasi
             $buildRelationQuery = function (Builder $query, array $relations, string $columnName, string $item) use (&$buildRelationQuery) {
-                $rel  = array_shift($relations);
-                $fn   = $rel['function'];
+                $rel = array_shift($relations);
+                $fn  = $rel['function'];
                 $query->orWhereHas($fn, function (Builder $q) use ($relations, $columnName, $item, $buildRelationQuery) {
                     if (empty($relations)) {
                         $q->where($columnName, 'like', "%{$item}%");
