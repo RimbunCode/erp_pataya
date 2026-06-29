@@ -420,6 +420,7 @@ export default memo(
       callback,
       { cacheMode = false } = {},
     ) => {
+      if (!model) return;
       const isCacheRequest = cacheMode && cacheConfig.enabled;
       const payload = {
         model,
@@ -469,7 +470,7 @@ export default memo(
         });
     };
     useEffect(() => {
-      if (!cacheConfig.enabled || !cacheConfig.refreshMs) return;
+      if (!cacheConfig.enabled || !cacheConfig.refreshMs || !model) return;
       const refresh = setInterval(() => {
         setLoading(true);
         getModels({}, null, { cacheMode: true });
@@ -483,14 +484,15 @@ export default memo(
     ]);
 
     useEffect(() => {
-      if (!cacheConfig.enabled || cacheLoaded) return;
+      if (!cacheConfig.enabled || cacheLoaded || !model) return;
       setLoading(true);
       getModels({}, null, { cacheMode: true });
-    }, [cacheConfig, cacheLoaded]);
+    }, [cacheConfig, cacheLoaded, model]);
 
     useDidMountEffect(() => {
       if (!allowSearch) return;
       if (cacheConfig.enabled) return;
+      if (!model) return;
       setLoading(true);
       const reloadModel = setTimeout(() => {
         getModels();
@@ -507,7 +509,7 @@ export default memo(
     const loadedDefaultKeyRef = useRef(null);
 
     useEffect(() => {
-      if (!defaultKey || value) return;
+      if (!defaultKey || value || !model) return;
 
       if (loadedDefaultKeyRef.current === defaultKey) return;
       loadedDefaultKeyRef.current = defaultKey;
@@ -527,7 +529,7 @@ export default memo(
       return () => clearTimeout(reloadModel);
     }, [defaultKey, value]);
     useDidMountEffect(() => {
-      if (!open) return;
+      if (!open || !model) return;
       if (cacheConfig.enabled) {
         if (!cacheLoaded) {
           setLoading(true);

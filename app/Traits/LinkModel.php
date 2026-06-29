@@ -375,12 +375,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -414,14 +414,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
@@ -698,7 +698,15 @@ trait LinkModel {
      *                               ignore ter-skip).
      * @param  array[]  $excepts
      */
+    private static array $columnsCache = [];
+
     public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
+        $cacheKey = static::class . ':' . $maxDepth . ':' . (int) $includeIgnore . ':' . implode(',', $excepts);
+
+        if (isset(self::$columnsCache[$cacheKey])) {
+            return self::$columnsCache[$cacheKey];
+        }
+
         try {
             $flat = DataTableConfigCache::flat(static::class);
         } catch (\Throwable) {
@@ -709,7 +717,7 @@ trait LinkModel {
             $flat = \array_values(\array_filter($flat, fn ($col) => ! ($col['ignore'] ?? false)));
         }
 
-        return static::assembleNested($flat, $maxDepth, $includeIgnore, static::class, ...$excepts);
+        return self::$columnsCache[$cacheKey] = static::assembleNested($flat, $maxDepth, $includeIgnore, static::class, ...$excepts);
     }
 
     /**

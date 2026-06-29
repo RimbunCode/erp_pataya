@@ -28,6 +28,9 @@ class ModelController extends Controller {
         'route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel', 'templateLink', 'disabledOn',
     ];
 
+    private array $safeColumnsCache     = [];
+    private array $relatedModelMapCache = [];
+
     private function filterOperator(Builder|JoinClause $query, $key, $operatorFilter, $value, $boolean = 'and', bool $valueIsColumn = false) {
         preg_match('/^([^\[\]]+)/', $operatorFilter, $matches);
         $operatorFilter = $matches[1] ?? '';
@@ -157,6 +160,11 @@ class ModelController extends Controller {
      * @return array<string,bool> set nama kolom aman (key)
      */
     private function safeLookupColumns(string $model, array $requested, PermissionChecker $perm, array $withRelations = []): array {
+        $cacheKey = $model . ':' . md5(serialize($requested) . serialize($withRelations));
+        if (isset($this->safeColumnsCache[$cacheKey])) {
+            return $this->safeColumnsCache[$cacheKey];
+        }
+
         $columns = $model::getColumns(1);
         $byName  = [];
         foreach ($columns as $col) {
@@ -237,7 +245,7 @@ class ModelController extends Controller {
             $safe[$name] = true;
         }
 
-        return $safe;
+        return $this->safeColumnsCache[$cacheKey] = $safe;
     }
 
     /**
@@ -378,6 +386,10 @@ class ModelController extends Controller {
      * @return array<string,string>
      */
     private function relatedModelMap(string $model): array {
+        if (isset($this->relatedModelMapCache[$model])) {
+            return $this->relatedModelMapCache[$model];
+        }
+
         $map = [];
         foreach ($model::getColumns(1) as $col) {
             if (
@@ -390,7 +402,7 @@ class ModelController extends Controller {
             }
         }
 
-        return $map;
+        return $this->relatedModelMapCache[$model] = $map;
     }
 
     private function filterToQuery(Builder|JoinClause $query, $filters, $boolean = 'and', array &$with = []) {
