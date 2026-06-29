@@ -12,8 +12,17 @@ class Stock extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'stock_queue' => 'array',
-        'details'     => Json::class,
+        'quantity'           => 'float',
+        'reserved_quantity'  => 'float',
+        'incoming_quantity'  => 'float',
+        'rented_quantity'    => 'float',
+        'actual_quantity'    => 'float',
+        'ready_quantity'     => 'float',
+        'projected_quantity' => 'float',
+        'conversion_factor'  => 'float',
+        'valuation_rate'     => 'float',
+        'stock_queue'        => 'array',
+        'details'            => Json::class,
     ];
 
     public static function boot() {
