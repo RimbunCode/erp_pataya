@@ -154,6 +154,10 @@ Route::delete('/commands/recent', [CommandSearchController::class, 'remove'])
 
 Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     if (config('app.debug')) {
+        Route::get('/test/link-model', function () {
+            return Inertia::render('Test/LinkModelTest');
+        });
+
         Route::get('/status', function () {
             return Inertia::render('Status', [
                 'canLogin'       => Route::has('login'),

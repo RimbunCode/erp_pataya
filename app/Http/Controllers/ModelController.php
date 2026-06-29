@@ -181,6 +181,11 @@ class ModelController extends Controller {
             $safe[$name] = true;
         }
 
+        // Wildcard "*": expand ke semua nama kolom — linkable & visibleFor tetap dievaluasi.
+        if (\in_array('*', $requested, true)) {
+            $requested = \array_keys($byName);
+        }
+
         $requestedSet = \array_flip($requested);
         $withSet      = \array_flip($withRelations);
         foreach ($byName as $name => $col) {
@@ -620,6 +625,18 @@ class ModelController extends Controller {
         }
         $with = $request->with ?? [];
         $with = $isCache ? ($model::getRelationKeys(relations: $with) ?? []) : $with;
+
+        // Wildcard "*": expand ke semua nama relasi top-level dari getColumns.
+        if (\in_array('*', (array) $with, true)) {
+            $allRelations = \array_values(\array_map(
+                fn ($col) => $col['nameOfFunction'] ?? $col['name'],
+                \array_filter(
+                    $model::getColumns(1),
+                    fn ($col) => \in_array($col['type'] ?? null, ['relation', 'relations'], true),
+                ),
+            ));
+            $with = $allRelations;
+        }
 
         // Nama relasi top-level yang diminta lewat `with` (numeric/assoc/dot-notation
         // dinormalisasi ke segmen pertama, mis. "branches.city" → "branches").
