@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Sales;
 
 use App\Http\Requests\BaseFormRequest;
-use Illuminate\Validation\Rule;
 
 class InternalOrderRequest extends BaseFormRequest {
     /**
@@ -16,31 +15,18 @@ class InternalOrderRequest extends BaseFormRequest {
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, ValidationRule|array<mixed>|string>
+     * @return array<string, array<mixed>|string>
      */
     public function rules(): array {
         return [
-            'date'               => ['required', 'date'],
-            'referenceable_type' => ['required', 'string'],
-            'referenceable_id'   => ['required', 'integer'],
-            'items'              => ['required', 'array', 'min:1'],
-            'items.*.id'         => ['required', 'string'],
-            'items.*.item.id'    => ['required', 'exists:item_variants,id', 'distinct'],
-            'items.*.quantity'   => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'    => ['required', 'exists:item_units,id'],
-            'items.*.unit.*'     => ['nullable'],
-            'external_note'      => ['nullable', 'string'],
-            'customer.id'        => [
-                Rule::requiredIf($this->referenceable_type === 'App\\Models\\Sales\\SalesOrder'),
-                'exists:customers,id',
-            ],
-            'customer_branch.id' => [
-                Rule::requiredIf($this->referenceable_type === 'App\\Models\\Sales\\SalesOrder'),
-                'exists:customer_branches,id',
-            ],
-            'customer' => [
-                Rule::prohibitedIf($this->referenceable_type === 'App\\Models\\Sales\\InternalOrder'),
-            ],
+            'date'             => ['required', 'date'],
+            'external_note'    => ['nullable', 'string'],
+            'items'            => ['required', 'array', 'min:1'],
+            'items.*.id'       => ['required', 'string'],
+            'items.*.item.id'  => ['required', 'exists:item_variants,id', 'distinct'],
+            'items.*.quantity' => ['required', 'numeric', 'min:1'],
+            'items.*.unit.id'  => ['required', 'exists:item_units,id'],
+            'items.*.unit.*'   => ['nullable'],
         ];
     }
 }

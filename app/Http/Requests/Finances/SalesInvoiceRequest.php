@@ -5,9 +5,7 @@ namespace App\Http\Requests\Finances;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
-use App\Models\Core\Preference;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Validation\Rule;
 
 class SalesInvoiceRequest extends BaseFormRequest {
     /**
@@ -23,8 +21,6 @@ class SalesInvoiceRequest extends BaseFormRequest {
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
-        $default_currency = Preference::find('default_currency_id')?->value;
-
         return [
             'date'                           => ['required', 'date'],
             'sales_order.id'                 => ['nullable', 'exists:sales_orders,id'],
@@ -38,8 +34,8 @@ class SalesInvoiceRequest extends BaseFormRequest {
             'customer_branch.*'              => ['nullable'],
             'items'                          => ['required', 'array', 'min:1'],
             'items.*.id'                     => ['required', 'string'],
-            'items.*.item.id'                => ['required', 'exists:item_variants,id'],
-            'items.*.item.*'                 => ['nullable'],
+            'items.*.sales_order_item.id'    => ['required', 'exists:sales_order_items,id'],
+            'items.*.sales_order_item.*'     => ['nullable'],
             'items.*.description'            => ['nullable', 'string'],
             'items.*.quantity'               => ['required', 'numeric', 'min:1'],
             'items.*.unit.id'                => ['required', 'exists:item_units,id'],
@@ -47,10 +43,9 @@ class SalesInvoiceRequest extends BaseFormRequest {
             'items.*.tax.id'                 => ['required', 'exists:taxes,id'],
             'items.*.tax.*'                  => ['nullable'],
             'items.*.price'                  => ['nullable', 'numeric'],
-            'items.*.sales_order_item_id'    => ['nullable', 'exists:sales_order_items,id'],
             'items.*.return_against_item_id' => ['nullable', 'exists:sales_invoice_items,id'],
             'currency.code'                  => ['nullable', 'exists:currencies,code'],
-            'exchange_rate'                  => ['nullable', Rule::requiredIf($this->currency && $this->currency['code'] != $default_currency), 'numeric'],
+            'exchange_rate'                  => ['nullable', 'numeric'],
             'external_note'                  => ['nullable', 'string'],
             ...AdditionalDiscountRules::make($this),
             ...PaymentSchedulesRules::make($this),

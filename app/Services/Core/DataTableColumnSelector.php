@@ -282,6 +282,26 @@ class DataTableColumnSelector {
         $childDbColumns = $this->dbColumns($related);
         $cols           = array_values(array_intersect($cols, $childDbColumns));
 
+        // FK relasi BelongsTo aman di child wajib ikut agar nested eager-loading jalan.
+        // $childSafe bisa punya relasi (mis. 'item', 'unit') — FK-nya (item_id, item_unit_id)
+        // harus di-SELECT agar Eloquent bisa match nested with(['items.item']).
+        foreach (array_keys($childSafe ?? []) as $childRelName) {
+            if (! method_exists($related, $childRelName)) {
+                continue;
+            }
+            try {
+                $childRel = $related->{$childRelName}();
+            } catch (\Throwable) {
+                continue;
+            }
+            if ($childRel instanceof BelongsTo) {
+                $fk = $childRel->getForeignKeyName();
+                if (in_array($fk, $childDbColumns, true)) {
+                    $cols[] = $fk;
+                }
+            }
+        }
+
         // PK + FK/morph-type child wajib ikut (hidrasi & match ke parent).
         $cols[] = $relatedKey;
         foreach ($childKeys as $key) {

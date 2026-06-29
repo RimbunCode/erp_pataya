@@ -92,6 +92,17 @@ class Utils {
             $match[0] = preg_replace('/(.*?){:(.*?)}/i', ':$2', $match[0]);
             $newValue = static::getValueObject($value, substr($match[0], 1));
 
+            if (is_array($newValue)) {
+                // Relasi: rekursif jika child punya template_link (Eloquent append → snake_case key)
+                if (isset($newValue['template_link'])) {
+                    $newValue['templateLink'] = $newValue['template_link'];
+
+                    return static::convertTemplateLink($newValue) ?? $match[0];
+                }
+
+                return $match[0];
+            }
+
             return $newValue ?: $match[0];
         }, $template);
 

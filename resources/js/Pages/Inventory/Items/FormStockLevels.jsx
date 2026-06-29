@@ -101,13 +101,13 @@ export default memo(function FormStockLevels() {
                               "absolute bottom-0 rounded-l-full h-2 bg-yellow-500 dark:bg-yellow-700",
                             )}
                             style={{
-                              width: `${(stock.reserved_quantity / maxStocks) * 100}%`,
+                              width: `${(stock.reserved_quantity / (maxStocks || 1)) * 100}%`,
                             }}
                           />
                         </div>
                         <div className="pl-0.5 flex flex-col items-start justify-center relative">
                           <span className="px-1 text-xs">
-                            {stock.actual_quantity}
+                            {maxStock}
                           </span>
                           <span
                             className={cn(
@@ -119,17 +119,16 @@ export default memo(function FormStockLevels() {
                               "absolute bottom-0 h-2 rounded-r-full bg-gray-400 dark:bg-gray-500",
                             )}
                             style={{
-                              width: `${(maxStock / maxStocks) * 100}%`,
+                              width: `${(maxStock / (maxStocks || 1)) * 100}%`,
                             }}
                           />
                           <span
                             className={cn(
                               "absolute bottom-0 h-2 bg-green-500 dark:bg-green-600",
-                              stock.actual_quantity + stock.rented_quantity >=
-                                maxStock && "rounded-r-full",
+                              stock.incoming_quantity === 0 && "rounded-r-full",
                             )}
                             style={{
-                              width: `${((stock.actual_quantity + stock.rented_quantity) / maxStocks) * 100}%`,
+                              width: `${((stock.actual_quantity + stock.rented_quantity) / (maxStocks || 1)) * 100}%`,
                             }}
                           />
                           <span
@@ -139,7 +138,7 @@ export default memo(function FormStockLevels() {
                                 "rounded-r-full",
                             )}
                             style={{
-                              width: `${(stock.actual_quantity / maxStocks) * 100}%`,
+                              width: `${(stock.actual_quantity / (maxStocks || 1)) * 100}%`,
                             }}
                           />
                         </div>

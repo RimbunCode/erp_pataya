@@ -19,9 +19,9 @@ class InternalOrderService {
     private function fillItemRelations(array $data, array $units = []) {
         $unit                        = $units[$data['unit']['id']] ?? null;
         $data['item_id']             = $data['item']['id'];
-        $data['unit_id']             = $unit?->unit_id ?? $data['unit']['id'];
+        $data['item_unit_id']        = $data['unit']['id'];
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
-        $data['source_warehouse_id'] = $data['source_warehouse']['id'];
+        $data['source_warehouse_id'] = $data['source_warehouse']['id'] ?? null;
 
         return $data;
     }

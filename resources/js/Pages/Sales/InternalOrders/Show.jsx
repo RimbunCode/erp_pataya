@@ -7,11 +7,6 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Show({ internalOrder }) {
   const { t } = useLaravelReactI18n();
-  console.log(
-    internalOrder?.submitted_at &&
-      isValidStatus(internalOrder?.status) &&
-      calculateArray(internalOrder?.items, "undelivered_quantity", "+") > 0,
-  );
   return (
     <FormPage
       isCreate={!internalOrder}

@@ -237,7 +237,7 @@ export function getLocaleDate(locale) {
 
 export function getValueObject(obj, key) {
   const keys = key.split(".");
-  const newValue = keys.reduce((x, y) => x[y], obj);
+  const newValue = keys.reduce((x, y) => x?.[y], obj);
   return newValue;
 }
 

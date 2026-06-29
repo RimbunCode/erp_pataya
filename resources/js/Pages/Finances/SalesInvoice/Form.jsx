@@ -18,7 +18,7 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
-import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import SalesOrderItemLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderItemLinkModel";
 import PaymentSchedule from "../Components/PaymentSchedule";
 import SalesInvoiceLinkModel from "./SalesInvoiceLinkModel";
 import SalesOrderLinkModel from "@/Pages/Sales/SalesOrders/SalesOrderLinkModel";
@@ -92,27 +92,37 @@ export default function Form() {
         width: 2,
         cell({ dataRow, setData, attributes }) {
           return (
-            <ItemVariantLinkModel
+            <SalesOrderItemLinkModel
               placeholder={t("finances.salesInvoice.columns.item.placeholder")}
-              value={dataRow.item}
+              value={
+                dataRow.sales_order_item ??
+                (dataRow.sales_order_item?.id
+                  ? { id: dataRow.sales_order_item.id }
+                  : null)
+              }
+              disabled={!data.sales_order}
               onValueChange={(val) => {
-                const defaultUnit = val?.default_uom;
                 setData({
-                  item: val,
-                  unit: defaultUnit,
-                  conversion_factor: defaultUnit?.conversion_factor,
-                  source_warehouse: data.source_warehouse,
+                  sales_order_item: val,
+                  unit: val?.unit,
+                  conversion_factor: val?.conversion_factor,
+                  quantity: val?.unbilled_quantity,
+                  price: val?.price,
+                  tax: val?.tax,
+                  description: val?.description,
                 });
               }}
               {...attributes}
               filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
+                sales_order_id: data.sales_order?.id ?? null,
               }}
-              with={["defaultUom", "item"]}
+              with={["item", "unit", "tax"]}
+              fields={[
+                "unbilled_quantity",
+                "price",
+                "description",
+                "conversion_factor",
+              ]}
             />
           );
         },
@@ -261,7 +271,7 @@ export default function Form() {
                 with={[
                   "items",
                   "customer",
-                  "customer_branch",
+                  "customerBranch",
                   "currency",
                   "items.item",
                   "items.tax",
@@ -269,13 +279,23 @@ export default function Form() {
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
                 ]}
-                // Kolom harga (gated visibleFor) yang form butuh dari SO + items.
                 fields={[
                   "amount",
+                  "discount_on",
+                  "discount_rate",
+                  "discount_amount",
+                  "exchange_rate",
+                  "external_note",
+                  "items.unit",
+                  "items.tax",
+                  "items.quantity",
+                  "items.unbilled_quantity",
+                  "items.description",
                   "items.price",
                   "items.basic_amount",
                   "items.tax_rate",
                   "items.tax_amount",
+                  "items.conversion_factor",
                 ]}
                 value={data.sales_order}
                 onValueChange={(val) => {
@@ -291,7 +311,8 @@ export default function Form() {
                         return {
                           ...item,
                           id: generateRandom(8),
-                          sales_order_item_id: item.id,
+                          sales_order_item: { id: item.id, ...item },
+                          quantity: item.unbilled_quantity ?? item.quantity,
                           amount: item.basic_amount + item.tax_amount,
                         };
                       }),
@@ -329,26 +350,23 @@ export default function Form() {
               />
             </FormInput>
 
-            <FormInput
-              label={t("finances.salesInvoice.exchange_rate")}
-              name="exchange_rate"
-              readOnly
-            >
-              <NumberInput
-                disabled={
-                  !(
-                    data?.currency?.code &&
-                    data?.currency?.code !== default_currency_id
-                  )
-                }
-                className="text-left"
-                decimalScale={2}
-                value={data.exchange_rate}
-                onValueChange={(value) => {
-                  setData("exchange_rate", value);
-                }}
-              />
-            </FormInput>
+            {data?.currency?.code &&
+              data.currency.code !== default_currency_id && (
+                <FormInput
+                  label={t("finances.salesInvoice.exchange_rate")}
+                  name="exchange_rate"
+                  readOnly
+                >
+                  <NumberInput
+                    className="text-left"
+                    decimalScale={2}
+                    value={data.exchange_rate}
+                    onValueChange={(value) => {
+                      setData("exchange_rate", value);
+                    }}
+                  />
+                </FormInput>
+              )}
           </div>
           <div>
             <FormCheckbox
@@ -530,7 +548,6 @@ export default function Form() {
             name="SalesInvoiceItems"
             className="col-start-1 col-span-2"
             form={<ItemForm />}
-            disabled={true}
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}

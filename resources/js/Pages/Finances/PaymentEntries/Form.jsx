@@ -20,6 +20,7 @@ import SupplierLinkModel from "@/Pages/Purchase/Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
 export default function Form() {
   const { data, defaultData, setData } = useFormPage(
@@ -32,6 +33,7 @@ export default function Form() {
     },
   );
   const { t } = useLaravelReactI18n();
+  const { default_currency_id } = usePage().props.preferences;
   const paymentEntryScheduleColumns = [
     {
       name: "due_date",
@@ -482,18 +484,19 @@ export default function Form() {
                   }}
                 />
               </FormInput>
-              <FormInput
-                readOnly
-                disabled={!data.paymentable}
-                label={t("finances.paymentEntry.columns.exchange_rate")}
-              >
-                <NumberInput
-                  disabled={!data.currency}
-                  className="text-left"
-                  value={data.exchange_rate}
-                  onValueChange={(val) => setData("exchange_rate", val)}
-                />
-              </FormInput>
+              {data?.currency?.code && data.currency.code !== default_currency_id && (
+                <FormInput
+                  readOnly
+                  disabled={!data.paymentable}
+                  label={t("finances.paymentEntry.columns.exchange_rate")}
+                >
+                  <NumberInput
+                    className="text-left"
+                    value={data.exchange_rate}
+                    onValueChange={(val) => setData("exchange_rate", val)}
+                  />
+                </FormInput>
+              )}
             </>
           )}
           <FormInput

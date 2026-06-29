@@ -36,13 +36,6 @@ export default memo(function Form() {
   );
   const { default_currency_id } = usePage().props.preferences;
   const loadFrom = usePage().props.loadFrom;
-  const isLockDoc = useMemo(() => {
-    const referenceable_type =
-      data?.referenceable_type ?? defaultData?.referenceable_type;
-    if (referenceable_type == "App\\Models\\Service\\WorkOrder") return true;
-
-    return false;
-  }, [defaultData, data]);
 
   const asyncAdditionalData = useCallback(async (value, idChanges) => {
     return await axios.post(window.route("itemVariants.info"), {
@@ -165,6 +158,7 @@ export default memo(function Form() {
         return (
           <ItemVariantLinkModel
             placeholder={t("sales.salesOrder.columns.item.placeholder")}
+            fields={["is_stock_item"]}
             value={dataRow.item}
             onValueChange={(val) => {
               const defaultUnit = val?.default_uom;
@@ -195,7 +189,7 @@ export default memo(function Form() {
             value={value ?? ""}
             onChange={(e) => setData("description", e.target.value)}
             {...attributes}
-            readOnly={attributes.readOnly && !(data.submitted_at && isLockDoc)}
+            readOnly={true}
           />
         );
       },
@@ -217,7 +211,7 @@ export default memo(function Form() {
             value={value}
             onValueChange={(val) => setData("source_warehouse", val)}
             {...attributes}
-            readOnly={data.submitted_at && !isLockDoc}
+            readOnly={true}
           />
         );
       },
@@ -304,7 +298,9 @@ export default memo(function Form() {
               setData("tax", val);
             }}
             {...attributes}
-            readOnly={data.submitted_at && !isLockDoc}
+            readOnly={
+              attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
+            }
           />
         );
       },
@@ -325,7 +321,7 @@ export default memo(function Form() {
               setData("price", val);
             }}
             {...attributes}
-            readOnly={data.submitted_at && !isLockDoc}
+            readOnly={attributes.readOnly || !!data.submitted_at}
           />
         );
       },
@@ -363,15 +359,13 @@ export default memo(function Form() {
               />
             </FormInput>
           )}
-          {!isLockDoc && (
-            <FormCheckbox
-              checked={data.is_rent}
-              onCheckedChange={(val) => setData("is_rent", val)}
-              className="pt-4"
-            >
-              {t("sales.salesOrder.for_rent")}
-            </FormCheckbox>
-          )}
+          <FormCheckbox
+            checked={data.is_rent}
+            onCheckedChange={(val) => setData("is_rent", val)}
+            className="pt-4"
+          >
+            {t("sales.salesOrder.for_rent")}
+          </FormCheckbox>
 
           {data.is_rent && (
             <FormInput
@@ -391,7 +385,6 @@ export default memo(function Form() {
             className="col-start-1"
             label={t("sales.salesOrder.customer")}
             required={true}
-            readOnly={isLockDoc}
             name="customer"
           >
             <CustomerLinkModel
@@ -410,7 +403,6 @@ export default memo(function Form() {
           <FormInput
             label={t("sales.salesOrder.branch")}
             required
-            readOnly={isLockDoc}
             name="customer_branch"
           >
             <BranchLinkModel
@@ -438,37 +430,29 @@ export default memo(function Form() {
             />
           </FormInput>
 
-          <FormInput
-            label={t("sales.salesOrder.exchange_rate")}
-            name="exchange_rate"
-          >
-            <NumberInput
-              disabled={
-                !(
-                  data?.currency?.code &&
-                  data?.currency?.code !== default_currency_id
-                )
-              }
-              className="text-left"
-              currencyCode={data.currency}
-              enableExchangeRate={
-                !!(
-                  data?.currency?.code &&
-                  data?.currency?.code !== default_currency_id
-                )
-              }
-              onExchangeRate={(result) => {
-                if (result) {
-                  setData("exchange_rate", result.rate);
-                }
-              }}
-              decimalScale={2}
-              value={data.exchange_rate}
-              onValueChange={(value) => {
-                setData("exchange_rate", value);
-              }}
-            />
-          </FormInput>
+          {data?.currency?.code &&
+            data.currency.code !== default_currency_id && (
+              <FormInput
+                label={t("sales.salesOrder.exchange_rate")}
+                name="exchange_rate"
+              >
+                <NumberInput
+                  className="text-left"
+                  currencyCode={data.currency}
+                  enableExchangeRate
+                  onExchangeRate={(result) => {
+                    if (result) {
+                      setData("exchange_rate", result.rate);
+                    }
+                  }}
+                  decimalScale={2}
+                  value={data.exchange_rate}
+                  onValueChange={(value) => {
+                    setData("exchange_rate", value);
+                  }}
+                />
+              </FormInput>
+            )}
           <FormInput
             className="col-span-2 col-start-1"
             label={t("sales.salesOrder.columns.reference_so")}
@@ -490,8 +474,7 @@ export default memo(function Form() {
         value="detail"
         title={t("sales.salesOrder.items")}
         actions={
-          !data.submitted_at &&
-          !isLockDoc && (
+          !data.submitted_at && (
             <SelectModel
               from={{
                 "App\\Models\\Service\\WorkOrder": {
@@ -570,7 +553,7 @@ export default memo(function Form() {
             form={<ItemForm />}
             className="col-start-1 col-span-full"
             classNameDialog="max-w-(--breakpoint-lg)! w-full!"
-            readOnly={disabled || isLockDoc}
+            readOnly={disabled}
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => {

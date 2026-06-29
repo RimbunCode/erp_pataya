@@ -1,5 +1,5 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 
 import NumberInput from "@/Components/NumberInput";
 import DatetimePicker from "@/Components/DatetimePicker";
@@ -20,10 +20,12 @@ export default function Form() {
     { date: new Date() },
     { trackDefaultValue: false },
   );
+  const sourceWarehouseRef = useRef(data.source_warehouse);
+  sourceWarehouseRef.current = data.source_warehouse;
   const handleBarcodeSelect = useCallback(
     (selected) => {
       const selectedItem = selected?.item ?? selected;
-      const selectedUnit = selected?.unit ?? selected?.default_unit;
+      const selectedUnit = selected?.unit ?? selected?.default_uom;
       if (!selectedItem || !selectedUnit) return;
 
       setData((prev) => {
@@ -69,7 +71,7 @@ export default function Form() {
                   item: val,
                   unit: defaultUnit,
                   conversion_factor: defaultUnit?.conversion_factor,
-                  source_warehouse: data.source_warehouse,
+                  source_warehouse: dataRow.source_warehouse ?? sourceWarehouseRef.current,
                 });
               }}
               {...attributes}
@@ -171,7 +173,7 @@ export default function Form() {
         },
       },
     ];
-  }, [data]);
+  }, []);
 
   return (
     <>
@@ -194,7 +196,7 @@ export default function Form() {
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
           <FormInput name="barcode" label={t("core.form.input_barcode.label")}>
             <ItemBarcode
-              with={["item", "unit"]}
+              with={["item", "unit", "defaultUom"]}
               onSelect={handleBarcodeSelect}
             />
           </FormInput>

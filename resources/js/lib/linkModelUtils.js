@@ -190,8 +190,14 @@ export const convertTemplateLink = (value, search, asObject = false) => {
   let item = template.replace(/:((\w[\w]+{:[\w]+})|(\w[\w.]+))/g, (match) => {
     match = match.replace(/(.*?){:(.*?)}/i, ":$2");
     const newValue = getValueObject(value, match.substring(1));
-    if (typeof newValue == "object") {
-      return convertTemplateLink(newValue, search);
+    if (typeof newValue == "object" && newValue !== null) {
+      if (newValue.templateLink) {
+        return convertTemplateLink(newValue, search);
+      }
+      const firstVal = Object.values(newValue).find(
+        (v) => typeof v === "string" || typeof v === "number",
+      );
+      return firstVal != null ? String(firstVal) : match;
     }
     return newValue ?? match;
   });

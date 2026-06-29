@@ -3,7 +3,6 @@
 namespace App\Services\Finances;
 
 use App\Enums\FormStatus;
-use App\Models\Core\Currency;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\Preference;
@@ -32,10 +31,15 @@ class PurchaseInvoiceService {
         $data['expanse_head_account_id'] = $data['expense_head_account']['id'] ?? null;
         $data['return_against_id']       = $data['return_against']['id'] ?? null;
 
-        $defaultCurrency            = Preference::find('default_currency_id')->value;
-        $data['currency_code']      = Currency::find($data['currency']['id'] ?? null)?->code ?? $defaultCurrency;
+        $defaultCurrency            = Preference::find('default_currency_id')?->value;
+        $data['currency_code']      = $data['currency']['code'] ?? $defaultCurrency;
         $data['base_currency_code'] = $defaultCurrency;
-        $data['exchange_rate'] ??= 1;
+
+        if ($data['currency_code'] != $defaultCurrency && empty($data['exchange_rate'])) {
+            throw ValidationException::withMessages(['exchange_rate' => 'Exchange rate is required for non-default currency.']);
+        }
+
+        $data['exchange_rate'] = $data['currency_code'] == $defaultCurrency ? 1 : $data['exchange_rate'];
 
         return $data;
     }

@@ -87,7 +87,7 @@ class DeliveryNoteController extends Controller {
                         if ($io) {
                             $do = DeliveryNote::where('referenceable_type', InternalOrder::class)
                                 ->where('referenceable_id', $io->id)
-                                ->where('status', 'draft')
+                                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
                                 ->where('created_by_id', $request->user()->id)
                                 ->first();
                             if ($do) {
@@ -181,7 +181,6 @@ class DeliveryNoteController extends Controller {
             $data['created_by_id'] = $request->user()->id;
 
             $deliveryNote = $this->service->create($data);
-            $deliveryNote->logForCreated();
 
             DB::commit();
 

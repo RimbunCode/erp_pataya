@@ -228,6 +228,15 @@ export default function Form() {
                     "items.unit",
                     "items.sourceWarehouse",
                   ]}
+                  fields={[
+                    "items.item",
+                    "items.unit",
+                    "items.sourceWarehouse",
+                    "items.quantity",
+                    "items.description",
+                    "items.undelivered_quantity",
+                    "items.conversion_factor",
+                  ]}
                   value={data.referenceable}
                   onValueChange={(val) => {
                     setData((prev) => {
@@ -245,8 +254,8 @@ export default function Form() {
                             referenceable_type:
                               data.reference_to?.model + "Item",
                             referenceable_id: item.id,
-                            quantity: item.undelivered_quantity,
-                            required_quantity: item.undelivered_quantity,
+                            quantity: item.undelivered_quantity ?? 0,
+                            required_quantity: item.undelivered_quantity ?? 0,
                           };
                         }),
                         external_note: val?.external_note,
@@ -286,7 +295,7 @@ export default function Form() {
                 <DeliveryNoteLinkModel
                   filters={{
                     delivery_date: {
-                      "<=": data?.date ?? new Date().toISOString(),
+                      "<=": data?.delivery_date ?? new Date().toISOString(),
                     },
                     status: {
                       jsonContains: ["partially_delivered", "delivered"],
@@ -396,7 +405,9 @@ export default function Form() {
               disabledAddButton
               with={["item", "sourceWarehouse", "unit"]}
               filters={{
-                sales_order_id: data?.referenceable?.id,
+                ...(data.reference_to?.model === "App\\Models\\Sales\\SalesOrder"
+                  ? { sales_order_id: data?.referenceable?.id }
+                  : { internal_order_id: data?.referenceable?.id }),
                 undelivered_quantity: {
                   ">": 0,
                 },
@@ -417,7 +428,8 @@ export default function Form() {
                         id: generateRandom(8),
                         referenceable_type: data.reference_to?.model + "Item",
                         referenceable_id: item.id,
-                        quantity: item.undelivered_quantity,
+                        quantity: item.undelivered_quantity ?? 0,
+                        required_quantity: item.undelivered_quantity ?? 0,
                       },
                     ],
                   };

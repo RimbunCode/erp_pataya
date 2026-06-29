@@ -41,19 +41,22 @@ class InternalOrderController extends Controller {
      * Store a newly created resource in storage.
      */
     public function store(InternalOrderRequest $request) {
-        $data = $request->validated();
-        DB::beginTransaction();
+        try {
+            $data = $request->validated();
+            DB::beginTransaction();
 
-        // branch dari session
-        $data['branch_id']     = $request->session()->get('currentBranch');
-        $data['created_by_id'] = $request->user()->id;
+            $data['branch_id']     = $request->session()->get('currentBranch');
+            $data['created_by_id'] = $request->user()->id;
 
-        // create SO
-        $io = $this->service->create($data);
+            $io = $this->service->create($data);
 
-        DB::commit();
+            DB::commit();
 
-        return redirect()->route('internalOrders.show', $io)->with('id', $io->id);
+            return redirect()->route('internalOrders.show', $io)->with('id', $io->id);
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw $th;
+        }
     }
 
     /**
@@ -76,30 +79,35 @@ class InternalOrderController extends Controller {
      * Update the specified resource in storage.
      */
     public function update(InternalOrderRequest $request, InternalOrder $internalOrder) {
-        $data = $request->validated();
-        DB::beginTransaction();
+        abort_if($internalOrder->submitted_at, 403, 'Cannot update a submitted order.');
 
-        $so = $this->service->update($internalOrder, $data);
+        try {
+            $data = $request->validated();
+            DB::beginTransaction();
 
-        $so->logs()->create([
-            'user_id'  => $request->user()->id,
-            'activity' => [
-                'en' => ':user updated this',
-                'id' => ':user memperbarui ini',
-            ],
-        ]);
+            $so = $this->service->update($internalOrder, $data);
 
-        DB::commit();
+            $so->logs()->create([
+                'user_id'  => $request->user()->id,
+                'activity' => [
+                    'en' => ':user updated this',
+                    'id' => ':user memperbarui ini',
+                ],
+            ]);
 
-        return redirect()->back();
+            DB::commit();
+
+            return redirect()->back();
+        } catch (\Throwable $th) {
+            DB::rollBack();
+            throw $th;
+        }
     }
 
     /**
      * Submit Sales Order.
      */
     public function submit(Request $request, InternalOrder $internalOrder) {
-        DB::beginTransaction();
-
         $so = $this->service->submit($internalOrder);
 
         $so->logs()->create([
@@ -110,7 +118,7 @@ class InternalOrderController extends Controller {
             ],
         ]);
 
-        DB::commit();
+        return redirect()->back();
     }
 
     public function onApproved(InternalOrder $internalOrder) {

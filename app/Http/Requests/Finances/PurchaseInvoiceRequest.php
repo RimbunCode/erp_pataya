@@ -5,9 +5,7 @@ namespace App\Http\Requests\Finances;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
-use App\Models\Core\Preference;
 use Illuminate\Contracts\Validation\ValidationRule;
-use Illuminate\Validation\Rule;
 
 class PurchaseInvoiceRequest extends BaseFormRequest {
     /**
@@ -23,8 +21,6 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
-        $default_currency = Preference::find('default_currency_id')?->value;
-
         return [
             'date'                           => ['required', 'date'],
             'purchase_order.id'              => ['nullable', 'exists:purchase_orders,id'],
@@ -50,7 +46,7 @@ class PurchaseInvoiceRequest extends BaseFormRequest {
             'supplier.id'                    => ['required', 'exists:suppliers,id'],
             'supplier.*'                     => ['nullable'],
             'currency.code'                  => ['nullable', 'exists:currencies,code'],
-            'exchange_rate'                  => ['nullable', Rule::requiredIf($this->currency && $this->currency['code'] != $default_currency), 'numeric'],
+            'exchange_rate'                  => ['nullable', 'numeric'],
             'external_note'                  => ['nullable', 'string'],
             ...AdditionalDiscountRules::make($this),
             ...PaymentSchedulesRules::make($this),

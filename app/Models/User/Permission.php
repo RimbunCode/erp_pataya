@@ -21,6 +21,9 @@ class Permission extends Model {
         'translateKey' => [
             'dependsOn' => ['model'],
         ],
+        'model' => [
+            'linkable' => true,
+        ],
     ];
 
     public static function templateLink() {
