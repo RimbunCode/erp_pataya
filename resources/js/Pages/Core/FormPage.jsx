@@ -155,13 +155,13 @@ const FormPageContent = forwardRef(function FormPageContent(
   },
   ref,
 ) {
-  const { menus, addMenu, menuSelected, removeMenu } = useFormPage();
+  const { menus, addMenu, menuSelected, removeMenu, firstIds, isSingle } = useFormPage();
   const [id] = useState(generateRandom(8));
   const [openCollapsible, setOpenCollapsible] = useState(defaultOpen);
   const childrenArray = useMemo(() => Children.toArray(children), [children]);
 
   useEffect(() => {
-    if (showAt) {
+    if (showAt && !value) {
       return;
     }
     if (!show) {
@@ -176,7 +176,7 @@ const FormPageContent = forwardRef(function FormPageContent(
     return () => {
       removeMenu(id);
     };
-  }, [addMenu, id, removeMenu, show, showAt, title, value]);
+  }, [addMenu, id, removeMenu, show, title, value]);
   const headerChildren = useMemo(() => {
     return childrenArray.filter((child) => {
       return (
@@ -199,9 +199,16 @@ const FormPageContent = forwardRef(function FormPageContent(
       0
     );
   }, [childrenArray]);
-  const isSingle = menus.length <= 1 || !menus.some((menu) => menu.id === id);
-  const Trigger = collapsible ? CollapsibleTrigger : FormPageContentTrigger;
-  const Content = collapsible ? CollapsibleContent : Fragment;
+  const isFirst = firstIds?.has(id) ?? true;
+  const isMultiTab = !isSingle;
+  const effectiveCollapsible = collapsible && !(isMultiTab && isFirst);
+  const showHeaderSection =
+    headerChildren.length > 0 ||
+    (isSingle && (title || effectiveCollapsible)) ||
+    (isMultiTab && !isFirst && title) ||
+    (title && effectiveCollapsible);
+  const Trigger = effectiveCollapsible ? CollapsibleTrigger : FormPageContentTrigger;
+  const Content = effectiveCollapsible ? CollapsibleContent : Fragment;
   return (
     <TabsContent
       value={
@@ -223,17 +230,14 @@ const FormPageContent = forwardRef(function FormPageContent(
           className={cn("px-4 py-4 mt-0! border-b-0", className)}
           role="content"
         >
-          {headerChildren.length > 0 ||
-          (isSingle && collapsible) ||
-          (isSingle && title) ||
-          (title && collapsible) ? (
+          {showHeaderSection ? (
             <>
               <Trigger className="w-full pt-0 pb-1 mb-3 border-b border-muted-foreground/25 [&[data-state=open]_svg]:rotate-180">
                 {(!haveTitle || (!haveTitle && actions)) && (
                   <FormPageContentTitle className="flex items-center justify-between gap-x-4">
                     {title || value}
                     {actions}
-                    {collapsible && (
+                    {effectiveCollapsible && (
                       <ChevronDownIcon className="w-4 h-4 transition-transform duration-200 shrink-0" />
                     )}
                   </FormPageContentTitle>
@@ -318,6 +322,21 @@ const FormChildren = memo(function FormChildren({
     });
     return Array.from(mapMenus.values());
   }, [_menus]);
+
+  const isSingle = menus.length <= 1;
+
+  const firstIds = useMemo(() => {
+    const seen = new Set();
+    const ids = new Set();
+    _menus.forEach((m) => {
+      if (!seen.has(m.value)) {
+        seen.add(m.value);
+        ids.add(m.id);
+      }
+    });
+    return ids;
+  }, [_menus]);
+
   return (
     <Tabs
       value={menuSelected ?? menus?.[0]?.value ?? ""}
@@ -395,6 +414,8 @@ const FormChildren = memo(function FormChildren({
           isCreate={isCreate}
           dataBefore={dataBefore}
           form={form}
+          isSingle={isSingle}
+          firstIds={firstIds}
         >
           {children}
           {/* {hasConnections && <Connections />} */}
@@ -551,6 +572,8 @@ const FormPageProvider = memo(function FormPageProvider({
   dataBefore,
   form,
   isCreate = false,
+  isSingle = true,
+  firstIds,
 }) {
   const stableDataBefore = useMemo(() => dataBefore ?? {}, [dataBefore]);
   const metaContextValue = useMemo(
@@ -577,6 +600,8 @@ const FormPageProvider = memo(function FormPageProvider({
       dataBefore: stableDataBefore,
       isCreate,
       form,
+      isSingle,
+      firstIds,
     }),
     [
       disabled,
@@ -593,6 +618,8 @@ const FormPageProvider = memo(function FormPageProvider({
       stableDataBefore,
       isCreate,
       form,
+      isSingle,
+      firstIds,
     ],
   );
   return (
