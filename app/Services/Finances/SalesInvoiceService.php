@@ -12,6 +12,7 @@ use App\Models\Finances\Tax;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Sales\Customer;
 use App\Models\Sales\SalesOrder;
+use App\Models\Sales\SalesOrderItem;
 use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Support\Facades\DB;
@@ -45,10 +46,12 @@ class SalesInvoiceService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, SalesInvoice $salesInvoice, array $units = [], array $taxes = []) {
+    private function fillItemRelations(array $data, SalesInvoice $salesInvoice, array $units = [], array $taxes = [], array $salesOrderItems = []) {
+        $data['sales_order_item_id'] = $data['sales_order_item']['id'];
+        $data['item_id']             = $salesOrderItems[$data['sales_order_item_id']]->item_id;
+
         $unit                       = $units[$data['unit']['id']] ?? null;
         $tax                        = $taxes[$data['tax']['id'] ?? ''] ?? null;
-        $data['item_id']            = $data['item']['id'];
         $data['item_unit_id']       = $data['unit']['id'];
         $data['conversion_factor']  = $unit?->conversion_factor ?? 1;
         $data['tax_id']             = $data['tax']['id'];
@@ -60,6 +63,12 @@ class SalesInvoiceService {
         $data['price_base_currency'] = 0;
 
         return $data;
+    }
+
+    private function batchLoadSalesOrderItems(array $data): array {
+        $ids = collect($data['items'])->pluck('sales_order_item.id')->filter()->unique()->values();
+
+        return SalesOrderItem::whereIn('id', $ids)->get()->keyBy('id')->all();
     }
 
     private function batchLoadUnits(array $data): array {
@@ -91,11 +100,12 @@ class SalesInvoiceService {
         $basicAmount  = 0;
         $taxAmount    = 0;
 
-        $units = $this->batchLoadUnits($data);
-        $taxes = $this->batchLoadTaxes($data);
+        $units           = $this->batchLoadUnits($data);
+        $taxes           = $this->batchLoadTaxes($data);
+        $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes);
+            $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
             $item = $salesInvoice->items()->create($item);
 
             $item->refresh();
@@ -135,11 +145,12 @@ class SalesInvoiceService {
             ->get()
             ->keyBy('id');
 
-        $units = $this->batchLoadUnits($data);
-        $taxes = $this->batchLoadTaxes($data);
+        $units           = $this->batchLoadUnits($data);
+        $taxes           = $this->batchLoadTaxes($data);
+        $salesOrderItems = $this->batchLoadSalesOrderItems($data);
 
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes);
+            $item = $this->fillItemRelations($item, $salesInvoice, $units, $taxes, $salesOrderItems);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);

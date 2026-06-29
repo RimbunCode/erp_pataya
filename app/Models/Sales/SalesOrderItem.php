@@ -111,9 +111,10 @@ class SalesOrderItem extends Model {
             'order' => 13,
         ],
         'unbilled_quantity' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 14,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 14,
+            'linkable' => true,
         ],
         'conversion_factor' => [
             'hidden'   => true,
