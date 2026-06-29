@@ -261,7 +261,7 @@ export default function Form() {
                 with={[
                   "items",
                   "customer",
-                  "customer_branch",
+                  "customerBranch",
                   "currency",
                   "items.item",
                   "items.tax",
@@ -269,13 +269,23 @@ export default function Form() {
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
                 ]}
-                // Kolom harga (gated visibleFor) yang form butuh dari SO + items.
                 fields={[
                   "amount",
+                  "discount_on",
+                  "discount_rate",
+                  "discount_amount",
+                  "exchange_rate",
+                  "external_note",
+                  "items.item",
+                  "items.unit",
+                  "items.tax",
+                  "items.quantity",
+                  "items.description",
                   "items.price",
                   "items.basic_amount",
                   "items.tax_rate",
                   "items.tax_amount",
+                  "items.conversion_factor",
                 ]}
                 value={data.sales_order}
                 onValueChange={(val) => {
@@ -329,22 +339,23 @@ export default function Form() {
               />
             </FormInput>
 
-            {data?.currency?.code && data.currency.code !== default_currency_id && (
-              <FormInput
-                label={t("finances.salesInvoice.exchange_rate")}
-                name="exchange_rate"
-                readOnly
-              >
-                <NumberInput
-                  className="text-left"
-                  decimalScale={2}
-                  value={data.exchange_rate}
-                  onValueChange={(value) => {
-                    setData("exchange_rate", value);
-                  }}
-                />
-              </FormInput>
-            )}
+            {data?.currency?.code &&
+              data.currency.code !== default_currency_id && (
+                <FormInput
+                  label={t("finances.salesInvoice.exchange_rate")}
+                  name="exchange_rate"
+                  readOnly
+                >
+                  <NumberInput
+                    className="text-left"
+                    decimalScale={2}
+                    value={data.exchange_rate}
+                    onValueChange={(value) => {
+                      setData("exchange_rate", value);
+                    }}
+                  />
+                </FormInput>
+              )}
           </div>
           <div>
             <FormCheckbox
@@ -526,7 +537,6 @@ export default function Form() {
             name="SalesInvoiceItems"
             className="col-start-1 col-span-2"
             form={<ItemForm />}
-            disabled={true}
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}

@@ -31,14 +31,14 @@ class SalesOrderItem extends Model {
     ];
     protected array $configColumns = [
         'item' => [
-            'type'  => 'relation',
             'show'  => true,
             'order' => 0,
         ],
         'quantity' => [
-            'type'  => 'numeric',
-            'show'  => true,
-            'order' => 1,
+            'type'     => 'numeric',
+            'show'     => true,
+            'order'    => 1,
+            'linkable' => true,
         ],
         'unit' => [
             'type'  => 'relation',
@@ -85,8 +85,9 @@ class SalesOrderItem extends Model {
             'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'description' => [
-            'show'  => false,
-            'order' => 9,
+            'show'     => false,
+            'order'    => 9,
+            'linkable' => true,
         ],
         'sourceWarehouse' => [
             'type'  => 'relation',
@@ -99,9 +100,10 @@ class SalesOrderItem extends Model {
             'order' => 11,
         ],
         'undelivered_quantity' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 12,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 12,
+            'linkable' => true,
         ],
         'billed_quantity' => [
             'type'  => 'numeric',
@@ -142,7 +144,7 @@ class SalesOrderItem extends Model {
             'ignore' => true,
         ],
         'sales_order_id' => [
-            'ignore' => true,
+            'hidden' => true,
         ],
     ];
 

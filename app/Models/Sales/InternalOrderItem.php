@@ -2,8 +2,8 @@
 
 namespace App\Models\Sales;
 
+use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
-use App\Models\Inventory\Unit;
 use App\Models\Inventory\Warehouse;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -22,9 +22,10 @@ class InternalOrderItem extends Model {
             'order' => 0,
         ],
         'quantity' => [
-            'type'  => 'numeric',
-            'show'  => true,
-            'order' => 1,
+            'type'     => 'numeric',
+            'show'     => true,
+            'order'    => 1,
+            'linkable' => true,
         ],
         'unit' => [
             'type'  => 'relation',
@@ -37,8 +38,9 @@ class InternalOrderItem extends Model {
             'order' => 3,
         ],
         'description' => [
-            'show'  => false,
-            'order' => 4,
+            'show'     => false,
+            'order'    => 4,
+            'linkable' => true,
         ],
         'delivered_quantity' => [
             'type'  => 'numeric',
@@ -46,9 +48,10 @@ class InternalOrderItem extends Model {
             'order' => 5,
         ],
         'undelivered_quantity' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 6,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 6,
+            'linkable' => true,
         ],
         'conversion_factor' => [
             'hidden'   => true,
@@ -71,7 +74,7 @@ class InternalOrderItem extends Model {
     }
 
     public function unit() {
-        return $this->belongsTo(Unit::class);
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id');
     }
 
     public function sourceWarehouse() {

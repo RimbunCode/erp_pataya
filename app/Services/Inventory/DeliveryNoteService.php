@@ -166,6 +166,9 @@ class DeliveryNoteService {
                 $isRent = true;
             }
             // update delivered quantity dari Sales Order Item
+            if (! $item->referenceable) {
+                throw new \RuntimeException("DeliveryNoteItem {$item->id} has no referenceable (type: {$item->referenceable_type}, id: {$item->referenceable_id})");
+            }
             if ($returnAgainst && ! $availableToRent) {
                 $item->referenceable->decrement('delivered_quantity', $item->quantity);
             } else {

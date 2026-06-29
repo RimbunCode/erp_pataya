@@ -3,6 +3,10 @@
 namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Models\Sales\InternalOrder;
+use App\Models\Sales\InternalOrderItem;
+use App\Models\Sales\SalesOrder;
+use App\Models\Sales\SalesOrderItem;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
@@ -27,7 +31,7 @@ class DeliveryNoteRequest extends BaseFormRequest {
             'reference_to.id'                => ['required', 'string', 'exists:permissions,id'],
             'reference_to.*'                 => ['nullable'],
             'referenceable_id'               => ['required', 'string'],
-            'referenceable_type'             => ['required', 'string'],
+            'referenceable_type'             => ['required', Rule::in([SalesOrder::class, InternalOrder::class])],
             'delivery_date'                  => ['required', 'date'],
             'items.*'                        => ['required', 'array', 'min:1'],
             'items.*.id'                     => ['required', 'string'],
@@ -35,7 +39,7 @@ class DeliveryNoteRequest extends BaseFormRequest {
             'items.*.item.*'                 => ['nullable'],
             'items.*.source_warehouse.id'    => ['required', 'exists:warehouses,id'],
             'items.*.referenceable_id'       => ['required', 'string'],
-            'items.*.referenceable_type'     => ['required', 'string'],
+            'items.*.referenceable_type'     => ['required', Rule::in([SalesOrderItem::class, InternalOrderItem::class])],
             'items.*.description'            => ['nullable', 'string'],
             'items.*.quantity'               => ['required', 'numeric', 'min:1'],
             'items.*.unit.id'                => ['required', 'exists:item_units,id'],
