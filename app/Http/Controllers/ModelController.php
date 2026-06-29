@@ -482,27 +482,108 @@ class ModelController extends Controller {
         preg_match_all('/:((\w[\w]+{:[\w]+})|(\w[\w.]*))/', $template, $matches);
         if (! $isCache) {
             if ($request->has('keywords')) {
-                $attributes = $request->keywords;
+                $flatAttributes = $request->keywords;
+                $resolvedPaths  = [];
             } else {
-                // Hapus tanda `:` agar hanya mendapatkan nama atribut
-                $attributes = array_map(
+                $allAttrs = array_unique(array_map(
                     fn ($attr) => preg_replace('/{:.*}/', '', ltrim($attr, ':')),
                     $matches[0],
-                );
+                ));
+
+                // Gunakan FilterColumnResolver untuk klasifikasi tiap token via getColumns —
+                // ini sumber kebenaran: apakah segmen adalah relasi atau kolom/attribute.
+                $resolver = new FilterColumnResolver($model::getColumns(1, true));
+
+                $flatAttributes = [];
+                // Tiap entry: ['relations' => [{function, isMorph},...], 'columnName' => 'col']
+                $resolvedPaths  = [];
+
+                foreach ($allAttrs as $attr) {
+                    $path = $resolver->resolvePath($attr);
+                    if ($path === null) {
+                        continue; // token tidak valid / tidak ditemukan di getColumns
+                    }
+
+                    $colType = $path['column']['type'] ?? null;
+                    $isRelation = \in_array($colType, ['relation', 'relations'], true);
+
+                    if (empty($path['relations']) && ! $isRelation) {
+                        // Kolom/attribute flat di tabel model saat ini
+                        $flatAttributes[] = $path['columnName'];
+                    } elseif ($isRelation && empty($path['relations'])) {
+                        // Bare relation tanpa kolom spesifik — resolve kolom dari templateLink child
+                        $relatedClass = $path['column']['related'] ?? null;
+                        if ($relatedClass && \method_exists($relatedClass, 'templateLink')) {
+                            $childResolver = new FilterColumnResolver($relatedClass::getColumns(1, true));
+                            \preg_match_all('/:((\w[\w]+{:[\w]+})|(\w[\w.]*))/', (string) $relatedClass::templateLink(), $m);
+                            $childAttrs = \array_unique(\array_map(
+                                fn ($t) => \preg_replace('/{:.*}/', '', \ltrim($t, ':')),
+                                $m[0],
+                            ));
+                            foreach ($childAttrs as $childAttr) {
+                                $childPath = $childResolver->resolvePath($childAttr);
+                                if ($childPath === null) {
+                                    continue;
+                                }
+                                $childColType = $childPath['column']['type'] ?? null;
+                                if (! \in_array($childColType, ['relation', 'relations'], true)) {
+                                    // Tambahkan sebagai path dengan 1 relasi
+                                    $resolvedPaths[] = [
+                                        'relations'  => [[
+                                            'function' => $path['column']['nameOfFunction'] ?? $path['columnName'],
+                                            'isMorph'  => ($path['column']['typeRelation'] ?? 'basic') === 'morph',
+                                        ]],
+                                        'column'     => $childPath['column'],
+                                        'columnName' => $childPath['columnName'],
+                                    ];
+                                }
+                            }
+                        }
+                    } elseif (! $isRelation) {
+                        // Satu atau lebih level relasi dengan kolom akhir — whereHas bersarang
+                        $resolvedPaths[] = $path;
+                    }
+                    // Jika isRelation && !empty(relations): segmen akhir adalah relasi tanpa kolom → skip
+                    // (tidak bisa search di relasi tanpa tahu kolom tujuan)
+                }
             }
-            $attributes = collect($attributes)->unique()->toArray();
+
+            $flatAttributes = \collect($flatAttributes)->unique()->values()->toArray();
+
+            // Closure rekursif untuk membangun nested whereHas dari chain relasi
+            $buildRelationQuery = function (Builder $query, array $relations, string $columnName, string $item) use (&$buildRelationQuery) {
+                $rel  = array_shift($relations);
+                $fn   = $rel['function'];
+                $query->orWhereHas($fn, function (Builder $q) use ($relations, $columnName, $item, $buildRelationQuery) {
+                    if (empty($relations)) {
+                        $q->where($columnName, 'like', "%{$item}%");
+                    } else {
+                        $buildRelationQuery($q, $relations, $columnName, $item);
+                    }
+                });
+            };
+
+            // Closure untuk menambahkan semua relation search ke query
+            $addRelationSearch = function (Builder $query, string $item) use ($resolvedPaths, $buildRelationQuery) {
+                foreach ($resolvedPaths as $path) {
+                    $buildRelationQuery($query, $path['relations'], $path['columnName'], $item);
+                }
+            };
+
             if (\method_exists($model, 'scopeLinkModel')) {
                 $query = $model::linkModel($search);
             } else {
-                $query = $model::where(function (Builder $query) use ($search, $attributes, $request, $isCache) {
+                $query = $model::where(function (Builder $query) use ($search, $flatAttributes, $addRelationSearch, $request, $isCache) {
                     $splitSearch = explode(' ', $search);
                     foreach ($splitSearch as $item) {
-                        $hasTranslate = ! $isCache && $request->has('translate');
 
                         preg_match_all('/[a-zA-Z0-9]+/', $item, $matches);
 
                         if (count($matches[0]) == 1 && ! Utils::isNullOrWhitespace($item) && $item == $matches[0][0]) {
-                            $query->whereAny($attributes, 'like', "%{$item}%");
+                            if ($flatAttributes) {
+                                $query->whereAny($flatAttributes, 'like', "%{$item}%");
+                            }
+                            $addRelationSearch($query, $item);
                             $this->queryTranslations($query, $request, $item, 'or', ! $isCache);
 
                             continue;
@@ -511,16 +592,22 @@ class ModelController extends Controller {
                             continue;
                         }
 
-                        $query->where(function (Builder $query) use ($matches, $item, $attributes, $request, $isCache) {
+                        $query->where(function (Builder $query) use ($matches, $item, $flatAttributes, $addRelationSearch, $request, $isCache) {
                             if (! Utils::isNullOrWhitespace($item)) {
-                                $query->whereAny($attributes, 'like', "%{$item}%");
+                                if ($flatAttributes) {
+                                    $query->whereAny($flatAttributes, 'like', "%{$item}%");
+                                }
+                                $addRelationSearch($query, $item);
                                 $this->queryTranslations($query, $request, $item, 'or', ! $isCache);
                             }
                             foreach ($matches[0] as $match) {
                                 if (Utils::isNullOrWhitespace($match)) {
                                     continue;
                                 }
-                                $query->orWhereAny($attributes, 'like', "%{$match}%");
+                                if ($flatAttributes) {
+                                    $query->orWhereAny($flatAttributes, 'like', "%{$match}%");
+                                }
+                                $addRelationSearch($query, $match);
                                 $this->queryTranslations($query, $request, $match, 'or', ! $isCache);
                             }
                         });
