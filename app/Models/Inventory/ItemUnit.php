@@ -15,6 +15,7 @@ class ItemUnit extends Model {
         'is_default'                => 'boolean',
         'is_manual'                 => 'boolean',
         'generated_by_default_unit' => 'boolean',
+        'conversion_factor'         => 'float',
     ];
     public string $translateKey    = 'inventories.itemUnit';
     protected array $configColumns = [

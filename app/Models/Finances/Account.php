@@ -15,9 +15,11 @@ class Account extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'is_group'    => 'boolean',
-        'is_disabled' => 'boolean',
-        'is_contra'   => 'boolean',
+        'is_group'       => 'boolean',
+        'is_disabled'    => 'boolean',
+        'is_contra'      => 'boolean',
+        'tax_rate'       => 'float',
+        'balance_amount' => 'float',
     ];
 
     protected static function loadRelationsOnShow() {

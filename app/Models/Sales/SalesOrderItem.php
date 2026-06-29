@@ -29,6 +29,24 @@ class SalesOrderItem extends Model {
         'basic_amount',
         'tax_amount',
     ];
+    protected $casts = [
+        'quantity'                      => 'float',
+        'ordered_quantity'              => 'float',
+        'delivered_quantity'            => 'float',
+        'undelivered_quantity'          => 'float',
+        'conversion_factor'             => 'float',
+        'unit_price'                    => 'float',
+        'unit_price_base_currency'      => 'float',
+        'discount_rate'                 => 'float',
+        'discount_amount'               => 'float',
+        'discount_amount_base_currency' => 'float',
+        'subtotal'                      => 'float',
+        'subtotal_base_currency'        => 'float',
+        'tax_amount'                    => 'float',
+        'tax_amount_base_currency'      => 'float',
+        'total'                         => 'float',
+        'total_base_currency'           => 'float',
+    ];
     protected array $configColumns = [
         'item' => [
             'show'  => true,

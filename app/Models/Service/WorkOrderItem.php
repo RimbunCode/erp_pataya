@@ -11,8 +11,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class WorkOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation  = 'workOrder';
-    protected $guarded             = ['id'];
+    public static $parentRelation = 'workOrder';
+    protected $guarded            = ['id'];
+    protected $casts              = [
+        'quantity'        => 'float',
+        'quantity_done'   => 'float',
+        'unit_price'      => 'float',
+        'discount_rate'   => 'float',
+        'discount_amount' => 'float',
+        'subtotal'        => 'float',
+        'tax_amount'      => 'float',
+        'total'           => 'float',
+    ];
     public string $translateKey    = 'service.workOrder.workOrderItem';
     protected array $configColumns = [
         'item' => [

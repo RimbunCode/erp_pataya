@@ -15,8 +15,14 @@ class PurchaseOrder extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'required_date' => 'datetime',
-        'date'          => 'datetime',
+        'required_date'                 => 'datetime',
+        'date'                          => 'datetime',
+        'exchange_rate'                 => 'float',
+        'amount'                        => 'float',
+        'amount_base_currency'          => 'float',
+        'discount_rate'                 => 'float',
+        'discount_amount'               => 'float',
+        'discount_amount_base_currency' => 'float',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/PO-@[iiii]/@[yy]';
 

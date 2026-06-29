@@ -23,6 +23,12 @@ class PrintTemplate extends Model {
         'is_default'           => 'boolean',
         'is_letter_head'       => 'boolean',
         'show_absolute_values' => 'boolean',
+        'width'                => 'float',
+        'height'               => 'float',
+        'margin_top'           => 'float',
+        'margin_bottom'        => 'float',
+        'margin_left'          => 'float',
+        'margin_right'         => 'float',
     ];
     protected $appends           = ['title'];
     public string $keyBreadcrumb = 'name';

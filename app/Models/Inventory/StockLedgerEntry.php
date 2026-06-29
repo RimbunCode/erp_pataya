@@ -55,8 +55,14 @@ class StockLedgerEntry extends Model {
         'warehouse',
     ];
     protected $casts = [
-        'stock_queue' => 'array',
-        'is_valuated' => 'boolean',
+        'stock_queue'                => 'array',
+        'is_valuated'                => 'boolean',
+        'conversion_factor'          => 'float',
+        'quantity_change'            => 'float',
+        'quantity_after_transaction' => 'float',
+        'valuation_rate'             => 'float',
+        'balance_stock_value'        => 'float',
+        'change_in_stock_value'      => 'float',
     ];
 
     public static function templateLink() {

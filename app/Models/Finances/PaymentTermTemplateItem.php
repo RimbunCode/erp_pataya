@@ -11,6 +11,7 @@ class PaymentTermTemplateItem extends Model {
 
     public static $parentRelation  = 'paymentTermTemplate';
     protected $guarded             = ['id'];
+    protected $casts               = ['invoice_portion' => 'float', 'discount' => 'float'];
     public string $translateKey    = 'finances.paymentTerm';
     protected array $configColumns = [
         'due_date_based_on' => [

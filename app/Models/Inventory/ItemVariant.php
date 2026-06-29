@@ -21,6 +21,7 @@ class ItemVariant extends Model {
         'is_disabled'            => 'boolean',
         'allow_alternative_item' => 'boolean',
         'is_stock_item'          => 'boolean',
+        'conversion_factor'      => 'float',
     ];
 
     // protected $appends = ['sku'];

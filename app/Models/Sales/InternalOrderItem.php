@@ -12,9 +12,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class InternalOrderItem extends Model {
     use HasUlids, SoftDeletes;
 
-    public static $parentRelation  = 'internalOrder';
-    public string $translateKey    = 'sales.internalOrder.item';
-    protected $guarded             = ['id'];
+    public static $parentRelation = 'internalOrder';
+    public string $translateKey   = 'sales.internalOrder.item';
+    protected $guarded            = ['id'];
+    protected $casts              = [
+        'quantity'          => 'float',
+        'conversion_factor' => 'float',
+        'unit_price'        => 'float',
+        'subtotal'          => 'float',
+    ];
     protected array $configColumns = [
         'item' => [
             'type'  => 'relation',

@@ -20,9 +20,21 @@ class SalesInvoiceItem extends Model {
         [SalesInvoice::class, [Permission::Write, Permission::Create]],
     ];
 
-    public static $parentRelation  = 'salesInvoice';
-    public string $translateKey    = 'finances.salesInvoice.item';
-    protected $guarded             = ['id'];
+    public static $parentRelation = 'salesInvoice';
+    public string $translateKey   = 'finances.salesInvoice.item';
+    protected $guarded            = ['id'];
+    protected $casts              = [
+        'quantity'                      => 'float',
+        'conversion_factor'             => 'float',
+        'unit_price'                    => 'float',
+        'unit_price_base_currency'      => 'float',
+        'discount_rate'                 => 'float',
+        'discount_amount'               => 'float',
+        'discount_amount_base_currency' => 'float',
+        'subtotal'                      => 'float',
+        'tax_amount'                    => 'float',
+        'total'                         => 'float',
+    ];
     protected array $configColumns = [
         'item' => [
             'type'  => 'relation',

@@ -73,12 +73,17 @@ class PaymentSchedule extends Model {
     protected $appends          = ['status'];
     public string $translateKey = 'finances.paymentSchedule';
     protected $casts            = [
-        'for_internal'  => 'boolean',
-        'due_date'      => 'datetime',
-        'payment_date'  => 'datetime',
-        'submitted_at'  => 'datetime',
-        'discount_date' => 'datetime',
-        'logs'          => Json::class,
+        'for_internal'       => 'boolean',
+        'due_date'           => 'datetime',
+        'payment_date'       => 'datetime',
+        'submitted_at'       => 'datetime',
+        'discount_date'      => 'datetime',
+        'logs'               => Json::class,
+        'invoice_portion'    => 'float',
+        'payment_amount'     => 'float',
+        'paid_amount'        => 'float',
+        'outstanding_amount' => 'float',
+        'discount'           => 'float',
     ];
     protected $guarded = ['id'];
 
