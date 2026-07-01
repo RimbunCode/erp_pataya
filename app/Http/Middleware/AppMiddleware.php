@@ -25,7 +25,14 @@ class AppMiddleware extends Middleware {
                 $currentBranch = $user->default_branch_id;
                 $request->session()->put('currentBranch', $currentBranch);
             }
-            $branches                 = $user->branches()->get();
+
+            $branchesCacheKey = 'user_branches_' . $user->id;
+            $branches         = $request->session()->get($branchesCacheKey);
+            if ($branches === null) {
+                $branches = $user->branches()->get();
+                $request->session()->put($branchesCacheKey, $branches);
+            }
+
             $permissions              = $request->session()->get('permissions');
             $permissionsVersion       = $request->session()->get('permissions_version');
             $latestPermissionsVersion = $this->resolvePermissionsVersion($user->id);
@@ -51,10 +58,15 @@ class AppMiddleware extends Middleware {
     }
 
     public function share(Request $request): array {
-        $preferences = Preference::query()->pluck('value', 'key');
+        $preferences = cache()->remember('app_preferences', 300, function (): \Illuminate\Support\Collection {
+            return Preference::query()->pluck('value', 'key');
+        });
+
         $countryId   = $preferences->get('country_id');
         $countryName = $countryId !== null
-            ? Country::query()->whereKey($countryId)->value('name')
+            ? cache()->remember('app_country_name_' . $countryId, 300, function () use ($countryId): ?string {
+                return Country::query()->whereKey($countryId)->value('name');
+            })
             : null;
 
         return [

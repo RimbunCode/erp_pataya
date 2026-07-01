@@ -20,7 +20,7 @@ class PayoutRequestedNotification extends BaseNotification {
             'type'       => 'payout_requested',
             'title'      => 'Permintaan Payout Baru',
             'body'       => "{$instructor->name} mengajukan payout sebesar Rp {$amount}",
-            'action_url' => '/admin/finance',
+            'action_url' => '/admin/finance?tab=payouts',
             'menu_key'   => 'finance',
         ];
     }

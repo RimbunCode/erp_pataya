@@ -102,10 +102,13 @@ class DashboardController extends Controller {
                 ->where('status', FormStatus::APPROVED->value)
                 ->whereNotNull('verified_at')
                 ->where('verified_at', '>=', $since)
-                ->get(['amount', 'verified_at'])
-                ->map(fn (Payment $p) => [
-                    'date'   => $p->verified_at->toDateString(),
-                    'amount' => (float) $p->amount,
+                ->selectRaw('DATE(verified_at) as date, SUM(amount) as amount')
+                ->groupByRaw('DATE(verified_at)')
+                ->orderByRaw('DATE(verified_at)')
+                ->get()
+                ->map(fn ($row) => [
+                    'date'   => $row->date,
+                    'amount' => (float) $row->amount,
                 ])->values()->all();
         }
 
@@ -115,10 +118,13 @@ class DashboardController extends Controller {
                     $q->where('status', FormStatus::ACTIVE->value)->orWhereNull('status');
                 })
                 ->where('enrolled_at', '>=', $since)
-                ->get(['enrolled_at'])
-                ->map(fn (Enrollment $e) => [
-                    'date'  => $e->enrolled_at->toDateString(),
-                    'count' => 1,
+                ->selectRaw('DATE(enrolled_at) as date, COUNT(*) as count')
+                ->groupByRaw('DATE(enrolled_at)')
+                ->orderByRaw('DATE(enrolled_at)')
+                ->get()
+                ->map(fn ($row) => [
+                    'date'  => $row->date,
+                    'count' => (int) $row->count,
                 ])->values()->all();
         }
 

@@ -355,7 +355,11 @@ export default function SystemFinance() {
     revenueTimeSeries = [],
     paymentStatusTimeSeries = [],
   } = usePage().props;
-  const [activeTab, setActiveTab] = useState("payments");
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    return ["payments", "payouts", "settings"].includes(tab) ? tab : "payments";
+  });
 
   const [selectedPaymentId, setSelectedPaymentId] = useState(null);
   const [paymentFilterStatus, setPaymentFilterStatus] = useState("all");

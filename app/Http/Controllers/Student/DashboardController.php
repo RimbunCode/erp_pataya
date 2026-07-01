@@ -229,19 +229,25 @@ class DashboardController extends Controller {
                 $q->where('status', FormStatus::ACTIVE->value)->orWhereNull('status');
             })
             ->where('enrolled_at', '>=', $since)
-            ->get(['enrolled_at'])
-            ->map(fn (Enrollment $e) => [
-                'date'  => $e->enrolled_at->toDateString(),
-                'count' => 1,
+            ->selectRaw('DATE(enrolled_at) as date, COUNT(*) as count')
+            ->groupByRaw('DATE(enrolled_at)')
+            ->orderByRaw('DATE(enrolled_at)')
+            ->get()
+            ->map(fn ($row) => [
+                'date'  => $row->date,
+                'count' => (int) $row->count,
             ])->values()->all();
 
         $progressTimeSeries = $user->progress()
             ->where('is_completed', true)
             ->where('completed_at', '>=', $since)
-            ->get(['completed_at'])
-            ->map(fn ($p) => [
-                'date'  => $p->completed_at->toDateString(),
-                'count' => 1,
+            ->selectRaw('DATE(completed_at) as date, COUNT(*) as count')
+            ->groupByRaw('DATE(completed_at)')
+            ->orderByRaw('DATE(completed_at)')
+            ->get()
+            ->map(fn ($row) => [
+                'date'  => $row->date,
+                'count' => (int) $row->count,
             ])->values()->all();
 
         return Inertia::render('Students/Dashboard', [

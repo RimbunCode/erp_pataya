@@ -43,6 +43,7 @@ class FinancialController extends Controller {
             ])
             ->where('instructor_id', $user->id)
             ->latest('created_at')
+            ->limit(100)
             ->get()
             ->map(function (InstructorEarning $earning) use ($now): array {
                 $grossAmount   = (float) $earning->gross_amount;
@@ -102,10 +103,13 @@ class FinancialController extends Controller {
         $earningTimeSeries = InstructorEarning::query()
             ->where('instructor_id', $user->id)
             ->where('created_at', '>=', $since)
-            ->get(['instructor_amount', 'created_at'])
-            ->map(fn (InstructorEarning $e) => [
-                'date'   => $e->created_at->toDateString(),
-                'amount' => (float) $e->instructor_amount,
+            ->selectRaw('DATE(created_at) as date, SUM(instructor_amount) as amount')
+            ->groupByRaw('DATE(created_at)')
+            ->orderByRaw('DATE(created_at)')
+            ->get()
+            ->map(fn ($row) => [
+                'date'   => $row->date,
+                'amount' => (float) $row->amount,
             ])->values()->all();
 
         return Inertia::render('Instructors/Financials', [

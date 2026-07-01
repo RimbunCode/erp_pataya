@@ -6,7 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Jobs\IssueCertificateJob;
 use App\Models\Enrollment;
 use App\Models\Submission;
+use App\Models\User\User;
 use App\Models\UserProgress;
+use App\Notifications\SubmissionGradedNotification;
 use App\Services\CertificateService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,6 +52,11 @@ class SubmissionController extends Controller {
             ]);
 
             $this->dispatchIfCourseCompleted($enrollment);
+        }
+
+        $submission->loadMissing(['user', 'content.section.course']);
+        if ($submission->user) {
+            $submission->user->notify(new SubmissionGradedNotification($submission));
         }
 
         return back()->with('success', 'Nilai berhasil disimpan.');

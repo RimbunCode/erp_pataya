@@ -37,7 +37,7 @@ class CourseListController extends Controller {
 
         $submissions = $user->submissions()
             ->with('files')
-            ->get();
+            ->get(['id', 'content_id', 'status', 'submitted_at', 'notes', 'grade', 'feedback', 'graded_at']);
         $submittedContentIds = $submissions
             ->filter(fn ($submission) => $submission->files->isNotEmpty())
             ->pluck('content_id');

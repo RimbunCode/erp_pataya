@@ -10,6 +10,9 @@ use App\Http\Requests\Admin\UpdateCompanyFeeRequest;
 use App\Http\Requests\Admin\UpdatePayoutDelayRequest;
 use App\Models\Finance\InstructorPayoutRequest;
 use App\Models\Payment;
+use App\Notifications\PaymentApprovedNotification;
+use App\Notifications\PaymentRejectedNotification;
+use App\Notifications\PayoutRespondedNotification;
 use App\Services\Finance\InstructorPayoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -189,6 +192,11 @@ class SystemFinanceController extends Controller {
             $this->instructorPayoutService->createEarningFromApprovedPayment($payment);
         });
 
+        $payment->loadMissing(['user', 'course']);
+        if ($payment->user) {
+            $payment->user->notify(new PaymentApprovedNotification($payment));
+        }
+
         return back()->with('success', 'Pembayaran berhasil disetujui.');
     }
 
@@ -222,6 +230,11 @@ class SystemFinanceController extends Controller {
                 'status' => FormStatus::REJECTED->value,
             ]);
         });
+
+        $payment->loadMissing(['user', 'course']);
+        if ($payment->user) {
+            $payment->user->notify(new PaymentRejectedNotification($payment));
+        }
 
         return back()->with('success', 'Pembayaran berhasil ditolak.');
     }
@@ -265,7 +278,12 @@ class SystemFinanceController extends Controller {
             abort(401);
         }
 
-        $this->instructorPayoutService->approvePayoutRequest($payoutRequest, $actor);
+        $updated = $this->instructorPayoutService->approvePayoutRequest($payoutRequest, $actor);
+
+        $updated->loadMissing('instructor');
+        if ($updated->instructor) {
+            $updated->instructor->notify(new PayoutRespondedNotification($updated));
+        }
 
         return back()->with('success', 'Request payout berhasil disetujui.');
     }
@@ -277,7 +295,12 @@ class SystemFinanceController extends Controller {
         }
 
         $validated = $request->validated();
-        $this->instructorPayoutService->rejectPayoutRequest($payoutRequest, $actor, (string) $validated['reason']);
+        $updated = $this->instructorPayoutService->rejectPayoutRequest($payoutRequest, $actor, (string) $validated['reason']);
+
+        $updated->loadMissing('instructor');
+        if ($updated->instructor) {
+            $updated->instructor->notify(new PayoutRespondedNotification($updated));
+        }
 
         return back()->with('success', 'Request payout berhasil ditolak.');
     }
@@ -292,7 +315,7 @@ class SystemFinanceController extends Controller {
         $proofPath = $request->file('proof_file')->store('payout-proofs', 'local');
 
         try {
-            $this->instructorPayoutService->markPayoutAsPaid(
+            $updated = $this->instructorPayoutService->markPayoutAsPaid(
                 $payoutRequest,
                 $actor,
                 (string) $validated['transfer_reference'],
@@ -301,6 +324,11 @@ class SystemFinanceController extends Controller {
         } catch (\Throwable $exception) {
             Storage::disk('local')->delete($proofPath);
             throw $exception;
+        }
+
+        $updated->loadMissing('instructor');
+        if ($updated->instructor) {
+            $updated->instructor->notify(new PayoutRespondedNotification($updated));
         }
 
         return back()->with('success', 'Payout berhasil ditandai paid.');

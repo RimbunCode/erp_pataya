@@ -5,6 +5,7 @@ import { usePage } from "@inertiajs/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import { useMemo } from "react";
 import ToggleTheme from "../ToggleTheme";
+import Notifications from "./Notifications";
 
 export default function MainNavbar({
   title,
@@ -91,6 +92,7 @@ export default function MainNavbar({
       {/* Right - search + avatar */}
       <div className="flex items-center gap-4">
         <ToggleTheme />
+        <Notifications />
 
         {/* Avatar + dropdown */}
         <div className="flex items-center gap-3 relative">

@@ -6,6 +6,7 @@ use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RejectCoursePublishRequestRequest;
 use App\Models\CoursePublishRequest;
+use App\Notifications\CourseApprovalRespondedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -95,6 +96,11 @@ class CourseApprovalController extends Controller {
             ]);
         });
 
+        $coursePublishRequest->loadMissing(['course', 'requester']);
+        if ($coursePublishRequest->requester) {
+            $coursePublishRequest->requester->notify(new CourseApprovalRespondedNotification($coursePublishRequest));
+        }
+
         return back()->with('success', 'Permintaan publish course disetujui.');
     }
 
@@ -113,6 +119,11 @@ class CourseApprovalController extends Controller {
                 'rejection_reason' => $validated['reason'],
             ]);
         });
+
+        $coursePublishRequest->loadMissing(['course', 'requester']);
+        if ($coursePublishRequest->requester) {
+            $coursePublishRequest->requester->notify(new CourseApprovalRespondedNotification($coursePublishRequest));
+        }
 
         return back()->with('success', 'Permintaan publish course ditolak.');
     }

@@ -7,8 +7,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\Payment;
+use App\Models\User\User;
+use App\Notifications\PaymentReceivedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -98,6 +101,23 @@ class EnrollmentController extends Controller {
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($path);
             throw $e;
+        }
+
+        $lastPayment = Payment::query()
+            ->where('user_id', auth()->id())
+            ->latest('created_at')
+            ->with(['user:id,name', 'course:id,title'])
+            ->first();
+
+        if ($lastPayment) {
+            $adminRecipients = User::query()
+                ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+                ->whereHas('adminPermissions', fn ($q) => $q->whereIn('name', ['finance_admin', 'super_admin']))
+                ->get();
+
+            if ($adminRecipients->isNotEmpty()) {
+                Notification::send($adminRecipients, new PaymentReceivedNotification($lastPayment));
+            }
         }
 
         return back()->with('success', 'Pembayaran berhasil dikirim. Menunggu verifikasi admin.');
