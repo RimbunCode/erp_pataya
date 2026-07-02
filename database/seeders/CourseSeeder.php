@@ -11,11 +11,12 @@ use Illuminate\Database\Seeder;
 
 class CourseSeeder extends Seeder {
     public function run(): void {
-        $instructor = User::query()
+        $instructors = User::query()
             ->whereHas('roles', fn ($query) => $query->where('name', 'instructor'))
-            ->first();
+            ->orderBy('created_at')
+            ->get();
 
-        if (! $instructor) {
+        if ($instructors->isEmpty()) {
             return;
         }
 
@@ -23,10 +24,15 @@ class CourseSeeder extends Seeder {
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $courseIndex = 0;
+
         foreach ($categories as $categoryIndex => $category) {
             $courseCount = $categoryIndex % 2 === 0 ? 1 : 2;
 
             for ($courseNumber = 1; $courseNumber <= $courseCount; $courseNumber++) {
+                $instructor = $instructors[$courseIndex % $instructors->count()];
+                $courseIndex++;
+
                 $course = Course::query()->create([
                     'title'            => "{$category->name} Essentials {$courseNumber}",
                     'description'      => "Program pembelajaran {$category->name} untuk memperkuat kompetensi praktik dan implementasi di lapangan.",

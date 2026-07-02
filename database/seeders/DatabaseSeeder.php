@@ -17,7 +17,7 @@ class DatabaseSeeder extends Seeder {
             UserSeeder::class,
             CategorySeeder::class,
             CourseSeeder::class,
-
+            EnrollmentPaymentSeeder::class,
         ]);
     }
 }
