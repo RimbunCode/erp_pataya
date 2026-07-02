@@ -23,7 +23,7 @@ class StoreInstructorRoleRequestRequest extends BaseFormRequest {
         return [
             'notes'      => ['required', 'string', 'max:2000'],
             'files'      => ['nullable', 'array', 'size:1'],
-            'files.*'    => ['required', 'file', 'max:10240'],
+            'files.*'    => ['required', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png,webp'],
             'filesId'    => ['nullable', 'array', 'size:1'],
             'filesId.*'  => ['required', 'string', 'exists:files,id'],
             'name'       => ['required_with:files', 'array', 'size:1'],
