@@ -10,8 +10,10 @@ use App\Models\Payment;
 use App\Models\User\User;
 use App\Notifications\PaymentApprovedNotification;
 use App\Notifications\PaymentReceivedNotification;
+use App\Notifications\PayoutRequestedNotification;
 use App\Services\Finance\InstructorPayoutService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -27,7 +29,7 @@ class EnrollmentPaymentSeeder extends Seeder {
         );
         Preference::query()->firstOrCreate(
             ['key' => 'payout_delay_days'],
-            ['value' => 7],
+            ['value' => 0],
         );
 
         $students = User::query()
@@ -123,6 +125,32 @@ class EnrollmentPaymentSeeder extends Seeder {
                 if ($adminRecipients->isNotEmpty()) {
                     Notification::send($adminRecipients, new PaymentReceivedNotification($payment));
                 }
+            }
+        }
+
+        $this->seedPendingPayoutRequests($payoutService, $courses, $adminRecipients);
+    }
+
+    private function seedPendingPayoutRequests(InstructorPayoutService $payoutService, Collection $courses, Collection $adminRecipients): void {
+        $instructors = User::query()
+            ->whereIn('id', $courses->pluck('created_by')->unique())
+            ->get();
+
+        foreach ($instructors as $instructor) {
+            $eligibleBalance = $payoutService->calculateEligibleBalance($instructor);
+
+            if ($eligibleBalance <= 0) {
+                continue;
+            }
+
+            $payoutRequest = $payoutService->createInstructorRequest(
+                $instructor,
+                $eligibleBalance,
+                'Request payout otomatis dari data seed.',
+            );
+
+            if ($adminRecipients->isNotEmpty()) {
+                Notification::send($adminRecipients, new PayoutRequestedNotification($payoutRequest));
             }
         }
     }
