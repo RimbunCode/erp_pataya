@@ -32,6 +32,7 @@ use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\CertificateController as StudentCertificateController;
 use App\Http\Controllers\Admin\CertificateTemplateController;
+use App\Http\Controllers\Admin\StudentCertificateUploadController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Services\Auth\RoleResolver;
 use Illuminate\Http\Request;
@@ -211,6 +212,10 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/certificate-templates', [CertificateTemplateController::class, 'store'])->name('certificate-templates.store');
             Route::patch('/certificate-templates/{certificateTemplate}', [CertificateTemplateController::class, 'update'])->name('certificate-templates.update');
             Route::delete('/certificate-templates/{certificateTemplate}', [CertificateTemplateController::class, 'destroy'])->name('certificate-templates.destroy');
+
+            Route::get('/student-certificate-uploads', [StudentCertificateUploadController::class, 'index'])->name('student-certificate-uploads.index');
+            Route::get('/student-certificate-uploads/students/{user}', [StudentCertificateUploadController::class, 'show'])->name('student-certificate-uploads.show');
+            Route::post('/student-certificate-uploads/enrollments/{enrollment}/upload', [StudentCertificateUploadController::class, 'upload'])->name('student-certificate-uploads.upload');
         });
 
         Route::middleware(['admin.permission:super_admin'])->group(function () {

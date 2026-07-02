@@ -8,9 +8,12 @@ use App\Models\Course;
 use App\Models\CourseContent;
 use App\Models\CourseSection;
 use App\Models\Enrollment;
+use App\Models\EnrollmentCertificateUpload;
 use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class CertificatePageTest extends TestCase {
@@ -58,6 +61,41 @@ class CertificatePageTest extends TestCase {
         $this->makeCertificate($enrollment);
 
         // student2 login → tidak boleh lihat sertifikat student1
+        $response = $this->actingAs($student2)->get(route('student.certificates'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Students/Certificates')
+            ->has('certificates', 0)
+        );
+    }
+
+    public function test_certificates_page_shows_admin_uploaded_certificate(): void {
+        [$instructor, $student] = $this->makeInstructorAndStudent();
+        $course     = $this->makeCourse($instructor);
+        $enrollment = $this->makeEnrollment($student, $course);
+        $upload     = $this->makeUploadedCertificate($enrollment);
+
+        $response = $this->actingAs($student)->get(route('student.certificates'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->component('Students/Certificates')
+            ->has('certificates', 1)
+            ->where('certificates.0.title', $course->title)
+            ->where('certificates.0.credentialId', null)
+            ->where('certificates.0.source', 'upload')
+            ->where('certificates.0.viewUrl', route('files.preview', $upload->file_id))
+        );
+    }
+
+    public function test_certificates_page_does_not_show_other_students_uploaded_certificates(): void {
+        [$instructor, $student1] = $this->makeInstructorAndStudent();
+        $student2   = $this->makeStudent();
+        $course     = $this->makeCourse($instructor);
+        $enrollment = $this->makeEnrollment($student1, $course);
+        $this->makeUploadedCertificate($enrollment);
+
         $response = $this->actingAs($student2)->get(route('student.certificates'));
 
         $response->assertOk();
@@ -174,11 +212,34 @@ class CertificatePageTest extends TestCase {
         ], $attrs));
     }
 
+    private function makeUploadedCertificate(Enrollment $enrollment): EnrollmentCertificateUpload {
+        $fileId = (string) Str::ulid();
+        DB::table('files')->insert([
+            'id'            => $fileId,
+            'name'          => 'Sertifikat Upload',
+            'path'          => 'files/sertifikat-upload.pdf',
+            'extension'     => 'pdf',
+            'mime_type'     => 'application/pdf',
+            'is_public'     => 0,
+            'created_by_id' => null,
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
+        return EnrollmentCertificateUpload::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'file_id'       => $fileId,
+            'uploaded_by'   => null,
+            'uploaded_at'   => now(),
+        ]);
+    }
+
     /** @return array<int, string> */
     private function requiredMigrationPaths(): array {
         return [
             'database/migrations/0001_01_01_000000_create_users_table.php',
             'database/migrations/0001_01_01_000000_create_preferences_table.php',
+            'database/migrations/2025_01_30_134342_create_files_table.php',
             'database/migrations/2025_01_31_135456_create_roles_table.php',
             'database/migrations/2025_01_31_150339_create_permissions_table.php',
             'database/migrations/2025_01_31_152926_create_user_role_table.php',
@@ -199,6 +260,10 @@ class CertificatePageTest extends TestCase {
             'database/migrations/2026_06_17_143845_add_deadline_time_to_course_contents_table.php',
             'database/migrations/2026_06_27_000001_create_certificate_templates_table.php',
             'database/migrations/2026_06_27_000002_create_certificates_table.php',
+            'database/migrations/2026_06_28_164713_create_notifications_table.php',
+            'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+            'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
+            'database/migrations/2026_07_02_000001_create_enrollment_certificate_uploads_table.php',
         ];
     }
 }

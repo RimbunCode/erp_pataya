@@ -30,6 +30,7 @@ export default forwardRef(function UploadDialog2(
     onClose,
     single = false,
     imageOnly = false,
+    accept = null,
     allowNotes = false,
     notesRequired = false,
     notesPlaceholder = "Tambahkan catatan...",
@@ -47,6 +48,19 @@ export default forwardRef(function UploadDialog2(
   const [notes, setNotes] = useState("");
   const libraryRef = useRef();
   const id = useId();
+  const acceptTypes = accept ?? (imageOnly ? "image/*" : "*");
+
+  const onInputChange = useCallback(
+    (e) => {
+      const picked = Array.from(e.currentTarget.files).map((file) => ({
+        id: generateRandom(8),
+        file: file,
+      }));
+      setFiles((prev) => (single ? picked.slice(0, 1) : [...prev, ...picked]));
+      e.currentTarget.value = null;
+    },
+    [single],
+  );
 
   useImperativeHandle(
     ref,
@@ -274,24 +288,10 @@ export default forwardRef(function UploadDialog2(
                 <input
                   id={id}
                   type="file"
-                  accept={imageOnly ? "image/*" : "*"}
+                  accept={acceptTypes}
                   className="hidden"
-                  multiple
-                  onChange={(e) => {
-                    const files = e.currentTarget.files;
-                    setFiles((prev) => {
-                      return [
-                        ...prev,
-                        ...Array.from(files).map((file) => {
-                          return {
-                            id: generateRandom(8),
-                            file: file,
-                          };
-                        }),
-                      ];
-                    });
-                    e.currentTarget.value = null;
-                  }}
+                  multiple={!single}
+                  onChange={onInputChange}
                 />
               </div>
             </Transition>
@@ -372,23 +372,10 @@ export default forwardRef(function UploadDialog2(
               <input
                 id={id}
                 type="file"
+                accept={acceptTypes}
                 className="hidden"
-                multiple
-                onChange={(e) => {
-                  const files = e.currentTarget.files;
-                  setFiles((prev) => {
-                    return [
-                      ...prev,
-                      ...Array.from(files).map((file) => {
-                        return {
-                          id: generateRandom(8),
-                          file: file,
-                        };
-                      }),
-                    ];
-                  });
-                  e.currentTarget.value = null;
-                }}
+                multiple={!single}
+                onChange={onInputChange}
               />
             </>
           )}

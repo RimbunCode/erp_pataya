@@ -268,9 +268,11 @@ function CertRow({ cert, onVerify }) {
           <span className="mx-2">·</span>
           Issued {cert.issuedDate}
         </p>
-        <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-0.5">
-          ID: {cert.credentialId}
-        </p>
+        {cert.credentialId && (
+          <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-0.5">
+            ID: {cert.credentialId}
+          </p>
+        )}
       </div>
 
       {/* Expiry */}
@@ -333,15 +335,17 @@ function CertRow({ cert, onVerify }) {
       </div>
 
       {/* Verify Button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onVerify(cert);
-        }}
-        className="flex-shrink-0 text-[10px] font-extrabold tracking-widest uppercase px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white transition-all duration-200"
-      >
-        Verify
-      </button>
+      {cert.credentialId && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onVerify(cert);
+          }}
+          className="flex-shrink-0 text-[10px] font-extrabold tracking-widest uppercase px-5 py-2.5 rounded-xl bg-primary hover:bg-primary-hover text-white transition-all duration-200"
+        >
+          Verify
+        </button>
+      )}
     </div>
   );
 }
