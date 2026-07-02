@@ -302,6 +302,9 @@ class DashboardPageTest extends TestCase {
             'database/migrations/2026_05_24_141817_create_instructor_earnings_table.php',
             'database/migrations/2026_05_24_141817_create_instructor_payout_requests_table.php',
             'database/migrations/2026_05_24_141818_create_instructor_payout_request_items_table.php',
+            'database/migrations/2026_06_28_164713_create_notifications_table.php',
+            'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+            'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
         ];
     }
 }
