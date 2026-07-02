@@ -1,14 +1,26 @@
 name: Deploy (Zero Downtime + Rollback)
 
 on:
+  # push:
+  #   tags:
+  #     - "v*"
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     types: [closed]
   workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "production"
+        type: choice
+        options:
+          - production
+          - staging
 
 jobs:
   deploy:
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -81,4 +93,29 @@ jobs:
 
             chmod +x .scripts/*.sh
             cd ./.scripts
-            bash ./deploy.sh staging
+            if [ "${{ github.event_name }}" == "push" ]; then
+              bash ./deploy.sh production
+            elif [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+              bash ./deploy.sh ${{ github.event.inputs.environment }}
+            elif [ "${{ github.base_ref }}" == "main" ]; then
+              bash ./deploy.sh production
+            else
+              bash ./deploy.sh staging
+            fi
+
+      # - name: Notify deploy webhook
+      #   if: github.event_name == 'push'
+      #   env:
+      #     DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+      #     APP_URL: ${{ secrets.APP_URL }}
+      #   run: |
+      #     VERSION=$(cat .release-please-manifest.json | jq -r '."."')
+
+      #     TICKETS=$(grep -oP '\[#\K[^\]]+' CHANGELOG.md 2>/dev/null | head -50 | jq -Rsc 'split("\n")[:-1]' || echo '[]')
+
+      #     CHANGELOG=$(awk "/^## \[${VERSION}\]/{found=1} found{print} /^## \[/{if(found && !/^## \[${VERSION}\]/) exit}" CHANGELOG.md 2>/dev/null | jq -Rs . || echo '""')
+
+      #     curl -sf -X POST "${APP_URL}/api/webhooks/deploy" \
+      #       -H "Authorization: Bearer ${DEPLOY_WEBHOOK_TOKEN}" \
+      #       -H "Content-Type: application/json" \
+      #       -d "{\"tickets\": ${TICKETS}, \"environment\": \"production\", \"version\": \"${VERSION}\", \"changelog\": ${CHANGELOG}}"
