@@ -91,8 +91,11 @@ Base Theme (shared)
   --input: var(--color-slate-700);
   --ring: var(--color-slate-300);
 
-  --background-accent: var(--color-slate-950);
+  --background-accent: var(--color-slate-800);
   --role-gradient-end: var(--color-slate-900);
+
+  --primary-soft: var(--color-blue-950);
+  --primary-soft-foreground: var(--color-blue-200);
 
   --sidebar-background: var(--color-slate-900);
   --sidebar-foreground: var(--foreground);
@@ -217,13 +220,19 @@ ADMIN
 /* ============================================
 Role Dark Overrides
 ============================================ */
+
+/* FIX 3: Gunakan selector ganda agar kebal terhadap struktur DOM */
+.dark [data-role="student"],
 [data-role="student"].dark {
   --primary: var(--color-blue-600);
   --primary-hover: var(--color-blue-400);
   --primary-foreground: var(--color-white);
   --primary-soft: var(--color-blue-950);
   --primary-soft-foreground: var(--color-blue-200);
-  --background-accent: var(--color-slate-950);
+
+  /* FIX 4: Sesuaikan accent stat card tiap role */
+  --background-accent: var(--color-slate-800);
+
   --role-label: var(--color-blue-300);
   --role-dot: var(--color-blue-300);
   --role-gradient-start: var(--color-blue-950);
@@ -233,13 +242,16 @@ Role Dark Overrides
   --sidebar-accent-foreground: var(--color-blue-200);
 }
 
+.dark [data-role="instructor"],
 [data-role="instructor"].dark {
   --primary: var(--color-violet-600);
   --primary-hover: var(--color-violet-500);
   --primary-foreground: var(--color-white);
   --primary-soft: var(--color-violet-950);
   --primary-soft-foreground: var(--color-violet-200);
-  --background-accent: var(--color-slate-950);
+
+  --background-accent: var(--color-slate-800); /* Diubah */
+
   --role-label: var(--color-violet-300);
   --role-dot: var(--color-violet-300);
   --role-gradient-start: var(--color-violet-950);
@@ -249,13 +261,16 @@ Role Dark Overrides
   --sidebar-accent-foreground: var(--color-violet-200);
 }
 
+.dark [data-role="organization"],
 [data-role="organization"].dark {
   --primary: var(--color-emerald-400);
   --primary-hover: var(--color-emerald-300);
   --primary-foreground: var(--color-emerald-950);
   --primary-soft: var(--color-emerald-950);
   --primary-soft-foreground: var(--color-emerald-200);
-  --background-accent: var(--color-slate-950);
+
+  --background-accent: var(--color-slate-800); /* Diubah */
+
   --role-label: var(--color-emerald-300);
   --role-dot: var(--color-emerald-300);
   --role-gradient-start: var(--color-emerald-950);
@@ -265,13 +280,16 @@ Role Dark Overrides
   --sidebar-accent-foreground: var(--color-emerald-200);
 }
 
+.dark [data-role="admin"],
 [data-role="admin"].dark {
   --primary: var(--color-amber-400);
   --primary-hover: var(--color-amber-300);
   --primary-foreground: var(--color-amber-950);
   --primary-soft: var(--color-amber-950);
   --primary-soft-foreground: var(--color-amber-200);
-  --background-accent: var(--color-slate-950);
+
+  --background-accent: var(--color-slate-800); /* Diubah */
+
   --role-label: var(--color-amber-300);
   --role-dot: var(--color-amber-300);
   --role-gradient-start: var(--color-amber-950);

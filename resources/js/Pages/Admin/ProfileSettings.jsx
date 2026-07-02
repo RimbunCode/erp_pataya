@@ -101,7 +101,7 @@ export default function ProfileSettings({ user, profile }) {
   }, [user.image]);
   return (
     <MainLayout title="Profile Settings" breadcrumb="Profile">
-      <div className="p-8 flex flex-col gap-8">
+      <div className="p-8 flex flex-col gap-8 h-full bg-[var(--background)]">
         {/* ── Avatar + Name ── */}
         <div className="flex items-center gap-6">
           <Avatar className="relative w-full h-auto border rounded-xl aspect-square max-w-32 group">

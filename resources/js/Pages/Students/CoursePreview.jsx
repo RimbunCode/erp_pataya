@@ -309,7 +309,7 @@ export default function CoursePreview({
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-card">
+      <div className="min-h-screen">
         {/* ── Hero ── */}
         <div className="relative">
           <div className="absolute inset-0">

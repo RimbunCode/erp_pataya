@@ -81,7 +81,7 @@ export default function MainLayout({
             />
           )}
 
-          <main className="flex-1 overflow-y-auto">{children}</main>
+          <main className="flex-1 overflow-y-auto bg-[var(--background)]">{children}</main>
         </div>
       </div>
     </MasterLayout>
