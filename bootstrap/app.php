@@ -70,6 +70,7 @@ return Application::configure(dirname(__DIR__))
                 || $request->expectsJson()
                 || ! $request->user()
                 || ! \in_array($response->getStatusCode(), [403, 404, 500, 503], true)
+                || $request->routeIs('files.preview')
             ) {
                 return $response;
             }
