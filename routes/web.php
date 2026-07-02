@@ -18,7 +18,6 @@ use App\Http\Controllers\Instructor\CourseSectionNoteController;
 use App\Http\Controllers\Instructor\DashboardController as InstructorDashboardController;
 use App\Http\Controllers\Instructor\FinancialController as InstructorFinancialController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
-use App\Http\Controllers\Instructor\CertificateIssueController;
 use App\Http\Controllers\Instructor\StudentManagementController;
 use App\Http\Controllers\Instructor\SubmissionController as InstructorSubmissionController;
 use App\Http\Controllers\ModelController;
@@ -148,7 +147,6 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::get('/students', [StudentManagementController::class, 'index'])->name('students');
         Route::patch('/enrollments/{enrollment}/submissions/{submission}/grade', [InstructorSubmissionController::class, 'grade'])->name('enrollments.submissions.grade');
-        Route::post('/enrollments/{enrollment}/issue-certificate', [CertificateIssueController::class, 'issue'])->name('enrollments.issue-certificate');
         Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('growth');
         Route::get('/financial', [InstructorFinancialController::class, 'index'])->name('financial');
         Route::post('/financial/payout-requests', [InstructorFinancialController::class, 'storePayoutRequest'])->name('financial.payout-requests.store');

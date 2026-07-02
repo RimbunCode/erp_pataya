@@ -35,7 +35,8 @@ class CertificateServiceTest extends TestCase {
             'view_url'     => 'https://drive.google.com/file/d/mock/view',
             'download_url' => 'https://drive.google.com/uc?export=download&id=mock',
         ]);
-        $this->service = new CertificateService($googleMock);
+        $this->app->instance(GoogleDocsService::class, $googleMock);
+        $this->service = new CertificateService();
     }
 
     public function test_course_is_completed_when_all_required_contents_done(): void {

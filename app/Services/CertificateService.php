@@ -11,8 +11,6 @@ use App\Models\UserProgress;
 use Illuminate\Support\Str;
 
 class CertificateService {
-    public function __construct(private GoogleDocsService $googleDocs) {}
-
     public function issueCertificate(Enrollment $enrollment): Certificate {
         if ($enrollment->certificate) {
             return $enrollment->certificate;
@@ -38,7 +36,7 @@ class CertificateService {
         $templateDocId = $template?->gdoc_template_id ?? config('services.google_docs.template_doc_id');
         $driveFolderId = config('services.google_docs.drive_folder_id');
 
-        $driveResult = $this->googleDocs->generateAndUploadCertificate($data, $templateDocId, $driveFolderId);
+        $driveResult = app(GoogleDocsService::class)->generateAndUploadCertificate($data, $templateDocId, $driveFolderId);
 
         return Certificate::create([
             'enrollment_id'           => $enrollment->id,
