@@ -7,7 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Student\StoreInstructorRoleRequestRequest;
 use App\Models\Core\File;
 use App\Models\RoleRequest;
+use App\Models\User\User;
+use App\Notifications\InstructorRoleRequestSubmittedNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class InstructorRoleRequestController extends Controller {
@@ -34,8 +37,9 @@ class InstructorRoleRequestController extends Controller {
 
         $validated   = $request->validated();
         $proofFileId = null;
+        $roleRequest = null;
 
-        DB::transaction(function () use ($request, $user, $validated, &$proofFileId): void {
+        DB::transaction(function () use ($request, $user, $validated, &$proofFileId, &$roleRequest): void {
             File::uploadFile($request, 'InstructorRoleProof', function (File $file) use (&$proofFileId): void {
                 $proofFileId = $file->id;
             });
@@ -46,7 +50,7 @@ class InstructorRoleRequestController extends Controller {
                 ]);
             }
 
-            RoleRequest::query()->create([
+            $roleRequest = RoleRequest::query()->create([
                 'user_id'        => $user->id,
                 'requested_role' => 'instructor',
                 'reason'         => $validated['notes'],
@@ -54,6 +58,16 @@ class InstructorRoleRequestController extends Controller {
                 'status'         => FormStatus::PENDING->value,
             ]);
         });
+
+        $adminRecipients = User::query()
+            ->whereHas('roles', fn ($q) => $q->where('name', 'admin'))
+            ->whereHas('adminPermissions', fn ($q) => $q->whereIn('name', ['user_admin', 'super_admin']))
+            ->get();
+
+        if ($roleRequest && $adminRecipients->isNotEmpty()) {
+            $roleRequest->setRelation('user', $user);
+            Notification::send($adminRecipients, new InstructorRoleRequestSubmittedNotification($roleRequest));
+        }
 
         return back()->with('success', 'Permintaan role instructor berhasil dikirim.');
     }

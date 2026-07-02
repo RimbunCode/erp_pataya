@@ -10,6 +10,8 @@ use App\Http\Requests\Admin\UpdateUserStatusRequest;
 use App\Models\OrganizationInvitation;
 use App\Models\RoleRequest;
 use App\Models\User\User;
+use App\Notifications\InstructorRoleRequestApprovedNotification;
+use App\Notifications\InstructorRoleRequestRejectedNotification;
 use App\Services\Admin\AdminPermissionService;
 use App\Services\Admin\UserTransformer;
 use App\Services\Auth\UserRoleManager;
@@ -118,6 +120,8 @@ class UserDirectoryController extends Controller {
             ]);
         });
 
+        $roleRequest->user?->notify(new InstructorRoleRequestApprovedNotification($roleRequest));
+
         return back()->with('success', 'Permintaan role instructor disetujui.');
     }
 
@@ -131,6 +135,8 @@ class UserDirectoryController extends Controller {
             'reviewed_at'      => now(),
             'rejection_reason' => $validated['reason'],
         ]);
+
+        $roleRequest->user?->notify(new InstructorRoleRequestRejectedNotification($roleRequest));
 
         return back()->with('success', 'Permintaan role instructor ditolak.');
     }
