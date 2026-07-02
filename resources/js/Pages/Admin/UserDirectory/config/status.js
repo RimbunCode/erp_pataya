@@ -24,6 +24,11 @@ export const STATUS_CFG = {
     dot: "bg-sky-500",
     pill: "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-300",
   },
+  pre_registered: {
+    label: "Pre-Registered",
+    dot: "bg-violet-500",
+    pill: "bg-violet-100 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300",
+  },
   approved: {
     label: "Approved",
     dot: "bg-emerald-500",

@@ -23,16 +23,18 @@ class SetupUserController extends Controller {
     public function show(Request $request) {
         $userRequest = $request->user();
         if ($userRequest->status == FormStatus::ACTIVE) {
-            return redirect()->route('dashboard');
+            return redirect()->route('student.dashboard');
         }
 
-        $hasPassword = $userRequest->password != null;
-        $isWaiting   = $userRequest->status == FormStatus::PRE_REGISTERED && ($hasPassword);
+        $hasPassword  = $userRequest->password != null;
+        $isWaiting    = $userRequest->status == FormStatus::PRE_REGISTERED && $hasPassword;
+        $isGoogleUser = $userRequest->providers()->where('provider', 'google')->exists();
 
         return Inertia::render('Auth/SetupUser', [
-            'user'        => $userRequest,
-            'hasPassword' => $hasPassword,
-            'isWaiting'   => $isWaiting,
+            'user'         => $userRequest,
+            'hasPassword'  => $hasPassword,
+            'isWaiting'    => $isWaiting,
+            'isGoogleUser' => $isGoogleUser,
         ]);
     }
 
@@ -53,12 +55,16 @@ class SetupUserController extends Controller {
             ? Hash::make($data['password']) : $user->password;
 
         $hasPassword    = $data['password'] != null;
-        $data['status'] = $user->status == FormStatus::INVITED && $hasPassword && $hasBranch ? FormStatus::ACTIVE : $user->status;
+        $data['status'] = match (true) {
+            $user->status == FormStatus::INVITED && $hasPassword && $hasBranch => FormStatus::ACTIVE,
+            $user->status == FormStatus::PRE_REGISTERED && $hasPassword        => FormStatus::ACTIVE,
+            default                                                            => $user->status,
+        };
         $user->fillForUpdate($data);
         $user->logForUpdated();
 
         $this->userRoleManager->ensureStudentRole($user);
-        if ($wantsInstructor) {
+        if ($wantsInstructor && $user->status !== FormStatus::PRE_REGISTERED) {
             $this->userRoleManager->attachInstructorRole($user);
         }
 

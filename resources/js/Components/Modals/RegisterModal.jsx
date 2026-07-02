@@ -4,6 +4,7 @@ import { format, setMonth, setYear } from "date-fns";
 import DatetimePicker from "../DatetimePicker";
 import { Input } from "../ui/input";
 const CURRENT_YEAR = new Date().getFullYear();
+const PASSWORD_MIN_LENGTH = 8;
 const roles = [
   {
     key: "student",
@@ -90,6 +91,15 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
 
   const handleSubmit = useCallback(() => {
     if (!isReadyToSubmit) return;
+
+    if (form.password.length < PASSWORD_MIN_LENGTH) {
+      setErrors((prev) => ({
+        ...prev,
+        password: `Password must be at least ${PASSWORD_MIN_LENGTH} characters.`,
+      }));
+      return;
+    }
+
     router.post(
       "/register",
       {
@@ -120,6 +130,7 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setSelectedRole(null);
+    setErrors((prev) => ({ ...prev, [e.target.name]: undefined }));
   };
 
   const handleBirthdate = (date) => {
@@ -357,6 +368,15 @@ export default function RegisterModal({ onClose, onSwitchToLogin }) {
                 )}
               </button>
             </div>
+            {errors.password ? (
+              <p className="mt-1.5 text-sm font-semibold text-destructive">
+                {errors.password}
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Must be at least {PASSWORD_MIN_LENGTH} characters.
+              </p>
+            )}
           </div>
 
           {/* Confirm Password */}

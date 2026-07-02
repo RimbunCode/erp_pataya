@@ -18,7 +18,7 @@ function normalizeRoles(roles) {
     .map((role) => role.toLowerCase());
 }
 
-export default function SetupUser({ user, hasPassword, isWaiting }) {
+export default function SetupUser({ user, hasPassword, isWaiting, isGoogleUser }) {
   const route = window.route;
   const [isVisible, setIsVisible] = useState(false);
   const initialHasInstructorRole = useMemo(() => {
@@ -29,6 +29,7 @@ export default function SetupUser({ user, hasPassword, isWaiting }) {
     name: user?.name ?? "",
     username: user?.username ?? "",
     email: user?.email ?? "",
+    gender: user?.gender ?? "",
     wants_instructor: initialHasInstructorRole,
     current_password: "",
     password: "",
@@ -67,6 +68,19 @@ export default function SetupUser({ user, hasPassword, isWaiting }) {
             </Link>
           </div>
         </div>
+
+        {isGoogleUser && !isWaiting && (
+          <div className="mb-6 rounded-xl border border-blue-300/60 bg-blue-50 px-4 py-3 text-blue-900 dark:border-blue-400/40 dark:bg-blue-950/40 dark:text-blue-200">
+            <p className="text-sm font-bold uppercase tracking-wide">
+              Default Role: Student
+            </p>
+            <p className="text-sm mt-1">
+              All new accounts start with Student access. After your account is
+              activated, you can apply for Instructor role from your profile
+              settings.
+            </p>
+          </div>
+        )}
 
         {isWaiting && (
           <div className="mb-6 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-amber-900 dark:border-amber-400/40 dark:bg-amber-950/40 dark:text-amber-200">
@@ -144,21 +158,51 @@ export default function SetupUser({ user, hasPassword, isWaiting }) {
               <InputError message={errors.email} className="mt-2" />
             </div>
 
-            <label className="flex items-start gap-2 cursor-pointer select-none rounded-xl border border-border bg-muted/40 px-3 py-3">
-              <input
-                type="checkbox"
-                checked={data.wants_instructor}
-                onChange={(event) =>
-                  setData("wants_instructor", event.target.checked)
-                }
-                className="mt-0.5 w-4 h-4 rounded border-border text-primary focus:ring-ring"
-              />
-              <span className="text-sm text-muted-foreground">
-                Also enable <span className="font-semibold">Instructor</span>{" "}
-                access for this account.
-              </span>
-            </label>
-            <InputError message={errors.wants_instructor} className="mt-0.5" />
+            <div>
+              <label className="block text-xs font-bold tracking-[2px] text-muted-foreground uppercase mb-2">
+                Gender
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { value: "male", label: "Male" },
+                  { value: "female", label: "Female" },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setData("gender", opt.value)}
+                    className={`py-3 rounded-xl border text-sm font-bold tracking-wide transition-all ${
+                      data.gender === opt.value
+                        ? "border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                        : "border-border bg-muted text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <InputError message={errors.gender} className="mt-2" />
+            </div>
+
+            {!isGoogleUser && (
+              <>
+                <label className="flex items-start gap-2 cursor-pointer select-none rounded-xl border border-border bg-muted/40 px-3 py-3">
+                  <input
+                    type="checkbox"
+                    checked={data.wants_instructor}
+                    onChange={(event) =>
+                      setData("wants_instructor", event.target.checked)
+                    }
+                    className="mt-0.5 w-4 h-4 rounded border-border text-primary focus:ring-ring"
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    Also enable <span className="font-semibold">Instructor</span>{" "}
+                    access for this account.
+                  </span>
+                </label>
+                <InputError message={errors.wants_instructor} className="mt-0.5" />
+              </>
+            )}
 
             {hasPassword && (
               <div>
