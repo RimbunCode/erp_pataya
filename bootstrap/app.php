@@ -10,6 +10,7 @@ use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Console\ServeCommand;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -27,6 +28,14 @@ if (is_writable($temporaryPath)) {
     putenv("TMP={$temporaryPath}");
     putenv("TEMP={$temporaryPath}");
 }
+
+// `php artisan serve` membuang env var yang tidak ada di daftar passthrough dari
+// worker `php -S`. Tanpa TMP/TEMP worker Windows tidak punya direktori temp yang
+// writable, sehingga semua upload multipart gagal ("failed to upload").
+ServeCommand::$passthroughVariables = array_values(array_unique(array_merge(
+    ServeCommand::$passthroughVariables,
+    ['TMP', 'TEMP', 'USERPROFILE', 'LOCALAPPDATA', 'APPDATA'],
+)));
 
 return Application::configure(dirname(__DIR__))
     ->withRouting(
