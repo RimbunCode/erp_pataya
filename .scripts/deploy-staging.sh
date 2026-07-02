@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-DOMAIN=https://inkindo.rimbun.id
+DOMAIN=https://inkindo.test.rimbun.id
 
 # Get the directory where the script is located and its parent (Project Root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,13 +55,21 @@ composer install --no-dev --optimize-autoloader
 composer dump-autoload -o
 
 # 6. Database & Cache
-php artisan migrate:fresh --seed
+# Deteksi apakah ini deploy pertama berdasarkan ada tidaknya riwayat release sebelumnya
+if [ -z "$PREVIOUS" ]; then
+  echo "🌱 First deployment detected! Running migrations with seeds..."
+  php artisan migrate --force
+  php artisan db:seed --force
+else
+  echo "🔄 Running migrations..."
+  php artisan migrate:fresh --seed --force
+fi
+
 php artisan optimize:clear
 php artisan optimize
 
 # 7. Switch Symlink
 ln -sfn "$NEW_RELEASE" "$CURRENT"
-
 ln -sfn "$SHARED/storage/app/public" "$CURRENT/public/storage"
 
 # 8. Health check staging
@@ -78,16 +86,16 @@ fi
 
 echo "✅ Staging deploy success"
 
-# # 🔥 Cleanup old releases (keep last 5)
-# if [ -d "$RELEASES" ]; then
-#   cd "$RELEASES"
-#   if [[ "$(pwd)" == */releases ]]; then
-#     ls -dt */ | tail -n +6 | xargs -r rm -rf
-#     echo "🧹 Old releases cleaned up (kept last 5)"
-#   else
-#     echo "❌ Cleanup failed: Current directory $(pwd) does not look like a releases folder"
-#     exit 1
-#   fi
-# else
-#   echo "⚠️ Cleanup skipped: $RELEASES directory not found"
-# fi
+# 🔥 Cleanup old releases (keep last 5)
+if [ -d "$RELEASES" ]; then
+  cd "$RELEASES"
+  if [[ "$(pwd)" == */releases ]]; then
+    ls -dt */ | tail -n +6 | xargs -r rm -rf
+    echo "🧹 Old releases cleaned up (kept last 5)"
+  else
+    echo "❌ Cleanup failed: Current directory $(pwd) does not look like a releases folder"
+    exit 1
+  fi
+else
+  echo "⚠️ Cleanup skipped: $RELEASES directory not found"
+fi

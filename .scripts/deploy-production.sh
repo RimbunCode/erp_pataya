@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-DOMAIN=https://erp.ptpsn.co.id
+DOMAIN=https://inkindo.rimbun.id
 
 # Get the directory where the script is located and its parent (Project Root)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -55,12 +55,22 @@ composer install --no-dev --optimize-autoloader
 composer dump-autoload -o
 
 # 6. Database & Cache
+# Deteksi apakah ini deploy pertama berdasarkan ada tidaknya riwayat release sebelumnya
+if [ -z "$PREVIOUS" ]; then
+  echo "🌱 First deployment detected! Running migrations with seeds..."
+  php artisan migrate --force
+  php artisan db:seed --force
+else
+  echo "🔄 Running migrations..."
+  php artisan migrate:fresh --seed --force
+fi
+
 php artisan optimize:clear
-php artisan migrate --force
 php artisan optimize
 
 # 7. Switch Symlink
 ln -sfn "$NEW_RELEASE" "$CURRENT"
+ln -sfn "$SHARED/storage/app/public" "$CURRENT/public/storage"
 
 # 8. Health check production
 if ! curl -f "$DOMAIN/health" > /dev/null 2>&1; then
