@@ -2,6 +2,7 @@ import MainLayout from "@/Layouts/MainLayout";
 import { router, usePage } from "@inertiajs/react";
 import { useEffect, useMemo, useState } from "react";
 import { STATUS_CFG } from "@/lib/utils";
+import { levelColor } from "../Instructors/Components/CourseDetailConfig";
 
 const fmtCurrency = (value) =>
   new Intl.NumberFormat("id-ID", {
@@ -314,6 +315,18 @@ export default function Approvals() {
                   </div>
 
                   <div className="flex-1 overflow-y-auto">
+                    <div className="w-full h-36 overflow-hidden bg-[var(--secondary)]">
+                      <img
+                        src={
+                          selectedItem.thumbnail
+                            ? route("files.preview", selectedItem.thumbnail)
+                            : "/storage/images/logo-default.png"
+                        }
+                        alt={selectedItem.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+
                     <div className="px-5 py-4 border-b border-[var(--border)]">
                       <p className="text-sm font-bold text-[var(--foreground)] leading-snug">
                         {selectedItem.title}
@@ -324,6 +337,25 @@ export default function Approvals() {
                       <p className="text-xs text-[var(--muted-foreground)] mt-2">
                         Submitted: {fmtDateTime(selectedItem.submittedAt)}
                       </p>
+                      {selectedItem.level && (
+                        <span
+                          className={`inline-block mt-2 text-[9px] font-black tracking-widest uppercase px-2 py-0.5 rounded-lg capitalize ${
+                            levelColor[selectedItem.level?.toLowerCase()] ??
+                            "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {selectedItem.level}
+                        </span>
+                      )}
+                      <p className="text-xs text-[var(--muted-foreground)] mt-2">
+                        Duration: {selectedItem.totalHours ?? 0}h -{" "}
+                        {selectedItem.totalSessions ?? 0} Sessions
+                      </p>
+                      {selectedItem.certificateType && (
+                        <p className="text-xs text-[var(--muted-foreground)] mt-1">
+                          Certificate: {selectedItem.certificateType}
+                        </p>
+                      )}
                     </div>
 
                     <div className="px-5 py-4 border-b border-[var(--border)]">
