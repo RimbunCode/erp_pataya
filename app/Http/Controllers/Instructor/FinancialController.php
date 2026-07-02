@@ -79,7 +79,7 @@ class FinancialController extends Controller {
         $payouts = InstructorPayoutRequest::query()
             ->where('instructor_id', $user->id)
             ->latest('created_at')
-            ->limit(5)
+            ->limit(50)
             ->get()
             ->map(function (InstructorPayoutRequest $requestItem): array {
                 return [

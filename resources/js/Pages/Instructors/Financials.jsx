@@ -31,15 +31,38 @@ const fmtPercent = (value) => {
   })}%`;
 };
 
-const PAYOUT_STATUS_PILL = {
-  draft: "bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300",
-  pending:
-    "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
-  approved:
-    "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
-  rejected: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
-  paid: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+const PAYOUT_STATUS_CFG = {
+  draft: {
+    label: "Draft",
+    pill: "bg-slate-100 text-slate-700 dark:bg-slate-500/15 dark:text-slate-300",
+  },
+  pending: {
+    label: "Pending",
+    pill: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
+  },
+  approved: {
+    label: "Approved",
+    pill: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  },
+  rejected: {
+    label: "Rejected",
+    pill: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+  },
+  paid: {
+    label: "Paid",
+    pill: "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+  },
 };
+
+function PayoutStatusBadge({ status }) {
+  const cfg = PAYOUT_STATUS_CFG[status] ?? PAYOUT_STATUS_CFG.pending;
+
+  return (
+    <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${cfg.pill}`}>
+      {cfg.label}
+    </span>
+  );
+}
 
 function MutationStatusPill({ status }) {
   return (
@@ -139,6 +162,7 @@ export default function Financials() {
   const {
     stats = {},
     mutations = [],
+    payouts = [],
     companyFeePercentage = 0,
     earningTimeSeries = [],
   } = usePage().props;
@@ -310,6 +334,90 @@ export default function Financials() {
                           : mutation.availableAt
                             ? `Available ${fmtDateTime(mutation.availableAt)}`
                             : "-"}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-6">
+          <div className="mb-4">
+            <p className="text-sm font-black text-foreground uppercase tracking-widest">
+              Payout Requests
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Showing latest {payouts.length} requests
+            </p>
+          </div>
+          <div className="overflow-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border">
+                  {[
+                    "Requested At",
+                    "Amount Requested",
+                    "Amount Approved",
+                    "Status",
+                    "Paid At",
+                    "Transfer Reference",
+                    "Note/Rejection Reason",
+                  ].map((header) => (
+                    <th
+                      key={header}
+                      className="text-left py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest"
+                    >
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {payouts.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="text-center py-10 text-muted-foreground text-sm"
+                    >
+                      No payout request yet
+                    </td>
+                  </tr>
+                ) : (
+                  payouts.map((payout) => (
+                    <tr key={payout.id}>
+                      <td className="py-3 text-xs text-foreground">
+                        {fmtDateTime(payout.requestedAt)}
+                      </td>
+                      <td className="py-3 text-xs font-semibold text-foreground">
+                        {formatRp(payout.requestedAmount)}
+                      </td>
+                      <td className="py-3 text-xs text-foreground">
+                        {["draft", "pending"].includes(payout.status) ||
+                        !payout.approvedAmount
+                          ? "-"
+                          : formatRp(payout.approvedAmount)}
+                      </td>
+                      <td className="py-3">
+                        <PayoutStatusBadge status={payout.status} />
+                      </td>
+                      <td className="py-3 text-xs text-foreground">
+                        {payout.paidAt ? fmtDateTime(payout.paidAt) : "-"}
+                      </td>
+                      <td className="py-3 text-xs text-foreground font-mono text-[11px]">
+                        {payout.transferReference || "-"}
+                      </td>
+                      <td className="py-3 text-xs">
+                        {payout.status === "rejected" ? (
+                          <span className="text-red-700 dark:text-red-300">
+                            {payout.rejectionReason || "-"}
+                          </span>
+                        ) : (
+                          <span className="text-foreground">
+                            {payout.note || "-"}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))
