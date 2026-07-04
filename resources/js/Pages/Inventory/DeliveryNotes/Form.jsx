@@ -176,6 +176,7 @@ export default function Form() {
               >
                 <PermissionLinkModel
                   filters={{
+                    is_submitable: true,
                     model: {
                       in: [
                         "App\\Models\\Sales\\SalesOrder",
@@ -183,6 +184,7 @@ export default function Form() {
                       ],
                     },
                   }}
+                  fields={["model", "is_submitable"]}
                   value={data.reference_to}
                   onValueChange={(val) => {
                     setData((prev) => ({
@@ -405,7 +407,8 @@ export default function Form() {
               disabledAddButton
               with={["item", "sourceWarehouse", "unit"]}
               filters={{
-                ...(data.reference_to?.model === "App\\Models\\Sales\\SalesOrder"
+                ...(data.reference_to?.model ===
+                "App\\Models\\Sales\\SalesOrder"
                   ? { sales_order_id: data?.referenceable?.id }
                   : { internal_order_id: data?.referenceable?.id }),
                 undelivered_quantity: {
