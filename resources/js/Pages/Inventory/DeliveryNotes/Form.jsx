@@ -10,7 +10,6 @@ import { FormCheckbox } from "@/Components/ui/checkbox";
 import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
-import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
 import LinkModel from "@/Components/LinkModel";
 import PermissionLinkModel from "@/Pages/Core/PermissionLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
@@ -36,24 +35,51 @@ export default function Form() {
         required: true,
         width: 2,
         cell({ dataRow, setData, attributes }) {
+          const referenceItemModel = (data.reference_to?.model ?? "") + "Item";
           return (
-            <ItemVariantLinkModel
+            <LinkModel
+              model={referenceItemModel}
+              disabledAddButton
               placeholder={t("inventory.deliveryNote.columns.item.placeholder")}
-              value={dataRow.item}
+              value={
+                dataRow.referenceable ??
+                (dataRow.referenceable_id
+                  ? { id: dataRow.referenceable_id }
+                  : null)
+              }
+              disabled={!data.referenceable}
               onValueChange={(val) => {
-                const defaultUnit = val?.default_uom;
                 setData({
-                  item: val,
-                  unit: defaultUnit,
-                  conversion_factor: defaultUnit?.conversion_factor,
-                  source_warehouse: data.source_warehouse,
+                  referenceable: val,
+                  referenceable_id: val?.id,
+                  referenceable_type: referenceItemModel,
+                  // item TIDAK disimpan — item_id diambil backend dari referenceable
+                  unit: val?.unit,
+                  source_warehouse: val?.source_warehouse,
+                  conversion_factor: val?.conversion_factor,
+                  quantity: val?.undelivered_quantity,
+                  required_quantity: val?.undelivered_quantity,
                 });
               }}
               {...attributes}
               filters={{
-                is_stock_item: true,
+                ...(data.reference_to?.model ===
+                "App\\Models\\Sales\\SalesOrder"
+                  ? { sales_order_id: data?.referenceable?.id }
+                  : { internal_order_id: data?.referenceable?.id }),
+                undelivered_quantity: { ">": 0 },
               }}
-              with={["defaultUom", "item"]}
+              with={[
+                "item",
+                "unit",
+                "sourceWarehouse",
+                "sourceWarehouse.branch",
+              ]}
+              fields={[
+                "undelivered_quantity",
+                "conversion_factor",
+                "source_warehouse",
+              ]}
             />
           );
         },
@@ -67,7 +93,7 @@ export default function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <Textarea
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.referenceable}
               rows={1}
               value={data ?? ""}
               onChange={(e) => setData("description", e.target.value)}
@@ -86,7 +112,7 @@ export default function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <WarehouseLinkModel
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.referenceable}
               placeholder={t(
                 "inventory.deliveryNote.columns.source_warehouse.placeholder",
               )}
@@ -107,7 +133,7 @@ export default function Form() {
           return (
             <NumberInput
               {...attributes}
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.referenceable}
               readOnly={false}
               value={data}
               onValueChange={(value) => {
@@ -125,7 +151,7 @@ export default function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <ItemUnitLinkModel
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.referenceable}
               placeholder={t("inventory.deliveryNote.columns.unit.placeholder")}
               value={data}
               onValueChange={(val) =>
@@ -136,7 +162,10 @@ export default function Form() {
               }
               {...attributes}
               filters={{
-                item_id: dataRow?.item?.item_id,
+                item_id:
+                  dataRow?.referenceable?.item?.id ??
+                  dataRow?.referenceable?.item_id ??
+                  dataRow?.item?.id,
               }}
             />
           );
@@ -229,11 +258,12 @@ export default function Form() {
                     "items.item",
                     "items.unit",
                     "items.sourceWarehouse",
+                    "items.sourceWarehouse.branch",
                   ]}
                   fields={[
                     "items.item",
                     "items.unit",
-                    "items.sourceWarehouse",
+                    "items.source_warehouse",
                     "items.quantity",
                     "items.description",
                     "items.undelivered_quantity",
@@ -249,13 +279,15 @@ export default function Form() {
                         referenceable_id: val?.id,
                         customer: val?.customer,
                         customer_branch: val?.customer_branch ?? val?.branch,
-                        items: val?.items.map((item) => {
+                        items: val?.items?.map((item) => {
                           return {
                             ...item,
                             id: generateRandom(8),
+                            referenceable: item,
                             referenceable_type:
                               data.reference_to?.model + "Item",
                             referenceable_id: item.id,
+                            source_warehouse: item.source_warehouse,
                             quantity: item.undelivered_quantity ?? 0,
                             required_quantity: item.undelivered_quantity ?? 0,
                           };
@@ -310,7 +342,7 @@ export default function Form() {
                     "customer",
                     "customerBranch",
                     "items",
-                    "items.item",
+                    "items.referenceable",
                     "items.unit",
                     "items.sourceWarehouse",
                   ]}
@@ -326,7 +358,7 @@ export default function Form() {
                       items: val?.items?.map((item) => ({
                         ...item,
                         id: generateRandom(8),
-                        return_against_item_id: item.id,
+                        return_against_item: item,
                         quantity: item.unreturned_quantity,
                         required_quantity: item.unreturned_quantity,
                       })),
@@ -405,7 +437,12 @@ export default function Form() {
             <LinkModel
               model={(data.reference_to?.model ?? "") + "Item"}
               disabledAddButton
-              with={["item", "sourceWarehouse", "unit"]}
+              with={[
+                "item",
+                "sourceWarehouse",
+                "sourceWarehouse.branch",
+                "unit",
+              ]}
               filters={{
                 ...(data.reference_to?.model ===
                 "App\\Models\\Sales\\SalesOrder"
@@ -443,8 +480,6 @@ export default function Form() {
           <FormTable
             name="DeliveryNoteItems"
             className="col-start-1 col-span-2"
-            readOnly={true}
-            forceCanDelete
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}

@@ -185,7 +185,10 @@ export default function Form() {
               }
               {...attributes}
               filters={{
-                item_id: dataRow?.item?.item_id,
+                item_id:
+                  dataRow?.sales_order_item?.item?.id ??
+                  dataRow?.sales_order_item?.item_id ??
+                  dataRow?.item?.id,
               }}
             />
           );

@@ -39,9 +39,10 @@ class InternalOrderItem extends Model {
             'order' => 2,
         ],
         'sourceWarehouse' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 3,
+            'type'     => 'relation',
+            'show'     => true,
+            'order'    => 3,
+            'linkable' => true,
         ],
         'description' => [
             'show'     => false,

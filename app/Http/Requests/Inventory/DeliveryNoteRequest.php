@@ -35,8 +35,6 @@ class DeliveryNoteRequest extends BaseFormRequest {
             'delivery_date'                  => ['required', 'date'],
             'items.*'                        => ['required', 'array', 'min:1'],
             'items.*.id'                     => ['required', 'string'],
-            'items.*.item.id'                => ['required', 'exists:item_variants,id'],
-            'items.*.item.*'                 => ['nullable'],
             'items.*.source_warehouse.id'    => ['required', 'exists:warehouses,id'],
             'items.*.referenceable_id'       => ['required', 'string'],
             'items.*.referenceable_type'     => ['required', Rule::in([SalesOrderItem::class, InternalOrderItem::class])],

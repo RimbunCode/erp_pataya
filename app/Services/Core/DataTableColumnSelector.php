@@ -285,12 +285,19 @@ class DataTableColumnSelector {
         // FK relasi BelongsTo aman di child wajib ikut agar nested eager-loading jalan.
         // $childSafe bisa punya relasi (mis. 'item', 'unit') — FK-nya (item_id, item_unit_id)
         // harus di-SELECT agar Eloquent bisa match nested with(['items.item']).
+        // Map snake_name → nameOfFunction dari getColumns child (sumber kebenaran).
+        $childColByName = method_exists($relatedClass, 'getColumns')
+            ? collect($relatedClass::getColumns(1, true))->keyBy('name')->all()
+            : [];
         foreach (array_keys($childSafe ?? []) as $childRelName) {
-            if (! method_exists($related, $childRelName)) {
+            // safe key snake_case; nameOfFunction dari getColumns adalah method PHP asli.
+            $methodName = $childColByName[$childRelName]['nameOfFunction']
+                ?? (method_exists($related, $childRelName) ? $childRelName : null);
+            if ($methodName === null) {
                 continue;
             }
             try {
-                $childRel = $related->{$childRelName}();
+                $childRel = $related->{$methodName}();
             } catch (\Throwable) {
                 continue;
             }

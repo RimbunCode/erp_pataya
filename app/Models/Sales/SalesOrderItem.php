@@ -108,9 +108,10 @@ class SalesOrderItem extends Model {
             'linkable' => true,
         ],
         'sourceWarehouse' => [
-            'type'  => 'relation',
-            'show'  => false,
-            'order' => 10,
+            'type'     => 'relation',
+            'show'     => false,
+            'order'    => 10,
+            'linkable' => true,
         ],
         'delivered_quantity' => [
             'type'  => 'numeric',

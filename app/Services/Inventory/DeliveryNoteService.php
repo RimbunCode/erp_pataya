@@ -10,7 +10,9 @@ use App\Models\Inventory\DeliveryNote;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Sales\InternalOrderItem;
 use App\Models\Sales\SalesOrder;
+use App\Models\Sales\SalesOrderItem;
 use App\Services\Sales\SalesOrderService;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -31,8 +33,10 @@ class DeliveryNoteService {
         return $data;
     }
 
-    private function fillItemRelations(array $item, array $units = []) {
-        $item['item_id']             = $item['item']['id'];
+    private function fillItemRelations(array $item, array $units = [], array $referenceableItems = []) {
+        // item_id diambil dari referenceable (SalesOrderItem/InternalOrderItem) — tidak trust FE
+        $item['item_id'] = $referenceableItems[$item['referenceable_id']]->item_id;
+
         $item['item_unit_id']        = $item['unit']['id'];
         $item['source_warehouse_id'] = $item['source_warehouse']['id'] ?? null;
         $unit                        = $units[$item['unit']['id']] ?? null;
@@ -42,6 +46,25 @@ class DeliveryNoteService {
         $item['return_against_item_id'] = $item['return_against_item']['id'] ?? null;
 
         return $item;
+    }
+
+    private function batchLoadReferenceableItems(array $data): array {
+        $grouped = collect($data['items'])
+            ->groupBy('referenceable_type')
+            ->map(fn ($items, $type) => [
+                'type' => $type,
+                'ids'  => $items->pluck('referenceable_id')->filter()->unique()->values()->all(),
+            ]);
+
+        $result = [];
+        foreach ($grouped as $group) {
+            $models = $group['type']::whereIn('id', $group['ids'])->get()->keyBy('id');
+            foreach ($models as $id => $model) {
+                $result[$id] = $model;
+            }
+        }
+
+        return $result;
     }
 
     private function batchLoadUnits(array $data): array {
@@ -54,9 +77,10 @@ class DeliveryNoteService {
         $data['code'] = FormatingSeries::generate(DeliveryNote::class, $data, true);
         $deliveryNote = DeliveryNote::create($this->fillRelations($data));
 
-        $units = $this->batchLoadUnits($data);
+        $units              = $this->batchLoadUnits($data);
+        $referenceableItems = $this->batchLoadReferenceableItems($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units);
+            $item = $this->fillItemRelations($item, $units, $referenceableItems);
             $deliveryNote->items()->create($item);
         }
 
@@ -81,9 +105,10 @@ class DeliveryNoteService {
             ->get()
             ->keyBy('id');
 
-        $units = $this->batchLoadUnits($data);
+        $units              = $this->batchLoadUnits($data);
+        $referenceableItems = $this->batchLoadReferenceableItems($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units);
+            $item = $this->fillItemRelations($item, $units, $referenceableItems);
 
             if (Ulid::isValid($item['id'])) {
                 $existingItems->get($item['id'])?->update($item);
