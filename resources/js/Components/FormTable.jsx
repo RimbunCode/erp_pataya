@@ -66,7 +66,7 @@ import { Button } from "./ui/button";
 import { CSS } from "@dnd-kit/utilities";
 import NumberInput from "./NumberInput";
 import { FormCheckbox } from "./ui/checkbox";
-import { FormChildren } from "@/Pages/Core/FormPage";
+import { FormChildren, useFormPageMeta } from "@/Pages/Core/FormPage";
 import FormInput from "./FormInput";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -504,6 +504,10 @@ export default memo(
     if (!columnsProps) {
       throw new Error("columns is required");
     }
+    const formPageMeta = useFormPageMeta();
+    const effectiveReadOnly = ignoreDisabled
+      ? readOnly
+      : readOnly || disabled || formPageMeta?.disabled;
     const key = useMemo(
       () => FORMTABLE_COLUMNS_KEY + (name ? `_${name}` : ""),
       [name],
@@ -587,7 +591,7 @@ export default memo(
       [defaultValueRow],
     );
     const [_data, _setData] = useState(() => {
-      return readOnly || (disabled && value.length > 0)
+      return effectiveReadOnly || (disabled && value.length > 0)
         ? value.map((x) => withItemKey(x))
         : [
             ...value.map((x) =>
@@ -714,7 +718,7 @@ export default memo(
       ) {
         prevValueRef.current = value;
         idChanges.current = new Set(value.map((x) => getItemKey(x)));
-        if (readOnly || (disabled && value.length > 0)) {
+        if (effectiveReadOnly || (disabled && value.length > 0)) {
           _setData(value.map((x) => withItemKey(x)));
           return;
         }
@@ -733,7 +737,7 @@ export default memo(
       }
     }, [
       value,
-      readOnly,
+      effectiveReadOnly,
       disabled,
       applyMapItem,
       defaultValueRow,
@@ -749,7 +753,8 @@ export default memo(
         if (!onValueChange) {
           return;
         }
-        const filteredData = readOnly || disabled ? data : data.slice(0, -1);
+        const filteredData =
+          effectiveReadOnly || disabled ? data : data.slice(0, -1);
         const previousData = prevValueRef.current ?? [];
         if (isSameArrayReferences(filteredData, previousData)) {
           return;
@@ -760,7 +765,7 @@ export default memo(
         }
         scheduleParentUpdate(filteredData, key, immediate);
       },
-      [disabled, onValueChange, readOnly, scheduleParentUpdate],
+      [disabled, onValueChange, effectiveReadOnly, scheduleParentUpdate],
     );
 
     // Memperbarui data current
@@ -787,7 +792,7 @@ export default memo(
           const isLastRow = index === prevData.length - 1;
           if (
             (disabled && prevData.length > 0) ||
-            (!readOnly && index === prevData.length - 1 && key == null)
+            (!effectiveReadOnly && index === prevData.length - 1 && key == null)
           )
             return prevData;
           let newData = [...prevData];
@@ -849,7 +854,7 @@ export default memo(
           }
 
           // Cek duplikat ID di row terakhir
-          if (isLastRow && !readOnly) {
+          if (isLastRow && !effectiveReadOnly) {
             if (
               isDuplicateValue(
                 keyItem,
@@ -878,7 +883,7 @@ export default memo(
           newData[index] = applyMapItem(newData[index], newData, index);
 
           // Jika mengubah row terakhir, tambahkan row kosong baru
-          if (isLastRow && !readOnly) {
+          if (isLastRow && !effectiveReadOnly) {
             newData.push(withItemKey({ ...(defaultValueRow ?? {}) }));
           }
 
@@ -901,7 +906,7 @@ export default memo(
         defaultValueRow,
         disabled,
         keyItem,
-        readOnly,
+        effectiveReadOnly,
         updateParent,
         withItemKey,
       ],
@@ -974,7 +979,10 @@ export default memo(
       (index) => {
         _setData((prev) => {
           const newData = [...prev];
-          if (index === newData.length - 1 && !(readOnly || disabled)) {
+          if (
+            index === newData.length - 1 &&
+            !(effectiveReadOnly || disabled)
+          ) {
             return prev;
           }
           newData.splice(index, 1);
@@ -984,7 +992,7 @@ export default memo(
           return newData;
         });
       },
-      [currentIndex, disabled, readOnly, submitable, updateParent],
+      [currentIndex, disabled, effectiveReadOnly, submitable, updateParent],
     );
     const cellOnKeyDown = useCallback(
       (e, currentIndex, currentCol) => {
@@ -1092,7 +1100,7 @@ export default memo(
           >
             <Cell
               isDialog
-              readOnly={readOnly}
+              readOnly={effectiveReadOnly}
               disabled={disabled}
               index={currentIndex}
               item={currentRow}
@@ -1116,7 +1124,7 @@ export default memo(
         defaultRowFieldCount,
         disabled,
         keyItem,
-        readOnly,
+        effectiveReadOnly,
         t,
         updateData,
       ],
@@ -1211,7 +1219,7 @@ export default memo(
                     return (
                       <FormTableItem
                         disabled={disabled}
-                        readOnly={readOnly || item?.readOnly}
+                        readOnly={effectiveReadOnly || item?.readOnly}
                         item={item}
                         index={index}
                         key={item?.[keyItem]}
@@ -1284,7 +1292,7 @@ export default memo(
                       {!submitable && (
                         <>
                           {!isCurrentRowEmpty &&
-                            !(readOnly || disabled) &&
+                            !(effectiveReadOnly || disabled) &&
                             (isMobile ? (
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -1322,7 +1330,7 @@ export default memo(
                               </Button>
                             ))}
                           {!isCurrentRowEmpty &&
-                            !(readOnly || disabled) &&
+                            !(effectiveReadOnly || disabled) &&
                             currentIndex < _data.length - 2 &&
                             (isMobile ? (
                               <Tooltip>
@@ -1364,7 +1372,7 @@ export default memo(
                       )}
                       {!isCurrentRowEmpty &&
                         !(
-                          readOnly ||
+                          effectiveReadOnly ||
                           disabled ||
                           _data[currentIndex]?.readOnly
                         ) && (
@@ -1418,7 +1426,7 @@ export default memo(
                       {(!isCurrentRowEmpty ||
                         currentIndex < _data.length - 1) &&
                         (!(
-                          readOnly ||
+                          effectiveReadOnly ||
                           disabled ||
                           _data[currentIndex]?.readOnly
                         ) ||
@@ -1460,7 +1468,7 @@ export default memo(
                             ? updateDataCurrent(...args)
                             : updateData(currentIndex, ...args);
                         },
-                        readOnly,
+                        readOnly: effectiveReadOnly,
                         disabled,
                       })
                     : React.cloneElement(form, {
@@ -1471,7 +1479,7 @@ export default memo(
                             ? updateDataCurrent(...args)
                             : updateData(currentIndex, ...args);
                         },
-                        readOnly,
+                        readOnly: effectiveReadOnly,
                         disabled,
                       })}
                 </FormChildren>
@@ -1498,7 +1506,7 @@ export default memo(
                           <Cell
                             isDialog
                             disabled={disabled}
-                            readOnly={readOnly}
+                            readOnly={effectiveReadOnly}
                             index={currentIndex}
                             item={currentRow}
                             additionalData={currentAdditionalData}
