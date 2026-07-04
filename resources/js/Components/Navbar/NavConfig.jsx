@@ -1,4 +1,7 @@
 // resources/js/Layouts/DashboardLayout/navConfig.js
+// item.key di sini harus disinkronkan manual dengan menu_key notifikasi
+// (app/Notifications/*.php) dan mapping route di
+// app/Support/Notifications/MenuNotificationMap.php.
 
 export const navConfig = {
   student: {

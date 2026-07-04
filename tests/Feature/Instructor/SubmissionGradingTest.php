@@ -223,11 +223,15 @@ class SubmissionGradingTest extends TestCase {
             'database/migrations/2026_04_28_074547_create_course_contents_table.php',
             'database/migrations/2026_04_28_074548_create_course_content_files_table.php',
             'database/migrations/2026_04_29_074108_create_submissions_table.php',
+            'database/migrations/2026_04_28_074710_create_user_progress_table.php',
             'database/migrations/2026_05_22_134117_add_status_to_enrollments_table.php',
             'database/migrations/2026_05_22_134117_add_rejection_reason_to_payments_table.php',
             'database/migrations/2026_06_07_182309_add_url_to_course_contents_table.php',
             'database/migrations/2026_06_08_024831_add_grade_feedback_to_submissions_table.php',
             'database/migrations/2026_06_17_143845_add_deadline_time_to_course_contents_table.php',
+            'database/migrations/2026_06_28_164713_create_notifications_table.php',
+            'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+            'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
         ];
     }
 }

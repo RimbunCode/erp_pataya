@@ -87,6 +87,9 @@ class CourseCategoryManagementTest extends TestCase {
                 'database/migrations/2025_01_31_153311_create_role_permissions_table.php',
                 'database/migrations/2026_04_26_075939_create_categories_table.php',
                 'database/migrations/2026_05_24_141817_create_admin_user_permissions_table.php',
+                'database/migrations/2026_06_28_164713_create_notifications_table.php',
+                'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+                'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
             ],
             '--force' => true,
         ]);

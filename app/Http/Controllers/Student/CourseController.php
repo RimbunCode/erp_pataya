@@ -34,6 +34,7 @@ class CourseController extends Controller {
                     'title'          => $course->title,
                     'description'    => $course->description,
                     'price'          => $course->price,
+                    'final_price'    => $course->final_price,
                     'level'          => $course->level,
                     'total_hours'    => $course->total_hours,
                     'total_sessions' => $course->total_sessions,
@@ -54,11 +55,12 @@ class CourseController extends Controller {
             ->whereIn('id', $cartIds)
             ->get()
             ->map(fn ($course) => [
-                'id'         => $course->id,
-                'title'      => $course->title,
-                'price'      => $course->price,
-                'instructor' => $course->creator?->name,
-                'image'      => $course->thumbnail
+                'id'              => $course->id,
+                'title'           => $course->title,
+                'price'           => $course->final_price,
+                'original_price'  => $course->price,
+                'instructor'      => $course->creator?->name,
+                'image'           => $course->thumbnail
                     ? asset('storage/' . $course->thumbnail)
                     : null,
             ]);
@@ -93,6 +95,7 @@ class CourseController extends Controller {
                 'title'            => $course->title,
                 'description'      => $course->description,
                 'price'            => $course->price,
+                'final_price'      => $course->final_price,
                 'level'            => $course->level,
                 'language'         => $course->language,
                 'total_hours'      => $course->total_hours,

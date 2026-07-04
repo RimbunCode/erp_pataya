@@ -142,10 +142,16 @@ class InstructorRoleRequestTest extends TestCase {
         return [
             'database/migrations/0001_01_01_000000_create_users_table.php',
             'database/migrations/2025_01_31_135456_create_roles_table.php',
+            'database/migrations/2025_01_31_150339_create_permissions_table.php',
             'database/migrations/2025_01_31_152926_create_user_role_table.php',
+            'database/migrations/2025_01_31_153311_create_role_permissions_table.php',
+            'database/migrations/2026_05_24_141817_create_admin_user_permissions_table.php',
             'database/migrations/2025_01_30_134342_create_files_table.php',
             'database/migrations/2026_05_23_004628_create_role_requests_table.php',
             'database/migrations/2026_05_23_004628_add_inactive_fields_to_users_table.php',
+            'database/migrations/2026_06_28_164713_create_notifications_table.php',
+            'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+            'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
         ];
     }
 }

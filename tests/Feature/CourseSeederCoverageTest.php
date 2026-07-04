@@ -50,6 +50,8 @@ class CourseSeederCoverageTest extends TestCase {
                 'database/migrations/2026_04_28_074544_create_course_category_table.php',
                 'database/migrations/2026_04_28_074531_create_course_sections_table.php',
                 'database/migrations/2026_04_28_074547_create_course_contents_table.php',
+                'database/migrations/2026_05_01_060519_create_student_profiles_table.php',
+                'database/migrations/2026_05_01_060520_create_instructor_profiles_table.php',
             ],
             '--force' => true,
         ]);

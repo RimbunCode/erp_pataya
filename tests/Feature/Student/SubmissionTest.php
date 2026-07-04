@@ -313,6 +313,9 @@ class SubmissionTest extends TestCase {
             'database/migrations/2026_06_07_182309_add_url_to_course_contents_table.php',
             'database/migrations/2026_06_08_024831_add_grade_feedback_to_submissions_table.php',
             'database/migrations/2026_06_17_143845_add_deadline_time_to_course_contents_table.php',
+            'database/migrations/2026_06_28_164713_create_notifications_table.php',
+            'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+            'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
         ];
     }
 }

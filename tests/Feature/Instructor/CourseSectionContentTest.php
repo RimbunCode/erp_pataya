@@ -355,6 +355,9 @@ class CourseSectionContentTest extends TestCase {
             'database/migrations/2026_04_28_074531_create_course_sections_table.php',
             'database/migrations/2026_04_28_074547_create_course_contents_table.php',
             'database/migrations/2026_04_28_074548_create_course_content_files_table.php',
+            'database/migrations/2026_04_28_074634_create_payments_table.php',
+            'database/migrations/2026_04_28_074652_create_enrollments_table.php',
+            'database/migrations/2026_05_22_134117_add_status_to_enrollments_table.php',
             'database/migrations/2026_06_07_182309_add_url_to_course_contents_table.php',
             'database/migrations/2026_06_17_143845_add_deadline_time_to_course_contents_table.php',
         ];

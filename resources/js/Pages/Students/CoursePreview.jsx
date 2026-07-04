@@ -289,6 +289,8 @@ export default function CoursePreview({
   const [checkoutItems, setCheckoutItems] = useState([]);
   const isPending = enrollmentStatus === "pending";
   const isRejected = enrollmentStatus === "rejected";
+  const finalPrice = Number(course.final_price ?? course.price ?? 0);
+  const hasDiscount = finalPrice < Number(course.price || 0);
 
   const tabs = ["overview", "curriculum", "instructor", "reviews"];
 
@@ -303,7 +305,7 @@ export default function CoursePreview({
       return;
     }
 
-    setCheckoutItems([course]);
+    setCheckoutItems([{ ...course, price: finalPrice }]);
     setShowEnroll(true);
   };
 
@@ -888,9 +890,20 @@ export default function CoursePreview({
                       </div>
                     ) : (
                       <>
-                        <p className="text-3xl font-black text-foreground">
-                          {formatRp(course.price)}
-                        </p>
+                        {hasDiscount ? (
+                          <div className="flex items-center gap-3">
+                            <p className="text-lg text-muted-foreground line-through">
+                              {formatRp(course.price)}
+                            </p>
+                            <p className="text-3xl font-black text-primary">
+                              {formatRp(finalPrice)}
+                            </p>
+                          </div>
+                        ) : (
+                          <p className="text-3xl font-black text-foreground">
+                            {formatRp(course.price)}
+                          </p>
+                        )}
                         <p className="text-[10px] font-bold tracking-[2px] text-muted-foreground uppercase mt-1">
                           One-Time Payment • Full Access
                         </p>

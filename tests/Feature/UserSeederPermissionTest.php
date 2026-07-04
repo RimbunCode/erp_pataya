@@ -54,6 +54,8 @@ class UserSeederPermissionTest extends TestCase {
                 'database/migrations/2025_01_31_152926_create_user_role_table.php',
                 'database/migrations/2025_01_31_153311_create_role_permissions_table.php',
                 'database/migrations/2026_05_24_141817_create_admin_user_permissions_table.php',
+                'database/migrations/2026_05_01_060519_create_student_profiles_table.php',
+                'database/migrations/2026_05_01_060520_create_instructor_profiles_table.php',
             ],
             '--force' => true,
         ]);

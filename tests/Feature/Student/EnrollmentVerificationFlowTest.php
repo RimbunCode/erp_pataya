@@ -259,6 +259,41 @@ class EnrollmentVerificationFlowTest extends TestCase {
         $this->assertSame(FormStatus::PENDING->value, $latestPayment->status);
     }
 
+    public function test_student_submit_enrollment_stores_payment_amount_after_percentage_discount(): void {
+        Storage::fake('local');
+
+        $instructor = User::factory()->create();
+        $student    = User::factory()->create();
+
+        $this->assignRole($instructor, 'instructor');
+        $this->assignRole($student, 'student');
+
+        $course = Course::query()->create([
+            'title'          => 'Flow Course Discount',
+            'description'    => 'Flow Course Discount description',
+            'price'          => 100000,
+            'discount'       => 20,
+            'discount_type'  => 'percentage',
+            'level'          => 'beginner',
+            'total_hours'    => 2,
+            'total_sessions' => 2,
+            'created_by'     => $instructor->id,
+        ]);
+
+        $response = $this->actingAs($student)->post(route('student.enroll'), [
+            'course_ids'     => [(string) $course->id],
+            'payment_method' => 'tf',
+            'payment_proof'  => UploadedFile::fake()->image('proof.jpg'),
+            'notes'          => 'Discounted payment note',
+        ]);
+
+        $response->assertRedirect();
+
+        $payment = Payment::query()->where('course_id', $course->id)->first();
+        $this->assertNotNull($payment);
+        $this->assertSame(80000.0, (float) $payment->amount);
+    }
+
     protected function setUp(): void {
         parent::setUp();
 
@@ -375,6 +410,9 @@ class EnrollmentVerificationFlowTest extends TestCase {
             'database/migrations/2026_05_24_141817_create_instructor_earnings_table.php',
             'database/migrations/2026_05_24_141817_create_instructor_payout_requests_table.php',
             'database/migrations/2026_05_24_141818_create_instructor_payout_request_items_table.php',
+            'database/migrations/2026_06_28_164713_create_notifications_table.php',
+            'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+            'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
         ];
     }
 }

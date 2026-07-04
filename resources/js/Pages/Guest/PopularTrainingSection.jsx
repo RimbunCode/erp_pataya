@@ -1,8 +1,10 @@
 import Link from "@/Components/Link";
+import { formatRp } from "@/lib/utils";
 import { getGuestImageUrl, getGuestText } from "@/lib/guestPageContent";
 import { LiveEditableText } from "./LiveEditor/GuestLiveEditorContext";
 
 function TrainingCard({
+  courseId,
   category,
   categoryColor,
   title,
@@ -12,9 +14,12 @@ function TrainingCard({
   level,
   rating,
   price,
+  finalPrice,
   image,
   featured,
 }) {
+  const hasDiscount =
+    finalPrice !== undefined && Number(finalPrice) < Number(price);
   return (
     <div
       className={`
@@ -91,11 +96,26 @@ function TrainingCard({
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-primary font-black text-lg tracking-tight">
-            Rp {price}
-          </span>
+          {hasDiscount ? (
+            <div className="flex flex-col">
+              <span className="text-muted-foreground text-xs line-through">
+                Rp {price}
+              </span>
+              <span className="text-primary font-black text-lg tracking-tight">
+                {formatRp(finalPrice)}
+              </span>
+            </div>
+          ) : (
+            <span className="text-primary font-black text-lg tracking-tight">
+              Rp {price}
+            </span>
+          )}
           <Link
-            href={route("guest.training")}
+            href={
+              courseId
+                ? route("guest.training.preview", courseId)
+                : route("guest.training")
+            }
             className="inline-flex items-center gap-2 bg-primary hover:bg-primary-hover text-primary-foreground text-[10px] font-bold tracking-widest uppercase px-4 py-2.5 rounded-full transition-colors"
           >
             VIEW DETAILS
@@ -115,7 +135,61 @@ function TrainingCard({
   );
 }
 
-export function PopularTrainingSection({ content = {} }) {
+const CARD_PRESETS = [
+  {
+    category: "Digital Construction",
+    categoryColor: "bg-primary-soft text-primary border border-primary/20",
+    fallbackImage: "/storage/images/bim.png",
+  },
+  {
+    category: "Project Management",
+    categoryColor:
+      "bg-green-100 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-900",
+    fallbackImage: "/storage/images/project-management.png",
+    featured: true,
+  },
+  {
+    category: "Digital Engineering",
+    categoryColor:
+      "bg-violet-100 text-violet-700 border border-violet-200 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-900",
+    fallbackImage: "/storage/images/green-building.png",
+  },
+];
+
+const FALLBACK_COURSES = [
+  {
+    title: "BIM MANAGEMENT PROFESSIONAL",
+    author: "Ahmad Junaidi, M.Eng",
+    description:
+      "Master Building Information Modeling with industry-standard tools and workflows.",
+    weeks: 8,
+    level: "Advanced",
+    rating: 4.9,
+    price: "2.500.000",
+  },
+  {
+    title: "PROJECT MANAGEMENT EXCELLENCE",
+    author: "Siti Aminah, PMP",
+    description:
+      "Comprehensive PM methodology aligned with international standards.",
+    weeks: 6,
+    level: "Intermediate",
+    rating: 4.8,
+    price: "1.850.000",
+  },
+  {
+    title: "GREEN BUILDING CERTIFICATION",
+    author: "Budi Setiawan, LEED AP",
+    description:
+      "Learn sustainable design principles and LEED certification process.",
+    weeks: 10,
+    level: "Advanced",
+    rating: 4.9,
+    price: "3.100.000",
+  },
+];
+
+export function PopularTrainingSection({ content = {}, courses = [] }) {
   const sectionHeading = getGuestText(
     content,
     "home.popular.heading",
@@ -127,62 +201,42 @@ export function PopularTrainingSection({ content = {} }) {
     "Explore industry-ready courses designed by certified professionals",
   );
 
-  const courses = [
-    {
-      category: "Digital Construction",
-      categoryColor: "bg-primary-soft text-primary border border-primary/20",
-      title: "BIM MANAGEMENT PROFESSIONAL",
-      author: "Ahmad Junaidi, M.Eng",
-      description:
-        "Master Building Information Modeling with industry-standard tools and workflows.",
-      weeks: 8,
-      level: "Advanced",
-      rating: 4.9,
-      price: "2.500.000",
-      image: getGuestImageUrl(
-        content,
-        "home.media.popularCardImageFileIds.0",
-        "/storage/images/bim.png",
-      ),
-    },
-    {
-      category: "Project Management",
-      categoryColor:
-        "bg-green-100 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-200 dark:border-green-900",
-      title: "PROJECT MANAGEMENT EXCELLENCE",
-      author: "Siti Aminah, PMP",
-      description:
-        "Comprehensive PM methodology aligned with international standards.",
-      weeks: 6,
-      level: "Intermediate",
-      rating: 4.8,
-      price: "1.850.000",
-      image: getGuestImageUrl(
-        content,
-        "home.media.popularCardImageFileIds.1",
-        "/storage/images/project-management.png",
-      ),
-      featured: true,
-    },
-    {
-      category: "Digital Engineering",
-      categoryColor:
-        "bg-violet-100 text-violet-700 border border-violet-200 dark:bg-violet-950 dark:text-violet-200 dark:border-violet-900",
-      title: "GREEN BUILDING CERTIFICATION",
-      author: "Budi Setiawan, LEED AP",
-      description:
-        "Learn sustainable design principles and LEED certification process.",
-      weeks: 10,
-      level: "Advanced",
-      rating: 4.9,
-      price: "3.100.000",
-      image: getGuestImageUrl(
-        content,
-        "home.media.popularCardImageFileIds.2",
-        "/storage/images/green-building.png",
-      ),
-    },
-  ];
+  const cards = CARD_PRESETS.map((preset, index) => {
+    const course = courses[index];
+    const fallback = FALLBACK_COURSES[index];
+
+    if (!course) {
+      return {
+        ...preset,
+        ...fallback,
+        image: getGuestImageUrl(
+          content,
+          `home.media.popularCardImageFileIds.${index}`,
+          preset.fallbackImage,
+        ),
+      };
+    }
+
+    return {
+      ...preset,
+      courseId: course.id,
+      title: course.title,
+      author: course.instructor ?? "-",
+      description: course.description ?? "",
+      weeks: course.total_hours ?? fallback.weeks,
+      level: course.level ?? fallback.level,
+      rating: fallback.rating,
+      price: Number(course.price ?? 0).toLocaleString("id-ID"),
+      finalPrice: course.final_price,
+      image:
+        course.thumbnail ??
+        getGuestImageUrl(
+          content,
+          `home.media.popularCardImageFileIds.${index}`,
+          preset.fallbackImage,
+        ),
+    };
+  });
 
   return (
     <section className="bg-card py-20">
@@ -205,8 +259,8 @@ export function PopularTrainingSection({ content = {} }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-          {courses.map((course) => (
-            <TrainingCard key={course.title} {...course} />
+          {cards.map((card) => (
+            <TrainingCard key={card.courseId ?? card.title} {...card} />
           ))}
         </div>
 

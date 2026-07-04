@@ -38,7 +38,7 @@ class SubmissionController extends Controller {
         ]);
 
         // Mark content as completed in user_progress when graded
-        if ($validated['grade'] !== null) {
+        if (($validated['grade'] ?? null) !== null) {
             UserProgress::firstOrCreate([
                 'user_id'    => $submission->user_id,
                 'content_id' => $submission->content_id,

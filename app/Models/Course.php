@@ -49,6 +49,17 @@ class Course extends Model {
         return $this->hasMany(CoursePublishRequest::class);
     }
 
+    public function getFinalPriceAttribute(): float {
+        $price    = (float) $this->price;
+        $discount = (float) $this->discount;
+
+        $finalPrice = $this->discount_type === 'percentage'
+            ? $price - (($price * $discount) / 100)
+            : $price - $discount;
+
+        return max(0.0, round($finalPrice, 2));
+    }
+
     public function latestPublishRequest(): HasOne {
         return $this->hasOne(CoursePublishRequest::class)->latestOfMany('created_at');
     }

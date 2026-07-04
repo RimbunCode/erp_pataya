@@ -70,7 +70,7 @@ class EnrollmentController extends Controller {
                     $payment = Payment::create([
                         'user_id'          => $userId,
                         'course_id'        => $courseId,
-                        'amount'           => $course->price,
+                        'amount'           => $course->final_price,
                         'status'           => FormStatus::PENDING->value,
                         'payment_method'   => $request->payment_method,
                         'notes'            => $notes,

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Guest;
 
 use App\Http\Controllers\Controller;
+use App\Models\Course;
 use App\Services\Admin\AdminPermissionService;
 use App\Services\Guest\GuestPageContentService;
 use Illuminate\Http\Request;
@@ -19,7 +20,32 @@ class GuestPageController extends Controller {
         return Inertia::render('Guest/Index', [
             'content'    => $this->guestPageContentService->resolve(),
             'liveEditor' => $this->resolveLiveEditor($request, 'home'),
+            'courses'    => $this->popularCourses(),
         ]);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function popularCourses(): array {
+        return Course::with('creator')
+            ->where('is_published', true)
+            ->latest()
+            ->take(3)
+            ->get()
+            ->map(fn (Course $course) => [
+                'id'          => $course->id,
+                'title'       => $course->title,
+                'description' => $course->description,
+                'level'       => $course->level,
+                'price'       => $course->price,
+                'final_price' => $course->final_price,
+                'instructor'  => $course->creator?->name,
+                'thumbnail'   => $course->thumbnail
+                    ? route('files.preview', $course->thumbnail)
+                    : null,
+            ])
+            ->toArray();
     }
 
     public function verify(Request $request): Response {

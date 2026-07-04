@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\HandleTheme;
 use App\Http\Middleware\LanguageMiddleware;
+use App\Http\Middleware\MarkMenuNotificationsAsRead;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -48,6 +49,7 @@ return Application::configure(dirname(__DIR__))
         $middleware->web(append: [
             HandleTheme::class,
             AddLinkHeadersForPreloadedAssets::class,
+            MarkMenuNotificationsAsRead::class,
             HandleInertiaRequests::class,
         ]);
         $middleware->redirectGuestsTo('/');

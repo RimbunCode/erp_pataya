@@ -12,7 +12,10 @@ export default function useCart(initialCourses = [], initialCart = []) {
 
     setCart((prev) => [
       ...prev,
-      { ...course, price: Number(course.price || 0) },
+      {
+        ...course,
+        price: Number(course.final_price ?? course.price ?? 0),
+      },
     ]);
 
     router.post(

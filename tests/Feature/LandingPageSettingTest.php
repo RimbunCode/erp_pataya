@@ -232,7 +232,11 @@ class LandingPageSettingTest extends TestCase {
             'database/migrations/2025_01_31_135456_create_roles_table.php',
             'database/migrations/2025_01_31_150339_create_permissions_table.php',
             'database/migrations/2025_01_31_152926_create_user_role_table.php',
+            'database/migrations/2026_04_26_075938_create_courses_table.php',
             'database/migrations/2026_05_24_141817_create_admin_user_permissions_table.php',
+            'database/migrations/2026_06_28_164713_create_notifications_table.php',
+            'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+            'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
         ];
     }
 }

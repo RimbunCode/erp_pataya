@@ -23,6 +23,8 @@ export default function CourseCard({
 }) {
   const [hovered, setHovered] = useState(false);
   const canAdd = !isSelected && compareCount < 3;
+  const finalPrice = Number(course.final_price ?? course.price ?? 0);
+  const hasDiscount = finalPrice < Number(course.price || 0);
 
   if (viewMode === "list") {
     return (
@@ -88,9 +90,20 @@ export default function CourseCard({
           </div>
         </div>
         <div className="flex-shrink-0 flex flex-col items-end gap-2">
-          <p className="text-base font-black text-foreground">
-            {formatRp(course.price)}
-          </p>
+          {hasDiscount ? (
+            <div className="flex flex-col items-end">
+              <p className="text-xs text-muted-foreground line-through">
+                {formatRp(course.price)}
+              </p>
+              <p className="text-base font-black text-primary">
+                {formatRp(finalPrice)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-base font-black text-foreground">
+              {formatRp(course.price)}
+            </p>
+          )}
 
           <div className="flex items-center gap-1.5 mr-4">
             <button
@@ -246,9 +259,20 @@ export default function CourseCard({
             <p className="text-[9px] font-bold tracking-[2px] text-muted-foreground uppercase">
               Price
             </p>
-            <p className="text-base font-black text-foreground">
-              {formatRp(course.price)}
-            </p>
+            {hasDiscount ? (
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-muted-foreground line-through">
+                  {formatRp(course.price)}
+                </p>
+                <p className="text-base font-black text-primary">
+                  {formatRp(finalPrice)}
+                </p>
+              </div>
+            ) : (
+              <p className="text-base font-black text-foreground">
+                {formatRp(course.price)}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button

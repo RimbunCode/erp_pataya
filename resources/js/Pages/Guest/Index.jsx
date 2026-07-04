@@ -834,7 +834,7 @@ function HomeAdsSection({ content }) {
   );
 }
 
-function HomeSections({ content = {} }) {
+function HomeSections({ content = {}, courses = [] }) {
   const effectiveContent = useGuestLiveContent(content);
 
   const customSections = getByPath(effectiveContent, "home.customSections");
@@ -847,7 +847,7 @@ function HomeSections({ content = {} }) {
       <HeroSection content={effectiveContent} />
       <TrustedBy content={effectiveContent} />
       <HomeAdsSection content={effectiveContent} />
-      <PopularTrainingSection content={effectiveContent} />
+      <PopularTrainingSection content={effectiveContent} courses={courses} />
       <WhyInkindoSection content={effectiveContent} />
       {enabledCustomSections.map((section, index) => {
         const sectionTagline = getByPath(
@@ -884,10 +884,10 @@ function HomeSections({ content = {} }) {
   );
 }
 
-export default function GuestHome({ content = {} }) {
+export default function GuestHome({ content = {}, courses = [] }) {
   return (
     <GuestLayout>
-      <HomeSections content={content} />
+      <HomeSections content={content} courses={courses} />
     </GuestLayout>
   );
 }

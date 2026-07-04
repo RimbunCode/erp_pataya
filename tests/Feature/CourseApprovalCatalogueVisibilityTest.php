@@ -137,6 +137,9 @@ class CourseApprovalCatalogueVisibilityTest extends TestCase {
             'database/migrations/2026_04_28_074652_create_enrollments_table.php',
             'database/migrations/2026_05_05_025911_create_carts_table.php',
             'database/migrations/2026_05_23_213027_create_course_publish_requests_table.php',
+            'database/migrations/2026_06_28_164713_create_notifications_table.php',
+            'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
+            'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
         ];
     }
 }
