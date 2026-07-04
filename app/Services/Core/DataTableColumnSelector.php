@@ -538,12 +538,6 @@ class DataTableColumnSelector {
             return;
         }
         $with[$head] = $this->childSelectClosure($model, $head, $safeRelationColumns[$head] ?? null);
-
-        // Rekursi ke templateLink relasi child (non-morph).
-        $related = $relation->getRelated();
-        if (method_exists($related, 'templateLink')) {
-            $this->resolveTemplateLink($related, $related::templateLink(), $safeRelationColumns[$head] ?? [], $select, $with, $visited, $depth + 1);
-        }
     }
 
     /**
