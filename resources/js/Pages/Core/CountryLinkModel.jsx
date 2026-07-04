@@ -11,7 +11,7 @@ export default forwardRef(function CountryLinkModel(
       value={value}
       onValueChange={onValueChange}
       model="App\Models\Core\Country"
-      disabledNavigation
+      as="country:code"
       disabledAddButton
       cache
       cacheStorage="sessionStorage"

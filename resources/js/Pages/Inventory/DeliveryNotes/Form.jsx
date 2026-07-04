@@ -62,6 +62,8 @@ export default function Form() {
                 });
               }}
               {...attributes}
+              as="item:item.item_id"
+              canNavigation="App\Models\Inventory\Item"
               filters={{
                 ...(data.reference_to?.model ===
                 "App\\Models\\Sales\\SalesOrder"

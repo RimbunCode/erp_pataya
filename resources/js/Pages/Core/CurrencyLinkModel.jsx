@@ -11,7 +11,7 @@ export default forwardRef(function CurrencyLinkModel(
       value={value}
       onValueChange={onValueChange}
       model="App\Models\Core\Currency"
-      disabledNavigation
+      as="currency:code"
       disabledAddButton
       cache
       cacheStorage="sessionStorage"

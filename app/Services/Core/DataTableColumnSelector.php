@@ -670,7 +670,7 @@ class DataTableColumnSelector {
         if ($visibleKeys === null || $visibleKeys === []) {
             $heads = [];
             foreach ($byName as $name => $col) {
-                if (($col['show'] ?? false) === true) {
+                if (($col['show'] ?? false) === true || ($col['forceSelect'] ?? false) === true) {
                     $heads[] = $name;
                 }
             }
@@ -684,6 +684,13 @@ class DataTableColumnSelector {
                 continue;
             }
             $heads[] = str_contains($key, '.') ? explode('.', $key)[0] : $key;
+        }
+
+        // forceSelect selalu ikut SELECT meski tidak ada di cookie visibleKeys.
+        foreach ($byName as $name => $col) {
+            if (($col['forceSelect'] ?? false) === true) {
+                $heads[] = $name;
+            }
         }
 
         return array_values(array_unique($heads));

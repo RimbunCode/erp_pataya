@@ -11,6 +11,8 @@ export default forwardRef(function SalesOrderItemLinkModel(
       value={value}
       onValueChange={onValueChange}
       model="App\Models\Sales\SalesOrderItem"
+      as="item:item.item_id"
+      canNavigation="App\Models\Inventory\Item"
       disabledAddButton={true}
       {...props}
       ref={ref}

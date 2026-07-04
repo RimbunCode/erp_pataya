@@ -228,15 +228,19 @@ class ModelController extends Controller {
                 continue;
             }
 
-            // Kolom non-relasi di luar templateLink: harus linkable. Di luar cache mode
-            // juga harus diminta eksplisit lewat $requested (fields dari client).
+            // Kolom non-relasi di luar templateLink: harus linkable atau forceSelect.
+            // linkable di luar cache mode juga harus diminta eksplisit lewat $requested
+            // (fields dari client). forceSelect selalu lolos tanpa syarat itu.
             if (! isset($safe[$name])) {
-                $isLinkable = ($col['linkable'] ?? false) === true;
-                if (! $isLinkable) {
-                    continue;
-                }
-                if (! $includeAllLinkable && ! isset($requestedSet[$name])) {
-                    continue;
+                $isForceSelect = ($col['forceSelect'] ?? false) === true;
+                if (! $isForceSelect) {
+                    $isLinkable = ($col['linkable'] ?? false) === true;
+                    if (! $isLinkable) {
+                        continue;
+                    }
+                    if (! $includeAllLinkable && ! isset($requestedSet[$name])) {
+                        continue;
+                    }
                 }
             }
 

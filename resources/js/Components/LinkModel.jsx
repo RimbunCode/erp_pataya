@@ -27,7 +27,7 @@ import { Input } from "./ui/input";
 import LoadingIcon from "./LoadingIcon";
 import axios from "axios";
 import { gooeyToast } from "@/lib/gooeyToast";
-import { isEqual } from "lodash";
+import { get, isEqual } from "lodash";
 import pluralize from "pluralize";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
@@ -52,6 +52,11 @@ import { useRef } from "react";
  * @param props.keywords
  * @param props.cache boolean | { enabled?: boolean, refreshMs?: number }
  * @param props.cacheStorage "memory" | "localStorage" | "sessionStorage" | "indexedDB"
+ * @param props.canNavigation FQCN model target navigasi (mis. "App\\Models\\Inventory\\Item").
+ *   Kalau diisi, tombol navigasi di-gate `canGlobal(model, "read", { user_id })` ke model INI,
+ *   bukan `model` prop utama. Dipakai saat target navigasi (`as="name:keyRoute"`) beda dari
+ *   model data (mis. SalesOrderItem menavigasi ke halaman Item). Default: fallback ke
+ *   `can("read", { user_id: option.created_by_id })` (model utama).
  */
 export default memo(
   forwardRef(function LinkModel(
@@ -87,6 +92,7 @@ export default memo(
       fields,
       order,
       customNavigation,
+      canNavigation,
     },
     ref,
   ) {
@@ -100,7 +106,7 @@ export default memo(
     const [allowSearch, setAllowSearch] = useState(true);
     const [loading, setLoading] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
-    const { can } = usePermission(model);
+    const { can, canGlobal } = usePermission(model);
     const cacheConfig = useMemo(() => {
       if (typeof cache === "object") {
         return {
@@ -638,6 +644,24 @@ export default memo(
       else if (!can("create")) return true;
       return false;
     }, [disabledAddButton, form, can]);
+
+    const routeId = useMemo(
+      () => get(option, keyRoute ?? "id"),
+      [option, keyRoute],
+    );
+
+    const navAllowed = useMemo(() => {
+      if (!option) return false;
+      if (canNavigation) {
+        const navOwnerScope = keyRoute?.includes(".")
+          ? get(option, keyRoute.split(".").slice(0, -1).join("."))
+          : option;
+        return canGlobal(canNavigation, "read", {
+          user_id: navOwnerScope?.created_by_id,
+        });
+      }
+      return can("read", { user_id: option?.created_by_id });
+    }, [option, keyRoute, canNavigation, can, canGlobal]);
     return (
       <ClickAwayListener onClickAway={() => setOpen(false)}>
         <div className={cn("w-full", className)}>
@@ -694,9 +718,7 @@ export default memo(
                               name &&
                               option &&
                               search &&
-                              can("read", {
-                                user_id: option.created_by_id,
-                              }) && (
+                              navAllowed && (
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -718,10 +740,7 @@ export default memo(
                                     }
                                     const pluralized = `${pluralize.plural(name ?? "")}.show`;
                                     window.open(
-                                      route(
-                                        pluralized,
-                                        option[keyRoute ?? "id"],
-                                      ),
+                                      route(pluralized, routeId),
                                       "_blank",
                                     );
                                   }}
