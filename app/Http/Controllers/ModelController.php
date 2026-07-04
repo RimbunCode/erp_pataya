@@ -159,7 +159,7 @@ class ModelController extends Controller {
      * @param  list<string>  $withRelations  relasi top-level diminta lewat `with` (eager-load)
      * @return array<string,bool> set nama kolom aman (key)
      */
-    private function safeLookupColumns(string $model, array $requested, PermissionChecker $perm, array $withRelations = []): array {
+    private function safeLookupColumns(string $model, array $requested, PermissionChecker $perm, array $withRelations = [], bool $includeAllLinkable = false): array {
         $cacheKey = $model . ':' . md5(serialize($requested) . serialize($withRelations));
         if (isset($this->safeColumnsCache[$cacheKey])) {
             return $this->safeColumnsCache[$cacheKey];
@@ -228,9 +228,14 @@ class ModelController extends Controller {
                 continue;
             }
 
-            // Kolom non-relasi di luar templateLink: harus diminta DAN linkable.
+            // Kolom non-relasi di luar templateLink: harus linkable. Di luar cache mode
+            // juga harus diminta eksplisit lewat $requested (fields dari client).
             if (! isset($safe[$name])) {
-                if (! isset($requestedSet[$name]) || ($col['linkable'] ?? false) !== true) {
+                $isLinkable = ($col['linkable'] ?? false) === true;
+                if (! $isLinkable) {
+                    continue;
+                }
+                if (! $includeAllLinkable && ! isset($requestedSet[$name])) {
                     continue;
                 }
             }
@@ -701,7 +706,7 @@ class ModelController extends Controller {
         // hanya baca kolom aman) DAN filterRowColumns (lapis kedua, response).
         $perm     = PermissionChecker::forUser($request);
         $fields   = \is_array($request->fields ?? null) ? \array_values($request->fields) : [];
-        $safe     = $this->safeLookupColumns($model, $fields, $perm, $withRelations);
+        $safe     = $this->safeLookupColumns($model, $fields, $perm, $withRelations, $isCache);
         $relModes = $this->relatedModelMap($model);
 
         // SELECT-level pruning: hanya bila TIDAK ada join (jalur join pakai addSelect
