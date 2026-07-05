@@ -190,7 +190,7 @@ export function getHandlebarToken(variable) {
  * Mengambil label tampilan untuk variabel menggunakan terjemahan atau title.
  * Prioritas: title > titleTrans (diterjemahkan) > name.
  * @param {object} variable - Objek variabel dengan properti title, titleTrans, dan name
- * @param {Function} t - Fungsi terjemahan dari laravel-react-i18n
+ * @param {(key: string) => string} t - Fungsi terjemahan dari laravel-react-i18n
  * @returns {string} Label yang akan ditampilkan
  */
 export function getDisplayLabel(variable, t) {
@@ -205,7 +205,7 @@ export function getDisplayLabel(variable, t) {
  * Menentukan label kolom dengan prioritas:
  * `title` → `t(titleTrans)` → `name`.
  * @param {object} col
- * @param {Function} t
+ * @param {(key: string) => string} t
  * @param {string} fallbackPath
  * @returns {string}
  */
@@ -241,7 +241,7 @@ function resolveColumnDisplayLabel(col, t, fallbackPath) {
  * @param {string} path
  * @param {object|null|undefined} columns
  * @param {string|null|undefined} modelDoc
- * @param {Function} t
+ * @param {(key: string) => string} t
  * @returns {{ label: string, titleTrans: string|null }}
  */
 export function resolveLabelWithMeta(path, columns, modelDoc, t) {

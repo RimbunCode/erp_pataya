@@ -59,6 +59,7 @@ function buildHeaderGridFromRows(rows) {
  * Editor for managing header rows, colspan/rowspan configuration in Custom Mode.
  * @param {object} props
  * @param {object} props.tableComponent - GrapesJS gjsRelationsTable component
+ * @returns {React.JSX.Element}
  */
 function CustomModeHeaderEditor({ tableComponent }) {
   const editor = useEditor();

@@ -832,13 +832,14 @@ export const DateSelectorDayPicker = memo(
 /**
  * MonthYearPicker — overlay pilih bulan / tahun di header calendar (pola
  * DatetimePicker). mode: "month" | "year".
- * @param root0
- * @param root0.mode
- * @param root0.current
- * @param root0.months
- * @param root0.years
- * @param root0.onPick
- * @param root0.className
+ * @param {object} root0
+ * @param {"month"|"year"} root0.mode
+ * @param {Date} root0.current
+ * @param {string[]} root0.months
+ * @param {number[]} root0.years
+ * @param {(date: Date, nextMode: string|null) => void} root0.onPick
+ * @param {string} [root0.className]
+ * @returns {JSX.Element}
  */
 function MonthYearPicker({ mode, current, months, years, onPick, className }) {
   const yearRef = useRef(null);
@@ -1128,11 +1129,12 @@ function TimeColumn({
  * DaySelectorTimePicker — panel pilih HH:mm. Dipakai sebagai overlay absolute di
  * area calendar (dibuka dari trigger time di header), jadi tinggi mengisi penuh
  * (`h-full`) agar tak menambah tinggi vertikal popup.
- * @param root0
- * @param root0.value
- * @param root0.onChange
- * @param root0.scrollTick
- * @param root0.className
+ * @param {object} root0
+ * @param {Date} [root0.value]
+ * @param {(date: Date) => void} root0.onChange
+ * @param {number} [root0.scrollTick]
+ * @param {string} [root0.className]
+ * @returns {JSX.Element}
  */
 export function DaySelectorTimePicker({
   value,
@@ -1228,7 +1230,7 @@ export function DaySelectorTimePicker({
  *   (label operator/periode, nama bulan/kuartal/semester, dll).
  * @param {0|1|2|3|4|5|6} [props.weekStartsOn] Hari awal pekan (0=Minggu).
  * @param {boolean} [props.withTime] Aktifkan time picker (lihat aturan di atas).
- * @returns {JSX.Element}
+ * @returns {React.JSX.Element}
  */
 export function DateSelector({
   value,

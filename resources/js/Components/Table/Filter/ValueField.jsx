@@ -28,14 +28,15 @@ import NumberInput from "@/Components/NumberInput";
  *   mode          : "value" | "column" (default "value")
  *   columnOptions : tree kolom (untuk picker kolom kanan di mode column)
  *   fetchColumnChildren : (node) => Promise<children> (lazy-load kolom relasi)
- * @param root0
- * @param root0.column
- * @param root0.operator
- * @param root0.value
- * @param root0.onChange
- * @param root0.mode
- * @param root0.columnOptions
- * @param root0.fetchColumnChildren
+ * @param {object} root0
+ * @param {object} root0.column
+ * @param {string} root0.operator
+ * @param {string|number|boolean|object|Array|null} root0.value
+ * @param {(value: string|number|boolean|object|Array|null) => void} root0.onChange
+ * @param {string} [root0.mode]
+ * @param {Array<object>} [root0.columnOptions]
+ * @param {(node: object) => Promise<Array<object>>} [root0.fetchColumnChildren]
+ * @returns {React.JSX.Element}
  */
 export default function ValueField({
   column,
@@ -306,12 +307,13 @@ export default function ValueField({
 
 /**
  * Picker satu kolom kanan (mode column) — NestedSelect dgn lazy-load relasi.
- * @param root0
- * @param root0.options
- * @param root0.fetchChildren
- * @param root0.value
- * @param root0.onChange
- * @param root0.placeholder
+ * @param {object} root0
+ * @param {Array<object>} root0.options
+ * @param {(node: object) => Promise<Array<object>>} root0.fetchChildren
+ * @param {string} root0.value
+ * @param {(value: string) => void} root0.onChange
+ * @param {string} root0.placeholder
+ * @returns {React.JSX.Element}
  */
 function ColumnRefPicker({
   options,
@@ -334,10 +336,11 @@ function ColumnRefPicker({
 
 /**
  * Dua input berdampingan untuk operator between. value = [a, b].
- * @param root0
- * @param root0.render
- * @param root0.value
- * @param root0.onChange
+ * @param {object} root0
+ * @param {(value: string|number|object|null, onChange: (v: string|number|object|null) => void) => React.JSX.Element} root0.render
+ * @param {Array<string|number|object|null>} root0.value
+ * @param {(value: Array<string|number|object|null>) => void} root0.onChange
+ * @returns {React.JSX.Element}
  */
 function RangePair({ render, value, onChange }) {
   const arr = Array.isArray(value) ? value : [null, null];
@@ -358,11 +361,12 @@ function RangePair({ render, value, onChange }) {
 /**
  * MultiGrow — daftar field yang otomatis bertambah saat field terakhir
  * terisi; tiap field punya tombol hapus. value = array.
- * @param root0
- * @param root0.value
- * @param root0.onChange
- * @param root0.render
- * @param root0.isFilled
+ * @param {object} root0
+ * @param {Array<string|number|object|null>} root0.value
+ * @param {(value: Array<string|number|object|null>) => void} root0.onChange
+ * @param {(value: string|number|object|null, onChange: (v: string|number|object|null) => void) => React.JSX.Element} root0.render
+ * @param {(value: string|number|object|null) => boolean} [root0.isFilled]
+ * @returns {React.JSX.Element}
  */
 function MultiGrow({ value, onChange, render, isFilled }) {
   const items = Array.isArray(value) && value.length > 0 ? value : [null];
@@ -409,11 +413,11 @@ function MultiGrow({ value, onChange, render, isFilled }) {
  * MorphField — dua langkah untuk relasi morph: pilih morph type
  * (PermissionLinkModel) lalu pilih record (LinkModel dgn model dari step 1).
  * value = { type, id }.
- * @param root0
- * @param root0.column
- * @param root0._column
- * @param root0.value
- * @param root0.onChange
+ * @param {object} root0
+ * @param {object} root0._column
+ * @param {{type: string|null, typeRecord: object|null, id: string|number|null, record: object|null}} root0.value
+ * @param {(value: {type: string|null, typeRecord: object|null, id: string|number|null, record: object|null}) => void} root0.onChange
+ * @returns {React.JSX.Element}
  */
 function MorphField({ _column, value, onChange }) {
   const morphType = value?.type ?? null;

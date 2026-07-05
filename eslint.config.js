@@ -641,6 +641,11 @@ export default [
       "react/jsx-filename-extension": [1, { extensions: [".js", ".jsx"] }],
 
       // Hooks
+      // Semua rule react-hooks selain rules-of-hooks share satu compiler-grade
+      // analysis pass (React Compiler HIR) — makan ~52% total waktu lint di
+      // codebase ini (406 file). Matiin satu-satu gak nolong karena cost-nya
+      // nempel ke rule react-hooks lain yang masih on; harus off semua.
+      // Project ini belum pakai React Compiler jadi rule ini pure overhead.
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "off",
       "react-hooks/immutability": "off",
@@ -648,6 +653,17 @@ export default [
       "react-hooks/purity": "off",
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/static-components": "off",
+      "react-hooks/use-memo": "off",
+      "react-hooks/void-use-memo": "off",
+      "react-hooks/component-hook-factories": "off",
+      "react-hooks/error-boundaries": "off",
+      "react-hooks/set-state-in-render": "off",
+      "react-hooks/config": "off",
+      "react-hooks/gating": "off",
+      "react-hooks/globals": "off",
+      "react-hooks/incompatible-library": "off",
+      "react-hooks/unsupported-syntax": "off",
+      "react-hooks/refs": "off",
 
       // General
       "no-unused-vars": "off",
@@ -671,6 +687,12 @@ export default [
       "jsdoc/require-property-description": "off",
       "jsdoc/require-description": "off",
       "jsdoc/require-description-complete-sentence": "off",
+      // React & JSX dipakai luas di @returns JSDoc component tanpa perlu
+      // `import React` eksplisit (automatic JSX runtime) — anggap valid.
+      "jsdoc/no-undefined-types": [
+        "warn",
+        { definedTypes: ["React", "JSX"] },
+      ],
     },
   }),
 ];

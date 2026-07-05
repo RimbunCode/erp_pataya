@@ -528,7 +528,8 @@ function subValue(token) {
  * - lain : rangeEnd = rangeStart (atap dari year + unit index)
  * Mengembalikan objek baru (tak memutasi input). Bila bukan between atau end
  * sudah ada, kembalikan apa adanya.
- * @param v
+ * @param {object} v
+ * @returns {object}
  */
 function completeRange(v) {
   if (!v || v.operator !== "between") return v;

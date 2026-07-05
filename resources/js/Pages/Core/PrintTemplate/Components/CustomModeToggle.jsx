@@ -16,7 +16,8 @@ import { cn } from "@/lib/utils";
  * Shows a confirmation dialog before switching in either direction.
  * @param {object} props
  * @param {boolean} props.isCustomMode - Current custom mode state
- * @param {function} props.onModeChange - Called with (enabled: boolean) after user confirms
+ * @param {(enabled: boolean) => void} props.onModeChange - Called with (enabled: boolean) after user confirms
+ * @returns {React.JSX.Element}
  */
 function CustomModeToggle({ isCustomMode, onModeChange }) {
   const { t } = useLaravelReactI18n();

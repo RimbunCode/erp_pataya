@@ -373,8 +373,9 @@ const MAX_NESTED_DEPTH = 3;
  * Kedalaman group terdalam DI BAWAH `node` (termasuk node itu sendiri),
  * dihitung secara absolut dari `baseDepth`. Mis. node pada depth 1 dengan
  * cucu group menghasilkan 3. Dipakai untuk peringatan retrospektif per-node.
- * @param node
- * @param baseDepth
+ * @param {object} node
+ * @param {number} baseDepth
+ * @returns {number}
  */
 const getSubtreeMaxDepth = (node, baseDepth = 0) => {
   if (!node || !isGroupNode(node)) return baseDepth;
@@ -391,7 +392,8 @@ const getSubtreeMaxDepth = (node, baseDepth = 0) => {
 /**
  * Telusur seluruh tree dan kembalikan kedalaman group terdalam. Root = 0,
  * tiap group nested menambah 1. Dipakai untuk peringatan global.
- * @param filters
+ * @param {object} filters
+ * @returns {number}
  */
 const getMaxDepth = (filters) => {
   const root = filters?.root;

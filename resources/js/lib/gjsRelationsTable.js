@@ -14,7 +14,7 @@ const ID_DECIMAL_SEPARATOR = ",";
  * e.g., resolveValue(obj, "customer.name") => obj.customer.name
  * @param {object} obj - The data object to resolve from
  * @param {string} path - Dot-notation path
- * @returns {*} The resolved value or undefined
+ * @returns {unknown} The resolved value or undefined
  */
 function resolveValue(obj, path) {
   if (!obj || !path) return undefined;
@@ -167,7 +167,7 @@ function escapeHtmlAttribute(value) {
  * Guarantees: never returns undefined or empty string when at least one of
  * `titleTrans`, `title`, or `name` is present on the column object.
  * @param {object} col - Column definition with name, title, titleTrans
- * @param {Function} t - Translation function (e.g., `t` from useLaravelReactI18n)
+ * @param {(key: string, replacements?: object, locale?: string) => string} t - Translation function (e.g., `t` from useLaravelReactI18n)
  * @param {string} [locale] - Optional locale code (e.g., "en", "id") for translation resolution
  * @returns {string} The resolved label
  */
@@ -207,8 +207,8 @@ function getColumnLabel(col, t, locale) {
  * @param {Array} options.columns - Column definitions (filtered & sorted)
  * @param {string} options.relationName - The relation name for constructing label/token paths
  * @param {Array|null} options.exampleData - Array of example data rows for this relation
- * @param {Function} options.t - Translation function
- * @param {Function} options.genId - ID generator function
+ * @param {(key: string, replacements?: object, locale?: string) => string} options.t - Translation function
+ * @param {(prefix?: string) => string} options.genId - ID generator function
  * @param {string} [options.locale] - Optional locale code (e.g., "en", "id") for header translation
  * @returns {Array} GrapeJS component definitions for thead and tbody
  */
@@ -438,7 +438,7 @@ function buildExampleDataTable({
  * @param {object} options
  * @param {Array} options.columns - Column definitions
  * @param {string} options.relationName - The relation name
- * @param {Function} options.genId - ID generator function
+ * @param {(prefix?: string) => string} options.genId - ID generator function
  * @returns {Array} GrapeJS component definitions with Handlebar tokens
  */
 function buildHandlebarTokenTable({ columns, relationName, genId }) {
@@ -841,6 +841,7 @@ export default function gjsRelationsTable(editor) {
        * Uses serializeCustomModeHeader/Body from customModeUtils to build
        * the Handlebar-token HTML from the live GrapesJS component tree.
        * Outputs data-custom-mode="true" as a marker attribute.
+       * @returns {string}
        */
       toCustomModeHTML() {
         const attrs = this.getAttributes();

@@ -24,7 +24,8 @@ export function filterRelationColumns(dataTableColumns, relationName) {
   /**
    * Recursively search for a column node with matching name and type "relations" or "relation"
    * that represents our target relation table.
-   * @param columns
+   * @param {Array} columns - Columns array to search
+   * @returns {object|null} The matching relation column node, or null if not found
    */
   function findRelation(columns) {
     for (const col of columns) {
@@ -502,7 +503,7 @@ function serializeCellContent(cell, labelRelationPrefix) {
  * Serializes the content of a body cell, converting data-token spans to
  * {{this.<col>}} or {{relation this.<col>}} tokens.
  * @param {object} cell - GrapesJS cell component
- * @param relationName
+ * @param {string} relationName - The relation name used to normalize body tokens
  * @returns {string}
  */
 function serializeBodyCellContent(cell, relationName = "") {

@@ -27,6 +27,7 @@ import {
  * @param {object} [opts.attributes]
  * @param {object} [opts.style]
  * @param {Array} [opts.children]
+ * @returns {object}
  */
 function mockComponent({
   tagName = "td",

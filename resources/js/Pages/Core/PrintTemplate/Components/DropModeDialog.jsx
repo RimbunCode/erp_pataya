@@ -19,6 +19,7 @@ import { Type, Tag, LayoutGrid } from "lucide-react";
  * @param {string[]} props.modes - Daftar mode yang diizinkan (label, token, both)
  * @param {(mode: 'label' | 'token' | 'both') => void} props.onSelect - Callback saat mode dipilih
  * @param {() => void} props.onClose - Callback saat modal ditutup tanpa memilih
+ * @returns {React.JSX.Element}
  */
 const DropModeDialog = ({
   open,

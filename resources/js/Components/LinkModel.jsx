@@ -282,7 +282,6 @@ export default memo(
     const commandRef = useRef(null);
 
     const option = useMemo(() => {
-      // eslint-disable-next-line react-hooks/set-state-in-render
       setLoading(false);
       return isControlled ? value : _option;
     }, [isControlled, value, _option]);

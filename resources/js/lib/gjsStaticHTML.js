@@ -132,6 +132,7 @@ export default function gjsStaticHTML(editor) {
        * Update the component content with sanitized HTML.
        * Called from the StaticHTMLComponent modal on save.
        * @param {string} rawHTML - The raw user-provided HTML
+       * @returns {{ sanitizedHTML: string, warnings: string[], removedTags: string[], removedAttributes: string[] }}
        */
       setCustomHTML(rawHTML) {
         const result = sanitizeHTML(rawHTML);
@@ -161,6 +162,7 @@ export default function gjsStaticHTML(editor) {
       /**
        * Override toHTML to output the sanitized HTML content
        * (not the wrapper/placeholder structure).
+       * @returns {string}
        */
       toHTML() {
         const sanitized = this.get("sanitizedHTML");

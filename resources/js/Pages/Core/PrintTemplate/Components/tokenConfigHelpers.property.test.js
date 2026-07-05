@@ -304,7 +304,8 @@ const mixedRelationTreeArb = fc.array(
 
 /**
  * Count the number of named columns in a source array.
- * @param columns
+ * @param {Array} columns - Source columns array to inspect
+ * @returns {number} Count of valid named columns
  */
 function countValidColumns(columns) {
   if (!Array.isArray(columns)) return 0;
@@ -314,8 +315,9 @@ function countValidColumns(columns) {
 
 /**
  * Get the maximum nesting depth of a source columns array.
- * @param columns
- * @param currentDepth
+ * @param {Array} columns - Source columns array to inspect
+ * @param {number} currentDepth - Current recursion depth
+ * @returns {number} Maximum nesting depth found
  */
 function getSourceDepth(columns, currentDepth = 0) {
   if (!Array.isArray(columns) || columns.length === 0) return currentDepth;
@@ -342,8 +344,9 @@ function getSourceDepth(columns, currentDepth = 0) {
 
 /**
  * Get the maximum nesting depth of the output tree.
- * @param options
- * @param currentDepth
+ * @param {Array} options - Tree-structured options to inspect
+ * @param {number} currentDepth - Current recursion depth
+ * @returns {number} Maximum nesting depth found
  */
 function getTreeDepth(options, currentDepth = 0) {
   if (!Array.isArray(options) || options.length === 0) return currentDepth;
@@ -361,7 +364,8 @@ function getTreeDepth(options, currentDepth = 0) {
 
 /**
  * Collect all nodes from a filtered tree (flattened).
- * @param tree
+ * @param {Array} tree - Tree-structured nodes to flatten
+ * @returns {Array} Flattened array of all nodes
  */
 function collectAllNodes(tree) {
   const nodes = [];
@@ -376,7 +380,8 @@ function collectAllNodes(tree) {
 
 /**
  * Check if a node has any descendant with type "relations".
- * @param node
+ * @param {object} node - Tree node to inspect
+ * @returns {boolean} True if a descendant with type "relations" exists
  */
 function nodeHasRelationsDescendant(node) {
   if (!node || !Array.isArray(node.children)) return false;
@@ -1357,7 +1362,8 @@ const tokenNoRelationsTreeArb = fc.array(
 
 /**
  * Collect all nodes from a tree (flattened) for inspection.
- * @param tree
+ * @param {Array} tree - Tree-structured nodes to flatten
+ * @returns {Array} Flattened array of all nodes
  */
 function collectAllFilteredNodes(tree) {
   const nodes = [];
@@ -1373,7 +1379,8 @@ function collectAllFilteredNodes(tree) {
 /**
  * Collect all non-relations nodes from input that are NOT descendants of a "relations" node.
  * These are the nodes that SHOULD appear in the output.
- * @param tree
+ * @param {Array} tree - Tree-structured nodes to inspect
+ * @returns {Array} Values of nodes expected to be retained
  */
 function collectExpectedRetainedNodes(tree) {
   const retained = [];
@@ -1393,7 +1400,8 @@ function collectExpectedRetainedNodes(tree) {
 /**
  * Collect all nodes that are descendants of "relations" nodes in the input.
  * These should NOT appear in the output.
- * @param tree
+ * @param {Array} tree - Tree-structured nodes to inspect
+ * @returns {Array} Values of nodes that are descendants of "relations" nodes
  */
 function collectRelationsDescendants(tree) {
   const descendants = [];

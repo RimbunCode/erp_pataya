@@ -17,7 +17,7 @@ const FILTER_DEBOUNCE_MS = 300;
  * - object → as-is
  * Warning dev bila ditemukan key `select` (singular) — hanya `selects` didukung.
  * @param {string | object} from
- * @returns {Object<string, Object>}
+ * @returns {{[modelClass: string]: object}}
  */
 function normalizeFrom(from) {
   if (typeof from === "string") {
@@ -43,7 +43,7 @@ function normalizeFrom(from) {
  * Terapkan columnAlias ke tiap row sebelum onSelected. Fungsi murni.
  * Untuk tiap entri alias `{ target: source }`, set `row[target] = row[source]`.
  * @param {Array<object>} rows
- * @param {Object<string, string>|undefined} alias
+ * @param {{[target: string]: string}|undefined} alias
  * @returns {Array<object>}
  */
 export function applyColumnAlias(rows, alias) {
@@ -63,7 +63,7 @@ export function applyColumnAlias(rows, alias) {
  * Bangun map kolom dari array kolom backend, re-sort by `order` (getColumns
  * meng-usort by name sehingga urutan asli hilang — dikembalikan di sini).
  * @param {Array<object>} columns
- * @returns {Object<string, Object>}
+ * @returns {{[columnName: string]: object}}
  */
 function buildColumnMap(columns) {
   const sorted = [...(columns ?? [])]
@@ -80,11 +80,12 @@ function buildColumnMap(columns) {
 /**
  * Hook orkestrasi state dialog SelectModel: model aktif, view, pagination,
  * filter (baseFilters non-editable + filters editable + fid), data, kolom.
- * @param {{ from: string|Object, onSelected: (payload: {
- *   items: Array<Object>, model: string,
+ * @param {{ from: string|object, onSelected: (payload: {
+ *   items: Array<object>, model: string,
  *   mode: "direct"|"self-extraction"|"per-item",
  *   sourceModel: string|null, sourceIds: Array|null,
  * }) => void }} opts
+ * @returns {object}
  */
 export default function useSelectModel({ from, onSelected }) {
   const route = window.route;
