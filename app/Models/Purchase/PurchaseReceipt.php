@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PurchaseReceipt extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
-    protected               $guarded           = ['id'];
-    protected               $casts             = [
+
+    protected $guarded = ['id'];
+    protected $casts   = [
         'received_date' => 'datetime',
         'date'          => 'datetime',
     ];
@@ -23,18 +24,21 @@ class PurchaseReceipt extends Model {
             'branch_name:branch.name',
         ];
     }
+
     public $keyBreadcrumb = 'code';
 
     public static function templateLink() {
         return ':code';
     }
+
     public $translateKey = 'purchase.purchaseReceipt';
 
     protected static function loadRelationsOnShow() {
         return ['items', 'items.purchaseOrderItem', 'items.purchaseOrderItem.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
     }
+
     protected array $configColumns = [
-        'code'          => [
+        'code' => [
             'isLink' => true,
             'show'   => true,
             'order'  => 0,
@@ -47,16 +51,16 @@ class PurchaseReceipt extends Model {
             'show'  => true,
             'order' => 2,
         ],
-        'supplier'      => [
+        'supplier' => [
             'show'  => true,
             'order' => 3,
         ],
-        'status'        => [
+        'status' => [
             'show'  => true,
             'order' => 4,
         ],
         'returnAgainst',
-        'items'         => [
+        'items' => [
             'show'  => true,
             'order' => 10,
         ],
