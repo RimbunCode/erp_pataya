@@ -746,12 +746,19 @@ const Table2 = forwardRef(function Table2(
                 getShowedColumns(val)
                   .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
                   .forEach((col, index) => {
-                    newShowedColumns[col.name] = { size: col.size, order: index };
+                    newShowedColumns[col.name] = {
+                      size: col.size,
+                      order: index,
+                    };
                   });
                 setCookie(
                   datatableColumnsCookieKey(window.location.pathname),
                   JSON.stringify(newShowedColumns),
-                  { days: DATATABLE_COLUMNS_EXPIRED, path: "/", sameSite: "lax" },
+                  {
+                    days: DATATABLE_COLUMNS_EXPIRED,
+                    path: "/",
+                    sameSite: "lax",
+                  },
                 );
               }
               setColumns(val);

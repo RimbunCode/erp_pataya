@@ -102,7 +102,8 @@ class PurchaseInvoice extends Model {
     protected static function loadRelationsOnShow() {
         return [
             'items',
-            'items.item',
+            'items.purchaseOrderItem',
+            'items.purchaseOrderItem.item',
             'items.unit',
             'items.targetWarehouse',
             'items.tax',

@@ -7,49 +7,74 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
-import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
-import LinkModel from "@/Components/LinkModel";
+import PurchaseOrderItemLinkModel from "../PurchaseOrders/PurchaseOrderItemLinkModel";
 import PurchaseOrderLinkModel from "../PurchaseOrders/PurchaseOrderLinkModel";
 import PurchaseReceiptLinkModel from "./PurchaseReceiptLinkModel";
 import React from "react";
 import SupplierLinkModel from "../Suppliers/SupplierLinkModel";
 import { Textarea } from "@/Components/ui/textarea";
-import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 import { generateRandom } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { useMemo } from "react";
+import WarehouseLinkModel from "@/Pages/Inventory/Warehouses/WarehouseLinkModel";
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, defaultData } = useFormPage();
+  const { data, setData } = useFormPage(
+    {
+      date: new Date(),
+    },
+    {
+      trackDefaultValue: false,
+      notUseWhenCreate: true,
+    },
+  );
 
   const itemColumns = useMemo(() => {
     return [
       {
-        name: "item",
+        name: "purchase_order_item",
         titleTrans: "purchase.purchaseReceipt.columns.item",
         required: true,
         width: 3,
         cell({ dataRow, setData, attributes }) {
           return (
-            <ItemVariantLinkModel
-              filters={{
-                is_stock_item: true,
-              }}
+            <PurchaseOrderItemLinkModel
               placeholder={t(
                 "purchase.purchaseReceipt.columns.item.placeholder",
               )}
-              value={dataRow?.item}
+              value={dataRow.purchase_order_item ?? null}
+              disabled={!data.purchase_order}
               onValueChange={(val) => {
-                const defaultUnit = val?.default_uom;
                 setData({
-                  item: val,
-                  unit: defaultUnit,
-                  conversion_factor: defaultUnit?.conversion_factor,
+                  purchase_order_item: val,
+                  purchase_order_item_id: val?.id,
+                  unit: val?.unit,
+                  conversion_factor: val?.conversion_factor,
+                  quantity: val?.unreceived_quantity,
+                  description: val?.description,
+                  target_warehouse: val?.target_warehouse,
                 });
               }}
               {...attributes}
-              with={["defaultUom", "item"]}
+              as="item:item.item_id"
+              canNavigation="App\Models\Inventory\Item"
+              filters={{
+                purchase_order_id: data.purchase_order?.id ?? null,
+                unreceived_quantity: { ">": 0 },
+              }}
+              with={[
+                "item",
+                "unit",
+                "targetWarehouse",
+                "targetWarehouse.branch",
+              ]}
+              fields={[
+                "unreceived_quantity",
+                "description",
+                "conversion_factor",
+                "target_warehouse",
+              ]}
             />
           );
         },
@@ -63,7 +88,7 @@ function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <WarehouseLinkModel
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item_id}
               value={data}
               onValueChange={(e) => setData("target_warehouse", e)}
               {...attributes}
@@ -82,7 +107,7 @@ function Form() {
           return (
             <NumberInput
               {...attributes}
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item_id}
               readOnly={
                 attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
               }
@@ -101,7 +126,7 @@ function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <ItemUnitLinkModel
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item_id}
               placeholder={t(
                 "purchase.purchaseReceipt.columns.unit.placeholder",
               )}
@@ -114,7 +139,7 @@ function Form() {
               }
               {...attributes}
               filters={{
-                item_id: dataRow?.item?.item_id,
+                item_id: dataRow?.purchase_order_item?.item?.item_id,
               }}
             />
           );
@@ -126,7 +151,7 @@ function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <Textarea
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item_id}
               value={data}
               onValueChange={(val) => setData("description", val)}
               {...attributes}
@@ -168,7 +193,15 @@ function Form() {
                   "items.item",
                   "items.unit",
                   "items.targetWarehouse",
+                  "items.targetWarehouse.branch",
                   "supplier",
+                ]}
+                fields={[
+                  "items.unreceived_quantity",
+                  "items.description",
+                  "items.conversion_factor",
+                  "items.target_warehouse",
+                  "items.unit",
                 ]}
                 disabledAddButton
                 value={data.purchase_order}
@@ -181,12 +214,12 @@ function Form() {
                       items: val?.items?.map((item) => {
                         return {
                           id: generateRandom(5),
-                          description: item.description,
+                          purchase_order_item: item,
                           purchase_order_item_id: item.id,
-                          item: item.item,
-                          quantity: item.quantity,
+                          description: item.description,
+                          quantity: item.unreceived_quantity ?? 0,
                           unit: item.unit,
-                          required_date: item.required_date,
+                          conversion_factor: item.conversion_factor,
                           target_warehouse: item.target_warehouse,
                         };
                       }),
@@ -253,15 +286,16 @@ function Form() {
                       return_against: val,
                       purchase_order: val?.purchase_order,
                       supplier: val?.supplier,
-                      items: val?.items?.map((item) => {
-                        return {
-                          ...item,
-                          id: generateRandom(8),
-                          return_against_item_id: item.id,
-                          quantity: item.unreturned_quantit,
-                          required_quantity: item.unreturned_quantity,
-                        };
-                      }),
+                      items: val?.items?.map((item) => ({
+                        id: generateRandom(8),
+                        return_against_item_id: item.id,
+                        purchase_order_item_id: item.purchase_order_item_id,
+                        quantity: item.unreturned_quantity ?? 0,
+                        required_quantity: item.unreturned_quantity,
+                        unit: item.unit,
+                        description: item.description,
+                        target_warehouse: item.target_warehouse,
+                      })),
                     }));
                   }}
                 />
@@ -275,48 +309,9 @@ function Form() {
         title={t("purchase.purchaseReceipt.items")}
       >
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <FormInput
-            label={t("inventory.deliveryNote.columns.insert_item")}
-            disabled={!data.reference_to}
-          >
-            <LinkModel
-              model="App\Models\Inventory\PurchaseReceiptItem"
-              disabledAddButton
-              with={["item", "targetWarehouse", "unit"]}
-              filters={{
-                purchase_receipt_id: defaultData?.id,
-                unreceived_quantity: {
-                  ">": 0,
-                },
-                id: {
-                  notIn: data?.items?.map((x) => x.purchase_order_item_id),
-                },
-              }}
-              value={null}
-              onValueChange={(item) => {
-                if (!item) return;
-                setData((prev) => {
-                  return {
-                    ...prev,
-                    items: [
-                      ...prev.items,
-                      {
-                        ...item,
-                        id: generateRandom(8),
-                        purchase_order_item_id: item.id,
-                        quantity: item.unreceived_quantity,
-                      },
-                    ],
-                  };
-                });
-              }}
-            />
-          </FormInput>
           <FormTable
             name="PurchaseReceiptItems"
             className="col-start-1 col-span-2"
-            readOnly={true}
-            forceCanDelete
             columns={itemColumns}
             value={data?.items}
             onValueChange={(v) => setData("items", v)}

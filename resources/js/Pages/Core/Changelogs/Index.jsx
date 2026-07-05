@@ -1,5 +1,5 @@
 import AppLayout from "@/Layouts/AppLayout";
-import { Link } from "@inertiajs/react";
+
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function ChangelogCard({ changelog }) {
@@ -9,7 +9,9 @@ function ChangelogCard({ changelog }) {
     <div className="rounded-lg border bg-card p-6 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <span className="font-mono text-lg font-bold">{changelog.version}</span>
+          <span className="font-mono text-lg font-bold">
+            {changelog.version}
+          </span>
           {!changelog.is_read && (
             <span className="rounded-full bg-blue-500 px-2 py-0.5 text-xs font-medium text-white">
               {t("core.changelog.badge_new", "Baru")}
@@ -47,7 +49,10 @@ export default function Index({ changelogs }) {
             {t("core.changelog.title", "Changelog")}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {t("core.changelog.description", "Riwayat pembaruan versi aplikasi.")}
+            {t(
+              "core.changelog.description",
+              "Riwayat pembaruan versi aplikasi.",
+            )}
           </p>
         </div>
 

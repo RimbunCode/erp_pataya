@@ -52,17 +52,18 @@ class PurchaseReceiptController extends Controller {
                             $purchaseOrder->loadRelations();
 
                             $defaultData = [
-                                'received_date'  => now(),
+                                'date'           => now(),
                                 'purchase_order' => $purchaseOrder,
                                 'supplier'       => $purchaseOrder->supplier,
                                 'items'          => $purchaseOrder->items->map(function ($item) {
                                     return [
                                         'id'                     => Utils::generateRandom(5),
+                                        'purchase_order_item'    => $item,
                                         'purchase_order_item_id' => $item->id,
-                                        'item'                   => $item->item,
                                         'description'            => $item->description,
-                                        'quantity'               => $item->quantity,
+                                        'quantity'               => $item->unreceived_quantity,
                                         'unit'                   => $item->unit,
+                                        'conversion_factor'      => $item->conversion_factor,
                                         'target_warehouse'       => $item->targetWarehouse,
                                     ];
                                 }),
@@ -85,18 +86,19 @@ class PurchaseReceiptController extends Controller {
                             $purchaseReceiptTarget->loadRelations();
                             $defaultData = [
                                 'return_against' => $purchaseReceiptTarget,
-                                'received_date'  => now(),
+                                'date'           => now(),
                                 'purchase_order' => $purchaseReceiptTarget->purchaseOrder,
                                 'supplier'       => $purchaseReceiptTarget->supplier,
                                 'items'          => $purchaseReceiptTarget->items->map(function ($item) {
                                     return [
                                         'id'                     => Utils::generateRandom(5),
                                         'return_against_item_id' => $item->id,
+                                        'purchase_order_item'    => $item->purchaseOrderItem,
                                         'purchase_order_item_id' => $item->purchase_order_item_id,
-                                        'item'                   => $item->item,
                                         'description'            => $item->description,
                                         'quantity'               => $item->quantity,
                                         'unit'                   => $item->unit,
+                                        'conversion_factor'      => $item->conversion_factor,
                                         'target_warehouse'       => $item->targetWarehouse,
                                     ];
                                 }),

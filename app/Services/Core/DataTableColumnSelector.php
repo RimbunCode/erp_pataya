@@ -334,8 +334,10 @@ class DataTableColumnSelector {
 
         // $q adalah Relation (BelongsTo/HasMany/...) saat dipakai di with([rel => fn]);
         // select() diproksikan ke Builder via __call. Jangan type-hint Builder.
+        // afterQuery: clear appends relasi child agar accessor yg butuh relasi ekstra
+        // (mis. Supplier::getAddressAttribute → country) tidak crash saat serialisasi.
         return function ($q) use ($cols): void {
-            $q->select($cols);
+            $q->select($cols)->afterQuery(fn ($items) => $items->each(fn ($m) => $m->setAppends([])));
         };
     }
 

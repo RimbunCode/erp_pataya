@@ -72,6 +72,7 @@ class PurchaseInvoiceController extends Controller {
                                 'items'                => $po?->items->map(fn ($item) => [
                                     ...$item->toArray(),
                                     'id'                     => Utils::generateRandom(5),
+                                    'purchase_order_item'    => $item,
                                     'purchase_order_item_id' => $item->id,
                                 ]),
                                 'payment_schedules' => $po?->paymentSchedules->map(fn ($paymentSchedule) => [

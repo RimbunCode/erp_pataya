@@ -12,7 +12,7 @@ import { formatNumber, formatTyping, normalizeSign } from "./formatNumber";
 
 import { cleanNumber } from "./cleanNumber";
 import { parseNumberFormat } from "./parseNumberFormat";
-import { resolveCurrencyInput, useCurrency } from "./useCurrency";
+import { useCurrency } from "./useCurrency";
 import { fetchExchangeRate } from "./fetchExchangeRate";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
@@ -359,7 +359,12 @@ export default forwardRef(function NumberInput(
     // currencyCode sama dengan default_currency_id -> skip tanpa toast, rate = 1.
     // baseCode sudah uppercase; quoteCode dari preferences (lowercase) → uppercase dulu.
     if (baseCode === "default" || baseCode === quoteCode.toUpperCase()) {
-      onExchangeRateRef.current?.({ rate: 1, base: baseCode, quote: quoteCode.toUpperCase(), date: null });
+      onExchangeRateRef.current?.({
+        rate: 1,
+        base: baseCode,
+        quote: quoteCode.toUpperCase(),
+        date: null,
+      });
       return;
     }
 

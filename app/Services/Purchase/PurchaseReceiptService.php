@@ -12,6 +12,7 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Utils;
 use Illuminate\Support\Collection;
@@ -27,14 +28,20 @@ class PurchaseReceiptService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, array $units = []) {
+    private function fillItemRelations(array $data, array $units = [], array $purchaseOrderItems = []) {
         $unit                        = $units[$data['unit']['id']] ?? null;
-        $data['item_id']             = $data['item']['id'];
+        $data['item_id']             = $purchaseOrderItems[$data['purchase_order_item_id']]->item_id;
         $data['item_unit_id']        = $data['unit']['id'];
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
         $data['target_warehouse_id'] = $data['target_warehouse']['id'] ?? '';
 
         return $data;
+    }
+
+    private function batchLoadPurchaseOrderItems(array $data): array {
+        $ids = collect($data['items'])->pluck('purchase_order_item_id')->filter()->unique()->values();
+
+        return PurchaseOrderItem::whereIn('id', $ids)->get()->keyBy('id')->all();
     }
 
     private function batchLoadUnits(array $data): array {
@@ -44,11 +51,12 @@ class PurchaseReceiptService {
     }
 
     public function create(array $data) {
-        $data['code']    = FormatingSeries::generate(PurchaseReceipt::class, $data, true);
-        $purchaseReceipt = PurchaseReceipt::create($this->fillRelations($data));
-        $units           = $this->batchLoadUnits($data);
+        $data['code']       = FormatingSeries::generate(PurchaseReceipt::class, $data, true);
+        $purchaseReceipt    = PurchaseReceipt::create($this->fillRelations($data));
+        $units              = $this->batchLoadUnits($data);
+        $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units);
+            $item = $this->fillItemRelations($item, $units, $purchaseOrderItems);
             $purchaseReceipt->items()->create($item);
         }
         $purchaseReceipt->logForCreated();
@@ -71,9 +79,10 @@ class PurchaseReceiptService {
             ->whereIn('id', $itemIds)
             ->get()
             ->keyBy('id');
-        $units = $this->batchLoadUnits($data);
+        $units              = $this->batchLoadUnits($data);
+        $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $units);
+            $item = $this->fillItemRelations($item, $units, $purchaseOrderItems);
 
             if (Ulid::isValid($item['id'])) {
                 $existingItems->get($item['id'])?->update($item);

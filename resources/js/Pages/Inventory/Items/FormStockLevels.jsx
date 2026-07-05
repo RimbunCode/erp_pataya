@@ -106,9 +106,7 @@ export default memo(function FormStockLevels() {
                           />
                         </div>
                         <div className="pl-0.5 flex flex-col items-start justify-center relative">
-                          <span className="px-1 text-xs">
-                            {maxStock}
-                          </span>
+                          <span className="px-1 text-xs">{maxStock}</span>
                           <span
                             className={cn(
                               "relative h-2 rounded-r-full bg-muted w-full",

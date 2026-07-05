@@ -16,7 +16,7 @@ import FormInput from "@/Components/FormInput";
 import FormTable from "@/Components/FormTable";
 import ItemForm from "./ItemForm";
 import ItemUnitLinkModel from "@/Pages/Inventory/Items/ItemUnitLinkModel";
-import ItemVariantLinkModel from "@/Pages/Inventory/Items/ItemVariantLinkModel";
+import PurchaseOrderItemLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrderItemLinkModel";
 import PaymentSchedule from "../Components/PaymentSchedule";
 import PurchaseInvoiceLinkModel from "../PurchaseInvoice/PurchaseInvoiceLinkModel";
 import PurchaseOrderLinkModel from "@/Pages/Purchase/PurchaseOrders/PurchaseOrderLinkModel";
@@ -68,35 +68,43 @@ export default function Form() {
   const itemColumns = useMemo(() => {
     return [
       {
-        name: "item",
+        name: "purchase_order_item",
         titleTrans: "finances.purchaseInvoice.columns.item",
         required: true,
         width: 2,
         cell({ dataRow, setData, attributes }) {
           return (
-            <ItemVariantLinkModel
+            <PurchaseOrderItemLinkModel
               placeholder={t(
                 "finances.purchaseInvoice.columns.item.placeholder",
               )}
-              value={dataRow.item}
+              value={dataRow.purchase_order_item ?? null}
+              disabled={!data.purchase_order}
               onValueChange={(val) => {
-                const defaultUnit = val?.default_uom;
                 setData({
-                  item: val,
-                  unit: defaultUnit,
-                  conversion_factor: defaultUnit?.conversion_factor,
-                  source_warehouse: data.source_warehouse,
+                  purchase_order_item: val,
+                  unit: val?.unit,
+                  conversion_factor: val?.conversion_factor,
+                  quantity: val?.unbilled_quantity,
+                  rate: val?.rate,
+                  tax: val?.tax,
+                  description: val?.description,
                 });
               }}
               {...attributes}
+              as="item:item.item_id"
+              canNavigation="App\Models\Inventory\Item"
               filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
+                purchase_order_id: data.purchase_order?.id ?? null,
+                unbilled_quantity: { ">": 0 },
               }}
-              with={["defaultUom", "item"]}
+              with={["item", "unit", "tax"]}
+              fields={[
+                "unbilled_quantity",
+                "rate",
+                "description",
+                "conversion_factor",
+              ]}
             />
           );
         },
@@ -110,7 +118,7 @@ export default function Form() {
         cell({ dataRow, data, setData, attributes }) {
           return (
             <Textarea
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item}
               rows={1}
               value={data ?? ""}
               onChange={(e) => setData("description", e.target.value)}
@@ -129,7 +137,7 @@ export default function Form() {
           return (
             <NumberInput
               {...attributes}
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item}
               readOnly={
                 attributes.readOnly || (dataRow.readOnly && !dataRow.isCustom)
               }
@@ -148,7 +156,7 @@ export default function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <ItemUnitLinkModel
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item}
               placeholder={t(
                 "finances.purchaseInvoice.columns.unit.placeholder",
               )}
@@ -161,7 +169,7 @@ export default function Form() {
               }
               {...attributes}
               filters={{
-                item_id: dataRow?.item?.item_id,
+                item_id: dataRow?.purchase_order_item?.item?.item_id,
               }}
             />
           );
@@ -175,7 +183,7 @@ export default function Form() {
         cell({ data, setData, attributes, dataRow }) {
           return (
             <TaxLinkModel
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item}
               placeholder={t(
                 "finances.purchaseInvoice.columns.tax.placeholder",
               )}
@@ -198,7 +206,7 @@ export default function Form() {
             <NumberInput
               decimalScale={2}
               currencyCode={data?.currency?.code}
-              disabled={!dataRow?.item}
+              disabled={!dataRow?.purchase_order_item}
               value={rate}
               onValueChange={(val) => {
                 setData("rate", val);
@@ -259,7 +267,6 @@ export default function Form() {
                   "paymentSchedules",
                   "paymentSchedules.paymentMethod",
                 ]}
-                // Kolom harga (gated visibleFor) yang form butuh dari PO + items.
                 fields={[
                   "amount",
                   "items.rate",
@@ -267,6 +274,11 @@ export default function Form() {
                   "items.tax_rate",
                   "items.tax_amount",
                   "items.amount",
+                  "items.unbilled_quantity",
+                  "items.description",
+                  "items.conversion_factor",
+                  "items.unit",
+                  "items.tax",
                 ]}
                 value={data.purchase_order}
                 onValueChange={(val) => {
@@ -278,9 +290,15 @@ export default function Form() {
                       currency: val?.currency,
                       items: val?.items?.map((item) => {
                         return {
-                          ...item,
                           id: generateRandom(8),
+                          purchase_order_item: item,
                           purchase_order_item_id: item.id,
+                          unit: item.unit,
+                          tax: item.tax,
+                          quantity: item.unbilled_quantity ?? 0,
+                          rate: item.rate,
+                          description: item.description,
+                          conversion_factor: item.conversion_factor,
                           amount: item.basic_amount + item.tax_amount,
                         };
                       }),
@@ -319,22 +337,23 @@ export default function Form() {
               />
             </FormInput>
 
-            {data?.currency?.code && data.currency.code !== default_currency_id && (
-              <FormInput
-                label={t("finances.purchaseInvoice.exchange_rate")}
-                name="exchange_rate"
-                readOnly
-              >
-                <NumberInput
-                  className="text-left"
-                  decimalScale={2}
-                  value={data.exchange_rate}
-                  onValueChange={(value) => {
-                    setData("exchange_rate", value);
-                  }}
-                />
-              </FormInput>
-            )}
+            {data?.currency?.code &&
+              data.currency.code !== default_currency_id && (
+                <FormInput
+                  label={t("finances.purchaseInvoice.exchange_rate")}
+                  name="exchange_rate"
+                  readOnly
+                >
+                  <NumberInput
+                    className="text-left"
+                    decimalScale={2}
+                    value={data.exchange_rate}
+                    onValueChange={(value) => {
+                      setData("exchange_rate", value);
+                    }}
+                  />
+                </FormInput>
+              )}
           </div>
           <div>
             <FormCheckbox
@@ -493,7 +512,6 @@ export default function Form() {
             name="PurchaseInvoiceItems"
             className="col-start-1 col-span-2"
             form={<ItemForm />}
-            disabled={true}
             columns={itemColumns}
             value={data?.items ?? []}
             onValueChange={(v) => setData("items", v)}

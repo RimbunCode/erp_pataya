@@ -71,7 +71,8 @@ export default function Form() {
                   item: val,
                   unit: defaultUnit,
                   conversion_factor: defaultUnit?.conversion_factor,
-                  source_warehouse: dataRow.source_warehouse ?? sourceWarehouseRef.current,
+                  source_warehouse:
+                    dataRow.source_warehouse ?? sourceWarehouseRef.current,
                 });
               }}
               {...attributes}

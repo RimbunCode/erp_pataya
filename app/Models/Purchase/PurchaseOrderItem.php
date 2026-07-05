@@ -50,9 +50,10 @@ class PurchaseOrderItem extends Model {
             'order' => 1,
         ],
         'unit' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 2,
+            'type'     => 'relation',
+            'show'     => true,
+            'order'    => 2,
+            'linkable' => true,
         ],
         'rate' => [
             'type'       => 'currency',
@@ -69,9 +70,10 @@ class PurchaseOrderItem extends Model {
             'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'tax' => [
-            'type'  => 'relation',
-            'show'  => true,
-            'order' => 5,
+            'type'     => 'relation',
+            'show'     => true,
+            'order'    => 5,
+            'linkable' => true,
         ],
         'tax_rate' => [
             'type'     => 'numeric',
@@ -94,13 +96,15 @@ class PurchaseOrderItem extends Model {
             'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'targetWarehouse' => [
-            'type'  => 'relation',
-            'show'  => false,
-            'order' => 9,
+            'type'     => 'relation',
+            'show'     => false,
+            'order'    => 9,
+            'linkable' => true,
         ],
         'description' => [
-            'show'  => false,
-            'order' => 10,
+            'show'     => false,
+            'order'    => 10,
+            'linkable' => true,
         ],
         'required_date' => [
             'type'  => 'date',
@@ -113,9 +117,10 @@ class PurchaseOrderItem extends Model {
             'order' => 12,
         ],
         'unreceived_quantity' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 13,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 13,
+            'linkable' => true,
         ],
         'billed_quantity' => [
             'type'  => 'numeric',
@@ -123,9 +128,10 @@ class PurchaseOrderItem extends Model {
             'order' => 14,
         ],
         'unbilled_quantity' => [
-            'type'  => 'numeric',
-            'show'  => false,
-            'order' => 15,
+            'type'     => 'numeric',
+            'show'     => false,
+            'order'    => 15,
+            'linkable' => true,
         ],
         'conversion_factor' => [
             'hidden'   => true,
@@ -147,6 +153,10 @@ class PurchaseOrderItem extends Model {
             'ignore' => true,
         ],
     ];
+
+    public static function templateLink() {
+        return ':item';
+    }
 
     public function purchaseOrder() {
         return $this->belongsTo(PurchaseOrder::class);
