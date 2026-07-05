@@ -56,7 +56,7 @@ export function resolveTemplateUnitCode(printTemplate) {
 /**
  * Mengkonversi nilai ke angka, mengembalikan fallback jika konversi gagal.
  * Berguna untuk parsing dimensi halaman (width, height, margin) dari konfigurasi template.
- * @param {*} value - Nilai yang akan dikonversi ke angka
+ * @param {unknown} value - Nilai yang akan dikonversi ke angka
  * @param {number} fallbackValue - Nilai default jika konversi gagal (NaN, Infinity, dll)
  * @returns {number} Nilai numerik hasil konversi atau fallbackValue
  */

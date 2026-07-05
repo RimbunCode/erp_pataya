@@ -1,7 +1,7 @@
 import LinkModel from "@/Components/LinkModel";
 import { forwardRef } from "react";
 
-export default forwardRef(function SalesOrderItemLinkModel(
+export default forwardRef(function PurchaseOrderItemLinkModel(
   { value, onValueChange, placeholder, ...props },
   ref,
 ) {
@@ -10,9 +10,7 @@ export default forwardRef(function SalesOrderItemLinkModel(
       placeholder={placeholder}
       value={value}
       onValueChange={onValueChange}
-      model="App\Models\Sales\SalesOrderItem"
-      as="item:item.item_id"
-      canNavigation="App\Models\Inventory\Item"
+      model="App\Models\Purchase\PurchaseOrderItem"
       disabledAddButton={true}
       {...props}
       ref={ref}

@@ -25,7 +25,7 @@ class Warehouse extends Model {
     public function title(): Attribute {
         return new Attribute(
             get: function () {
-                return $this->branch->code . '/' . $this->code;
+                return ($this->branch?->code ?? $this->branch_id) . '/' . $this->code;
             },
         );
     }

@@ -30,14 +30,16 @@ const columnTypeCategory = (type) => {
 
 /**
  * Apakah value sebuah item dalam mode column (column-ref).
- * @param value
+ * @param {string|number|boolean|object|Array|null|undefined} value
+ * @returns {boolean}
  */
 const isColumnRef = (value) =>
   Boolean(value) && typeof value === "object" && value.kind === "column";
 
 /**
  * Bungkus ref menjadi value column-ref.
- * @param ref
+ * @param {string|Array<string>} ref
+ * @returns {{kind: string, ref: string|Array<string>}}
  */
 const makeColumnRef = (ref) => ({ kind: "column", ref });
 

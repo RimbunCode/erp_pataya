@@ -57,8 +57,9 @@ const manyRelationColumnArb = fc
 
 /**
  * Generate a mixed array of columns (basic, relation, many-relation).
- * @param minLen
- * @param maxLen
+ * @param {number} minLen - Minimum array length
+ * @param {number} maxLen - Maximum array length
+ * @returns {import("fast-check").Arbitrary<Array>} Arbitrary producing a mixed columns array
  */
 const _mixedColumnsArb = (minLen = 0, maxLen = 10) =>
   fc.array(fc.oneof(nonManyRelationColumnArb, manyRelationColumnArb), {
@@ -276,8 +277,9 @@ describe("Feature: gjs-table-relation-custom-mode, Property 2: Header Row Count 
 describe("Feature: gjs-table-relation-custom-mode, Property 3: Span Validation and Overlap Detection", () => {
   /**
    * Build a minimal HeaderGrid with no occupied cells.
-   * @param totalRows
-   * @param totalColumns
+   * @param {number} totalRows - Total number of rows in the grid
+   * @param {number} totalColumns - Total number of columns in the grid
+   * @returns {object} A HeaderGrid-like object with empty rows
    */
   function makeEmptyGrid(totalRows, totalColumns) {
     return {
@@ -443,9 +445,10 @@ describe("Feature: gjs-table-relation-custom-mode, Property 4: Body Section Stru
 describe("Feature: gjs-table-relation-custom-mode, Property 5: Drop Target Validation", () => {
   /**
    * Build a minimal GrapesJS-like component mock.
-   * @param tagName
-   * @param parentTagName
-   * @param grandParentTagName
+   * @param {string} tagName - The tag name of the component
+   * @param {string|null} parentTagName - The tag name of the parent component, if any
+   * @param {string|null} grandParentTagName - The tag name of the grandparent component, if any
+   * @returns {object} A GrapesJS-like component mock with `get`, `getTagName`, and `parent` methods
    */
   function makeComponent(
     tagName,

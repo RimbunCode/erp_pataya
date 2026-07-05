@@ -34,13 +34,13 @@ import { getDisplayLabel, resolveLabelWithMeta } from "./variableTokenUtils";
  * - Validasi target drop dan pembungkusan otomatis dengan grid container
  * @param {object} editor - Instance editor GrapesJS
  * @param {object} options - Opsi konfigurasi listener
- * @param {function} options.t - Fungsi translasi i18n
+ * @param {(key: string) => string} options.t - Fungsi translasi i18n
  * @param {string} options.locale - Kode locale untuk formatting (misal: "id", "en")
  * @param {Array} options.dataTableColumns - Kolom variabel dari props halaman
  * @param {object} options.docInfo - Informasi dokumen untuk variabel docInfo
  * @param {object|null} options.columns - Model columns keyed by model class
  * @param {string|null} options.modelDoc - Root model class untuk path "doc."
- * @param {function|null} options.onDropModeRequest - Callback untuk menampilkan dialog pilihan mode (asinkron)
+ * @param {((payload: object, allowedModes: Array, onSelect: (mode: string) => void) => void)|null} options.onDropModeRequest - Callback untuk menampilkan dialog pilihan mode (asinkron)
  * @returns {void}
  */
 export function variableDropListener(
@@ -56,9 +56,15 @@ export function variableDropListener(
   },
 ) {
   // Helper untuk generate ID unik pada komponen grid
-  /** @param {string} prefix */
+  /**
+   * @param {string} prefix
+   * @returns {string}
+   */
   const genId = (prefix = "g") => `${prefix}-${generateRandom(8)}`;
-  /** @param {string|null} value */
+  /**
+   * @param {string|null} value
+   * @returns {string|null}
+   */
   const resolveTitleTransValue = (value) => {
     if (typeof value !== "string") {
       return null;
@@ -68,7 +74,10 @@ export function variableDropListener(
     return trimmed ? trimmed : null;
   };
 
-  /** @param {string} value */
+  /**
+   * @param {string} value
+   * @returns {string}
+   */
   const escapeHtmlAttribute = (value) =>
     String(value)
       .replace(/&/g, "&amp;")
@@ -115,6 +124,7 @@ export function variableDropListener(
    * - Tipe company: "company.<fieldName>"
    * - Tipe docInfo: "docInfo.<fieldName>"
    * - Tipe relation: "doc.<path>" (cleaned dari {{relation doc.<path>}})
+   * @returns {object} Lookup map labelKey → displayLabel
    */
   const buildLabelMap = () => {
     const map = {};

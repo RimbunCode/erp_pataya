@@ -14,6 +14,7 @@ const DELAY_MS = 350;
  * Membuat translator dengan fallback: jika key tidak ditemukan
  * (laravel-react-i18n mengembalikan key itu sendiri), pakai teks fallback.
  * @param {(key: string) => string} t
+ * @returns {(key: string, fallback: string) => string}
  */
 const makeTranslator = (t) => (key, fallback) => {
   const translated = t(key);
@@ -163,6 +164,7 @@ export function setupInertiaToast({ t }) {
    * @param {string} type
    * @param {string} title
    * @param {object} [options]
+   * @returns {string|number|undefined} id toast yang ditampilkan, atau undefined saat update toast existing
    */
   const settle = (type, title, options = {}) => {
     clearTimer();

@@ -285,12 +285,19 @@ class DataTableColumnSelector {
         // FK relasi BelongsTo aman di child wajib ikut agar nested eager-loading jalan.
         // $childSafe bisa punya relasi (mis. 'item', 'unit') — FK-nya (item_id, item_unit_id)
         // harus di-SELECT agar Eloquent bisa match nested with(['items.item']).
+        // Map snake_name → nameOfFunction dari getColumns child (sumber kebenaran).
+        $childColByName = method_exists($relatedClass, 'getColumns')
+            ? collect($relatedClass::getColumns(1, true))->keyBy('name')->all()
+            : [];
         foreach (array_keys($childSafe ?? []) as $childRelName) {
-            if (! method_exists($related, $childRelName)) {
+            // safe key snake_case; nameOfFunction dari getColumns adalah method PHP asli.
+            $methodName = $childColByName[$childRelName]['nameOfFunction']
+                ?? (method_exists($related, $childRelName) ? $childRelName : null);
+            if ($methodName === null) {
                 continue;
             }
             try {
-                $childRel = $related->{$childRelName}();
+                $childRel = $related->{$methodName}();
             } catch (\Throwable) {
                 continue;
             }
@@ -327,8 +334,10 @@ class DataTableColumnSelector {
 
         // $q adalah Relation (BelongsTo/HasMany/...) saat dipakai di with([rel => fn]);
         // select() diproksikan ke Builder via __call. Jangan type-hint Builder.
+        // afterQuery: clear appends relasi child agar accessor yg butuh relasi ekstra
+        // (mis. Supplier::getAddressAttribute → country) tidak crash saat serialisasi.
         return function ($q) use ($cols): void {
-            $q->select($cols);
+            $q->select($cols)->afterQuery(fn ($items) => $items->each(fn ($m) => $m->setAppends([])));
         };
     }
 
@@ -663,7 +672,7 @@ class DataTableColumnSelector {
         if ($visibleKeys === null || $visibleKeys === []) {
             $heads = [];
             foreach ($byName as $name => $col) {
-                if (($col['show'] ?? false) === true) {
+                if (($col['show'] ?? false) === true || ($col['forceSelect'] ?? false) === true) {
                     $heads[] = $name;
                 }
             }
@@ -677,6 +686,13 @@ class DataTableColumnSelector {
                 continue;
             }
             $heads[] = str_contains($key, '.') ? explode('.', $key)[0] : $key;
+        }
+
+        // forceSelect selalu ikut SELECT meski tidak ada di cookie visibleKeys.
+        foreach ($byName as $name => $col) {
+            if (($col['forceSelect'] ?? false) === true) {
+                $heads[] = $name;
+            }
         }
 
         return array_values(array_unique($heads));

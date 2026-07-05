@@ -10,6 +10,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * berpindah halaman. Ini wajib agar loading toast bisa diperbarui in-place
  * menjadi success/error setelah navigasi selesai (jika dipasang di dalam page
  * tree, toast loading akan hilang saat page component di-swap).
+ * @returns {React.JSX.Element}
  */
 export default function GooeyToastRoot() {
   const { t } = useLaravelReactI18n();

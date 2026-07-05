@@ -122,7 +122,6 @@ class SalesInvoice extends Model {
             'branch',
             'currency',
             'items',
-            'items.item',
             'items.tax',
             'items.unit',
             'items.salesOrderItem',

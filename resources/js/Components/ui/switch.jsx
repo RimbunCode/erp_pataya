@@ -12,8 +12,9 @@ import { cn } from "@/lib/utils";
  *    non-HSL → `bg-input` invalid. Pakai zinc/indigo eksplisit.
  *  Track h-5 w-9, thumb size-4, geser translate-x-4 (track 2.25rem − thumb
  *  1rem − padding ≈ 1rem).
- * @param root0
- * @param root0.className
+ * @param {object} root0
+ * @param {string} [root0.className]
+ * @returns {React.JSX.Element}
  */
 function Switch({ className, ...props }) {
   return (

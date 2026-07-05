@@ -96,8 +96,9 @@ function buildProjectData(componentJson) {
 /**
  * Simulates loading a component from project data (GrapesJS deserialization).
  * Returns the first component in the wrapper's children that matches the type.
- * @param projectData
- * @param type
+ * @param {object} projectData
+ * @param {string} type
+ * @returns {object|null}
  */
 function loadComponentFromProjectData(projectData, type) {
   const wrapper = projectData.pages?.[0]?.component;

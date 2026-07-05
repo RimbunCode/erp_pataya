@@ -52,14 +52,15 @@ import { validateTree } from "./filterValidation";
  *   activeFid     : id saved filter aktif (utk promote "Simpan")
  *   onSaved       : (savedFilter) => void — callback setelah named tersimpan
  *   isMobile      : tampilan trigger mobile
- * @param root0
- * @param root0.columns
- * @param root0.initialFilters
- * @param root0.onApply
- * @param root0.model
- * @param root0.activeFid
- * @param root0.onSaved
- * @param root0.isMobile
+ * @param {object} root0
+ * @param {object} root0.columns
+ * @param {object} root0.initialFilters
+ * @param {(tree: object) => void} root0.onApply
+ * @param {string} root0.model
+ * @param {string|number} root0.activeFid
+ * @param {(savedFilter: object|null) => void} root0.onSaved
+ * @param {boolean} [root0.isMobile]
+ * @returns {React.JSX.Element}
  */
 function FilterTable({
   columns,
@@ -384,12 +385,13 @@ function FilterTableContent({
  * dikelola parent (FilterTableContent) agar konsisten dengan aksi simpan/timpa.
  * Memilih satu memuat tree-nya ke builder; chip yang dimuat di-highlight. Tiap
  * chip punya tombol hapus.
- * @param root0
- * @param root0.items
- * @param root0.loading
- * @param root0.activeFid
- * @param root0.onPick
- * @param root0.onRemove
+ * @param {object} root0
+ * @param {Array<object>} root0.items
+ * @param {boolean} root0.loading
+ * @param {string|number} root0.activeFid
+ * @param {(item: object) => void} root0.onPick
+ * @param {(id: string|number) => void} root0.onRemove
+ * @returns {React.JSX.Element}
  */
 function SavedFilterBar({ items, loading, activeFid, onPick, onRemove }) {
   const { t } = useLaravelReactI18n();
@@ -456,13 +458,14 @@ function SavedFilterBar({ items, loading, activeFid, onPick, onRemove }) {
  *    fid) lalu promote menjadi named via PATCH name.
  *  - "Timpa <named>": overwrite TREE named existing via PATCH filter.
  * Setelah berhasil → toast + onSaved(refresh daftar).
- * @param root0
- * @param root0.model
- * @param root0.filter
- * @param root0.savedItems
- * @param root0.onSaved
- * @param root0.onSavingChange
- * @param root0.disabled
+ * @param {object} root0
+ * @param {string} root0.model
+ * @param {object} root0.filter
+ * @param {Array<object>} root0.savedItems
+ * @param {(saved: object) => void} root0.onSaved
+ * @param {(saving: boolean) => void} root0.onSavingChange
+ * @param {boolean} [root0.disabled]
+ * @returns {React.JSX.Element}
  */
 function SaveFilterControl({
   model,

@@ -9,7 +9,8 @@ import useTheme from "@/Hooks/useTheme";
  * meneruskannya ke goey-toast. Konfigurasi wajib: spring, preset smooth,
  * durasi 5 detik, posisi top-center. Props tambahan dapat meng-override
  * lewat spread di akhir.
- * @param root0
+ * @param {object} root0
+ * @returns {React.JSX.Element}
  */
 const GooeyToaster = ({ ...props }) => {
   const { currentTheme } = useTheme();

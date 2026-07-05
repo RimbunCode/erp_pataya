@@ -714,7 +714,7 @@ trait LinkModel {
         }
 
         if (! $includeIgnore) {
-            $flat = \array_values(\array_filter($flat, fn ($col) => ! ($col['ignore'] ?? false)));
+            $flat = \array_values(\array_filter($flat, fn ($col) => ! ($col['ignore'] ?? false) || ($col['forceSelect'] ?? false)));
         }
 
         return self::$columnsCache[$cacheKey] = static::assembleNested($flat, $maxDepth, $includeIgnore, static::class, ...$excepts);

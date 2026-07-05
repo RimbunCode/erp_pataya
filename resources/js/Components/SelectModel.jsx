@@ -26,9 +26,9 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * @typedef {object} SelectModelConfig
  * @property {string[]} [columns]              Kolom default visible model induk.
  * @property {LinkModelFilterTree} [filters]   Filter default model induk (NON-EDITABLE, lihat typedef di bawah).
- * @property {Object<string, { filters?: LinkModelFilterTree, columns?: string[] }>} [selects]
+ * @property {{[modelClass: string]: { filters?: LinkModelFilterTree, columns?: string[] }}} [selects]
  *           Konfigurasi ekstraksi relasi (plural `selects`; singular `select` TIDAK didukung).
- * @property {Object<string, string>} [columnAlias]  Alias kolom hasil (target → source) sebelum onSelected.
+ * @property {{[target: string]: string}} [columnAlias]  Alias kolom hasil (target → source) sebelum onSelected.
  */
 
 /**
@@ -51,7 +51,7 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  *   "like" | "notLike" · "jsonContains" | "jsonDoesntContains" (formStatuses) ·
  *   "column" (value: nama kolom lain) · "and" | "or" (grup pada satu kolom).
  *   Kolom date/datetime: operator komparasi otomatis dibungkus jadi in_period.
- * @typedef {Object<string, *>} LinkModelFilterTree
+ * @typedef {{[column: string]: unknown}} LinkModelFilterTree
  * @example <caption>shorthand equal</caption>
  * { status: "submitted" }                         // status = 'submitted'
  * @example <caption>operator eksplisit</caption>
@@ -77,10 +77,10 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
  * @param {"secondary"|"primary"|"outline"} [props.variant]
  * @param {"sm"|"lg"} [props.size]
  * @param {string} [props.className]
- * @param {string|Object<string, SelectModelConfig>} props.from
+ * @param {string|{[modelClass: string]: SelectModelConfig}} props.from
  *        String (single model class) ATAU objek `{ [modelClass]: SelectModelConfig }`.
  * @param {(payload: {
- *   items: Array<Object>, model: string,
+ *   items: Array<object>, model: string,
  *   mode: "direct"|"self-extraction"|"per-item",
  *   sourceModel: string|null, sourceIds: Array|null,
  * }) => void} props.onSelected
@@ -303,7 +303,7 @@ export default memo(
  * @param {string|null} select         Nama relasi (null → direct/SELF).
  * @param {(key: string) => string} t  Fungsi translate (required, untuk i18n error).
  * @returns {Promise<{
- *   items: Array<Object>, model: string,
+ *   items: Array<object>, model: string,
  *   mode: "direct"|"self-extraction",
  *   sourceModel: string|null, sourceIds: Array|null,
  * } | null>}  null bila gagal (konsumen guard sebelum mergeItems).

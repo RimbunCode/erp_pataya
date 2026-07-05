@@ -78,8 +78,9 @@ class DeliveryNote extends Model {
             'customer',
             'customerBranch',
             'items',
+            'items.referenceable',
+            'items.referenceable.item',
             'items.unit',
-            'items.item',
             'items.sourceWarehouse',
             'returnAgainst',
         ];

@@ -14,6 +14,7 @@ class PurchaseReceipt extends Model {
     protected $guarded = ['id'];
     protected $casts   = [
         'received_date' => 'datetime',
+        'date'          => 'datetime',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/Receipt-@[iiii]/@[yy]';
 
@@ -33,7 +34,7 @@ class PurchaseReceipt extends Model {
     public $translateKey = 'purchase.purchaseReceipt';
 
     protected static function loadRelationsOnShow() {
-        return ['items', 'items.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
+        return ['items', 'items.purchaseOrderItem', 'items.purchaseOrderItem.item', 'supplier', 'items.unit', 'items.targetWarehouse', 'purchaseOrder', 'returnAgainst'];
     }
 
     protected array $configColumns = [

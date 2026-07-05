@@ -484,19 +484,20 @@ export default function Form() {
                   }}
                 />
               </FormInput>
-              {data?.currency?.code && data.currency.code !== default_currency_id && (
-                <FormInput
-                  readOnly
-                  disabled={!data.paymentable}
-                  label={t("finances.paymentEntry.columns.exchange_rate")}
-                >
-                  <NumberInput
-                    className="text-left"
-                    value={data.exchange_rate}
-                    onValueChange={(val) => setData("exchange_rate", val)}
-                  />
-                </FormInput>
-              )}
+              {data?.currency?.code &&
+                data.currency.code !== default_currency_id && (
+                  <FormInput
+                    readOnly
+                    disabled={!data.paymentable}
+                    label={t("finances.paymentEntry.columns.exchange_rate")}
+                  >
+                    <NumberInput
+                      className="text-left"
+                      value={data.exchange_rate}
+                      onValueChange={(val) => setData("exchange_rate", val)}
+                    />
+                  </FormInput>
+                )}
             </>
           )}
           <FormInput

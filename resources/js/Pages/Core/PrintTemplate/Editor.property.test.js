@@ -19,7 +19,7 @@ class _MultiContainerModel {
    * Simulates the GrapesJS `changeProp: true` behavior for the tagName trait.
    * When the user selects a new tag from the trait selector, GrapesJS updates
    * the `tagName` property on the model. Children remain untouched.
-   * @param newTag
+   * @param {string} newTag
    */
   changeTag(newTag) {
     this.tagName = newTag;
@@ -98,7 +98,7 @@ describe("Property 11: Tag change preserves child components", () => {
         tagArb, // new tag
         childrenArb,
         (initialTag, newTag, children) => {
-          const model = new MultiContainerModel({
+          const model = new _MultiContainerModel({
             tagName: initialTag,
             children,
           });
@@ -122,7 +122,7 @@ describe("Property 11: Tag change preserves child components", () => {
         tagArb,
         childrenArb,
         (initialTag, newTag, children) => {
-          const model = new MultiContainerModel({
+          const model = new _MultiContainerModel({
             tagName: initialTag,
             children,
           });
@@ -143,7 +143,7 @@ describe("Property 11: Tag change preserves child components", () => {
         tagArb,
         childrenArb,
         (initialTag, newTag, children) => {
-          const model = new MultiContainerModel({
+          const model = new _MultiContainerModel({
             tagName: initialTag,
             children,
           });
@@ -171,7 +171,7 @@ describe("Property 11: Tag change preserves child components", () => {
         tagArb,
         childrenArb,
         (initialTag, newTag, children) => {
-          const model = new MultiContainerModel({
+          const model = new _MultiContainerModel({
             tagName: initialTag,
             children,
           });
@@ -206,7 +206,7 @@ describe("Property 11: Tag change preserves child components", () => {
         fc.array(tagArb, { minLength: 2, maxLength: 8 }),
         childrenArb,
         (initialTag, tagSequence, children) => {
-          const model = new MultiContainerModel({
+          const model = new _MultiContainerModel({
             tagName: initialTag,
             children,
           });
@@ -246,7 +246,7 @@ describe("Property 11: Tag change preserves child components", () => {
   it("tag change on empty container (no children) results in valid empty container with new tag", () => {
     fc.assert(
       fc.property(tagArb, tagArb, (initialTag, newTag) => {
-        const model = new MultiContainerModel({
+        const model = new _MultiContainerModel({
           tagName: initialTag,
           children: [],
         });
@@ -268,7 +268,7 @@ describe("Property 11: Tag change preserves child components", () => {
         tagArb,
         childrenArb,
         (initialTag, newTag, children) => {
-          const model = new MultiContainerModel({
+          const model = new _MultiContainerModel({
             tagName: initialTag,
             children,
           });

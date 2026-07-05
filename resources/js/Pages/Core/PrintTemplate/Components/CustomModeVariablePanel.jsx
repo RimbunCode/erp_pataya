@@ -13,6 +13,7 @@ import { filterRelationColumns } from "../utils/customModeUtils";
  * Excludes many-relation (type "relations") columns.
  * @param {object} props
  * @param {string} props.relationName - The relation name bound to the gjsRelationsTable
+ * @returns {React.JSX.Element}
  */
 function CustomModeVariablePanel({ relationName }) {
   const { t } = useLaravelReactI18n();

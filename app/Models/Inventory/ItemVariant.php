@@ -83,6 +83,9 @@ class ItemVariant extends Model {
         'image_id' => [
             'ignore' => true,
         ],
+        'item_id' => [
+            'forceSelect' => true,
+        ],
         'conversion_factor' => [
             'linkable' => true,
         ],

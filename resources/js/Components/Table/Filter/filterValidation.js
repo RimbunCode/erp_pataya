@@ -59,8 +59,9 @@ const isFilledScalar = (v) => {
  * relasi. `columns` adalah peta/array node kolom (getColumns frontend). Untuk
  * kolom anak relasi yang belum ter-load, kembalikan null → caller fallback ke
  * presence-only.
- * @param columns
- * @param key
+ * @param {object|Array<object>} columns
+ * @param {string} key
+ * @returns {object|null}
  */
 const resolveColumn = (columns, key) => {
   if (!key) return null;
@@ -91,9 +92,10 @@ const resolveColumn = (columns, key) => {
 /**
  * Tentukan valueInput untuk (column, operator) lewat getOperators — selaras
  * dengan ValueField. Mengembalikan null bila tak ter-resolve.
- * @param column
- * @param operator
- * @param mode
+ * @param {object} column
+ * @param {string} operator
+ * @param {string} mode
+ * @returns {string|null}
  */
 const valueInputFor = (column, operator, mode) => {
   if (!column?.type || !operator) return null;
@@ -109,8 +111,8 @@ const valueInputFor = (column, operator, mode) => {
  * Validasi satu item terhadap kolomnya. Mengembalikan messageKey bila invalid,
  * atau null bila valid. `column` boleh null (kolom tak ter-resolve) → fallback
  * presence-only (key+operator+value terisi).
- * @param item
- * @param column
+ * @param {object} item
+ * @param {object|null} column
  * @returns {string|null}
  */
 const validateItem = (item, column) => {
@@ -237,7 +239,8 @@ const isDateParseable = (v) => !Number.isNaN(Date.parse(`${v}`));
 /**
  * Apakah item benar-benar kosong (belum disentuh) — key & operator & value
  * semua kosong. Item kosong total dilewati (akan di-drop), bukan error.
- * @param item
+ * @param {object} item
+ * @returns {boolean}
  */
 const isUntouchedItem = (item) =>
   isNullOrWhitespace(item?.[ITEM_KEY]) &&
@@ -247,8 +250,8 @@ const isUntouchedItem = (item) =>
 /**
  * Validasi seluruh tree. Telusur rekursif; kumpulkan error per-itemId.
  * Item kosong total dilewati. Tree tanpa satu pun item valid → valid:false.
- * @param tree
- * @param columns
+ * @param {object} tree
+ * @param {object|Array<object>} columns
  * @returns {{ valid: boolean, errors: Record<string,string> }}
  */
 const validateTree = (tree, columns) => {

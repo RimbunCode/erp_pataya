@@ -13,6 +13,7 @@ use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\Stock;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Purchase\PurchaseOrder;
+use App\Models\Purchase\PurchaseOrderItem;
 use App\Models\Purchase\PurchaseReceipt;
 use App\Models\Purchase\Supplier;
 use App\Utils;
@@ -44,17 +45,24 @@ class PurchaseInvoiceService {
         return $data;
     }
 
-    private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice, array $units = [], array $taxes = []) {
-        $unit                      = $units[$data['unit']['id']] ?? null;
-        $tax                       = $taxes[$data['tax']['id'] ?? ''] ?? null;
-        $data['item_id']           = $data['item']['id'];
-        $data['item_unit_id']      = $data['unit']['id'];
-        $data['conversion_factor'] = $unit?->conversion_factor ?? 1;
-        $data['exchange_rate']     = $purchaseInvoice->exchange_rate;
-        $data['tax_id']            = $data['tax']['id'];
-        $data['tax_rate']          = $tax?->rate ?? 0;
+    private function fillItemRelations(array $data, PurchaseInvoice $purchaseInvoice, array $units = [], array $taxes = [], array $purchaseOrderItems = []) {
+        $unit                           = $units[$data['unit']['id']] ?? null;
+        $tax                            = $taxes[$data['tax']['id'] ?? ''] ?? null;
+        $data['purchase_order_item_id'] = $data['purchase_order_item']['id'];
+        $data['item_id']                = $purchaseOrderItems[$data['purchase_order_item_id']]->item_id;
+        $data['item_unit_id']           = $data['unit']['id'];
+        $data['conversion_factor']      = $unit?->conversion_factor ?? 1;
+        $data['exchange_rate']          = $purchaseInvoice->exchange_rate;
+        $data['tax_id']                 = $data['tax']['id'];
+        $data['tax_rate']               = $tax?->rate ?? 0;
 
         return $data;
+    }
+
+    private function batchLoadPurchaseOrderItems(array $data): array {
+        $ids = collect($data['items'])->pluck('purchase_order_item.id')->filter()->unique()->values();
+
+        return PurchaseOrderItem::whereIn('id', $ids)->get()->keyBy('id')->all();
     }
 
     private function batchLoadUnits(array $data): array {
@@ -87,11 +95,12 @@ class PurchaseInvoiceService {
         $basicAmount = 0;
         $taxAmount   = 0;
 
-        $units = $this->batchLoadUnits($data);
-        $taxes = $this->batchLoadTaxes($data);
+        $units              = $this->batchLoadUnits($data);
+        $taxes              = $this->batchLoadTaxes($data);
+        $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
 
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes);
+            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
             $item = $purchaseInvoice->items()->create($item);
             $item->refresh();
             $basicAmount += $item->basic_amount;
@@ -131,11 +140,12 @@ class PurchaseInvoiceService {
             ->get()
             ->keyBy('id');
 
-        $units = $this->batchLoadUnits($data);
-        $taxes = $this->batchLoadTaxes($data);
+        $units              = $this->batchLoadUnits($data);
+        $taxes              = $this->batchLoadTaxes($data);
+        $purchaseOrderItems = $this->batchLoadPurchaseOrderItems($data);
 
         foreach ($data['items'] as $item) {
-            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes);
+            $item = $this->fillItemRelations($item, $purchaseInvoice, $units, $taxes, $purchaseOrderItems);
 
             if (Ulid::isValid($item['id'])) {
                 $itemModel = $existingItems->get($item['id']);

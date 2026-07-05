@@ -113,6 +113,8 @@ export default function Form() {
                 });
               }}
               {...attributes}
+              as="item:item.item_id"
+              canNavigation="App\Models\Inventory\Item"
               filters={{
                 sales_order_id: data.sales_order?.id ?? null,
               }}
@@ -185,7 +187,10 @@ export default function Form() {
               }
               {...attributes}
               filters={{
-                item_id: dataRow?.item?.item_id,
+                item_id:
+                  dataRow?.sales_order_item?.item?.id ??
+                  dataRow?.sales_order_item?.item_id ??
+                  dataRow?.item?.id,
               }}
             />
           );

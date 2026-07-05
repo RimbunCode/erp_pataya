@@ -8,8 +8,8 @@
     "docs": "jsdoc -c jsdoc.conf.json",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint \"resources/js/**/*.{js,jsx,ts,tsx}\"",
-    "lint:fix": "eslint \"resources/js/**/*.{js,jsx,ts,tsx}\" --fix",
+    "lint": "eslint --cache --cache-location node_modules/.cache/eslint/ \"resources/js/**/*.{js,jsx,ts,tsx}\"",
+    "lint:fix": "eslint --cache --cache-location node_modules/.cache/eslint/ \"resources/js/**/*.{js,jsx,ts,tsx}\" --fix",
     "postinstall": "patch-package && rimraf node_modules/laravel-react-i18n/node_modules/react"
   },
   "devDependencies": {

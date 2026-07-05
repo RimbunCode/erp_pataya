@@ -13,6 +13,7 @@ import { usePage } from "@inertiajs/react";
  * Coordinates Custom Mode toggle, variable panel, and header editor.
  * @param {object} props
  * @param {object} props.selectedComponent - GrapesJS gjsRelationsTable component
+ * @returns {React.JSX.Element}
  */
 function CustomModePanel({ selectedComponent }) {
   const editor = useEditor();

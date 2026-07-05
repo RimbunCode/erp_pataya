@@ -155,7 +155,8 @@ const FormPageContent = forwardRef(function FormPageContent(
   },
   ref,
 ) {
-  const { menus, addMenu, menuSelected, removeMenu, firstIds, isSingle } = useFormPage();
+  const { menus, addMenu, menuSelected, removeMenu, firstIds, isSingle } =
+    useFormPage();
   const [id] = useState(generateRandom(8));
   const [openCollapsible, setOpenCollapsible] = useState(defaultOpen);
   const childrenArray = useMemo(() => Children.toArray(children), [children]);
@@ -207,7 +208,9 @@ const FormPageContent = forwardRef(function FormPageContent(
     (isSingle && (title || effectiveCollapsible)) ||
     (isMultiTab && !isFirst && title) ||
     (title && effectiveCollapsible);
-  const Trigger = effectiveCollapsible ? CollapsibleTrigger : FormPageContentTrigger;
+  const Trigger = effectiveCollapsible
+    ? CollapsibleTrigger
+    : FormPageContentTrigger;
   const Content = effectiveCollapsible ? CollapsibleContent : Fragment;
   return (
     <TabsContent
