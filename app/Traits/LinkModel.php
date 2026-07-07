@@ -650,9 +650,9 @@ trait LinkModel {
                 $route  = $rel->getRelated()->route;
                 $newKey = Str::snake($key);
             } elseif ($rel instanceof MorphMany) {
-                $type         = 'relations';
-                $newKey       = Str::snake($key);
-                $typeRelation = 'morph';
+                // Beda dari MorphTo: class child FIXED (getRelated()), bukan bervariasi
+                // per-row — jadi typeRelation basic spt MorphOne/HasOne, BUKAN morph.
+                $newKey = Str::snake($key);
             } else {
                 $newKey = Str::snake($key);
             }

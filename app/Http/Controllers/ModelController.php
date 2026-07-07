@@ -391,6 +391,9 @@ class ModelController extends Controller {
      * Peta nama-relasi (snake, sesuai key kolom getColumns) → FQCN model relasi.
      * Relasi MORPH dikecualikan: class child-nya berbeda per-row (tak bisa dari
      * metadata) sehingga ditangani per-row via morphClassFromRow di filterRowColumns.
+     * Hanya morphTo yang ditandai `typeRelation: morph` (lihat
+     * LinkModel::computeColumnsFlat) — morphMany/morphOne class child-nya FIXED,
+     * ditandai `basic` spt relasi biasa, jadi otomatis lolos di sini.
      *
      * @return array<string,string>
      */

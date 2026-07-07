@@ -255,6 +255,7 @@ export default function Form() {
             <CustomerLinkModel
               disabled={data.for_internal}
               with={["branches"]}
+              fields={["branches.is_main_branch"]}
               valueBefore={dataBefore.customer}
               value={data.for_internal ? "" : data.customer}
               onValueChange={(val) => {
