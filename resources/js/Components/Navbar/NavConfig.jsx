@@ -495,6 +495,48 @@ export const navConfig = {
         ),
       },
       {
+        key: "certificate-templates",
+        label: "Certificate Templates",
+        href: "/admin/certificate-templates",
+        adminPermission: "content_admin",
+        icon: (
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 17v-2a4 4 0 014-4h4m0 0l-3-3m3 3l-3 3M4 6h16M4 6a2 2 0 012-2h8a2 2 0 012 2v0M4 6v12a2 2 0 002 2h6"
+            />
+          </svg>
+        ),
+      },
+      {
+        key: "enrollment-evaluations",
+        label: "Review Evaluasi Sertifikat",
+        href: "/admin/enrollment-evaluations",
+        adminPermission: "content_admin",
+        icon: (
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+            />
+          </svg>
+        ),
+      },
+      {
         key: "profile",
         label: "Profile Settings",
         href: "/admin/profile",
