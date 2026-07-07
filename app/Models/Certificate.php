@@ -15,6 +15,7 @@ class Certificate extends Model {
     protected $casts   = [
         'issued_at'  => 'datetime',
         'expires_at' => 'datetime',
+        'snapshot'   => 'array',
     ];
 
     public function enrollment(): BelongsTo {

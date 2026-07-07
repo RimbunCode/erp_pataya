@@ -8,6 +8,7 @@ use App\Models\CourseContent;
 use App\Models\CourseSection;
 use App\Models\Enrollment;
 use App\Models\EnrollmentCertificateUpload;
+use App\Models\EnrollmentEvaluation;
 use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Http\UploadedFile;
@@ -248,6 +249,14 @@ class StudentCertificateUploadTest extends TestCase {
                 'created_at'   => now(),
                 'updated_at'   => now(),
             ]);
+
+            EnrollmentEvaluation::query()->create([
+                'enrollment_id' => $enrollment->id,
+                'is_passed'     => true,
+                'status'        => 'final',
+                'finalized_by'  => $admin->id,
+                'finalized_at'  => now(),
+            ]);
         }
 
         return [$admin, $student, $enrollment];
@@ -353,6 +362,8 @@ class StudentCertificateUploadTest extends TestCase {
             'database/migrations/2026_06_28_173509_add_gate_and_link_to_notifications_table.php',
             'database/migrations/2026_06_28_182100_fix_notifiable_id_type_in_notifications_table.php',
             'database/migrations/2026_07_02_000001_create_enrollment_certificate_uploads_table.php',
+            'database/migrations/2026_07_07_000001_add_graduation_scheme_to_courses_table.php',
+            'database/migrations/2026_07_07_000002_create_enrollment_evaluations_table.php',
         ];
     }
 }

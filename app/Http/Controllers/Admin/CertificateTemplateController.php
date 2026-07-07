@@ -22,6 +22,11 @@ class CertificateTemplateController extends Controller {
                 'name'           => $t->name,
                 'gdocTemplateId' => $t->gdoc_template_id,
                 'docsEditUrl'    => $t->docs_edit_url,
+                'isInternal'     => $t->isInternalTemplate(),
+                'frontContent'   => $t->front_content,
+                'backContent'    => $t->back_content,
+                'signerName'     => $t->signer_name,
+                'signerTitle'    => $t->signer_title,
                 'courseName'     => $t->course?->title ?? 'Default (All Courses)',
                 'courseId'       => $t->course_id,
                 'isActive'       => $t->is_active,
@@ -41,10 +46,14 @@ class CertificateTemplateController extends Controller {
 
     public function store(Request $request): RedirectResponse {
         $validated = $request->validate([
-            'name'            => ['required', 'string', 'max:255'],
-            'gdoc_template_id' => ['required', 'string', 'max:255'],
-            'course_id'       => ['nullable', 'exists:courses,id'],
-            'is_active'       => ['boolean'],
+            'name'             => ['required', 'string', 'max:255'],
+            'gdoc_template_id' => ['nullable', 'string', 'max:255'],
+            'course_id'        => ['nullable', 'exists:courses,id'],
+            'is_active'        => ['boolean'],
+            'front_content'    => ['nullable', 'string'],
+            'back_content'     => ['nullable', 'string'],
+            'signer_name'      => ['nullable', 'string', 'max:255'],
+            'signer_title'     => ['nullable', 'string', 'max:255'],
         ]);
 
         CertificateTemplate::create([
@@ -61,10 +70,14 @@ class CertificateTemplateController extends Controller {
 
     public function update(Request $request, CertificateTemplate $certificateTemplate): RedirectResponse {
         $validated = $request->validate([
-            'name'            => ['required', 'string', 'max:255'],
-            'gdoc_template_id' => ['required', 'string', 'max:255'],
-            'course_id'       => ['nullable', 'exists:courses,id'],
-            'is_active'       => ['boolean'],
+            'name'             => ['required', 'string', 'max:255'],
+            'gdoc_template_id' => ['nullable', 'string', 'max:255'],
+            'course_id'        => ['nullable', 'exists:courses,id'],
+            'is_active'        => ['boolean'],
+            'front_content'    => ['nullable', 'string'],
+            'back_content'     => ['nullable', 'string'],
+            'signer_name'      => ['nullable', 'string', 'max:255'],
+            'signer_title'     => ['nullable', 'string', 'max:255'],
         ]);
 
         $certificateTemplate->update($validated);

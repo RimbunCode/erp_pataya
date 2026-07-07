@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UploadStudentCertificateRequest;
+use App\Models\CertificateTemplate;
 use App\Models\Core\File;
 use App\Models\Enrollment;
 use App\Models\EnrollmentCertificateUpload;
 use App\Models\User\User;
+use App\Services\CertificateService;
 use App\Services\CourseProgressService;
+use App\Services\GradingService;
 use App\Services\Instructor\StudentProgressBuilder;
 use App\Traits\HasInitials;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +26,7 @@ class StudentCertificateUploadController extends Controller {
     public function __construct(
         private CourseProgressService $courseProgressService,
         private StudentProgressBuilder $progressBuilder,
+        private CertificateService $certificateService,
     ) {}
 
     public function index(): Response {
@@ -120,6 +124,14 @@ class StudentCertificateUploadController extends Controller {
             ]);
         }
 
+        try {
+            $this->certificateService->assertEvaluationFinalAndPassed($enrollment);
+        } catch (\RuntimeException $e) {
+            return back()->withErrors([
+                'files' => $e->getMessage(),
+            ]);
+        }
+
         $oldFile = $enrollment->certificateUpload?->file;
 
         $uploadedFile = null;
@@ -155,6 +167,23 @@ class StudentCertificateUploadController extends Controller {
         }
 
         return back()->with('success', 'Sertifikat berhasil diupload.');
+    }
+
+    public function issueFromTemplate(Enrollment $enrollment, GradingService $gradingService): RedirectResponse {
+        $template = CertificateTemplate::where('course_id', $enrollment->course_id)->where('is_active', true)->first()
+            ?? CertificateTemplate::whereNull('course_id')->where('is_active', true)->first();
+
+        if (! $template) {
+            return back()->withErrors(['files' => 'Tidak ada template sertifikat aktif.']);
+        }
+
+        try {
+            $this->certificateService->issueFromTemplate($enrollment, $template, $gradingService);
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['files' => $e->getMessage()]);
+        }
+
+        return back()->with('success', 'Sertifikat berhasil diterbitkan dari template.');
     }
 
     private function buildStudentList() {

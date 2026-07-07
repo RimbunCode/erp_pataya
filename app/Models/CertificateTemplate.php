@@ -30,7 +30,15 @@ class CertificateTemplate extends Model {
         return $this->hasMany(Certificate::class);
     }
 
-    public function getDocsEditUrlAttribute(): string {
+    public function getDocsEditUrlAttribute(): ?string {
+        if (! $this->gdoc_template_id) {
+            return null;
+        }
+
         return "https://docs.google.com/document/d/{$this->gdoc_template_id}/edit";
+    }
+
+    public function isInternalTemplate(): bool {
+        return $this->gdoc_template_id === null;
     }
 }

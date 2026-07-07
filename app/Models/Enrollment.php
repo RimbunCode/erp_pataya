@@ -35,4 +35,8 @@ class Enrollment extends Model {
     public function certificateUpload(): HasOne {
         return $this->hasOne(EnrollmentCertificateUpload::class);
     }
+
+    public function evaluation(): HasOne {
+        return $this->hasOne(EnrollmentEvaluation::class);
+    }
 }

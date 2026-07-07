@@ -3,16 +3,20 @@
 namespace Tests\Unit;
 
 use App\Models\Certificate;
+use App\Models\CertificateTemplate;
 use App\Models\Course;
 use App\Models\CourseContent;
 use App\Models\CourseSection;
 use App\Models\Enrollment;
+use App\Models\EnrollmentEvaluation;
 use App\Models\User\Role;
 use App\Models\User\User;
 use App\Models\UserProgress;
 use App\Services\CertificateService;
 use App\Services\GoogleDocsService;
+use App\Services\GradingService;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
 
@@ -159,6 +163,117 @@ class CertificateServiceTest extends TestCase {
         $this->assertSame(1, Certificate::count());
     }
 
+    public function test_issue_certificate_throws_when_evaluation_not_final(): void {
+        [$instructor, $student] = $this->makeInstructorAndStudent();
+        $course     = $this->makeCourse($instructor);
+        $section    = $this->makeSection($course);
+        $content    = $this->makeContent($section, 'material');
+        $enrollment = $this->makeEnrollment($student, $course);
+
+        UserProgress::query()->create([
+            'user_id'      => $student->id,
+            'content_id'   => $content->id,
+            'is_completed' => true,
+            'completed_at' => now(),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Evaluasi peserta belum final.');
+
+        $this->service->issueCertificate($enrollment);
+    }
+
+    public function test_issue_certificate_throws_when_not_passed(): void {
+        [$instructor, $student] = $this->makeInstructorAndStudent();
+        $course     = $this->makeCourse($instructor);
+        $section    = $this->makeSection($course);
+        $content    = $this->makeContent($section, 'material');
+        $enrollment = $this->makeEnrollment($student, $course);
+
+        UserProgress::query()->create([
+            'user_id'      => $student->id,
+            'content_id'   => $content->id,
+            'is_completed' => true,
+            'completed_at' => now(),
+        ]);
+
+        EnrollmentEvaluation::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'is_passed'     => false,
+            'status'        => 'final',
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Peserta belum memenuhi syarat lulus.');
+
+        $this->service->issueCertificate($enrollment);
+    }
+
+    public function test_issue_certificate_succeeds_when_evaluation_final_and_passed(): void {
+        [$instructor, $student] = $this->makeInstructorAndStudent();
+        $course     = $this->makeCourse($instructor);
+        $section    = $this->makeSection($course);
+        $content    = $this->makeContent($section, 'material');
+        $enrollment = $this->makeEnrollment($student, $course);
+
+        UserProgress::query()->create([
+            'user_id'      => $student->id,
+            'content_id'   => $content->id,
+            'is_completed' => true,
+            'completed_at' => now(),
+        ]);
+
+        EnrollmentEvaluation::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'is_passed'     => true,
+            'status'        => 'final',
+        ]);
+
+        $certificate = $this->service->issueCertificate($enrollment);
+
+        $this->assertNotNull($certificate);
+        $this->assertSame('active', $certificate->status);
+    }
+
+    public function test_issue_from_template_throws_when_not_final(): void {
+        [$instructor, $student] = $this->makeInstructorAndStudent();
+        $course     = $this->makeCourse($instructor);
+        $enrollment = $this->makeEnrollment($student, $course);
+        $template   = $this->makeInternalTemplate($instructor);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Evaluasi peserta belum final.');
+
+        $this->service->issueFromTemplate($enrollment, $template, new GradingService($this->service));
+    }
+
+    public function test_issue_from_template_generates_pdf_with_snapshot(): void {
+        Storage::fake();
+
+        [$instructor, $student] = $this->makeInstructorAndStudent();
+        $course     = $this->makeCourse($instructor);
+        $section    = $this->makeSection($course);
+        $this->makeContent($section, 'material');
+        $enrollment = $this->makeEnrollment($student, $course);
+        $template   = $this->makeInternalTemplate($instructor);
+
+        EnrollmentEvaluation::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'is_passed'     => true,
+            'status'        => 'final',
+            'final_score'   => 90,
+            'grade'         => 'A',
+        ]);
+
+        $certificate = $this->service->issueFromTemplate($enrollment, $template, new GradingService($this->service));
+
+        $this->assertSame('template', $certificate->source);
+        $this->assertNotNull($certificate->file_path);
+        $this->assertNotNull($certificate->snapshot);
+        $this->assertSame(90.0, (float) $certificate->snapshot['finalScore']);
+        Storage::assertExists($certificate->file_path);
+    }
+
     // ── Helpers ───────────────────────────────────────
 
     private function makeInstructorAndStudent(): array {
@@ -220,6 +335,15 @@ class CertificateServiceTest extends TestCase {
         ]);
     }
 
+    private function makeInternalTemplate(User $creator): CertificateTemplate {
+        return CertificateTemplate::query()->create([
+            'name'         => 'Template Internal',
+            'created_by'   => $creator->id,
+            'is_active'    => true,
+            'placeholders' => [],
+        ]);
+    }
+
     private function makeCertificateRecord(Enrollment $enrollment, string $credentialId): Certificate {
         return Certificate::query()->create([
             'enrollment_id'       => $enrollment->id,
@@ -259,6 +383,10 @@ class CertificateServiceTest extends TestCase {
             'database/migrations/2026_06_17_143845_add_deadline_time_to_course_contents_table.php',
             'database/migrations/2026_06_27_000001_create_certificate_templates_table.php',
             'database/migrations/2026_06_27_000002_create_certificates_table.php',
+            'database/migrations/2026_07_07_000001_add_graduation_scheme_to_courses_table.php',
+            'database/migrations/2026_07_07_000002_create_enrollment_evaluations_table.php',
+            'database/migrations/2026_07_07_000003_add_layout_columns_to_certificate_templates_table.php',
+            'database/migrations/2026_07_07_000004_add_snapshot_and_source_to_certificates_table.php',
         ];
     }
 }
