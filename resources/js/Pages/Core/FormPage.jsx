@@ -721,7 +721,7 @@ const FormPage = memo(
             : (defaultData.code ?? defaultData.name)) ??
         ""
       );
-    }, [_title, defaultData, isCreate, translateKey]);
+    }, [_title, t, defaultData, isCreate, translateKey]);
     const {
       data,
       setData: _setData,

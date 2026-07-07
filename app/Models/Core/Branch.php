@@ -87,8 +87,9 @@ class Branch extends Model {
             'dependsOn' => ['name', 'is_main_branch'],
         ],
         'is_main_branch' => [
-            'show'  => true,
-            'order' => 1,
+            'show'     => true,
+            'order'    => 1,
+            'linkable' => true,
         ],
         'shippingAddress' => [
             'show'      => true,

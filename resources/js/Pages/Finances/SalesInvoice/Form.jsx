@@ -467,6 +467,7 @@ export default function Form() {
             >
               <CustomerLinkModel
                 with={["branches"]}
+                fields={["branches.is_main_branch"]}
                 value={data.customer}
                 onValueChange={(val) => {
                   if (val?.branches?.length <= 1) {
