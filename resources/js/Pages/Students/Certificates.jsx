@@ -273,6 +273,11 @@ function CertRow({ cert, onVerify }) {
             ID: {cert.credentialId}
           </p>
         )}
+        {cert.evaluation && (
+          <p className="text-[10px] font-bold tracking-widest text-muted-foreground uppercase mt-0.5">
+            Nilai Akhir: {cert.evaluation.finalScore} &middot; Grade: {cert.evaluation.grade}
+          </p>
+        )}
       </div>
 
       {/* Expiry */}

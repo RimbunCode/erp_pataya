@@ -42,7 +42,12 @@ function AddTemplateForm({ courses }) {
     gdoc_template_id: "",
     course_id: "",
     is_active: true,
+    front_content: "",
+    back_content: "",
+    signer_name: "",
+    signer_title: "",
   });
+  const [templateType, setTemplateType] = useState("gdoc");
 
   const submit = (e) => {
     e.preventDefault();
@@ -58,7 +63,7 @@ function AddTemplateForm({ courses }) {
         Tambah Template
       </h2>
       <p className="text-xs text-[var(--muted-foreground)] mt-1 mb-4">
-        Masukkan detail template Google Docs untuk sertifikat.
+        Template bisa memakai Google Docs (proses lama) atau dibuat langsung di aplikasi (internal).
       </p>
 
       <form className="space-y-3" onSubmit={submit}>
@@ -78,27 +83,71 @@ function AddTemplateForm({ courses }) {
           )}
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold text-[var(--muted-foreground)] mb-1.5">
-            Google Docs Document ID
-          </label>
-          <input
-            type="text"
-            value={data.gdoc_template_id}
-            onChange={(e) => setData("gdoc_template_id", e.target.value)}
-            placeholder="Contoh: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OlH..."
-            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-          />
-          <p className="text-[10px] text-[var(--muted-foreground)] mt-1">
-            Ambil dari URL: docs.google.com/document/d/
-            <strong>ID_INI</strong>/edit
-          </p>
-          {errors.gdoc_template_id && (
-            <p className="text-[11px] text-red-600 mt-1">
-              {errors.gdoc_template_id}
-            </p>
-          )}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setTemplateType("gdoc")}
+            className={`flex-1 text-[10px] font-black uppercase py-2 rounded-lg ${templateType === "gdoc" ? "bg-[var(--primary)] text-white" : "bg-[var(--muted)] text-[var(--muted-foreground)]"}`}
+          >
+            Google Docs
+          </button>
+          <button
+            type="button"
+            onClick={() => setTemplateType("internal")}
+            className={`flex-1 text-[10px] font-black uppercase py-2 rounded-lg ${templateType === "internal" ? "bg-[var(--primary)] text-white" : "bg-[var(--muted)] text-[var(--muted-foreground)]"}`}
+          >
+            Internal (PDF)
+          </button>
         </div>
+
+        {templateType === "gdoc" ? (
+          <div>
+            <label className="block text-xs font-semibold text-[var(--muted-foreground)] mb-1.5">
+              Google Docs Document ID
+            </label>
+            <input
+              type="text"
+              value={data.gdoc_template_id}
+              onChange={(e) => setData("gdoc_template_id", e.target.value)}
+              placeholder="Contoh: 1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OlH..."
+              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+            />
+            <p className="text-[10px] text-[var(--muted-foreground)] mt-1">
+              Ambil dari URL: docs.google.com/document/d/
+              <strong>ID_INI</strong>/edit
+            </p>
+            {errors.gdoc_template_id && (
+              <p className="text-[11px] text-red-600 mt-1">
+                {errors.gdoc_template_id}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--muted-foreground)] mb-1.5">
+                Nama Penandatangan
+              </label>
+              <input
+                type="text"
+                value={data.signer_name}
+                onChange={(e) => setData("signer_name", e.target.value)}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-[var(--muted-foreground)] mb-1.5">
+                Jabatan Penandatangan
+              </label>
+              <input
+                type="text"
+                value={data.signer_title}
+                onChange={(e) => setData("signer_title", e.target.value)}
+                className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] text-[var(--foreground)] px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+              />
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-xs font-semibold text-[var(--muted-foreground)] mb-1.5">
@@ -177,9 +226,15 @@ function TemplateRow({ template }) {
         </p>
       </td>
       <td className="px-5 py-3">
-        <code className="text-[10px] bg-[var(--muted)] px-2 py-1 rounded text-[var(--foreground)] break-all">
-          {template.gdocTemplateId}
-        </code>
+        {template.isInternal ? (
+          <span className="text-[10px] font-bold bg-[var(--muted)] px-2 py-1 rounded text-[var(--foreground)]">
+            Internal (PDF)
+          </span>
+        ) : (
+          <code className="text-[10px] bg-[var(--muted)] px-2 py-1 rounded text-[var(--foreground)] break-all">
+            {template.gdocTemplateId}
+          </code>
+        )}
       </td>
       <td className="px-5 py-3 text-center">
         <span className="text-xs font-bold text-[var(--muted-foreground)]">
@@ -203,14 +258,16 @@ function TemplateRow({ template }) {
       </td>
       <td className="px-5 py-3">
         <div className="flex items-center gap-2">
-          <a
-            href={template.docsEditUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[10px] font-bold text-[var(--primary)] hover:underline uppercase tracking-wide"
-          >
-            Edit Docs
-          </a>
+          {template.docsEditUrl && (
+            <a
+              href={template.docsEditUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] font-bold text-[var(--primary)] hover:underline uppercase tracking-wide"
+            >
+              Edit Docs
+            </a>
+          )}
           <button
             onClick={handleDelete}
             className="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-wide"

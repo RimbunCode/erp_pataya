@@ -1,4 +1,4 @@
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { useRef } from "react";
 import { XIcon } from "lucide-react";
 import UploadDialog2 from "@/Pages/Core/Components/UploadDialog2";
@@ -6,6 +6,14 @@ import UploadDialog2 from "@/Pages/Core/Components/UploadDialog2";
 function CourseCertificateCard({ course }) {
   const { errors } = usePage().props;
   const uploadDialogRef = useRef();
+
+  const issueFromTemplate = () => {
+    router.post(
+      route("admin.student-certificate-uploads.issue-from-template", course.enrollmentId),
+      {},
+      { preserveScroll: true },
+    );
+  };
 
   const barColor =
     course.progress === 100
@@ -79,18 +87,32 @@ function CourseCertificateCard({ course }) {
           </div>
         </div>
       ) : (
-        <button
-          onClick={openUploadDialog}
-          disabled={!canUpload}
-          className={`w-full py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all flex items-center justify-center gap-2
-            ${
-              canUpload
-                ? "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20"
-                : "bg-border text-muted-foreground cursor-not-allowed"
-            }`}
-        >
-          {canUpload ? "Upload Sertifikat" : "Course Belum Selesai"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={openUploadDialog}
+            disabled={!canUpload}
+            className={`flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all flex items-center justify-center gap-2
+              ${
+                canUpload
+                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20"
+                  : "bg-border text-muted-foreground cursor-not-allowed"
+              }`}
+          >
+            {canUpload ? "Upload Manual" : "Course Belum Selesai"}
+          </button>
+          <button
+            onClick={issueFromTemplate}
+            disabled={!canUpload}
+            className={`flex-1 py-2.5 text-[10px] font-black tracking-widest uppercase rounded-xl transition-all flex items-center justify-center gap-2
+              ${
+                canUpload
+                  ? "bg-primary hover:bg-primary-hover text-white shadow-md shadow-primary/20"
+                  : "bg-border text-muted-foreground cursor-not-allowed"
+              }`}
+          >
+            Terbitkan via Template
+          </button>
+        </div>
       )}
 
       {errors?.files && (

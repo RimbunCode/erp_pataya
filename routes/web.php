@@ -16,6 +16,7 @@ use App\Http\Controllers\Instructor\CourseController as InstructorCourseControll
 use App\Http\Controllers\Instructor\CourseSectionController;
 use App\Http\Controllers\Instructor\CourseSectionNoteController;
 use App\Http\Controllers\Instructor\DashboardController as InstructorDashboardController;
+use App\Http\Controllers\Instructor\EnrollmentEvaluationController;
 use App\Http\Controllers\Instructor\FinancialController as InstructorFinancialController;
 use App\Http\Controllers\Instructor\ProfileController as InstructorProfileController;
 use App\Http\Controllers\Instructor\StudentManagementController;
@@ -31,6 +32,7 @@ use App\Http\Controllers\Student\ProfileController as StudentProfileController;
 use App\Http\Controllers\Student\ProgressController;
 use App\Http\Controllers\Student\CertificateController as StudentCertificateController;
 use App\Http\Controllers\Admin\CertificateTemplateController;
+use App\Http\Controllers\Admin\EnrollmentEvaluationController as AdminEnrollmentEvaluationController;
 use App\Http\Controllers\Admin\StudentCertificateUploadController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Services\Auth\RoleResolver;
@@ -116,6 +118,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/profile/avatar', [StudentProfileController::class, 'updateAvatar'])->name('student.avatar.update');
         Route::delete('/profile/avatar', [StudentProfileController::class, 'destroyImage'])->name('student.image.delete');
         Route::get('/certificates', [StudentCertificateController::class, 'index'])->name('student.certificates');
+        Route::get('/certificates/{certificate}/download', [StudentCertificateController::class, 'download'])->name('student.certificates.download');
         Route::get('/certificates/{credentialId}/verify', [StudentCertificateController::class, 'verify'])->name('student.certificates.verify');
     });
 
@@ -147,6 +150,8 @@ Route::middleware(['auth'])->group(function () {
         });
         Route::get('/students', [StudentManagementController::class, 'index'])->name('students');
         Route::patch('/enrollments/{enrollment}/submissions/{submission}/grade', [InstructorSubmissionController::class, 'grade'])->name('enrollments.submissions.grade');
+        Route::get('/classes/{course}/evaluations', [EnrollmentEvaluationController::class, 'show'])->name('classes.evaluations.show');
+        Route::post('/classes/{course}/evaluations/submit', [EnrollmentEvaluationController::class, 'submit'])->name('classes.evaluations.submit');
         Route::get('/growth', fn () => inertia('Instructors/GrowthAnalytics'))->name('growth');
         Route::get('/financial', [InstructorFinancialController::class, 'index'])->name('financial');
         Route::post('/financial/payout-requests', [InstructorFinancialController::class, 'storePayoutRequest'])->name('financial.payout-requests.store');
@@ -214,6 +219,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/student-certificate-uploads', [StudentCertificateUploadController::class, 'index'])->name('student-certificate-uploads.index');
             Route::get('/student-certificate-uploads/students/{user}', [StudentCertificateUploadController::class, 'show'])->name('student-certificate-uploads.show');
             Route::post('/student-certificate-uploads/enrollments/{enrollment}/upload', [StudentCertificateUploadController::class, 'upload'])->name('student-certificate-uploads.upload');
+            Route::post('/student-certificate-uploads/enrollments/{enrollment}/issue-from-template', [StudentCertificateUploadController::class, 'issueFromTemplate'])->name('student-certificate-uploads.issue-from-template');
+
+            Route::get('/enrollment-evaluations', [AdminEnrollmentEvaluationController::class, 'index'])->name('enrollment-evaluations.index');
+            Route::get('/enrollment-evaluations/courses/{course}', [AdminEnrollmentEvaluationController::class, 'show'])->name('enrollment-evaluations.show');
+            Route::post('/enrollment-evaluations/courses/{course}/submit-final', [AdminEnrollmentEvaluationController::class, 'submitFinal'])->name('enrollment-evaluations.submit-final');
         });
 
         Route::middleware(['admin.permission:super_admin'])->group(function () {

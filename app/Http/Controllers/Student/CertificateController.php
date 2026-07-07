@@ -13,7 +13,7 @@ class CertificateController extends Controller {
     public function __construct(private CertificateService $service) {}
 
     public function index() {
-        $issuedCertificates = Certificate::with(['course'])
+        $issuedCertificates = Certificate::with(['course', 'enrollment.evaluation'])
             ->where('user_id', Auth::id())
             ->latest('issued_at')
             ->get()
@@ -25,9 +25,17 @@ class CertificateController extends Controller {
                 'expiryDate'    => $cert->expires_at?->format('d M Y') ?? 'No Expiry',
                 'credentialId'  => $cert->credential_id,
                 'status'        => $cert->effective_status,
-                'downloadUrl'   => $cert->gdrive_download_url,
-                'viewUrl'       => $cert->gdrive_view_url,
-                'source'        => 'issued',
+                'downloadUrl'   => $cert->source === 'template'
+                    ? route('student.certificates.download', $cert->id)
+                    : $cert->gdrive_download_url,
+                'viewUrl'       => $cert->source === 'template'
+                    ? route('student.certificates.download', $cert->id)
+                    : $cert->gdrive_view_url,
+                'source'        => $cert->source === 'template' ? 'template' : 'issued',
+                'evaluation'    => $cert->enrollment?->evaluation ? [
+                    'finalScore' => $cert->enrollment->evaluation->final_score,
+                    'grade'      => $cert->enrollment->evaluation->grade,
+                ] : null,
                 'sortTimestamp' => $cert->issued_at->getTimestamp(),
             ]);
 
@@ -64,6 +72,18 @@ class CertificateController extends Controller {
         return Inertia::render('Students/Certificates', [
             'certificates' => $certificates,
         ]);
+    }
+
+    public function download(Certificate $certificate) {
+        if ((string) $certificate->user_id !== (string) Auth::id()) {
+            abort(403);
+        }
+
+        if (! $certificate->file_path || ! \Illuminate\Support\Facades\Storage::exists($certificate->file_path)) {
+            abort(404);
+        }
+
+        return \Illuminate\Support\Facades\Storage::download($certificate->file_path, "Certificate_{$certificate->credential_id}.pdf");
     }
 
     public function verify(string $credentialId) {
