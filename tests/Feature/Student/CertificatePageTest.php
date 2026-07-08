@@ -268,6 +268,8 @@ class CertificatePageTest extends TestCase {
             'database/migrations/2026_07_07_000002_create_enrollment_evaluations_table.php',
             'database/migrations/2026_07_07_000003_add_layout_columns_to_certificate_templates_table.php',
             'database/migrations/2026_07_07_000004_add_snapshot_and_source_to_certificates_table.php',
+            'database/migrations/2026_07_08_221025_add_second_signer_to_certificate_templates_table.php',
+            'database/migrations/2026_07_08_233747_add_partner_logos_to_certificate_templates_table.php',
         ];
     }
 }

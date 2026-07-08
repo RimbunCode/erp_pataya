@@ -1,0 +1,6 @@
+{
+  "specId": "17dd49f9-85b1-459f-bf7f-405ee029dbb7",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Redesign certificate PDF template (Blade, A4 Landscape) dengan barcode 1D+2D, halaman verifikasi publik via signed URL + Google Docs Viewer, dan auto-issuance sertifikat saat evaluasi final."
+}

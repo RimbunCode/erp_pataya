@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Guest;
 
 use App\Http\Controllers\Controller;
+use App\Models\Certificate;
 use App\Models\Course;
 use App\Services\Admin\AdminPermissionService;
+use App\Services\CertificateService;
 use App\Services\Guest\GuestPageContentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -14,6 +17,7 @@ class GuestPageController extends Controller {
     public function __construct(
         private GuestPageContentService $guestPageContentService,
         private AdminPermissionService $adminPermissionService,
+        private CertificateService $certificateService,
     ) {}
 
     public function home(Request $request): Response {
@@ -53,6 +57,54 @@ class GuestPageController extends Controller {
             'content'    => $this->guestPageContentService->resolve(),
             'liveEditor' => $this->resolveLiveEditor($request, 'verify'),
         ]);
+    }
+
+    public function verifyShow(Request $request, string $credentialId): Response {
+        $certificate = $this->certificateService->verify($credentialId);
+
+        $result = $certificate === null
+            ? ['found' => false]
+            : $this->buildVerifyResult($certificate);
+
+        return Inertia::render('Guest/VerifyCTA/VerifyCTA', [
+            'content'      => $this->guestPageContentService->resolve(),
+            'liveEditor'   => $this->resolveLiveEditor($request, 'verify'),
+            'credentialId' => $credentialId,
+            'result'       => $result,
+        ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildVerifyResult(Certificate $certificate): array {
+        $result = [
+            'found'        => true,
+            'status'       => $certificate->effective_status,
+            'studentName'  => $certificate->user->name,
+            'courseTitle'  => $certificate->course->title,
+            'credentialId' => $certificate->credential_id,
+            'issuedDate'   => $certificate->issued_at->format('d F Y'),
+            'expiresDate'  => $certificate->expires_at?->format('d F Y'),
+            'pdfViewerUrl' => null,
+        ];
+
+        $canPreview = $certificate->effective_status === 'active'
+            && $certificate->source === 'template'
+            && $certificate->file_path;
+
+        if ($canPreview) {
+            $signedUrl = URL::temporarySignedRoute(
+                'certificates.stream',
+                now()->addMinutes(15),
+                ['certificate' => $certificate->id],
+            );
+
+            $result['pdfViewerUrl'] = 'https://docs.google.com/viewerng/viewer?hl=en&embedded=true&url='
+                . urlencode($signedUrl);
+        }
+
+        return $result;
     }
 
     public function about(Request $request): Response {

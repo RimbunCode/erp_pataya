@@ -20,6 +20,7 @@
     "laravel/sanctum": "^4.0",
     "laravel/socialite": "^5.26",
     "laravel/tinker": "^2.10.1",
+    "milon/barcode": "^13.1",
     "narolalabs/error-lens": "^2.6",
     "owen-it/laravel-auditing": "^14.0",
     "tightenco/ziggy": "^2.0"

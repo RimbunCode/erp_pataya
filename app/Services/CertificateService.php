@@ -11,6 +11,8 @@ use App\Models\UserProgress;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Milon\Barcode\Facades\DNS1DFacade;
+use Milon\Barcode\Facades\DNS2DFacade;
 
 class CertificateService {
     public function issueCertificate(Enrollment $enrollment): Certificate {
@@ -115,9 +117,19 @@ class CertificateService {
             ? "{$enrollment->course->total_sessions} sesi ({$enrollment->course->total_hours} jam)"
             : $issuedAt->format('F Y');
 
+        $verifyUrl       = route('guest.verify.show', ['credentialId' => $credentialId]);
+        $barcode1dBase64 = DNS1DFacade::getBarcodePNG($credentialId, 'C128', 1, 25);
+        $qrCodeBase64    = DNS2DFacade::getBarcodePNG($verifyUrl, 'QRCODE', 4, 4);
+
+        $partnerLogos = collect($template->partner_logo_paths ?? [])
+            ->map(fn (string $path) => Storage::path($path))
+            ->values()
+            ->all();
+
         $viewData = [
             'organizerName'        => 'INKINDO JATIM',
             'logoPath'             => $template->logo_path ? Storage::path($template->logo_path) : null,
+            'partnerLogos'         => $partnerLogos,
             'studentName'          => $enrollment->user->name,
             'courseTitle'          => $enrollment->course->title,
             'period'               => $period,
@@ -126,12 +138,18 @@ class CertificateService {
             'signatureImagePath'   => $template->signature_image_path ? Storage::path($template->signature_image_path) : null,
             'signerName'           => $template->signer_name,
             'signerTitle'          => $template->signer_title,
+            'signatureImagePath2'  => $template->signature_image_path_2 ? Storage::path($template->signature_image_path_2) : null,
+            'signerName2'          => $template->signer_name_2,
+            'signerTitle2'         => $template->signer_title_2,
             'credentialId'         => $credentialId,
             'instructorName'       => $enrollment->course->creator?->name,
             'materials'            => $materials,
+            'verifyUrl'            => $verifyUrl,
+            'barcode1dBase64'      => $barcode1dBase64,
+            'qrCodeBase64'         => $qrCodeBase64,
         ];
 
-        $pdf = Pdf::loadView('certificates.pdf', $viewData);
+        $pdf = Pdf::loadView('certificates.pdf', $viewData)->setPaper('a4', 'landscape');
         $relativePath = "certificates/{$credentialId}.pdf";
         Storage::put($relativePath, $pdf->output());
 

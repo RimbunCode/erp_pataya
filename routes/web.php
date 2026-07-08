@@ -34,6 +34,7 @@ use App\Http\Controllers\Student\CertificateController as StudentCertificateCont
 use App\Http\Controllers\Admin\CertificateTemplateController;
 use App\Http\Controllers\Admin\EnrollmentEvaluationController as AdminEnrollmentEvaluationController;
 use App\Http\Controllers\Admin\StudentCertificateUploadController;
+use App\Http\Controllers\Guest\GuestCertificateStreamController;
 use App\Http\Controllers\Student\SubmissionController;
 use App\Services\Auth\RoleResolver;
 use Illuminate\Http\Request;
@@ -265,6 +266,10 @@ Route::controller(LanguageController::class)->group(function () {
 Route::get('/company-logo', CompanyLogoController::class)->name('company-logo');
 
 Route::get('/files/{file}/preview', [FileController::class, 'preview'])->name('files.preview');
+
+Route::get('/certificates/{certificate}/stream', [GuestCertificateStreamController::class, 'stream'])
+    ->middleware('signed')
+    ->name('certificates.stream');
 // Get Data from Model Direct
 Route::post('/model', ModelController::class)
     ->middleware(middleware: ['auth'])

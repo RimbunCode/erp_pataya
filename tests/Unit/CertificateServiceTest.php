@@ -274,6 +274,31 @@ class CertificateServiceTest extends TestCase {
         Storage::assertExists($certificate->file_path);
     }
 
+    public function test_issue_from_template_generates_barcode_and_qr_in_snapshot(): void {
+        Storage::fake();
+
+        [$instructor, $student] = $this->makeInstructorAndStudent();
+        $course     = $this->makeCourse($instructor);
+        $section    = $this->makeSection($course);
+        $this->makeContent($section, 'material');
+        $enrollment = $this->makeEnrollment($student, $course);
+        $template   = $this->makeInternalTemplate($instructor);
+
+        EnrollmentEvaluation::query()->create([
+            'enrollment_id' => $enrollment->id,
+            'is_passed'     => true,
+            'status'        => 'final',
+        ]);
+
+        $certificate = $this->service->issueFromTemplate($enrollment, $template, new GradingService($this->service));
+
+        $this->assertNotEmpty($certificate->snapshot['barcode1dBase64']);
+        $this->assertNotEmpty($certificate->snapshot['qrCodeBase64']);
+        $this->assertNotEmpty($certificate->snapshot['verifyUrl']);
+        $this->assertStringContainsString($certificate->credential_id, $certificate->snapshot['verifyUrl']);
+        $this->assertStringContainsString('/verify/', $certificate->snapshot['verifyUrl']);
+    }
+
     // ── Helpers ───────────────────────────────────────
 
     private function makeInstructorAndStudent(): array {
@@ -387,6 +412,8 @@ class CertificateServiceTest extends TestCase {
             'database/migrations/2026_07_07_000002_create_enrollment_evaluations_table.php',
             'database/migrations/2026_07_07_000003_add_layout_columns_to_certificate_templates_table.php',
             'database/migrations/2026_07_07_000004_add_snapshot_and_source_to_certificates_table.php',
+            'database/migrations/2026_07_08_221025_add_second_signer_to_certificate_templates_table.php',
+            'database/migrations/2026_07_08_233747_add_partner_logos_to_certificate_templates_table.php',
         ];
     }
 }

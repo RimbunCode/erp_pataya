@@ -8,6 +8,7 @@ Route::name('guest.')->group(function () {
     Route::get('/training', [TrainingController::class, 'index'])->name('training');
     Route::get('/training/{course}', [TrainingController::class, 'show'])->name('training.preview');
     Route::get('/verify', [GuestPageController::class, 'verify'])->name('verify');
+    Route::get('/verify/{credentialId}', [GuestPageController::class, 'verifyShow'])->name('verify.show');
     Route::get('/about', [GuestPageController::class, 'about'])->name('about');
     Route::get('/contact', [GuestPageController::class, 'contact'])->name('contact');
 });
