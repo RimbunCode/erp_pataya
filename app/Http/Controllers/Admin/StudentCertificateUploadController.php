@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UploadStudentCertificateRequest;
+use App\Jobs\IssueCertificateFromTemplateJob;
 use App\Models\CertificateTemplate;
 use App\Models\Core\File;
 use App\Models\Enrollment;
@@ -169,7 +170,7 @@ class StudentCertificateUploadController extends Controller {
         return back()->with('success', 'Sertifikat berhasil diupload.');
     }
 
-    public function issueFromTemplate(Enrollment $enrollment, GradingService $gradingService): RedirectResponse {
+    public function issueFromTemplate(Enrollment $enrollment): RedirectResponse {
         $template = CertificateTemplate::where('course_id', $enrollment->course_id)->where('is_active', true)->first()
             ?? CertificateTemplate::whereNull('course_id')->where('is_active', true)->first();
 
@@ -177,13 +178,19 @@ class StudentCertificateUploadController extends Controller {
             return back()->withErrors(['files' => 'Tidak ada template sertifikat aktif.']);
         }
 
+        if ($enrollment->certificate) {
+            return back()->withErrors(['files' => 'Sertifikat sudah pernah diterbitkan.']);
+        }
+
         try {
-            $this->certificateService->issueFromTemplate($enrollment, $template, $gradingService);
+            $this->certificateService->assertEvaluationFinalAndPassed($enrollment);
         } catch (\RuntimeException $e) {
             return back()->withErrors(['files' => $e->getMessage()]);
         }
 
-        return back()->with('success', 'Sertifikat berhasil diterbitkan dari template.');
+        IssueCertificateFromTemplateJob::dispatch($enrollment);
+
+        return back()->with('success', 'Sertifikat sedang diproses, akan muncul beberapa saat lagi.');
     }
 
     private function buildStudentList() {

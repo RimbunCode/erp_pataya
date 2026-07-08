@@ -112,10 +112,11 @@ Implementasi mengikuti urutan dependency alami: pasang library barcode dulu, lal
 
 - [ ] 11. Checkpoint - Review UX halaman verifikasi dengan user sebelum lanjut ke auto-issuance
 
-- [ ] 12. Auto-issuance sertifikat saat evaluasi final
-  - [ ] 12.1 Buat job `IssueCertificateFromTemplateJob`
+- [x] 12. Auto-issuance sertifikat saat evaluasi final
+  - [x] 12.1 Buat job `IssueCertificateFromTemplateJob`
     - File baru: `app/Jobs/IssueCertificateFromTemplateJob.php`, pola sama seperti `IssueCertificateJob` yang sudah ada (`ShouldQueue`, `Queueable`, `InteractsWithQueue`, `tries=3`, `timeout=120`)
     - `handle(CertificateService $service, GradingService $gradingService)`: return awal jika `$enrollment->certificate` sudah ada; resolve template aktif (course-specific lalu fallback default, pola sama seperti `StudentCertificateUploadController::issueFromTemplate()`); jika tidak ada template, `Log::warning(...)` dan return; panggil `$service->issueFromTemplate(...)` dibungkus try/catch `\RuntimeException` → `Log::warning(...)` jika gagal
+    - **Pekerjaan tambahan (di luar rencana awal task 12, dipicu laporan user)**: tombol manual "Terbitkan via Template" (`StudentCertificateUploadController::issueFromTemplate()`) sebelumnya memanggil `CertificateService::issueFromTemplate()` secara sinkron di request HTTP — timeout di production karena generate PDF (barcode+QR+background 1MB) lambat. Diubah untuk dispatch `IssueCertificateFromTemplateJob` yang sama, bukan panggilan sinkron. Controller tetap quick-validate (template ada, belum pernah terbit, evaluasi final+lulus) sebelum dispatch agar pesan error instan tidak berubah; pesan sukses berubah jadi "Sertifikat sedang diproses, akan muncul beberapa saat lagi." (disepakati dengan user: tanpa polling/auto-refresh). 3 test baru ditambahkan ke `tests/Feature/Admin/StudentCertificateUploadTest.php` (dispatch job, reject tanpa template, reject evaluasi belum final) — 9/9 lulus.
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
   - [ ] 12.2 Dispatch job dari `Admin\EnrollmentEvaluationController::submitFinal()`

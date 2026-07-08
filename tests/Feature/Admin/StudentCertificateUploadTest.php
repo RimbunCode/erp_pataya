@@ -2,6 +2,8 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Jobs\IssueCertificateFromTemplateJob;
+use App\Models\CertificateTemplate;
 use App\Models\Core\File;
 use App\Models\Course;
 use App\Models\CourseContent;
@@ -14,6 +16,7 @@ use App\Models\User\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -175,6 +178,66 @@ class StudentCertificateUploadTest extends TestCase {
             ->component('Admin/StudentCertificateUploads/index')
             ->where('selectedStudentCourses.0.certificate', null)
         );
+    }
+
+    public function test_issue_from_template_dispatches_job_instead_of_running_synchronously(): void {
+        Queue::fake();
+
+        [$admin, $student, $enrollment] = $this->makeCompletedEnrollment();
+        $this->makeInternalTemplate($enrollment);
+
+        $response = $this->actingAs($admin)->post(
+            route('admin.student-certificate-uploads.issue-from-template', $enrollment),
+        );
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $response->assertSessionHas('success', 'Sertifikat sedang diproses, akan muncul beberapa saat lagi.');
+
+        Queue::assertPushed(IssueCertificateFromTemplateJob::class, fn ($job) => $job->enrollment->is($enrollment));
+
+        $this->assertDatabaseMissing('certificates', [
+            'enrollment_id' => (string) $enrollment->id,
+        ]);
+    }
+
+    public function test_issue_from_template_rejects_when_no_active_template(): void {
+        Queue::fake();
+
+        [$admin, $student, $enrollment] = $this->makeCompletedEnrollment();
+
+        $response = $this->actingAs($admin)->post(
+            route('admin.student-certificate-uploads.issue-from-template', $enrollment),
+        );
+
+        $response->assertSessionHasErrors(['files' => 'Tidak ada template sertifikat aktif.']);
+
+        Queue::assertNotPushed(IssueCertificateFromTemplateJob::class);
+    }
+
+    public function test_issue_from_template_rejects_when_evaluation_not_final(): void {
+        Queue::fake();
+
+        [$admin, $student, $enrollment] = $this->makeCompletedEnrollment(completeProgress: false);
+        $this->makeInternalTemplate($enrollment);
+
+        $response = $this->actingAs($admin)->post(
+            route('admin.student-certificate-uploads.issue-from-template', $enrollment),
+        );
+
+        $response->assertSessionHasErrors(['files' => 'Evaluasi peserta belum final.']);
+
+        Queue::assertNotPushed(IssueCertificateFromTemplateJob::class);
+    }
+
+    private function makeInternalTemplate(Enrollment $enrollment): CertificateTemplate {
+        return CertificateTemplate::query()->create([
+            'name'         => 'Template Internal',
+            'course_id'    => $enrollment->course_id,
+            'created_by'   => $enrollment->course->created_by,
+            'is_active'    => true,
+            'placeholders' => [],
+        ]);
     }
 
     protected function setUp(): void {
@@ -364,6 +427,12 @@ class StudentCertificateUploadTest extends TestCase {
             'database/migrations/2026_07_02_000001_create_enrollment_certificate_uploads_table.php',
             'database/migrations/2026_07_07_000001_add_graduation_scheme_to_courses_table.php',
             'database/migrations/2026_07_07_000002_create_enrollment_evaluations_table.php',
+            'database/migrations/2026_06_27_000001_create_certificate_templates_table.php',
+            'database/migrations/2026_06_27_000002_create_certificates_table.php',
+            'database/migrations/2026_07_07_000003_add_layout_columns_to_certificate_templates_table.php',
+            'database/migrations/2026_07_07_000004_add_snapshot_and_source_to_certificates_table.php',
+            'database/migrations/2026_07_08_221025_add_second_signer_to_certificate_templates_table.php',
+            'database/migrations/2026_07_08_233747_add_partner_logos_to_certificate_templates_table.php',
         ];
     }
 }
