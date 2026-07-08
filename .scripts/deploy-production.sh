@@ -62,7 +62,7 @@ if [ -z "$PREVIOUS" ]; then
   php artisan db:seed --force
 else
   echo "🔄 Running migrations..."
-  php artisan migrate:fresh --seed --force
+  php artisan migrate --force
 fi
 
 php artisan optimize:clear
