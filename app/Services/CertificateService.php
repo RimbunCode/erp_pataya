@@ -23,10 +23,10 @@ class CertificateService {
         $this->assertCourseCompleted($enrollment);
         $this->assertEvaluationFinalAndPassed($enrollment);
 
-        $template    = $this->resolveTemplate($enrollment->course_id);
+        $template     = $this->resolveTemplate($enrollment->course_id);
         $credentialId = $this->generateCredentialId($enrollment);
-        $issuedAt    = now();
-        $expiresAt   = $this->resolveExpiry($enrollment, $issuedAt);
+        $issuedAt     = now();
+        $expiresAt    = $this->resolveExpiry($enrollment, $issuedAt);
 
         $data = [
             'student_name'     => $enrollment->user->name,
@@ -62,7 +62,7 @@ class CertificateService {
         $enrollment->load('course.sections.contents');
 
         $requiredContents = $enrollment->course->sections
-            ->flatMap(fn($s) => $s->contents)
+            ->flatMap(fn ($s) => $s->contents)
             ->where('is_optional', false);
 
         if ($requiredContents->isEmpty()) return false;
@@ -127,29 +127,29 @@ class CertificateService {
             ->all();
 
         $viewData = [
-            'organizerName'        => 'INKINDO JATIM',
-            'logoPath'             => $template->logo_path ? Storage::path($template->logo_path) : null,
-            'partnerLogos'         => $partnerLogos,
-            'studentName'          => $enrollment->user->name,
-            'courseTitle'          => $enrollment->course->title,
-            'period'               => $period,
-            'finalScore'           => $evaluation?->final_score,
-            'grade'                => $evaluation?->grade,
-            'signatureImagePath'   => $template->signature_image_path ? Storage::path($template->signature_image_path) : null,
-            'signerName'           => $template->signer_name,
-            'signerTitle'          => $template->signer_title,
-            'signatureImagePath2'  => $template->signature_image_path_2 ? Storage::path($template->signature_image_path_2) : null,
-            'signerName2'          => $template->signer_name_2,
-            'signerTitle2'         => $template->signer_title_2,
-            'credentialId'         => $credentialId,
-            'instructorName'       => $enrollment->course->creator?->name,
-            'materials'            => $materials,
-            'verifyUrl'            => $verifyUrl,
-            'barcode1dBase64'      => $barcode1dBase64,
-            'qrCodeBase64'         => $qrCodeBase64,
+            'organizerName'       => 'INKINDO JATIM',
+            'logoPath'            => $template->logo_path ? Storage::path($template->logo_path) : resource_path('images/inkindo-logo.png'),
+            'partnerLogos'        => $partnerLogos,
+            'studentName'         => $enrollment->user->name,
+            'courseTitle'         => $enrollment->course->title,
+            'period'              => $period,
+            'finalScore'          => $evaluation?->final_score,
+            'grade'               => $evaluation?->grade,
+            'signatureImagePath2' => $template->signature_image_path ? Storage::path($template->signature_image_path) : resource_path('images/TTD2.png'),
+            'signerName2'         => 'Ir. R. Pius X Rooswan Happmono, ST., MT., IP.', // $template->signer_name,
+            'signerTitle2'        => 'Sekretaris DPP INKINDO Jawa Timur', //$template->signer_title,
+            'signatureImagePath'  => $template->signature_image_path_2 ? Storage::path($template->signature_image_path_2) : resource_path('images/TTD1.png'),
+            'signerName'          => 'Ir. Irwan Susilo, ST., MT., IPM.',  //$template->signer_name_2,
+            'signerTitle'         => 'Ketua DPP INKINDO Jawa Timur',      // $template->signer_title_2,
+            'credentialId'        => $credentialId,
+            'instructorName'      => $enrollment->course->creator?->name,
+            'materials'           => $materials,
+            'verifyUrl'           => $verifyUrl,
+            'barcode1dBase64'     => $barcode1dBase64,
+            'qrCodeBase64'        => $qrCodeBase64,
         ];
 
-        $pdf = Pdf::loadView('certificates.pdf', $viewData)->setPaper('a4', 'landscape');
+        $pdf          = Pdf::loadView('certificates.pdf', $viewData)->setPaper('a4', 'landscape');
         $relativePath = "certificates/{$credentialId}.pdf";
         Storage::put($relativePath, $pdf->output());
 

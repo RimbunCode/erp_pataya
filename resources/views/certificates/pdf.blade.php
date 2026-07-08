@@ -252,17 +252,6 @@
 
                 <div class="signature-row">
                     <div class="signature-col">
-                        @if($signatureImagePath)
-                            <img src="{{ $signatureImagePath }}" class="signature-image">
-                        @else
-                            <div class="signature-space"></div>
-                        @endif
-                        <div class="signer-group">
-                            <div class="signer-name">{{ $signerName }}</div>
-                            <div class="signer-title">{{ $signerTitle }}</div>
-                        </div>
-                    </div>
-                    <div class="signature-col">
                         @if($signatureImagePath2)
                             <img src="{{ $signatureImagePath2 }}" class="signature-image">
                         @else
@@ -271,6 +260,17 @@
                         <div class="signer-group">
                             <div class="signer-name">{{ $signerName2 }}</div>
                             <div class="signer-title">{{ $signerTitle2 }}</div>
+                        </div>
+                    </div>
+                    <div class="signature-col">
+                        @if($signatureImagePath)
+                            <img src="{{ $signatureImagePath }}" class="signature-image">
+                        @else
+                            <div class="signature-space"></div>
+                        @endif
+                        <div class="signer-group">
+                            <div class="signer-name">{{ $signerName }}</div>
+                            <div class="signer-title">{{ $signerTitle }}</div>
                         </div>
                     </div>
                 </div>
