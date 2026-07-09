@@ -268,7 +268,7 @@ class ItemServices {
 
                 return;
             } else {
-                $variant = $variant->update([
+                $variant->update([
                     'format_variant'  => $item->format_variant,
                     'code'            => static::getSku($item, $prefix),
                     'item_code'       => $item->code,
@@ -315,7 +315,7 @@ class ItemServices {
 
         $unitIds = \array_filter(\array_map(fn ($barcode) => $barcode['basic_unit']['id'] ?? null, $barcodes), fn ($barcode) => $barcode != null);
 
-        $uomIds = $variant
+        $uomIds           = $variant
             ->uoms()
             ->whereIn('unit_id', $unitIds)
             ->get()
