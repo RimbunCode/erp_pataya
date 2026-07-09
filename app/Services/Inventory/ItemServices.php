@@ -315,7 +315,7 @@ class ItemServices {
 
         $unitIds = \array_filter(\array_map(fn ($barcode) => $barcode['basic_unit']['id'] ?? null, $barcodes), fn ($barcode) => $barcode != null);
 
-        $uomIds           = $variant
+        $uomIds = $variant
             ->uoms()
             ->whereIn('unit_id', $unitIds)
             ->get()
