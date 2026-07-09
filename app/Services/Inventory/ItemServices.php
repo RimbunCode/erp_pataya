@@ -268,7 +268,7 @@ class ItemServices {
 
                 return;
             } else {
-                $variant = $variant->update([
+                $variant->update([
                     'format_variant'  => $item->format_variant,
                     'code'            => static::getSku($item, $prefix),
                     'item_code'       => $item->code,

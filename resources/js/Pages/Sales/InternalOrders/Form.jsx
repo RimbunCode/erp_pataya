@@ -76,13 +76,7 @@ export default function Form() {
                 });
               }}
               {...attributes}
-              filters={{
-                category: {
-                  type: {
-                    in: ["service", "stock"],
-                  },
-                },
-              }}
+              fields={["is_stock_item"]}
               with={["defaultUom", "item"]}
             />
           );
