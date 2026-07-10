@@ -95,6 +95,42 @@ class SelectorRelatedTemplatedStub extends Model {
 }
 
 /**
+ * Model related dengan templateLink POLOS (`:document`, tanpa dot, tanpa alias)
+ * di mana placeholder-nya sendiri adalah relasi MORPHTO — meniru pola nyata
+ * `ApprovalInstance::templateLink() = ':document'` (`document` = morphTo).
+ * Dipakai menguji `:a.b` di mana `b` (segmen akhir) adalah RELASI, bukan kolom
+ * scalar — beda dari kasus alias `{:accessor}` yang sudah ditangani sebelumnya.
+ */
+class SelectorInstanceStub extends Model {
+    protected $table   = 'selector_instance';
+    protected $guarded = [];
+    public $timestamps = false;
+
+    public static function templateLink() {
+        return ':document';
+    }
+
+    public function document(): MorphTo {
+        return $this->morphTo('document', 'document_type', 'document_id');
+    }
+
+    /** @return list<array<string,mixed>> */
+    public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
+        return [
+            ['name' => 'id', 'type' => 'integer'],
+            ['name' => 'document_type', 'type' => 'string', 'hidden' => true],
+            ['name' => 'document_id', 'type' => 'integer', 'hidden' => true],
+            [
+                'name'           => 'document',
+                'type'           => 'relation',
+                'typeRelation'   => 'morph',
+                'nameOfFunction' => 'document',
+            ],
+        ];
+    }
+}
+
+/**
  * Model induk stub dengan relasi nyata (BelongsTo/HasMany/MorphTo) agar
  * getForeignKeyName()/getMorphType() ter-resolve tanpa query DB.
  */
@@ -117,6 +153,10 @@ class SelectorParentStub extends Model {
 
     public function templatedRelated(): BelongsTo {
         return $this->belongsTo(SelectorRelatedTemplatedStub::class, 'templated_related_id');
+    }
+
+    public function instance(): BelongsTo {
+        return $this->belongsTo(SelectorInstanceStub::class, 'instance_id');
     }
 }
 
@@ -142,6 +182,7 @@ class DataTableColumnSelectorTest extends TestCase {
                 $t->string('state')->nullable();   // type render custom (formStatus), kolom DB nyata
                 $t->decimal('total')->nullable();  // type render custom (currency), kolom DB nyata
                 $t->unsignedBigInteger('templated_related_id')->nullable();
+                $t->unsignedBigInteger('instance_id')->nullable();
             });
         }
         if (! Schema::hasTable('selector_grandchild')) {
@@ -155,6 +196,13 @@ class DataTableColumnSelectorTest extends TestCase {
                 $t->id();
                 $t->string('code')->nullable();
                 $t->unsignedBigInteger('grandchild_id')->nullable();
+            });
+        }
+        if (! Schema::hasTable('selector_instance')) {
+            Schema::create('selector_instance', function ($t) {
+                $t->id();
+                $t->string('document_type')->nullable();
+                $t->unsignedBigInteger('document_id')->nullable();
             });
         }
     }
@@ -206,6 +254,15 @@ class DataTableColumnSelectorTest extends TestCase {
                 'typeRelation'   => 'basic',
                 'nameOfFunction' => 'templatedRelated',
                 'related'        => SelectorRelatedTemplatedStub::class,
+                'columns'        => [],
+                'show'           => true,
+            ],
+            [
+                'name'           => 'instance',
+                'type'           => 'relation',
+                'typeRelation'   => 'basic',
+                'nameOfFunction' => 'instance',
+                'related'        => SelectorInstanceStub::class,
                 'columns'        => [],
                 'show'           => true,
             ],
@@ -482,6 +539,88 @@ class DataTableColumnSelectorTest extends TestCase {
             . 'setelah afterQuery blank-slate, bukan hilang total',
         );
         $this->assertSame('CODE-1/GC-Label', $array['title']);
+    }
+
+    /**
+     * Reproduksi bug NYATA (kasus `/approvals`, ApprovalInstanceStep → approvalInstance
+     * → document): templateLink child (`SelectorInstanceStub::templateLink() = ':document'`)
+     * placeholder-nya SENDIRI adalah RELASI morphTo (bukan kolom scalar, bukan alias
+     * `{:accessor}`). `templateLinkLocalColumns`/`childAppendDependsCols` hanya
+     * menangani kolom DB nyata & alias accessor — placeholder yang ternyata relasi
+     * dibuang begitu saja di intersect `dbColumns` (`document` bukan kolom DB).
+     * Akibatnya relasi `document` TIDAK PERNAH di-with di dalam closure child
+     * `instance`, sehingga response akhir `instance.document` selalu `null` walau
+     * data morph-nya ada di DB — persis payload asli `/approvals` yang dikirim user
+     * (`approval_instance.document: null`).
+     */
+    public function test_child_select_closure_carries_relation_placeholder_in_child_template_link(): void {
+        $res = $this->selector()->resolveForSafe(
+            $this->columns(),
+            new SelectorParentStub,
+            $this->safeMap(['code', 'instance']),
+            [], // safeRelationColumns kosong — document TIDAK diminta eksplisit
+            null,
+        );
+
+        $this->assertArrayHasKey('instance', $res['with']);
+        $closure = $res['with']['instance'];
+        $this->assertIsCallable($closure, 'child-select closure harus terbentuk');
+
+        $query = SelectorInstanceStub::query();
+        $closure($query);
+
+        $this->assertContains(
+            'selector_instance.document_id',
+            $query->getQuery()->columns ?? [],
+            'FK document_id harus ikut ter-SELECT agar relasi morphTo document bisa resolve',
+        );
+        $this->assertContains(
+            'selector_instance.document_type',
+            $query->getQuery()->columns ?? [],
+            'morph type document_type harus ikut ter-SELECT',
+        );
+        $this->assertArrayHasKey(
+            'document',
+            $query->getEagerLoads(),
+            'relasi document (morphTo, placeholder templateLink child) harus ikut '
+            . 'di-eager-load di dalam child-select, meski tak diminta eksplisit — '
+            . 'tanpa ini label instance.document selalu null (bug /approvals)',
+        );
+    }
+
+    /**
+     * Sama seperti test di atas, tapi placeholder `:instance.document` dijangkau
+     * lewat templateLink MODEL ROOT (`resolveTemplatePath`, bukan `safeColumns`
+     * relasi biasa) — meniru persis `ApprovalInstanceStep::templateLink() =
+     * ':approvalInstance.document'` saat `ApprovalInstanceStep` sendiri adalah
+     * model utama request (mis. endpoint /approvals). `resolveTemplatePath`
+     * hanya proses HOP PERTAMA (`approvalInstance`/`instance`) lalu delegasikan
+     * child-select ke `childSelectClosure` — fix `childTemplateLinkRelationCols`
+     * di dalamnya harus tetap berlaku utk kasus ROOT ini juga.
+     */
+    public function test_resolve_for_safe_root_template_link_path_relation_end_segment(): void {
+        $res = $this->selector()->resolveForSafe(
+            $this->columns(),
+            new SelectorParentStub,
+            $this->safeMap(['code']),
+            [], // DataTableScope/lookup ROOT selalu kirim [] utk relasi tak diminta
+            ':instance.document',
+        );
+
+        $this->assertArrayHasKey('instance', $res['with']);
+        $closure = $res['with']['instance'];
+        $this->assertIsCallable($closure);
+
+        $query = SelectorInstanceStub::query();
+        $closure($query);
+
+        $this->assertContains('selector_instance.document_id', $query->getQuery()->columns ?? []);
+        $this->assertContains('selector_instance.document_type', $query->getQuery()->columns ?? []);
+        $this->assertArrayHasKey(
+            'document',
+            $query->getEagerLoads(),
+            'jalur ROOT templateLink (:a.b, b=relasi) juga harus bawa relasi document',
+        );
     }
 
     // ---- safeColumnsFromVisible (konversi visibleKeys cookie → map) -----------
