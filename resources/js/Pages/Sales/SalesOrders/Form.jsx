@@ -211,7 +211,6 @@ export default memo(function Form() {
             value={value}
             onValueChange={(val) => setData("source_warehouse", val)}
             {...attributes}
-            readOnly={true}
           />
         );
       },
@@ -537,7 +536,7 @@ export default memo(function Form() {
                   const newItems = prev.items.map((item) => {
                     return {
                       ...item,
-                      source_warehouse: val,
+                      source_warehouse: val?.item?.is_stock_item ? val : null,
                     };
                   });
                   return {
