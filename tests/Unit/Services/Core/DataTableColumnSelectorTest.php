@@ -29,12 +29,79 @@ class SelectorRelatedStub extends Model {
 }
 
 /**
+ * Model grandchild — relasi child-of-child dari SelectorRelatedTemplatedStub, dipakai
+ * untuk menguji apakah dependsOn accessor templateLink child (mis. Warehouse::title
+ * butuh branch.code) di-resolve otomatis walau relasi grandchild tak diminta eksplisit.
+ */
+class SelectorGrandchildStub extends Model {
+    protected $table   = 'selector_grandchild';
+    protected $guarded = [];
+    public $timestamps = false;
+
+    /** @return list<array<string,mixed>> */
+    public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
+        return [
+            ['name' => 'id', 'type' => 'integer'],
+            ['name' => 'label', 'type' => 'string'],
+        ];
+    }
+}
+
+/**
+ * Model related dengan templateLink alias (`:code{:title}`) di mana accessor `title`
+ * butuh relasi child-of-child (`grandchild.label`) — meniru pola nyata
+ * Warehouse::title (butuh branch.code) / Branch::title. dependsOn dideklarasikan di
+ * getColumns() sendiri (meniru configColumns produksi).
+ */
+class SelectorRelatedTemplatedStub extends Model {
+    protected $table   = 'selector_related_templated';
+    protected $guarded = [];
+    protected $appends = ['title'];
+    public $timestamps = false;
+
+    public static function templateLink() {
+        return ':code{:title}';
+    }
+
+    public function getTitleAttribute() {
+        return $this->code . '/' . ($this->grandchild?->label ?? $this->grandchild_id);
+    }
+
+    public function grandchild(): BelongsTo {
+        return $this->belongsTo(SelectorGrandchildStub::class, 'grandchild_id');
+    }
+
+    /** @return list<array<string,mixed>> */
+    public static function getColumns(int $maxDepth = 0, bool $includeIgnore = false, ...$excepts): array {
+        return [
+            ['name' => 'id', 'type' => 'integer'],
+            ['name' => 'code', 'type' => 'string'],
+            ['name' => 'grandchild_id', 'type' => 'integer'],
+            [
+                'name'           => 'grandchild',
+                'type'           => 'relation',
+                'typeRelation'   => 'basic',
+                'nameOfFunction' => 'grandchild',
+                'related'        => SelectorGrandchildStub::class,
+                'columns'        => [],
+            ],
+            [
+                'name'      => 'title',
+                'type'      => 'attribute',
+                'dependsOn' => ['code', 'grandchild.label'],
+            ],
+        ];
+    }
+}
+
+/**
  * Model induk stub dengan relasi nyata (BelongsTo/HasMany/MorphTo) agar
  * getForeignKeyName()/getMorphType() ter-resolve tanpa query DB.
  */
 class SelectorParentStub extends Model {
     protected $table   = 'selector_parents';
     protected $guarded = [];
+    public $timestamps = false;
 
     public function customer(): BelongsTo {
         return $this->belongsTo(SelectorRelatedStub::class, 'customer_id');
@@ -46,6 +113,10 @@ class SelectorParentStub extends Model {
 
     public function referenceable(): MorphTo {
         return $this->morphTo('referenceable', 'referenceable_type', 'referenceable_id');
+    }
+
+    public function templatedRelated(): BelongsTo {
+        return $this->belongsTo(SelectorRelatedTemplatedStub::class, 'templated_related_id');
     }
 }
 
@@ -70,6 +141,20 @@ class DataTableColumnSelectorTest extends TestCase {
                 $t->dateTime('end_date')->nullable();
                 $t->string('state')->nullable();   // type render custom (formStatus), kolom DB nyata
                 $t->decimal('total')->nullable();  // type render custom (currency), kolom DB nyata
+                $t->unsignedBigInteger('templated_related_id')->nullable();
+            });
+        }
+        if (! Schema::hasTable('selector_grandchild')) {
+            Schema::create('selector_grandchild', function ($t) {
+                $t->id();
+                $t->string('label')->nullable();
+            });
+        }
+        if (! Schema::hasTable('selector_related_templated')) {
+            Schema::create('selector_related_templated', function ($t) {
+                $t->id();
+                $t->string('code')->nullable();
+                $t->unsignedBigInteger('grandchild_id')->nullable();
             });
         }
     }
@@ -115,6 +200,15 @@ class DataTableColumnSelectorTest extends TestCase {
             ['name' => 'total', 'type' => 'currency', 'show' => true],
             // Kolom virtual dari global scope join — bukan kolom tabel, forceAppend.
             ['name' => 'joined_label', 'type' => 'string', 'forceAppend' => true, 'show' => true],
+            [
+                'name'           => 'templated_related',
+                'type'           => 'relation',
+                'typeRelation'   => 'basic',
+                'nameOfFunction' => 'templatedRelated',
+                'related'        => SelectorRelatedTemplatedStub::class,
+                'columns'        => [],
+                'show'           => true,
+            ],
         ];
     }
 
@@ -270,6 +364,124 @@ class DataTableColumnSelectorTest extends TestCase {
 
         $this->assertArrayHasKey('customer', $res['with']);
         $this->assertContains('selector_parents.customer_id', $res['select']);
+    }
+
+    /**
+     * Reproduksi bug: relasi child (`templatedRelated`) yang punya `templateLink()`
+     * ber-alias (`:code{:title}`) di mana accessor `title` butuh relasi child-of-child
+     * (`grandchild.label`, dideklarasikan lewat `dependsOn` di getColumns child — meniru
+     * Warehouse::title butuh branch.code) — closure child-select HARUS menyertakan FK
+     * `grandchild_id` DAN meng-eager-load `grandchild` di dalam closure-nya sendiri,
+     * walau `grandchild` TIDAK diminta eksplisit lewat fields/with (safeRelationColumns
+     * kosong untuk relasi ini). Tanpa fix, childSelectClosure hanya baca kolom lokal
+     * dari regex templateLink (buang alias {:title} sepenuhnya) dan tidak pernah
+     * memproses dependsOn accessor child.
+     */
+    public function test_resolve_for_safe_child_template_link_alias_depends_on_relation_is_included(): void {
+        $res = $this->selector()->resolveForSafe(
+            $this->columns(),
+            new SelectorParentStub,
+            $this->safeMap(['code', 'templated_related']),
+            [], // safeRelationColumns kosong — grandchild TIDAK diminta eksplisit
+            null,
+        );
+
+        // Key `with` = nameOfFunction (camelCase, nama method PHP asli), bukan
+        // `name` snake_case (konvensi Eloquent with()/collectSafeRelation).
+        $this->assertArrayHasKey('templatedRelated', $res['with']);
+        $closure = $res['with']['templatedRelated'];
+        $this->assertIsCallable($closure, 'child-select closure harus terbentuk (bukan null/SELECT *)');
+
+        // Jalankan closure pada query nyata utk inspeksi select+with yang dihasilkan.
+        $query = SelectorRelatedTemplatedStub::query();
+        $closure($query);
+
+        $this->assertContains(
+            'selector_related_templated.grandchild_id',
+            $query->getQuery()->columns ?? [],
+            'FK grandchild_id harus ikut ter-SELECT agar accessor title (dependsOn grandchild.label) bisa resolve',
+        );
+        $this->assertArrayHasKey(
+            'grandchild',
+            $query->getEagerLoads(),
+            'relasi grandchild harus ikut di-eager-load di dalam child-select, meski tak diminta eksplisit',
+        );
+    }
+
+    /**
+     * Sama seperti test di atas, tapi relasi `templatedRelated` dijangkau lewat
+     * MODEL ROOT templateLink (`:templatedRelated`, mis. `:customerBranch` di
+     * SalesOrder), bukan `safeColumns` biasa — jalur `resolveTemplateHead`. Ini
+     * mensimulasikan `DataTableScope` (halaman index), yang MEMANG selalu
+     * memanggil `resolveForSafe(..., safeRelationColumns: [], $templateLink)` —
+     * child-select SEPENUHNYA bergantung pada resolusi templateLink+dependsOn
+     * child, karena safeRelationColumns tidak pernah diisi utk index.
+     */
+    public function test_resolve_for_safe_root_template_link_head_relation_carries_child_depends_on(): void {
+        $res = $this->selector()->resolveForSafe(
+            $this->columns(),
+            new SelectorParentStub,
+            $this->safeMap(['code']),
+            [], // DataTableScope selalu kirim [] — index tak pernah eksplisit fields
+            ':code (:templatedRelated)',
+        );
+
+        $this->assertArrayHasKey('templatedRelated', $res['with']);
+        $closure = $res['with']['templatedRelated'];
+        $this->assertIsCallable($closure);
+
+        $query = SelectorRelatedTemplatedStub::query();
+        $closure($query);
+
+        $this->assertContains(
+            'selector_related_templated.grandchild_id',
+            $query->getQuery()->columns ?? [],
+            'jalur index (root templateLink → relasi) tetap harus bawa FK grandchild_id',
+        );
+        $this->assertArrayHasKey('grandchild', $query->getEagerLoads());
+    }
+
+    /**
+     * Reproduksi bug NYATA (bukan cuma SELECT/eager-load, tapi APPENDS): closure
+     * child-select `afterQuery` melakukan `setAppends([])` — blank slate appends
+     * bawaan class, SEHARUSNYA diikuti `setAppends($needed)` ulang (persis pola
+     * `applyAppends` utk model ROOT). Tanpa langkah kedua ini, accessor templateLink
+     * child (`title`) HILANG TOTAL dari `toArray()` — bukan cuma `null`, key-nya
+     * sendiri tidak ada — walau kolom sumbernya (`code`, `grandchild.label`) sudah
+     * benar ter-SELECT. Test sebelumnya (query builder select()/getEagerLoads())
+     * TIDAK menangkap bug ini karena tak pernah menjalankan query & serialize
+     * instance sungguhan.
+     */
+    public function test_child_select_closure_reappends_template_link_accessor_after_blank_slate(): void {
+        $grandchild = SelectorGrandchildStub::create(['label' => 'GC-Label']);
+        $related    = SelectorRelatedTemplatedStub::create([
+            'code'          => 'CODE-1',
+            'grandchild_id' => $grandchild->id,
+        ]);
+        $parent = SelectorParentStub::create(['templated_related_id' => $related->id]);
+
+        $res = $this->selector()->resolveForSafe(
+            $this->columns(),
+            new SelectorParentStub,
+            $this->safeMap(['code', 'templated_related']),
+            [],
+            null,
+        );
+        $closure = $res['with']['templatedRelated'];
+
+        $loaded = SelectorParentStub::query()
+            ->with(['templatedRelated' => $closure])
+            ->find($parent->id);
+
+        $array = $loaded->templatedRelated->toArray();
+
+        $this->assertArrayHasKey(
+            'title',
+            $array,
+            'accessor title (dependsOn code+grandchild.label) harus ikut di-append ulang '
+            . 'setelah afterQuery blank-slate, bukan hilang total',
+        );
+        $this->assertSame('CODE-1/GC-Label', $array['title']);
     }
 
     // ---- safeColumnsFromVisible (konversi visibleKeys cookie → map) -----------

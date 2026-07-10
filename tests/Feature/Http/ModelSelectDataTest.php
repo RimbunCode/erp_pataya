@@ -51,6 +51,28 @@ class ModelSelectDataTest extends TestCase {
             $table->timestamps();
             $table->softDeletes();
         });
+        // Child dengan templateLink SENDIRI (mis. ItemVariant/Tax produksi) — menguji
+        // apakah relasi via `with` otomatis membawa kolom templateLink child tanpa
+        // perlu diminta eksplisit lewat `fields`.
+        Schema::create('link_stub_children_templated', function ($table): void {
+            $table->id();
+            $table->unsignedBigInteger('link_stub_parent_id')->nullable();
+            $table->unsignedBigInteger('grandchild_id')->nullable();
+            $table->string('label')->nullable();
+            $table->string('untemplated_secret')->nullable();
+            $table->boolean('is_example')->default(false);
+            $table->timestamps();
+            $table->softDeletes();
+        });
+        // Grandchild dgn templateLink sendiri — meniru PurchaseOrderItem::item
+        // (relasi bertingkat: parent.items.item), diminta via `with` dot-notation.
+        Schema::create('link_stub_grandchildren', function ($table): void {
+            $table->id();
+            $table->string('name_label')->nullable();
+            $table->boolean('is_example')->default(false);
+            $table->timestamps();
+            $table->softDeletes();
+        });
     }
 
     private function submit(array $body) {
@@ -358,6 +380,65 @@ class ModelSelectDataTest extends TestCase {
         $this->assertArrayHasKey('children', $row, 'relasi linkable harus tetap ter-load via with walau ada join');
         $this->assertCount(2, $row['children']);
     }
+
+    /**
+     * Relasi via `with` yang child-nya punya `templateLink()` sendiri harus otomatis
+     * membawa kolom yang dirujuk templateLink child (mis. `label`), TANPA perlu
+     * diminta eksplisit lewat `fields`. Ini kontrak utama LinkModel/SelectModel:
+     * label relasi harus selalu bisa dirender.
+     */
+    public function test_with_relation_carries_its_own_template_link_columns(): void {
+        $parent = LinkStubParent::create(['code' => 'P-5']);
+        LinkStubChildTemplated::insert([
+            ['link_stub_parent_id' => $parent->id, 'label' => 'Label-A', 'untemplated_secret' => 'SS'],
+        ]);
+
+        $res = $this->submitModel([
+            'model' => LinkStubParent::class,
+            'with'  => ['templatedChildren'],
+        ]);
+
+        $res->assertOk();
+        $row = $res->json('data.0');
+        $this->assertArrayHasKey('templated_children', $row);
+        $child = $row['templated_children'][0];
+        // templateLink child (':label') → wajib ikut walau tak diminta `fields`.
+        $this->assertArrayHasKey('label', $child, 'kolom templateLink child harus otomatis ikut');
+        $this->assertSame('Label-A', $child['label']);
+        // Kolom non-templateLink & non-linkable tetap tersaring (defense-in-depth).
+        $this->assertArrayNotHasKey('untemplated_secret', $child);
+    }
+
+    /**
+     * Relasi BERTINGKAT via `with` dot-notation (mis. `templatedChildren.grandchild`,
+     * meniru `items.item` di PurchaseOrder/SalesOrder) — grandchild yang punya
+     * `templateLink()` sendiri harus tetap membawa kolom templateLink-nya, bukan
+     * hanya level pertama (`templatedChildren`).
+     */
+    public function test_nested_with_relation_carries_grandchild_template_link_columns(): void {
+        $parent     = LinkStubParent::create(['code' => 'P-6']);
+        $grandchild = LinkStubGrandchild::create(['name_label' => 'GC-Label']);
+        LinkStubChildTemplated::create([
+            'link_stub_parent_id' => $parent->id,
+            'grandchild_id'       => $grandchild->id,
+            'label'               => 'Label-B',
+        ]);
+
+        $res = $this->submitModel([
+            'model' => LinkStubParent::class,
+            'with'  => ['templatedChildren.grandchild'],
+        ]);
+
+        $res->assertOk();
+        $row   = $res->json('data.0');
+        $child = $row['templated_children'][0] ?? null;
+        $this->assertNotNull($child, 'relasi bertingkat templatedChildren harus ter-load');
+        $grandchildRow = $child['grandchild'] ?? null;
+        $this->assertNotNull($grandchildRow, 'grandchild harus ter-load via with dot-notation');
+        // templateLink grandchild (':name_label') → wajib ikut walau tak diminta `fields`.
+        $this->assertArrayHasKey('name_label', $grandchildRow, 'kolom templateLink grandchild harus otomatis ikut');
+        $this->assertSame('GC-Label', $grandchildRow['name_label']);
+    }
 }
 
 /**
@@ -430,6 +511,7 @@ class LinkStubParent extends Model {
     protected array $configColumns = [
         'children',
         'childrenUnsafe',
+        'templatedChildren',
     ];
 
     public static function templateLink() {
@@ -442,5 +524,54 @@ class LinkStubParent extends Model {
 
     public function childrenUnsafe(): HasMany {
         return $this->hasMany(SelectStubChild::class, 'select_stub_parent_id');
+    }
+
+    public function templatedChildren(): HasMany {
+        return $this->hasMany(LinkStubChildTemplated::class, 'link_stub_parent_id');
+    }
+}
+
+/**
+ * Stub relasi child dengan `templateLink()` SENDIRI (meniru ItemVariant/Tax
+ * produksi) — menguji apakah child-select otomatis menyertakan kolom yang
+ * dirujuk templateLink child, bukan hanya kolom yang diminta `fields`.
+ */
+class LinkStubChildTemplated extends Model {
+    use DataTable;
+
+    protected $table               = 'link_stub_children_templated';
+    public string $translateKey    = 'stub.link_templated';
+    protected $guarded             = ['id'];
+    protected array $configColumns = [
+        'grandchild',
+    ];
+
+    public static function templateLink() {
+        return ':label';
+    }
+
+    public function parent(): BelongsTo {
+        return $this->belongsTo(LinkStubParent::class, 'link_stub_parent_id');
+    }
+
+    public function grandchild(): BelongsTo {
+        return $this->belongsTo(LinkStubGrandchild::class, 'grandchild_id');
+    }
+}
+
+/**
+ * Stub relasi grandchild dengan `templateLink()` sendiri (meniru
+ * PurchaseOrderItem::item di dalam PurchaseOrder::items) — menguji relasi
+ * BERTINGKAT via `with` dot-notation membawa kolom templateLink-nya.
+ */
+class LinkStubGrandchild extends Model {
+    use DataTable;
+
+    protected $table            = 'link_stub_grandchildren';
+    public string $translateKey = 'stub.link_grandchild';
+    protected $guarded          = ['id'];
+
+    public static function templateLink() {
+        return ':name_label';
     }
 }

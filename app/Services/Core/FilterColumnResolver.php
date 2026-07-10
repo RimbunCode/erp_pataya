@@ -114,7 +114,11 @@ class FilterColumnResolver {
             }
             $relations[] = [
                 'function' => $column['nameOfFunction'] ?? $column['name'] ?? $segment,
-                'isMorph'  => ($column['typeRelation'] ?? 'basic') === 'morph',
+                // Key snake_case (getColumns) — dipakai pemanggil utk lookup peta
+                // ber-key snake (mis. safeRelationColumns), TERPISAH dari `function`
+                // (nama method PHP asli, bisa camelCase) yang dipakai memanggil relasi.
+                'name'    => $column['name'] ?? $segment,
+                'isMorph' => ($column['typeRelation'] ?? 'basic') === 'morph',
             ];
 
             $cols = $this->childColumns($column, $itemValue);

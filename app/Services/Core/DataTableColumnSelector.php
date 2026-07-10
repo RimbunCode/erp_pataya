@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 /**
  * Menentukan kolom `SELECT` dan relasi `with()` yang minimal untuk sebuah
@@ -168,7 +169,7 @@ class DataTableColumnSelector {
             // Bila tak ada child-safe (mis. index view yg suplai []), childSelectClosure
             // return null → eager-load apa adanya (SELECT * child), perilaku lama aman.
             if ($type === 'relation' || $type === 'relations') {
-                $this->collectSafeRelation($model, $col, $safeRelationColumns, $select, $with);
+                $this->collectSafeRelation($model, $col, $name, $safeRelationColumns, $select, $with);
 
                 continue;
             }
@@ -203,12 +204,20 @@ class DataTableColumnSelector {
      * Relasi aman → `with` + FK/morph type ke select. Non-morph → closure
      * child-select dari kolom aman relasi; morph → null (child `SELECT *`).
      *
+     * `$safeName` adalah key snake_case (`$col['name']`) — konsisten dgn key yang
+     * dipakai `safeRelationColumns` (dibangun `ModelController::safeRelationColumns`
+     * dari `relatedModelMap`, snake). `$fn` (nameOfFunction, camelCase) dipakai
+     * KHUSUS untuk key `$with`/pemanggilan method PHP — keduanya bisa BEDA (mis.
+     * `templatedChildren` vs `templated_children`); memakai `$fn` untuk lookup
+     * `$safeRelationColumns` akan selalu miss dan diam-diam mendegradasi child
+     * select ke "tanpa info relasi nested" (FK relasi cucu tak ke-SELECT).
+     *
      * @param  array<string, mixed>  $col
      * @param  array<string, array<string, bool>>  $safeRelationColumns
      * @param  list<string>  $select
      * @param  array<string, \Closure|null>  $with
      */
-    private function collectSafeRelation(Model $model, array $col, array $safeRelationColumns, array &$select, array &$with): void {
+    private function collectSafeRelation(Model $model, array $col, string $safeName, array $safeRelationColumns, array &$select, array &$with): void {
         $fn = $col['nameOfFunction'] ?? $col['name'] ?? null;
         if (! is_string($fn) || ! method_exists($model, $fn)) {
             return;
@@ -241,7 +250,7 @@ class DataTableColumnSelector {
             }
         }
 
-        $childSafe = $safeRelationColumns[$fn] ?? null;
+        $childSafe = $safeRelationColumns[$safeName] ?? null;
         $with[$fn] = $this->childSelectClosure($model, $fn, $childSafe, $childKeys);
     }
 
@@ -269,7 +278,16 @@ class DataTableColumnSelector {
         $tpl          = method_exists($relatedClass, 'templateLink') ? $relatedClass::templateLink() : null;
         $tplColumns   = $this->templateLinkLocalColumns($tpl);
 
-        $cols = array_values(array_unique([...$safeColumns, ...$tplColumns]));
+        // Accessor alias templateLink child (mis. Warehouse::title, Branch::title)
+        // punya `dependsOn` sendiri di configColumns — bisa merujuk relasi
+        // child-of-child (mis. `branch.code`). Tanpa ini, accessor tsb kehilangan
+        // relasi yang ia butuhkan setiap kali model ini jadi RELASI (bukan ROOT),
+        // karena regex templateLink biasa membuang alias `{:accessor}` sepenuhnya.
+        $dependsInfo = $this->childAppendDependsCols($related, $tpl);
+        $nestedWith  = $dependsInfo['with'];
+        $safeAppends = $dependsInfo['appends'];
+
+        $cols = array_values(array_unique([...$safeColumns, ...$tplColumns, ...$dependsInfo['cols']]));
         // Tak ada info kolom child → jangan batasi (SELECT * child), seperti lama.
         if ($cols === []) {
             return null;
@@ -332,12 +350,26 @@ class DataTableColumnSelector {
         $childTable = $related->getTable();
         $cols       = array_map(fn ($c) => "{$childTable}.{$c}", $cols);
 
+        // Relasi child-of-child yang dibutuhkan dependsOn accessor templateLink
+        // (mis. `branch` utk Warehouse::title) — eager-load DI DALAM closure child
+        // ini sendiri, via withArray (null entries → eager-load apa adanya).
+        $nestedWithArgs = self::withArray($nestedWith);
+
         // $q adalah Relation (BelongsTo/HasMany/...) saat dipakai di with([rel => fn]);
         // select() diproksikan ke Builder via __call. Jangan type-hint Builder.
-        // afterQuery: clear appends relasi child agar accessor yg butuh relasi ekstra
-        // (mis. Supplier::getAddressAttribute → country) tidak crash saat serialisasi.
-        return function ($q) use ($cols): void {
-            $q->select($cols)->afterQuery(fn ($items) => $items->each(fn ($m) => $m->setAppends([])));
+        // afterQuery: blank-slate appends bawaan class (accessor yg butuh relasi ekstra
+        // tak ter-load, mis. Supplier::getAddressAttribute → country, bisa crash saat
+        // serialisasi) LALU definisikan ulang HANYA accessor templateLink yang
+        // dependsOn-nya sudah dipastikan ter-SELECT ($safeAppends) — pola sama dgn
+        // DataTableColumnSelector::applyAppends() utk model ROOT. Tanpa langkah kedua
+        // ini, label (mis. Branch::title/Warehouse::title) hilang total dari response
+        // setiap kali model tsb jadi relasi child (appends default ter-blank permanen).
+        return function ($q) use ($cols, $nestedWithArgs, $safeAppends): void {
+            $q->select($cols);
+            if ($nestedWithArgs !== []) {
+                $q->with($nestedWithArgs);
+            }
+            $q->afterQuery(fn ($items) => $items->each(fn ($m) => $m->setAppends($safeAppends)));
         };
     }
 
@@ -392,6 +424,154 @@ class DataTableColumnSelector {
     }
 
     /**
+     * Nama alias accessor (`:nama{:alias}` → `alias`) yang dirujuk templateLink.
+     * Berpasangan dgn `templateLinkLocalColumns` (yang membuang alias) — dipakai
+     * utk menemukan accessor (mis. Warehouse::title, Branch::title) yang perlu
+     * di-resolve `dependsOn`-nya di child-select (lihat `childAppendDependsCols`).
+     *
+     * @return list<string>
+     */
+    private function templateLinkAliasAccessors(?string $templateLink): array {
+        if (! is_string($templateLink) || $templateLink === '') {
+            return [];
+        }
+        $out = [];
+        if (preg_match_all('/\{:([\w.]+)\}/', $templateLink, $matches)) {
+            foreach ($matches[1] as $alias) {
+                if ($alias !== '') {
+                    $out[] = $alias;
+                }
+            }
+        }
+
+        return array_values(array_unique($out));
+    }
+
+    /**
+     * Resolusi `dependsOn` milik accessor alias templateLink child (mis.
+     * `Warehouse::title` → `dependsOn: ['code','branch.code']`) menjadi kolom
+     * lokal (masuk SELECT child) + relasi child-of-child yang wajib di-eager-load
+     * DI DALAM closure child (mis. `branch`), TANPA harus diminta eksplisit lewat
+     * `fields`/`with` FE — sama seperti `collectAppendStrict` menangani accessor
+     * di model ROOT, hanya targetnya kini kolom/with LOKAL child, bukan
+     * `$select`/`$with` milik resolveForSafe.
+     *
+     * TIDAK strict/throw: accessor tanpa `dependsOn` di sini cukup diabaikan
+     * (`templateLinkLocalColumns` sudah menegakkan strict utk model ROOT; child
+     * yang templateLink-nya tak lengkap dependsOn hanya kehilangan optimasi ini,
+     * bukan pintu keamanan — dependsOn tetap wajib lewat audit `DependsOnAuditTest`
+     * bila model tsb pernah jadi ROOT).
+     *
+     * `appends` = nama accessor yang `dependsOn`-nya berhasil di-resolve (kolom
+     * sumbernya sudah dipastikan masuk `cols`/`with`) — dipakai pemanggil utk
+     * `setAppends()` ULANG setelah `afterQuery` mengosongkan appends bawaan
+     * class (lihat `childSelectClosure`): blank-slate lalu definisikan kembali
+     * HANYA accessor yang aman, persis pola `DataTableColumnSelector::applyAppends`
+     * utk model ROOT. Accessor tanpa `dependsOn` (baris `continue` di atas) TIDAK
+     * masuk `appends` — tetap di-blank karena keamanannya tak terjamin.
+     *
+     * @return array{cols: list<string>, with: array<string, \Closure|null>, appends: list<string>}
+     */
+    private function childAppendDependsCols(Model $related, ?string $templateLink): array {
+        $cols    = [];
+        $with    = [];
+        $appends = [];
+
+        if (! is_string($templateLink) || $templateLink === '' || ! method_exists($related, 'getColumns')) {
+            return ['cols' => $cols, 'with' => $with, 'appends' => $appends];
+        }
+
+        $relatedClass = get_class($related);
+        $byName       = collect($relatedClass::getColumns(1, true))->keyBy('name');
+
+        foreach ($this->templateLinkAliasAccessors($templateLink) as $accessor) {
+            $dependsOn = $byName->get($accessor)['dependsOn'] ?? null;
+            if (! is_array($dependsOn)) {
+                continue;
+            }
+            $appends[] = $accessor;
+
+            foreach ($dependsOn as $dep) {
+                if (! is_string($dep) || $dep === '') {
+                    continue;
+                }
+                if (! str_contains($dep, '.')) {
+                    $cols[] = $dep;
+
+                    continue;
+                }
+                $this->collectChildDependsRelation($related, $dep, $cols, $with);
+            }
+        }
+
+        return [
+            'cols'    => array_values(array_unique($cols)),
+            'with'    => $with,
+            'appends' => array_values(array_unique($appends)),
+        ];
+    }
+
+    /**
+     * Varian `collectSafeDependsRelation` yang menulis ke `$cols`/`$with` LOKAL
+     * (dipakai di dalam closure child-select), bukan `$select`/`$with` milik
+     * `resolveForSafe`. Tanpa kolom aman eksplisit (child-of-child tak diminta
+     * FE) — child-select relasi ini dibatasi ke FK + PK saja lewat
+     * `childSelectClosure($related, $first, null)` (aman, minimal, tak SELECT *).
+     *
+     * Resolver BARU (bukan `$this->resolver`, yang berskema kolom model ROOT) —
+     * `$dep` di sini relatif terhadap skema `$related` (CHILD), butuh resolver
+     * yang dibangun dari `$related::getColumns(1, true)` sendiri.
+     *
+     * @param  list<string>  $cols
+     * @param  array<string, \Closure|null>  $with
+     */
+    private function collectChildDependsRelation(Model $related, string $dep, array &$cols, array &$with): void {
+        if (! method_exists($related, 'getColumns')) {
+            return;
+        }
+        $childResolver = new FilterColumnResolver($related::getColumns(1, true));
+        $path          = $childResolver->resolvePath($dep);
+        if ($path === null || $path['relations'] === []) {
+            return;
+        }
+        $first = $path['relations'][0]['function'];
+        if (! is_string($first) || ! method_exists($related, $first)) {
+            return;
+        }
+
+        $relation = $related->{$first}();
+        if ($relation instanceof MorphTo) {
+            $cols[] = $relation->getForeignKeyName();
+            $cols[] = $relation->getMorphType();
+            $with[$first] ??= null;
+
+            return;
+        }
+        if ($relation instanceof BelongsTo) {
+            $cols[] = $relation->getForeignKeyName();
+        }
+        if (! ($relation instanceof Relation)) {
+            return;
+        }
+
+        $existingClosure = $this->childSelectClosure($related, $first, null);
+        $targetColumn    = $path['columnName'] ?? null;
+
+        if ($targetColumn && $existingClosure) {
+            $relatedClass = get_class($relation->getRelated());
+            $relatedTable = (new $relatedClass)->getTable();
+            $fullColumn   = "{$relatedTable}.{$targetColumn}";
+
+            $with[$first] = function ($q) use ($existingClosure, $fullColumn): void {
+                $existingClosure($q);
+                $q->addSelect($fullColumn);
+            };
+        } else {
+            $with[$first] = $existingClosure;
+        }
+    }
+
+    /**
      * Append aman → proses `dependsOn`. STRICT: tanpa `dependsOn` → throw selalu
      * (tak ada fallbackAll). Entri ber-dot → relasi + FK ke with/select.
      *
@@ -439,7 +619,8 @@ class DataTableColumnSelector {
         if ($path === null || $path['relations'] === []) {
             return;
         }
-        $first = $path['relations'][0]['function'];
+        $first     = $path['relations'][0]['function'];
+        $firstSafe = $path['relations'][0]['name'] ?? $first;
         if (! is_string($first) || ! method_exists($model, $first)) {
             return;
         }
@@ -458,7 +639,7 @@ class DataTableColumnSelector {
             $select[] = "{$parentTable}." . $relation->getForeignKeyName();
         }
 
-        $existingClosure = $this->childSelectClosure($model, $first, $safeRelationColumns[$first] ?? null);
+        $existingClosure = $this->childSelectClosure($model, $first, $safeRelationColumns[$firstSafe] ?? null);
         $targetColumn    = $path['columnName'] ?? null;
 
         if ($targetColumn && $existingClosure) {
@@ -546,7 +727,9 @@ class DataTableColumnSelector {
         if (! ($relation instanceof Relation)) {
             return;
         }
-        $with[$head] = $this->childSelectClosure($model, $head, $safeRelationColumns[$head] ?? null);
+        // `$head` adalah nama method PHP (bisa camelCase); safeRelationColumns
+        // di-key snake_case (konsisten dgn ModelController::relatedModelMap).
+        $with[$head] = $this->childSelectClosure($model, $head, $safeRelationColumns[Str::snake($head)] ?? null);
     }
 
     /**
@@ -563,7 +746,8 @@ class DataTableColumnSelector {
         if ($path === null || $path['relations'] === []) {
             return;
         }
-        $first = $path['relations'][0]['function'];
+        $first     = $path['relations'][0]['function'];
+        $firstSafe = $path['relations'][0]['name'] ?? $first;
         if (! is_string($first) || ! method_exists($model, $first)) {
             return;
         }
@@ -580,7 +764,7 @@ class DataTableColumnSelector {
         if ($relation instanceof BelongsTo) {
             $select[] = "{$parentTable}." . $relation->getForeignKeyName();
         }
-        $with[$first] = $this->childSelectClosure($model, $first, $safeRelationColumns[$first] ?? null);
+        $with[$first] = $this->childSelectClosure($model, $first, $safeRelationColumns[$firstSafe] ?? null);
     }
 
     /**
