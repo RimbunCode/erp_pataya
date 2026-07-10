@@ -192,7 +192,13 @@ class ApprovalInstanceController extends Controller {
             }
         }
 
-        return app()->call("$controller@$method", $finalParams);
+        request()->attributes->set('isApprovalCallback', true);
+
+        try {
+            return app()->call("$controller@$method", $finalParams);
+        } finally {
+            request()->attributes->remove('isApprovalCallback');
+        }
     }
 
     private function approve(ApprovalInstanceStep $approvalInstanceStep, ?string $notes = null) {

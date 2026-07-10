@@ -3,6 +3,7 @@
 namespace Tests\Feature\Core;
 
 use App\Enums\FormStatus;
+use App\Http\Controllers\Controller;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
@@ -13,11 +14,12 @@ use App\Models\User\Role;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
-// Dokumen stub — cukup punya id & created_by_id
+// Dokumen stub — cukup punya id, created_by_id & status
 class ApprovalTestDocument extends AppModel {
     use HasUlids;
 
@@ -27,6 +29,20 @@ class ApprovalTestDocument extends AppModel {
 
     public function getRouteKeyName(): string {
         return 'id';
+    }
+}
+
+// Controller stub — sengaja TIDAK override enforcePermission()/ignorePermission,
+// supaya reproduce persis kondisi controller dokumen asli (SalesOrderController, dkk).
+class ApprovalTestDocumentController extends Controller {
+    public function __construct(Request $request) {
+        parent::__construct($request, ApprovalTestDocument::class);
+    }
+
+    public function onApproved(ApprovalTestDocument $approvalTestDocument) {
+        $approvalTestDocument->update(['status' => 'approved']);
+
+        return back();
     }
 }
 
@@ -55,6 +71,7 @@ class ApprovalAutoApproveTest extends TestCase {
             Schema::create('approval_test_documents', function ($t) {
                 $t->ulid('id')->primary();
                 $t->ulid('created_by_id')->nullable();
+                $t->string('status')->default('need_approval');
             });
         }
 
@@ -539,6 +556,46 @@ class ApprovalAutoApproveTest extends TestCase {
 
         $this->assertEquals(FormStatus::APPROVED->value, $steps[2]->fresh()->status->value);
         $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+    }
+
+    /**
+     * Regression: onApproved() controller dokumen (mis. SalesOrderController) tidak override
+     * enforcePermission()/ignorePermission — callWithRouteModels() memanggilnya via app()->call(),
+     * yang TIDAK lewat router, sehingga Route::getCurrentRoute()->getActionMethod() di
+     * Controller::__construct() masih 'decision' (bukan 'onApproved') dan selalu abort(403)
+     * sebelum onApproved() sempat menulis status dokumen.
+     */
+    public function test_on_approved_callback_updates_document_status_without_403(): void {
+        $roleA     = $this->makeRole('CallbackRoleA');
+        $approverA = $this->makeUser('CallbackApproverA');
+        $this->assignRole($approverA, $roleA);
+
+        $creator = $this->makeUser('CallbackCreator');
+
+        $this->makeScheme('scheme-callback', [
+            [
+                'approver_type'     => 'role',
+                'approverable_type' => Role::class,
+                'approverable_id'   => $roleA->id,
+            ],
+        ]);
+
+        $doc      = $this->makeDocument($creator);
+        $instance = ApprovalInstance::makeInstance($doc, [
+            'controller' => ApprovalTestDocumentController::class,
+            'parameters' => ['approvalTestDocument' => $doc->id],
+        ]);
+        $step = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->first();
+
+        $this->assertEquals('need_approval', $doc->fresh()->status);
+
+        $response = $this->actingAs($approverA)
+            ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
+            ->postJson(route('approvalInstances.decision', $step->id), ['decision' => 'approve']);
+
+        $this->assertNotEquals(403, $response->getStatusCode(), (string) $response->getContent());
+        $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+        $this->assertEquals('approved', $doc->fresh()->status);
     }
 
     /**
