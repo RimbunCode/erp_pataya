@@ -80,7 +80,7 @@ const navList = [
         title: "Purchase Receipts",
         url: "/purchaseReceipts",
         urlPattern: "/purchaseReceipts/*",
-        model: "App\\Models\\Inventory\\PurchaseReceipt",
+        model: "App\\Models\\Purchase\\PurchaseReceipt",
       },
       {
         title: "Delivery Notes",
@@ -88,12 +88,12 @@ const navList = [
         urlPattern: "/deliveryNotes/*",
         model: "App\\Models\\Inventory\\DeliveryNote",
       },
-      {
-        title: "Stock Ledgers",
-        url: "/stockLedgers",
-        urlPattern: "/stockLedgers/*",
-        model: "App\\Models\\Inventory\\StockLedger",
-      },
+      // {
+      //   title: "Stock Ledgers",
+      //   url: "/stockLedgers",
+      //   urlPattern: "/stockLedgers/*",
+      //   model: "App\\Models\\Inventory\\StockLedger",
+      // },
     ],
   },
   {
