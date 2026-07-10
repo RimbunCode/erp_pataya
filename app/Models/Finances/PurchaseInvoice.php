@@ -66,7 +66,6 @@ class PurchaseInvoice extends Model {
             'order' => 3,
         ],
         'status' => [
-            'type'  => 'string',
             'show'  => true,
             'order' => 4,
         ],

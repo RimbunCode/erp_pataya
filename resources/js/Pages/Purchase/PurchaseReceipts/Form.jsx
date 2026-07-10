@@ -275,7 +275,6 @@ function Form() {
                     "supplier",
                     "items",
                     "items.item",
-                    "items.tax",
                     "items.unit",
                     "items.targetWarehouse",
                   ]}

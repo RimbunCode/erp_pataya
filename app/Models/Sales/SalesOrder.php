@@ -83,7 +83,9 @@ class SalesOrder extends Model {
             'show'  => true,
             'order' => 4,
         ],
-        'customerBranch',
+        'customerBranch' => [
+            'disabledNavigation' => true,
+        ],
         'currency',
         'branch',
         'customer_name' => [

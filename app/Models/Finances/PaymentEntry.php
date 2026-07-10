@@ -65,6 +65,10 @@ class PaymentEntry extends Model {
             'order' => 5,
             'show'  => true,
         ],
+        'status' => [
+            'order' => 6,
+            'show'  => true,
+        ],
         'accountPaidTo',
         'accountPaidFrom',
         'base_currency_code' => [
