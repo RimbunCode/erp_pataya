@@ -287,7 +287,21 @@ class DataTableColumnSelector {
         $nestedWith  = $dependsInfo['with'];
         $safeAppends = $dependsInfo['appends'];
 
-        $cols = array_values(array_unique([...$safeColumns, ...$tplColumns, ...$dependsInfo['cols']]));
+        // Placeholder templateLink child yang SENDIRI adalah relasi (mis.
+        // ApprovalInstance::templateLink() = ':document', 'document' = morphTo)
+        // — bukan kolom DB, bukan alias accessor. `templateLinkLocalColumns` hanya
+        // menangkap string head; tanpa deteksi ini, head relasi dibuang saat
+        // intersect dbColumns dan relasinya tak pernah di-with, sehingga label
+        // child (mis. instance.document) selalu null walau data morph-nya ada.
+        $relationHeadInfo = $this->childTemplateLinkRelationCols($related, $tpl);
+        $nestedWith       = array_merge($nestedWith, $relationHeadInfo['with']);
+
+        $cols = array_values(array_unique([
+            ...$safeColumns,
+            ...$tplColumns,
+            ...$dependsInfo['cols'],
+            ...$relationHeadInfo['cols'],
+        ]));
         // Tak ada info kolom child → jangan batasi (SELECT * child), seperti lama.
         if ($cols === []) {
             return null;
@@ -569,6 +583,57 @@ class DataTableColumnSelector {
         } else {
             $with[$first] = $existingClosure;
         }
+    }
+
+    /**
+     * Placeholder templateLink child yang SEGMEN AKHIRNYA sendiri adalah relasi
+     * (mis. `ApprovalInstance::templateLink() = ':document'`, `document` = morphTo),
+     * bukan kolom scalar dan bukan alias `{:accessor}`. Beda dari
+     * `childAppendDependsCols` (accessor alias) — di sini placeholder POLOS
+     * (`:nama`, tanpa `{:...}`) yang ternyata method relasi di `$related`.
+     *
+     * Tanpa deteksi ini, `templateLinkLocalColumns` menangkap `document` sbg
+     * string head biasa, lalu dibuang saat intersect `dbColumns` (bukan kolom
+     * DB) — relasinya TAK PERNAH di-with, sehingga label child (mis.
+     * `instance.document`) selalu `null` walau data morph-nya ada di DB.
+     *
+     * Reuse pola `resolveTemplateHead` (versi ROOT), hanya menulis ke `cols`/`with`
+     * LOKAL closure child alih-alih `$select`/`$with` milik `resolveForSafe`.
+     *
+     * @return array{cols: list<string>, with: array<string, \Closure|null>}
+     */
+    private function childTemplateLinkRelationCols(Model $related, ?string $templateLink): array {
+        $cols = [];
+        $with = [];
+
+        foreach (self::templateLinkPlaceholders($templateLink) as $placeholder) {
+            // Dot-notation ditangani `collectChildDependsRelation`/`childAppendDependsCols`
+            // lewat dependsOn; di sini khusus head POLOS (tanpa dot).
+            if ($placeholder === '' || str_contains($placeholder, '.')) {
+                continue;
+            }
+            if (! method_exists($related, $placeholder)) {
+                continue;
+            }
+            $relation = $related->{$placeholder}();
+            if (! ($relation instanceof Relation)) {
+                continue;
+            }
+
+            if ($relation instanceof MorphTo) {
+                $cols[] = $relation->getForeignKeyName();
+                $cols[] = $relation->getMorphType();
+                $with[$placeholder] ??= null; // morph: tak bisa prune child.
+
+                continue;
+            }
+            if ($relation instanceof BelongsTo) {
+                $cols[] = $relation->getForeignKeyName();
+            }
+            $with[$placeholder] = $this->childSelectClosure($related, $placeholder, null);
+        }
+
+        return ['cols' => array_values(array_unique($cols)), 'with' => $with];
     }
 
     /**

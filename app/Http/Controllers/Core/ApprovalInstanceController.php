@@ -210,11 +210,11 @@ class ApprovalInstanceController extends Controller {
             'notes'       => $notes,
         ]);
 
-        $isApproved = false;
+        $isApproved = true;
 
         $approval->current_sequence += 1;
 
-        foreach ($approval->steps()->get() as $step) {
+        foreach ($approval->steps()->orderBy('sequence')->get() as $step) {
             if ($approval->current_sequence == $step->sequence && $step->status == FormStatus::WAITING) {
                 $step->update([
                     'status' => FormStatus::PENDING,
@@ -223,10 +223,10 @@ class ApprovalInstanceController extends Controller {
 
                 continue;
             }
-            $isApproved = match ($step->status) {
-                FormStatus::PENDING, FormStatus::SKIPPED => false,
-                FormStatus::APPROVED                     => true,
-            };
+
+            if ($step->status !== FormStatus::APPROVED) {
+                $isApproved = false;
+            }
         }
 
         if ($isApproved) {

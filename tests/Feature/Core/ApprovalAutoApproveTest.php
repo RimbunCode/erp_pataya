@@ -460,6 +460,88 @@ class ApprovalAutoApproveTest extends TestCase {
     }
 
     /**
+     * Regression: scheme dengan 3 step berurutan. Approve step demi step via HTTP
+     * tidak boleh throw UnhandledMatchError (match FormStatus::WAITING tidak ter-handle),
+     * dan instance harus berstatus APPROVED setelah step terakhir di-approve.
+     */
+    public function test_sequential_three_step_scheme_reaches_approved_without_error(): void {
+        $roleA = $this->makeRole('SeqRoleA');
+        $roleB = $this->makeRole('SeqRoleB');
+        $roleC = $this->makeRole('SeqRoleC');
+
+        $approverA = $this->makeUser('SeqApproverA');
+        $approverB = $this->makeUser('SeqApproverB');
+        $approverC = $this->makeUser('SeqApproverC');
+        $this->assignRole($approverA, $roleA);
+        $this->assignRole($approverB, $roleB);
+        $this->assignRole($approverC, $roleC);
+
+        $creator = $this->makeUser('SeqCreator');
+
+        $this->makeScheme('scheme-seq-3step', [
+            [
+                'approver_type'     => 'role',
+                'approverable_type' => Role::class,
+                'approverable_id'   => $roleA->id,
+            ],
+            [
+                'approver_type'     => 'role',
+                'approverable_type' => Role::class,
+                'approverable_id'   => $roleB->id,
+            ],
+            [
+                'approver_type'     => 'role',
+                'approverable_type' => Role::class,
+                'approverable_id'   => $roleC->id,
+            ],
+        ]);
+
+        $doc      = $this->makeDocument($creator);
+        $instance = ApprovalInstance::makeInstance($doc);
+
+        $this->assertEquals(FormStatus::PENDING->value, $instance->fresh()->status->value);
+
+        $steps = ApprovalInstanceStep::where('approval_instance_id', $instance->id)
+            ->orderBy('sequence')
+            ->get();
+
+        $middleware = [AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class];
+
+        // Approve step 0 → step 1 harus WAITING->PENDING, step 2 tetap WAITING (bug lama: throw di sini).
+        $response = $this->actingAs($approverA)
+            ->withoutMiddleware($middleware)
+            ->postJson(route('approvalInstances.decision', $steps[0]->id), ['decision' => 'approve']);
+        $this->assertNotEquals(500, $response->getStatusCode(), (string) $response->getContent());
+
+        $this->assertEquals(FormStatus::APPROVED->value, $steps[0]->fresh()->status->value);
+        $this->assertEquals(FormStatus::PENDING->value, $steps[1]->fresh()->status->value);
+        $this->assertEquals(FormStatus::WAITING->value, $steps[2]->fresh()->status->value);
+        $this->assertEquals(FormStatus::PENDING->value, $instance->fresh()->status->value);
+
+        // Approve step 1 → step 2 harus WAITING->PENDING.
+        $response = $this->actingAs($approverB)
+            ->withoutMiddleware($middleware)
+            ->postJson(route('approvalInstances.decision', $steps[1]->id), ['decision' => 'approve']);
+        $this->assertNotEquals(500, $response->getStatusCode(), (string) $response->getContent());
+
+        $this->assertEquals(FormStatus::APPROVED->value, $steps[1]->fresh()->status->value);
+        $this->assertEquals(FormStatus::PENDING->value, $steps[2]->fresh()->status->value);
+        $this->assertEquals(FormStatus::PENDING->value, $instance->fresh()->status->value);
+
+        // Approve step 2 (terakhir) → instance harus APPROVED sebelum onApproved() dipanggil.
+        // options.controller sengaja kosong di test stub ini (tidak ada controller dokumen nyata untuk
+        // di-panggil), jadi callWithRouteModels() boleh gagal di sini — yang penting instance/steps
+        // sudah ter-commit APPROVED sebelum baris itu dieksekusi (lihat approve(): save()+commit()
+        // terjadi SEBELUM callWithRouteModels() dipanggil).
+        $this->actingAs($approverC)
+            ->withoutMiddleware($middleware)
+            ->postJson(route('approvalInstances.decision', $steps[2]->id), ['decision' => 'approve']);
+
+        $this->assertEquals(FormStatus::APPROVED->value, $steps[2]->fresh()->status->value);
+        $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+    }
+
+    /**
      * Payload: step advanced eager-load approvers.approver untuk tab Approvals.
      */
     public function test_instance_step_eager_loads_approvers_with_approver_relation(): void {
