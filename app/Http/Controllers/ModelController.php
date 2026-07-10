@@ -285,13 +285,20 @@ class ModelController extends Controller {
      * (mis. parentColumn per-item) diteruskan apa adanya — kolom dokumen induk yang
      * sengaja di-surface, bukan lookup bebas.
      *
+     * `$withRelationPaths` (path relasi mentah dari request `with`, dot-notation
+     * snake per segmen) diturunkan rekursif spt `$fields` — relasi BERTINGKAT (mis.
+     * `items.item`) yang di-eager-load via `with` harus tetap lolos gate `$safe`
+     * child, bukan cuma level pertamanya. Tanpa ini, relasi cucu yang SUDAH
+     * ter-hydrate DB tetap dibuang di lapis kedua ini (mismatch dgn SELECT-level).
+     *
      * @param  array<string,mixed>  $row
      * @param  array<string,bool>  $safe  set kolom aman model ini
      * @param  array<string,string>  $relatedModels  nameRelasi → FQCN model relasi
      * @param  list<string>  $fields  kolom diminta (dot-notation utk relasi)
      * @param  array<string,bool>  $passthrough  nama relasi yang TIDAK dibatasi kolom-anaknya
+     * @param  list<string>  $withRelationPaths  path relasi mentah diminta `with` (dot-notation)
      */
-    private function filterRowColumns(array $row, array $safe, array $relatedModels, PermissionChecker $perm, array $fields = [], array $passthrough = []): array {
+    private function filterRowColumns(array $row, array $safe, array $relatedModels, PermissionChecker $perm, array $fields = [], array $passthrough = [], array $withRelationPaths = []): array {
         $out = [];
         foreach ($row as $key => $value) {
             if (! isset($safe[$key])) {
@@ -309,17 +316,18 @@ class ModelController extends Controller {
             if (isset($relatedModels[$key]) && \is_array($value)) {
                 $relModel  = $relatedModels[$key];
                 $relFields = $this->relationFields($fields, $key);
-                $relSafe   = $this->safeLookupColumns($relModel, $relFields, $perm);
+                $relWith   = $this->relationFields($withRelationPaths, $key);
+                $relSafe   = $this->safeLookupColumns($relModel, $relFields, $perm, $relWith);
                 $relRels   = $this->relatedModelMap($relModel);
                 // Relasi plural (list of rows) vs singular (satu row).
                 $isList = \array_is_list($value) && (\count($value) === 0 || \is_array($value[0] ?? null));
                 if ($isList) {
                     $out[$key] = \array_map(
-                        fn ($child) => \is_array($child) ? $this->filterRowColumns($child, $relSafe, $relRels, $perm, $relFields) : $child,
+                        fn ($child) => \is_array($child) ? $this->filterRowColumns($child, $relSafe, $relRels, $perm, $relFields, withRelationPaths: $relWith) : $child,
                         $value,
                     );
                 } else {
-                    $out[$key] = $this->filterRowColumns($value, $relSafe, $relRels, $perm, $relFields);
+                    $out[$key] = $this->filterRowColumns($value, $relSafe, $relRels, $perm, $relFields, withRelationPaths: $relWith);
                 }
 
                 continue;
@@ -333,9 +341,10 @@ class ModelController extends Controller {
                     continue; // fail-closed: class morph asing → buang seluruh relasi.
                 }
                 $relFields = $this->relationFields($fields, $key);
-                $relSafe   = $this->safeLookupColumns($morphClass, $relFields, $perm);
+                $relWith   = $this->relationFields($withRelationPaths, $key);
+                $relSafe   = $this->safeLookupColumns($morphClass, $relFields, $perm, $relWith);
                 $relRels   = $this->relatedModelMap($morphClass);
-                $out[$key] = $this->filterRowColumns($value, $relSafe, $relRels, $perm, $relFields);
+                $out[$key] = $this->filterRowColumns($value, $relSafe, $relRels, $perm, $relFields, withRelationPaths: $relWith);
 
                 continue;
             }
@@ -369,19 +378,28 @@ class ModelController extends Controller {
      * (resolveForSafe). Hanya relasi non-morph yang ada di `$safe` (type relation)
      * di-resolve; morph dilewati (child SELECT *, tak bisa prune build-time).
      *
+     * `$withRelations` di sini adalah relasi TOP-LEVEL diminta `with` (mis.
+     * "items.item" → "items"). Segmen nested di baliknya ("item") diteruskan sbg
+     * `$withRelations` KHUSUS child agar `safeLookupColumns` child tahu relasi
+     * bertingkat itu juga diminta (relasi child baru lolos gate bila di $withSet
+     * ATAU direquest lewat fields dot — tanpa ini, FK relasi nested tak ke-SELECT
+     * sehingga relasi cucu gagal ter-hydrate walau ada di `with` request).
+     *
      * @param  array<string,bool>  $safe  kolom aman model utama
      * @param  array<string,string>  $relModels  relasi → FQCN (relatedModelMap)
      * @param  list<string>  $fields  kolom diminta (dot-notation utk relasi)
+     * @param  list<string>  $withRelationPaths  path relasi mentah dari request `with` (dot-notation, snake per segmen)
      * @return array<string,array<string,bool>>
      */
-    private function safeRelationColumns(array $safe, array $relModels, array $fields, PermissionChecker $perm): array {
+    private function safeRelationColumns(array $safe, array $relModels, array $fields, PermissionChecker $perm, array $withRelationPaths = []): array {
         $out = [];
         foreach ($relModels as $rel => $childClass) {
             if (! isset($safe[$rel]) || ! \class_exists($childClass) || ! \method_exists($childClass, 'getColumns')) {
                 continue;
             }
             $childFields = $this->relationFields($fields, $rel);
-            $out[$rel]   = $this->safeLookupColumns($childClass, $childFields, $perm);
+            $childWith   = $this->relationFields($withRelationPaths, $rel);
+            $out[$rel]   = $this->safeLookupColumns($childClass, $childFields, $perm, $childWith);
         }
 
         return $out;
@@ -668,14 +686,24 @@ class ModelController extends Controller {
         // (mis. defaultUom/childrenUnsafe) di-emit getColumns sbg snake (default_uom/
         // children_unsafe), sedangkan `with` request memakai nama method camelCase.
         // Dipakai gate kolom agar relasi yang diminta via `with` tak di-prune.
-        $withRelations = [];
+        //
+        // $withRelationPaths mempertahankan PATH PENUH (tiap segmen di-snake, mis.
+        // "items.item" → "items.item") — dibutuhkan agar relasi BERTINGKAT (Purchase-
+        // OrderItem::item di dalam PurchaseOrder::items) juga lolos gate kolom child;
+        // tanpa ini, FK relasi nested tak ke-SELECT & relasi cucu gagal ter-hydrate
+        // walau eksplisit diminta via `with`.
+        $withRelations     = [];
+        $withRelationPaths = [];
         foreach ((array) $with as $k => $v) {
             $rel = \is_int($k) ? $v : $k;
             if (\is_string($rel) && $rel !== '') {
-                $withRelations[] = Str::snake(\explode('.', $rel)[0]);
+                $segments            = \array_map(fn ($s) => Str::snake($s), \explode('.', $rel));
+                $withRelations[]     = $segments[0];
+                $withRelationPaths[] = \implode('.', $segments);
             }
         }
-        $withRelations = \array_values(\array_unique($withRelations));
+        $withRelations     = \array_values(\array_unique($withRelations));
+        $withRelationPaths = \array_values(\array_unique($withRelationPaths));
 
         if ($request->has('joins')) {
             foreach ($request->joins as $key => $join) {
@@ -721,7 +749,7 @@ class ModelController extends Controller {
         if (! $request->has('joins')) {
             $columns      = $model::getColumns(1);
             $templateLink = \method_exists($model, 'templateLink') ? $model::templateLink() : null;
-            $safeRelCols  = $this->safeRelationColumns($safe, $relModes, $fields, $perm);
+            $safeRelCols  = $this->safeRelationColumns($safe, $relModes, $fields, $perm, $withRelationPaths);
             $selector     = new DataTableColumnSelector(new FilterColumnResolver($columns));
             $resolved     = $selector->resolveForSafe($columns, new $model, $safe, $safeRelCols, $templateLink);
 
@@ -768,7 +796,7 @@ class ModelController extends Controller {
         // Lapis kedua (defense-in-depth): saring tiap row ke kolom aman, termasuk
         // relasi morph child yang tak bisa di-prune di SELECT.
         $results = array_map(
-            fn ($value) => $this->filterRowColumns($value, $safe, $relModes, $perm, $fields),
+            fn ($value) => $this->filterRowColumns($value, $safe, $relModes, $perm, $fields, withRelationPaths: $withRelationPaths),
             $data,
         );
 
