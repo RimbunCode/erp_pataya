@@ -21,7 +21,7 @@ import StaticHTMLComponent from "./Components/StaticHTMLComponent";
 import TopBar from "./Components/TopBar";
 import flattenMediaPlugin from "@/lib/flattenMediaPlugin";
 import { generateRandom, getSafePrintFontFamily } from "@/lib/utils";
-import gjsBlockBasic from "grapesjs-blocks-basic";
+import * as gjsBlockBasicModule from "grapesjs-blocks-basic";
 import gjsDocHeader from "@/lib/gjsDocHeader";
 import gjsRelationsTable from "@/lib/gjsRelationsTable";
 import gjsStaticHTML from "@/lib/gjsStaticHTML";
@@ -48,6 +48,22 @@ import {
   getCurrentTemplateFromEditor,
 } from "./utils/templateExportUtils";
 import { formatHandlebarTemplate } from "./utils/templateFormatUtils";
+
+/**
+ * Unwrap default export bertingkat dari module UMD/CJS seperti grapesjs-blocks-basic.
+ * Bentuk hasil import berbeda antara CJS require() dan ESM import * as — ada yang
+ * mengembalikan { default: fn } dan ada yang { default: { default: fn } } tergantung
+ * bundler/loader, sehingga unwrap harus dilakukan berulang sampai ditemukan function.
+ * @param {object|((editor: object, opts: object) => void)} mod - Namespace hasil `import * as mod from "..."`
+ * @returns {(editor: object, opts: object) => void} Function plugin GrapesJS yang siap dipanggil
+ */
+function resolveGjsPlugin(mod) {
+  let resolved = mod;
+  while (typeof resolved !== "function" && resolved?.default) {
+    resolved = resolved.default;
+  }
+  return resolved;
+}
 
 /**
  * Komponen halaman utama Editor PrintTemplate.
@@ -663,7 +679,7 @@ function PrintTemplate({
           gjsTable,
           gjsDocHeader,
           (editor) =>
-            gjsBlockBasic(editor, {
+            resolveGjsPlugin(gjsBlockBasicModule)(editor, {
               blocks: ["text", "link", "image", "map"],
             }),
           (editor) => gjsRelationsTable(editor),
