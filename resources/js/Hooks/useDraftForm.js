@@ -186,8 +186,14 @@ export const useDraftForm = (
   }, [form.recentlySuccessful]);
 
   useEffect(() => {
-    if (form.recentlySuccessful) {
+    if (!form.recentlySuccessful) return;
+    if (isCreate) {
       form.reset();
+    } else {
+      // Update: reset hanya field data form asli (mengikuti shape initialData
+      // terkini, yang sudah fresh dari props Inertia terbaru), biarkan state
+      // runtime (mis. buffer file/tag) tetap ada karena component tidak remount.
+      form.reset(...Object.keys(initialData ?? {}));
     }
   }, [form.recentlySuccessful]);
   useDidMountEffect(() => {
@@ -245,10 +251,9 @@ export const useDraftForm = (
               preserveUrl: false,
             }
           : {
-              // Halaman update: simpan state hanya saat ada validation errors.
-              // Gunakan callback agar eksplisit dan konsisten dengan opsi yang didokumentasikan.
-              preserveState: (page) =>
-                Object.keys(page?.props?.errors ?? {}).length > 0,
+              // Halaman update: component tidak boleh remount, baik sukses maupun error,
+              // supaya state non-form (mis. buffer file/tag) tidak ikut hilang.
+              preserveState: true,
               preserveScroll: true,
             }),
         replace: true,
