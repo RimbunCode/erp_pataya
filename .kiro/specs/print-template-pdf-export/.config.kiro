@@ -1,0 +1,6 @@
+{
+  "specId": "34f11799-0a9d-42c6-b8e1-ee0f94f3aa66",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Export dokumen print (PrintTemplate) ke file PDF di server, ditujukan untuk deployment shared hosting tanpa akses root/Node/Chromium. Render HTML dikonversi ke PDF via wkhtmltopdf (static binary, dipanggil lewat exec) dengan fallback ke dompdf."
+}

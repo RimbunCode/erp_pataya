@@ -13,6 +13,7 @@ use App\Models\Core\Taggable;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Core\PrintTemplate\PdfExportService;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
 use App\Utils;
 use Exception;
@@ -126,19 +127,20 @@ abstract class Controller {
                         abort(403);
                     }
                     $keyPermission = match ($method) {
-                        'index'   => 'select',
-                        'create'  => 'create',
-                        'store'   => 'create',
-                        'show'    => 'read',
-                        'update'  => 'write',
-                        'destroy' => 'delete',
-                        'import'  => 'import',
-                        'export'  => 'export',
-                        'share'   => 'share',
-                        'submit'  => 'submit',
-                        'cancel'  => 'cancel',
-                        'print'   => 'print',
-                        'amend'   => 'amend',
+                        'index'    => 'select',
+                        'create'   => 'create',
+                        'store'    => 'create',
+                        'show'     => 'read',
+                        'update'   => 'write',
+                        'destroy'  => 'delete',
+                        'import'   => 'import',
+                        'export'   => 'export',
+                        'share'    => 'share',
+                        'submit'   => 'submit',
+                        'cancel'   => 'cancel',
+                        'print'    => 'print',
+                        'printPdf' => 'print',
+                        'amend'    => 'amend',
                         'addComment',
                         'editComment',
                         'addTag',
@@ -335,6 +337,26 @@ abstract class Controller {
             'docInfo'       => $docInfo,
             'columns'       => $columns,
             'printTemplate' => $printTemplate->toArray(),
+        ]);
+    }
+
+    public function printPdf(Request $request, mixed $id, PrintTemplate $printTemplate) {
+        $request->validate([
+            'html' => ['required', 'string', 'max:5242880'],
+        ]);
+
+        $data = $this->model::findOrFail($id);
+
+        $docInfo = [
+            'doc_name' => $data->translateKey . '.name',
+        ];
+
+        $pdf      = app(PdfExportService::class)->generate($request->string('html')->toString(), $printTemplate);
+        $filename = Str::slug(__($docInfo['doc_name']) . '-' . $data->id);
+
+        return response($pdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}.pdf\"",
         ]);
     }
 

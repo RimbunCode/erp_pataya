@@ -75,6 +75,7 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
             Route::put("/{{$name}}/{level?}", 'update')->name("$uri.update");
             Route::get('/create-print-template', 'createPrintTemplate')->name("$uri.createPrintTemplate");
             Route::get("/{{$name}}/print/{printTemplate?}", 'print')->name("$uri.print");
+            Route::post("/{{$name}}/print/{printTemplate}/pdf", 'printPdf')->name("$uri.print.pdf");
         } else {
             Route::put("/{{$name}}", action: 'update')->name("$uri.update");
         }
