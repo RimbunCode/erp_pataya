@@ -18,7 +18,7 @@ import { RiGitMergeLine } from "@remixicon/react";
 import Select from "@/Components/Select";
 import ValueField from "./ValueField";
 import axios from "axios";
-import { cn } from "@/lib/utils";
+import { cn, isMetaAppendColumn } from "@/lib/utils";
 import { columnHasOptions, getOperators } from "./operators";
 import { isColumnRef } from "./columnRef";
 import { Switch } from "@/Components/ui/switch";
@@ -58,7 +58,13 @@ function FilterItem2({ id, depth = 0 }) {
 
   const buildColumnNode = useCallback(
     function build(col, parentPath = "") {
-      if (col.searchable === false || col.hidden || col.ignore) return null;
+      if (
+        col.searchable === false ||
+        col.hidden ||
+        col.ignore ||
+        isMetaAppendColumn(col)
+      )
+        return null;
       // `col.name` bisa berupa nama segmen ("type") ATAU sudah berkualifikasi
       // penuh ("category.type") — tergantung sumber kolom: hasil getColumns
       // frontend (DataTable2) memprefix nama anak relasi, sedangkan kolom dari

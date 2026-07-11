@@ -40,6 +40,7 @@ import { Label } from "@/Components/ui/label";
 import NestedSelect from "@/Components/NestedSelect";
 import { ChevronDownIcon, GripVerticalIcon, Trash2Icon } from "lucide-react";
 import { buildExampleDataTable } from "@/lib/gjsRelationsTable";
+import { isMetaAppendColumn } from "@/lib/utils";
 import {
   buildTreeOptions,
   filterTokenOptions,
@@ -357,8 +358,8 @@ function flattenVariableOptions(
     if (!column?.name && !Array.isArray(column?.columns)) {
       return;
     }
-    // Skip FK/ignored cols (flag hidden/ignore) dari opsi variabel.
-    if (column?.hidden || column?.ignore) {
+    // Skip FK/ignored cols (flag hidden/ignore) & meta appends dari opsi variabel.
+    if (column?.hidden || column?.ignore || isMetaAppendColumn(column)) {
       return;
     }
 
@@ -457,39 +458,44 @@ function RelationColumnDialog({
             </p>
           )}
 
-          {localColumns.map((column) => (
-            <FormCheckbox
-              key={column.name}
-              label={
-                <>
-                  {column.title ||
-                    (column.titleTrans
-                      ? t(column.titleTrans)
-                      : (column.title ?? column.name))}
-                  {column.required && (
-                    <span className="ml-1 text-red-500">*</span>
-                  )}
-                </>
-              }
-              classNameCheckbox="pointer-events-auto!"
-              disabled={column.required}
-              checked={column.required || column.show}
-              onCheckedChange={(value) => {
-                setLocalColumns((previous) =>
-                  previous.map((item) => {
-                    if (item.name !== column.name || item.required) {
-                      return item;
-                    }
+          {localColumns
+            .filter(
+              (column) =>
+                !column.hidden && !column.ignore && !isMetaAppendColumn(column),
+            )
+            .map((column) => (
+              <FormCheckbox
+                key={column.name}
+                label={
+                  <>
+                    {column.title ||
+                      (column.titleTrans
+                        ? t(column.titleTrans)
+                        : (column.title ?? column.name))}
+                    {column.required && (
+                      <span className="ml-1 text-red-500">*</span>
+                    )}
+                  </>
+                }
+                classNameCheckbox="pointer-events-auto!"
+                disabled={column.required}
+                checked={column.required || column.show}
+                onCheckedChange={(value) => {
+                  setLocalColumns((previous) =>
+                    previous.map((item) => {
+                      if (item.name !== column.name || item.required) {
+                        return item;
+                      }
 
-                    return {
-                      ...item,
-                      show: Boolean(value),
-                    };
-                  }),
-                );
-              }}
-            />
-          ))}
+                      return {
+                        ...item,
+                        show: Boolean(value),
+                      };
+                    }),
+                  );
+                }}
+              />
+            ))}
         </div>
 
         <DialogFooter className="-mb-2 border-t border-muted-foreground/25 pt-2">

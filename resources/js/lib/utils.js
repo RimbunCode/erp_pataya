@@ -18,6 +18,24 @@ import { twMerge } from "tailwind-merge";
 export function cn(...inputs) {
   return twMerge(clsx(inputs));
 }
+
+// Meta appends dari LinkModel::getAppends() (route, canDelete, keyModel,
+// appendStatus, thisModel, templateLink, disabledOn) — dikirim backend
+// sebagai bagian dataTableColumns untuk keperluan dependsOn/query resolution,
+// TAPI bukan kolom data asli sehingga tak boleh muncul di UI picker/filter.
+export const META_APPEND_COLUMN_NAMES = [
+  "route",
+  "canDelete",
+  "keyModel",
+  "appendStatus",
+  "thisModel",
+  "templateLink",
+  "disabledOn",
+];
+
+export function isMetaAppendColumn(column) {
+  return META_APPEND_COLUMN_NAMES.includes(column?.name);
+}
 export function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }

@@ -47,7 +47,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { cn, getCookieByName } from "@/lib/utils";
+import { cn, getCookieByName, isMetaAppendColumn } from "@/lib/utils";
 
 import AppLayout from "@/Layouts/AppLayout";
 import FilterTable2 from "@/Components/Table/Filter/FilterTable2";
@@ -244,9 +244,10 @@ export default memo(
       (t, columns, parentColumn) => {
         let newColumns = {};
         Object.values(columns ?? {}).forEach((col) => {
-          // FK/ignored cols (flag hidden/ignore) tak pernah dirender di UI —
-          // skip di hulu agar tabel, Sort list, & ColumnsFilter semua bersih.
-          if (col.hidden || col.ignore) return;
+          // FK/ignored cols (flag hidden/ignore) & meta appends tak pernah
+          // dirender di UI — skip di hulu agar tabel, Sort list, &
+          // ColumnsFilter semua bersih.
+          if (col.hidden || col.ignore || isMetaAppendColumn(col)) return;
           const title = col.title ?? t(col.titleTrans);
           const colName = !parentColumn
             ? col.name
