@@ -55,11 +55,11 @@ class DeliveryNoteItem extends Model {
         ],
     ];
     protected $casts = [
-        'quantity'          => 'float',
-        'conversion_factor' => 'float',
-        'unit_price'        => 'float',
-        'subtotal'          => 'float',
-        'valuation_rates'   => 'array',
+        'quantity'            => 'float',
+        'returned_quantity'   => 'float',
+        'unreturned_quantity' => 'float',
+        'conversion_factor'   => 'float',
+        'valuation_rates'     => 'array',
     ];
 
     public function referenceable() {

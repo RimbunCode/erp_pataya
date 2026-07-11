@@ -24,16 +24,16 @@ class SalesInvoiceItem extends Model {
     public string $translateKey   = 'finances.salesInvoice.item';
     protected $guarded            = ['id'];
     protected $casts              = [
-        'quantity'                      => 'float',
-        'conversion_factor'             => 'float',
-        'unit_price'                    => 'float',
-        'unit_price_base_currency'      => 'float',
-        'discount_rate'                 => 'float',
-        'discount_amount'               => 'float',
-        'discount_amount_base_currency' => 'float',
-        'subtotal'                      => 'float',
-        'tax_amount'                    => 'float',
-        'total'                         => 'float',
+        'quantity'            => 'float',
+        'returned_quantity'   => 'float',
+        'unreturned_quantity' => 'float',
+        'price'               => 'float',
+        'price_base_currency' => 'float',
+        'conversion_factor'   => 'float',
+        'tax_rate'            => 'float',
+        'exchange_rate'       => 'float',
+        'basic_amount'        => 'float',
+        'tax_amount'          => 'float',
     ];
     protected array $configColumns = [
         'item' => [

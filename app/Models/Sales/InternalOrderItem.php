@@ -16,10 +16,10 @@ class InternalOrderItem extends Model {
     public string $translateKey   = 'sales.internalOrder.item';
     protected $guarded            = ['id'];
     protected $casts              = [
-        'quantity'          => 'float',
-        'conversion_factor' => 'float',
-        'unit_price'        => 'float',
-        'subtotal'          => 'float',
+        'quantity'             => 'float',
+        'conversion_factor'    => 'float',
+        'delivered_quantity'   => 'float',
+        'undelivered_quantity' => 'float',
     ];
     protected array $configColumns = [
         'item' => [

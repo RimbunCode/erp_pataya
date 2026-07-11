@@ -14,14 +14,14 @@ class WorkOrderItem extends Model {
     public static $parentRelation = 'workOrder';
     protected $guarded            = ['id'];
     protected $casts              = [
-        'quantity'        => 'float',
-        'quantity_done'   => 'float',
-        'unit_price'      => 'float',
-        'discount_rate'   => 'float',
-        'discount_amount' => 'float',
-        'subtotal'        => 'float',
-        'tax_amount'      => 'float',
-        'total'           => 'float',
+        'quantity'             => 'float',
+        'ordered_quantity'     => 'float',
+        'required_quantity'    => 'float',
+        'received_quantity'    => 'float',
+        'ready_quantity'       => 'float',
+        'transferred_quantity' => 'float',
+        'remaining_quantity'   => 'float',
+        'conversion_factor'    => 'float',
     ];
     public string $translateKey    = 'service.workOrder.workOrderItem';
     protected array $configColumns = [

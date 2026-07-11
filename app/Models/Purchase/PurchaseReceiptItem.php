@@ -16,10 +16,10 @@ class PurchaseReceiptItem extends Model {
     public string $translateKey   = 'purchase.purchaseReceipt.item';
     protected $guarded            = ['id'];
     protected $casts              = [
-        'quantity'          => 'float',
-        'conversion_factor' => 'float',
-        'unit_price'        => 'float',
-        'subtotal'          => 'float',
+        'quantity'            => 'float',
+        'conversion_factor'   => 'float',
+        'returned_quantity'   => 'float',
+        'unreturned_quantity' => 'float',
     ];
     protected array $configColumns = [
         'item' => [
