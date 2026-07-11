@@ -71,7 +71,6 @@ class UserController extends Controller {
     public function image(Request $request, User $user) {
         DB::beginTransaction();
         File::uploadFile($request, 'ImageProfile', function ($file) use ($user) {
-            dd($file);
             $user->update([
                 'image' => $file->id,
             ]);
