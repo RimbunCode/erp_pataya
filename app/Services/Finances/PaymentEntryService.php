@@ -34,6 +34,7 @@ class PaymentEntryService {
         $data['payment_method_id']    = $data['payment_method']['id'] ?? null;
         $data['account_paid_to_id']   = $data['account_paid_to']['id'];
         $data['account_paid_from_id'] = $data['account_paid_from']['id'];
+        $data['exchange_rate']        = $data['exchange_rate'] ?? 1;
 
         return $data;
     }
