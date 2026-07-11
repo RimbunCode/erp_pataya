@@ -5,10 +5,24 @@ namespace Tests\Feature\CRM;
 use App\Models\CRM\Lead;
 use App\Models\User\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
 class LeadRequestValidationTest extends TestCase {
     use RefreshDatabase;
+
+    protected function setUp(): void {
+        parent::setUp();
+
+        // Kolom is_example ditambah via initPermissions() di prod (bukan migration).
+        // Tambahkan manual agar global scope HasExampleData tidak error di SQLite.
+        // roles/users/branches ikut kena karena AppMiddleware & _checkPermission() query relasi ini.
+        foreach (['leads', 'roles', 'users', 'branches'] as $tbl) {
+            if (Schema::hasTable($tbl) && ! Schema::hasColumn($tbl, 'is_example')) {
+                Schema::table($tbl, fn ($t) => $t->boolean('is_example')->default(false));
+            }
+        }
+    }
 
     private function leadPermissions(): array {
         return [

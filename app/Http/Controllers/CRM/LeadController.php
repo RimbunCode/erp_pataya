@@ -18,11 +18,9 @@ class LeadController extends Controller {
         parent::__construct($request, Lead::class);
     }
 
-    protected function matchMethodWithPermission(string $method) {
+    protected function enforcePermission(string $method) {
         if ($method === 'convert') {
-            $this->guard('write', 0);
-
-            return true;
+            return 'write';
         }
     }
 
