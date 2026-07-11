@@ -1,0 +1,6 @@
+{
+  "specId": "ef3a2b1c-2e91-48f7-b9bc-84e29b5f107d",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Modul Lead Management (CRM) native di Laravel ERP — input calon customer, tracking lead source, dan konversi lead ke Sales\\Customer, mengikuti pola arsitektur modul Sales/Customer yang sudah ada."
+}
