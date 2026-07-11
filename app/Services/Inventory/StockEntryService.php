@@ -258,7 +258,7 @@ class StockEntryService {
         if (\in_array($stockEntry->type, ['item_issue', 'item_transfer', 'item_consumption'])) {
 
             $items = $stockEntry->items()
-                ->with(['item', 'item.item', 'item.sourceWarehouse'])
+                ->with(['item', 'item.item', 'sourceWarehouse'])
                 ->get();
             $stocks = Stock::whereIn('item_variant_id', $items->pluck('item_id'))
                 ->whereIn('warehouse_id', $items->pluck('source_warehouse_id'))
