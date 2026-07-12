@@ -150,6 +150,18 @@ const navList = [
         urlPattern: "/leads/*",
         model: "App\\Models\\CRM\\Lead",
       },
+      {
+        title: "Opportunities",
+        url: "/opportunities",
+        urlPattern: "/opportunities/*",
+        model: "App\\Models\\CRM\\Opportunity",
+      },
+      {
+        title: "Quotations",
+        url: "/quotations",
+        urlPattern: "/quotations/*",
+        model: "App\\Models\\CRM\\Quotation",
+      },
     ],
   },
   {

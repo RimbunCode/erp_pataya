@@ -20,6 +20,8 @@ use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\CRM\LeadController;
+use App\Http\Controllers\CRM\OpportunityController;
+use App\Http\Controllers\CRM\QuotationController;
 use App\Http\Controllers\Finances\AccountController;
 use App\Http\Controllers\Finances\GeneralLedgerController;
 use App\Http\Controllers\Finances\PaymentEntryController;
@@ -267,6 +269,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // / CRM Group
     Route::resourceDetail('lead', LeadController::class);
     Route::put('/leads/{lead}/convert', [LeadController::class, 'convert'])->name('leads.convert');
+    Route::resourceDetail('opportunity', OpportunityController::class);
+    Route::resourceDetail('quotation', QuotationController::class, isSubmmitable: true);
     // / CRM Group End
 
     // / Service Group
