@@ -1,0 +1,6 @@
+{
+  "specId": "6f128479-63bb-4c76-8d90-fe8c9521927d",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Render print template ke HTML sepenuhnya di server (port Handlebars + formatData dari JS ke PHP), lalu generate PDF dan auto-attach sebagai lampiran dokumen — dipicu otomatis saat dokumen di-approve, dan juga saat tombol 'Download PDF' manual ditekan. Nama file diberi timestamp agar tidak overwrite lampiran sebelumnya."
+}

@@ -6,6 +6,7 @@ use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LanguageMiddleware;
+use App\Models\Core\Fileable;
 use App\Models\Core\PrintTemplate;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\User;
@@ -103,6 +104,35 @@ class PrintPdfControllerTest extends TestCase {
             });
         }
 
+        if (! Schema::hasTable('files')) {
+            Schema::create('files', function (Blueprint $table): void {
+                $table->ulid('id')->primary();
+                $table->string('name');
+                $table->text('path')->nullable();
+                $table->string('extension')->nullable();
+                $table->string('mime_type');
+                $table->boolean('is_public')->default(false);
+                $table->boolean('is_draft')->default(false);
+                $table->boolean('is_example')->default(false);
+                $table->char('created_by_id', 26)->nullable();
+                $table->integer('lft')->nullable();
+                $table->integer('rgt')->nullable();
+                $table->integer('depth')->nullable();
+                $table->char('parent_id', 26)->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
+        if (! Schema::hasTable('fileables')) {
+            Schema::create('fileables', function (Blueprint $table): void {
+                $table->char('file_id', 26);
+                $table->ulidMorphs('fileable');
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
         config(['pdf.wkhtmltopdf_binary' => storage_path('app/bin/does-not-exist-binary')]);
     }
 
@@ -134,6 +164,28 @@ class PrintPdfControllerTest extends TestCase {
         $response->assertOk();
         $response->assertHeader('Content-Type', 'application/pdf');
         $this->assertStringStartsWith('%PDF-', $response->getContent());
+    }
+
+    public function test_manual_download_also_attaches_pdf_to_document(): void {
+        $user          = User::factory()->create();
+        $printTemplate = $this->createPrintTemplate();
+        $salesOrder    = $this->createSalesOrder();
+
+        $response = $this->actingAs($user)
+            ->withSession(['permissions' => $this->makePermissions(canPrint: true)])
+            ->postJson(route('salesOrders.print.pdf', ['salesOrder' => $salesOrder->id, 'printTemplate' => $printTemplate->id]), [
+                'html' => '<html><body><h1>Invoice</h1></body></html>',
+            ]);
+
+        $response->assertOk();
+        $this->assertStringStartsWith('%PDF-', $response->getContent());
+
+        $fileable = Fileable::where('fileable_id', $salesOrder->id)
+            ->where('fileable_type', SalesOrder::class)
+            ->first();
+
+        $this->assertNotNull($fileable, 'Expected the manual download to also attach a Fileable record');
+        $this->assertSame('application/pdf', $fileable->file->mime_type);
     }
 
     public function test_html_payload_exceeding_size_limit_is_rejected(): void {
