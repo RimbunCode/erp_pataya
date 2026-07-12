@@ -54,7 +54,7 @@ class Lead extends Model {
     ];
 
     protected static function loadRelationsOnShow() {
-        return ['leadSource', 'assignedTo', 'country', 'convertedCustomer', 'activities', 'activities.assignedTo'];
+        return ['leadSource', 'assignedTo', 'country', 'convertedCustomer', 'activities', 'activities.assignedTo', 'opportunities'];
     }
 
     public function leadSource() {
@@ -75,5 +75,9 @@ class Lead extends Model {
 
     public function activities() {
         return $this->hasMany(LeadActivity::class)->orderBy('scheduled_at');
+    }
+
+    public function opportunities() {
+        return $this->hasMany(Opportunity::class);
     }
 }
