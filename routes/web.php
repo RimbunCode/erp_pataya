@@ -10,6 +10,7 @@ use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\CountryController;
 use App\Http\Controllers\Core\CurrencyController;
 use App\Http\Controllers\Core\DashboardController;
+use App\Http\Controllers\Core\EmailTemplateController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
@@ -206,6 +207,10 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
         Route::get('/printTemplates/{printTemplate}/editor', [PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
         Route::post('/printTemplates/{printTemplate}/preview', [PrintTemplateController::class, 'preview'])->name('printTemplates.preview');
         Route::post('/printTemplates/{printTemplate}/generate-example-data', [PrintTemplateController::class, 'generateExampleData'])->name('printTemplates.generate-example-data');
+
+        Route::get('/emailTemplates/fields', [EmailTemplateController::class, 'fields'])->name('emailTemplates.fields');
+        Route::resourceDetail('emailTemplate', EmailTemplateController::class);
+        Route::post('/emailTemplates/{emailTemplate}/test-send', [EmailTemplateController::class, 'testSend'])->name('emailTemplates.testSend');
         Route::resourceDetail('widget', WidgetController::class);
     });
     // Tags
