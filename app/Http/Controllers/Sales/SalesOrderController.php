@@ -21,6 +21,13 @@ class SalesOrderController extends Controller {
         parent::__construct($request, SalesOrder::class);
     }
 
+    protected function enforcePermission(string $method): ?string {
+        return match ($method) {
+            'markDone', 'syncItems' => 'write',
+            default => null,
+        };
+    }
+
     /**
      * Display a listing of the resource.
      */

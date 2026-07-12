@@ -24,6 +24,13 @@ class PurchaseOrderController extends Controller {
         parent::__construct($request, PurchaseOrder::class);
     }
 
+    protected function enforcePermission(string $method): ?string {
+        return match ($method) {
+            'markDone', 'syncItems' => 'write',
+            default => null,
+        };
+    }
+
     /**
      * Display a listing of the resource.
      */

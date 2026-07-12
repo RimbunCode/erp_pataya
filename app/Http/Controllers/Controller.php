@@ -118,7 +118,7 @@ abstract class Controller {
             $currentRoute = Route::getCurrentRoute();
             $method       = $currentRoute->getActionMethod();
 
-            $customPermission = $this->exceptPermission($method);
+            $customPermission = $this->exceptPermission($method) || $method == 'createPrintTemplate';
             if (! ($request->hasValidSignature() && $request->user()->id == ($request->u ?? ''))) {
                 if ($customPermission != true) {
                     $this->permissions      = $request->session()->get('permissions');

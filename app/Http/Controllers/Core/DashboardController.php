@@ -23,6 +23,13 @@ class DashboardController extends Controller {
         }
     }
 
+    protected function enforcePermission(string $method): ?string {
+        return match ($method) {
+            'reorderWidgets' => 'write',
+            default          => null,
+        };
+    }
+
     private function fillWidgetRelation(array $data, Dashboard $dashboard) {
         $data['widget_id'] = $data['widget']['id'];
 
