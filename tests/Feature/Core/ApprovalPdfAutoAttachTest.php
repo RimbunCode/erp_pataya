@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Middleware\AppMiddleware;
 use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\LanguageMiddleware;
+use App\Jobs\Core\AttachGeneratedPdfJob;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Core\Fileable;
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -221,6 +223,36 @@ class ApprovalPdfAutoAttachTest extends TestCase {
         return $this->actingAs($approver)
             ->withoutMiddleware([AppMiddleware::class, EnsureUserIsOnboarded::class, LanguageMiddleware::class])
             ->postJson(route('approvalInstances.decision', $step->id), ['decision' => 'approve']);
+    }
+
+    public function test_approval_completion_dispatches_attach_job_instead_of_running_inline(): void {
+        Queue::fake();
+
+        $role     = $this->makeRole('QueueRoleA');
+        $approver = $this->makeUser('QueueApprover');
+        $this->assignRole($approver, $role);
+        $creator = $this->makeUser('QueueCreator');
+
+        $this->makeScheme('scheme-queue', $role);
+
+        $doc      = $this->makeDocument($creator);
+        $instance = ApprovalInstance::makeInstance($doc, [
+            'controller' => PdfAttachTestDocumentController::class,
+            'parameters' => ['pdfAttachTestDocument' => $doc->id],
+        ]);
+        $step = ApprovalInstanceStep::where('approval_instance_id', $instance->id)->first();
+
+        $response = $this->approveViaHttp($approver, $step);
+
+        $this->assertNotEquals(500, $response->getStatusCode(), (string) $response->getContent());
+        $this->assertEquals(FormStatus::APPROVED->value, $instance->fresh()->status->value);
+
+        Queue::assertPushed(AttachGeneratedPdfJob::class, function (AttachGeneratedPdfJob $job) use ($instance) {
+            return $job->approval->id === $instance->id;
+        });
+
+        // No Fileable should exist yet — the job was faked, not executed.
+        $this->assertNull(Fileable::where('fileable_id', $doc->id)->first());
     }
 
     public function test_approval_completion_attaches_generated_pdf_to_document(): void {
