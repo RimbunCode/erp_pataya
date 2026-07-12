@@ -8,8 +8,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Fileable extends Pivot {
     use SoftDeletes;
 
-    protected $table               = 'fileables';
-    public $translateKey           = 'core.fileable';
+    protected $table     = 'fileables';
+    public $translateKey = 'core.fileable';
+    protected $casts     = [
+        'is_generated_pdf' => 'boolean',
+    ];
     protected array $configColumns = [
         'fileable',
         'file',

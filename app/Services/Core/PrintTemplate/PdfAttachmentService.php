@@ -33,9 +33,10 @@ class PdfAttachmentService {
         ]);
 
         Fileable::create([
-            'fileable_id'   => $document->getKey(),
-            'fileable_type' => $document::class,
-            'file_id'       => $file->id,
+            'fileable_id'      => $document->getKey(),
+            'fileable_type'    => $document::class,
+            'file_id'          => $file->id,
+            'is_generated_pdf' => true,
         ]);
 
         return $file;

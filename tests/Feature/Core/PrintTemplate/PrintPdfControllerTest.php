@@ -128,6 +128,7 @@ class PrintPdfControllerTest extends TestCase {
             Schema::create('fileables', function (Blueprint $table): void {
                 $table->char('file_id', 26);
                 $table->ulidMorphs('fileable');
+                $table->boolean('is_generated_pdf')->default(false);
                 $table->timestamps();
                 $table->softDeletes();
             });
@@ -186,6 +187,7 @@ class PrintPdfControllerTest extends TestCase {
 
         $this->assertNotNull($fileable, 'Expected the manual download to also attach a Fileable record');
         $this->assertSame('application/pdf', $fileable->file->mime_type);
+        $this->assertTrue($fileable->is_generated_pdf);
     }
 
     public function test_html_payload_exceeding_size_limit_is_rejected(): void {

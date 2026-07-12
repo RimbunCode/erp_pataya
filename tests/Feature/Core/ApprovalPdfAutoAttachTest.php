@@ -262,6 +262,7 @@ class ApprovalPdfAutoAttachTest extends TestCase {
 
         $this->assertNotNull($fileable, 'Expected a Fileable record to be created for the approved document');
         $this->assertSame('application/pdf', $fileable->file->mime_type);
+        $this->assertTrue($fileable->is_generated_pdf);
     }
 
     public function test_approval_stays_approved_even_when_pdf_generation_throws(): void {

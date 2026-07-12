@@ -83,6 +83,7 @@ class PdfAttachmentServiceTest extends TestCase {
             Schema::create('fileables', function (Blueprint $table): void {
                 $table->char('file_id', 26);
                 $table->ulidMorphs('fileable');
+                $table->boolean('is_generated_pdf')->default(false);
                 $table->timestamps();
                 $table->softDeletes();
             });
@@ -113,9 +114,10 @@ class PdfAttachmentServiceTest extends TestCase {
         $this->assertStringStartsWith('SO-TEST-001-', $file->name);
 
         $this->assertDatabaseHas('fileables', [
-            'fileable_id'   => $document->id,
-            'fileable_type' => SalesOrder::class,
-            'file_id'       => $file->id,
+            'fileable_id'      => $document->id,
+            'fileable_type'    => SalesOrder::class,
+            'file_id'          => $file->id,
+            'is_generated_pdf' => true,
         ]);
     }
 
