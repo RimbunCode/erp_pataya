@@ -54,6 +54,9 @@ return [
     'print'                => 'Print',
     'print_preview'        => 'Print Preview',
     'print_document'       => 'Print Document',
+    'download_pdf'         => 'Download PDF',
+    'generating_pdf'       => 'Generating PDF...',
+    'download_pdf_failed'  => 'Failed to generate PDF',
     'print.errors'         => [
         'no_template'        => 'Please create a print template first',
         'no_template.create' => 'Create now',

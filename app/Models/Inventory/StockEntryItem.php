@@ -15,11 +15,11 @@ class StockEntryItem extends Model {
     protected $casts              = [
         'quantity'          => 'float',
         'conversion_factor' => 'float',
+        'basic_rate'        => 'float',
+        'additional_cost'   => 'float',
         'valuation_rate'    => 'float',
-        'actual_quantity'   => 'float',
-        'incoming_quantity' => 'float',
-        'outgoing_quantity' => 'float',
-        'incoming_rate'     => 'float',
+        'basic_amount'      => 'float',
+        'amount'            => 'float',
     ];
     public $translateKey           = 'inventory.stockEntry.item_columns';
     protected array $configColumns = [

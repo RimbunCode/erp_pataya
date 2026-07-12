@@ -17,17 +17,17 @@ class PurchaseInvoice extends Model {
 
     protected $guarded = ['id'];
     protected $casts   = [
-        'date'                          => 'datetime',
-        'exchange_rate'                 => 'float',
-        'subtotal'                      => 'float',
-        'subtotal_base_currency'        => 'float',
-        'discount_rate'                 => 'float',
-        'discount_amount'               => 'float',
-        'discount_amount_base_currency' => 'float',
-        'tax_amount'                    => 'float',
-        'tax_amount_base_currency'      => 'float',
-        'total'                         => 'float',
-        'total_base_currency'           => 'float',
+        'date'                             => 'datetime',
+        'exchange_rate'                    => 'float',
+        'amount'                           => 'float',
+        'amount_base_currency'             => 'float',
+        'paid_amount'                      => 'float',
+        'paid_amount_base_currency'        => 'float',
+        'outstanding_amount'               => 'float',
+        'outstanding_amount_base_currency' => 'float',
+        'discount_rate'                    => 'float',
+        'discount_amount'                  => 'float',
+        'discount_amount_base_currency'    => 'float',
     ];
     protected static string $defaultFormatCode = '@[branch_code]/PurchaseINV-@[iiii]/@[yy]';
 

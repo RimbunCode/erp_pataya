@@ -5,7 +5,7 @@
  * @module variableDropUtils
  */
 
-import { generateRandom } from "@/lib/utils";
+import { generateRandom, isMetaAppendColumn } from "@/lib/utils";
 import { buildExampleDataTable, getColumnLabel } from "@/lib/gjsRelationsTable";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { isValidBodyDropTarget } from "./customModeUtils";
@@ -132,8 +132,8 @@ export function variableDropListener(
     const traverse = (columns, parentPath = "", parentType = "") => {
       if (!Array.isArray(columns)) return;
       for (const col of columns) {
-        // Skip FK/ignored cols (flag hidden/ignore) dari daftar variabel.
-        if (col.hidden || col.ignore) continue;
+        // Skip FK/ignored cols (flag hidden/ignore) & meta appends dari daftar variabel.
+        if (col.hidden || col.ignore || isMetaAppendColumn(col)) continue;
         const label = getDisplayLabel(col, t);
         const colType = col.type || "";
 

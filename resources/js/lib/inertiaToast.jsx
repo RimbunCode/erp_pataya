@@ -124,6 +124,14 @@ export function setupInertiaToast({ t }) {
   let toastId = null;
   /** @type {{ url: URL|string, method?: string }|null} */
   let lastVisit = null;
+  // Signature errors yang sudah ditoastkan untuk visit non-deferred saat ini.
+  // Deferred-props reload (mis. dari <Deferred>) mewarisi `errors` lama dari
+  // page state dan ikut memicu event 'error' Inertia walau bukan hasil submit
+  // baru (lihat Response.mergeProps di @inertiajs/core). Direset hanya saat
+  // ada visit non-deferred baru dimulai — bukan berbasis waktu — sehingga
+  // seluruh event 'error' susulan selama errors belum berubah dianggap
+  // carry-over dari defer, terlepas dari jeda waktunya.
+  let shownErrorSignature = null;
 
   const clearTimer = () => {
     if (timer) {
@@ -214,6 +222,11 @@ export function setupInertiaToast({ t }) {
 
   const offStart = router.on("start", (event) => {
     lastVisit = event.detail.visit;
+    if (!event.detail.visit?.deferredProps) {
+      // Visit baru (bukan background reload deferred-props) — errors lama
+      // sudah tidak relevan lagi, boleh toast lagi jika submit ini gagal.
+      shownErrorSignature = null;
+    }
     clearTimer();
     timer = setTimeout(() => {
       toastId = settle(TOAST_TYPE.DEFAULT, t("core.toast.loading"), {
@@ -234,19 +247,32 @@ export function setupInertiaToast({ t }) {
     }
   });
 
-  const fail = (detail) => {
+  /**
+   * @param {object} detail
+   * @param {{ withRetry?: boolean }} [options] - withRetry: false untuk
+   *   validation errors — submit ulang data yang sama pasti gagal lagi
+   *   sampai user memperbaiki input, jadi tombol "Coba lagi" tidak relevan.
+   */
+  const fail = (detail, { withRetry = true } = {}) => {
     const message = extractError(detail, tf);
-    const action = {
-      label: tf("core.toast.retry", "Coba lagi"),
-      onClick: retry,
-    };
     settle(TOAST_TYPE.ERROR, tf("core.toast.error", "Gagal"), {
       description: message,
-      action,
+      action: withRetry
+        ? { label: tf("core.toast.retry", "Coba lagi"), onClick: retry }
+        : undefined,
     });
   };
 
-  const offError = router.on("error", (event) => fail(event.detail));
+  const offError = router.on("error", (event) => {
+    const signature = JSON.stringify(event.detail?.errors ?? {});
+    if (signature === shownErrorSignature) {
+      // Sudah ditoastkan untuk visit non-deferred saat ini — event ini
+      // adalah carry-over dari reload deferred-props, bukan submit baru.
+      return;
+    }
+    shownErrorSignature = signature;
+    fail(event.detail, { withRetry: false });
+  });
   const offException = router.on("exception", (event) => fail(event.detail));
 
   // Jaring pengaman: jika visit berakhir tanpa success/error/exception

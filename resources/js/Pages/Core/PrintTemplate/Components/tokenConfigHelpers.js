@@ -1,3 +1,5 @@
+import { isMetaAppendColumn } from "@/lib/utils";
+
 /**
  * Token Configuration Helper Utilities
  * Provides tree-building, filtering, and formatting functions for the
@@ -33,8 +35,8 @@ export function buildTreeOptions(columns, path = "", parentType = "data") {
       continue;
     }
 
-    // FK/ignored cols (flag hidden/ignore) tak boleh muncul di token picker.
-    if (column.hidden || column.ignore) {
+    // FK/ignored cols (flag hidden/ignore) & meta appends tak boleh muncul di token picker.
+    if (column.hidden || column.ignore || isMetaAppendColumn(column)) {
       continue;
     }
 

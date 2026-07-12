@@ -54,6 +54,9 @@ return [
     'print'                => 'Cetak',
     'print_preview'        => 'Pratinjau Cetak',
     'print_document'       => 'Cetak Dokumen',
+    'download_pdf'         => 'Unduh PDF',
+    'generating_pdf'       => 'Membuat PDF...',
+    'download_pdf_failed'  => 'Gagal membuat PDF',
     'print.errors'         => [
         'no_template'        => 'Harap buat template cetak terlebih dahulu',
         'no_template.create' => 'Buat sekarang',

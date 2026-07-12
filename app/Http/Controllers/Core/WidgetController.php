@@ -16,6 +16,13 @@ class WidgetController extends Controller {
         parent::__construct($request, Widget::class);
     }
 
+    protected function enforcePermission(string $method): ?string {
+        return match ($method) {
+            'getChartData' => 'select',
+            default        => null,
+        };
+    }
+
     /**
      * Display a listing of the resource.
      */

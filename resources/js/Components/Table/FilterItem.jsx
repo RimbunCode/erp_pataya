@@ -15,6 +15,7 @@ import { ScrollArea } from "../ui/scroll-area";
 import Select from "../Select";
 import { X } from "lucide-react";
 import axios from "axios";
+import { isMetaAppendColumn } from "@/lib/utils";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
@@ -140,7 +141,13 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
 
   const buildColumnNode = useCallback(
     function build(col, parentPath = "") {
-      if (col.searchable === false || col.hidden || col.ignore) return null;
+      if (
+        col.searchable === false ||
+        col.hidden ||
+        col.ignore ||
+        isMetaAppendColumn(col)
+      )
+        return null;
       const value = parentPath ? `${parentPath}.${col.name}` : col.name;
       const isRelation = col.type === "relation" || col.type === "relations";
       const children =

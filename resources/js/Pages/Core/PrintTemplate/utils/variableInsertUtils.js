@@ -12,6 +12,7 @@ import {
   simplifyInlineDisplayToken,
 } from "./variableEncodingUtils";
 import { simplifyTokenDisplay } from "../Components/tokenConfigHelpers";
+import { isMetaAppendColumn } from "@/lib/utils";
 
 import { getFormattedHandlebarToken } from "./variableTokenUtils";
 
@@ -173,8 +174,8 @@ export function buildTitleTransLookupMap(dataTableColumns) {
       if (!colName) {
         continue;
       }
-      // Skip FK/ignored cols (flag hidden/ignore) dari peta lookup token.
-      if (col?.hidden || col?.ignore) {
+      // Skip FK/ignored cols (flag hidden/ignore) & meta appends dari peta lookup token.
+      if (col?.hidden || col?.ignore || isMetaAppendColumn(col)) {
         continue;
       }
 
