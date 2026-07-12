@@ -2,6 +2,7 @@ import * as React from "react";
 
 import {
   HandCoins,
+  Handshake,
   LayoutDashboard,
   PackageIcon,
   Receipt,
@@ -136,6 +137,18 @@ const navList = [
         url: "/purchaseOrders",
         urlPattern: "/purchaseOrders/*",
         model: "App\\Models\\Purchase\\PurchaseOrder",
+      },
+    ],
+  },
+  {
+    title: "CRM",
+    icon: <Handshake />,
+    items: [
+      {
+        title: "Leads",
+        url: "/leads",
+        urlPattern: "/leads/*",
+        model: "App\\Models\\CRM\\Lead",
       },
     ],
   },

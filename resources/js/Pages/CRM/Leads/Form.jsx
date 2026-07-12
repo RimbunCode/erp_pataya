@@ -3,31 +3,23 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import { Link, router, usePage } from "@inertiajs/react";
 
-import { Button } from "@/Components/ui/button";
 import CountryLinkModel from "@/Pages/Core/CountryLinkModel";
 import FormInput from "@/Components/FormInput";
+import LeadActivities from "./LeadActivities";
 import LeadSourceLinkModel from "@/Pages/Core/LeadSourceLinkModel";
 import { Input } from "@/Components/ui/input";
 import React from "react";
 import Select from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
-import usePermission from "@/Hooks/usePermission";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData, isCreate } = useFormPage();
-  const { model } = usePage().props;
-  const { can } = usePermission(model);
+  const { data, setData } = useFormPage();
 
   const isConverted = data?.status === "converted";
-
-  const handleConvert = () => {
-    router.put(route("leads.convert", data.id));
-  };
 
   return (
     <>
@@ -143,27 +135,10 @@ export default function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      {!isCreate && (
-        <FormPageContent title={t("crm.lead.conversion")} value="lead_detail">
-          {isConverted ? (
-            <div className="flex items-center gap-x-2">
-              <span>{t("crm.lead.converted_to")}</span>
-              <Link
-                href={route("customers.show", data.converted_customer_id)}
-                className="text-primary hover:underline"
-              >
-                {data?.convertedCustomer?.name ?? data.converted_customer_id}
-              </Link>
-            </div>
-          ) : (
-            can("write") && (
-              <Button type="button" onClick={handleConvert}>
-                {t("crm.lead.convert_to_customer")}
-              </Button>
-            )
-          )}
-        </FormPageContent>
-      )}
+      <LeadActivities
+        value={data?.activities ?? []}
+        onValueChange={(val) => setData("activities", val)}
+      />
     </>
   );
 }

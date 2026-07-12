@@ -33,6 +33,14 @@ class LeadRequest extends FormRequest {
             'province'         => ['nullable', 'string', 'max:255'],
             'zip_code'         => ['nullable', 'string', 'max:255'],
             'country.code'     => ['nullable', 'string', 'exists:countries,code'],
+            'activities'                  => ['nullable', 'array'],
+            'activities.*.id'             => ['nullable', 'string'],
+            'activities.*.type'           => ['required_with:activities', 'string', 'in:task,call,meeting,email'],
+            'activities.*.subject'        => ['required_with:activities', 'string', 'max:255'],
+            'activities.*.description'    => ['nullable', 'string'],
+            'activities.*.scheduled_at'   => ['nullable', 'date'],
+            'activities.*.status'         => ['required_with:activities', 'string', 'in:open,closed'],
+            'activities.*.assigned_to.id' => ['nullable', 'string', 'exists:users,id'],
         ];
     }
 }

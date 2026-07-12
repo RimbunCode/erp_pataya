@@ -3,6 +3,7 @@
 namespace Tests\Feature\CRM;
 
 use App\Models\CRM\Lead;
+use App\Models\CRM\LeadActivity;
 use App\Models\User\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
@@ -17,7 +18,8 @@ class LeadRequestValidationTest extends TestCase {
         // Kolom is_example ditambah via initPermissions() di prod (bukan migration).
         // Tambahkan manual agar global scope HasExampleData tidak error di SQLite.
         // roles/users/branches ikut kena karena AppMiddleware & _checkPermission() query relasi ini.
-        foreach (['leads', 'roles', 'users', 'branches'] as $tbl) {
+        // lead_activities ikut kena karena Lead::loadRelationsOnShow() eager-load relasi activities.
+        foreach (['leads', 'lead_activities', 'roles', 'users', 'branches'] as $tbl) {
             if (Schema::hasTable($tbl) && ! Schema::hasColumn($tbl, 'is_example')) {
                 Schema::table($tbl, fn ($t) => $t->boolean('is_example')->default(false));
             }
@@ -71,5 +73,37 @@ class LeadRequestValidationTest extends TestCase {
         $this->assertSame(1, Lead::count());
         $this->assertSame('new', Lead::first()->status);
         $this->assertSame('PT Contoh Sejahtera', Lead::first()->company_name);
+    }
+
+    public function test_lead_activity_with_iso_datetime_from_frontend_is_saved(): void {
+        $user = User::factory()->create();
+
+        // Format ISO 8601 dengan milidetik & suffix Z, persis seperti yang dikirim
+        // DatetimePicker.jsx (hasil Date.prototype.toISOString() di browser).
+        $isoDatetime = '2026-07-15T14:54:23.886Z';
+
+        $response = $this
+            ->actingAs($user)
+            ->withCookie('lang', 'en')
+            ->withSession($this->sessionWithLeadPermissions())
+            ->post('/leads', [
+                'company_name' => 'PT Aktivitas Terjadwal',
+                'status'       => 'new',
+                'activities'   => [
+                    [
+                        'type'         => 'task',
+                        'subject'      => 'Besok ke Club bareng calon Customer',
+                        'status'       => 'open',
+                        'scheduled_at' => $isoDatetime,
+                    ],
+                ],
+            ]);
+
+        $response->assertSessionHasNoErrors();
+        $this->assertSame(1, LeadActivity::count());
+        $activity = LeadActivity::first();
+        $this->assertSame('Besok ke Club bareng calon Customer', $activity->subject);
+        $this->assertNotNull($activity->scheduled_at);
+        $this->assertSame('2026-07-15 14:54:23', $activity->scheduled_at->format('Y-m-d H:i:s'));
     }
 }

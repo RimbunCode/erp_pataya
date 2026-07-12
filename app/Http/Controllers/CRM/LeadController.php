@@ -45,6 +45,7 @@ class LeadController extends Controller {
         $data['country_id']     = $data['country']['code'] ?? null;
         $data['assigned_to_id'] = $data['assigned_to']['id'] ?? null;
         $lead                   = Lead::create($data);
+        $this->leadService->storeActivities($lead, $data['activities'] ?? []);
         $lead->logForCreated();
         DB::commit();
 
@@ -55,16 +56,13 @@ class LeadController extends Controller {
         $this->setBreadcrumbs($lead);
         $lead->showDetail();
 
-        return $this->renderShow(
-            'CRM/Leads/Form',
-            'lead',
-            $lead->company_name,
-            function () use ($lead) {
+        return Inertia::render('CRM/Leads/Show', [
+            'lead' => function () use ($lead) {
                 $lead->loadRelations();
 
                 return $lead;
             },
-        );
+        ]);
     }
 
     /**
@@ -77,6 +75,7 @@ class LeadController extends Controller {
         $data['country_id']     = $data['country']['code'] ?? null;
         $data['assigned_to_id'] = $data['assigned_to']['id'] ?? null;
         $lead->fillForUpdate($data);
+        $this->leadService->storeActivities($lead, $data['activities'] ?? []);
         $lead->logForUpdated();
         DB::commit();
 
