@@ -24,7 +24,7 @@ class SalesOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default => null,
+            default                 => null,
         };
     }
 
