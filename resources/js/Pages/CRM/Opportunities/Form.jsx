@@ -47,10 +47,7 @@ export default function Form() {
               onValueChange={(val) => setData("customer", val)}
             />
           </FormInput>
-          <FormInput
-            label={t("crm.opportunity.columns.stage")}
-            required={true}
-          >
+          <FormInput label={t("crm.opportunity.columns.stage")} required={true}>
             <Select
               value={data?.stage}
               onValueChange={(val) => setData("stage", val)}

@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class StockLedgerEntry extends Model {
     use DataTable, HasUlids, SoftDeletes;
-    protected $guarded      = ['id'];
-    public    $translateKey = 'inventory.stockLedger';
+
+    protected $guarded   = ['id'];
+    public $translateKey = 'inventory.stockLedger';
 
     protected static function permissions() {
         return [
@@ -21,12 +22,13 @@ class StockLedgerEntry extends Model {
             'print',
         ];
     }
+
     protected $configColumns = [
-        'item'                       => [
+        'item' => [
             'show'  => true,
             'order' => 0,
         ],
-        'quantity_change'            => [
+        'quantity_change' => [
             'type'  => 'numeric',
             'show'  => true,
             'order' => 1,
@@ -36,26 +38,26 @@ class StockLedgerEntry extends Model {
             'show'  => true,
             'order' => 2,
         ],
-        'valuation_rate'             => [
+        'valuation_rate' => [
             'type'  => 'numeric',
             'show'  => true,
             'order' => 3,
         ],
-        'balance_stock_value'        => [
+        'balance_stock_value' => [
             'type'  => 'numeric',
             'show'  => true,
             'order' => 4,
         ],
-        'change_in_stock_value'      => [
+        'change_in_stock_value' => [
             'type'  => 'numeric',
             'show'  => true,
             'order' => 5,
         ],
-        'referenceable'              => [
+        'referenceable' => [
             'show'  => true,
             'order' => 6,
         ],
-        'stock_queue'                => [
+        'stock_queue' => [
             'ignore' => true,
         ],
 
