@@ -23,7 +23,7 @@ class LeadService {
 
         $keptIds = [];
         foreach ($activities as $activity) {
-            $activity['lead_id']       = $lead->id;
+            $activity['lead_id']        = $lead->id;
             $activity['assigned_to_id'] = $activity['assigned_to']['id'] ?? null;
 
             if (isset($activity['id']) && Ulid::isValid($activity['id'])) {

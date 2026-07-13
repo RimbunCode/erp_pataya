@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class GeneralLedger extends Model {
     use DataTable, HasUlids, SoftDeletes;
-    protected               $guarded            = ['id'];
-    protected               $casts              = ['debit' => 'float', 'credit' => 'float'];
-    protected static string $defaultFormatCode  = 'GL-@[iiii]/@[yy]';
-    protected static        $generateCodeSeries = true;
-    public string           $translateKey       = 'finances.generalLedger';
+
+    protected $guarded                         = ['id'];
+    protected $casts                           = ['debit' => 'float', 'credit' => 'float'];
+    protected static string $defaultFormatCode = 'GL-@[iiii]/@[yy]';
+    protected static $generateCodeSeries       = true;
+    public string $translateKey                = 'finances.generalLedger';
 
     protected static function permissions() {
         return [
@@ -34,41 +35,41 @@ class GeneralLedger extends Model {
     }
 
     protected $configColumns = [
-        'code'               => [
+        'code' => [
             'order'  => 0,
             'show'   => true,
             'isLink' => true,
         ],
-        'account'            => [
+        'account' => [
             'order' => 1,
             'show'  => true,
         ],
-        'againstAccount'     => [
+        'againstAccount' => [
             'order' => 2,
             'show'  => true,
         ],
-        'debit'              => [
+        'debit' => [
             'order' => 3,
             'show'  => true,
         ],
-        'credit'             => [
+        'credit' => [
             'order' => 4,
             'show'  => true,
         ],
-        'created_at'         => [
+        'created_at' => [
             'order' => 5,
             'show'  => true,
         ],
-        'branch'             => [
+        'branch' => [
             'ignore' => true,
         ],
-        'partyable_id'       => [
+        'partyable_id' => [
             'ignore' => true,
         ],
-        'partyable_type'     => [
+        'partyable_type' => [
             'ignore' => true,
         ],
-        'referenceable_id'   => [
+        'referenceable_id' => [
             'ignore' => true,
         ],
         'referenceable_type' => [

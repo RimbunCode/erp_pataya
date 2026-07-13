@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'title' => 'Sumber Lead',
+    'title'   => 'Sumber Lead',
     'columns' => [
         'code' => 'Kode',
         'name' => 'Nama',
