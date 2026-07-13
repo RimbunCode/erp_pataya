@@ -18,6 +18,28 @@ class QuotationItem extends Model {
         'price'    => 'float',
         'amount'   => 'float',
     ];
+    protected array $configColumns = [
+        'item' => [
+            'show'  => true,
+            'order' => 0,
+        ],
+        'description' => [
+            'show'  => true,
+            'order' => 1,
+        ],
+        'quantity' => [
+            'show'  => true,
+            'order' => 2,
+        ],
+        'price' => [
+            'show'  => true,
+            'order' => 3,
+        ],
+        'amount' => [
+            'show'  => true,
+            'order' => 4,
+        ],
+    ];
 
     public static function templateLink() {
         return ':item';
