@@ -2,7 +2,6 @@ import * as React from "react";
 
 import {
   HandCoins,
-  Handshake,
   LayoutDashboard,
   PackageIcon,
   Receipt,
@@ -140,30 +139,30 @@ const navList = [
       },
     ],
   },
-  {
-    title: "CRM",
-    icon: <Handshake />,
-    items: [
-      {
-        title: "Leads",
-        url: "/leads",
-        urlPattern: "/leads/*",
-        model: "App\\Models\\CRM\\Lead",
-      },
-      {
-        title: "Opportunities",
-        url: "/opportunities",
-        urlPattern: "/opportunities/*",
-        model: "App\\Models\\CRM\\Opportunity",
-      },
-      {
-        title: "Quotations",
-        url: "/quotations",
-        urlPattern: "/quotations/*",
-        model: "App\\Models\\CRM\\Quotation",
-      },
-    ],
-  },
+  // {
+  //   title: "CRM",
+  //   icon: <Handshake />,
+  //   items: [
+  //     {
+  //       title: "Leads",
+  //       url: "/leads",
+  //       urlPattern: "/leads/*",
+  //       model: "App\\Models\\CRM\\Lead",
+  //     },
+  //     {
+  //       title: "Opportunities",
+  //       url: "/opportunities",
+  //       urlPattern: "/opportunities/*",
+  //       model: "App\\Models\\CRM\\Opportunity",
+  //     },
+  //     {
+  //       title: "Quotations",
+  //       url: "/quotations",
+  //       urlPattern: "/quotations/*",
+  //       model: "App\\Models\\CRM\\Quotation",
+  //     },
+  //   ],
+  // },
   {
     title: "Customers",
     url: "/customers",
