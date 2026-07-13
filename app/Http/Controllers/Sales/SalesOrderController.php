@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Sales;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Sales\SalesOrderRequest;
 use App\Models\Core\Branch;
+use App\Models\CRM\Quotation;
 use App\Models\Sales\SalesOrder;
 use App\Models\Service\WorkOrder;
 use App\Services\Sales\SalesOrderService;
@@ -76,6 +77,36 @@ class SalesOrderController extends Controller {
                         }
                         break;
 
+                    case 'quotation':
+                        $quotation = Quotation::find($split[1]);
+                        if ($quotation) {
+                            $so = SalesOrder::where('referenceable_type', Quotation::class)
+                                ->where('referenceable_id', $quotation->id)
+                                ->whereRaw('json_overlaps(`status`, ?)', [json_encode(['draft'])])
+                                ->where('created_by_id', $request->user()->id)
+                                ->first();
+                            if ($so) {
+                                return redirect()->route('salesOrders.show', $so);
+                            }
+                            $quotation->loadRelations();
+                            $defaultData = [
+                                'date'               => now(),
+                                'customer'           => $quotation->customer,
+                                'referenceable_type' => Quotation::class,
+                                'referenceable_id'   => $quotation->id,
+                                'referenceable'      => $quotation,
+                                // unit & tax sengaja dikosongkan — diisi manual sebelum submit SO,
+                                // karena QuotationItem tidak menyimpan field ini (item sederhana).
+                                'items' => $quotation->items->map(fn ($item) => [
+                                    'id'          => Utils::generateRandom(5),
+                                    'item'        => $item->item,
+                                    'description' => $item->description,
+                                    'quantity'    => $item->quantity,
+                                    'price'       => $item->price,
+                                ]),
+                            ];
+                        }
+                        break;
                 }
             }
         }

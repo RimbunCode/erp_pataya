@@ -51,7 +51,7 @@ class RoleController extends Controller {
         $role = Role::create([
             'name'        => $data['name'],
             'description' => $data['description'] ?? '',
-            'is_disabled' => $data['is_disabled'] ?? '',
+            'is_disabled' => $data['is_disabled'] ?? false,
         ]);
 
         $this->updatePermissions($role, $data['rules']);
@@ -170,7 +170,7 @@ class RoleController extends Controller {
         $role->fillForUpdate([
             'name'        => $data['name'],
             'description' => $data['description'] ?? '',
-            'is_disabled' => $data['is_disabled'] ?? '',
+            'is_disabled' => $data['is_disabled'] ?? false,
         ]);
 
         $this->updatePermissions($role, $data['rules']);
