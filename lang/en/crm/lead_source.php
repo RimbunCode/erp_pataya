@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'title' => 'Lead Sources',
+    'title'   => 'Lead Sources',
     'columns' => [
         'code' => 'Code',
         'name' => 'Name',
