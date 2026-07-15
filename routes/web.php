@@ -77,6 +77,8 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
             Route::get('/create-print-template', 'createPrintTemplate')->name("$uri.createPrintTemplate");
             Route::get("/{{$name}}/print/{printTemplate?}", 'print')->name("$uri.print");
             Route::post("/{{$name}}/print/{printTemplate}/pdf", 'printPdf')->name("$uri.print.pdf");
+            Route::get("/{{$name}}/email/{emailTemplate?}", 'emailPreview')->name("$uri.email.preview");
+            Route::post("/{{$name}}/email", 'sendEmail')->name("$uri.email.send");
         } else {
             Route::put("/{{$name}}", action: 'update')->name("$uri.update");
         }

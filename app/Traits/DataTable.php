@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Models\Core\EmailTemplate;
 use App\Models\Core\File;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\Log;
@@ -536,6 +537,9 @@ trait DataTable {
             Inertia::share([
                 'prints' => Inertia::defer(
                     fn () => PrintTemplate::where('model', static::class)->get(),
+                ),
+                'emailTemplates' => Inertia::defer(
+                    fn () => EmailTemplate::where('model', static::class)->get(),
                 ),
             ]);
         }

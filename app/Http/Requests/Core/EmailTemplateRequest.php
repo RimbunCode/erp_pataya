@@ -28,6 +28,7 @@ class EmailTemplateRequest extends BaseFormRequest {
             'body_html'        => ['required', 'string'],
             'body_json'        => ['nullable', 'array'],
             'default_language' => ['nullable', 'string'],
+            'recipient_path'   => ['nullable', 'string'],
         ];
     }
 }

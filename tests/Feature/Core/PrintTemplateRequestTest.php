@@ -14,28 +14,35 @@ class PrintTemplateRequestTest extends TestCase {
     protected function setUp(): void {
         parent::setUp();
 
-        Schema::dropIfExists('print_templates');
-        Schema::create('print_templates', function (Blueprint $table): void {
-            $table->char('id', 26)->primary();
-            $table->string('name');
-            $table->boolean('is_letter_head')->default(false);
-            $table->string('model')->nullable();
-            $table->boolean('is_default')->default(false);
-            $table->string('default_language')->nullable();
-            $table->string('font_family')->nullable();
-            $table->string('paper')->nullable();
-            $table->string('page_number')->nullable();
-            $table->string('orientation')->default('portrait');
-            $table->double('width')->nullable();
-            $table->double('height')->nullable();
-            $table->double('margin_top')->nullable();
-            $table->double('margin_bottom')->nullable();
-            $table->double('margin_left')->nullable();
-            $table->double('margin_right')->nullable();
-            $table->string('unit')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-        });
+        // Tabel print_templates dipakai bersama banyak file test (SQLite
+        // in-memory shared per test-run) — guard idempotent (bukan
+        // dropIfExists+create unconditional) agar tidak menghapus kolom
+        // yang ditambahkan file test lain yang kebetulan berjalan lebih
+        // dulu dalam proses yang sama.
+        if (! Schema::hasTable('print_templates')) {
+            Schema::create('print_templates', function (Blueprint $table): void {
+                $table->char('id', 26)->primary();
+                $table->string('name');
+                $table->boolean('is_letter_head')->default(false);
+                $table->string('model')->nullable();
+                $table->string('name_model')->nullable();
+                $table->boolean('is_default')->default(false);
+                $table->string('default_language')->nullable();
+                $table->string('font_family')->nullable();
+                $table->string('paper')->nullable();
+                $table->string('page_number')->nullable();
+                $table->string('orientation')->default('portrait');
+                $table->double('width')->nullable();
+                $table->double('height')->nullable();
+                $table->double('margin_top')->nullable();
+                $table->double('margin_bottom')->nullable();
+                $table->double('margin_left')->nullable();
+                $table->double('margin_right')->nullable();
+                $table->string('unit')->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
     }
 
     public function test_print_template_paper_field_is_persisted_on_create_and_update(): void {

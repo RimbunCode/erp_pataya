@@ -155,4 +155,32 @@ class EmailTemplateCrudTest extends TestCase {
             'is_default' => true,
         ]);
     }
+
+    public function test_recipient_path_is_saved_when_provided(): void {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)
+            ->withSession($this->permissions())
+            ->postJson(route('emailTemplates.store'), $this->payload(['recipient_path' => 'customer.email']))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('email_templates', [
+            'name'           => 'Notifikasi Sales Order',
+            'recipient_path' => 'customer.email',
+        ]);
+    }
+
+    public function test_recipient_path_is_optional(): void {
+        $user = $this->makeUser();
+
+        $this->actingAs($user)
+            ->withSession($this->permissions())
+            ->postJson(route('emailTemplates.store'), $this->payload())
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('email_templates', [
+            'name'           => 'Notifikasi Sales Order',
+            'recipient_path' => null,
+        ]);
+    }
 }
