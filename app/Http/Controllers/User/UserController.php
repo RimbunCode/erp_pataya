@@ -117,6 +117,7 @@ class UserController extends Controller {
 
     public function myProfile(Request $request) {
         $this->setBreadcrumbs('user.user.my_profile');
+
         return $this->detailUser($request, $request->user());
     }
 
@@ -125,6 +126,7 @@ class UserController extends Controller {
      */
     public function show(Request $request, User $user) {
         $this->setBreadcrumbs($user);
+
         return $this->detailUser($request, $request->user());
     }
 
