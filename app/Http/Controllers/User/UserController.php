@@ -127,7 +127,7 @@ class UserController extends Controller {
     public function show(Request $request, User $user) {
         $this->setBreadcrumbs($user);
 
-        return $this->detailUser($request, $request->user());
+        return $this->detailUser($request, $user);
     }
 
     /**

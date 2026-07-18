@@ -320,14 +320,14 @@ function Form() {
         </>
       )}
       <Dialog open={openDetailRole} onOpenChange={setOpenDetailRole}>
-        <DialogContent className="max-w-(--breakpoint-lg) border-muted-foreground/25">
-          <DialogHeader className="pb-2 border-b border-muted-foreground/25">
+        <DialogContent className="max-w-(--breakpoint-lg) max-h-[85vh] flex flex-col overflow-hidden border-muted-foreground/25">
+          <DialogHeader className="pb-2 border-b border-muted-foreground/25 shrink-0">
             <DialogTitle className="font-bold">
               {(detailsRole && detailsRole.name) ?? t("user.user.permissions")}
             </DialogTitle>
             <DialogDescription className="sr-only"></DialogDescription>
           </DialogHeader>
-          <div className="grid [&>div]:px-3 gap-x-1 grid-cols-[minmax(auto,1fr)_max-content_min-content_repeat(12,max-content)] text-sm [&>div>*]:px-1h max-w-full w-full overflow-x-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center [&>div>*]:py-2 [&>div>*:not(:last-child)]:border-0">
+          <div className="grid [&>div]:px-3 gap-x-1 grid-cols-[minmax(auto,1fr)_max-content_min-content_repeat(12,max-content)] text-sm [&>div>*]:px-1h max-w-full w-full overflow-auto [&>div>*]:h-full [&>div>*]:items-center [&>div>*]:flex [&>div>*]:justify-center [&>div>*]:py-2 [&>div>*:not(:last-child)]:border-0">
             <div className="grid grid-cols-subgrid col-span-full items-center rounded-md bg-muted [&>div]:font-bold [&>div]:text-xs lg:[&>div]:text-sm">
               <div className="px-2! justify-start! text-left">
                 {t("user.role.columns.model")}
