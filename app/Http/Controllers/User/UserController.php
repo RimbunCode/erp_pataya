@@ -103,7 +103,11 @@ class UserController extends Controller {
      */
     public function show(Request $request, User $user) {
         $canSelect = PermissionChecker::forUser($request)->can(User::class, Permission::Select);
-        $this->setBreadcrumbs($canSelect ? $user : 'user.user.my_profile');
+        if ($canSelect) {
+            $this->setBreadcrumbs($user);
+        } else {
+            Inertia::share(['breadcrumbs' => [['name' => 'user.user.my_profile']]]);
+        }
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
