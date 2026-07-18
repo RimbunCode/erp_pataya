@@ -69,7 +69,6 @@ class AuthenticatedSessionController extends Controller {
             ],
         };
 
-        DB::beginTransaction();
         if ($authUser) {
             $alreadyConnected = UserProvider::where('provider', $driver)
                 ->where('provider_id', $user->getId())
@@ -80,29 +79,37 @@ class AuthenticatedSessionController extends Controller {
                     'provider_account' => 'This provider account is already connected to your account.',
                 ]);
             }
-            $authUser->providers()->updateOrCreate([
-                'provider'    => $driver,
-                'provider_id' => $user->getId(),
-                'user_id'     => $authUser->id,
-            ], $payload);
 
-            $selectedProvider = $authUser->providers()->whereNotNull('avatar_url')->latest()->first();
+            DB::transaction(function () use ($authUser, $driver, $user, $payload) {
+                $authUser->providers()->updateOrCreate([
+                    'provider'    => $driver,
+                    'provider_id' => $user->getId(),
+                    'user_id'     => $authUser->id,
+                ], $payload);
 
-            if ($selectedProvider) {
-                $authUser->update([
-                    'avatar_url' => $selectedProvider->avatar_url,
-                ]);
-            }
-
-            DB::commit();
+                $this->syncAvatarFromProvider($authUser);
+            });
 
             return redirect()->route('users.show', $authUser->id);
         } else {
             $provider = UserProvider::where('provider', $driver)
                 ->where('provider_id', $user->getId())->first();
 
-            if (! $provider) {
-                $authUser = User::where('email', $user->getEmail())->first();
+            $authUser = $provider?->user ?? User::where('email', $user->getEmail())->first();
+
+            if ($authUser) {
+                if (! $authUser->password) {
+                    throw ValidationException::withMessages([
+                        'status' => trans('auth.failed'),
+                    ])->redirectTo(route('login'));
+                } elseif ($authUser->status == FormStatus::INACTIVE) {
+                    throw ValidationException::withMessages([
+                        'status' => trans('auth.disabled'),
+                    ])->redirectTo(route('login'));
+                }
+            }
+
+            DB::transaction(function () use (&$authUser, &$provider, $driver, $user, $payload) {
                 if (! $authUser) {
                     $authUser = User::create([
                         'name'              => $user->getName(),
@@ -111,37 +118,20 @@ class AuthenticatedSessionController extends Controller {
                         'status'            => FormStatus::PRE_REGISTERED,
                     ]);
                 }
-                $provider = UserProvider::create([
-                    'provider'    => $driver,
-                    'provider_id' => $user->getId(),
-                    'user_id'     => $authUser->id,
-                    ...$payload,
-                ]);
-            } else {
-                $provider->update($payload);
-                $authUser = $provider->user;
-            }
 
-            $authUser         = $provider->user;
-            $selectedProvider = $authUser->providers()->whereNotNull('avatar_url')->latest()->first();
+                if ($provider) {
+                    $provider->update($payload);
+                } else {
+                    UserProvider::create([
+                        'provider'    => $driver,
+                        'provider_id' => $user->getId(),
+                        'user_id'     => $authUser->id,
+                        ...$payload,
+                    ]);
+                }
 
-            if ($selectedProvider) {
-                $authUser->update([
-                    'avatar_url' => $selectedProvider->avatar_url,
-                ]);
-            }
-
-            DB::commit();
-
-            if (! $authUser->password) {
-                throw ValidationException::withMessages([
-                    'status' => trans('auth.failed'),
-                ])->redirectTo(route('login'));
-            } elseif ($authUser?->status == FormStatus::INACTIVE) {
-                throw ValidationException::withMessages([
-                    'status' => trans('auth.disabled'),
-                ])->redirectTo(route('login'));
-            }
+                $this->syncAvatarFromProvider($authUser);
+            });
 
             Auth::login($authUser);
 
@@ -151,7 +141,19 @@ class AuthenticatedSessionController extends Controller {
 
             return redirect()->intended(route('dashboard', absolute: false));
         }
-        // return $this->storeProviderUser($user, $driver);
+    }
+
+    /**
+     * Refresh the user's avatar from their most recently linked provider.
+     */
+    private function syncAvatarFromProvider(User $authUser): void {
+        $selectedProvider = $authUser->providers()->whereNotNull('avatar_url')->latest()->first();
+
+        if ($selectedProvider) {
+            $authUser->update([
+                'avatar_url' => $selectedProvider->avatar_url,
+            ]);
+        }
     }
 
     /**
