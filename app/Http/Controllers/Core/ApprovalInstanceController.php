@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Core;
 use App\Enums\FormStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\ApprovalDecisionRequest;
+use App\Jobs\Core\AttachGeneratedPdfJob;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model;
@@ -241,6 +242,13 @@ class ApprovalInstanceController extends Controller {
             ]);
             $approval->save();
             DB::commit();
+
+            // Attachment is a side effect of a decision that already
+            // committed above — queued rather than run inline so approving
+            // doesn't wait on Handlebars render + PDF generation. A
+            // failure inside the job is caught and logged there; it never
+            // affects this already-committed approval.
+            AttachGeneratedPdfJob::dispatch($approval);
 
             return $this->callWithRouteModels(
                 (string) ($approval->options['controller'] ?? ''),

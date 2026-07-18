@@ -13,6 +13,7 @@ use App\Models\Core\Taggable;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Core\PrintTemplate\PdfAttachmentService;
 use App\Services\Core\PrintTemplate\PdfExportService;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
 use App\Utils;
@@ -21,6 +22,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log as LogFacade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -353,6 +355,19 @@ abstract class Controller {
 
         $pdf      = app(PdfExportService::class)->generate($request->string('html')->toString(), $printTemplate);
         $filename = Str::slug(__($docInfo['doc_name']) . '-' . $data->id);
+
+        try {
+            app(PdfAttachmentService::class)->attach($pdf, $data);
+        } catch (Exception $e) {
+            // Attaching is a side effect of a successful manual download —
+            // a failure here must not prevent the user from receiving the
+            // PDF they just generated.
+            LogFacade::error('PDF manual-download attach failed', [
+                'model'   => $this->model,
+                'id'      => $id,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         return response($pdf, 200, [
             'Content-Type'        => 'application/pdf',

@@ -87,12 +87,12 @@ fi
 
 echo "✅ Staging deploy success"
 
-# 🔥 Cleanup old releases (keep last 5)
+# 🔥 Cleanup old releases (keep last 3)
 if [ -d "$RELEASES" ]; then
   cd "$RELEASES"
   if [[ "$(pwd)" == */releases ]]; then
-    ls -dt */ | tail -n +6 | xargs -r rm -rf
-    echo "🧹 Old releases cleaned up (kept last 5)"
+    ls -dt */ | tail -n +4 | xargs -r rm -rf
+    echo "🧹 Old releases cleaned up (kept last 3)"
   else
     echo "❌ Cleanup failed: Current directory $(pwd) does not look like a releases folder"
     exit 1
