@@ -104,4 +104,29 @@ class ApprovalInstanceStep extends Model {
             'approverable_id' => $this->approverable_id,
         ]]);
     }
+
+    /**
+     * Resolve `approverCandidates()` jadi Collection<User> nyata — kandidat
+     * `role` di-expand jadi seluruh user pemilik role tersebut. Duplikat
+     * (user match langsung DAN lewat role) di-dedupe lewat unique('id').
+     *
+     * @return Collection<int, User>
+     */
+    public function resolveCandidateUsers(): Collection {
+        $userIds = collect();
+        $roleIds = collect();
+
+        foreach ($this->approverCandidates() as $candidate) {
+            if ($candidate->approver_type === 'user') {
+                $userIds->push($candidate->approverable_id);
+            } elseif ($candidate->approver_type === 'role') {
+                $roleIds->push($candidate->approverable_id);
+            }
+        }
+
+        $directUsers = $userIds->isEmpty() ? collect() : User::whereIn('id', $userIds)->get();
+        $roleUsers   = $roleIds->isEmpty() ? collect() : User::whereHas('roles', fn ($q) => $q->whereIn('roles.id', $roleIds))->get();
+
+        return $directUsers->merge($roleUsers)->unique('id')->values();
+    }
 }

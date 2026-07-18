@@ -3,15 +3,129 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/Components/ui/popover";
+import React, { useEffect, useState } from "react";
 
 import { Button } from "../ui/button";
+import LoadingIcon from "@/Components/LoadingIcon";
+import axios from "axios";
+import { formatDistanceToNow } from "date-fns";
+import { getLocaleDate } from "@/lib/utils";
+import { gooeyToast } from "@/lib/gooeyToast";
+import { router } from "@inertiajs/react";
+import { useLaravelReactI18n } from "laravel-react-i18n";
+import { usePage } from "@inertiajs/react";
 
+/**
+ * Resolusi tautan notifikasi ke halaman dokumen — mapping FQCN backend
+ * (documentType) ke nama route plural Ziggy. Model baru yang butuh
+ * notifikasi cukup ditambahkan di sini, tidak perlu ubah backend.
+ */
+const DOCUMENT_TYPE_ROUTE_MAP = {};
+
+function resolveNotificationUrl(documentType, documentId) {
+  if (!documentType || !documentId) return null;
+  const routeName = DOCUMENT_TYPE_ROUTE_MAP[documentType];
+  if (!routeName) return null;
+  try {
+    return route(`${routeName}.show`, documentId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * @returns {JSX.Element}
+ */
 function Notifications() {
-  //  TODO: Create a notification component that shows the notifications
+  const { t } = useLaravelReactI18n();
+  const sharedUnreadCount = usePage().props.unread_notifications_count ?? 0;
+  const user = usePage().props.auth?.user;
+  const locale = usePage().props.lang;
 
-  return null;
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(sharedUnreadCount);
+
+  useEffect(() => {
+    setUnreadCount(sharedUnreadCount);
+  }, [sharedUnreadCount]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    setLoading(true);
+    axios
+      .get(route("notifications.index"))
+      .then((res) => {
+        setNotifications(res.data?.notifications ?? []);
+        setUnreadCount(res.data?.unread_count ?? 0);
+      })
+      .catch(() => gooeyToast.error(t("core.errors.fetch_failed")))
+      .finally(() => setLoading(false));
+  }, [open, t]);
+
+  useEffect(() => {
+    if (!user?.id || !window.Echo) return;
+
+    const channel = window.Echo.private(`App.Models.User.User.${user.id}`);
+    channel.notification((notification) => {
+      setNotifications((prev) =>
+        [
+          { id: notification.id, data: notification, read_at: null },
+          ...prev,
+        ].slice(0, 20),
+      );
+      setUnreadCount((prev) => prev + 1);
+    });
+
+    return () => {
+      window.Echo.leave(`App.Models.User.User.${user.id}`);
+    };
+  }, [user?.id]);
+
+  const handleNotificationClick = (notification) => {
+    axios
+      .post(route("notifications.read", notification.id))
+      .then((res) => {
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notification.id
+              ? { ...n, read_at: new Date().toISOString() }
+              : n,
+          ),
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+
+        const url = resolveNotificationUrl(
+          res.data?.documentType,
+          res.data?.documentId,
+        );
+        if (url) {
+          setOpen(false);
+          router.visit(url);
+        }
+      })
+      .catch(() => gooeyToast.error(t("core.errors.fetch_failed")));
+  };
+
+  const handleMarkAllAsRead = () => {
+    axios
+      .post(route("notifications.readAll"))
+      .then(() => {
+        setNotifications((prev) =>
+          prev.map((n) => ({
+            ...n,
+            read_at: n.read_at ?? new Date().toISOString(),
+          })),
+        );
+        setUnreadCount(0);
+      })
+      .catch(() => gooeyToast.error(t("core.errors.fetch_failed")));
+  };
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -28,9 +142,11 @@ function Notifications() {
             />
           </svg>
           <span className="sr-only">notifications</span>
-          <span className="absolute left-1/2 top-0.5 rounded-full bg-red-600 px-1 text-xs font-medium leading-4 text-white">
-            8
-          </span>
+          {unreadCount > 0 && (
+            <span className="absolute left-1/2 top-0.5 rounded-full bg-red-600 px-1 text-xs font-medium leading-4 text-white">
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -39,9 +155,17 @@ function Notifications() {
         className="p-0! overflow-hidden h-[460px] w-96 flex flex-col"
       >
         <div className="sticky top-0 flex items-center justify-between px-4 py-1 bg-white shadow-md dark:bg-gray-800">
-          <h3 className="text-base font-bold">Notifications</h3>
+          <h3 className="text-base font-bold">
+            {t("notification.panel.title")}
+          </h3>
           <div className="flex gap-x-1">
-            <Button tooltip="Mark all as read" variant="gosht">
+            <Button
+              type="button"
+              tooltip={t("notification.panel.mark_all_as_read")}
+              variant="gosht"
+              onClick={handleMarkAllAsRead}
+              disabled={unreadCount === 0}
+            >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 className="size-5"
@@ -55,10 +179,50 @@ function Notifications() {
             </Button>
           </div>
         </div>
-        <div className=" flex flex-col h-full text-center justify-center items-center">
-          <p className="font-bold text-lg">Under Development </p>
-          <p>Please wait for the next update, thank you.</p>
-        </div>
+        {loading ? (
+          <div className="flex flex-1 items-center justify-center gap-2 text-muted-foreground">
+            <LoadingIcon className="size-4" />
+            {t("core.form.loading")}
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="flex flex-col h-full text-center justify-center items-center gap-1 text-muted-foreground">
+            <p className="font-bold text-lg">
+              {t("notification.panel.empty.title")}
+            </p>
+            <p>{t("notification.panel.empty.subtitle")}</p>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto">
+            {notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => handleNotificationClick(notification)}
+                className="w-full text-left px-4 py-3 border-b border-muted last:border-b-0 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-start gap-2">
+                  {!notification.read_at && (
+                    <span className="mt-1.5 size-2 rounded-full bg-blue-500 shrink-0" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">
+                      {notification.data?.title}
+                    </p>
+                    <p className="text-sm text-muted-foreground line-clamp-2">
+                      {notification.data?.message}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {formatDistanceToNow(new Date(notification.created_at), {
+                        addSuffix: true,
+                        locale: getLocaleDate(locale),
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </PopoverContent>
     </Popover>
   );

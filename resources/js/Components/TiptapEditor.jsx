@@ -303,6 +303,11 @@ function updateMentionPosition(editor, element) {
   });
 }
 
+// Dot-path id ("doc.customer.name") -> Blade-style arrow accessor ("$doc->customer->name").
+export function dotPathToMergeTagToken(id) {
+  return `{{ $${id.split(".").join("->")} }}`;
+}
+
 function buildMentionSuggestion(mentionSourceRef) {
   return {
     char: "@",
@@ -370,6 +375,7 @@ const TiptapEditor = forwardRef(function TiptapEditor(
     placeholder,
     className,
     mentionSource,
+    mentionRenderMode = "label",
     scrollable,
     imageUploadUrl,
   },
@@ -408,6 +414,14 @@ const TiptapEditor = forwardRef(function TiptapEditor(
               HTMLAttributes: { class: "mention" },
               suggestion: buildMentionSuggestion(mentionSourceRef),
               renderHTML({ options, node }) {
+                if (mentionRenderMode === "mergeTag") {
+                  return [
+                    "span",
+                    { "data-type": "mention", "data-merge-tag": node.attrs.id },
+                    dotPathToMergeTagToken(node.attrs.id),
+                  ];
+                }
+
                 return [
                   "span",
                   {

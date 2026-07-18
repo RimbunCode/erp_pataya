@@ -3,7 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Core\CommentRequest;
+use App\Http\Requests\Core\EmailTemplateSendRequest;
 use App\Http\Requests\Core\TagRequest;
+use App\Jobs\Core\SendEmailWithPdfJob;
+use App\Models\Core\EmailTemplate;
 use App\Models\Core\File;
 use App\Models\Core\Fileable;
 use App\Models\Core\Log;
@@ -13,6 +16,7 @@ use App\Models\Core\Taggable;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
+use App\Services\Core\EmailTemplate\EmailTemplateRenderService;
 use App\Services\Core\PrintTemplate\PdfAttachmentService;
 use App\Services\Core\PrintTemplate\PdfExportService;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
@@ -129,20 +133,22 @@ abstract class Controller {
                         abort(403);
                     }
                     $keyPermission = match ($method) {
-                        'index'    => 'select',
-                        'create'   => 'create',
-                        'store'    => 'create',
-                        'show'     => 'read',
-                        'update'   => 'write',
-                        'destroy'  => 'delete',
-                        'import'   => 'import',
-                        'export'   => 'export',
-                        'share'    => 'share',
-                        'submit'   => 'submit',
-                        'cancel'   => 'cancel',
-                        'print'    => 'print',
-                        'printPdf' => 'print',
-                        'amend'    => 'amend',
+                        'index'        => 'select',
+                        'create'       => 'create',
+                        'store'        => 'create',
+                        'show'         => 'read',
+                        'update'       => 'write',
+                        'destroy'      => 'delete',
+                        'import'       => 'import',
+                        'export'       => 'export',
+                        'share'        => 'share',
+                        'submit'       => 'submit',
+                        'cancel'       => 'cancel',
+                        'print'        => 'print',
+                        'printPdf'     => 'print',
+                        'emailPreview' => 'print',
+                        'sendEmail'    => 'print',
+                        'amend'        => 'amend',
                         'addComment',
                         'editComment',
                         'addTag',
@@ -373,6 +379,77 @@ abstract class Controller {
             'Content-Type'        => 'application/pdf',
             'Content-Disposition' => "attachment; filename=\"{$filename}.pdf\"",
         ]);
+    }
+
+    public function emailPreview(Request $request, mixed $id, ?EmailTemplate $emailTemplate = null) {
+        $data = $this->model::findOrFail($id);
+
+        $compiled = $emailTemplate
+            ? app(EmailTemplateRenderService::class)->render($emailTemplate, $data)
+            : ['subject' => '', 'body' => ''];
+
+        $recipient = $emailTemplate?->recipient_path
+            ? data_get($data, $emailTemplate->recipient_path)
+            : null;
+
+        $attachableFiles = Fileable::where('fileable_id', $data->id)
+            ->where('fileable_type', $this->model)
+            ->with('file')
+            ->get()
+            ->map(fn ($f) => [
+                'id'             => $f->file->id,
+                'name'           => $f->file->fullname,
+                'isGeneratedPdf' => $f->is_generated_pdf,
+            ]);
+
+        $hasGeneratedPdf = $attachableFiles->contains('isGeneratedPdf', true);
+
+        // Nilai aktual (bukan nama field) untuk mention di dialog trigger —
+        // beda dari emailTemplates.fields (spec 1) yang hanya kirim nama field
+        // tanpa nilai, karena spec 1 untuk authoring template (belum ada dokumen nyata).
+        // Hanya kolom non-relasi (getColumns(0), tanpa nameOfFunction) yang
+        // diproses — kolom relasi (hasMany/belongsTo dst) butuh eager-load
+        // tersendiri untuk aman diakses, di luar scope mention field sederhana.
+        $resolvedFields = collect($this->model::getColumns(0))
+            ->reject(fn ($col) => isset($col['nameOfFunction']))
+            ->map(fn ($col) => [
+                'id'    => "doc.{$col['name']}",
+                'label' => $col['titleTrans'] ?? $col['name'],
+                'value' => (string) (data_get($data, $col['name']) ?? ''),
+            ])->filter(fn ($f) => $f['value'] !== '')->values();
+
+        return response()->json([
+            'subject'         => $compiled['subject'],
+            'body'            => $compiled['body'],
+            'recipient'       => $recipient,
+            'fromAddress'     => config('mail.from.address'),
+            'fromName'        => config('mail.from.name'),
+            'files'           => $attachableFiles,
+            'hasGeneratedPdf' => $hasGeneratedPdf,
+            // Syarat checkbox "Sertakan PDF" bisa ditampilkan sama sekali —
+            // tanpa PrintTemplate default, tidak ada dasar untuk merender nanti.
+            'canOfferPdf'    => $hasGeneratedPdf || PrintTemplate::where('model', $this->model)->where('is_default', true)->exists(),
+            'resolvedFields' => $resolvedFields,
+        ]);
+    }
+
+    public function sendEmail(EmailTemplateSendRequest $request, mixed $id) {
+        $data = $request->validated();
+
+        SendEmailWithPdfJob::dispatch(
+            $this->model,
+            $id,
+            $data['to'],
+            $data['cc'] ?? [],
+            $data['bcc'] ?? [],
+            $data['subject'],
+            $data['body'],
+            $data['fileIds'] ?? [],
+            (bool) ($data['include_pdf'] ?? false),
+            $data['from_name'] ?? null,
+        );
+
+        return back()->with('success', __('core.emailTemplate.send.queued'));
     }
 
     public function createPrintTemplate() {

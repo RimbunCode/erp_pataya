@@ -61,6 +61,7 @@ return [
         'no_template'        => 'Harap buat template cetak terlebih dahulu',
         'no_template.create' => 'Buat sekarang',
     ],
+    'email'             => 'Kirim Email',
     'edit_template'     => 'Edit Template',
     'open_editor'       => 'Buka Editor',
     'editor'            => 'Editor',

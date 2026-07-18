@@ -21,6 +21,7 @@
     "laravel/tinker": "^2.10.1",
     "narolalabs/error-lens": "^2.6",
     "owen-it/laravel-auditing": "^14.0",
+    "pusher/pusher-php-server": "^7.2",
     "tightenco/ziggy": "^2.0",
     "zordius/lightncandy": "^1.2"
   },

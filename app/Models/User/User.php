@@ -5,8 +5,11 @@ namespace App\Models\User;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 
 use App\Casts\FormStatusCast;
+use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Core\Dashboard;
+use App\Notifications\UserInvitedNotification;
+use App\Services\Core\Notification\NotifyUser;
 use App\Traits\DataTable;
 use App\Traits\LinkModel;
 use Database\Factories\UserFactory;
@@ -49,6 +52,27 @@ class User extends Authenticatable {
 
     public static function templateLink() {
         return ':name';
+    }
+
+    protected static function booted(): void {
+        // Kirim UserInvitedNotification hanya saat status BARU transisi
+        // MASUK ke INVITED — bukan setiap update selagi status sudah
+        // INVITED (mis. user melengkapi profil sebelum setup password).
+        // created/updated dipisah (bukan saved() tunggal + wasChanged()):
+        // wasChanged('status') tidak reliable true untuk model yang baru
+        // dibuat di project ini (kemungkinan terkait perbandingan instance
+        // enum pada FormStatusCast), jadi status pada create dicek langsung.
+        static::created(function (self $user) {
+            if ($user->status === FormStatus::INVITED) {
+                app(NotifyUser::class)->send($user, new UserInvitedNotification);
+            }
+        });
+
+        static::updated(function (self $user) {
+            if ($user->wasChanged('status') && $user->status === FormStatus::INVITED) {
+                app(NotifyUser::class)->send($user, new UserInvitedNotification);
+            }
+        });
     }
 
     protected array $configColumns = [

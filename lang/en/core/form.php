@@ -61,6 +61,7 @@ return [
         'no_template'        => 'Please create a print template first',
         'no_template.create' => 'Create now',
     ],
+    'email'             => 'Send Email',
     'edit_template'     => 'Edit Template',
     'open_editor'       => 'Open Editor',
     'editor'            => 'Editor',

@@ -9,6 +9,9 @@ use App\Jobs\Core\AttachGeneratedPdfJob;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\ApprovalInstanceStep;
 use App\Models\Model;
+use App\Notifications\ApprovalDecidedNotification;
+use App\Notifications\ApprovalPendingNotification;
+use App\Services\Core\Notification\NotifyUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -217,7 +220,8 @@ class ApprovalInstanceController extends Controller {
             'notes'       => $notes,
         ]);
 
-        $isApproved = true;
+        $isApproved  = true;
+        $nextPending = null;
 
         $approval->current_sequence += 1;
 
@@ -226,7 +230,8 @@ class ApprovalInstanceController extends Controller {
                 $step->update([
                     'status' => FormStatus::PENDING,
                 ]);
-                $isApproved = false;
+                $isApproved  = false;
+                $nextPending = $step;
 
                 continue;
             }
@@ -250,6 +255,14 @@ class ApprovalInstanceController extends Controller {
             // affects this already-committed approval.
             AttachGeneratedPdfJob::dispatch($approval);
 
+            // Same pattern: notification is a side effect of an already-
+            // committed decision, sent after commit so a failure here never
+            // rolls back or blocks the approval itself.
+            $creator = $approval->document?->createdBy;
+            if ($creator) {
+                app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'approved'));
+            }
+
             return $this->callWithRouteModels(
                 (string) ($approval->options['controller'] ?? ''),
                 'onApproved',
@@ -258,6 +271,13 @@ class ApprovalInstanceController extends Controller {
         }
         $approval->save();
         DB::commit();
+
+        if ($nextPending) {
+            $candidates = $nextPending->resolveCandidateUsers();
+            if ($candidates->isNotEmpty()) {
+                app(NotifyUser::class)->send($candidates, new ApprovalPendingNotification($nextPending));
+            }
+        }
 
         return back();
     }
@@ -323,6 +343,11 @@ class ApprovalInstanceController extends Controller {
             ]);
             $approval->save();
             DB::commit();
+
+            $creator = $approval->document?->createdBy;
+            if ($creator) {
+                app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'rejected', $notes));
+            }
 
             return $this->callWithRouteModels(
                 (string) ($approval->options['controller'] ?? ''),

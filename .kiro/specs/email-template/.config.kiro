@@ -1,0 +1,1 @@
+{"specId": "fe2351aa-4cff-43ce-9a9f-8031233d8121", "workflowType": "design-first", "specType": "feature", "description": "EmailTemplate: template email per-Model (mirror PrintTemplate) dengan TipTap editor, merge-tag, dan test send. Bagian 1 dari 3 (trigger manual+attachment dan trigger otomatis+event sistem menyusul di spec terpisah)."}
