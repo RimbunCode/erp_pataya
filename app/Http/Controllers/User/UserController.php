@@ -27,6 +27,7 @@ class UserController extends Controller {
         $user_id = $route->originalParameter('user');
         if (
             \in_array($method, [
+                'myProfile',
                 'show',
                 'update',
                 'image',
