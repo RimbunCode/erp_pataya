@@ -87,6 +87,10 @@ class AuthenticatedSessionController extends Controller {
                     'user_id'     => $authUser->id,
                 ], $payload);
 
+                if (! $authUser->email_verified_at) {
+                    $authUser->forceFill(['email_verified_at' => now()])->save();
+                }
+
                 $this->syncAvatarFromProvider($authUser);
             });
 
@@ -128,6 +132,10 @@ class AuthenticatedSessionController extends Controller {
                         'user_id'     => $authUser->id,
                         ...$payload,
                     ]);
+                }
+
+                if (! $authUser->email_verified_at) {
+                    $authUser->forceFill(['email_verified_at' => now()])->save();
                 }
 
                 $this->syncAvatarFromProvider($authUser);

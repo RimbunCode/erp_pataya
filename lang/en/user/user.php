@@ -15,6 +15,7 @@ return [
     'default_branch.placeholder' => 'Select a default branch',
     'show_permissions'           => 'Show Permissions',
     'permissions'                => 'Permissions',
+    'my_profile'                 => 'My Profile',
     'columns'                    => [
         'name'               => 'Name',
         'username'           => 'Username',

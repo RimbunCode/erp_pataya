@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class TicketController extends Controller {
+    protected bool $ignorePermission = true;
     private TicketService $service;
 
     public function __construct(Request $request, TicketService $service) {

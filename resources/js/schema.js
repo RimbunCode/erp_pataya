@@ -709,7 +709,7 @@ export const BranchRequest = z.object({
   branchable_type: z.string().max(255).nullable().optional(),
   branchable_id: z.string().max(255).nullable().optional(),
   is_disabled: z.boolean().nullable().optional(),
-  billing_address: z.string(),
+  billing_address: z.string().nullable().optional(),
   billing_street: z.string().max(255).nullable().optional(),
   billing_city: z.string().max(255).nullable().optional(),
   billing_state: z.string().max(255).nullable().optional(),

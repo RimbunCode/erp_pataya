@@ -4,6 +4,7 @@ namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Validation\Rule;
 
 class BranchRequest extends BaseFormRequest {
     /**
@@ -25,7 +26,7 @@ class BranchRequest extends BaseFormRequest {
             'branchable_type'       => ['nullable', 'string', 'max:255'],
             'branchable_id'         => ['nullable', 'string', 'max:255'],
             'is_disabled'           => ['nullable', 'boolean'],
-            'billing_address'       => ['required', 'string', 'in:same_main,same_shipping,separate'],
+            'billing_address'       => [Rule::requiredIf(fn () => filled($this->branchable_type)), 'nullable', 'string', 'in:same_main,same_shipping,separate'],
             'billing_street'        => ['required_if:billing_address,separate', 'nullable', 'string', 'max:255'],
             'billing_city'          => ['required_if:billing_address,separate', 'nullable', 'string', 'max:255'],
             'billing_state'         => ['required_if:billing_address,separate', 'nullable', 'string', 'max:255'],

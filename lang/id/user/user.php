@@ -15,6 +15,7 @@ return [
     'default_branch.placeholder' => 'Pilih cabang default',
     'show_permissions'           => 'Tampilkan Izin',
     'permissions'                => 'Izin',
+    'my_profile'                 => 'Profile Saya',
     'columns'                    => [
         'name'               => 'Nama',
         'username'           => 'Nama Pengguna',
