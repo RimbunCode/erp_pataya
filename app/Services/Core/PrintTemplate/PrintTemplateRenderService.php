@@ -219,11 +219,11 @@ class PrintTemplateRenderService {
                     array_keys((array) $value),
                 )),
                 'date', 'time', 'datetime' => $this->formatDateTimeValue($value, $col['type'], $opts['lang'] ?? 'en'),
-                'boolean'    => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
-                'formStatus' => __("status.{$value}"),
-                'string'     => $this->formatStringValue($value, $col),
-                'currency', 'number' => $this->formatNumericValue($value, $col, $data, $opts),
-                default => $value,
+                'boolean'                  => "<input type='checkbox' " . ($value ? 'checked' : '') . '>',
+                'formStatus'               => __("status.{$value}"),
+                'string'                   => $this->formatStringValue($value, $col),
+                'currency', 'number'       => $this->formatNumericValue($value, $col, $data, $opts),
+                default                    => $value,
             };
         }
 
