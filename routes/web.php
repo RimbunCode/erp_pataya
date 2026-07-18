@@ -16,6 +16,7 @@ use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
+use App\Http\Controllers\Core\NotificationController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
@@ -230,6 +231,14 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::get('approvals', [ApprovalInstanceController::class, 'index'])->name('approvalInstances.index');
     Route::get('approvals/{approvalInstance}', [ApprovalInstanceController::class, 'show'])->name('approvalInstances.show');
     Route::post('approvals/{approvalInstanceStep}/decision', [ApprovalInstanceController::class, 'decision'])->name('approvalInstances.decision');
+    // Notifications — JSON API murni (dipanggil dari Popover, bukan navigasi
+    // halaman), tidak butuh Inertia sharing sama sekali. withoutMiddleware
+    // menghindari resolveSharedUserRoleIds() dkk yang tidak relevan di sini.
+    Route::withoutMiddleware([HandleInertiaRequests::class])->group(function () {
+        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
+    });
 
     // / Inventories Group
     // Warehouse
