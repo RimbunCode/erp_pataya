@@ -96,11 +96,7 @@ class UserController extends Controller {
         //
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Request $request, User $user) {
-        $this->setBreadcrumbs($user);
+    private function detailUser(Request $request, User $user) {
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
@@ -117,6 +113,19 @@ class UserController extends Controller {
                 'branches' => Inertia::defer(Branch::whereNull('branchable_type')->whereNull('branchable_id')->get(...)),
             ] : []),
         ]);
+    }
+
+    public function myProfile(Request $request) {
+        $this->setBreadcrumbs('user.user.my_profile');
+        return $this->detailUser($request, $request->user());
+    }
+
+    /**
+     * Display the specified resource.
+     */
+    public function show(Request $request, User $user) {
+        $this->setBreadcrumbs($user);
+        return $this->detailUser($request, $request->user());
     }
 
     /**

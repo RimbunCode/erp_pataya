@@ -87,11 +87,7 @@ export default memo(function UserInfo() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link
-              href={route("users.show", user.id)}
-              as="button"
-              className="w-full"
-            >
+            <Link href={route("myProfile")} as="button" className="w-full">
               <UserCog2 />
               Manage Account
             </Link>
