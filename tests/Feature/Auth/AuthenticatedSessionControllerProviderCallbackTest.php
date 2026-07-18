@@ -112,6 +112,31 @@ class AuthenticatedSessionControllerProviderCallbackTest extends TestCase {
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
+    public function test_existing_active_user_login_via_provider_verifies_email(): void {
+        $user = User::factory()->unverified()->create([
+            'email'    => 'unverified-login@example.com',
+            'password' => 'hashed',
+            'status'   => FormStatus::ACTIVE,
+        ]);
+
+        $this->fakeSocialiteUser('google-6', 'unverified-login@example.com');
+
+        $this->get('/auth/google/callback');
+
+        $this->assertNotNull($user->fresh()->email_verified_at);
+    }
+
+    public function test_connecting_provider_to_current_session_verifies_email(): void {
+        $current = User::factory()->unverified()->create();
+        Auth::login($current);
+
+        $this->fakeSocialiteUser('google-7', 'someone-else2@example.com');
+
+        $this->get('/auth/google/callback');
+
+        $this->assertNotNull($current->fresh()->email_verified_at);
+    }
+
     public function test_connecting_already_connected_provider_fails_without_dangling_transaction(): void {
         $owner = User::factory()->create();
         UserProvider::create([
