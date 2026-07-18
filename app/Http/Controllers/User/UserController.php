@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\User;
 
 use App\Enums\FormStatus;
+use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UserRequest;
 use App\Models\Core\Branch;
 use App\Models\Core\File;
 use App\Models\User\Role;
 use App\Models\User\User;
+use App\Services\Core\PermissionChecker;
 use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +29,6 @@ class UserController extends Controller {
         $user_id = $route->originalParameter('user');
         if (
             \in_array($method, [
-                'myProfile',
                 'show',
                 'update',
                 'image',
@@ -97,7 +98,12 @@ class UserController extends Controller {
         //
     }
 
-    private function detailUser(Request $request, User $user) {
+    /**
+     * Display the specified resource.
+     */
+    public function show(Request $request, User $user) {
+        $canSelect = PermissionChecker::forUser($request)->can(User::class, Permission::Select);
+        $this->setBreadcrumbs($canSelect ? $user : 'user.user.my_profile');
         $user->showDetail();
 
         return Inertia::render('Users/ManageUsers/Show', [
@@ -114,21 +120,6 @@ class UserController extends Controller {
                 'branches' => Inertia::defer(Branch::whereNull('branchable_type')->whereNull('branchable_id')->get(...)),
             ] : []),
         ]);
-    }
-
-    public function myProfile(Request $request) {
-        $this->setBreadcrumbs('user.user.my_profile');
-
-        return $this->detailUser($request, $request->user());
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Request $request, User $user) {
-        $this->setBreadcrumbs($user);
-
-        return $this->detailUser($request, $user);
     }
 
     /**
