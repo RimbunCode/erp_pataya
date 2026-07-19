@@ -1,0 +1,6 @@
+{
+  "specId": "84d6175b-44ab-4ece-8778-54b4fee7094e",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Hitung durasi sewa (rental) berdasarkan pemakaian aktual sejak hari pertama serah terima (delivery note) sampai hari pengembalian (dihitung penuh), lalu gunakan rate bulanan yang sudah diinput di kolom price (dikonversi per-bulan-penuh + sisa hari) untuk prefill amount saat membuat Sales Invoice dari Sales Order rental."
+}

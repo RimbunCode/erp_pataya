@@ -3,12 +3,18 @@
 namespace App\Models\Inventory;
 
 use App\Casts\Json;
+use App\Enums\Permission;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Stock extends Model {
     use HasUlids, SoftDeletes;
+
+    /** Izin lihat HPP/valuation rate stok: pembuat StockEntry. */
+    private const VALUATION_RATE_VISIBILITY = [
+        [StockEntry::class, [Permission::Write, Permission::Create]],
+    ];
 
     protected $guarded = ['id'];
     protected $casts   = [
@@ -81,6 +87,13 @@ class Stock extends Model {
             'type'  => 'numeric',
             'show'  => true,
             'order' => 4,
+        ],
+        'valuation_rate' => [
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 5,
+            'linkable'   => true,
+            'visibleFor' => self::VALUATION_RATE_VISIBILITY,
         ],
         'stock_queue' => [
             'type'   => 'numeric',

@@ -33,6 +33,7 @@ class SalesInvoiceItem extends Model {
         'tax_rate'            => 'float',
         'exchange_rate'       => 'float',
         'basic_amount'        => 'float',
+        'dpp_amount'          => 'float',
         'tax_amount'          => 'float',
     ];
     protected array $configColumns = [
@@ -65,37 +66,44 @@ class SalesInvoiceItem extends Model {
             'linkable'   => true,
             'visibleFor' => self::PRICE_VISIBILITY,
         ],
+        'dpp_amount' => [
+            'type'       => 'currency',
+            'show'       => true,
+            'order'      => 5,
+            'linkable'   => true,
+            'visibleFor' => self::PRICE_VISIBILITY,
+        ],
         'tax' => [
             'type'  => 'relation',
             'show'  => true,
-            'order' => 5,
+            'order' => 6,
         ],
         'tax_rate' => [
             'type'     => 'numeric',
             'show'     => false,
-            'order'    => 6,
+            'order'    => 7,
             'linkable' => true,
         ],
         'tax_amount' => [
             'type'       => 'currency',
             'show'       => true,
-            'order'      => 7,
+            'order'      => 8,
             'linkable'   => true,
             'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'description' => [
             'show'  => false,
-            'order' => 8,
+            'order' => 9,
         ],
         'returned_quantity' => [
             'type'  => 'numeric',
             'show'  => false,
-            'order' => 9,
+            'order' => 10,
         ],
         'unreturned_quantity' => [
             'type'  => 'numeric',
             'show'  => false,
-            'order' => 10,
+            'order' => 11,
         ],
         'conversion_factor' => [
             'hidden'   => true,

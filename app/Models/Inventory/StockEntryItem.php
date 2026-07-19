@@ -2,6 +2,7 @@
 
 namespace App\Models\Inventory;
 
+use App\Enums\Permission;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,6 +10,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class StockEntryItem extends Model {
     use HasUlids;
     use SoftDeletes;
+
+    /** Izin lihat rate/HPP stock entry: pembuat StockEntry. */
+    private const RATE_VISIBILITY = [
+        [StockEntry::class, [Permission::Write, Permission::Create]],
+    ];
 
     public static $parentRelation = 'stockEntry';
     protected $guarded            = ['id'];
@@ -52,6 +58,35 @@ class StockEntryItem extends Model {
             'decimalScale' => 2,
             'show'         => true,
             'order'        => 5,
+            'visibleFor'   => self::RATE_VISIBILITY,
+        ],
+        'additional_cost' => [
+            'type'         => 'currency',
+            'decimalScale' => 2,
+            'show'         => true,
+            'order'        => 6,
+            'visibleFor'   => self::RATE_VISIBILITY,
+        ],
+        'valuation_rate' => [
+            'type'         => 'currency',
+            'decimalScale' => 2,
+            'show'         => true,
+            'order'        => 7,
+            'visibleFor'   => self::RATE_VISIBILITY,
+        ],
+        'basic_amount' => [
+            'type'         => 'currency',
+            'decimalScale' => 2,
+            'show'         => true,
+            'order'        => 8,
+            'visibleFor'   => self::RATE_VISIBILITY,
+        ],
+        'amount' => [
+            'type'         => 'currency',
+            'decimalScale' => 2,
+            'show'         => true,
+            'order'        => 9,
+            'visibleFor'   => self::RATE_VISIBILITY,
         ],
         'stockEntry' => [
             'ignore' => true,

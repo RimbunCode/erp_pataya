@@ -50,7 +50,7 @@ class SalesOrderService {
         $data['item_id']             = $data['item']['id'];
         $data['item_unit_id']        = $data['unit']['id'];
         $data['conversion_factor']   = $unit?->conversion_factor ?? 1;
-        $data['tax_id']              = $data['tax']['id'];
+        $data['tax_id']              = $data['tax']['id'] ?? null;
         $data['tax_rate']            = $tax?->rate ?? 0;
         $data['currency_code']       = $salesOrder->currency_code;
         $data['base_currency_code']  = $salesOrder->base_currency_code;

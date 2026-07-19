@@ -41,6 +41,9 @@ class DeliveryNoteItem extends Model {
             'show'  => false,
             'order' => 5,
         ],
+        'valuation_rates' => [
+            'ignore' => true,
+        ],
         'deliveryNote' => [
             'ignore' => true,
         ],

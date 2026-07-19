@@ -5,6 +5,7 @@ namespace App\Models\Sales;
 use App\Enums\Permission;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Finances\Tax;
+use App\Models\Inventory\DeliveryNoteItem;
 use App\Models\Inventory\ItemUnit;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Warehouse;
@@ -198,5 +199,9 @@ class SalesOrderItem extends Model {
 
     public function item() {
         return $this->belongsTo(ItemVariant::class, 'item_id');
+    }
+
+    public function deliveryNoteItems() {
+        return $this->morphMany(DeliveryNoteItem::class, 'referenceable', 'referenceable_type', 'referenceable_id');
     }
 }

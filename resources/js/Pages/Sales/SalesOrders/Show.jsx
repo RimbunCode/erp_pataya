@@ -40,6 +40,64 @@ function QtyBadge({ delta }) {
   return <span className="ml-1 text-xs font-medium text-gray-500">Match</span>;
 }
 
+function RentalStatusBadge({ status }) {
+  const map = {
+    running: { label: "Berjalan", className: "text-blue-600" },
+    completed: { label: "Selesai", className: "text-green-600" },
+    partially_completed: {
+      label: "Sebagian Selesai",
+      className: "text-amber-600",
+    },
+  };
+  const entry = map[status];
+  if (!entry) return null;
+
+  return (
+    <span className={`text-xs font-medium ${entry.className}`}>
+      {entry.label}
+    </span>
+  );
+}
+
+function RentalDurationTable({ items, durations }) {
+  if (!items?.length) return null;
+
+  return (
+    <div className="mt-4 overflow-x-auto rounded border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 text-left">Item</th>
+            <th className="px-3 py-2 text-right">Durasi (hari)</th>
+            <th className="px-3 py-2 text-right">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item) => {
+            const duration = durations?.[item.id];
+            if (!duration || !duration.status) return null;
+            const totalDays = duration.segments.reduce(
+              (sum, s) => sum + s.duration_days,
+              0,
+            );
+            return (
+              <tr key={item.id} className="border-t">
+                <td className="px-3 py-2">
+                  {item.item_name ?? item.item?.name}
+                </td>
+                <td className="px-3 py-2 text-right">{totalDays}</td>
+                <td className="px-3 py-2 text-right">
+                  <RentalStatusBadge status={duration.status} />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function ItemsQtyTable({ items }) {
   if (!items?.length) return null;
 
@@ -259,6 +317,14 @@ export default function Show({ salesOrder, defaultData, flash }) {
 
         {/* Tabel tracking qty per item */}
         {salesOrder?.submitted_at && <ItemsQtyTable items={salesOrder.items} />}
+
+        {/* Tabel durasi & status sewa rental */}
+        {salesOrder?.is_rent && salesOrder?.submitted_at && (
+          <RentalDurationTable
+            items={salesOrder.items}
+            durations={salesOrder.rental_durations}
+          />
+        )}
       </FormPage>
 
       {/* Dialog konfirmasi Sync Items */}
