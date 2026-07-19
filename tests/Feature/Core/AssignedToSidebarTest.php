@@ -121,6 +121,23 @@ class AssignedToSidebarTest extends TestCase {
         $this->assertSoftDeleted('todos', ['id' => $todo->id]);
     }
 
+    public function test_cannot_remove_assignee_belonging_to_a_different_document(): void {
+        $ticketA  = Ticket::factory()->create();
+        $ticketB  = Ticket::factory()->create();
+        $assignee = User::factory()->create();
+        $todo     = Todo::factory()->create([
+            'reference_id'    => $ticketB->id,
+            'reference_type'  => Ticket::class,
+            'allocated_to_id' => $assignee->id,
+        ]);
+
+        $response = $this->authenticatedRequest()
+            ->delete(route('tickets.removeAssignee', ['ticket' => $ticketA, 'id' => $todo->id]));
+
+        $response->assertNotFound();
+        $this->assertDatabaseHas('todos', ['id' => $todo->id, 'deleted_at' => null]);
+    }
+
     public function test_assigning_duplicate_user_is_idempotent(): void {
         $ticket   = Ticket::factory()->create();
         $assignee = User::factory()->create();
