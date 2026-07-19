@@ -123,7 +123,6 @@ export default function Form() {
         };
       }),
     }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.rental_cutoff_date]);
 
   const itemColumns = useMemo(() => {
