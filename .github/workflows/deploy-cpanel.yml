@@ -22,6 +22,7 @@ jobs:
   deploy:
     if: (github.event_name == 'pull_request' && github.event.pull_request.merged == true) || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    environment: ${{ github.event_name == 'push' && 'production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'staging') }}
 
     steps:
       - uses: actions/checkout@v5
@@ -39,6 +40,9 @@ jobs:
           cache: npm
 
       - name: Build Frontend Code
+        env:
+          VITE_PUSHER_APP_KEY: ${{ secrets.VITE_PUSHER_APP_KEY }}
+          VITE_PUSHER_APP_CLUSTER: ${{ secrets.VITE_PUSHER_APP_CLUSTER }}
         run: |
           composer install --no-dev --optimize-autoloader
           npm ci
