@@ -21,43 +21,50 @@ class Todo extends Model {
         'date'     => 'date',
         'due_date' => 'datetime',
     ];
-    public static string $alias         = 'ToDo';
-    public string $formComponent        = 'Core/Todos/Form';
-    public string $translateKey         = 'core.todo';
-    public bool $canDelete              = true;
-    public bool $skipAttachmentOnCreate = true;
-    protected array $configColumns      = [
-        'description' => [
-            'show'   => true,
+    public static string $alias                = 'ToDo';
+    public string $formComponent               = 'Core/Todos/Form';
+    public string $translateKey                = 'core.todo';
+    public string $keyBreadcrumb               = 'code';
+    public bool $canDelete                     = true;
+    public bool $skipAttachmentOnCreate        = true;
+    protected static string $defaultFormatCode = 'TODO/@[yy]-@[mm]/@[iiii]';
+    protected static $generateCodeSeries       = true;
+    protected array $configColumns             = [
+        'code' => [
             'isLink' => true,
+            'show'   => true,
             'order'  => 0,
         ],
-        'reference' => [
+        'description' => [
             'show'  => true,
             'order' => 1,
         ],
+        'reference' => [
+            'show'  => true,
+            'order' => 2,
+        ],
         'allocatedTo' => [
             'show'               => true,
-            'order'              => 2,
+            'order'              => 3,
             'disabledNavigation' => true,
         ],
         'priority' => [
             'valueTrans' => 'core.todo.priority.options',
             'show'       => true,
-            'order'      => 3,
+            'order'      => 4,
         ],
         'status' => [
             'show'  => true,
-            'order' => 4,
+            'order' => 5,
         ],
         'date' => [
             'type'  => 'date',
             'show'  => true,
-            'order' => 5,
+            'order' => 6,
         ],
         'assignedBy' => [
             'show'  => true,
-            'order' => 6,
+            'order' => 7,
         ],
     ];
 

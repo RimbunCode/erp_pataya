@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core;
 
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\Tag;
 use App\Models\Core\Todo;
 use App\Models\Inventory\Unit;
@@ -31,6 +32,15 @@ class BufferedAttachmentServiceTest extends TestCase {
                 Schema::table($table, fn ($t) => $t->boolean('is_example')->default(false));
             }
         }
+
+        // FormatingSeries ditambahkan via initPermissions() di prod, bukan migration.
+        // Buat manual agar TodoService::generateCode() (FormatingSeries::generate) jalan di test.
+        FormatingSeries::create([
+            'model'  => Todo::class,
+            'name'   => 'ToDo',
+            'format' => 'TODO/@[yy]-@[mm]/@[iiii]',
+            'logs'   => ['imy' => []],
+        ]);
 
         // Kolom nested-set TreeView + user_id/parent_id pada `files` ditambahkan
         // di prod via command init, bukan migration. Shim agar File::create jalan di SQLite.
@@ -236,6 +246,7 @@ class BufferedAttachmentServiceTest extends TestCase {
         $this->app->instance('request', $request);
 
         Todo::create([
+            'code'              => 'TODO/00-00/0000',
             'allocated_to_id'   => $assignee->id,
             'allocated_to_type' => 'user',
             'assigned_by_id'    => $user->id,
