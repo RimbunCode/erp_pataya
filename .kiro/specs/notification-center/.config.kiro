@@ -1,0 +1,6 @@
+{
+  "specId": "ac165750-3a3d-4eac-8b64-d4669a5a4763",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Notification Center: infrastruktur notifikasi terpusat (in-app realtime via Reverb + email sistem) untuk trigger lumrah ERP — approve/reject dokumen, role-based document alert, auth (reset password/invite/verify), dan pola umum ERPNext/Odoo lainnya. Satu Notification class per event, multi-channel (mail + database + broadcast)."
+}

@@ -2,6 +2,7 @@
 
 return [
     'draft'                           => 'Draft',
+    'open'                            => 'Open',
     'submitted'                       => 'Submitted',
     'canceled'                        => 'Canceled',
     'approved'                        => 'Approved',

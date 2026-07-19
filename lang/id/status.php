@@ -2,6 +2,7 @@
 
 return [
     'draft'                           => 'Draf',
+    'open'                            => 'Terbuka',
     'submitted'                       => 'Diajukan',
     'canceled'                        => 'Dibatalkan',
     'approved'                        => 'Disetujui',

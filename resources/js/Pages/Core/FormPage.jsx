@@ -11,6 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import {
   ChevronDownIcon,
+  MailIcon,
   PanelRightIcon,
   PrinterIcon,
   SaveIcon,
@@ -55,11 +56,13 @@ import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 
 import AppLayout from "@/Layouts/AppLayout";
 import ApproverDecision from "./Components/ApproverDecision";
+import AssignedTo from "./Components/AssignedTo";
 import Attachments from "./Components/Attachments";
 import BadgeStatus from "@/Components/BadgeStatus";
 import { Button } from "@/Components/ui/button";
 import { ButtonGroup } from "@/Components/ui/button-group";
 import Comments from "./Components/Comments";
+import EmailSendDialog from "./Components/EmailSendDialog";
 import FormInput from "@/Components/FormInput";
 import Link from "@/Components/Link";
 import LinkModel from "@/Components/LinkModel";
@@ -707,6 +710,8 @@ const FormPage = memo(
     const { t } = useLaravelReactI18n();
     const defaultData = usePage().props[name] ?? defaultValues ?? {};
     const prints = usePage().props.prints ?? [];
+    const emailTemplates = usePage().props.emailTemplates;
+    const [emailDialog, setEmailDialog] = useState(null);
     const form = useDraftForm(name, defaultData, { isCreate, ignoreDraft });
     const user = usePage().props.auth.user;
     const { model, translateKey } = usePage().props;
@@ -1007,6 +1012,75 @@ const FormPage = memo(
                   </ButtonGroup>
                 </Deferred>
               )}
+              {printable &&
+                !inArray(defaultData?.status, "draft") &&
+                can("print") &&
+                emailTemplates !== undefined && (
+                  <Deferred
+                    data={["emailTemplates"]}
+                    fallback={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="p-2! size-fit h-8"
+                        disabled={processing}
+                      >
+                        <MailIcon />
+                        {t("core.form.email")}
+                        <LoadingIcon className="size-4" />
+                      </Button>
+                    }
+                  >
+                    <ButtonGroup className="h-fit">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="p-2! size-fit h-8"
+                        disabled={processing}
+                        onClick={() =>
+                          setEmailDialog({ emailTemplateId: undefined })
+                        }
+                      >
+                        <MailIcon />
+                        {t("core.form.email")}
+                      </Button>
+                      {emailTemplates && emailTemplates.length > 1 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="p-2! size-fit h-8"
+                              disabled={processing}
+                              size="icon"
+                            >
+                              <ChevronDownIcon />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {emailTemplates.map((emailTemplate) => (
+                              <DropdownMenuItem
+                                key={emailTemplate.id}
+                                onClick={() =>
+                                  setEmailDialog({
+                                    emailTemplateId: emailTemplate.id,
+                                  })
+                                }
+                              >
+                                {emailTemplate.name}
+                                {emailTemplate.is_default && (
+                                  <div className="badge secondary">
+                                    {t("core.form.default")}
+                                  </div>
+                                )}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </ButtonGroup>
+                  </Deferred>
+                )}
               {defaultData?.approvalable && (
                 <ApproverDecision
                   name={name}
@@ -1262,6 +1336,15 @@ const FormPage = memo(
               </AlertDialogContent>
             </AlertDialog>
           )}
+        {emailDialog && (
+          <EmailSendDialog
+            open={!!emailDialog}
+            onOpenChange={(open) => !open && setEmailDialog(null)}
+            resourceNamePlural={pluralize.plural(name ?? "")}
+            documentId={defaultData[primaryKey]}
+            emailTemplateId={emailDialog.emailTemplateId}
+          />
+        )}
       </AppLayout>
     );
   }),
@@ -1476,6 +1559,9 @@ const SidebarChildren = memo(
     const defaultSidebarChildren = useMemo(() => {
       return (
         <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
+          <li>
+            <AssignedTo />
+          </li>
           <li>
             <Attachments />
           </li>

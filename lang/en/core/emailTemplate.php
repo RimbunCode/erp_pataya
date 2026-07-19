@@ -1,0 +1,29 @@
+<?php
+
+return [
+    'title'              => 'Email Templates',
+    'add'                => 'Add Email Template',
+    'emailTemplates'     => 'Email Templates',
+    'new'                => 'New Email Template',
+    'delete'             => 'Delete Email Template',
+    'delete.description' => 'Are you sure you want to delete this email template?',
+    'delete.confirm'     => 'Delete',
+    'cancel'             => 'Cancel',
+    'emailTemplate'      => 'Email Template',
+    'columns'            => [
+        'name'              => 'Name',
+        'model'             => 'Model',
+        'model.placeholder' => 'Select a model',
+        'is_default'        => 'Is Default',
+        'subject'           => 'Subject',
+        'body'              => 'Body',
+        'default_language'  => 'Default Language',
+    ],
+    'testSend' => [
+        'button'        => 'Send Test',
+        'success'       => 'Test email sent to your inbox.',
+        'failed'        => 'Failed to send test email.',
+        'noModel'       => 'Select a model for this template before sending a test.',
+        'noExampleData' => 'No example data available for this model yet.',
+    ],
+];

@@ -71,6 +71,7 @@ class HandleInertiaRequests extends Middleware {
             'unread_changelogs_count' => fn () => $user
                 ? Changelog::whereDoesntHave('reads', fn ($q) => $q->where('user_id', $user->id))->count()
                 : 0,
+            'unread_notifications_count' => fn () => $user ? $user->unreadNotifications()->count() : 0,
         ];
     }
 

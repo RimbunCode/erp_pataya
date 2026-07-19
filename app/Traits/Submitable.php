@@ -14,6 +14,9 @@ use App\Models\Finances\GeneralLedger;
 use App\Models\Inventory\StockLedgerEntry;
 use App\Models\Model;
 use App\Models\User\User;
+use App\Notifications\ApprovalCanceledNotification;
+use App\Notifications\DocumentSubmittedNotification;
+use App\Services\Core\Notification\NotifyUser;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Collection;
@@ -25,6 +28,21 @@ trait Submitable {
     use DataTable;
 
     protected static bool $is_submitable = true;
+
+    /**
+     * Role-based document notification config: status value (string) =>
+     * daftar nama role yang dinotifikasi saat dokumen transisi ke status
+     * itu. Kosong secara default — model submitable override method ini
+     * kalau perlu notifikasi role-based (mis. Warehouse dinotifikasi saat
+     * SalesOrder disubmit). Method (bukan property) dipakai karena PHP
+     * tidak mengizinkan override langsung static property trait di class
+     * yang memakainya (fatal error "definition differs").
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected static function notifyRolesOnStatus(): array {
+        return [];
+    }
 
     public function initializeSubmitable() {
         $this->mergeCasts([
@@ -74,7 +92,7 @@ trait Submitable {
             if (! \in_array(FormStatus::DRAFT, $model->status)) {
                 $model->submitted_at = now();
             }
-            if (\in_array(FormStatus::CANCELED, $model->status)) {
+            if (\in_array(FormStatus::CANCELED, $model->status) && $model->isDirty('status')) {
                 $model->canceled_at = now();
                 GeneralLedger::where('referenceable_type', get_class($model))->where('referenceable_id', $model->id)->update([
                     'deleted_at' => now(),
@@ -83,6 +101,70 @@ trait Submitable {
                     'deleted_at' => now(),
                 ]);
             }
+        });
+
+        // Notifikasi ke approver kandidat dari step yang masih PENDING/WAITING
+        // dikirim setelah save() sukses (event saved, bukan saving) — supaya
+        // tidak terkirim untuk save yang gagal. Sengaja TIDAK melakukan
+        // cascade update status step ke CANCELED (gap terpisah, lihat
+        // design.md Requirement 3.9) — murni membaca status step apa adanya.
+        self::saved(function ($model) {
+            if (! ($model->isSubmitable() ?? false) || ! $model->wasChanged('status')) {
+                return;
+            }
+            if (! \in_array(FormStatus::CANCELED, $model->status)) {
+                return;
+            }
+
+            $approval = $model->approvalable;
+            if (! $approval) {
+                return;
+            }
+
+            $pendingSteps = $approval->steps->whereIn('status', [FormStatus::PENDING, FormStatus::WAITING]);
+            if ($pendingSteps->isEmpty()) {
+                return;
+            }
+
+            $candidates = $pendingSteps
+                ->flatMap(fn ($step) => $step->resolveCandidateUsers())
+                ->unique('id')
+                ->values();
+
+            if ($candidates->isNotEmpty()) {
+                app(NotifyUser::class)->send(
+                    $candidates,
+                    new ApprovalCanceledNotification($approval, $pendingSteps->pluck('sequence')->all()),
+                );
+            }
+        });
+
+        // Role-based document notification: model submitable meng-override
+        // notifyRolesOnStatus() untuk menentukan role mana yang dinotifikasi
+        // saat dokumen transisi ke status tertentu. Kosong secara default —
+        // tidak ada notifikasi terkirim untuk model yang tidak mengonfigurasi.
+        self::saved(function ($model) {
+            if (! ($model->isSubmitable() ?? false) || ! $model->wasChanged('status')) {
+                return;
+            }
+
+            $config = static::notifyRolesOnStatus();
+            $roles  = [];
+            foreach ($model->status as $statusValue) {
+                $roles = [...$roles, ...($config[$statusValue->value] ?? [])];
+            }
+            $roles = array_unique($roles);
+
+            if ($roles === []) {
+                return;
+            }
+
+            $candidates = User::whereHas('roles', fn ($q) => $q->whereIn('name', $roles))->get();
+            if ($candidates->isEmpty()) {
+                return;
+            }
+
+            app(NotifyUser::class)->send($candidates, new DocumentSubmittedNotification($model, implode(',', $roles)));
         });
     }
 

@@ -10,14 +10,17 @@ use App\Http\Controllers\Core\CompanyLogoController;
 use App\Http\Controllers\Core\CountryController;
 use App\Http\Controllers\Core\CurrencyController;
 use App\Http\Controllers\Core\DashboardController;
+use App\Http\Controllers\Core\EmailTemplateController;
 use App\Http\Controllers\Core\FileController;
 use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
+use App\Http\Controllers\Core\NotificationController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
+use App\Http\Controllers\Core\TodoController;
 use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\CRM\LeadController;
 use App\Http\Controllers\CRM\OpportunityController;
@@ -79,6 +82,8 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
             Route::get('/create-print-template', 'createPrintTemplate')->name("$uri.createPrintTemplate");
             Route::get("/{{$name}}/print/{printTemplate?}", 'print')->name("$uri.print");
             Route::post("/{{$name}}/print/{printTemplate}/pdf", 'printPdf')->name("$uri.print.pdf");
+            Route::get("/{{$name}}/email/{emailTemplate?}", 'emailPreview')->name("$uri.email.preview");
+            Route::post("/{{$name}}/email", 'sendEmail')->name("$uri.email.send");
         } else {
             Route::put("/{{$name}}", action: 'update')->name("$uri.update");
         }
@@ -98,6 +103,9 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
 
         Route::post("/{{$name}}/file", 'addFile')->name("$uri.addFile");
         Route::delete("/{{$name}}/file/{id}", 'removeFile')->name("$uri.removeFile");
+
+        Route::post("/{{$name}}/assignee", 'addAssignee')->name("$uri.addAssignee");
+        Route::delete("/{{$name}}/assignee/{id}", 'removeAssignee')->name("$uri.removeAssignee");
     });
 });
 
@@ -209,12 +217,18 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
         Route::get('/printTemplates/{printTemplate}/editor', [PrintTemplateController::class, 'editor'])->name('printTemplates.editor');
         Route::post('/printTemplates/{printTemplate}/preview', [PrintTemplateController::class, 'preview'])->name('printTemplates.preview');
         Route::post('/printTemplates/{printTemplate}/generate-example-data', [PrintTemplateController::class, 'generateExampleData'])->name('printTemplates.generate-example-data');
+
+        Route::get('/emailTemplates/fields', [EmailTemplateController::class, 'fields'])->name('emailTemplates.fields');
+        Route::resourceDetail('emailTemplate', EmailTemplateController::class);
+        Route::post('/emailTemplates/{emailTemplate}/test-send', [EmailTemplateController::class, 'testSend'])->name('emailTemplates.testSend');
         Route::resourceDetail('widget', WidgetController::class);
     });
     // Tags
     Route::resourceDetail('tag', TagController::class);
     // Files
     Route::resourceDetail('file', FileController::class);
+    // ToDo
+    Route::resourceDetail('todo', TodoController::class);
     // Users
     Route::get('/users/{user}/connect/{driver}/redirect', [UserController::class, 'connectToProvider'])->name('users.connect-provider');
     Route::post('/users/{user}/image', [UserController::class, 'image'])->name('users.image');
@@ -226,6 +240,14 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::get('approvals', [ApprovalInstanceController::class, 'index'])->name('approvalInstances.index');
     Route::get('approvals/{approvalInstance}', [ApprovalInstanceController::class, 'show'])->name('approvalInstances.show');
     Route::post('approvals/{approvalInstanceStep}/decision', [ApprovalInstanceController::class, 'decision'])->name('approvalInstances.decision');
+    // Notifications — JSON API murni (dipanggil dari Popover, bukan navigasi
+    // halaman), tidak butuh Inertia sharing sama sekali. withoutMiddleware
+    // menghindari resolveSharedUserRoleIds() dkk yang tidak relevan di sini.
+    Route::withoutMiddleware([HandleInertiaRequests::class])->group(function () {
+        Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::post('notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
+    });
 
     // / Inventories Group
     // Warehouse

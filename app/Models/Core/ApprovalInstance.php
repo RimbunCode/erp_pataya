@@ -7,6 +7,8 @@ use App\Casts\Json;
 use App\Enums\FormStatus;
 use App\Models\Model;
 use App\Models\User\User;
+use App\Notifications\ApprovalPendingNotification;
+use App\Services\Core\Notification\NotifyUser;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
@@ -110,6 +112,16 @@ class ApprovalInstance extends Model {
             static::runAutoApprovePass($instance, collect($instanceSteps), $data);
         }
         DB::commit();
+
+        if ($instance->wasRecentlyCreated) {
+            $firstStep = $instance->steps()->where('sequence', 0)->first();
+            if ($firstStep && $firstStep->status == FormStatus::PENDING) {
+                $candidates = $firstStep->resolveCandidateUsers();
+                if ($candidates->isNotEmpty()) {
+                    app(NotifyUser::class)->send($candidates, new ApprovalPendingNotification($firstStep));
+                }
+            }
+        }
 
         return $instance;
     }
