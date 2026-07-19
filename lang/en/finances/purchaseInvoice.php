@@ -26,6 +26,7 @@ return [
         'amount'                       => 'Amount',
         'currency'                     => 'Currency',
         'basic_amount'                 => 'Basic Amount',
+        'dpp_amount'                   => 'DPP (Tax Base Amount)',
         'tax_amount'                   => 'Tax Amount',
         'total'                        => 'Total Amount',
         'so'                           => 'SO Number',

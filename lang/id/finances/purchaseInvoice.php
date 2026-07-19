@@ -26,6 +26,7 @@ return [
         'amount'                       => 'Jumlah',
         'currency'                     => 'Mata Uang',
         'basic_amount'                 => 'Jumlah Dasar',
+        'dpp_amount'                   => 'DPP (Dasar Pengenaan Pajak)',
         'tax_amount'                   => 'Jumlah Pajak',
         'total'                        => 'Total Jumlah',
         'so'                           => 'Nomor SO',
