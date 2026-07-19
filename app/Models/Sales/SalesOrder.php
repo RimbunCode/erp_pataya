@@ -136,6 +136,9 @@ class SalesOrder extends Model {
             'type'      => 'datetime',
             'dependsOn' => ['start_date', 'end_date'],
         ],
+        'rental_durations' => [
+            'dependsOn' => ['is_rent', 'items'],
+        ],
         'items' => [
             'show'  => true,
             'order' => 10,
