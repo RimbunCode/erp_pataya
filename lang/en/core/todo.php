@@ -27,10 +27,4 @@ return [
     ],
 
     'reference_deleted' => 'Reference is no longer available.',
-
-    'scope' => [
-        'all'   => 'All',
-        'mine'  => 'Assigned to Me',
-        'by_me' => 'Assigned by Me',
-    ],
 ];

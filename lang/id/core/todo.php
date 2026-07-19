@@ -27,10 +27,4 @@ return [
     ],
 
     'reference_deleted' => 'Referensi sudah tidak tersedia.',
-
-    'scope' => [
-        'all'   => 'Semua',
-        'mine'  => 'Ditugaskan ke Saya',
-        'by_me' => 'Ditugaskan oleh Saya',
-    ],
 ];

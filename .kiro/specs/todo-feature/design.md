@@ -13,7 +13,7 @@ Scope terkonfirmasi user:
 4. Modul standalone `/todos` dibangun sekarang (Index/Form/Show).
 5. Permission: `Todo` terbuka untuk semua user, tanpa gate role/permission pada model itu sendiri (CRUD action-level).
 6. Assignee bisa berupa **User ATAU Role**. Assign ke Role berarti SEMUA user pemegang role itu "memiliki" ToDo tersebut.
-7. **Filter di halaman Index (BUKAN permission gate)**: KEPUTUSAN FINAL (revisi dari draft awal) — SEMUA user melihat SEMUA ToDo secara default di `/todos`, tanpa pembatasan berbasis permission apapun. Tab filter "Assigned to Me"/"Assigned by Me" di UI cuma query-param (`?scope=mine`/`?scope=byMe`) yang siapa saja bebas pilih — bukan gate yang dipaksakan server berdasarkan `PermissionChecker`. `TodoController::index()` baca `$request->query('scope')` dan apply scope Eloquent sesuai itu (default: tanpa scope, tampilkan semua).
+7. **Visibility scoping di halaman Index (KEPUTUSAN FINAL)**: user TANPA permission `select` pada model `Todo` hanya melihat ToDo yang di-assign langsung ke dirinya ATAU ke salah satu role yang dia miliki (`Todo::assignedToMe($request->user())`). User DENGAN permission `select` melihat semua ToDo tanpa batasan. Dicek via `PermissionChecker::forUser($request)->can(Todo::class, Permission::Select)` di `TodoController::index()`. TIDAK ada tab/filter UI (`?scope=`) di frontend — scoping murni otomatis berdasar permission, bukan pilihan user.
 8. **Arsitektur assignee: tabel/view khusus `Assignable`** (bukan polymorphic morph dual-target langsung ke `users`/`roles`). `assignables` adalah DATABASE VIEW (bukan tabel fisik) hasil `UNION ALL` dari `users` dan `roles` — otomatis selalu sinkron (view di-query ulang tiap SELECT, tidak ada snapshot yang bisa stale), read-only (tidak pernah ditulis langsung). `todos.allocated_to_id` menjadi **satu kolom FK biasa** (tanpa FK constraint fisik, karena target adalah view) ke `assignables.id`, DITAMBAH `todos.allocated_to_type` (`'user'`/`'role'`) yang tetap disimpan sebagai cache/index cepat (menghindari JOIN ke view di setiap query scope/visibility). Akses/pencarian assignee di frontend lewat SATU `LinkModel` yang menunjuk ke model `Assignable`, dengan `templateLink()` = `':type : :name'` (mis. tampil sebagai "user : John Doe" atau "role : Warehouse Staff").
 
 ---
@@ -226,26 +226,23 @@ Otomatis aktif di semua modul `resourceDetail` — Ticket, PurchaseOrder, Branch
 
 **`app/Services/Core/TodoService.php`** — `create()`/`update()` standar + `notifyAssignee()` public sebagai **satu-satunya** titik dispatch notifikasi (dipanggil dari sidebar controller action DAN service ini). `notifyAssignee()` sekarang fan-out ke SEMUA user hasil `$todo->allocatedUsers()` (satu user jika `allocated_to_type === 'user'`, banyak user jika `'role'` — setiap user pemegang role dinotifikasi individual), dengan guard self-notification per-user (assign ke diri sendiri tidak memicu notif untuk user itu spesifik, tapi user lain dalam role yang sama tetap dinotifikasi).
 
-**`app/Http/Controllers/Core/TodoController.php`** — CRUD standar, `protected bool $ignorePermission = true;` — SEMUA aksi (termasuk `index()`) terbuka penuh untuk semua user, tanpa gate permission apapun. Ini keputusan final: brainstorming awal memang meminta semua user bisa akses dan membuat ToDo bebas; filter "assigned to me"/"assigned by me" HANYA pembatasan tampilan opsional yang user pilih sendiri, bukan gate akses.
+**`app/Http/Controllers/Core/TodoController.php`** — CRUD standar, `protected bool $ignorePermission = true;` (bagian 10 desain permission — flag ini membebaskan aksi CRUD dari 403 base-permission-check, TAPI TIDAK membebaskan `index()` dari visibility scoping — dua mekanisme independen, lihat detail scoping di bawah).
 
-**Filter di `index()` via query param `scope`** (bukan permission gate):
+**Visibility scoping di `index()`**: sebelum memanggil `Todo::dataTable($request)`, cek `PermissionChecker::forUser($request)->can(Todo::class, Permission::Select)`. Jika user PUNYA permission penuh, query tidak dibatasi (lihat semua ToDo). Jika TIDAK punya, terapkan `->assignedToMe($request->user())` (scope yang sudah meng-cover user langsung + role — lihat bagian Model di atas) sebelum `dataTable()` dipanggil:
 ```php
 public function index(Request $request) {
     $this->setBreadcrumbs();
 
-    $scope = $request->query('scope');
-    $query = match ($scope) {
-        'mine'  => Todo::assignedToMe($request->user()),
-        'byMe'  => Todo::assignedByMe($request->user()->id),
-        default => Todo::query(),
-    };
+    $query = PermissionChecker::forUser($request)->can(Todo::class, Permission::Select)
+        ? Todo::query()
+        : Todo::assignedToMe($request->user());
 
     $query->dataTable($request);
 
     return Inertia::render('Core/Todos/Index');
 }
 ```
-`Todos/Index.jsx` merender tab (`Tabs`/`TabsTrigger` shadcn) di ATAS `DataTable2`, bukan reaktif di dalam state internalnya — klik tab memicu `router.get(route('todos.index'), { scope })` (full page navigation, bukan partial reload). Ini sengaja menghindari masalah yang pernah ditemukan sebelumnya (`DataTable2`'s `loadData()` membangun ulang querystring dari state internalnya sendiri saat sort/paginate, sehingga query-param custom di dalam siklus hidup komponen itu akan hilang) — dengan menempatkan tab di LUAR `DataTable2` dan memicu navigasi penuh, `scope` selalu jadi bagian awal URL yang di-load ulang oleh `DataTable2`, bukan sesuatu yang perlu ia pertahankan lintas interaksinya sendiri.
+`Todos/Index.jsx` TIDAK punya tab/filter UI — cuma wrapper trivial `<DataTable2 form={<Form/>} />`. Scoping murni ditentukan server berdasar permission user, bukan pilihan yang bisa di-toggle dari frontend.
 
 **`routes/web.php`** — `Route::resourceDetail('todo', TodoController::class);` didaftarkan dekat modul Core lain (setelah `file`).
 
@@ -318,7 +315,7 @@ buffered_assignees (create-mode buffer, frontend):
 - **Soft-delete aman**: unique index menyertakan `deleted_at`, sehingga re-assign setelah remove selalu membuat row baru yang valid.
 - **Guard buffered-assign recursive**: `Todo` sendiri diberi `$skipAttachmentOnCreate = true` supaya tidak recurse ke `attachAssignees` saat pembuatan dirinya sendiri (opt-out generik yang sudah ada di `bootDataTable()`).
 - **Permission dokumen target vs Todo**: assign/unassign via sidebar tetap digate `read` pada dokumen target (mis. Ticket) — bukan pada `Todo`. Aksi CRUD `Todo` sendiri tanpa gate 403 sama sekali (`$ignorePermission = true`), sesuai keputusan user.
-- **Filter `scope` bukan permission gate**: `?scope=mine`/`?scope=byMe` adalah pilihan bebas siapa saja, TIDAK ditentukan oleh permission user. Semua user selalu bisa akses `/todos` dan melihat semua ToDo tanpa filter (default, tanpa `scope`). Ini beda dari desain awal (yang sempat memakai `PermissionChecker` untuk memaksa scope) — direvisi final karena brainstorming awal user memang meminta semua user bebas akses & buat ToDo, filter cuma kenyamanan tampilan.
+- **Visibility scoping ≠ permission gate**: user tanpa permission `select` pada `Todo` TIDAK mendapat 403 saat akses `/todos` — mereka tetap bisa masuk, tapi query di-scope otomatis ke `assignedToMe()`. Ini best-effort row-level security di level query, bukan penolakan akses; jangan bingung dengan gate 403 standar.
 - **Role di-assign lalu role dihapus**: `allocatedTo` (relasi `belongsTo(Assignable::class)`) akan resolve `null` jika baris `roles` yang mendasari view sudah dihapus (belum ada cascade karena `allocated_to_id` tanpa FK constraint fisik) — `allocatedUsers()` harus null-safe (return collection kosong bila role/user tidak ditemukan, bukan crash). Dicatat sebagai edge case yang test-nya perlu cover.
 - **View `assignables` tidak sengaja ter-drop/ter-rename**: karena bukan tabel fisik biasa, migrasi rollback (`down()`) HARUS eksplisit `DROP VIEW IF EXISTS assignables` — lupa langkah ini akan meninggalkan view basi (menunjuk skema lama) setelah rollback+migrate ulang dengan skema `users`/`roles` yang berubah.
 
@@ -328,12 +325,12 @@ buffered_assignees (create-mode buffer, frontend):
 
 - **Feature**: `tests/Feature/Core/TodoTest.php` — create/update/delete standalone, assign ke User, assign ke Role.
 - **Feature**: `tests/Feature/Core/AssignedToSidebarTest.php` — diuji terhadap modul `resourceDetail` yang sudah ada (mis. `Ticket`) untuk membuktikan genericity: assign/unassign via sidebar tanpa kode per-modul (User dan Role), idempotensi assign duplikat, notifikasi terkirim (dan tidak terkirim saat assign ke diri sendiri).
-- **Feature**: `tests/Feature/Core/TodoVisibilityScopeTest.php` — tanpa `scope`, SEMUA user (siapapun) melihat SEMUA ToDo; `?scope=mine` filter ke ToDo milik user (langsung + lewat role); `?scope=byMe` filter ke ToDo yang dibuat user; role dengan banyak anggota — semua anggota melihat ToDo yang di-assign ke role itu lewat `?scope=mine`; role yang di-assign lalu dihapus tidak menyebabkan error.
+- **Feature**: `tests/Feature/Core/TodoVisibilityScopeTest.php` — user tanpa permission `select` pada `Todo` hanya melihat ToDo miliknya (langsung + lewat role) di `/todos`; user DENGAN permission melihat semua; role dengan banyak anggota — semua anggota melihat ToDo yang di-assign ke role itu; role yang di-assign lalu dihapus tidak menyebabkan error di Index/notifikasi.
 - **Unit**: `tests/Unit/Core/Notification/TodoAssignedNotificationTest.php` — ikuti konvensi existing (unit jika notifikasi lain punya unit test terpisah, feature-only jika tidak).
 - **Unit/Feature**: `Todo::allocatedUsers()` — assign-ke-user return 1 user, assign-ke-role return semua user pemegang role (termasuk 0 user jika role kosong), assign-ke-role-yang-dihapus return collection kosong (null-safe).
 - **Feature**: `tests/Feature/Core/AssignableViewTest.php` (baru) — `Assignable::all()`/`Assignable::find($userOrRoleId)` mengembalikan gabungan User+Role yang benar dengan `type` sesuai asal tabel; user/role baru yang dibuat SETELAH migrasi langsung muncul di query `Assignable` tanpa perlu sync manual (membuktikan view selalu live, bukan snapshot); user/role yang di-soft-delete tidak lagi muncul di `Assignable`.
 - **Factory**: `database/factories/Core/TodoFactory.php` dibutuhkan untuk semua test di atas.
-- **Manual**: assign user ke Ticket existing lewat sidebar, konfirmasi bell notifikasi (broadcast real-time) + halaman `/todos` menampilkan row baru. Assign Role ke Ticket, login sebagai anggota role tsb (tanpa permission Todo), konfirmasi ToDo itu muncul di `/todos` miliknya.
+- **Manual**: assign user ke Ticket existing lewat sidebar, konfirmasi bell notifikasi (broadcast real-time) + halaman `/todos` menampilkan row baru. Assign Role ke Ticket, login sebagai anggota role tsb (tanpa permission Todo select), konfirmasi ToDo itu muncul di `/todos` miliknya (di-scope otomatis, bukan lihat semua).
 
 ---
 
@@ -343,7 +340,7 @@ buffered_assignees (create-mode buffer, frontend):
 - Assignee bisa close/cancel ToDo tanpa permission `write` sebagai aturan khusus — moot karena `Todo` memang sudah terbuka untuk semua user.
 - Populate `DOCUMENT_TYPE_ROUTE_MAP` untuk setiap kemungkinan model reference — notifikasi selalu mengarah ke Todo itu sendiri, bukan ke dokumen reference secara langsung.
 - Avatar-stack visual baru untuk sidebar widget — reuse pola list vertikal existing (`Attachments.jsx`) demi konsistensi UI, bukan pola baru.
-- **Tab filter interaktif DI DALAM `DataTable2`** — tidak dipakai (di luar, bukan di-drop total). `DataTable2.jsx` rebuild querystring dari state internalnya sendiri (`sort`/`fid`/`page`/`show`) setiap kali reload — parameter custom di dalam siklus render-nya akan hilang. Solusi final: tab `scope` dirender di LUAR `DataTable2` (di `Todos/Index.jsx`), memicu navigasi penuh (`router.get`) tiap kali diklik — `DataTable2` cuma menerima `scope` sebagai bagian dari initial page load, tidak perlu mempertahankannya sendiri.
+- **Tab/top-bar kustom "assigned to me"/"assigned by me" di `Todos/Index.jsx`** — sengaja tidak dibuat. Visibility scoping ditangani sepenuhnya di backend (`TodoController::index()`, berdasar permission `select`) — tidak ada UI toggle yang bisa dipilih user, karena scoping memang bukan preferensi tampilan, melainkan kontrol siapa-lihat-apa. `Todos/Index.jsx` cuma wrapper trivial `<DataTable2 form={<Form/>} />`.
 - Notifikasi real-time role-fanout tetap lewat channel per-user yang sudah ada (`App.Models.User.User.{id}`) — TIDAK ada channel baru per-role. Fan-out cukup dengan mengirim notifikasi individual ke tiap user anggota role, bukan broadcast ke channel role.
 - **Mekanisme sync/cache tabel Assignable** — tidak dibutuhkan sama sekali karena `assignables` adalah database VIEW (bukan tabel fisik yang di-duplikasi). Tidak ada Eloquent model event listener, Artisan command, atau job terjadwal untuk "menyamakan" data — view selalu live dan konsisten dengan `users`/`roles` by construction. Ini sengaja dipilih user dibanding alternatif tabel fisik duplikat (yang butuh sync eksplisit dan berisiko stale).
 - **`Assignable` sebagai model yang bisa di-`create()`/`update()`/`delete()`** — sengaja tidak dibangun (read-only by design, sesuai instruksi user). Perubahan assignee dilakukan lewat model asal (`User`/`Role`), bukan lewat `Assignable`.
