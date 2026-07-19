@@ -2,6 +2,7 @@
 
 namespace App\Models\CRM;
 
+use App\Enums\Permission;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -9,6 +10,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class QuotationItem extends Model {
     use HasUlids, SoftDeletes;
+
+    /** Izin lihat harga jual: pembuat Quotation. */
+    private const PRICE_VISIBILITY = [
+        [Quotation::class, [Permission::Write, Permission::Create]],
+    ];
 
     public static $parentRelation = 'quotation';
     public string $translateKey   = 'crm.quotation.item';
@@ -32,12 +38,14 @@ class QuotationItem extends Model {
             'order' => 2,
         ],
         'price' => [
-            'show'  => true,
-            'order' => 3,
+            'show'       => true,
+            'order'      => 3,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
         'amount' => [
-            'show'  => true,
-            'order' => 4,
+            'show'       => true,
+            'order'      => 4,
+            'visibleFor' => self::PRICE_VISIBILITY,
         ],
     ];
 
