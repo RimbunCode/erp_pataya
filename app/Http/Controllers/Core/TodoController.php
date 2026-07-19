@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers\Core;
 
-use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\TodoRequest;
 use App\Models\Core\Todo;
-use App\Services\Core\PermissionChecker;
 use App\Services\Core\TodoService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,9 +23,12 @@ class TodoController extends Controller {
     public function index(Request $request) {
         $this->setBreadcrumbs();
 
-        $query = PermissionChecker::forUser($request)->can(Todo::class, Permission::Select)
-            ? Todo::query()
-            : Todo::assignedToMe($request->user());
+        $scope = $request->query('scope');
+        $query = match ($scope) {
+            'mine'  => Todo::assignedToMe($request->user()),
+            'byMe'  => Todo::assignedByMe($request->user()->id),
+            default => Todo::query(),
+        };
 
         $query->dataTable($request);
 

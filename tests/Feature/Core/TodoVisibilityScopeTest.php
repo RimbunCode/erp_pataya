@@ -26,29 +26,9 @@ class TodoVisibilityScopeTest extends TestCase {
         }
     }
 
-    private function requestAs(User $user, bool $withSelectPermission): static {
-        $session = [
-            'permissions_version' => '0|0|0|0',
-            'currentBranch'       => null,
-        ];
-
-        if ($withSelectPermission) {
-            $session['permissions'] = [
-                Todo::class => [
-                    0 => [
-                        [
-                            'model'        => Todo::class,
-                            'level'        => 0,
-                            'only_creator' => false,
-                            'permissions'  => ['select' => true],
-                        ],
-                    ],
-                ],
-            ];
-        }
-
+    private function requestAs(User $user): static {
         return $this
-            ->withSession($session)
+            ->withSession(['permissions_version' => '0|0|0|0', 'currentBranch' => null])
             ->withCookie('lang', 'en')
             ->actingAs($user);
     }
@@ -61,14 +41,29 @@ class TodoVisibilityScopeTest extends TestCase {
         return collect($rows)->pluck('id');
     }
 
-    public function test_user_without_permission_only_sees_todos_assigned_directly_to_them(): void {
+    public function test_index_without_scope_shows_all_todos_to_any_user(): void {
         $user  = User::factory()->create();
         $other = User::factory()->create();
 
         $mine   = Todo::factory()->create(['allocated_to_id' => $user->id, 'allocated_to_type' => 'user']);
         $theirs = Todo::factory()->create(['allocated_to_id' => $other->id, 'allocated_to_type' => 'user']);
 
-        $response = $this->requestAs($user, withSelectPermission: false)->get(route('todos.index'));
+        $response = $this->requestAs($user)->get(route('todos.index'));
+
+        $response->assertOk();
+        $ids = $this->todoIds($response);
+        $this->assertTrue($ids->contains($mine->id));
+        $this->assertTrue($ids->contains($theirs->id));
+    }
+
+    public function test_scope_mine_filters_to_todos_assigned_directly_to_user(): void {
+        $user  = User::factory()->create();
+        $other = User::factory()->create();
+
+        $mine   = Todo::factory()->create(['allocated_to_id' => $user->id, 'allocated_to_type' => 'user']);
+        $theirs = Todo::factory()->create(['allocated_to_id' => $other->id, 'allocated_to_type' => 'user']);
+
+        $response = $this->requestAs($user)->get(route('todos.index', ['scope' => 'mine']));
 
         $response->assertOk();
         $ids = $this->todoIds($response);
@@ -76,7 +71,7 @@ class TodoVisibilityScopeTest extends TestCase {
         $this->assertFalse($ids->contains($theirs->id));
     }
 
-    public function test_user_without_permission_sees_todos_assigned_to_their_role(): void {
+    public function test_scope_mine_includes_todos_assigned_to_users_role(): void {
         $user = User::factory()->create();
         $role = Role::create(['name' => 'Visible Role']);
         $user->roles()->attach($role->id);
@@ -85,7 +80,7 @@ class TodoVisibilityScopeTest extends TestCase {
         $unrelatedRole = Role::create(['name' => 'Unrelated Role']);
         $viaOtherRole  = Todo::factory()->create(['allocated_to_id' => $unrelatedRole->id, 'allocated_to_type' => 'role']);
 
-        $response = $this->requestAs($user, withSelectPermission: false)->get(route('todos.index'));
+        $response = $this->requestAs($user)->get(route('todos.index', ['scope' => 'mine']));
 
         $response->assertOk();
         $ids = $this->todoIds($response);
@@ -93,26 +88,26 @@ class TodoVisibilityScopeTest extends TestCase {
         $this->assertFalse($ids->contains($viaOtherRole->id));
     }
 
-    public function test_user_with_permission_sees_all_todos(): void {
+    public function test_scope_by_me_filters_to_todos_created_by_user(): void {
         $user  = User::factory()->create();
         $other = User::factory()->create();
 
-        $mine   = Todo::factory()->create(['allocated_to_id' => $user->id, 'allocated_to_type' => 'user']);
-        $theirs = Todo::factory()->create(['allocated_to_id' => $other->id, 'allocated_to_type' => 'user']);
+        $createdByMe    = Todo::factory()->create(['assigned_by_id' => $user->id]);
+        $createdByOther = Todo::factory()->create(['assigned_by_id' => $other->id]);
 
-        $response = $this->requestAs($user, withSelectPermission: true)->get(route('todos.index'));
+        $response = $this->requestAs($user)->get(route('todos.index', ['scope' => 'byMe']));
 
         $response->assertOk();
         $ids = $this->todoIds($response);
-        $this->assertTrue($ids->contains($mine->id));
-        $this->assertTrue($ids->contains($theirs->id));
+        $this->assertTrue($ids->contains($createdByMe->id));
+        $this->assertFalse($ids->contains($createdByOther->id));
     }
 
-    public function test_visibility_scoping_does_not_return_403(): void {
+    public function test_any_user_can_access_index_without_403(): void {
         $user = User::factory()->create();
         Todo::factory()->create();
 
-        $response = $this->requestAs($user, withSelectPermission: false)->get(route('todos.index'));
+        $response = $this->requestAs($user)->get(route('todos.index'));
 
         $response->assertOk();
     }
@@ -122,10 +117,10 @@ class TodoVisibilityScopeTest extends TestCase {
         $role = Role::create(['name' => 'To Be Deleted']);
         $user->roles()->attach($role->id);
 
-        $todo = Todo::factory()->create(['allocated_to_id' => $role->id, 'allocated_to_type' => 'role']);
+        Todo::factory()->create(['allocated_to_id' => $role->id, 'allocated_to_type' => 'role']);
         $role->delete();
 
-        $response = $this->requestAs($user, withSelectPermission: true)->get(route('todos.index'));
+        $response = $this->requestAs($user)->get(route('todos.index', ['scope' => 'mine']));
 
         $response->assertOk();
     }
