@@ -45,7 +45,7 @@ class SalesOrderRequest extends BaseFormRequest {
             'items.*.quantity'            => ['required', 'numeric', 'min:1'],
             'items.*.unit.id'             => ['required', 'exists:item_units,id'],
             'items.*.unit.*'              => ['nullable'],
-            'items.*.tax.id'              => ['required', 'exists:taxes,id'],
+            'items.*.tax.id'              => ['nullable', 'exists:taxes,id'],
             'items.*.tax.*'               => ['nullable'],
             'items.*.price'               => ['nullable', 'numeric'],
             'items.*.source_warehouse.id' => ['nullable', 'exists:warehouses,id'],

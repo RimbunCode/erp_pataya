@@ -3,8 +3,14 @@ import {
   FormPageContentTitle,
   useFormPage,
 } from "@/Pages/Core/FormPage";
-import React, { useCallback, useMemo } from "react";
-import { calculateArray, generateRandom, getDataModel } from "@/lib/utils";
+import React, { useCallback, useEffect, useMemo } from "react";
+import {
+  calculateArray,
+  calculateDurationDays,
+  calculateRentalAmount,
+  generateRandom,
+  getDataModel,
+} from "@/lib/utils";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import AdditionalDiscount from "../Components/AdditionalDiscount";
@@ -76,6 +82,10 @@ export default function Form() {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
+  const dpp_amount = useMemo(() => {
+    return calculateArray(data.items, "dpp_amount", "+");
+  }, [data.items]);
+
   const tax_amount = useMemo(() => {
     return calculateArray(data.items, "tax_amount", "+");
   }, [data.items]);
@@ -83,6 +93,39 @@ export default function Form() {
   const amount = useMemo(() => {
     return net_amount + tax_amount - (data?.discount_amount ?? 0);
   }, [net_amount, tax_amount, data.discount_amount]);
+
+  // Rental: kalkulasi ulang price item yang masih "running" (belum dikembalikan)
+  // saat tanggal cut-off billing diubah user. Item berstatus "completed" tidak
+  // ikut dihitung ulang -- durasinya tetap dari shipped_date ke tanggal retur aktual.
+  useEffect(() => {
+    if (!data.sales_order?.is_rent || !data.rental_cutoff_date) return;
+
+    setData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) => {
+        if (
+          item.rental_status !== "running" ||
+          !item.rental_shipped_date ||
+          !item.rental_monthly_rate
+        ) {
+          return item;
+        }
+
+        const durationDays = calculateDurationDays(
+          item.rental_shipped_date,
+          data.rental_cutoff_date,
+        );
+
+        return {
+          ...item,
+          price: calculateRentalAmount(item.rental_monthly_rate, durationDays),
+          rental_duration_days: durationDays,
+        };
+      }),
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.rental_cutoff_date]);
+
   const itemColumns = useMemo(() => {
     return [
       {
@@ -199,7 +242,6 @@ export default function Form() {
       {
         name: "tax",
         titleTrans: "finances.salesInvoice.columns.tax",
-        required: true,
         width: 1,
         cell({ data, setData, attributes, dataRow }) {
           return (
@@ -291,6 +333,7 @@ export default function Form() {
                   "discount_amount",
                   "exchange_rate",
                   "external_note",
+                  "is_rent",
                   "items.unit",
                   "items.tax",
                   "items.quantity",
@@ -339,6 +382,20 @@ export default function Form() {
                 }}
               />
             </FormInput>
+            {data.sales_order?.is_rent && (
+              <FormInput
+                name="rental_cutoff_date"
+                label={t("finances.salesInvoice.columns.rental_cutoff_date")}
+              >
+                <DatetimePicker
+                  type="datetime"
+                  value={data?.rental_cutoff_date ?? new Date()}
+                  onValueChange={(val) => {
+                    setData("rental_cutoff_date", val);
+                  }}
+                />
+              </FormInput>
+            )}
             <FormInput
               className="col-start-1"
               label={t("finances.salesInvoice.currency")}
@@ -591,6 +648,32 @@ export default function Form() {
               decimalScale={2}
               className="text-right"
               value={net_amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></NumberInput>
+          </FormInput>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("finances.salesInvoice.columns.dpp_amount")} (${default_currency_id.toUpperCase()})`}
+              >
+                <NumberInput
+                  className="text-right"
+                  decimalScale={2}
+                  value={dpp_amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></NumberInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("finances.salesInvoice.columns.dpp_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <NumberInput
+              decimalScale={2}
+              className="text-right"
+              value={dpp_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></NumberInput>
           </FormInput>
