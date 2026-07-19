@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 const theme = {
   draft: "secondary",
+  open: "warning",
   submitted: "primary",
   canceled: "error",
   approved: "success",

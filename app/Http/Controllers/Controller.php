@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\Core\AssigneeRequest;
 use App\Http\Requests\Core\CommentRequest;
 use App\Http\Requests\Core\EmailTemplateSendRequest;
 use App\Http\Requests\Core\TagRequest;
@@ -13,6 +14,7 @@ use App\Models\Core\Log;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
+use App\Models\Core\Todo;
 use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
@@ -20,6 +22,7 @@ use App\Services\Core\EmailTemplate\EmailTemplateRenderService;
 use App\Services\Core\PrintTemplate\PdfAttachmentService;
 use App\Services\Core\PrintTemplate\PdfExportService;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
+use App\Services\Core\TodoService;
 use App\Utils;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
@@ -155,8 +158,10 @@ abstract class Controller {
                         'addFile',
                         'removeFile',
                         'removeComment',
-                        'removeTag' => 'read',
-                        default     => $this->enforcePermission($method),
+                        'removeTag',
+                        'addAssignee',
+                        'removeAssignee' => 'read',
+                        default          => $this->enforcePermission($method),
                     };
                     if ($keyPermission) {
                         $this->onlyCreator = $this->guard($keyPermission, 0);
@@ -314,6 +319,35 @@ abstract class Controller {
         } catch (Exception $e) {
             // dd($e);
         }
+
+        return back();
+    }
+
+    public function addAssignee(AssigneeRequest $request, $param) {
+        $data          = $request->validated();
+        $allocatedToId = $data['allocated_to']['id'];
+
+        $todo = Todo::firstOrCreate([
+            'reference_id'    => $param,
+            'reference_type'  => $this->model,
+            'allocated_to_id' => $allocatedToId,
+        ], [
+            'allocated_to_type' => $data['allocated_to']['type'],
+            'assigned_by_id'    => $request->user()->id,
+            'status'            => 'open',
+            'priority'          => $data['priority'] ?? 'medium',
+            'description'       => $data['description'] ?? null,
+        ]);
+
+        if ($todo->wasRecentlyCreated) {
+            app(TodoService::class)->notifyAssignee($todo);
+        }
+
+        return back();
+    }
+
+    public function removeAssignee(Request $request, $param, Todo $id) {
+        $id->delete();
 
         return back();
     }

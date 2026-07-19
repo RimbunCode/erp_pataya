@@ -20,7 +20,9 @@ import { usePage } from "@inertiajs/react";
  * (documentType) ke nama route plural Ziggy. Model baru yang butuh
  * notifikasi cukup ditambahkan di sini, tidak perlu ubah backend.
  */
-const DOCUMENT_TYPE_ROUTE_MAP = {};
+const DOCUMENT_TYPE_ROUTE_MAP = {
+  "App\\Models\\Core\\Todo": "todos",
+};
 
 function resolveNotificationUrl(documentType, documentId) {
   if (!documentType || !documentId) return null;

@@ -56,6 +56,7 @@ import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 
 import AppLayout from "@/Layouts/AppLayout";
 import ApproverDecision from "./Components/ApproverDecision";
+import AssignedTo from "./Components/AssignedTo";
 import Attachments from "./Components/Attachments";
 import BadgeStatus from "@/Components/BadgeStatus";
 import { Button } from "@/Components/ui/button";
@@ -1558,6 +1559,9 @@ const SidebarChildren = memo(
     const defaultSidebarChildren = useMemo(() => {
       return (
         <ul className={cn("flex w-full min-w-0 flex-col gap-1")}>
+          <li>
+            <AssignedTo />
+          </li>
           <li>
             <Attachments />
           </li>

@@ -1,0 +1,6 @@
+{
+  "specId": "97ab333b-d079-4b03-a5de-1e2fb40eef40",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Fitur ToDo generik seperti ERPNext: assignment polymorphic tak terbatas ke dokumen/model apapun, multi-assignee per dokumen, widget 'Assigned To' di sidebar FormPage, modul CRUD standalone (Index/Form/Show), dan notifikasi assignment via infrastruktur notifikasi yang sudah ada."
+}

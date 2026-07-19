@@ -41,6 +41,7 @@ return [
     'comment_placeholder'  => 'Type a comment... use @ to mention someone',
     'attachments'          => 'Attachments',
     'tags'                 => 'Tags',
+    'assigned_to'          => 'Assigned To',
     'attachments_and_tags' => 'Attachments and Tags',
     'upload_success'       => 'File uploaded successfully',
     'upload_failed'        => 'Failed to upload file',

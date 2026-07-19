@@ -3,12 +3,16 @@
 namespace Tests\Feature\Core;
 
 use App\Models\Core\Tag;
+use App\Models\Core\Todo;
 use App\Models\Inventory\Unit;
+use App\Models\User\Role;
 use App\Models\User\User;
+use App\Notifications\TodoAssignedNotification;
 use App\Services\Core\BufferedAttachmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -142,5 +146,103 @@ class BufferedAttachmentServiceTest extends TestCase {
 
         $this->assertNotNull($unit->id);
         $this->assertDatabaseCount('taggables', 0);
+    }
+
+    public function test_attaches_buffered_assignees(): void {
+        Notification::fake();
+
+        $user     = User::factory()->create();
+        $assignee = User::factory()->create();
+        $this->actingAs($user);
+        $unit = Unit::create(['code' => 'ASG', 'name' => 'Assignable', 'group' => 'Others']);
+
+        $request = Request::create('/', 'POST', [
+            'buffered_assignees' => [
+                ['id' => $assignee->id, 'type' => 'user', 'name' => $assignee->name],
+            ],
+        ]);
+        $request->setUserResolver(fn () => $user);
+
+        BufferedAttachmentService::attach($unit, $request);
+
+        $this->assertDatabaseHas('todos', [
+            'reference_id'      => $unit->id,
+            'reference_type'    => Unit::class,
+            'allocated_to_id'   => $assignee->id,
+            'allocated_to_type' => 'user',
+            'assigned_by_id'    => $user->id,
+        ]);
+        Notification::assertSentTo($assignee, TodoAssignedNotification::class);
+    }
+
+    public function test_attaches_buffered_role_assignee(): void {
+        Notification::fake();
+
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $role = Role::create(['name' => 'Buffered Role']);
+        $unit = Unit::create(['code' => 'ASR', 'name' => 'Assignable Role', 'group' => 'Others']);
+
+        $request = Request::create('/', 'POST', [
+            'buffered_assignees' => [
+                ['id' => $role->id, 'type' => 'role', 'name' => $role->name],
+            ],
+        ]);
+        $request->setUserResolver(fn () => $user);
+
+        BufferedAttachmentService::attach($unit, $request);
+
+        $this->assertDatabaseHas('todos', [
+            'reference_id'      => $unit->id,
+            'reference_type'    => Unit::class,
+            'allocated_to_id'   => $role->id,
+            'allocated_to_type' => 'role',
+        ]);
+    }
+
+    public function test_datatable_hook_auto_attaches_assignees_on_create(): void {
+        Notification::fake();
+
+        $user     = User::factory()->create();
+        $assignee = User::factory()->create();
+        $this->actingAs($user);
+
+        $request = Request::create('/units', 'POST', [
+            'name'               => 'Crate',
+            'group'              => 'Others',
+            'buffered_assignees' => [['id' => $assignee->id, 'type' => 'user', 'name' => $assignee->name]],
+        ]);
+        $request->setUserResolver(fn () => $user);
+        $this->app->instance('request', $request);
+
+        $unit = Unit::create(['code' => 'CRT', 'name' => 'Crate', 'group' => 'Others']);
+
+        $this->assertDatabaseHas('todos', [
+            'reference_id'    => $unit->id,
+            'reference_type'  => Unit::class,
+            'allocated_to_id' => $assignee->id,
+        ]);
+    }
+
+    public function test_todo_does_not_recurse_into_attach_assignees_on_its_own_creation(): void {
+        $user     = User::factory()->create();
+        $assignee = User::factory()->create();
+        $this->actingAs($user);
+
+        $request = Request::create('/todos', 'POST', [
+            'buffered_assignees' => [['id' => $assignee->id, 'type' => 'user', 'name' => $assignee->name]],
+        ]);
+        $request->setUserResolver(fn () => $user);
+        $this->app->instance('request', $request);
+
+        Todo::create([
+            'allocated_to_id'   => $assignee->id,
+            'allocated_to_type' => 'user',
+            'assigned_by_id'    => $user->id,
+            'status'            => 'open',
+            'priority'          => 'medium',
+        ]);
+
+        $this->assertDatabaseCount('todos', 1);
     }
 }

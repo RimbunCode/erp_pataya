@@ -41,6 +41,7 @@ return [
     'comment_placeholder'  => 'Ketik komentar... gunakan @ untuk menyebut seseorang',
     'attachments'          => 'Lampiran',
     'tags'                 => 'Tag',
+    'assigned_to'          => 'Ditugaskan Ke',
     'attachments_and_tags' => 'Lampiran dan Tag',
     'upload_success'       => 'File berhasil diunggah',
     'upload_failed'        => 'Gagal mengunggah file',

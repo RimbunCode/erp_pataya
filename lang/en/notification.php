@@ -23,6 +23,10 @@ return [
         'title'   => 'New Document',
         'message' => 'New :document from :creator needs your attention.',
     ],
+    'todo_assigned' => [
+        'title'   => 'New ToDo Assigned',
+        'message' => ':assigner assigned you a ToDo: :document',
+    ],
     'user_invited' => [
         'subject'  => 'You Have Been Invited',
         'greeting' => 'Hello :name,',

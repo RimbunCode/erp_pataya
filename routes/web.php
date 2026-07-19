@@ -20,6 +20,7 @@ use App\Http\Controllers\Core\NotificationController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
+use App\Http\Controllers\Core\TodoController;
 use App\Http\Controllers\Core\WidgetController;
 use App\Http\Controllers\Finances\AccountController;
 use App\Http\Controllers\Finances\GeneralLedgerController;
@@ -99,6 +100,9 @@ Route::macro('resourceDetail', function ($name, $controller, bool $isSubmmitable
 
         Route::post("/{{$name}}/file", 'addFile')->name("$uri.addFile");
         Route::delete("/{{$name}}/file/{id}", 'removeFile')->name("$uri.removeFile");
+
+        Route::post("/{{$name}}/assignee", 'addAssignee')->name("$uri.addAssignee");
+        Route::delete("/{{$name}}/assignee/{id}", 'removeAssignee')->name("$uri.removeAssignee");
     });
 });
 
@@ -220,6 +224,8 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     Route::resourceDetail('tag', TagController::class);
     // Files
     Route::resourceDetail('file', FileController::class);
+    // ToDo
+    Route::resourceDetail('todo', TodoController::class);
     // Users
     Route::get('/users/{user}/connect/{driver}/redirect', [UserController::class, 'connectToProvider'])->name('users.connect-provider');
     Route::post('/users/{user}/image', [UserController::class, 'image'])->name('users.image');

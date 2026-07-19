@@ -23,6 +23,10 @@ return [
         'title'   => 'Dokumen Baru',
         'message' => ':document baru dari :creator perlu diproses.',
     ],
+    'todo_assigned' => [
+        'title'   => 'ToDo Baru Ditugaskan',
+        'message' => ':assigner menugaskan Anda sebuah ToDo: :document',
+    ],
     'user_invited' => [
         'subject'  => 'Anda Diundang ke Sistem',
         'greeting' => 'Halo :name,',

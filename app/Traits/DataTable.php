@@ -9,6 +9,7 @@ use App\Models\Core\Log;
 use App\Models\Core\ModelConnection;
 use App\Models\Core\PrintTemplate;
 use App\Models\Core\Tag;
+use App\Models\Core\Todo;
 use App\Models\User\Permission;
 use App\Services\Core\BufferedAttachmentService;
 use Illuminate\Database\Schema\Blueprint;
@@ -69,7 +70,7 @@ trait DataTable {
             }
             $request = request();
             if (
-                ! $request->hasAny(['buffered_tags', 'buffered_files', 'filesId'])
+                ! $request->hasAny(['buffered_tags', 'buffered_files', 'filesId', 'buffered_assignees'])
                 && ! $request->hasFile('files')
             ) {
                 return;
@@ -605,6 +606,19 @@ trait DataTable {
             'attachments' => Inertia::defer(
                 fn () => $this->files()->get(['id', 'name']),
                 'attachments',
+            ),
+            'assignees' => Inertia::defer(
+                fn () => Todo::where('reference_type', static::class)
+                    ->where('reference_id', $this->id)
+                    ->where('status', 'open')
+                    ->with('allocatedTo:id,type,name')
+                    ->get(['id', 'allocated_to_id', 'allocated_to_type', 'status'])
+                    ->map(fn ($todo) => [
+                        'id'   => $todo->id,
+                        'type' => $todo->allocated_to_type,
+                        'name' => $todo->allocatedTo?->name,
+                    ]),
+                'assignees',
             ),
         ]);
     }
