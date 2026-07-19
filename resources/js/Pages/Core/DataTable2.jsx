@@ -144,6 +144,7 @@ export default memo(
       actions: _actions,
       templateItem,
       usePasswordConfirmationForDelete,
+      forceCanCreate,
     },
     ref,
   ) {
@@ -154,6 +155,7 @@ export default memo(
     const { data, defaultSort, dataTableColumns, translateKey, model, name } =
       usePage().props;
     const { can } = usePermission(model);
+    const canCreate = forceCanCreate || can("create");
     const { num_per_page: numPerPage, per_page_options: perPageOptions } =
       usePage().props?.preferences ?? {
         num_per_page: 25,
@@ -642,7 +644,7 @@ export default memo(
                   </Select>
                 </div>
               </div>
-              {form && can("create") && (
+              {form && canCreate && (
                 <Button
                   className="p-2! size- fit h-8"
                   onClick={() => dialogRef?.current?.open()}
@@ -727,7 +729,7 @@ export default memo(
             </div>
           </div>
         </AppLayout>
-        {form && can("create") && (
+        {form && canCreate && (
           <FormPageDialog
             ref={dialogRef}
             title={t(`${translateKey}.new`)}
