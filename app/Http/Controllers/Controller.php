@@ -347,6 +347,10 @@ abstract class Controller {
     }
 
     public function removeAssignee(Request $request, $param, Todo $id) {
+        if ($id->reference_id !== $param || $id->reference_type !== $this->model) {
+            abort(404);
+        }
+
         $id->delete();
 
         return back();

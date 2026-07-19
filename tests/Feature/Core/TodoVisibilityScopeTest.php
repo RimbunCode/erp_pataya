@@ -122,7 +122,7 @@ class TodoVisibilityScopeTest extends TestCase {
         $role = Role::create(['name' => 'To Be Deleted']);
         $user->roles()->attach($role->id);
 
-        $todo = Todo::factory()->create(['allocated_to_id' => $role->id, 'allocated_to_type' => 'role']);
+        Todo::factory()->create(['allocated_to_id' => $role->id, 'allocated_to_type' => 'role']);
         $role->delete();
 
         $response = $this->requestAs($user, withSelectPermission: true)->get(route('todos.index'));

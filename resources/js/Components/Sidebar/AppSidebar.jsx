@@ -3,6 +3,7 @@ import * as React from "react";
 import {
   HandCoins,
   LayoutDashboard,
+  ListTodo,
   PackageIcon,
   Receipt,
   Settings2,
@@ -282,6 +283,12 @@ const navList = [
     icon: <TicketsIcon />,
     url: "/tickets",
     urlPattern: "/tickets/*",
+  },
+  {
+    title: "ToDo",
+    icon: <ListTodo />,
+    url: "/todos",
+    urlPattern: "/todos/*",
   },
   {
     title: "Settings",
