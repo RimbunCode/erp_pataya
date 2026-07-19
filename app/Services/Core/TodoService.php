@@ -2,6 +2,7 @@
 
 namespace App\Services\Core;
 
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\Todo;
 use App\Notifications\TodoAssignedNotification;
 use App\Services\Core\Notification\NotifyUser;
@@ -10,12 +11,17 @@ class TodoService {
     public function create(array $data): Todo {
         $data                   = $this->normalize($data);
         $data['assigned_by_id'] = auth()->id();
+        $data['code']           = static::generateCode($data);
 
         $todo = Todo::create($data);
 
         $this->notifyAssignee($todo);
 
         return $todo;
+    }
+
+    public static function generateCode(array $data): string {
+        return FormatingSeries::generate(Todo::class, $data);
     }
 
     public function update(Todo $todo, array $data): Todo {

@@ -332,6 +332,7 @@ abstract class Controller {
             'reference_type'  => $this->model,
             'allocated_to_id' => $allocatedToId,
         ], [
+            'code'              => TodoService::generateCode($data),
             'allocated_to_type' => $data['allocated_to']['type'],
             'assigned_by_id'    => $request->user()->id,
             'status'            => 'open',

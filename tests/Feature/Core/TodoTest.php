@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Core;
 
+use App\Models\Core\FormatingSeries;
 use App\Models\Core\Todo;
 use App\Models\User\Role;
 use App\Models\User\User;
@@ -25,6 +26,15 @@ class TodoTest extends TestCase {
                 Schema::table($table, fn ($t) => $t->boolean('is_example')->default(false));
             }
         }
+
+        // FormatingSeries ditambahkan via initPermissions() di prod, bukan migration.
+        // Buat manual agar TodoService::generateCode() (FormatingSeries::generate) jalan di test.
+        FormatingSeries::create([
+            'model'  => Todo::class,
+            'name'   => 'ToDo',
+            'format' => 'TODO/@[yy]-@[mm]/@[iiii]',
+            'logs'   => ['imy' => []],
+        ]);
 
         $this->user = User::factory()->create();
     }

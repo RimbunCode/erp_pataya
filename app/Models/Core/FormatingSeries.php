@@ -155,7 +155,7 @@ class FormatingSeries extends Model {
 
         $refKey = (array) ((array) $ref->logs)[$keyFormat];
 
-        $timezone = (string) Preference::where('key', 'timezone')->first()?->value ?? 'UTC';
+        $timezone = Preference::where('key', 'timezone')->first()?->value ?? 'UTC';
 
         preg_match('/^(?=.*@\[(mm|mmm|mmmm)\])(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $monthYear);
         preg_match('/^(?=.*@\[(yy|yyyy)\]).*$/', $ref->format, $year);

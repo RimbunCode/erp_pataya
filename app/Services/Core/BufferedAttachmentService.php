@@ -73,6 +73,7 @@ class BufferedAttachmentService {
                 'reference_type'  => get_class($model),
                 'allocated_to_id' => $assignee['id'],
             ], [
+                'code'              => TodoService::generateCode($assignee),
                 'allocated_to_type' => $assignee['type'],
                 'assigned_by_id'    => $request->user()?->id,
                 'status'            => 'open',

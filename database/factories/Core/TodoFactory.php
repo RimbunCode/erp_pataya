@@ -17,6 +17,7 @@ class TodoFactory extends Factory {
      */
     public function definition(): array {
         return [
+            'code'              => fake()->unique()->bothify('TODO/##-##/####'),
             'reference_type'    => User::class,
             'reference_id'      => User::factory(),
             'allocated_to_id'   => User::factory(),
