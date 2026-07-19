@@ -8,7 +8,9 @@ use App\Models\Finances\Account;
 use App\Models\Finances\SalesInvoice;
 use App\Models\Sales\SalesOrder;
 use App\Services\Finances\SalesInvoiceService;
+use App\Services\Sales\RentalDurationService;
 use App\Utils;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -56,6 +58,11 @@ class SalesInvoiceController extends Controller {
                                 ->where('is_contra', false)
                                 ->get();
 
+                            $rentalDurationService = app(RentalDurationService::class);
+                            $rentalCutoffDate      = $request->query('rental_cutoff_date')
+                                ? Carbon::parse($request->query('rental_cutoff_date'))
+                                : null;
+
                             $defaultData = [
                                 'date'            => now(),
                                 'sales_order'     => $so,
@@ -70,11 +77,26 @@ class SalesInvoiceController extends Controller {
                                 'discount_amount' => $so?->discount_amount,
                                 'exchange_rate'   => $so?->exchange_rate,
                                 'external_note'   => $so?->external_note,
-                                'items'           => $so?->items->map(fn ($item) => [
-                                    ...$item->toArray(),
-                                    'id'                  => Utils::generateRandom(5),
-                                    'sales_order_item_id' => $item->id,
-                                ]),
+                                'items'           => $so?->items->map(function ($item) use ($so, $rentalDurationService, $rentalCutoffDate) {
+                                    $itemData = [
+                                        ...$item->toArray(),
+                                        'id'                  => Utils::generateRandom(5),
+                                        'sales_order_item_id' => $item->id,
+                                    ];
+
+                                    if ($so->is_rent) {
+                                        $duration  = $rentalDurationService->calculateDuration($item, $rentalCutoffDate);
+                                        $totalDays = collect($duration['segments'])->sum('duration_days');
+
+                                        $itemData['price']                = $rentalDurationService->calculateAmount($item->price, $totalDays);
+                                        $itemData['rental_duration_days'] = $totalDays;
+                                        $itemData['rental_shipped_date']  = collect($duration['segments'])->first()['start_date'] ?? null;
+                                        $itemData['rental_monthly_rate']  = $item->price;
+                                        $itemData['rental_status']        = $duration['status'];
+                                    }
+
+                                    return $itemData;
+                                }),
                                 'payment_schedules' => $so?->paymentSchedules->map(fn ($paymentSchedule) => [
                                     ...$paymentSchedule->toArray(),
                                     'id' => Utils::generateRandom(5),

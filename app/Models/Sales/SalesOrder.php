@@ -6,6 +6,7 @@ use App\Models\Core\Branch;
 use App\Models\Core\Currency;
 use App\Models\Finances\PaymentSchedule;
 use App\Models\Model;
+use App\Services\Sales\RentalDurationService;
 use App\Traits\DataTable;
 use App\Traits\Submitable;
 use Carbon\Carbon;
@@ -33,6 +34,7 @@ class SalesOrder extends Model {
     ];
     protected $appends = [
         'rent_date',
+        'rental_durations',
     ];
 
     public static function templateLink() {
@@ -49,6 +51,22 @@ class SalesOrder extends Model {
                 'start_date' => Carbon::parse($value['from'])->utc(),
                 'end_date'   => Carbon::parse($value['to'])->utc(),
             ],
+        );
+    }
+
+    public function rentalDurations(): Attribute {
+        return Attribute::make(
+            get: function () {
+                if (! $this->is_rent) {
+                    return null;
+                }
+
+                $service = app(RentalDurationService::class);
+
+                return $this->items->mapWithKeys(fn ($item) => [
+                    $item->id => $service->calculateDuration($item),
+                ]);
+            },
         );
     }
 
