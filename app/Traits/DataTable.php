@@ -248,7 +248,7 @@ trait DataTable {
             }
             $keys = array_merge(
                 Schema::getColumnListing($this->getTable()),
-                $this->attributesToArray(),
+                array_keys($this->attributesToArray()),
                 $keysRelations,
             );
         }
