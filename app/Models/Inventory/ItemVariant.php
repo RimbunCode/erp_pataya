@@ -46,17 +46,12 @@ class ItemVariant extends Model {
         ];
     }
 
-    protected function getImageAttribute() {
-        return $this->image_id ?? null;
-    }
-
     protected array $configColumns = [
-        'image' => [
-            'show'      => true,
-            'order'     => 0,
-            'type'      => 'image',
-            'width'     => 'fit',
-            'dependsOn' => ['image_id'],
+        'image_id' => [
+            'show'  => true,
+            'order' => 0,
+            'type'  => 'image',
+            'width' => 'fit',
         ],
         'code' => [
             'show'  => true,
@@ -80,9 +75,6 @@ class ItemVariant extends Model {
             'show'     => true,
             'order'    => 4,
             'linkable' => true,
-        ],
-        'image_id' => [
-            'ignore' => true,
         ],
         'item_id' => [
             'forceSelect' => true,
