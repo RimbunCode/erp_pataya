@@ -32,6 +32,7 @@ class UserController extends Controller {
                 'show',
                 'update',
                 'image',
+                'removeImage',
                 'connectToProvider',
                 'addComment',
                 'addTag',
@@ -46,7 +47,7 @@ class UserController extends Controller {
     }
 
     protected function enforcePermission($method) {
-        if ($method == 'image') {
+        if (\in_array($method, ['image', 'removeImage'])) {
             return ['write'];
         }
     }
@@ -78,6 +79,12 @@ class UserController extends Controller {
             ]);
         });
         DB::commit();
+
+        return back();
+    }
+
+    public function removeImage(User $user) {
+        $user->update(['image' => null]);
 
         return back();
     }

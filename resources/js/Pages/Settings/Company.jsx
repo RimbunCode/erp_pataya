@@ -28,7 +28,7 @@ import SelectComponent from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import UploadDialog from "../Core/Components/UploadDialog";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 
 function Form() {
   const { t } = useLaravelReactI18n();
@@ -405,7 +405,21 @@ export default function Company({ company }) {
                 {company.company_image && (
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="destructive" size="icon" type="button">
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        type="button"
+                        onClick={() => {
+                          router.delete(
+                            `${basePath}${currentQueryString}`,
+                            {
+                              reset: ["company", "auth"],
+                              preserveScroll: true,
+                              preserveState: true,
+                            },
+                          );
+                        }}
+                      >
                         <Trash2Icon className="size-5!" />
                       </Button>
                     </TooltipTrigger>

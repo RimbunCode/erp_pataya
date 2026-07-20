@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\ItemRequest;
+use App\Models\Core\File;
 use App\Models\Inventory\Category;
 use App\Models\Inventory\Item;
 use App\Models\Inventory\ItemVariant;
@@ -18,6 +19,12 @@ class ItemController extends Controller {
     public function __construct(Request $request, ItemServices $service) {
         $this->service = $service;
         parent::__construct($request, Item::class);
+    }
+
+    protected function enforcePermission($method) {
+        if (\in_array($method, ['image', 'removeImage'])) {
+            return ['write'];
+        }
     }
 
     /**
@@ -47,6 +54,8 @@ class ItemController extends Controller {
         $data['category_id']     = $data['category']['id'];
         $data['default_unit_id'] = $data['default_unit']['id'];
         $data['uoms']            = $this->service->sanitizeUoms($data['default_unit_id'], $data['uoms'] ?? []);
+        $image                   = $data['image'][0]['id'] ?? null;
+        unset($data['image']);
 
         $data['conversion_factor'] = $this->service->resolveDefaultUnitConversionFactor(
             $data['default_unit_id'],
@@ -57,6 +66,7 @@ class ItemController extends Controller {
         $category              = Category::find($data['category_id']);
         $data['is_stock_item'] = $category->type != 'service';
         $data['type']          = $category->type;
+        $data['image_id']      = $image;
         $item                  = Item::create($data);
         $this->service->updateUom($item, $data['uoms']);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
@@ -144,6 +154,22 @@ class ItemController extends Controller {
         $item->logForUpdated();
 
         DB::commit();
+
+        return back();
+    }
+
+    public function image(Request $request, Item $item) {
+        DB::beginTransaction();
+        File::uploadFile($request, 'Item', function ($file) use ($item) {
+            $item->update(['image_id' => $file->id]);
+        });
+        DB::commit();
+
+        return back();
+    }
+
+    public function removeImage(Item $item) {
+        $item->update(['image_id' => null]);
 
         return back();
     }

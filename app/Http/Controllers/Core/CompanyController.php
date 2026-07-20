@@ -14,7 +14,7 @@ use Inertia\Inertia;
 
 class CompanyController extends Controller {
     protected function enforcePermission($method) {
-        if ($method == 'image') {
+        if (\in_array($method, ['image', 'removeImage'])) {
             return 'write';
         }
     }
@@ -111,6 +111,13 @@ class CompanyController extends Controller {
             'is_public' => true,
         ]);
         DB::commit();
+
+        return back();
+    }
+
+    public function removeImage() {
+        Preference::withoutGlobalScope(Preference::HIDE_PRIVATE_KEYS_SCOPE)
+            ->where('key', 'company_image')->delete();
 
         return back();
     }
