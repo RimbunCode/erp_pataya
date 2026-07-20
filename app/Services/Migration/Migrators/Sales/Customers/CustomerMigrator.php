@@ -24,6 +24,17 @@ class CustomerMigrator extends BaseMigrator {
     public function migrate(): void {
         $this->log("Memulai migrasi untuk tabel: {$this->sourceTable}");
 
+        $orphanBranchCount = DB::connection($this->sourceConnection)
+            ->table('cust_branch')
+            ->whereNotIn('debtor_no', function ($query) {
+                $query->select('debtor_no')->from($this->sourceTable);
+            })
+            ->count();
+
+        if ($orphanBranchCount > 0) {
+            $this->log("{$orphanBranchCount} baris cust_branch memiliki debtor_no yang tidak ditemukan di {$this->sourceTable}. Baris tersebut dilewati (tidak ada customer induk untuk dilekatkan).", 'warning');
+        }
+
         DB::connection($this->sourceConnection)
             ->table($this->sourceTable)
             ->orderBy('debtor_no')

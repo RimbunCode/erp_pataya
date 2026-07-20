@@ -2,10 +2,8 @@
 
 namespace App\Services\Migration\Migrators\Inventory\Units;
 
-use App\Models\Inventory\Unit;
 use App\Services\Migration\BaseMigrator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class UnitMigrator extends BaseMigrator {
     /**
@@ -14,9 +12,28 @@ class UnitMigrator extends BaseMigrator {
     protected string $sourceTable = 'item_unit';
 
     /**
-     * Model tujuan untuk pencatatan Log.
+     * Alias abbr legacy -> code unit yang sudah ada di UnitSeeder.
+     * UnitSeeder adalah kebenaran (source of truth); migrator ini tidak pernah
+     * membuat unit baru, hanya memetakan old_id legacy ke ULID unit seeder.
+     *
+     * @var array<string, string>
      */
-    protected string $targetModel = Unit::class;
+    protected array $legacyCodeAliases = [
+        'pcs'  => 'pcs',
+        'pail' => 'pail',
+        'set'  => 'set',
+        'unit' => 'unit',
+        'kit'  => 'kit',
+        'jam'  => 'hour',
+        'ltr'  => 'l',
+        'ls'   => 'ls',
+        'm'    => 'm',
+        'm3'   => 'm3',
+        'bln'  => 'month',
+        'drm'  => 'drum',
+        'hari' => 'day',
+        'inv'  => 'unit',
+    ];
 
     /**
      * Execute the migration logic.
@@ -24,33 +41,35 @@ class UnitMigrator extends BaseMigrator {
     public function migrate(): void {
         $this->log("Memulai migrasi untuk tabel: {$this->sourceTable}");
 
+        $existingUnitIds = DB::table('units')->pluck('id', 'code')
+            ->mapWithKeys(fn ($id, $code) => [strtolower((string) $code) => $id]);
+
+        $processed = 0;
+        $skipped   = 0;
+
         DB::connection($this->sourceConnection)
             ->table($this->sourceTable)
             ->orderBy('id')
-            ->chunk(500, function ($records) {
+            ->chunk(500, function ($records) use ($existingUnitIds, &$processed, &$skipped) {
                 foreach ($records as $record) {
-                    $mappedData = $this->transform((array) $record, [
-                        'code'              => 'abbr',
-                        'name'              => 'name',
-                        'conversion_factor' => fn () => 1,
-                        'is_default'        => fn () => false,
-                    ]);
+                    $legacyAbbr = strtolower((string) $record->abbr);
+                    $seederCode = $this->legacyCodeAliases[$legacyAbbr] ?? $legacyAbbr;
+                    $existingId = $existingUnitIds[$seederCode] ?? null;
 
-                    $newUlid                  = (string) Str::ulid();
-                    $mappedData['id']         = $newUlid;
-                    $mappedData['created_at'] = $record->created_at ?? now();
-                    $mappedData['updated_at'] = $record->updated_at ?? now();
+                    if ($existingId === null) {
+                        $this->log("Unit seeder untuk abbr legacy '{$record->abbr}' (code '{$seederCode}') tidak ditemukan. Baris dilewati.", 'warning');
+                        $skipped++;
 
-                    DB::table('units')->updateOrInsert(['id' => $newUlid], $mappedData);
+                        continue;
+                    }
 
-                    $this->mapId($this->sourceTable, $record->id, $newUlid);
-
-                    $this->recordModelLog($this->targetModel, $newUlid, $mappedData);
+                    $this->mapId($this->sourceTable, $record->id, (string) $existingId);
+                    $processed++;
                 }
 
                 $this->log('Berhasil memproses ' . count($records) . ' baris...');
             });
 
-        $this->log("Migrasi {$this->sourceTable} selesai sepenuhnya.");
+        $this->log("Migrasi {$this->sourceTable} selesai. Dipetakan: {$processed}, dilewati: {$skipped}.");
     }
 }
