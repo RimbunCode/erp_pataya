@@ -120,7 +120,7 @@ class ItemVariantController extends Controller {
     public function image(Request $request, ItemVariant $itemVariant) {
         DB::beginTransaction();
         File::uploadFile($request, 'ItemVariant', function ($file) use ($itemVariant) {
-            $itemVariant->update(['image_id' => $file->id]);
+            $itemVariant->update(['image' => $file->id]);
         });
         DB::commit();
 
@@ -128,7 +128,7 @@ class ItemVariantController extends Controller {
     }
 
     public function removeImage(ItemVariant $itemVariant) {
-        $itemVariant->update(['image_id' => null]);
+        $itemVariant->update(['image' => null]);
 
         return back();
     }

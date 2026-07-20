@@ -23,7 +23,7 @@ function ItemImageUploader({ item }) {
   const currentQueryString = window.location.search;
   const basePath = `${currentPath}/image`;
   const bufferedImage = data?.image?.[0] ?? null;
-  const imageId = isCreate ? null : item?.image_id;
+  const imageId = isCreate ? null : item?.image;
   const alias = (item?.code ?? item?.name ?? "")
     .split(" ")
     .slice(0, 2)
