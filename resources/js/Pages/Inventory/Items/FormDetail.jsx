@@ -166,6 +166,7 @@ export default function FormDetail({
               })
             }
             with={["defaultUnit"]}
+            fields={["defaultUnit.group"]}
             filters={
               !isVariant && data.have_transations
                 ? {
