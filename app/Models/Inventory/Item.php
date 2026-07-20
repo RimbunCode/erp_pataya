@@ -38,7 +38,7 @@ class Item extends Model {
     public string $formComponent   = 'Inventory/Items/Form';
     public string $translateKey    = 'inventory.item';
     protected array $configColumns = [
-        'image_id' => [
+        'image' => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
@@ -63,7 +63,7 @@ class Item extends Model {
             'linkable' => true,
         ],
         'defaultUnit',
-        'image',
+        'imageFile',
         'defaultUom' => [
             'ignore' => true,
         ],
@@ -73,8 +73,8 @@ class Item extends Model {
         return $this->hasMany(ItemAttribute::class)->with(['attribute']);
     }
 
-    public function image() {
-        return $this->belongsTo(File::class, 'image_id');
+    public function imageFile() {
+        return $this->belongsTo(File::class, 'image');
     }
 
     public function defaultUnit() {

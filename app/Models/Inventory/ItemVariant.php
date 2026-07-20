@@ -47,7 +47,7 @@ class ItemVariant extends Model {
     }
 
     protected array $configColumns = [
-        'image_id' => [
+        'image' => [
             'show'  => true,
             'order' => 0,
             'type'  => 'image',
@@ -108,8 +108,8 @@ class ItemVariant extends Model {
             ->with(['category', 'defaultUnit']);
     }
 
-    public function image() {
-        return $this->belongsTo(File::class, 'image_id');
+    public function imageFile() {
+        return $this->belongsTo(File::class, 'image');
     }
 
     public function stocks() {

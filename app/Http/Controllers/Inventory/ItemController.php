@@ -66,7 +66,7 @@ class ItemController extends Controller {
         $category              = Category::find($data['category_id']);
         $data['is_stock_item'] = $category->type != 'service';
         $data['type']          = $category->type;
-        $data['image_id']      = $image;
+        $data['image']         = $image;
         $item                  = Item::create($data);
         $this->service->updateUom($item, $data['uoms']);
         $itemVariant = $this->service->updateVariants($item, $data['format_variant'] ?? '', $data['attributes'] ?? []);
@@ -161,7 +161,7 @@ class ItemController extends Controller {
     public function image(Request $request, Item $item) {
         DB::beginTransaction();
         File::uploadFile($request, 'Item', function ($file) use ($item) {
-            $item->update(['image_id' => $file->id]);
+            $item->update(['image' => $file->id]);
         });
         DB::commit();
 
@@ -169,7 +169,7 @@ class ItemController extends Controller {
     }
 
     public function removeImage(Item $item) {
-        $item->update(['image_id' => null]);
+        $item->update(['image' => null]);
 
         return back();
     }

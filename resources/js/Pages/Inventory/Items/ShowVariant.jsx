@@ -23,7 +23,7 @@ function ItemVariantImageUploader({ itemVariant }) {
   const currentPath = window.location.pathname.replace(/\/$/, "");
   const currentQueryString = window.location.search;
   const basePath = `${currentPath}/image`;
-  const imageId = itemVariant?.image_id;
+  const imageId = itemVariant?.image;
   const alias = (itemVariant?.code ?? "")
     .split(" ")
     .slice(0, 2)
