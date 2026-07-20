@@ -3,6 +3,7 @@
 namespace App\Models\Inventory;
 
 use App\Models\Core\Branch;
+use App\Models\Core\File;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -113,6 +114,10 @@ class ItemVariant extends Model {
     public function item() {
         return $this->belongsTo(Item::class, 'item_id', 'id')
             ->with(['category', 'defaultUnit']);
+    }
+
+    public function image() {
+        return $this->belongsTo(File::class, 'image_id');
     }
 
     public function stocks() {

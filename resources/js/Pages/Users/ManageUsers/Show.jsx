@@ -15,7 +15,7 @@ import FormChangePassword from "./FormChangePassword";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
 import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 
 export default function Show({ user }) {
   const { t } = useLaravelReactI18n();
@@ -79,7 +79,21 @@ export default function Show({ user }) {
                     {user.image && (
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Button variant="destructive" size="icon">
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            type="button"
+                            onClick={() => {
+                              router.delete(
+                                `${basePath}${currentQueryString}`,
+                                {
+                                  reset: ["user", "auth"],
+                                  preserveScroll: true,
+                                  preserveState: true,
+                                },
+                              );
+                            }}
+                          >
                             <Trash2 className="size-5!" />
                           </Button>
                         </TooltipTrigger>
