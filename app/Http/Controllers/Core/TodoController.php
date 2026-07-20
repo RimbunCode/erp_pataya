@@ -34,10 +34,18 @@ class TodoController extends Controller {
         return Inertia::render('Core/Todos/Index');
     }
 
-    public function create() {
+    public function create(Request $request) {
         $this->setBreadcrumbs();
 
-        return Inertia::render('Core/Todos/Show');
+        return Inertia::render('Core/Todos/Show', [
+            'defaultData' => [
+                'allocated_to' => [
+                    'id'   => $request->user()->id,
+                    'type' => 'user',
+                    'name' => $request->user()->name,
+                ],
+            ],
+        ]);
     }
 
     public function store(TodoRequest $request) {

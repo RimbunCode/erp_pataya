@@ -27,4 +27,8 @@ return [
     ],
 
     'reference_deleted' => 'Referensi sudah tidak tersedia.',
+
+    'errors' => [
+        'already_assigned' => 'User atau role ini sudah ditugaskan pada dokumen ini.',
+    ],
 ];

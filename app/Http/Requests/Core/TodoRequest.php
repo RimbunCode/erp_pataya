@@ -20,7 +20,7 @@ class TodoRequest extends BaseFormRequest {
             'priority'          => ['required', 'string', 'in:low,medium,high'],
             'status'            => ['required', 'string', 'in:open,closed,canceled'],
             'date'              => ['nullable', 'date'],
-            'due_date'          => ['nullable', 'date'],
+            'due_date'          => ['nullable', 'date', 'after_or_equal:date'],
         ];
     }
 }

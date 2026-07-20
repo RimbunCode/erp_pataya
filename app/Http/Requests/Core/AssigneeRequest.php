@@ -16,6 +16,8 @@ class AssigneeRequest extends BaseFormRequest {
             'allocated_to.type' => ['required', 'string', 'in:user,role'],
             'description'       => ['nullable', 'string'],
             'priority'          => ['nullable', 'string', 'in:low,medium,high'],
+            'date'              => ['nullable', 'date'],
+            'due_date'          => ['nullable', 'date', 'after_or_equal:date'],
         ];
     }
 }

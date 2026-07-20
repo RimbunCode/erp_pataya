@@ -42,6 +42,7 @@ return [
     'attachments'          => 'Attachments',
     'tags'                 => 'Tags',
     'assigned_to'          => 'Assigned To',
+    'assign'               => 'Assign',
     'attachments_and_tags' => 'Attachments and Tags',
     'upload_success'       => 'File uploaded successfully',
     'upload_failed'        => 'Failed to upload file',

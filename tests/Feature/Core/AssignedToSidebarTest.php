@@ -11,6 +11,7 @@ use App\Notifications\TodoAssignedNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
+use Inertia\Inertia;
 use Tests\TestCase;
 
 class AssignedToSidebarTest extends TestCase {
@@ -148,38 +149,115 @@ class AssignedToSidebarTest extends TestCase {
         $this->assertDatabaseHas('todos', ['id' => $todo->id, 'deleted_at' => null]);
     }
 
-    public function test_assigning_duplicate_user_is_idempotent(): void {
+    public function test_assigning_duplicate_active_user_is_rejected(): void {
         $ticket   = Ticket::factory()->create();
         $assignee = User::factory()->create();
 
         $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
             'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
         ]);
-        $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
+        $response = $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
             'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
         ]);
 
+        $response->assertSessionHasErrors('allocated_to');
         $this->assertSame(1, Todo::where('reference_id', $ticket->id)
             ->where('reference_type', Ticket::class)
             ->where('allocated_to_id', $assignee->id)
             ->count());
     }
 
-    public function test_assigning_duplicate_role_is_idempotent(): void {
+    public function test_assigning_duplicate_active_role_is_rejected(): void {
         $ticket = Ticket::factory()->create();
-        $role   = Role::create(['name' => 'Idempotent Role']);
+        $role   = Role::create(['name' => 'Duplicate Role']);
 
         $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
             'allocated_to' => ['id' => $role->id, 'type' => 'role'],
         ]);
-        $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
+        $response = $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
             'allocated_to' => ['id' => $role->id, 'type' => 'role'],
         ]);
 
+        $response->assertSessionHasErrors('allocated_to');
         $this->assertSame(1, Todo::where('reference_id', $ticket->id)
             ->where('reference_type', Ticket::class)
             ->where('allocated_to_id', $role->id)
             ->count());
+    }
+
+    public function test_assigning_to_closed_assignee_is_still_rejected(): void {
+        $ticket   = Ticket::factory()->create();
+        $assignee = User::factory()->create();
+        Todo::factory()->create([
+            'reference_id'    => $ticket->id,
+            'reference_type'  => Ticket::class,
+            'allocated_to_id' => $assignee->id,
+            'status'          => 'closed',
+        ]);
+
+        $response = $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
+            'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
+        ]);
+
+        $response->assertSessionHasErrors('allocated_to');
+        $this->assertSame(1, Todo::where('reference_id', $ticket->id)
+            ->where('reference_type', Ticket::class)
+            ->where('allocated_to_id', $assignee->id)
+            ->count());
+    }
+
+    public function test_assigning_to_previously_removed_assignee_creates_new_row(): void {
+        $ticket   = Ticket::factory()->create();
+        $assignee = User::factory()->create();
+        $removed  = Todo::factory()->create([
+            'reference_id'    => $ticket->id,
+            'reference_type'  => Ticket::class,
+            'allocated_to_id' => $assignee->id,
+        ]);
+        $removed->delete();
+
+        $response = $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
+            'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
+        ]);
+
+        $response->assertRedirect();
+        $this->assertSame(1, Todo::where('reference_id', $ticket->id)
+            ->where('reference_type', Ticket::class)
+            ->where('allocated_to_id', $assignee->id)
+            ->whereNull('deleted_at')
+            ->count());
+    }
+
+    public function test_assign_stores_date_and_due_date(): void {
+        $ticket   = Ticket::factory()->create();
+        $assignee = User::factory()->create();
+
+        $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
+            'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
+            'date'         => '2026-08-01',
+            'due_date'     => '2026-08-05',
+        ]);
+
+        $this->assertDatabaseHas('todos', [
+            'reference_id'    => $ticket->id,
+            'reference_type'  => Ticket::class,
+            'allocated_to_id' => $assignee->id,
+            'date'            => '2026-08-01 00:00:00',
+            'due_date'        => '2026-08-05 00:00:00',
+        ]);
+    }
+
+    public function test_assign_rejects_due_date_before_date(): void {
+        $ticket   = Ticket::factory()->create();
+        $assignee = User::factory()->create();
+
+        $response = $this->authenticatedRequest()->post(route('tickets.addAssignee', $ticket), [
+            'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
+            'date'         => '2026-08-05',
+            'due_date'     => '2026-08-01',
+        ]);
+
+        $response->assertSessionHasErrors('due_date');
     }
 
     public function test_assign_dispatches_todo_assigned_notification(): void {
@@ -205,5 +283,35 @@ class AssignedToSidebarTest extends TestCase {
         ]);
 
         Notification::assertNothingSent();
+    }
+
+    public function test_show_detail_assignees_include_all_statuses_with_allocated_to_id(): void {
+        $ticket         = Ticket::factory()->create();
+        $openAssignee   = User::factory()->create();
+        $closedAssignee = User::factory()->create();
+        Todo::factory()->create([
+            'reference_id'    => $ticket->id,
+            'reference_type'  => Ticket::class,
+            'allocated_to_id' => $openAssignee->id,
+            'status'          => 'open',
+        ]);
+        Todo::factory()->create([
+            'reference_id'    => $ticket->id,
+            'reference_type'  => Ticket::class,
+            'allocated_to_id' => $closedAssignee->id,
+            'status'          => 'closed',
+        ]);
+
+        $this->actingAs($this->user);
+        $ticket->showDetail();
+        $assignees = Inertia::getShared('assignees')();
+
+        $this->assertCount(2, $assignees);
+        $statuses = $assignees->pluck('status')->all();
+        $this->assertContains('open', $statuses);
+        $this->assertContains('closed', $statuses);
+        $allocatedToIds = $assignees->pluck('allocated_to_id')->all();
+        $this->assertContains($openAssignee->id, $allocatedToIds);
+        $this->assertContains($closedAssignee->id, $allocatedToIds);
     }
 }

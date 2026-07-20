@@ -185,6 +185,43 @@ class BufferedAttachmentServiceTest extends TestCase {
         Notification::assertSentTo($assignee, TodoAssignedNotification::class);
     }
 
+    public function test_attaches_buffered_assignees_with_priority_date_due_date_description(): void {
+        Notification::fake();
+
+        $user     = User::factory()->create();
+        $assignee = User::factory()->create();
+        $this->actingAs($user);
+        $unit = Unit::create(['code' => 'ASD', 'name' => 'Assignable Detailed', 'group' => 'Others']);
+
+        $request = Request::create('/', 'POST', [
+            'buffered_assignees' => [
+                [
+                    'allocated_to_id' => $assignee->id,
+                    'type'            => 'user',
+                    'name'            => $assignee->name,
+                    'priority'        => 'high',
+                    'date'            => '2026-08-01',
+                    'due_date'        => '2026-08-05',
+                    'description'     => 'Follow up urgently',
+                ],
+            ],
+        ]);
+        $request->setUserResolver(fn () => $user);
+
+        BufferedAttachmentService::attach($unit, $request);
+
+        $this->assertDatabaseHas('todos', [
+            'reference_id'      => $unit->id,
+            'reference_type'    => Unit::class,
+            'allocated_to_id'   => $assignee->id,
+            'allocated_to_type' => 'user',
+            'priority'          => 'high',
+            'date'              => '2026-08-01 00:00:00',
+            'due_date'          => '2026-08-05 00:00:00',
+            'description'       => 'Follow up urgently',
+        ]);
+    }
+
     public function test_attaches_buffered_role_assignee(): void {
         Notification::fake();
 
