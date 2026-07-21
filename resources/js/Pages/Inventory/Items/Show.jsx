@@ -12,6 +12,7 @@ import { Trash2, UploadIcon } from "lucide-react";
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
+import { resolveImageSrc } from "@/lib/utils";
 import { router } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
@@ -30,19 +31,10 @@ function ItemImageUploader({ item }) {
     .map((n) => n.charAt(0))
     .join("");
 
-  const route = window.route;
   const avatar = useMemo(() => {
     if (!imageId) return null;
-    return (
-      <AvatarImage
-        src={
-          route("files.preview", imageId) +
-          `?v=${new Date(item?.updated_at).getTime()}`
-        }
-        alt={item?.name}
-      />
-    );
-  }, [imageId, item?.name, item?.updated_at]);
+    return <AvatarImage src={resolveImageSrc(imageId)} alt={item?.name} />;
+  }, [imageId, item?.name]);
 
   const hasImage = isCreate ? !!bufferedImage : !!imageId;
 

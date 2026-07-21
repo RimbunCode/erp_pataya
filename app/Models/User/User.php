@@ -25,6 +25,7 @@ class User extends Authenticatable {
 
     public $translateKey = 'user.user';
     protected $guarded   = ['id'];
+    protected $appends   = ['picture'];
 
     /**
      * The attributes that should be hidden for serialization.
@@ -76,11 +77,12 @@ class User extends Authenticatable {
     }
 
     protected array $configColumns = [
-        'image' => [
-            'show'  => true,
-            'order' => 0,
-            'type'  => 'image',
-            'width' => 'fit',
+        'picture' => [
+            'show'      => true,
+            'order'     => 0,
+            'type'      => 'image',
+            'width'     => 'fit',
+            'dependsOn' => ['image', 'avatar_url'],
         ],
         'name' => [
             'show'   => true,
@@ -100,10 +102,17 @@ class User extends Authenticatable {
             'order' => 4,
         ],
         'defaultBranch',
+        'image' => [
+            'ignore' => true,
+        ],
         'avatar_url' => [
             'ignore' => true,
         ],
     ];
+
+    protected function getPictureAttribute() {
+        return $this->image ?: $this->avatar_url;
+    }
 
     public function defaultBranch() {
         return $this->belongsTo(Branch::class, 'default_branch_id');
