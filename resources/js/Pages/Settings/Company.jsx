@@ -27,6 +27,7 @@ import NumberInput from "@/Components/NumberInput";
 import SelectComponent from "@/Components/Select";
 import { Textarea } from "@/Components/ui/textarea";
 import UploadDialog from "../Core/Components/UploadDialog";
+import { resolveImageSrc } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { router, usePage } from "@inertiajs/react";
 
@@ -346,7 +347,6 @@ function Form() {
   );
 }
 export default function Company({ company }) {
-  const route = window.route;
   const { t } = useLaravelReactI18n();
   const [openAttachment, setOpenAttachment] = useState(false);
   const currentPath = window.location.pathname.replace(/\/$/, "");
@@ -366,12 +366,7 @@ export default function Company({ company }) {
     if (!company.company_image) return null;
     return (
       <AvatarImage
-        src={
-          route("files.preview", company.company_image) +
-          (company.updated_at
-            ? `?v=${new Date(company.updated_at).getTime()}`
-            : "")
-        }
+        src={resolveImageSrc(company.company_image)}
         alt={company.name}
         className=" transition-[filter] duration-300 group-hover:blur-sm object-contain"
       />
@@ -410,14 +405,11 @@ export default function Company({ company }) {
                         size="icon"
                         type="button"
                         onClick={() => {
-                          router.delete(
-                            `${basePath}${currentQueryString}`,
-                            {
-                              reset: ["company", "auth"],
-                              preserveScroll: true,
-                              preserveState: true,
-                            },
-                          );
+                          router.delete(`${basePath}${currentQueryString}`, {
+                            reset: ["company", "auth"],
+                            preserveScroll: true,
+                            preserveState: true,
+                          });
                         }}
                       >
                         <Trash2Icon className="size-5!" />

@@ -13,7 +13,7 @@ import { Button } from "@/Components/ui/button";
 import Form from "./Form";
 import FormChangePassword from "./FormChangePassword";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
-import { cn } from "@/lib/utils";
+import { cn, resolveImageSrc } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { router, usePage } from "@inertiajs/react";
 
@@ -32,13 +32,10 @@ export default function Show({ user }) {
     .join("");
 
   const avatar = useMemo(() => {
-    if (!user.image) return null;
+    if (!user.picture) return null;
     return (
       <AvatarImage
-        src={
-          route("files.preview", user.image) +
-          `?v=${new Date(user.updated_at).getTime()}`
-        }
+        src={resolveImageSrc(user.picture)}
         alt={user.name}
         className={cn(
           "transition-[filter]",
@@ -46,7 +43,7 @@ export default function Show({ user }) {
         )}
       />
     );
-  }, [user.image, authUser.id]);
+  }, [user.picture, authUser.id]);
   return (
     <>
       <FormPage

@@ -76,7 +76,7 @@ class DataTableColumnSelector {
         $byName = collect($dataTableColumns)->keyBy('name');
         $needed = array_keys(array_filter(
             $safeColumns,
-            fn ($_, $name) => ($byName->get($name)['type'] ?? null) === 'attribute',
+            fn ($_, $name) => static::isAppendColumn($byName->get($name)),
             ARRAY_FILTER_USE_BOTH,
         ));
 
@@ -87,6 +87,32 @@ class DataTableColumnSelector {
             $target instanceof Collection           => $target->each($apply),
             default                                 => $apply($target),
         };
+    }
+
+    /**
+     * Tentukan apakah kolom butuh `setAppends()` agar accessor-nya terpanggil.
+     * `type === 'attribute'` (baseline default `LinkModel::getColumns` untuk
+     * append native) selalu ikut. Kolom custom (mis. `type` di-override manual
+     * di configColumns, seperti kolom bertipe 'image' berbasis accessor) ikut
+     * juga SELAMA ia bukan relasi (`nameOfFunction` tak ada) dan bukan kolom DB
+     * fisik (`dependsOn` jadi sinyal wajib: field non-DB WAJIB dependsOn, lihat
+     * `collectAppendStrict`) — tanpa dependsOn berarti kolom DB/relasi biasa,
+     * tak butuh accessor sama sekali.
+     *
+     * @param  array<string, mixed>|null  $col
+     */
+    private static function isAppendColumn(?array $col): bool {
+        if ($col === null) {
+            return false;
+        }
+        if (($col['type'] ?? null) === 'attribute') {
+            return true;
+        }
+        if (isset($col['nameOfFunction'])) {
+            return false;
+        }
+
+        return isset($col['dependsOn']) && $col['dependsOn'] !== [];
     }
 
     /**

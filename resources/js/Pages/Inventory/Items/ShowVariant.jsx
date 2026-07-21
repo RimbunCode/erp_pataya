@@ -13,12 +13,12 @@ import { Button } from "@/Components/ui/button";
 import FormVariant from "./FormVariant";
 import Link from "@/Components/Link";
 import UploadDialog from "@/Pages/Core/Components/UploadDialog";
+import { resolveImageSrc } from "@/lib/utils";
 import { router } from "@inertiajs/react";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function ItemVariantImageUploader({ itemVariant }) {
   const { t } = useLaravelReactI18n();
-  const route = window.route;
   const [openAttachment, setOpenAttachment] = useState(false);
   const currentPath = window.location.pathname.replace(/\/$/, "");
   const currentQueryString = window.location.search;
@@ -33,15 +33,9 @@ function ItemVariantImageUploader({ itemVariant }) {
   const avatar = useMemo(() => {
     if (!imageId) return null;
     return (
-      <AvatarImage
-        src={
-          route("files.preview", imageId) +
-          `?v=${new Date(itemVariant?.updated_at).getTime()}`
-        }
-        alt={itemVariant?.code}
-      />
+      <AvatarImage src={resolveImageSrc(imageId)} alt={itemVariant?.code} />
     );
-  }, [imageId, itemVariant?.code, itemVariant?.updated_at]);
+  }, [imageId, itemVariant?.code]);
 
   return (
     <Dialog open={openAttachment} onOpenChange={setOpenAttachment}>
