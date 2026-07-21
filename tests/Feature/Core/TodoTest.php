@@ -112,4 +112,14 @@ class TodoTest extends TestCase {
         $response->assertRedirect(route('todos.index'));
         $this->assertSoftDeleted('todos', ['id' => $todo->id]);
     }
+
+    public function test_create_page_defaults_assignee_to_logged_in_user(): void {
+        $response = $this->authenticatedRequest()
+            ->get(route('todos.create'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->where('defaultData.allocated_to.id', $this->user->id)
+            ->where('defaultData.allocated_to.type', 'user'));
+    }
 }

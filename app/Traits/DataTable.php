@@ -610,13 +610,14 @@ trait DataTable {
             'assignees' => Inertia::defer(
                 fn () => Todo::where('reference_type', static::class)
                     ->where('reference_id', $this->id)
-                    ->where('status', 'open')
                     ->with('allocatedTo:id,type,name')
                     ->get(['id', 'allocated_to_id', 'allocated_to_type', 'status'])
                     ->map(fn ($todo) => [
-                        'id'   => $todo->id,
-                        'type' => $todo->allocated_to_type,
-                        'name' => $todo->allocatedTo?->name,
+                        'id'              => $todo->id,
+                        'allocated_to_id' => $todo->allocated_to_id,
+                        'type'            => $todo->allocated_to_type,
+                        'name'            => $todo->allocatedTo?->name,
+                        'status'          => $todo->status,
                     ]),
                 'assignees',
             ),

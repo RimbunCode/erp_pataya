@@ -51,6 +51,7 @@ import {
   inArray,
   isCompletedStatus,
   removeFromLocalStorage,
+  resolveImageSrc,
 } from "@/lib/utils";
 import { useAlertDraftForm, useDraftForm } from "@/Hooks/useDraftForm";
 
@@ -1349,7 +1350,6 @@ const ApprovalActedByDetail = memo(function ApprovalActedByDetail({
   acted_at,
   notes,
 }) {
-  const route = window.route;
   const { t } = useLaravelReactI18n();
   const lang = usePage().props?.lang;
 
@@ -1366,12 +1366,9 @@ const ApprovalActedByDetail = memo(function ApprovalActedByDetail({
       </p>
       <p className="truncate flex items-center gap-x-2 w-full">
         <Avatar className="rounded-full h-max size-10">
-          {acted_by?.image && (
+          {acted_by?.picture && (
             <AvatarImage
-              src={
-                route("files.preview", acted_by?.image) +
-                `?v=${new Date(acted_by?.updated_at).getTime()}`
-              }
+              src={resolveImageSrc(acted_by.picture)}
               alt={acted_by?.name}
             />
           )}
@@ -2076,7 +2073,6 @@ const FormPageDialog = memo(
 
 const FormPageDiff = memo(
   forwardRef(function FormPageDiff({ title, badge, className, children }, ref) {
-    const route = window.route;
     const { t } = useLaravelReactI18n();
     const { dataAfter: data, dataBefore, log, lang } = usePage().props;
     const layoutRef = useRef(null); // wrapper AppLayout
@@ -2179,12 +2175,9 @@ const FormPageDiff = memo(
                       <p>{t("core.form.updated_by")}</p>
                       <div className="flex items-center gap-3 px-1 py-1.5 text-left text-sm">
                         <Avatar className="rounded-lg size-20">
-                          {log.user.image && (
+                          {log.user.picture && (
                             <AvatarImage
-                              src={
-                                route("files.preview", log.user.image) +
-                                `?v=${new Date(log.user.updated_at).getTime()}`
-                              }
+                              src={resolveImageSrc(log.user.picture)}
                               alt={log.user.name}
                             />
                           )}

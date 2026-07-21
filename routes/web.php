@@ -204,6 +204,7 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
             Route::get('company', 'index')->name('companies.index');
             Route::put('company', 'update')->name('companies.update');
             Route::post('company/image', 'image')->name('companies.image');
+            Route::delete('company/image', 'removeImage')->name('companies.removeImage');
         });
         // Branches
         Route::resourceDetail('branch', BranchController::class);
@@ -232,6 +233,7 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // Users
     Route::get('/users/{user}/connect/{driver}/redirect', [UserController::class, 'connectToProvider'])->name('users.connect-provider');
     Route::post('/users/{user}/image', [UserController::class, 'image'])->name('users.image');
+    Route::delete('/users/{user}/image', [UserController::class, 'removeImage'])->name('users.removeImage');
     Route::resourceDetail('user', UserController::class);
     // Roles
     Route::get('/roles/permissions', [RoleController::class, 'permissions'])->name('roles.permissions');
@@ -258,8 +260,12 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // Categories
     Route::resourceDetail('category', CategoryController::class);
     // Items
+    Route::post('/items/{item}/image', [ItemController::class, 'image'])->name('items.image');
+    Route::delete('/items/{item}/image', [ItemController::class, 'removeImage'])->name('items.removeImage');
     Route::resourceDetail('item', ItemController::class);
     Route::post('itemVariants/info', [ItemVariantController::class, 'info'])->name('itemVariants.info');
+    Route::post('/itemVariants/{itemVariant}/image', [ItemVariantController::class, 'image'])->name('itemVariants.image');
+    Route::delete('/itemVariants/{itemVariant}/image', [ItemVariantController::class, 'removeImage'])->name('itemVariants.removeImage');
     Route::resourceDetail('itemVariant', ItemVariantController::class);
     // ItemAlternatives
     Route::resourceDetail('itemAlternative', ItemAlternativeController::class);

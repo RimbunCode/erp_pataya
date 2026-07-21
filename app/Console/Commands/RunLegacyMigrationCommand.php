@@ -10,6 +10,9 @@ use App\Services\Migration\Migrators\Inventory\Warehouses\WarehouseMigrator;
 use App\Services\Migration\Migrators\Purchase\Suppliers\SupplierMigrator;
 use App\Services\Migration\Migrators\Sales\Customers\CustomerMigrator;
 use App\Services\Migration\Migrators\User\Authentication\UserMigrator;
+use App\Services\Migration\Migrators\User\Roles\RoleMigrator;
+use App\Services\Migration\Migrators\User\Roles\RolePermissionMigrator;
+use App\Services\Migration\Migrators\User\Roles\UserRoleMigrator;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -42,6 +45,9 @@ class RunLegacyMigrationCommand extends Command {
     protected array $migrators = [
         // === TAHAP 0: MASTER DATA UTAMA (Tanpa Relasi) ===
         UserMigrator::class,
+        RoleMigrator::class,
+        RolePermissionMigrator::class,
+        UserRoleMigrator::class,
         UnitMigrator::class,
         CategoryMigrator::class,
         WarehouseMigrator::class,

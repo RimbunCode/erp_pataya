@@ -30,6 +30,7 @@ import {
   getCookieByName,
   getLocaleDate,
   removeCookie,
+  resolveImageSrc,
   setCookie,
 } from "@/lib/utils";
 import { router, usePage } from "@inertiajs/react";
@@ -140,10 +141,7 @@ const Cell = memo(
           <Avatar className="w-full h-auto border rounded-xl aspect-square max-w-16 group">
             {value && (
               <AvatarImage
-                src={
-                  window.route("files.preview", value) +
-                  `?v=${new Date(row?.updated_at).getTime()}`
-                }
+                src={resolveImageSrc(value)}
                 alt={name}
                 className=" transition-[filter]"
               />

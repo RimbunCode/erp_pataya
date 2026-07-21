@@ -65,19 +65,23 @@ class BufferedAttachmentService {
             return;
         }
         foreach ($assignees as $assignee) {
-            if (! is_array($assignee) || empty($assignee['id']) || empty($assignee['type'])) {
+            $allocatedToId = $assignee['allocated_to_id'] ?? $assignee['id'] ?? null;
+            if (! is_array($assignee) || empty($allocatedToId) || empty($assignee['type'])) {
                 continue;
             }
             $todo = Todo::firstOrCreate([
                 'reference_id'    => $model->getKey(),
                 'reference_type'  => get_class($model),
-                'allocated_to_id' => $assignee['id'],
+                'allocated_to_id' => $allocatedToId,
             ], [
                 'code'              => TodoService::generateCode($assignee),
                 'allocated_to_type' => $assignee['type'],
                 'assigned_by_id'    => $request->user()?->id,
                 'status'            => 'open',
-                'priority'          => 'medium',
+                'priority'          => $assignee['priority'] ?? 'medium',
+                'description'       => $assignee['description'] ?? null,
+                'date'              => $assignee['date'] ?? null,
+                'due_date'          => $assignee['due_date'] ?? null,
             ]);
             if ($todo->wasRecentlyCreated) {
                 app(TodoService::class)->notifyAssignee($todo);

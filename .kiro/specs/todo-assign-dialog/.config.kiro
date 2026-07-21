@@ -1,0 +1,6 @@
+{
+  "specId": "d0ce60ab-dbdd-4682-b3e9-0f438ad9a103",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Ganti alur assign ToDo di sidebar FormPage dari inline-picker (langsung commit begitu assignee dipilih) menjadi dialog modal berisi form ToDo lengkap (assignee, priority, status, date, due_date, description) dengan tombol konfirmasi eksplisit sebelum submit."
+}

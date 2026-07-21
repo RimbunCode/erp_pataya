@@ -3,6 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/Components/ui/avatar";
 import DataTable2 from "@/Pages/Core/DataTable2";
 import Form from "./Form";
 import Link from "@/Components/Link";
+import { resolveImageSrc } from "@/lib/utils";
 
 function Index() {
   const route = window.route;
@@ -22,12 +23,9 @@ function Index() {
             className="flex justify-start gap-1 p-4 border-b gap-x-4 border-muted-foreground/25"
           >
             <Avatar className="rounded-lg size-12">
-              {user.image && (
+              {user.picture && (
                 <AvatarImage
-                  src={
-                    route("files.preview", user.image) +
-                    `?v=${new Date(user.updated_at).getTime()}`
-                  }
+                  src={resolveImageSrc(user.picture)}
                   alt={user.name}
                 />
               )}

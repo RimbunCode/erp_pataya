@@ -60,7 +60,7 @@ class ItemFactory extends Factory {
             'stock_minimum' => $itemType === 'inventory'
                 ? fake()->numberBetween(5, 50)
                 : 0,
-            'image_id'               => File::query()->inRandomOrder()->value('id'),
+            'image'                  => File::query()->inRandomOrder()->value('id'),
             'is_disabled'            => false,
             'allow_alternative_item' => $itemType === 'inventory' ? fake()->boolean(40) : false,
             'is_stock_item'          => $itemType === 'inventory',

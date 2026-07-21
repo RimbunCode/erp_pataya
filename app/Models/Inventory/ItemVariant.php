@@ -3,6 +3,7 @@
 namespace App\Models\Inventory;
 
 use App\Models\Core\Branch;
+use App\Models\Core\File;
 use App\Models\Model;
 use App\Traits\DataTable;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
@@ -45,17 +46,12 @@ class ItemVariant extends Model {
         ];
     }
 
-    protected function getImageAttribute() {
-        return $this->image_id ?? null;
-    }
-
     protected array $configColumns = [
         'image' => [
-            'show'      => true,
-            'order'     => 0,
-            'type'      => 'image',
-            'width'     => 'fit',
-            'dependsOn' => ['image_id'],
+            'show'  => true,
+            'order' => 0,
+            'type'  => 'image',
+            'width' => 'fit',
         ],
         'code' => [
             'show'  => true,
@@ -79,9 +75,6 @@ class ItemVariant extends Model {
             'show'     => true,
             'order'    => 4,
             'linkable' => true,
-        ],
-        'image_id' => [
-            'ignore' => true,
         ],
         'item_id' => [
             'forceSelect' => true,
@@ -113,6 +106,10 @@ class ItemVariant extends Model {
     public function item() {
         return $this->belongsTo(Item::class, 'item_id', 'id')
             ->with(['category', 'defaultUnit']);
+    }
+
+    public function imageFile() {
+        return $this->belongsTo(File::class, 'image');
     }
 
     public function stocks() {

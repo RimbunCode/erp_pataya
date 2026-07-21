@@ -27,4 +27,8 @@ return [
     ],
 
     'reference_deleted' => 'Reference is no longer available.',
+
+    'errors' => [
+        'already_assigned' => 'This user or role is already assigned to this document.',
+    ],
 ];

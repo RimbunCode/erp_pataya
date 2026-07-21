@@ -57,6 +57,8 @@ class ItemRequest extends BaseFormRequest {
             'barcodes'                 => ['nullable', 'array'],
             'barcodes.*.barcode'       => ['required', 'string', 'min:3', 'max:255'],
             'barcodes.*.basic_unit.id' => ['required', 'string', 'exists:units,id'],
+            'image'                    => ['nullable', 'array'],
+            'image.*.id'               => ['required', 'string', 'exists:files,id'],
         ];
     }
 }

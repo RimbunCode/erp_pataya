@@ -42,6 +42,7 @@ return [
     'attachments'          => 'Lampiran',
     'tags'                 => 'Tag',
     'assigned_to'          => 'Ditugaskan Ke',
+    'assign'               => 'Tugaskan',
     'attachments_and_tags' => 'Lampiran dan Tag',
     'upload_success'       => 'File berhasil diunggah',
     'upload_failed'        => 'Gagal mengunggah file',

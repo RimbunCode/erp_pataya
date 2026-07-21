@@ -32,6 +32,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log as LogFacade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 abstract class Controller {
@@ -327,22 +328,32 @@ abstract class Controller {
         $data          = $request->validated();
         $allocatedToId = $data['allocated_to']['id'];
 
-        $todo = Todo::firstOrCreate([
-            'reference_id'    => $param,
-            'reference_type'  => $this->model,
-            'allocated_to_id' => $allocatedToId,
-        ], [
+        $alreadyAssigned = Todo::where('reference_id', $param)
+            ->where('reference_type', $this->model)
+            ->where('allocated_to_id', $allocatedToId)
+            ->exists();
+
+        if ($alreadyAssigned) {
+            throw ValidationException::withMessages([
+                'allocated_to' => [__('core.todo.errors.already_assigned')],
+            ]);
+        }
+
+        $todo = Todo::create([
+            'reference_id'      => $param,
+            'reference_type'    => $this->model,
+            'allocated_to_id'   => $allocatedToId,
             'code'              => TodoService::generateCode($data),
             'allocated_to_type' => $data['allocated_to']['type'],
             'assigned_by_id'    => $request->user()->id,
             'status'            => 'open',
             'priority'          => $data['priority'] ?? 'medium',
             'description'       => $data['description'] ?? null,
+            'date'              => $data['date'] ?? null,
+            'due_date'          => $data['due_date'] ?? null,
         ]);
 
-        if ($todo->wasRecentlyCreated) {
-            app(TodoService::class)->notifyAssignee($todo);
-        }
+        app(TodoService::class)->notifyAssignee($todo);
 
         return back();
     }

@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\ItemVariantRequest;
+use App\Models\Core\File;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Inventory\Stock;
 use App\Services\Inventory\ItemServices;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ItemVariantController extends Controller {
@@ -16,6 +18,12 @@ class ItemVariantController extends Controller {
     protected function exceptPermission($method) {
         if ($method == 'info') {
             return true;
+        }
+    }
+
+    protected function enforcePermission($method) {
+        if (\in_array($method, ['image', 'removeImage'])) {
+            return ['write'];
         }
     }
 
@@ -107,5 +115,21 @@ class ItemVariantController extends Controller {
         $this->setBreadcrumbs();
 
         return Inertia::render('Inventory/Items/ShowVariant');
+    }
+
+    public function image(Request $request, ItemVariant $itemVariant) {
+        DB::beginTransaction();
+        File::uploadFile($request, 'ItemVariant', function ($file) use ($itemVariant) {
+            $itemVariant->update(['image' => $file->id]);
+        });
+        DB::commit();
+
+        return back();
+    }
+
+    public function removeImage(ItemVariant $itemVariant) {
+        $itemVariant->update(['image' => null]);
+
+        return back();
     }
 }

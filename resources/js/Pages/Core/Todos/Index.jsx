@@ -4,7 +4,11 @@ import React from "react";
 
 function Index() {
   return (
-    <DataTable2 classNameDialog="max-w-4xl!" form={<Form />} forceCanCreate />
+    <DataTable2
+      classNameDialog="max-w-(--breakpoint-xl)!"
+      form={<Form />}
+      forceCanCreate
+    />
   );
 }
 

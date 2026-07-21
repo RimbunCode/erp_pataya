@@ -18,7 +18,7 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { cn, getLocaleDate } from "@/lib/utils";
+import { cn, getLocaleDate, resolveImageSrc } from "@/lib/utils";
 
 import { Button } from "@/Components/ui/button";
 import Link from "@/Components/Link";
@@ -232,12 +232,9 @@ export default memo(function Comments() {
                       <div className="rounded-lg px-4 py-1 grid grid-cols-[auto_1fr] gap-x-4 border border-muted-foreground/30">
                         <div className="flex items-center">
                           <Avatar className="rounded-full h-max size-10">
-                            {user.image && (
+                            {user.picture && (
                               <AvatarImage
-                                src={
-                                  route("files.preview", user.image) +
-                                  `?v=${new Date(user.updated_at).getTime()}`
-                                }
+                                src={resolveImageSrc(user.picture)}
                                 alt={user.name}
                               />
                             )}

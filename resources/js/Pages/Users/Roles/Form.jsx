@@ -105,7 +105,14 @@ function Form() {
 
           let permissions = { ...r.permissions, [key]: nextValue };
 
-          // RULE 1: kalau read = false
+          // RULE 1: kalau select = false -> semua flag lain ikut false
+          if (key === "select" && !nextValue) {
+            permissions = Object.fromEntries(
+              Object.keys(permissions).map((k) => [k, false]),
+            );
+          }
+
+          // RULE 2: kalau read = false -> turunannya ikut false (select tetap apa adanya)
           if (key === "read" && !nextValue) {
             permissions = {
               ...permissions,
@@ -131,14 +138,20 @@ function Form() {
             };
           }
 
-          // RULE 2: selain read, kalau true -> read harus true
+          // RULE 3: selain read/select, kalau true -> read dan select harus true
           if (key !== "read" && key !== "select" && nextValue === true) {
             permissions.read = true;
+            permissions.select = true;
 
             // khusus import -> create ikut true
             if (key === "import") {
               permissions.create = true;
             }
+          }
+
+          // RULE 4: read, kalau true -> select harus true
+          if (key === "read" && nextValue === true) {
+            permissions.select = true;
           }
 
           // filter hanya key yang valid

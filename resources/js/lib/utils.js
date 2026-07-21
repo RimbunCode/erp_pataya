@@ -52,6 +52,25 @@ export function formatBytes(bytes, decimals = 2) {
   );
 }
 
+// Kolom bertipe "image" bisa berisi file-ID lokal (files.preview) ATAU URL
+// langsung (mis. avatar OAuth provider) — dua sumber berbeda diserialize ke
+// satu field sama (lihat User::getPictureAttribute()). isImageUrl membedakan
+// keduanya; protocol-relative (//host/x.jpg) ikut dihitung URL karena avatar
+// provider (Google dkk) kadang mengirim tanpa skema eksplisit.
+export const isImageUrl = (value) => /^(https?:)?\/\//.test(value ?? "");
+
+// src Avatar final dari kolom "image": URL langsung dipakai apa adanya (+
+// cache-bust ?v=), file-ID diarahkan ke route files.preview (+ cache-bust).
+// Cache-bust pakai value itu sendiri (bukan updated_at model): field seperti
+// picture bisa berasal dari relasi lain (mis. UserProvider.avatar_url) yang
+// updated_at-nya tak tercermin di updated_at model utama — value langsung
+// berubah persis ketika sumber gambarnya berubah, jadi selalu akurat.
+export const resolveImageSrc = (value) => {
+  if (!value) return null;
+  const base = isImageUrl(value) ? value : window.route("files.preview", value);
+  return `${base}?v=${encodeURIComponent(value)}`;
+};
+
 export const checkUrlPath = (pathPatern) => {
   const currentPath = window.location.pathname;
   if (pathPatern === currentPath) {
