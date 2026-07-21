@@ -52,11 +52,7 @@ function AssignedToFields({
           />
         </FormInput>
 
-        <FormInput
-          label={t("core.todo.columns.status")}
-          name="status"
-          required
-        >
+        <FormInput label={t("core.todo.columns.status")} name="status" required>
           <Select
             value={disableStatus ? "open" : value.status}
             onValueChange={
