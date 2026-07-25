@@ -179,6 +179,8 @@ flowchart TD
 | `amend` | `amend` | Amend dokumen rejected |
 | `print` | `print` | Cetak dokumen |
 
+> **Pengecualian — Ticket (Helpdesk)**: `Helpdesk\TicketController` men-set `ignorePermission = true`, sehingga **semua user yang login** bisa melihat dan membuat Ticket tanpa dicek terhadap matrix Role/Permission di atas. Hanya aksi `markDone` dan `updateTicket` yang tetap dijaga permission `write` secara eksplisit. Detail: [Helpdesk · Ticket](modules/helpdesk.md#ticket).
+
 ### Menggunakan Permission di Frontend (React)
 
 ```jsx

@@ -1,6 +1,6 @@
 # Modul Core / Settings
 
-> Dokumentasi modul inti: Branches, Approval Schemes, FormatingSeries, Print Templates, Dashboard, Tags, Files.
+> Dokumentasi modul inti: Branches, Approval Schemes, FormatingSeries, Print Templates, Dashboard, Tags, Files, Todo, Notification, Email Template, Image Uploader, SavedFilter, Changelog.
 
 ## Daftar Isi
 
@@ -12,6 +12,13 @@
 - [Print Templates](#print-templates)
 - [Dashboard & Widgets](#dashboard--widgets)
 - [Tags & Files](#tags--files)
+- [Todo](#todo)
+- [Notification System](#notification-system)
+- [Email Template](#email-template)
+- [Image Uploader (Generik)](#image-uploader-generik)
+- [SavedFilter](#savedfilter)
+- [Changelog](#changelog)
+- [Backup (Belum Diimplementasikan)](#backup-belum-diimplementasikan)
 - [Preferences](#preferences)
 - [Company Settings](#company-settings)
 - [Model Connections](#model-connections)
@@ -309,6 +316,193 @@ Tambah file ke dokumen apa pun: `POST /{resource}/{id}/file` → `{resource}.add
 
 ---
 
+## Todo
+
+Tugas generik yang bisa ditugaskan ke **User** atau **Role** — dipakai lintas modul untuk mencatat pekerjaan yang tidak terikat dokumen transaksi tertentu (mis. "follow up customer X", "siapkan laporan bulanan").
+
+### Fields
+
+| Field | Tipe | Deskripsi |
+|---|---|---|
+| `code` | string | Kode todo (auto: FormatingSeries, format `TODO/@[yy]-@[mm]/@[iiii]`) |
+| `description` | text | Deskripsi tugas |
+| `reference` | morphTo | Dokumen konteks (opsional — mis. todo terkait sebuah Sales Order) |
+| `allocated_to` | morphTo | Penerima tugas — **User** atau **Role** (dibedakan lewat `allocated_to_type`) |
+| `assigned_by` | relation | User pemberi tugas |
+| `priority` | string | Prioritas todo |
+| `date` | date | Tanggal todo |
+| `due_date` | datetime | Batas waktu |
+| `status` | string | Status todo |
+
+### Business Logic — Assignment ke User atau Role
+
+Jika `allocated_to_type = 'role'`, tugas berlaku untuk **semua user yang punya role tersebut** (bukan satu user spesifik). Method `allocatedUsers()` di model meresolusi daftar user penerima aktual:
+
+```php
+public function allocatedUsers(): Collection {
+    if ($this->allocated_to_type === 'role') {
+        return User::whereHas('roles', fn ($q) => $q->where('roles.id', $this->allocated_to_id))->get();
+    }
+    $user = User::find($this->allocated_to_id);
+    return $user ? collect([$user]) : collect();
+}
+```
+
+Saat todo dibuat/di-assign, sistem mengirim notifikasi `TodoAssignedNotification` ke seluruh `allocatedUsers()`.
+
+Query listing todo memakai dua scope permission-aware:
+- `assignedToMe($user)` — todo yang di-assign langsung ke user tersebut, **atau** ke salah satu role yang dimiliki user tersebut.
+- `assignedByMe($userId)` — todo yang dibuat/di-assign oleh user tersebut.
+
+### Komponen UI — AssignDialog
+
+`Pages/Core/Components/AssignDialog.jsx` adalah dialog assign generik: memilih penerima (User atau Role), prioritas, rentang tanggal, dan deskripsi. Dipakai di form Todo (`AssignedToFields.jsx`) — komponen ini menggantikan inline-picker versi sebelumnya.
+
+### Routes — Todo
+
+`Core\TodoController`: 12 route dasar `todos.*` ([macro `resourceDetail`](../routes.md#konvensi-macro-routeresourcedetail), non-submitable) → prefix `/todos`.
+
+---
+
+## Notification System
+
+Notifikasi in-app standar Laravel — dipakai untuk memberi tahu user soal event penting (mis. `TodoAssignedNotification`).
+
+### Routes — Notification
+
+`Core\NotificationController` — murni JSON API (bukan halaman Inertia):
+
+| Method | URI | Route Name | Controller@method |
+|---|---|---|---|
+| GET | `/notifications` | `notifications.index` | `Core\NotificationController@index` |
+| PUT | `/notifications/{id}/read` | `notifications.markAsRead` | `Core\NotificationController@markAsRead` |
+| PUT | `/notifications/mark-all-read` | `notifications.markAllRead` | `Core\NotificationController@markAllRead` |
+
+> UI ditampilkan via `Components/Navbar/Notifications.jsx` (dropdown lonceng notifikasi di navbar).
+
+---
+
+## Email Template
+
+Template email per model, dengan mekanisme `is_default` yang **otomatis eksklusif** per model — pola yang sama seperti [Print Templates](#print-templates).
+
+### Fields
+
+| Field | Tipe | Deskripsi |
+|---|---|---|
+| `name` | string | Nama template |
+| `name_model` | string | Label model tujuan (tampilan) |
+| `model` | string | FQCN model target |
+| `permission` | relation | Permission terkait |
+| `is_default` | boolean | Default untuk model ini |
+| `body_json` | json | Isi template (rich-text editor) |
+
+### Business Logic
+
+- Saat template disimpan dengan `is_default = true`, semua template lain untuk `model` yang sama otomatis di-set `is_default = false` (eksklusivitas terjaga di level model, bukan hanya validasi form).
+- Jika ini adalah template pertama untuk suatu `model`, otomatis dijadikan default meski tidak dicentang manual.
+- Endpoint `fields()` menyediakan daftar merge-tag yang tersedia untuk suatu model (di-whitelist by `Permission::model` untuk mencegah eksekusi class arbitrary/RCE).
+- **Test Send**: mengirim email uji ke user yang sedang login, memakai data contoh (`HasExampleData`).
+
+### Komponen UI — EmailSendDialog
+
+`Pages/Core/Components/EmailSendDialog.jsx` — tombol kirim email manual dari halaman detail dokumen apa pun yang punya Email Template terkait modelnya.
+
+### Routes — Email Template
+
+`Core\EmailTemplateController`: 12 route dasar `emailTemplates.*` (macro `resourceDetail`) → prefix `/settings/emailTemplates`, + tambahan:
+
+| Method | URI | Keterangan |
+|---|---|---|
+| GET | `/settings/emailTemplates/{id}/fields` | Daftar merge-tag tersedia |
+| POST | `/settings/emailTemplates/{id}/testSend` | Kirim email uji |
+
+---
+
+## Image Uploader (Generik)
+
+Pola upload/preview/hapus gambar yang konsisten dipakai di beberapa model — bukan fitur terpisah, melainkan pola berulang lewat kolom `image` (FK ke [File](#tags--files)).
+
+| Dipakai di | Endpoint upload | Endpoint hapus |
+|---|---|---|
+| User | `POST /users/{user}/image` | `DELETE /users/{user}/image` |
+| Item | `POST /items/{item}/image` | `DELETE /items/{item}/image` |
+| ItemVariant | `POST /itemVariants/{itemVariant}/image` | `DELETE /itemVariants/{itemVariant}/image` |
+| Company | `POST /settings/company/image` | `DELETE /settings/company/image` |
+
+> **Catatan migrasi**: kolom ini sebelumnya bernama `image_id` pada Item/ItemVariant — sudah di-rename menjadi `image` agar konsisten dengan penamaan di `users.image`.
+
+### Picture Attribute (khusus User)
+
+Model `User` punya accessor tambahan `picture` yang menggabungkan dua sumber gambar:
+1. `image` — hasil upload manual (via endpoint di atas), diresolusi ke URL lewat `route('files.preview', id)`.
+2. `avatar_url` — fallback dari provider OAuth (Socialite) jika user belum upload gambar manual.
+
+Logic resolusi ada di util frontend `resolveImageSrc()`/`isImageUrl()` (`resources/js/lib/utils.js`) — otomatis mendeteksi apakah value adalah file-ID (perlu di-resolve ke route preview) atau URL langsung (dipakai apa adanya, termasuk URL protocol-relative `//host/path` dari provider OAuth).
+
+### Komponen UI
+
+Avatar (preview bulat) + `UploadDialog.jsx` (dialog pilih & upload file) — pola yang sama dipakai di ketiga tempat di atas.
+
+---
+
+## SavedFilter
+
+Filter DataTable yang bisa disimpan per user per model — mendukung dua mode: filter **tersimpan bernama** dan filter **transient** (sementara).
+
+### Fields
+
+| Field | Tipe | Deskripsi |
+|---|---|---|
+| `user` | relation | Pemilik filter |
+| `model` | string | FQCN model target filter |
+| `name` | string | Nama filter (hanya relevan jika `is_saved`) |
+| `filter` | json | Kondisi filter |
+| `is_saved` | boolean | `true` = filter tersimpan bernama; `false` = filter transient |
+
+> Filter transient (`is_saved = false`) dibersihkan otomatis oleh scheduled command `saved-filters:prune` — lihat [Artisan Commands](../artisan-commands.md).
+
+### Routes — SavedFilter
+
+Route manual di luar macro `resourceDetail` (murni JSON API, tanpa Inertia): `GET/POST/PATCH/DELETE /saved-filters/*`.
+
+---
+
+## Changelog
+
+Catatan rilis aplikasi — dibuat **otomatis** dari webhook deploy CI/CD, bukan diinput manual lewat form. Terintegrasi erat dengan modul [Helpdesk](helpdesk.md) untuk auto-resolve ticket saat rilis.
+
+### Fields
+
+| Field | Tipe | Deskripsi |
+|---|---|---|
+| `version` | string | Versi rilis (unik) |
+| `environment` | string | Environment tujuan deploy |
+| `content_raw` | text | Teks changelog asli (Markdown) |
+| `content_html` | text | Hasil konversi HTML (disanitasi, `html_input: strip` mencegah XSS) |
+| `deployed_at` | datetime | Waktu deploy tercatat |
+| `readers` | belongsToMany | User yang sudah membaca (pivot `changelog_reads`, kolom `read_at`) |
+
+### Business Logic
+
+- Format `[#KODE-TICKET]` di dalam teks changelog otomatis dikonversi jadi link menuju halaman ticket terkait saat di-render ke HTML.
+- Halaman `/changelogs` otomatis menandai semua changelog sebagai "sudah dibaca" oleh user yang membukanya (`markAllRead`).
+- Detail lengkap alur webhook deploy → Changelog → auto-resolve Ticket: [Helpdesk · Integrasi Deploy](helpdesk.md#integrasi-deploy---changelog---ticket).
+
+### Routes — Changelog
+
+| Method | URI | Route Name | Controller@method |
+|---|---|---|---|
+| GET | `/changelogs` | `changelogs.index` | `Core\ChangelogController@index` |
+
+---
+
+## Backup (Belum Diimplementasikan)
+
+`Core\BackupController` terdaftar di codebase, namun **seluruh method-nya masih stub kosong** — tidak ada logic backup database/file yang aktif saat ini. Disebutkan di sini agar maintainer tidak salah asumsi bahwa fitur backup otomatis sudah berjalan.
+
+---
+
 ## Preferences
 
 Key-value store untuk pengaturan aplikasi global.
@@ -382,3 +576,5 @@ Global search dan navigasi via keyboard shortcut. Index di-rebuild via `commands
 | Route Settings + Controller@method | [Routes · Settings](../routes.md#6-settings) · [Approval](../routes.md#8-approval) |
 | Halaman React | [Frontend · Settings](../frontend.md#settings) · [Core](../frontend.md#core--shared) |
 | Dipakai oleh semua modul transaksi | [Sales](sales.md) · [Purchase](purchase.md) · [Inventory](inventory.md) · [Finances](finances.md) · [Service](service.md) |
+| Changelog ↔ integrasi deploy Ticket | [Helpdesk · Integrasi Deploy](helpdesk.md#integrasi-deploy---changelog---ticket) |
+| Image Uploader dipakai di Item/ItemVariant | [Inventory · Image Uploader](inventory.md#image-uploader) |

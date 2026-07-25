@@ -161,9 +161,14 @@ Tagihan ke customer. Dibuat dari Sales Order setelah barang dikirim atau bersama
 | `item_id` | FK | → **`item_variants`** ([Item & Variant](inventory.md#item--variant)) |
 | `quantity` | double | Jumlah ditagih |
 | `price` | double | Harga satuan |
-| `tax_rate` | double | Rate pajak ([Tax](#taxes)) |
-| `basic_amount` | double | Subtotal sebelum pajak |
-| `tax_amount` | double | Total pajak |
+| `tax_rate` | double | Rate pajak ([Tax](#taxes)) — opsional, baris tanpa pajak valid |
+| `basic_amount` | double | Subtotal sebelum pajak (`quantity × price`) |
+| `dpp_amount` | double | **Stored generated column**: `basic_amount × 11 / 12` — Dasar Pengenaan Pajak (lihat catatan DPP di bawah) |
+| `tax_amount` | double | **Stored generated column**: `dpp_amount × tax_rate / 100` (dihitung dari `dpp_amount`, bukan langsung dari `basic_amount`) |
+
+> **Catatan DPP (Dasar Pengenaan Pajak)**: `dpp_amount` dan `tax_amount` adalah kolom *generated* di database — nilainya dihitung otomatis oleh MySQL berdasarkan `basic_amount` dan `tax_rate`, **tidak bisa di-UPDATE manual**. Formula `× 11/12` merefleksikan aturan **DPP Nilai Lain PPN Indonesia** — DPP dihitung sebagai 11/12 dari nilai transaksi (`basic_amount`), bukan nilai transaksi itu sendiri, sebelum dikalikan tarif pajak. Jika butuh mengubah `tax_amount`, ubah `basic_amount` atau `tax_rate` pada baris terkait — nilai akhir akan menyesuaikan otomatis.
+>
+> **Tax opsional**: sejak validasi form SO/SI diperbarui, baris item **valid tanpa memilih pajak** — jika `tax_rate` kosong/0, `dpp_amount` dan `tax_amount` bernilai 0. Ini perubahan validasi form (`SalesOrderRequest`), bukan perubahan skema database (`tax_id` sudah nullable sejak awal).
 
 ### Submit Flow SI
 
@@ -217,6 +222,22 @@ Tagihan dari supplier. Dibuat dari Purchase Order setelah barang diterima atau b
 | `amount` | double | Total invoice |
 | `paid_amount` | double | Sudah dibayar |
 | `outstanding_amount` | double | Sisa hutang |
+
+### PI Item Fields
+
+| Field | Tipe | Deskripsi |
+|---|---|---|
+| `purchase_order_item_id` | FK | Link ke [PO item](purchase.md#purchase-order) |
+| `item_id` | FK | → **`item_variants`** ([Item & Variant](inventory.md#item--variant)) |
+| `quantity` | double | Jumlah ditagih |
+| `rate` | double | Harga satuan |
+| `tax_rate` | double | Rate pajak ([Tax](#taxes)) — opsional |
+| `basic_amount` | double | Subtotal sebelum pajak (`quantity × rate`) — **stored generated column** |
+| `dpp_amount` | double | **Stored generated column**: `basic_amount × 11 / 12` — sama seperti [DPP di Sales Invoice](#si-item-fields) |
+| `tax_amount` | double | **Stored generated column**: `dpp_amount × tax_rate / 100` |
+| `amount` | double | **Stored generated column**: `basic_amount + tax_amount` — total baris |
+
+> Formula dan sifat *generated column* identik dengan Sales Invoice — lihat catatan DPP di [SI Item Fields](#si-item-fields) untuk penjelasan lengkap.
 
 ### Submit Flow PI
 

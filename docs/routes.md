@@ -1,6 +1,6 @@
 # Referensi Route
 
-> **544 route** terdaftar (`php artisan route:list --except-vendor`). Dokumen ini meng-_expand_ semua route, termasuk yang di-generate oleh macro `Route::resourceDetail`, lengkap dengan `Controller@method`.
+> **837 route** terdaftar (`php artisan route:list --except-vendor`, dihitung ulang 25 Juli 2026 — termasuk penambahan modul CRM & Helpdesk serta fitur Todo/Image Uploader yang menyusul sejak angka sebelumnya). Dokumen ini meng-_expand_ semua route, termasuk yang di-generate oleh macro `Route::resourceDetail`, lengkap dengan `Controller@method`.
 >
 > Sumber: `routes/web.php`, `routes/auth.php`, `routes/console.php`.
 
@@ -23,6 +23,8 @@
 - [12. Sales](#12-sales)
 - [13. Service](#13-service)
 - [14. Finances](#14-finances)
+- [15. CRM](#15-crm)
+- [16. Helpdesk](#16-helpdesk)
 - [Lampiran: Daftar Controller](#lampiran-daftar-controller)
 
 ---
@@ -403,6 +405,50 @@ Middleware: `auth, lang, onboarded, app`. Detail: [Modul Finances](modules/finan
 
 ---
 
+## 15. CRM
+
+Middleware: `auth, lang, onboarded, app`. Detail bisnis & flow Lead→Opportunity→Quotation: [Modul CRM](modules/crm.md).
+
+### Resource `resourceDetail`
+
+| Resource | Prefix URI | Route Name | Controller | Submitable |
+|---|---|---|---|---|
+| **Lead** | `/leads` | `leads.*` | `CRM\LeadController` | — |
+| **Opportunity** | `/opportunities` | `opportunities.*` | `CRM\OpportunityController` | — |
+| **Quotation** | `/quotations` | `quotations.*` | `CRM\QuotationController` | ✅ |
+
+### Route non-standar CRM
+
+| Method | URI | Route Name | Action |
+|---|---|---|---|
+| PUT | `/leads/{lead}/convert` | `leads.convert` | `CRM\LeadController@convert` |
+
+> Konversi Lead → Customer lewat endpoint `leads.convert`. Quotation → Sales Order **bukan** endpoint convert, melainkan prefill form via `?ref=quotation/{id}` — lihat [Modul CRM · Korelasi](modules/crm.md#korelasi-antar-feature).
+
+---
+
+## 16. Helpdesk
+
+Middleware: `auth, lang, onboarded, app`. Detail: [Modul Helpdesk](modules/helpdesk.md). **Catatan**: `TicketController` men-set `ignorePermission = true` — semua user login bisa akses tanpa dicek RBAC (kecuali aksi `markDone`/`updateTicket`).
+
+### Resource `resourceDetail`
+
+| Resource | Prefix URI | Route Name | Controller | Submitable |
+|---|---|---|---|---|
+| **Ticket** | `/tickets` | `tickets.*` | `Helpdesk\TicketController` | — |
+
+### Route non-standar Helpdesk
+
+| Method | URI | Route Name | Action |
+|---|---|---|---|
+| PUT | `/tickets/{ticket}/markDone` | `tickets.markDone` | `Helpdesk\TicketController@markDone` |
+| PUT | `/tickets/{ticket}/updateTicket` | `tickets.updateTicket` | `Helpdesk\TicketController@updateTicket` |
+| GET | `/changelogs` | `changelogs.index` | `Core\ChangelogController@index` |
+
+> `Core\ChangelogController` didaftarkan di luar grup Helpdesk pada `routes/web.php` namun secara bisnis terhubung erat via integrasi deploy webhook — lihat [Helpdesk · Integrasi Deploy](modules/helpdesk.md#integrasi-deploy---changelog---ticket) dan [Core · Changelog](modules/core.md#changelog). Endpoint `POST /api/webhooks/deploy` (di `routes/api.php`, autentikasi Bearer token terpisah) tidak termasuk daftar ini karena bukan route web.
+
+---
+
 ## Lampiran: Daftar Controller
 
 Controller yang **tidak terhubung ke route web** (dipakai internal / command / belum dirilis): `Core\BackupController`, `Core\SettingController`, `Finances\PaymentScheduleController`, `RouteController`, `ProfileController` (Breeze profile, jika diaktifkan). Verifikasi ulang dengan:
@@ -414,16 +460,19 @@ php artisan route:list --except-vendor
 | Namespace | Controller |
 |---|---|
 | `Auth\` | AuthenticatedSessionController, RegisteredUserController, ConfirmablePasswordController, EmailVerificationNotificationController, EmailVerificationPromptController, NewPasswordController, PasswordController, PasswordResetLinkController, VerifyEmailController, SetupUserController |
-| `Core\` | ApprovalInstanceController, ApprovalSchemeController, BranchController, CommandSearchController, CompanyController, CompanyLogoController, DashboardController, FileController, FormatingSeriesController, HtmlSanitizeController, LanguageController, LogController, PrintTemplateController, TagController, WidgetController, BackupController*, SettingController* |
+| `Core\` | ApprovalInstanceController, ApprovalSchemeController, BranchController, ChangelogController, CommandSearchController, CompanyController, CompanyLogoController, DashboardController, EmailTemplateController, FileController, FormatingSeriesController, HtmlSanitizeController, LanguageController, LogController, NotificationController, PrintTemplateController, SavedFilterController, TagController, TodoController, WidgetController, BackupController*†, SettingController* |
 | `Inventory\` | AttributeController, CategoryController, DeliveryNoteController, ItemAlternativeController, ItemController, ItemVariantController, StockEntryController, StockLedgerController, UnitController, WarehouseController |
 | `Purchase\` | PurchaseOrderController, PurchaseReceiptController, PurchaseRequestController, SupplierController |
 | `Sales\` | CustomerController, InternalOrderController, SalesOrderController |
 | `Service\` | WorkOrderController |
 | `Finances\` | AccountController, GeneralLedgerController, PaymentEntryController, PaymentMethodController, PaymentScheduleController*, PaymentTermTemplateController, PurchaseInvoiceController, SalesInvoiceController, TaxesController |
+| `CRM\` | LeadController, OpportunityController, QuotationController |
+| `Helpdesk\` | TicketController |
+| `Api\` | DeployWebhookController* (route di `routes/api.php`, bukan `web.php`) |
 | _(root)_ | ModelController, ProfileController*, RouteController* |
 
-`*` = tidak terdaftar di route web.
+`*` = tidak terdaftar di route web. `†` = `Core\BackupController` terdaftar tapi seluruh method-nya masih stub kosong — belum diimplementasikan.
 
 ---
 
-*Lihat juga: [Arsitektur](architecture.md) · [Auth & Workflow](auth.md) · [Frontend](frontend.md) · [Database](database.md) · Modul: [Core](modules/core.md) · [Inventory](modules/inventory.md) · [Purchase](modules/purchase.md) · [Sales](modules/sales.md) · [Service](modules/service.md) · [Finances](modules/finances.md)*
+*Lihat juga: [Arsitektur](architecture.md) · [Auth & Workflow](auth.md) · [Frontend](frontend.md) · [Database](database.md) · Modul: [Core](modules/core.md) · [Inventory](modules/inventory.md) · [Purchase](modules/purchase.md) · [Sales](modules/sales.md) · [Service](modules/service.md) · [Finances](modules/finances.md) · [CRM](modules/crm.md) · [Helpdesk](modules/helpdesk.md)*

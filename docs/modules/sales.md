@@ -242,6 +242,8 @@ Artinya kolom `sales_order_items.item_id` → tabel **`item_variants`**. Konseku
 - Reservasi stok saat submit dilakukan per-variant per-`source_warehouse`.
 - Relasi tambahan per baris: `unit` → `ItemUnit`, `tax` → `Tax`, `sourceWarehouse` → `Warehouse`.
 
+> **Tax opsional**: baris item SO kini valid tanpa memilih pajak — form tetap bisa disubmit walau kolom `tax` kosong. Jika tidak ada tax dipilih, `tax_amount`/`dpp_amount` (dihitung di sisi invoice, lihat [Finances · DPP](finances.md#si-item-fields)) bernilai 0.
+
 > Penjelasan lengkap relasi Item ↔ ItemVariant: [Database · Item & ItemVariant](../database.md#item--itemvariant) · [Modul Inventory](inventory.md#item--variant).
 
 ---
@@ -431,3 +433,4 @@ flowchart LR
 | Tabel database | [Database · Domain Sales](../database.md#domain-sales) |
 | Daftar route + Controller@method | [Routes · Sales](../routes.md#12-sales) |
 | Halaman React | [Frontend · Sales](../frontend.md#sales) |
+| Asal SO dari Quotation (CRM) | [CRM · Quotation](crm.md#quotation) |

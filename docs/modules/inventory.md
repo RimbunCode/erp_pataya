@@ -7,6 +7,7 @@
 - [Gambaran Modul](#gambaran-modul)
 - [Korelasi Antar-Feature](#korelasi-antar-feature)
 - [Item & Variant](#item--variant)
+- [Image Uploader](#image-uploader)
 - [Warehouse](#warehouse)
 - [Stock Entry](#stock-entry)
 - [Delivery Note](#delivery-note)
@@ -112,6 +113,7 @@ Setiap item dapat memiliki satu atau lebih variant (kombinasi atribut seperti uk
 | `category` | relation | Kategori |
 | `default_unit` | relation | Satuan default variant |
 | `attributes` | hasMany | Atribut-nilai variant |
+| `image` | relation | Gambar variant (lihat [Image Uploader](#image-uploader)) |
 | `is_disabled` | boolean | Status aktif |
 
 ### Item Unit (Konversi Satuan)
@@ -132,6 +134,19 @@ Link antara item dengan alternatifnya. Bisa dua arah (`two_way`).
 ### Barcode
 
 Barcode per item variant dan unit (`item_barcodes`).
+
+### Image Uploader
+
+Item dan ItemVariant memakai kolom `image` (FK ke [File](core.md#tags--files)) untuk foto produk — pola upload/preview/hapus yang sama juga dipakai di User dan Company. Detail lengkap pola ini: [Core · Image Uploader (Generik)](core.md#image-uploader-generik).
+
+| Endpoint | Method | Keterangan |
+|---|---|---|
+| `/items/{item}/image` | POST | Upload gambar Item |
+| `/items/{item}/image` | DELETE | Hapus gambar Item |
+| `/itemVariants/{itemVariant}/image` | POST | Upload gambar ItemVariant |
+| `/itemVariants/{itemVariant}/image` | DELETE | Hapus gambar ItemVariant |
+
+> **Catatan migrasi**: kolom ini sebelumnya bernama `image_id` — sudah di-rename menjadi `image` agar konsisten dengan penamaan di `users.image`. UI memakai komponen Avatar + `UploadDialog.jsx` (lihat `Show.jsx`/`ShowVariant.jsx`).
 
 ### Routes — Item, ItemVariant, ItemAlternative
 
