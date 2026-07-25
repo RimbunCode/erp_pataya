@@ -48,11 +48,11 @@ class LoginRequest extends BaseFormRequest {
         ]);
 
         $user = User::where('email', $this->input('usernameOrEmail'))->orWhere('username', $this->input('usernameOrEmail'))->first();
-        if (! $user->password) {
+        if (! $user?->password) {
             throw ValidationException::withMessages([
                 'status' => trans('auth.failed'),
             ]);
-        } elseif ($user?->status == FormStatus::INACTIVE) {
+        } elseif ($user->status == FormStatus::INACTIVE) {
             throw ValidationException::withMessages([
                 'status' => trans('auth.disabled'),
             ]);

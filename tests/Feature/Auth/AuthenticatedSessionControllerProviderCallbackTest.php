@@ -137,6 +137,57 @@ class AuthenticatedSessionControllerProviderCallbackTest extends TestCase {
         $this->assertNotNull($current->fresh()->email_verified_at);
     }
 
+    public function test_connecting_provider_with_email_already_registered_to_another_user_fails(): void {
+        $emailOwner = User::factory()->create([
+            'email' => 'taken@example.com',
+        ]);
+
+        $current = User::factory()->create([
+            'email' => 'current@example.com',
+        ]);
+        Auth::login($current);
+
+        $this->fakeSocialiteUser('google-8', 'taken@example.com');
+
+        $response = $this->get('/auth/google/callback');
+
+        $response->assertSessionHasErrors('provider_account');
+        $this->assertSame(0, UserProvider::where('user_id', $current->id)->count());
+        $this->assertSame(0, UserProvider::where('provider_id', 'google-8')->count());
+        $this->assertNotNull($emailOwner->fresh());
+    }
+
+    public function test_connecting_provider_with_own_email_succeeds(): void {
+        $current = User::factory()->create([
+            'email' => 'own-email@example.com',
+        ]);
+        Auth::login($current);
+
+        $this->fakeSocialiteUser('google-9', 'own-email@example.com');
+
+        $response = $this->get('/auth/google/callback');
+
+        $response->assertRedirect(route('users.show', $current->id));
+        $this->assertSame(1, UserProvider::where('user_id', $current->id)->where('provider_id', 'google-9')->count());
+    }
+
+    public function test_registering_via_provider_with_email_of_existing_user_links_account(): void {
+        $existing = User::factory()->create([
+            'email'    => 'link-me@example.com',
+            'password' => 'hashed',
+            'status'   => FormStatus::ACTIVE,
+        ]);
+
+        $this->fakeSocialiteUser('google-10', 'link-me@example.com');
+
+        $response = $this->get('/auth/google/callback');
+
+        $this->assertAuthenticatedAs($existing);
+        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertSame(1, User::where('email', 'link-me@example.com')->count());
+        $this->assertSame(1, UserProvider::where('user_id', $existing->id)->where('provider_id', 'google-10')->count());
+    }
+
     public function test_connecting_already_connected_provider_fails_without_dangling_transaction(): void {
         $owner = User::factory()->create();
         UserProvider::create([

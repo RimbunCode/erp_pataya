@@ -13,12 +13,13 @@ return [
     |
     */
 
-    'failed'        => 'These credentials do not match our records.',
-    'disabled'      => 'Your account has been disabled!',
-    'password'      => 'The provided password is incorrect.',
-    'throttle'      => 'Too many login attempts. Please try again in :seconds seconds.',
-    'your_password' => 'Your Password',
-    'login'         => [
+    'failed'                   => 'These credentials do not match our records.',
+    'disabled'                 => 'Your account has been disabled!',
+    'email_already_registered' => 'This email is already registered to another account.',
+    'password'                 => 'The provided password is incorrect.',
+    'throttle'                 => 'Too many login attempts. Please try again in :seconds seconds.',
+    'your_password'            => 'Your Password',
+    'login'                    => [
         'title'           => 'Welcome Back',
         'description'     => 'Login with your credential or Google account',
         'usernameOrEmail' => 'Username or Email',

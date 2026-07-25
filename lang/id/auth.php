@@ -1,12 +1,13 @@
 <?php
 
 return [
-    'failed'        => 'Kredensial ini tidak cocok dengan data kami.',
-    'disabled'      => 'Akun Anda telah dinonaktifkan.',
-    'password'      => 'Kata sandi yang diberikan tidak diverifikasi.',
-    'throttle'      => 'Terlalu banyak percobaan login. Silakan coba lagi dalam :seconds detik.',
-    'your_password' => 'Kata Sandi Anda',
-    'login'         => [
+    'failed'                   => 'Kredensial ini tidak cocok dengan data kami.',
+    'disabled'                 => 'Akun Anda telah dinonaktifkan.',
+    'email_already_registered' => 'Email ini sudah terdaftar pada akun lain.',
+    'password'                 => 'Kata sandi yang diberikan tidak diverifikasi.',
+    'throttle'                 => 'Terlalu banyak percobaan login. Silakan coba lagi dalam :seconds detik.',
+    'your_password'            => 'Kata Sandi Anda',
+    'login'                    => [
         'title'           => 'Selamat Datang Kembali',
         'description'     => 'Login dengan kredensial atau akun Google Anda',
         'usernameOrEmail' => 'Nama Pengguna atau Email',

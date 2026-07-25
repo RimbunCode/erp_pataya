@@ -41,6 +41,9 @@ return [
         'image.upload'      => 'Upload Image',
         'image.remove'      => 'Remove Image',
     ],
+    'connect_provider' => [
+        'connect_google' => 'Connect Google',
+    ],
     'manage_password' => [
         'change_password' => 'Change Password',
         'columns'         => [
