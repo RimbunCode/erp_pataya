@@ -152,7 +152,7 @@ export default function Register() {
                 </Label>
                 <PasswordInput
                   id="password_confirmation"
-                  type="password"
+                  type={isVisible ? "text" : "password"}
                   name="password_confirmation"
                   autoComplete="password_confirmation"
                   value={data.password_confirmation}
