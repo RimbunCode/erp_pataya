@@ -4,6 +4,7 @@ namespace App\Http\Requests\Sales;
 
 use App\Http\Requests\BaseFormRequest;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Validation\Rule;
 
 class CustomerRequest extends BaseFormRequest {
     /**
@@ -20,7 +21,7 @@ class CustomerRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'name'                             => ['required', 'string', 'min:3', 'max:255'],
+            'name'                             => ['required', 'string', 'min:3', 'max:255', Rule::unique('customers', 'name')->ignore($this->route('customer'))],
             'phone'                            => ['required', 'string', 'min:3', 'max:255'],
             'email'                            => ['required', 'string', 'min:3', 'max:255', 'email:rfc'],
             'vat'                              => ['required', 'string', 'min:3', 'max:255'],
