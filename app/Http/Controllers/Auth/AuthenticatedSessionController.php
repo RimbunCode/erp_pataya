@@ -80,6 +80,14 @@ class AuthenticatedSessionController extends Controller {
                 ]);
             }
 
+            $emailOwner = User::where('email', $user->getEmail())->first();
+
+            if ($emailOwner && $emailOwner->id !== $authUser->id) {
+                throw ValidationException::withMessages([
+                    'provider_account' => trans('auth.email_already_registered'),
+                ]);
+            }
+
             DB::transaction(function () use ($authUser, $driver, $user, $payload) {
                 $authUser->providers()->updateOrCreate([
                     'provider'    => $driver,
