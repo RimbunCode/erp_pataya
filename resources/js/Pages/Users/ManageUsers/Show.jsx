@@ -7,7 +7,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
-import { Trash2, UploadIcon } from "lucide-react";
+import { Link2, Trash2, UploadIcon } from "lucide-react";
 
 import { Button } from "@/Components/ui/button";
 import Form from "./Form";
@@ -121,13 +121,21 @@ export default function Show({ user }) {
         controls={() => {
           return (
             authUser.id === user.id && (
-              <Button
-                type="button"
-                variant="primary"
-                onClick={() => changePasswordDialogRef.current?.open()}
-              >
-                {t("user.user.manage_password.change_password")}
-              </Button>
+              <>
+                <Button type="button" variant="outline" asChild>
+                  <a href={route("users.connect-provider", [user.id, "google"])}>
+                    <Link2 />
+                    {t("user.user.connect_provider.connect_google")}
+                  </a>
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  onClick={() => changePasswordDialogRef.current?.open()}
+                >
+                  {t("user.user.manage_password.change_password")}
+                </Button>
+              </>
             )
           );
         }}

@@ -41,6 +41,9 @@ return [
         'image.upload'      => 'Unggah Gambar',
         'image.remove'      => 'Hapus Gambar',
     ],
+    'connect_provider' => [
+        'connect_google' => 'Hubungkan Google',
+    ],
     'manage_password' => [
         'change_password' => 'Ubah Kata Sandi',
         'columns'         => [
