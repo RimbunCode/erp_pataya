@@ -303,7 +303,7 @@ class RolePermissionMigrator extends BaseMigrator {
             ->pluck('name', 'id');
 
         $erpPermissionsByModel = DB::table('permissions')
-            ->get(['id', 'model', 'permissions', 'is_submitable'])
+            ->get(['id', 'module', 'name', 'model', 'permissions', 'is_submitable'])
             ->keyBy('model');
 
         $allErpPermissions = $erpPermissionsByModel->values();
