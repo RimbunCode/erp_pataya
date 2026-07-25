@@ -30,9 +30,13 @@ class LanguageController extends Controller {
     }
 
     public function set(Request $request) {
-        $locale = $request->code;
+        $locale   = $request->code;
+        $previous = url()->previous();
+        $fallback = parse_url($previous, PHP_URL_HOST) === $request->getHost()
+            ? $previous
+            : url('/');
 
-        return redirect()->intended(route('dashboard', absolute: false))->withCookie(
+        return redirect()->intended($fallback)->withCookie(
             cookie('lang', $locale, 60 * 24 * 30),
         );
     }
