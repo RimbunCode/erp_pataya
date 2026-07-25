@@ -63,7 +63,9 @@ class Item extends Model {
             'linkable' => true,
         ],
         'defaultUnit',
-        'imageFile',
+        'imageFile' => [
+            'ignore' => true,
+        ],
         'defaultUom' => [
             'ignore' => true,
         ],
