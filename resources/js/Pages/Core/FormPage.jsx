@@ -1206,9 +1206,10 @@ const FormPage = memo(
             )}
           >
             {isCreate ? (
-              // Mode create: sidebar (Attachments/Tags dual-mode) butuh context
-              // isCreate=true karena SidebarChildren sibling di luar provider
-              // FormChildren. Connections/amended_from di-skip (butuh record).
+              // SidebarChildren sibling dari FormChildren (beda provider
+              // instance), jadi butuh FormPageProvider sendiri agar
+              // useFormPage() (mis. ItemImageUploader) tidak undefined.
+              // Mode create: defaultData null, Connections/amended_from di-skip (butuh record).
               <FormPageProvider
                 isCreate={true}
                 disabled={disabled}
@@ -1227,16 +1228,27 @@ const FormPage = memo(
                 />
               </FormPageProvider>
             ) : (
-              <SidebarChildren
-                content={sidebarContent}
-                hasConnections={
-                  submitable &&
-                  defaultData?.status &&
-                  !inArray(defaultData?.status, "draft")
-                }
-                submitable={submitable}
+              <FormPageProvider
+                isCreate={false}
+                disabled={disabled}
+                errors={errors}
+                fieldNameTrans={fieldNameTrans}
                 defaultData={defaultData}
-              />
+                data={data}
+                setData={setData}
+                form={form}
+              >
+                <SidebarChildren
+                  content={sidebarContent}
+                  hasConnections={
+                    submitable &&
+                    defaultData?.status &&
+                    !inArray(defaultData?.status, "draft")
+                  }
+                  submitable={submitable}
+                  defaultData={defaultData}
+                />
+              </FormPageProvider>
             )}
             <FormChildren
               ref={ref}
