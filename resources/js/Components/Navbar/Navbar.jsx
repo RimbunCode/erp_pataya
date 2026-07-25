@@ -16,6 +16,7 @@ import {
 import { Fragment, memo, useMemo } from "react";
 
 import { Button } from "@/Components/ui/button";
+import LanguageSwitcher from "@/Components/LanguageSwitcher";
 import Link from "../Link";
 import Notifications from "./Notifications";
 import { Separator } from "@/Components/ui/separator";
@@ -167,6 +168,7 @@ export default memo(function Navbar({ actions, onOpenSearch }) {
             <span className="text-xs">Ctrl + K</span>
           </kbd>
         </Button>
+        <LanguageSwitcher className="size-4" />
         <ToggleTheme className="size-4" />
         <ChangelogBadge />
         <Notifications />
