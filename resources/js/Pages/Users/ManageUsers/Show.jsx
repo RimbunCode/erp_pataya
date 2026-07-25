@@ -123,7 +123,9 @@ export default function Show({ user }) {
             authUser.id === user.id && (
               <>
                 <Button type="button" variant="outline" asChild>
-                  <a href={route("users.connect-provider", [user.id, "google"])}>
+                  <a
+                    href={route("users.connect-provider", [user.id, "google"])}
+                  >
                     <Link2 />
                     {t("user.user.connect_provider.connect_google")}
                   </a>
