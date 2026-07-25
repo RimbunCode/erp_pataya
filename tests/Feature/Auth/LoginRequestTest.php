@@ -73,4 +73,24 @@ class LoginRequestTest extends TestCase {
         $response->assertSessionHasErrors('status');
         $this->assertGuest();
     }
+
+    public function test_login_with_username_or_email_exceeding_max_length_returns_validation_error(): void {
+        $response = $this->post('/login', [
+            'usernameOrEmail' => str_repeat('a', 256),
+            'password'        => 'password',
+        ]);
+
+        $response->assertSessionHasErrors('usernameOrEmail');
+        $this->assertGuest();
+    }
+
+    public function test_login_with_password_exceeding_max_length_returns_validation_error(): void {
+        $response = $this->post('/login', [
+            'usernameOrEmail' => 'testqa',
+            'password'        => str_repeat('a', 73),
+        ]);
+
+        $response->assertSessionHasErrors('password');
+        $this->assertGuest();
+    }
 }

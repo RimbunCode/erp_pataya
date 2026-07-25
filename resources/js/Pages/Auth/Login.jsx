@@ -91,8 +91,9 @@ export default function Login({ errors }) {
                   type="text"
                   name="usernameOrEmail"
                   autoComplete="usernameOrEmail"
-                  value={data.email}
+                  value={data.usernameOrEmail}
                   onChange={(e) => setData("usernameOrEmail", e.target.value)}
+                  maxLength={255}
                   required
                 />
               </div>
@@ -111,6 +112,7 @@ export default function Login({ errors }) {
                   autoComplete="password"
                   value={data.password}
                   onChange={(e) => setData("password", e.target.value)}
+                  maxLength={72}
                   required
                 />
                 <div className="flex items-center">
