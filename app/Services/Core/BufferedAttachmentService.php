@@ -9,6 +9,8 @@ use App\Models\Core\Taggable;
 use App\Models\Core\Todo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class BufferedAttachmentService {
     public static function attach(Model $model, Request $request): void {
@@ -69,11 +71,29 @@ class BufferedAttachmentService {
             if (! is_array($assignee) || empty($allocatedToId) || empty($assignee['type'])) {
                 continue;
             }
-            $todo = Todo::firstOrCreate([
-                'reference_id'    => $model->getKey(),
-                'reference_type'  => get_class($model),
-                'allocated_to_id' => $allocatedToId,
-            ], [
+
+            $validator = Validator::make($assignee, [
+                'description' => ['nullable', 'string'],
+                'priority'    => ['nullable', 'string', 'in:low,medium,high'],
+                'date'        => ['nullable', 'date'],
+                'due_date'    => ['nullable', 'date', 'after_or_equal:date'],
+            ]);
+            $validator->validate();
+
+            $alreadyAssigned = Todo::where('reference_id', $model->getKey())
+                ->where('reference_type', get_class($model))
+                ->where('allocated_to_id', $allocatedToId)
+                ->exists();
+            if ($alreadyAssigned) {
+                throw ValidationException::withMessages([
+                    'buffered_assignees' => [__('core.todo.errors.already_assigned')],
+                ]);
+            }
+
+            $todo = Todo::create([
+                'reference_id'      => $model->getKey(),
+                'reference_type'    => get_class($model),
+                'allocated_to_id'   => $allocatedToId,
                 'code'              => TodoService::generateCode($assignee),
                 'allocated_to_type' => $assignee['type'],
                 'assigned_by_id'    => $request->user()?->id,
@@ -83,9 +103,8 @@ class BufferedAttachmentService {
                 'date'              => $assignee['date'] ?? null,
                 'due_date'          => $assignee['due_date'] ?? null,
             ]);
-            if ($todo->wasRecentlyCreated) {
-                app(TodoService::class)->notifyAssignee($todo);
-            }
+
+            app(TodoService::class)->notifyAssignee($todo);
         }
     }
 }

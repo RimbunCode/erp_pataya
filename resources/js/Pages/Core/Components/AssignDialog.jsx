@@ -36,14 +36,14 @@ function AssignDialog({
   const canSubmit = !!value.allocated_to;
 
   return (
-    <DialogContent>
+    <DialogContent className="max-w-2xl">
       <DialogHeader>
         <DialogTitle>{t("core.form.assigned_to")}</DialogTitle>
       </DialogHeader>
       <AssignedToFields
         value={value}
         onChange={handleChange}
-        layout="stack"
+        layout="grid"
         disableStatus
         excludeAssigneeIds={activeAssigneeIds.filter(
           (id) => id !== value.allocated_to?.id,

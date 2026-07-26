@@ -27,6 +27,7 @@ function AssignedToFields({
           label={t("core.todo.columns.allocated_to")}
           name="allocated_to"
           required
+          ignoreDisabled
         >
           <AssignableLinkModel
             value={value.allocated_to}
@@ -43,6 +44,7 @@ function AssignedToFields({
           label={t("core.todo.columns.priority")}
           name="priority"
           required
+          ignoreDisabled
         >
           <Select
             value={value.priority}
@@ -52,7 +54,12 @@ function AssignedToFields({
           />
         </FormInput>
 
-        <FormInput label={t("core.todo.columns.status")} name="status" required>
+        <FormInput
+          label={t("core.todo.columns.status")}
+          name="status"
+          required
+          ignoreDisabled
+        >
           <Select
             value={disableStatus ? "open" : value.status}
             onValueChange={
@@ -66,7 +73,11 @@ function AssignedToFields({
       </div>
 
       <div className="flex flex-col gap-4">
-        <FormInput label={t("core.todo.columns.date")} name="date">
+        <FormInput
+          label={t("core.todo.columns.date")}
+          name="date"
+          ignoreDisabled
+        >
           <DatetimePicker
             type="date"
             value={value.date}
@@ -74,7 +85,11 @@ function AssignedToFields({
           />
         </FormInput>
 
-        <FormInput label={t("core.todo.columns.due_date")} name="due_date">
+        <FormInput
+          label={t("core.todo.columns.due_date")}
+          name="due_date"
+          ignoreDisabled
+        >
           <DatetimePicker
             type="datetime"
             value={value.due_date}
@@ -87,6 +102,7 @@ function AssignedToFields({
         label={t("core.todo.columns.description")}
         name="description"
         className={layout === "grid" ? "md:col-span-2" : undefined}
+        ignoreDisabled
       >
         <TiptapEditor
           value={value.description}
