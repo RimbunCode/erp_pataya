@@ -52,6 +52,13 @@ return Application::configure(dirname(__DIR__))
             'lang'      => LanguageMiddleware::class,
             'onboarded' => EnsureUserIsOnboarded::class,
         ]);
+
+        // Legacy SSO POST datang dari domain aplikasi lama (cross-origin) —
+        // tidak mungkin membawa CSRF token app ini. Diamankan lewat HMAC
+        // signature + TTL + one-time jti di LegacySsoController, bukan CSRF.
+        $middleware->validateCsrfTokens(except: [
+            'auth/legacy-sso',
+        ]);
         //
     })
     ->withCommands([

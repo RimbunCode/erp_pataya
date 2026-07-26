@@ -8,6 +8,7 @@ use App\Http\Middleware\EnsureUserIsOnboarded;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LanguageMiddleware;
 use App\Models\User\User;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -129,6 +130,26 @@ class LegacySsoControllerTest extends TestCase {
         $response->assertRedirect(route('login'));
         $response->assertSessionHasErrors('status');
         $this->assertGuest();
+    }
+
+    public function test_endpoint_is_reachable_without_a_csrf_token(): void {
+        // withoutMiddleware() in setUp() doesn't touch CSRF, but Laravel's
+        // test HTTP helpers bypass ValidateCsrfToken globally unless it's
+        // explicitly re-enabled — do that here so this test actually
+        // proves the bootstrap/app.php validateCsrfTokens(except:) exclusion
+        // works, instead of passing for the wrong reason.
+        $this->withMiddleware(ValidateCsrfToken::class);
+
+        User::factory()->create([
+            'email'  => 'no-csrf@example.com',
+            'status' => FormStatus::ACTIVE,
+        ]);
+
+        $response = $this->post('/auth/legacy-sso', ['token' => $this->signedToken('no-csrf@example.com')]);
+
+        $response->assertStatus(302);
+        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertAuthenticated();
     }
 
     public function test_ttl_is_capped_server_side_regardless_of_claimed_expiry(): void {
