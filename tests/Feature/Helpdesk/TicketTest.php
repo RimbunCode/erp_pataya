@@ -2,10 +2,10 @@
 
 namespace Tests\Feature\Helpdesk;
 
+use App\Models\Core\File as FileModel;
 use App\Models\Core\FormatingSeries;
 use App\Models\Core\Tag;
 use App\Models\Core\Todo;
-use App\Models\Core\File as FileModel;
 use App\Models\Helpdesk\Ticket;
 use App\Models\Helpdesk\TicketResponse;
 use App\Models\User\User;
