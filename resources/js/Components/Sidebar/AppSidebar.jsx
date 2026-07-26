@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import {
+  BookOpenIcon,
   HandCoins,
   LayoutDashboard,
   ListTodo,
@@ -289,6 +290,12 @@ const navList = [
     icon: <ListTodo />,
     url: "/todos",
     urlPattern: "/todos/*",
+  },
+  {
+    title: "Manual Book",
+    icon: <BookOpenIcon />,
+    url: "/manual-book",
+    urlPattern: "/manual-book*",
   },
   {
     title: "Settings",

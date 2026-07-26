@@ -3,6 +3,7 @@
 @import "./tiptap.css";
 
 @plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views.php';
@@ -788,5 +789,33 @@ html {
   * {
     font-family: "Times New Roman", Times, serif;
     font-size: 12pt;
+  }
+
+  /* AppLayout membungkus konten dalam SidebarInset (elemen <main>) yang
+     punya overflow-y-hidden + min-h-screen, dan child div dengan
+     overflow-y-auto + max-h-full — keduanya scrollable container dengan
+     tinggi terbatas untuk UI normal. Saat print, browser hanya mencetak
+     area yang ter-render di viewport container tersebut, bukan seluruh
+     scrollHeight-nya — menyebabkan konten panjang terpotong jadi 1 halaman.
+     Reset ke overflow/height natural supaya seluruh konten ikut tercetak. */
+  html,
+  body,
+  #app,
+  main,
+  main > div {
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .manual-book-mermaid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .manual-book-mermaid svg {
+    max-width: 100%;
+    height: auto;
   }
 }

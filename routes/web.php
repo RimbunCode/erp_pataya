@@ -16,6 +16,7 @@ use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
+use App\Http\Controllers\Core\ManualBookController;
 use App\Http\Controllers\Core\NotificationController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\SavedFilterController;
@@ -315,6 +316,11 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // Changelog
     Route::get('/changelogs', [ChangelogController::class, 'index'])->name('changelogs.index');
     // / Helpdesk Group End
+
+    // / Manual Book Group
+    Route::get('/manual-book', [ManualBookController::class, 'index'])->name('manualBook.index');
+    Route::get('/manual-book/{section}', [ManualBookController::class, 'show'])->name('manualBook.show');
+    // / Manual Book Group End
 
     // / Sales Groups
     // Sales Orders
