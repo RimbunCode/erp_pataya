@@ -39,6 +39,24 @@ class TicketResponseRequest extends BaseFormRequest {
             'due_date'     => ['nullable', 'date'],
             'content'      => ['nullable', 'string'],
             'content_json' => ['nullable', 'array'],
+
+            'buffered_tags'         => ['nullable', 'array'],
+            'buffered_tags.*.id'    => ['nullable', 'string'],
+            'buffered_tags.*.name'  => ['required_with:buffered_tags.*', 'string', 'max:255'],
+            'buffered_tags.*.isNew' => ['nullable', 'boolean'],
+
+            'buffered_assignees'                   => ['nullable', 'array'],
+            'buffered_assignees.*.allocated_to_id' => ['nullable', 'string'],
+            'buffered_assignees.*.id'              => ['nullable', 'string'],
+            'buffered_assignees.*.type'            => ['required_with:buffered_assignees.*', 'string'],
+            'buffered_assignees.*.name'            => ['nullable', 'string'],
+            'buffered_assignees.*.priority'        => ['nullable', 'string'],
+            'buffered_assignees.*.description'     => ['nullable', 'string'],
+            'buffered_assignees.*.date'            => ['nullable', 'date'],
+            'buffered_assignees.*.due_date'        => ['nullable', 'date'],
+
+            'filesId'   => ['nullable', 'array'],
+            'filesId.*' => ['nullable', 'string'],
         ];
     }
 }

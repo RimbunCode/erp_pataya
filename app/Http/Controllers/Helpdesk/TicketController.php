@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Helpdesk\TicketRequest;
 use App\Http\Requests\Helpdesk\TicketResponseRequest;
 use App\Models\Helpdesk\Ticket;
+use App\Services\Core\BufferedAttachmentService;
 use App\Services\Helpdesk\TicketService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ class TicketController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'updateTicket' => 'write',
-            default                    => null,
+            default => null,
         };
     }
 
@@ -97,6 +98,7 @@ class TicketController extends Controller {
     public function updateTicket(TicketResponseRequest $request, Ticket $ticket) {
         DB::beginTransaction();
         $this->service->updateTicket($ticket, $request->validated());
+        BufferedAttachmentService::attach($ticket, $request);
         DB::commit();
 
         return redirect()->route('tickets.show', $ticket);
