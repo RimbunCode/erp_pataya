@@ -462,6 +462,7 @@ abstract class Controller {
         // tersendiri untuk aman diakses, di luar scope mention field sederhana.
         $resolvedFields = collect($this->model::getColumns(0))
             ->reject(fn ($col) => isset($col['nameOfFunction']))
+            ->reject(fn ($col) => is_array(data_get($data, $col['name'])) || is_object(data_get($data, $col['name'])))
             ->map(fn ($col) => [
                 'id'    => "doc.{$col['name']}",
                 'label' => $col['titleTrans'] ?? $col['name'],
@@ -473,7 +474,7 @@ abstract class Controller {
             'body'            => $compiled['body'],
             'recipient'       => $recipient,
             'fromAddress'     => config('mail.from.address'),
-            'fromName'        => config('mail.from.name'),
+            'fromName'        => auth()->user()->name,
             'files'           => $attachableFiles,
             'hasGeneratedPdf' => $hasGeneratedPdf,
             // Syarat checkbox "Sertakan PDF" bisa ditampilkan sama sekali —

@@ -15,7 +15,7 @@ return [
     'connections'        => 'Connections',
     'actions'            => [
         'start_work'        => 'Start Work',
-        'complate_work'     => 'Complate Work',
+        'complate_work'     => 'Complete Work',
         'create_io'         => 'Create Internal Order',
         'create_so'         => 'Create Sales Order',
         'create_pr'         => 'Create Purchase Request',

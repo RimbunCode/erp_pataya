@@ -2,11 +2,16 @@
 
 namespace Tests\Feature\Helpdesk;
 
+use App\Models\Core\File as FileModel;
+use App\Models\Core\FormatingSeries;
+use App\Models\Core\Tag;
+use App\Models\Core\Todo;
 use App\Models\Helpdesk\Ticket;
 use App\Models\Helpdesk\TicketResponse;
 use App\Models\User\User;
 use App\Services\Helpdesk\TicketService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
 use Tests\TestCase;
@@ -30,6 +35,37 @@ class TicketTest extends TestCase {
                 Schema::table($table, fn ($t) => $t->boolean('is_example')->default(false));
             }
         }
+
+        // FormatingSeries ditambahkan via initPermissions() di prod, bukan migration.
+        // Buat manual agar TodoService::generateCode() (FormatingSeries::generate) jalan di test.
+        if (! FormatingSeries::where('model', Todo::class)->exists()) {
+            FormatingSeries::create([
+                'model'  => Todo::class,
+                'name'   => 'ToDo',
+                'format' => 'TODO/@[yy]-@[mm]/@[iiii]',
+                'logs'   => ['imy' => []],
+            ]);
+        }
+
+        // Kolom nested-set TreeView + user_id/parent_id pada `files` ditambahkan
+        // di prod via command init, bukan migration. Shim agar File::create jalan di SQLite.
+        Schema::table('files', function ($t) {
+            if (! Schema::hasColumn('files', 'user_id')) {
+                $t->ulid('user_id')->nullable();
+            }
+            if (! Schema::hasColumn('files', 'parent_id')) {
+                $t->ulid('parent_id')->nullable();
+            }
+            if (! Schema::hasColumn('files', 'lft')) {
+                $t->unsignedBigInteger('lft')->nullable();
+            }
+            if (! Schema::hasColumn('files', 'rgt')) {
+                $t->unsignedBigInteger('rgt')->nullable();
+            }
+            if (! Schema::hasColumn('files', 'depth')) {
+                $t->unsignedBigInteger('depth')->nullable();
+            }
+        });
 
         $this->user = User::factory()->create();
 
@@ -254,6 +290,113 @@ class TicketTest extends TestCase {
             'status'    => 'in_progress',
             'progress'  => 30,
         ]);
+    }
+
+    public function test_update_ticket_attaches_buffered_tags_to_ticket(): void {
+        $ticket   = Ticket::factory()->create();
+        $existing = Tag::create(['name' => 'urgent']);
+
+        $response = $this->authenticatedRequest()
+            ->put(route('tickets.updateTicket', $ticket), [
+                'type'          => 'bug_problem',
+                'priority'      => 'high',
+                'subject'       => 'Updated subject',
+                'status'        => 'in_progress',
+                'progress'      => 30,
+                'assign_to'     => ['id' => $this->user->id],
+                'start_date'    => now()->toDateTimeString(),
+                'buffered_tags' => [
+                    ['id' => $existing->id, 'name' => 'urgent'],
+                    ['name' => 'baru-banget', 'isNew' => true],
+                ],
+            ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('taggables', [
+            'taggable_id'   => $ticket->id,
+            'taggable_type' => Ticket::class,
+            'tag_id'        => $existing->id,
+        ]);
+        $newTag = Tag::where('name', 'baru-banget')->firstOrFail();
+        $this->assertDatabaseHas('taggables', [
+            'taggable_id'   => $ticket->id,
+            'taggable_type' => Ticket::class,
+            'tag_id'        => $newTag->id,
+        ]);
+        $this->assertDatabaseMissing('taggables', [
+            'taggable_type' => TicketResponse::class,
+        ]);
+    }
+
+    public function test_update_ticket_attaches_buffered_assignees_as_todos(): void {
+        Notification::fake();
+
+        $ticket   = Ticket::factory()->create();
+        $assignee = User::factory()->create();
+
+        $response = $this->authenticatedRequest()
+            ->put(route('tickets.updateTicket', $ticket), [
+                'type'               => 'bug_problem',
+                'priority'           => 'high',
+                'subject'            => 'Updated subject',
+                'status'             => 'in_progress',
+                'progress'           => 30,
+                'assign_to'          => ['id' => $this->user->id],
+                'start_date'         => now()->toDateTimeString(),
+                'buffered_assignees' => [
+                    ['allocated_to_id' => $assignee->id, 'type' => 'user', 'name' => $assignee->name],
+                ],
+            ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('todos', [
+            'reference_id'      => $ticket->id,
+            'reference_type'    => Ticket::class,
+            'allocated_to_id'   => $assignee->id,
+            'allocated_to_type' => 'user',
+        ]);
+        $this->assertDatabaseMissing('todos', [
+            'reference_type' => TicketResponse::class,
+        ]);
+    }
+
+    public function test_update_ticket_attaches_uploaded_file_via_files_id(): void {
+        $ticket = Ticket::factory()->create();
+        $file   = FileModel::create([
+            'name'      => 'doc',
+            'path'      => 'files/doc.pdf',
+            'extension' => 'pdf',
+            'mime_type' => 'application/pdf',
+            'is_public' => false,
+            'is_draft'  => true,
+            'user_id'   => $this->user->id,
+        ]);
+
+        $response = $this->authenticatedRequest()
+            ->put(route('tickets.updateTicket', $ticket), [
+                'type'       => 'bug_problem',
+                'priority'   => 'high',
+                'subject'    => 'Updated subject',
+                'status'     => 'in_progress',
+                'progress'   => 30,
+                'assign_to'  => ['id' => $this->user->id],
+                'start_date' => now()->toDateTimeString(),
+                'filesId'    => [$file->id],
+            ]);
+
+        $response->assertRedirect();
+
+        $this->assertDatabaseHas('fileables', [
+            'fileable_id'   => $ticket->id,
+            'fileable_type' => Ticket::class,
+            'file_id'       => $file->id,
+        ]);
+        $this->assertDatabaseMissing('fileables', [
+            'fileable_type' => TicketResponse::class,
+        ]);
+        $this->assertFalse($file->refresh()->is_draft);
     }
 
     public function test_index_redirects_to_show_when_code_param_given(): void {

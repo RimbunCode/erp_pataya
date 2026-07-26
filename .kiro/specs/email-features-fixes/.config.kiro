@@ -1,0 +1,6 @@
+{
+  "specId": "432f1eb0-af4e-43c2-9550-191730258426",
+  "workflowType": "requirements-first",
+  "specType": "bugfix",
+  "description": "Perbaikan 4 bug pada fitur email (menu Email Templates hilang dari sidebar, lang key dialog kirim email kosong, upload attachment tidak pakai UploadDialog, default Send From salah) plus perubahan layout dialog kirim email agar attachments & opsi PDF pindah ke sidebar kanan"
+}
