@@ -55,4 +55,9 @@ return [
         'webhook_token' => env('DEPLOY_WEBHOOK_TOKEN'),
     ],
 
+    'legacy_sso' => [
+        'secret'      => env('LEGACY_SSO_SECRET'),
+        'ttl_seconds' => env('LEGACY_SSO_TTL_SECONDS', 60),
+    ],
+
 ];

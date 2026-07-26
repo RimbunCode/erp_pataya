@@ -6,6 +6,8 @@ return [
     'email_already_registered' => 'Email ini sudah terdaftar pada akun lain.',
     'password'                 => 'Kata sandi yang diberikan tidak diverifikasi.',
     'throttle'                 => 'Terlalu banyak percobaan login. Silakan coba lagi dalam :seconds detik.',
+    'legacy_sso_invalid'       => 'Tautan masuk dari aplikasi sebelumnya tidak valid.',
+    'legacy_sso_expired'       => 'Tautan masuk dari aplikasi sebelumnya sudah kedaluwarsa. Silakan coba lagi.',
     'your_password'            => 'Kata Sandi Anda',
     'login'                    => [
         'title'           => 'Selamat Datang Kembali',

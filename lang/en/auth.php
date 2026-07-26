@@ -18,6 +18,8 @@ return [
     'email_already_registered' => 'This email is already registered to another account.',
     'password'                 => 'The provided password is incorrect.',
     'throttle'                 => 'Too many login attempts. Please try again in :seconds seconds.',
+    'legacy_sso_invalid'       => 'The sign-in link from the previous application is invalid.',
+    'legacy_sso_expired'       => 'The sign-in link from the previous application has expired. Please try again.',
     'your_password'            => 'Your Password',
     'login'                    => [
         'title'           => 'Welcome Back',

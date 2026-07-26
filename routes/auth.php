@@ -3,6 +3,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\ConfirmablePasswordController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use App\Http\Controllers\Auth\EmailVerificationPromptController;
+use App\Http\Controllers\Auth\LegacySsoController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
@@ -39,6 +40,8 @@ Route::middleware(['guest', 'lang'])->group(function () {
 });
 
 Route::get('/auth/{driver}/callback', [AuthenticatedSessionController::class, 'handleProviderCallback']);
+
+Route::post('/auth/legacy-sso', [LegacySsoController::class, 'login'])->name('auth.legacy-sso');
 
 Route::middleware(['auth', 'lang'])->group(function () {
     Route::get('my-profile', [UserController::class, 'myProfile'])->name('myProfile');
