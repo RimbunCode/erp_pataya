@@ -45,40 +45,41 @@ Modul Sales mengelola proses penjualan dari pembuatan order hingga pengiriman da
 
 ## Korelasi Antar-Feature
 
-Sales Order adalah **hub** yang men-spawn dokumen turunan. Setiap turunan menunjuk kembali ke SO via relasi polymorphic `referenceable` (dicatat di [`model_connections`](../database.md#model_connections)).
+Sales Order adalah **pusat** dari proses penjualan — dari sini lahir dokumen pengiriman, tagihan, sampai pembayaran. Diagram berikut menggambarkan perjalanan satu Sales Order dari dibuat sampai selesai:
 
 ```mermaid
-flowchart TD
-    SO["Sales Order<br/>(sales_orders)"]
-    DN["Delivery Note<br/>(delivery_notes)"]
-    SI["Sales Invoice<br/>(sales_invoices)"]
-    PE["Payment Entry<br/>(payment_entries)"]
-    GL["General Ledger<br/>(general_ledgers)"]
-    SLE["Stock Ledger<br/>(stock_ledger_entries)"]
-    WO["Work Order<br/>(work_orders)"]
+flowchart LR
+    SO(["📋 Sales Order<br/>dibuat & disetujui"])
+    DN["🚚 Delivery Note<br/>barang dikirim"]
+    SI["🧾 Sales Invoice<br/>tagihan dibuat"]
+    PE["💰 Payment Entry<br/>uang diterima"]
+    Ledger[("📚 Buku Besar<br/>& Kartu Stok")]
+    Closed(["✅ Sales Order Selesai"])
 
-    WO -.->|"dapat memicu"| SO
-    SO -->|"delivered_quantity"| DN
-    SO -->|"billed_quantity"| SI
-    DN -->|"submit → stok keluar"| SLE
-    SI -->|"submit → piutang"| GL
-    SI -->|"dibayar oleh"| PE
-    PE -->|"submit → kas masuk"| GL
+    SO ==> DN
+    SO ==> SI
+    DN -.->|"stok berkurang"| Ledger
+    SI -.->|"piutang bertambah"| Ledger
+    SI --> PE
+    PE -.->|"kas bertambah, piutang berkurang"| Ledger
+    DN --> Closed
+    SI --> Closed
+    PE --> Closed
 
-    classDef src fill:#dbeafe,stroke:#3b82f6;
-    classDef led fill:#fef9c3,stroke:#ca8a04;
-    class SO src;
-    class GL,SLE led;
+    style SO fill:#3b82f6,stroke:#1d4ed8,color:#fff,stroke-width:2px
+    style Closed fill:#22c55e,stroke:#15803d,color:#fff,stroke-width:2px
+    style DN fill:#fef3c7,stroke:#d97706
+    style SI fill:#fef3c7,stroke:#d97706
+    style PE fill:#dcfce7,stroke:#16a34a
+    style Ledger fill:#f3f4f6,stroke:#6b7280
 ```
 
-| Dari | Ke | Kolom penghubung | Efek saat submit dokumen tujuan |
-|---|---|---|---|
-| SO | DN | `delivery_notes.referenceable_*` → SO; `delivered_quantity` di SO item | Stok keluar (`StockLedgerEntry`), SO → `PARTIALLY_DELIVERED`/`DELIVERED` |
-| SO | SI | `sales_invoices.sales_order_id`; `billed_quantity` di SO item | Piutang di GL, SO → `PARTIALLY_BILLED`/`BILLED` |
-| SI | Payment Entry | `payment_entries.paymentable_*` → SI | `paid_amount` SI naik, `outstanding_amount` turun, kas masuk di GL |
-| SO | (CLOSED) | semua delivered & billed selesai | SO → `CLOSED` |
+**Cara membaca diagram ini:**
+- Panah tebal (`==>`) = **alur utama** dokumen (satu Sales Order bisa punya banyak Delivery Note dan Sales Invoice).
+- Panah putus-putus = **efek otomatis** ke pembukuan/stok setiap dokumen di-submit — tidak perlu diinput manual.
+- Sales Order dianggap **Selesai** setelah seluruh barang terkirim, seluruh tagihan terbit, dan pembayarannya lunas.
 
-> Dua urutan valid — lihat [Dual Flow](#dual-flow-so--dn--si-atau-so--si--dn). Korelasi sisi Purchase yang setara: [Purchase · Korelasi](purchase.md#korelasi-antar-feature).
+> Delivery Note dan Sales Invoice bisa dibuat dalam **urutan bebas** — lihat [Dual Flow](#dual-flow-so--dn--si-atau-so--si--dn) untuk penjelasannya. Alur setara di sisi pembelian: [Purchase · Korelasi](purchase.md#korelasi-antar-feature).
 
 ---
 
@@ -112,61 +113,60 @@ Sales Order (SO) adalah dokumen utama proses penjualan ke customer.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT: create
-    DRAFT --> SUBMITTED: submit
-    SUBMITTED --> NEED_APPROVAL: ada approval scheme
-    SUBMITTED --> TO_DELIVER_TO_BILL: auto-approved
-    NEED_APPROVAL --> TO_DELIVER_TO_BILL: onApproved
-    NEED_APPROVAL --> REJECTED: onRejected
-    REJECTED --> DRAFT: amend
-    TO_DELIVER_TO_BILL --> PARTIALLY_DELIVERED: sebagian dikirim
-    PARTIALLY_DELIVERED --> DELIVERED: semua dikirim
-    TO_DELIVER_TO_BILL --> PARTIALLY_BILLED: sebagian ditagih
-    PARTIALLY_BILLED --> BILLED: semua ditagih
-    DELIVERED --> CLOSED: semua selesai
-    BILLED --> CLOSED: semua selesai
-    TO_DELIVER_TO_BILL --> CANCELED: cancel
+    [*] --> Draft: Dibuat
+    Draft --> Diajukan: Submit
+    Diajukan --> MenungguPersetujuan: Ada skema approval
+    Diajukan --> SiapProses: Tidak ada skema (langsung disetujui)
+    MenungguPersetujuan --> SiapProses: Disetujui
+    MenungguPersetujuan --> Ditolak: Ditolak
+    Ditolak --> Draft: Direvisi (amend)
+
+    state SiapProses {
+        [*] --> BelumKirimBelumTagih
+        BelumKirimBelumTagih --> SebagianTerkirim: Sebagian dikirim
+        SebagianTerkirim --> Terkirim: Semua dikirim
+        BelumKirimBelumTagih --> SebagianTertagih: Sebagian ditagih
+        SebagianTertagih --> Tertagih: Semua ditagih
+    }
+
+    SiapProses --> Selesai: Terkirim & Tertagih tuntas
+    SiapProses --> Dibatalkan: Cancel
 ```
 
-**Catatan:** Status SO adalah JSON array, bisa multi-status simultan (contoh: `["to_deliver", "to_bill"]`, `["partially_delivered", "to_bill"]`).
+> **Catatan:** Pengiriman dan penagihan berjalan **independen** — satu Sales Order bisa "sudah terkirim tapi belum tertagih", atau sebaliknya, sampai keduanya benar-benar tuntas dan status berubah jadi Selesai.
 
-### Submit Flow
+### Apa yang Terjadi Saat Anda Klik "Submit"
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant C as SalesOrderController
-    participant S as SalesOrderService
-    participant A as ApprovalInstance
+    actor U as Sales Officer
+    participant Sys as Sistem ERP
 
-    U->>C: PUT /salesOrders/{id}/submit
-    C->>S: submit(salesOrder)
-    S->>S: Generate kode final via FormatingSeries
-    S->>S: Buat ModelConnection jika ada referenceable
-    S->>S: Cancel SO lain yang masih DRAFT untuk referensi yang sama
-    S->>S: Reserve stock untuk setiap item di source warehouse
-    S->>A: checkApproval()
-    alt Ada scheme approval aktif
-        A-->>C: Need approval → status NEED_APPROVAL
-    else Tidak ada scheme / 0 step
-        A->>S: onApproved()
-        S->>S: status → [TO_DELIVER, TO_BILL]
+    U->>Sys: Klik tombol "Submit"
+
+    rect rgb(240, 249, 255)
+        Note over Sys: Otomatis, tanpa perlu tindakan tambahan
+        Sys->>Sys: 1️⃣ Buat kode dokumen resmi
+        Sys->>Sys: 2️⃣ Kunci stok yang dipesan di gudang asal
+        Sys->>Sys: 3️⃣ Batalkan draft SO lain untuk pesanan yang sama (jika ada)
     end
-    C-->>U: Redirect ke show page
+
+    alt 🔔 Perusahaan mengaktifkan skema persetujuan
+        Sys-->>U: Status: Menunggu Persetujuan Atasan
+    else Tidak ada skema persetujuan
+        Sys-->>U: Status: Siap Dikirim & Siap Ditagih
+    end
 ```
 
-### onApproved
+> Reservasi stok (langkah 2) memastikan barang yang sudah dipesan tidak "tercuri" oleh pesanan lain sebelum sempat dikirim.
 
-```php
-$salesOrder->update(['status' => [FormStatus::TO_DELIVER, FormStatus::TO_BILL]]);
-```
+### Saat Disetujui
 
-### onRejected / cancel
+Status SO berubah menjadi **Siap Dikirim** dan **Siap Ditagih** sekaligus.
 
-```php
-$salesOrder->update(['status' => [FormStatus::REJECTED/CANCELED]]);
-// Rollback: hapus stock reservations untuk semua item SO
-```
+### Saat Ditolak / Dibatalkan
+
+Status SO berubah menjadi **Ditolak** atau **Dibatalkan**. Semua reservasi stok yang sudah dibuat untuk item SO ini dikembalikan (rollback).
 
 ### Status Auto-Update
 
@@ -227,22 +227,12 @@ Lihat juga [Frontend · Sales](../frontend.md#sales) dan [Peta LinkModel](../fro
 
 ## Item & Variant
 
-Baris item Sales Order (`SalesOrderItem`) **bukan** mereferensikan `Item` master, melainkan **`ItemVariant`** (SKU konkret):
+Baris item Sales Order **bukan** memilih Item master secara langsung, melainkan memilih **Variant** dari item tersebut (SKU konkret — misalnya "Kaos Polos" adalah item, sedangkan "Kaos Polos - Merah, Size L" adalah variant-nya). Konsekuensi:
 
-```php
-// app/Models/Sales/SalesOrderItem.php
-public function item() {
-    return $this->belongsTo(ItemVariant::class, 'item_id');
-}
-```
+- Reservasi stok saat submit dilakukan per-variant, per-gudang asal.
+- Tiap baris juga membawa informasi satuan, pajak, dan gudang asal.
 
-Artinya kolom `sales_order_items.item_id` → tabel **`item_variants`**. Konsekuensi:
-
-- Di UI, kolom "Item" pada baris SO memakai komponen [`ItemVariantLinkModel`](../frontend.md#peta-linkmodel-relasi-ui).
-- Reservasi stok saat submit dilakukan per-variant per-`source_warehouse`.
-- Relasi tambahan per baris: `unit` → `ItemUnit`, `tax` → `Tax`, `sourceWarehouse` → `Warehouse`.
-
-> Penjelasan lengkap relasi Item ↔ ItemVariant: [Database · Item & ItemVariant](../database.md#item--itemvariant) · [Modul Inventory](inventory.md#item--variant).
+> **Pajak bersifat opsional**: baris item SO tetap valid disubmit tanpa memilih pajak. Jika tidak ada pajak dipilih, nilai DPP dan nilai pajak (dihitung otomatis di sisi invoice, lihat [Finances · Bagaimana Pajak Dihitung](finances.md#si-item-fields)) akan bernilai 0.
 
 ---
 
@@ -341,79 +331,89 @@ Master data customer. Bukan dokumen workflow — tidak punya status.
 
 ## Business Flow End-to-End
 
-### Flow Penjualan Standar (SO → DN → SI)
+Dua tim yang biasanya terlibat dalam satu Sales Order: **Sales** (membuat pesanan), **Warehouse** (mengirim barang), dan **Finance** (menagih & menerima bayaran) — dengan **Approver** di tengah jika perusahaan mengaktifkan persetujuan berjenjang.
+
+### Skenario 1: Kirim Dulu, Baru Tagih (paling umum)
 
 ```mermaid
 sequenceDiagram
-    participant S as Sales Officer
-    participant A as Approver
-    participant W as Warehouse Officer
-    participant F as Finance Officer
+    actor Sales as 🧑‍💼 Sales Officer
+    actor Approver as ✅ Approver
+    actor Gudang as 📦 Warehouse Officer
+    actor Finance as 💵 Finance Officer
 
-    S->>S: Buat Sales Order (DRAFT)
-    S->>S: Submit SO → NEED_APPROVAL
-    A->>A: Approve → SO: [TO_DELIVER, TO_BILL]
-    W->>W: Buat Delivery Note dari SO
-    W->>W: Submit DN → stok keluar
-    W->>W: SO item: delivered_qty += DN qty
-    W->>W: SO status → PARTIALLY_DELIVERED/DELIVERED
-    F->>F: Buat Sales Invoice dari SO
-    F->>F: Submit SI → piutang terbentuk di GL
-    F->>F: SO item: billed_qty += SI qty
-    F->>F: SO status → PARTIALLY_BILLED/BILLED → CLOSED
-    F->>F: Terima pembayaran → Payment Entry
-    F->>F: SI: paid_amount += payment → outstanding_amount berkurang
+    Sales->>Sales: Buat Sales Order (Draft)
+    Sales->>Approver: Submit → Menunggu Persetujuan
+    Approver-->>Sales: Disetujui ✅ (Siap Dikirim & Siap Ditagih)
+
+    Gudang->>Gudang: Buat Delivery Note dari SO, submit
+    Note right of Gudang: Stok berkurang, SO ditandai "Terkirim"
+
+    Finance->>Finance: Buat Sales Invoice dari SO, submit
+    Note right of Finance: Piutang tercatat, SO ditandai "Tertagih"
+
+    Finance->>Finance: Terima pembayaran via Payment Entry
+    Note right of Finance: Piutang lunas → Sales Order Selesai 🎉
 ```
 
-### Flow Penjualan Invoice-First (SO → SI → DN)
+### Skenario 2: Tagih Dulu, Baru Kirim (mis. bayar di muka / DP)
 
 ```mermaid
 sequenceDiagram
-    participant S as Sales Officer
-    participant F as Finance Officer
-    participant W as Warehouse Officer
+    actor Sales as 🧑‍💼 Sales Officer
+    actor Finance as 💵 Finance Officer
+    actor Gudang as 📦 Warehouse Officer
 
-    S->>S: Buat Sales Order → Submit → Approve
-    F->>F: Buat Sales Invoice dari SO (sebelum kirim)
-    F->>F: Submit SI → SO status: BILLED
-    W->>W: Buat Delivery Note dari SO
-    W->>W: Submit DN → SO status: DELIVERED → CLOSED
+    Sales->>Sales: Buat & submit Sales Order → Disetujui
+
+    Finance->>Finance: Buat Sales Invoice dari SO (sebelum barang dikirim)
+    Note right of Finance: SO ditandai "Tertagih"
+
+    Gudang->>Gudang: Buat Delivery Note dari SO
+    Note right of Gudang: SO ditandai "Terkirim" → Sales Order Selesai 🎉
 ```
+
+> Kedua skenario di atas **sama-sama valid** — pilih sesuai kebiasaan bisnis Anda. Sales Order otomatis berstatus Selesai begitu pengiriman dan penagihannya sama-sama tuntas, apa pun urutannya.
 
 ---
 
 ## Flow Retur (returnAgainst)
 
-Retur **bukan** dokumen jenis baru — melainkan dokumen bertipe sama (Delivery Note / Sales Invoice) yang menunjuk ke dokumen asli lewat kolom `return_against_id` (header) dan `return_against_item_id` (per baris). Quantity diisi sebagai **pengembalian** (mengurangi qty terkirim/tertagih).
+Retur **bukan** dokumen jenis baru — cukup buat Delivery Note atau Sales Invoice seperti biasa, tapi tandai sebagai "retur dari" dokumen aslinya. Jumlah yang diisi berarti **jumlah yang dikembalikan**, bukan jumlah baru.
 
 ```mermaid
 flowchart LR
-    subgraph Asli
-      DN1["Delivery Note (asli)"]
-      SI1["Sales Invoice (asli)"]
+    subgraph asli [" Dokumen Asli "]
+      DN1["🚚 Delivery Note<br/>barang sudah dikirim"]
+      SI1["🧾 Sales Invoice<br/>tagihan sudah terbit"]
     end
-    subgraph Retur
-      DN2["DN Retur<br/>return_against_id → DN1"]
-      SI2["SI Retur / Credit Note<br/>return_against_id → SI1"]
+    subgraph retur [" Dokumen Retur "]
+      DN2["↩️ Delivery Note Retur"]
+      SI2["↩️ Credit Note<br/>(Sales Invoice Retur)"]
     end
-    DN1 -->|"barang dikembalikan"| DN2
+    DN1 -->|"barang dikembalikan customer"| DN2
     SI1 -->|"tagihan dikoreksi"| SI2
-    DN2 -->|"submit → stok MASUK balik"| SLE["Stock Ledger (+)"]
-    SI2 -->|"submit → reversal piutang"| GL["General Ledger (kontra)"]
+    DN2 -->|"submit"| Stok[("📦 Stok bertambah kembali")]
+    SI2 -->|"submit"| Piutang[("📉 Piutang berkurang")]
+
+    style DN1 fill:#dbeafe,stroke:#3b82f6
+    style SI1 fill:#dbeafe,stroke:#3b82f6
+    style DN2 fill:#fef3c7,stroke:#d97706
+    style SI2 fill:#fef3c7,stroke:#d97706
 ```
 
-### Mekanisme (sesuai kode)
+### Ringkasan Efeknya
 
-| Dokumen | Penanda retur | Efek submit retur |
-|---|---|---|
-| **Delivery Note** | `delivery_notes.return_against_id` → DN asli; item `return_against_item_id` | Stok **masuk kembali** ke `source_warehouse`; `returned_quantity` di DN item asli bertambah; status SO di-recalculate |
-| **Sales Invoice** | `sales_invoices.return_against_id` → SI asli; `is_return` (append) = `return_against_id != null` | GL kontra (kurangi piutang/pendapatan); `billed_quantity` SO disesuaikan |
+| Dokumen Retur | Efek Saat Disubmit |
+|---|---|
+| **Delivery Note Retur** | Stok **kembali masuk** ke gudang asal; jumlah "dikembalikan" pada Delivery Note asli bertambah; status Sales Order ikut disesuaikan |
+| **Credit Note (Sales Invoice Retur)** | Piutang & pendapatan **dikoreksi berkurang**; jumlah tertagih pada Sales Order disesuaikan |
 
-- `DeliveryNote::returnAgainst()` = `belongsTo(DeliveryNote, 'return_against_id')`; per baris `DeliveryNoteItem::returnAgainstItem()`.
-- `SalesInvoice::isReturn()` → `return_against_id != null`; UI menandai dokumen sebagai retur/credit note.
+- Delivery Note retur selalu tertaut ke Delivery Note aslinya, termasuk per baris item yang dikembalikan.
+- Sales Invoice retur otomatis ditandai di aplikasi sebagai dokumen retur/credit note — mudah dibedakan dari invoice biasa.
 - Sisi Purchase setara: GR retur & PI retur — lihat [Purchase · Flow Retur](purchase.md#flow-retur-returnagainst).
 
-> Catatan: saat dokumen retur di-**cancel**, trait [`Submitable`](core.md#trait-submitable) otomatis soft-delete entri GL & Stock Ledger terkait (reversal).
+> Saat dokumen retur di-**batalkan (cancel)**, efeknya di buku besar dan kartu stok otomatis dikembalikan (reversal) — tidak perlu koreksi manual.
 
 ---
 
@@ -431,3 +431,4 @@ flowchart LR
 | Tabel database | [Database · Domain Sales](../database.md#domain-sales) |
 | Daftar route + Controller@method | [Routes · Sales](../routes.md#12-sales) |
 | Halaman React | [Frontend · Sales](../frontend.md#sales) |
+| Asal SO dari Quotation (CRM) | [CRM · Quotation](crm.md#quotation) |

@@ -202,7 +202,69 @@ php artisan make:migrator {name}
 
 **File:** `app/Console/Commands/RunLegacyMigrationCommand.php`
 
-**Deskripsi:** Menjalankan migrator legacy database. Digunakan untuk one-time data migration dari sistem lama.
+**Signature:**
+```
+php artisan erp:migrate-legacy {--step=}
+```
+
+**Deskripsi:** Master runner yang menjalankan seluruh migrator legacy database secara terpusat dan berurutan (Master data dulu, baru data turunan/transaksi). Digunakan untuk one-time data migration dari sistem lama ke ERP baru. Lihat detail strategi lengkap: [Planning Migrator](planning-migrator-from-old-database.md).
+
+**Options:**
+
+| Option | Tipe | Deskripsi |
+|---|---|---|
+| `--step` | option | Jalankan **satu migrator saja** pada index tertentu di array `$migrators` (mulai dari `0`). Harus berupa angka non-negatif — jika tidak, command gagal dengan pesan error. Jika index tidak ada di array, command gagal. |
+
+**Migrator yang aktif terdaftar (Tahap 0 — Master Data Utama):**
+
+| Index | Migrator |
+|---|---|
+| 0 | `UserMigrator` |
+| 1 | `RoleMigrator` |
+| 2 | `RolePermissionMigrator` |
+| 3 | `UserRoleMigrator` |
+| 4 | `UnitMigrator` |
+| 5 | `CategoryMigrator` |
+| 6 | `WarehouseMigrator` |
+| 7 | `CustomerMigrator` |
+| 8 | `SupplierMigrator` |
+| 9 | `ItemMigrator` |
+
+> **Roadmap Tahap 1-5** (Master Data Turunan, Transaksi Header+Item, Replay Approval, Generate Invoice, Koneksi Antar Dokumen) — migrator-migratornya **belum ditulis**, hanya ter-comment sebagai rencana di `$migrators`. Lihat status detail & koreksi terbaru: [Planning Migrator · Koreksi Status](planning-migrator-from-old-database.md#koreksi-status-migrator-25-juli-2026).
+
+**Kapan Dijalankan:**
+- Manual, satu kali, saat proses migrasi data dari sistem lama ke ERP baru.
+- Gunakan `--step=N` untuk menguji satu migrator saja sebelum menjalankan seluruh rangkaian — terutama berguna saat menambah migrator baru atau debug kegagalan migrasi.
+- Jika migrator gagal di tengah proses (mis. karena chunk besar), migrator yang sama bisa dijalankan ulang — proses lanjut otomatis dari checkpoint terakhir (`migration_checkpoints`), bukan dari awal.
+
+**Contoh Penggunaan:**
+
+```bash
+# Jalankan seluruh migrator terdaftar secara berurutan
+php artisan erp:migrate-legacy
+
+# Uji satu migrator saja (index 0 = UserMigrator)
+php artisan erp:migrate-legacy --step=0
+
+# Uji migrator RolePermission saja (index 2)
+php artisan erp:migrate-legacy --step=2
+```
+
+**Output:**
+```
+Memulai proses migrasi data legacy...
+Total skenario migrasi: 10
+
+[1/10] Menyiapkan: App\Services\Migration\Migrators\User\Authentication\UserMigrator...
+Selesai: App\Services\Migration\Migrators\User\Authentication\UserMigrator
+
+[2/10] Menyiapkan: App\Services\Migration\Migrators\User\Roles\RoleMigrator...
+Selesai: App\Services\Migration\Migrators\User\Roles\RoleMigrator
+
+...
+
+Semua proses migrasi selesai!
+```
 
 ---
 

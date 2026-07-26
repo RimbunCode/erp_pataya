@@ -17,126 +17,103 @@
 
 ## Gambaran Modul
 
-Modul Purchase mengelola proses pengadaan barang dari permintaan pembelian hingga penerimaan barang dan pembayaran.
+Modul Purchase mengelola proses pengadaan barang dari permintaan pembelian hingga penerimaan barang dan pembayaran ke supplier.
 
-**Model utama:**
+**Dokumen utama yang terlibat:**
 
-| Model | Tabel | Submitable |
-|---|---|---|
-| `PurchaseRequest` | `purchase_requests` | Ya |
-| `PurchaseRequestItem` | `purchase_request_items` | — |
-| `PurchaseOrder` | `purchase_orders` | Ya |
-| `PurchaseOrderItem` | `purchase_order_items` | — |
-| `PurchaseReceipt` | `purchase_receipts` | Ya |
-| `PurchaseReceiptItem` | `purchase_receipt_items` | — |
-| `Supplier` | `suppliers` | Tidak |
-
-**Services:** `PurchaseOrderService`, `PurchaseReceiptService`, `PurchaseRequestService`
+| Dokumen | Fungsi |
+|---|---|
+| Purchase Request | Permintaan pembelian internal (opsional, sebelum PO dibuat) |
+| Purchase Order | Pesanan resmi yang dikirim ke supplier |
+| Purchase Receipt | Bukti penerimaan barang dari supplier |
+| Supplier | Data pemasok/vendor |
 
 ---
 
 ## Korelasi Antar-Feature
 
-Alur pengadaan berjenjang: **PR → PO → Purchase Receipt (GR) → Purchase Invoice (PI) → Payment**. Tiap dokumen menunjuk ke induknya via polymorphic `referenceable` + [`model_connections`](../database.md#model_connections).
+Alur pengadaan berjenjang: **Purchase Request → Purchase Order → Purchase Receipt → Purchase Invoice → Pembayaran**.
 
 ```mermaid
-flowchart TD
-    PR["Purchase Request<br/>(purchase_requests)"]
-    PO["Purchase Order<br/>(purchase_orders)"]
-    GR["Purchase Receipt / GR<br/>(purchase_receipts)"]
-    PI["Purchase Invoice<br/>(purchase_invoices)"]
-    PE["Payment Entry<br/>(payment_entries)"]
-    GL["General Ledger<br/>(general_ledgers)"]
-    SLE["Stock Ledger<br/>(stock_ledger_entries)"]
+flowchart LR
+    PR(["📝 Purchase Request<br/>permintaan internal"])
+    PO["📋 Purchase Order<br/>dipesan ke supplier"]
+    GR["📦 Purchase Receipt<br/>barang diterima"]
+    PI["🧾 Purchase Invoice<br/>tagihan diterima"]
+    PE(["💸 Payment Entry<br/>dibayar ke supplier"])
+    Ledger[("📚 Buku Besar<br/>& Kartu Stok")]
+    Closed(["✅ Purchase Order Selesai"])
 
-    PR -->|"syncItems → ordered_quantity"| PO
-    PO -->|"received_quantity"| GR
-    PO -->|"billed_quantity"| PI
-    GR -->|"submit → stok MASUK"| SLE
-    PI -->|"submit → hutang"| GL
-    PI -->|"dibayar oleh"| PE
-    PE -->|"submit → kas keluar"| GL
+    PR ==> PO
+    PO ==> GR
+    PO ==> PI
+    GR -.->|"stok bertambah"| Ledger
+    PI -.->|"hutang bertambah"| Ledger
+    PI --> PE
+    PE -.->|"kas berkurang, hutang berkurang"| Ledger
+    GR --> Closed
+    PI --> Closed
+    PE --> Closed
 
-    classDef src fill:#dcfce7,stroke:#16a34a;
-    classDef led fill:#fef9c3,stroke:#ca8a04;
-    class PO src;
-    class GL,SLE led;
+    style PR fill:#dcfce7,stroke:#16a34a
+    style PO fill:#3b82f6,stroke:#1d4ed8,color:#fff,stroke-width:2px
+    style Closed fill:#22c55e,stroke:#15803d,color:#fff,stroke-width:2px
+    style GR fill:#fef3c7,stroke:#d97706
+    style PI fill:#fef3c7,stroke:#d97706
+    style PE fill:#fee2e2,stroke:#dc2626
+    style Ledger fill:#f3f4f6,stroke:#6b7280
 ```
 
-| Dari | Ke | Kolom penghubung | Efek saat submit dokumen tujuan |
-|---|---|---|---|
-| PR | PO | `purchaseOrders.syncItems`; `ordered_quantity` di PR item | PR → `PARTIALLY_ORDERED`/`ORDERED` |
-| PO | GR | `purchase_receipt_items.purchase_order_item_id`; `received_quantity` di PO item | Stok masuk (`StockLedgerEntry`), PO → `PARTIALLY_RECEIVED`/`RECEIVED` |
-| PO | PI | `purchase_invoices.purchase_order_id`; `billed_quantity` di PO item | Hutang di GL, PO → `PARTIALLY_BILLED`/`BILLED` |
-| PI | Payment Entry | `payment_entries.paymentable_*` → PI (`payment_type: pay`) | `paid_amount` PI naik, kas keluar di GL |
+**Cara membaca diagram ini:**
+- Panah tebal (`==>`) = **alur utama** dokumen. Purchase Request bersifat opsional — Purchase Order bisa langsung dibuat tanpa PR.
+- Panah putus-putus = **efek otomatis** ke pembukuan/stok setiap dokumen di-submit.
+- Purchase Order dianggap **Selesai** setelah seluruh barang diterima, seluruh tagihan terbit, dan sudah dibayar lunas.
 
-> Korelasi sisi Sales yang setara (cermin): [Sales · Korelasi](sales.md#korelasi-antar-feature).
+> Alur setara di sisi penjualan: [Sales · Korelasi](sales.md#korelasi-antar-feature).
 
 ---
 
 ## Purchase Request
 
-Purchase Request (PR) adalah dokumen permintaan pembelian internal yang dibuat sebelum PO.
+Purchase Request (PR) adalah permintaan pembelian internal yang dibuat sebelum Purchase Order — biasanya dipakai untuk meminta persetujuan anggaran/kebutuhan sebelum benar-benar memesan ke supplier.
 
 ### Fields Utama
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `code` | string | Kode PR (FormatingSeries) |
-| `date` | datetime | Tanggal PR |
-| `required_date` | datetime | Tanggal dibutuhkan |
-| `external_note` | text | Catatan |
-| `items` | hasMany | Line items |
-| `status` | json | Status aktif |
+| Field | Deskripsi |
+|---|---|
+| Kode | Kode PR (dibuat otomatis) |
+| Tanggal | Tanggal PR dibuat |
+| Tanggal Dibutuhkan | Kapan barang ini dibutuhkan |
+| Catatan | Catatan tambahan |
+| Baris Item | Daftar item yang diminta |
 
-### PR Item Fields
+### Baris Item PR
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `item_variant_id` | FK | Item yang diminta |
-| `item_unit_id` | FK | Satuan |
-| `quantity` | double | Jumlah diminta |
-| `ordered_quantity` | double | Sudah di-order di PO |
-| `unordered_quantity` | double | Belum di-order |
-| `required_date` | datetime | Tanggal dibutuhkan per item |
+| Field | Deskripsi |
+|---|---|
+| Item (Variant) | Barang yang diminta |
+| Satuan | Satuan pengukuran |
+| Jumlah Diminta | Total jumlah yang diminta |
+| Sudah Dipesan | Jumlah yang sudah masuk ke Purchase Order |
+| Belum Dipesan | Sisa jumlah yang belum dipesan |
+| Tanggal Dibutuhkan (per baris) | Bisa berbeda per item |
 
-### Status Workflow PR
+### Alur Status PR
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT: create
-    DRAFT --> SUBMITTED: submit
-    SUBMITTED --> NEED_APPROVAL: ada scheme
-    SUBMITTED --> APPROVED: auto-approved
-    NEED_APPROVAL --> APPROVED: onApproved
-    NEED_APPROVAL --> REJECTED: onRejected
-    REJECTED --> DRAFT: amend
-    APPROVED --> TO_ORDER: belum semua di-PO
-    TO_ORDER --> PARTIALLY_ORDERED: sebagian PO
-    PARTIALLY_ORDERED --> ORDERED: semua di-PO
-    ORDERED --> CLOSED: semua diterima
+    [*] --> Draft: Dibuat
+    Draft --> Diajukan: Submit
+    Diajukan --> MenungguPersetujuan: Ada skema approval
+    Diajukan --> Disetujui: Tidak ada skema (langsung disetujui)
+    MenungguPersetujuan --> Disetujui: Disetujui
+    MenungguPersetujuan --> Ditolak: Ditolak
+    Ditolak --> Draft: Direvisi (amend)
+    Disetujui --> BelumDipesan: Menunggu dibuatkan PO
+    BelumDipesan --> SebagianDipesan: Sebagian sudah jadi PO
+    SebagianDipesan --> SudahDipesan: Semua sudah jadi PO
+    SudahDipesan --> Selesai: Semua barang sudah diterima
 ```
-
-### Routes PR (submitable)
-
-`Purchase\PurchaseRequestController`, prefix `/purchaseRequests`. 12 route dasar + 6 submitable:
-
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| GET | `/purchaseRequests` | `purchaseRequests.index` | `PurchaseRequestController@index` |
-| POST | `/purchaseRequests` | `purchaseRequests.store` | `PurchaseRequestController@store` |
-| GET | `/purchaseRequests/create/{ref?}` | `purchaseRequests.create` | `PurchaseRequestController@create` |
-| GET | `/purchaseRequests/create-print-template` | `purchaseRequests.createPrintTemplate` | `PurchaseRequestController@createPrintTemplate` |
-| GET | `/purchaseRequests/{purchaseRequest}` | `purchaseRequests.show` | `PurchaseRequestController@show` |
-| PUT | `/purchaseRequests/{purchaseRequest}/{level?}` | `purchaseRequests.update` | `PurchaseRequestController@update` |
-| DELETE | `/purchaseRequests/{purchaseRequest}` | `purchaseRequests.destroy` | `PurchaseRequestController@destroy` |
-| PUT | `/purchaseRequests/{purchaseRequest}/submit` | `purchaseRequests.submit` | `PurchaseRequestController@submit` |
-| PUT | `/purchaseRequests/{purchaseRequest}/cancel` | `purchaseRequests.cancel` | `PurchaseRequestController@cancel` |
-| PUT | `/purchaseRequests/{purchaseRequest}/amend` | `purchaseRequests.amend` | `PurchaseRequestController@amend` |
-| GET | `/purchaseRequests/{purchaseRequest}/print/{printTemplate?}` | `purchaseRequests.print` | `PurchaseRequestController@print` |
-| POST/DELETE | `/purchaseRequests/{purchaseRequest}/comment[/{id}]` | `purchaseRequests.addComment` / `removeComment` | `@addComment` / `@removeComment` |
-| POST/DELETE | `/purchaseRequests/{purchaseRequest}/tag[/{id}]` | `purchaseRequests.addTag` / `removeTag` | `@addTag` / `@removeTag` |
-| POST/DELETE | `/purchaseRequests/{purchaseRequest}/file[/{id}]` | `purchaseRequests.addFile` / `removeFile` | `@addFile` / `@removeFile` |
 
 ---
 
@@ -146,284 +123,208 @@ Purchase Order (PO) adalah dokumen pemesanan resmi yang dikirim ke supplier.
 
 ### Fields Utama
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `code` | string | Kode PO (FormatingSeries) |
-| `supplier` | relation | Supplier |
-| `date` | datetime | Tanggal PO |
-| `required_date` | datetime | Tanggal pengiriman yang diharapkan |
-| `currency` | relation | Mata uang |
-| `exchange_rate` | double | Kurs |
-| `discount_on` / `discount_rate` | — | Diskon |
-| `amount` | double | Total PO |
-| `items` | hasMany | Line items |
-| `status` | json | Status aktif |
+| Field | Deskripsi |
+|---|---|
+| Kode | Kode PO (dibuat otomatis, contoh format: `HO/PO-0001/25`) |
+| Supplier | Pemasok tujuan pemesanan |
+| Tanggal | Tanggal PO dibuat |
+| Tanggal Dibutuhkan | Perkiraan tanggal barang harus tiba |
+| Mata Uang & Kurs | Untuk pembelian dalam mata uang asing |
+| Diskon | Diskon total PO |
+| Total | Total nilai PO |
+| Baris Item | Daftar barang yang dipesan |
 
-### Default Format Kode
+### Baris Item PO
 
-`@[branch_code]/PO-@[iiii]/@[yy]` → contoh: `HO/PO-0001/25`
+| Field | Deskripsi |
+|---|---|
+| Item (Variant) | Barang yang dipesan — memilih Variant, bukan Item master langsung |
+| Satuan | Satuan pengukuran |
+| Gudang Tujuan | Gudang tempat barang akan disimpan |
+| Jumlah Dipesan | Total jumlah pesanan |
+| Sudah Diterima / Belum Diterima | Progres penerimaan barang |
+| Sudah Ditagih | Progres penagihan dari supplier |
+| Harga Satuan | Harga per unit |
 
-### PO Item Fields
+> Baris PO memilih **Variant** dari item (SKU konkret), bukan Item master secara langsung — sama seperti pola di Sales Order.
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `item_id` | FK | → tabel **`item_variants`** ([Item & Variant](#catatan-item--variant)), bukan `items` |
-| `item_unit_id` | FK | Satuan (`ItemUnit`) |
-| `target_warehouse_id` | FK | Gudang tujuan |
-| `quantity` | double | Jumlah dipesan |
-| `received_quantity` | double | Sudah diterima |
-| `unreceived_quantity` | double | Belum diterima |
-| `billed_quantity` | double | Sudah ditagih |
-| `rate` | double | Harga satuan |
-| `referenceable_type/id` | polymorphic | Link ke PR item (via `model_connections`) |
-
-> #### Catatan: Item & Variant
-> `PurchaseOrderItem::item()` = `belongsTo(ItemVariant::class, 'item_id')`. Sama seperti SO, baris PO/GR me-reference **ItemVariant** (SKU), bukan Item master. UI memakai [`ItemVariantLinkModel`](../frontend.md#peta-linkmodel-relasi-ui). Detail: [Database · Item & ItemVariant](../database.md#item--itemvariant) · [Inventory](inventory.md#item--variant).
-
-### Status Workflow PO
+### Alur Status PO
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT: create
-    DRAFT --> SUBMITTED: submit
-    SUBMITTED --> NEED_APPROVAL: ada scheme
-    SUBMITTED --> TO_RECEIVE_TO_BILL: auto-approved
-    NEED_APPROVAL --> TO_RECEIVE_TO_BILL: onApproved
-    NEED_APPROVAL --> REJECTED: onRejected
-    REJECTED --> DRAFT: amend
-    TO_RECEIVE_TO_BILL --> PARTIALLY_RECEIVED: sebagian diterima
-    PARTIALLY_RECEIVED --> RECEIVED: semua diterima
-    TO_RECEIVE_TO_BILL --> PARTIALLY_BILLED: sebagian ditagih
-    PARTIALLY_BILLED --> BILLED: semua ditagih
-    RECEIVED --> CLOSED: selesai
-    BILLED --> CLOSED: selesai
-    TO_RECEIVE_TO_BILL --> CANCELED: cancel
+    [*] --> Draft: Dibuat
+    Draft --> Diajukan: Submit
+    Diajukan --> MenungguPersetujuan: Ada skema approval
+    Diajukan --> SiapProses: Tidak ada skema (langsung disetujui)
+    MenungguPersetujuan --> SiapProses: Disetujui
+    MenungguPersetujuan --> Ditolak: Ditolak
+    Ditolak --> Draft: Direvisi (amend)
+
+    state SiapProses {
+        [*] --> BelumTerimaBelumTagih
+        BelumTerimaBelumTagih --> SebagianDiterima: Sebagian diterima
+        SebagianDiterima --> Diterima: Semua diterima
+        BelumTerimaBelumTagih --> SebagianTertagih: Sebagian ditagih
+        SebagianTertagih --> Tertagih: Semua ditagih
+    }
+
+    SiapProses --> Selesai: Diterima & Tertagih tuntas
+    SiapProses --> Dibatalkan: Cancel
 ```
 
-### Submit Flow PO
+> **Catatan:** Penerimaan barang dan penagihan berjalan **independen** — satu Purchase Order bisa "sudah diterima tapi belum ditagih", atau sebaliknya, sampai keduanya benar-benar tuntas.
+
+### Apa yang Terjadi Saat Anda Klik "Submit"
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant C as PurchaseOrderController
-    participant S as PurchaseOrderService
-    participant A as ApprovalInstance
+    actor U as Purchasing Officer
+    participant Sys as Sistem ERP
 
-    U->>C: PUT /purchaseOrders/{id}/submit
-    C->>S: submit(purchaseOrder)
-    S->>S: Generate kode final via FormatingSeries
-    S->>A: checkApproval()
-    alt Tidak ada scheme
-        A->>S: onApproved()
-        S->>S: status → [TO_RECEIVE, TO_BILL]
-        S->>S: Buat ModelConnections ke PR items
-        S->>S: Update ordered_quantity di PR items
-    else Ada scheme
-        A-->>C: NEED_APPROVAL
+    U->>Sys: Klik tombol "Submit"
+
+    alt 🔔 Perusahaan mengaktifkan skema persetujuan
+        Sys-->>U: Status: Menunggu Persetujuan Atasan
+    else Tidak ada skema persetujuan
+        Sys->>Sys: 1️⃣ Buat kode dokumen resmi
+        Sys->>Sys: 2️⃣ Catat tautan ke Purchase Request asal (jika ada)
+        Sys->>Sys: 3️⃣ Update jumlah "sudah dipesan" di Purchase Request
+        Sys-->>U: Status: Siap Diterima & Siap Ditagih
     end
 ```
 
-### onApproved PO
+### Fitur Pendukung
 
-1. Status → `[TO_RECEIVE, TO_BILL]`
-2. Buat `ModelConnection` dari PO items ke PR items yang dilink
-3. Update `ordered_quantity` di PR items via `ModelConnection::getReferenceAttributes()`
-
-### syncItems (dari Purchase Request)
-
-`POST /purchaseOrders/{id}/sync-items` — auto-populate PO items dari PR yang belum di-order penuh.
-
-### markDone
-
-`POST /purchaseOrders/{id}/mark-done` — tandai PO selesai secara manual (bypass receipt requirement).
-
-### Routes PO (submitable)
-
-`Purchase\PurchaseOrderController`, prefix `/purchaseOrders`. 12 route dasar + 6 submitable + 2 non-standar:
-
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| GET | `/purchaseOrders` | `purchaseOrders.index` | `PurchaseOrderController@index` |
-| POST | `/purchaseOrders` | `purchaseOrders.store` | `PurchaseOrderController@store` |
-| GET | `/purchaseOrders/create/{ref?}` | `purchaseOrders.create` | `PurchaseOrderController@create` |
-| GET | `/purchaseOrders/create-print-template` | `purchaseOrders.createPrintTemplate` | `PurchaseOrderController@createPrintTemplate` |
-| GET | `/purchaseOrders/{purchaseOrder}` | `purchaseOrders.show` | `PurchaseOrderController@show` |
-| PUT | `/purchaseOrders/{purchaseOrder}/{level?}` | `purchaseOrders.update` | `PurchaseOrderController@update` |
-| DELETE | `/purchaseOrders/{purchaseOrder}` | `purchaseOrders.destroy` | `PurchaseOrderController@destroy` |
-| PUT | `/purchaseOrders/{purchaseOrder}/submit` | `purchaseOrders.submit` | `PurchaseOrderController@submit` |
-| PUT | `/purchaseOrders/{purchaseOrder}/cancel` | `purchaseOrders.cancel` | `PurchaseOrderController@cancel` |
-| PUT | `/purchaseOrders/{purchaseOrder}/amend` | `purchaseOrders.amend` | `PurchaseOrderController@amend` |
-| GET | `/purchaseOrders/{purchaseOrder}/print/{printTemplate?}` | `purchaseOrders.print` | `PurchaseOrderController@print` |
-| POST | `/purchaseOrders/{purchaseOrder}/sync-items` | `purchaseOrders.syncItems` | `PurchaseOrderController@syncItems` |
-| POST | `/purchaseOrders/{purchaseOrder}/mark-done` | `purchaseOrders.markDone` | `PurchaseOrderController@markDone` |
-| POST/DELETE | `/purchaseOrders/{purchaseOrder}/comment[/{id}]` | `purchaseOrders.addComment` / `removeComment` | `@addComment` / `@removeComment` |
-| POST/DELETE | `/purchaseOrders/{purchaseOrder}/tag[/{id}]` | `purchaseOrders.addTag` / `removeTag` | `@addTag` / `@removeTag` |
-| POST/DELETE | `/purchaseOrders/{purchaseOrder}/file[/{id}]` | `purchaseOrders.addFile` / `removeFile` | `@addFile` / `@removeFile` |
+- **Sinkronisasi item dari Purchase Request** — tombol "Sync dari PR" otomatis mengisi baris item PO dari Purchase Request yang belum sepenuhnya dipesan, supaya tidak perlu input ulang manual.
+- **Tandai Selesai** — tombol untuk menutup PO secara manual, berguna kalau barang tidak akan diterima secara penuh (mis. supplier tidak bisa memenuhi seluruh pesanan).
 
 ---
 
 ## Purchase Receipt
 
-Purchase Receipt (GR/Goods Receipt) adalah dokumen penerimaan barang dari supplier.
+Purchase Receipt (sering disebut GR / Goods Receipt) adalah dokumen bukti penerimaan barang dari supplier.
 
 ### Fields Utama
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `code` | string | Kode GR (FormatingSeries) |
-| `purchase_order` | relation | PO yang diterima |
-| `supplier` | relation | Supplier |
-| `date` | datetime | Tanggal penerimaan |
-| `items` | hasMany | Barang yang diterima |
-| `return_against` | relation | GR yang di-return (jika return) |
+| Field | Deskripsi |
+|---|---|
+| Kode | Kode dokumen (dibuat otomatis) |
+| Purchase Order | PO yang diterima barangnya |
+| Supplier | Pemasok |
+| Tanggal Penerimaan | Kapan barang diterima |
+| Baris Item | Barang yang diterima |
 
-### GR Item Fields
+### Baris Item Purchase Receipt
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `purchase_order_item_id` | FK | Link ke PO item |
-| `item_id` | FK | Item |
-| `target_warehouse_id` | FK | Gudang tujuan |
-| `quantity` | double | Jumlah diterima |
-| `returned_quantity` | double | Sudah dikembalikan |
+| Field | Deskripsi |
+|---|---|
+| Baris PO Terkait | Baris Purchase Order asal |
+| Item | Barang yang diterima |
+| Gudang Tujuan | Gudang tempat barang disimpan |
+| Jumlah Diterima | Jumlah barang yang diterima |
+| Jumlah Dikembalikan | Terisi jika ini dokumen retur |
 
-### Submit Flow GR
+### Apa yang Terjadi Saat Purchase Receipt Disubmit
 
-Saat GR di-submit:
-1. Stok masuk ke `target_warehouse` via `StockLedgerEntry`
-2. PO item `received_quantity` di-update
-3. PO status di-update (PARTIALLY_RECEIVED / RECEIVED)
-4. Jika GR adalah return — stok berkurang, `returned_quantity` di-update
+```mermaid
+flowchart TD
+    Submit(["Submit Purchase Receipt"]) --> Stok["📦 Stok masuk ke gudang tujuan"]
+    Stok --> UpdatePO["Update jumlah diterima di Purchase Order"]
+    UpdatePO --> StatusPO{"Semua item sudah diterima?"}
+    StatusPO -->|Ya| Diterima["PO status: Diterima"]
+    StatusPO -->|Belum| Sebagian["PO status: Sebagian Diterima"]
 
-### Routes GR (submitable)
+    style Submit fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style Diterima fill:#22c55e,stroke:#15803d,color:#fff
+```
 
-`Purchase\PurchaseReceiptController`, prefix `/purchaseReceipts`. 12 route dasar + 6 submitable:
-
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| GET | `/purchaseReceipts` | `purchaseReceipts.index` | `PurchaseReceiptController@index` |
-| POST | `/purchaseReceipts` | `purchaseReceipts.store` | `PurchaseReceiptController@store` |
-| GET | `/purchaseReceipts/create/{ref?}` | `purchaseReceipts.create` | `PurchaseReceiptController@create` |
-| GET | `/purchaseReceipts/create-print-template` | `purchaseReceipts.createPrintTemplate` | `PurchaseReceiptController@createPrintTemplate` |
-| GET | `/purchaseReceipts/{purchaseReceipt}` | `purchaseReceipts.show` | `PurchaseReceiptController@show` |
-| PUT | `/purchaseReceipts/{purchaseReceipt}/{level?}` | `purchaseReceipts.update` | `PurchaseReceiptController@update` |
-| DELETE | `/purchaseReceipts/{purchaseReceipt}` | `purchaseReceipts.destroy` | `PurchaseReceiptController@destroy` |
-| PUT | `/purchaseReceipts/{purchaseReceipt}/submit` | `purchaseReceipts.submit` | `PurchaseReceiptController@submit` |
-| PUT | `/purchaseReceipts/{purchaseReceipt}/cancel` | `purchaseReceipts.cancel` | `PurchaseReceiptController@cancel` |
-| PUT | `/purchaseReceipts/{purchaseReceipt}/amend` | `purchaseReceipts.amend` | `PurchaseReceiptController@amend` |
-| GET | `/purchaseReceipts/{purchaseReceipt}/print/{printTemplate?}` | `purchaseReceipts.print` | `PurchaseReceiptController@print` |
-| POST/DELETE | `/purchaseReceipts/{purchaseReceipt}/comment[/{id}]` | `purchaseReceipts.addComment` / `removeComment` | `@addComment` / `@removeComment` |
-| POST/DELETE | `/purchaseReceipts/{purchaseReceipt}/tag[/{id}]` | `purchaseReceipts.addTag` / `removeTag` | `@addTag` / `@removeTag` |
-| POST/DELETE | `/purchaseReceipts/{purchaseReceipt}/file[/{id}]` | `purchaseReceipts.addFile` / `removeFile` | `@addFile` / `@removeFile` |
+> Jika dokumen ini adalah **retur** (barang dikembalikan ke supplier), arah stoknya terbalik — lihat [Flow Retur](#flow-retur-returnagainst).
 
 ---
 
 ## Supplier
 
-Master data supplier. Mendukung hierarki parent-child (TreeView trait).
+Master data supplier/pemasok. Bisa disusun berjenjang (parent-child) untuk mengelompokkan supplier.
 
 ### Fields
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `name` | string | Nama supplier |
-| `phone`, `email` | string | Kontak |
-| `banks` | json | Informasi rekening bank |
-| `street`, `city`, `province`, `zip_code` | string | Alamat |
-| `country` | relation | Negara |
-| `is_disabled` | boolean | Status aktif |
-| `parent_id`, `lft`, `rgt`, `depth` | — | Hierarki (TreeView) |
-
-### Routes Supplier
-
-`Purchase\SupplierController`, prefix `/suppliers`. 12 route dasar [macro](../routes.md#konvensi-macro-routeresourcedetail):
-
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| GET | `/suppliers` | `suppliers.index` | `SupplierController@index` |
-| POST | `/suppliers` | `suppliers.store` | `SupplierController@store` |
-| GET | `/suppliers/create/{ref?}` | `suppliers.create` | `SupplierController@create` |
-| GET | `/suppliers/{supplier}` | `suppliers.show` | `SupplierController@show` |
-| PUT | `/suppliers/{supplier}` | `suppliers.update` | `SupplierController@update` |
-| DELETE | `/suppliers/{supplier}` | `suppliers.destroy` | `SupplierController@destroy` |
-| POST/DELETE | `/suppliers/{supplier}/comment[/{id}]` | `suppliers.addComment` / `removeComment` | `@addComment` / `@removeComment` |
-| POST/DELETE | `/suppliers/{supplier}/tag[/{id}]` | `suppliers.addTag` / `removeTag` | `@addTag` / `@removeTag` |
-| POST/DELETE | `/suppliers/{supplier}/file[/{id}]` | `suppliers.addFile` / `removeFile` | `@addFile` / `@removeFile` |
+| Field | Deskripsi |
+|---|---|
+| Nama | Nama supplier |
+| Telepon, Email | Kontak |
+| Rekening Bank | Informasi rekening untuk pembayaran |
+| Alamat | Jalan, kota, provinsi, kode pos |
+| Negara | Negara asal supplier |
+| Status Aktif | Apakah supplier masih aktif dipakai |
 
 ---
 
 ## Business Flow End-to-End
 
-### Flow Pengadaan Standar
+Kolaborasi antar peran dalam satu siklus pengadaan penuh — dari permintaan sampai pembayaran:
 
 ```mermaid
 sequenceDiagram
-    participant U as User/Requester
-    participant A as Approver
-    participant P as Purchasing Officer
-    participant W as Warehouse Officer
-    participant F as Finance Officer
+    actor Req as 🙋 Pemohon
+    actor Approver as ✅ Approver
+    actor Purchasing as 🛒 Purchasing Officer
+    actor Gudang as 📦 Warehouse Officer
+    actor Finance as 💵 Finance Officer
 
-    U->>U: Buat Purchase Request (DRAFT)
-    U->>U: Submit PR → NEED_APPROVAL
-    A->>A: Approve PR → APPROVED
-    P->>P: Buat Purchase Order dari PR (syncItems)
-    P->>P: Submit PO → NEED_APPROVAL
-    A->>A: Approve PO → [TO_RECEIVE, TO_BILL]
-    W->>W: Buat Purchase Receipt dari PO
-    W->>W: Submit GR → stok masuk ke gudang
-    W->>W: PO item: received_qty += GR qty
-    W->>W: PO status → PARTIALLY_RECEIVED / RECEIVED
-    F->>F: Buat Purchase Invoice dari PO
-    F->>F: Submit PI → hutang terbentuk di GL
-    F->>F: PO item: billed_qty += PI qty
-    F->>F: PO status → PARTIALLY_BILLED / BILLED → CLOSED
-    F->>F: Bayar supplier → Payment Entry
-    F->>F: PI: paid_amount += payment → outstanding_amount berkurang
+    Req->>Req: Buat Purchase Request
+    Req->>Approver: Submit → Menunggu Persetujuan
+    Approver-->>Req: Disetujui ✅
+
+    Purchasing->>Purchasing: Buat Purchase Order dari PR (sinkronisasi item)
+    Purchasing->>Approver: Submit → Menunggu Persetujuan
+    Approver-->>Purchasing: Disetujui ✅ (Siap Diterima & Siap Ditagih)
+
+    Gudang->>Gudang: Buat Purchase Receipt saat barang tiba, submit
+    Note right of Gudang: Stok bertambah, PO ditandai "Diterima"
+
+    Finance->>Finance: Buat Purchase Invoice dari PO, submit
+    Note right of Finance: Hutang tercatat, PO ditandai "Tertagih"
+
+    Finance->>Finance: Bayar supplier via Payment Entry
+    Note right of Finance: Hutang lunas → Purchase Order Selesai 🎉
 ```
 
 ---
 
 ## Flow Retur (returnAgainst)
 
-Retur pembelian = dokumen **Purchase Receipt** atau **Purchase Invoice** baru yang menunjuk ke dokumen asli via `return_against_id` (+ `return_against_item_id` per baris).
+Retur pembelian **bukan** dokumen jenis baru — cukup buat Purchase Receipt atau Purchase Invoice seperti biasa, tapi tandai sebagai "retur dari" dokumen aslinya.
 
 ```mermaid
 flowchart LR
-    subgraph Asli
-      GR1["Purchase Receipt (asli)"]
-      PI1["Purchase Invoice (asli)"]
+    subgraph asli [" Dokumen Asli "]
+      GR1["📦 Purchase Receipt<br/>barang sudah diterima"]
+      PI1["🧾 Purchase Invoice<br/>tagihan sudah tercatat"]
     end
-    subgraph Retur
-      GR2["GR Retur<br/>return_against_id → GR1"]
-      PI2["PI Retur / Debit Note<br/>return_against_id → PI1"]
+    subgraph retur [" Dokumen Retur "]
+      GR2["↩️ Purchase Receipt Retur"]
+      PI2["↩️ Debit Note<br/>(Purchase Invoice Retur)"]
     end
     GR1 -->|"barang dikembalikan ke supplier"| GR2
     PI1 -->|"tagihan dikoreksi"| PI2
-    GR2 -->|"submit → stok KELUAR"| SLE["Stock Ledger (-)"]
-    PI2 -->|"submit → reversal hutang"| GL["General Ledger (kontra)"]
+    GR2 -->|"submit"| Stok[("📉 Stok berkurang")]
+    PI2 -->|"submit"| Hutang[("📉 Hutang berkurang")]
+
+    style GR1 fill:#dbeafe,stroke:#3b82f6
+    style PI1 fill:#dbeafe,stroke:#3b82f6
+    style GR2 fill:#fef3c7,stroke:#d97706
+    style PI2 fill:#fef3c7,stroke:#d97706
 ```
 
-| Dokumen | Penanda retur | Efek submit retur |
-|---|---|---|
-| **Purchase Receipt** | `purchase_receipts.return_against_id` → GR asli; item `return_against_item_id` | Stok **keluar** dari gudang (barang dikembalikan ke supplier); `returned_quantity` di GR asli bertambah; PO di-recalculate |
-| **Purchase Invoice** | `purchase_invoices.return_against_id` → PI asli | GL kontra (kurangi hutang/persediaan); `billed_quantity` PO disesuaikan |
+### Ringkasan Efeknya
 
-- `PurchaseReceipt::returnAgainst()` / `PurchaseInvoice::returnAgainst()` = self-FK `belongsTo`.
-- Sisi Sales setara: DN retur & SI retur — lihat [Sales · Flow Retur](sales.md#flow-retur-returnagainst).
-
----
-
-## Frontend Pages
-
-| Entitas | File |
+| Dokumen Retur | Efek Saat Disubmit |
 |---|---|
-| Purchase Request | `Pages/Purchase/PurchaseRequests/Index.jsx`, `Show.jsx`, `ItemForm.jsx` |
-| Purchase Order | `Pages/Purchase/PurchaseOrders/Index.jsx`, `ItemForm.jsx`, `PurchaseOrderLinkModel.jsx` |
-| Purchase Receipt | `Pages/Purchase/PurchaseReceipts/Index.jsx`, `Show.jsx`, `ItemForm.jsx`, `PurchaseReceiptLinkModel.jsx` |
-| Supplier | `Pages/Purchase/Suppliers/Index.jsx`, `Form.jsx`, `SupplierLinkModel.jsx` |
+| **Purchase Receipt Retur** | Stok **keluar kembali** (dikembalikan ke supplier); jumlah "dikembalikan" pada Purchase Receipt asli bertambah; status Purchase Order ikut disesuaikan |
+| **Debit Note (Purchase Invoice Retur)** | Hutang & persediaan **dikoreksi berkurang**; jumlah tertagih pada Purchase Order disesuaikan |
 
-Lihat [Frontend · Purchase](../frontend.md#purchase) dan [Peta LinkModel](../frontend.md#peta-linkmodel-relasi-ui).
+- Purchase Receipt Retur dan Debit Note masing-masing selalu tertaut ke dokumen aslinya.
+- Sisi Sales setara: DN retur & Credit Note — lihat [Sales · Flow Retur](sales.md#flow-retur-returnagainst).
 
 ---
 
@@ -431,12 +332,8 @@ Lihat [Frontend · Purchase](../frontend.md#purchase) dan [Peta LinkModel](../fr
 
 | Topik | Dokumen |
 |---|---|
-| Item line → ItemVariant | [Inventory · Item & Variant](inventory.md#item--variant) · [Database](../database.md#item--itemvariant) |
+| Item line → ItemVariant | [Inventory · Item & Variant](inventory.md#item--variant) |
 | Penerimaan barang ke gudang | [Inventory · Stock & Ledger](inventory.md) |
 | Tagihan dari supplier | [Finances · Purchase Invoice](finances.md) |
 | Pembayaran ke supplier | [Finances · Payment Entry](finances.md) |
-| Sistem approval | [Core · Approval](core.md#approval) · [Auth · Workflow](../auth.md#workflow-dokumen) |
-| Tautan antar dokumen (`model_connections`) | [Core · ModelConnection](core.md) · [Database](../database.md#model_connections) |
-| Tabel database | [Database · Domain Purchase](../database.md#domain-purchase) |
-| Daftar route + Controller@method | [Routes · Purchase](../routes.md#11-purchase) |
-| Halaman React | [Frontend · Purchase](../frontend.md#purchase) |
+| Sistem approval | [Core · Approval](core.md#approval) |

@@ -13,6 +13,8 @@
   - [Purchase](#purchase)
   - [Sales](#sales)
   - [Service](#service)
+  - [CRM](#crm)
+  - [Helpdesk](#helpdesk)
   - [Finances](#finances)
   - [Settings](#settings)
   - [Users & Roles](#users--roles)
@@ -130,6 +132,11 @@ Setiap entitas bisnis umumnya punya set file konsisten di `Pages/{Modul}/{Entita
 | Show Log | `Pages/Core/ShowLog.jsx` | Detail activity log (`logs.show`) |
 | Status (debug) | `Pages/Status.jsx` | Halaman status (hanya `app.debug`) |
 | LinkModel Core | `Pages/Core/CountryLinkModel.jsx`, `CurrencyLinkModel.jsx`, `PermissionLinkModel.jsx` | Selector entitas core |
+| Todo | `Pages/Core/Todos/` — `Index`, `Form`, `Show`, `AssignedToFields` | Tugas generik, assign ke User/Role (lihat [Core · Todo](modules/core.md#todo)) |
+| Assign Dialog | `Pages/Core/Components/AssignDialog.jsx` | Dialog assign generik (user/role, prioritas, tanggal) — dipakai Todo |
+| Email Template | `Pages/Core/EmailTemplate/` — `Index`, `Form`, `Show` | Template email per model |
+| Email Send Dialog | `Pages/Core/Components/EmailSendDialog.jsx` | Kirim email manual dari halaman detail dokumen |
+| Changelog | `Pages/Core/Changelogs/Index.jsx` | Daftar rilis aplikasi (lihat [Core · Changelog](modules/core.md#changelog)) |
 
 ### Inventory
 
@@ -173,6 +180,24 @@ Setiap entitas bisnis umumnya punya set file konsisten di `Pages/{Modul}/{Entita
 | Entitas | Folder | File |
 |---|---|---|
 | Work Order | `Services/WorkOrders/` | `Index`, `ItemForm` |
+
+### CRM
+
+| Entitas | Folder | File |
+|---|---|---|
+| Lead | `CRM/Leads/` | `Index`, `Form`, `Show`, `LeadActivities`, `LeadLinkModel` |
+| Opportunity | `CRM/Opportunities/` | `Index`, `Form`, `Show`, `OpportunityLinkModel` |
+| Quotation | `CRM/Quotations/` | `Index`, `Form`, `Show`, `QuotationItems`, `QuotationLinkModel` |
+
+> Alur Lead→Opportunity→Quotation→Sales Order: [Modul CRM](modules/crm.md).
+
+### Helpdesk
+
+| Entitas | Folder | File |
+|---|---|---|
+| Ticket | `Helpdesk/Tickets/` | `Index`, `Form`, `Show`, `ResponseForm` |
+
+> Ticket **bukan** dokumen submitable dan di luar sistem RBAC standar: [Modul Helpdesk](modules/helpdesk.md).
 
 ### Finances
 
@@ -231,6 +256,9 @@ Setiap entitas bisnis umumnya punya set file konsisten di `Pages/{Modul}/{Entita
 | `PurchaseReceiptLinkModel` | `Purchase/PurchaseReceipts/PurchaseReceiptLinkModel.jsx` | `App\Models\Purchase\PurchaseReceipt` | purchase_receipts |
 | `CustomerLinkModel` | `Sales/Customers/CustomerLinkModel.jsx` | `App\Models\Sales\Customer` | customers |
 | `SalesOrderLinkModel` | `Sales/SalesOrders/SalesOrderLinkModel.jsx` | `App\Models\Sales\SalesOrder` | sales_orders |
+| `LeadLinkModel` | `CRM/Leads/LeadLinkModel.jsx` | `App\Models\CRM\Lead` | leads |
+| `OpportunityLinkModel` | `CRM/Opportunities/OpportunityLinkModel.jsx` | `App\Models\CRM\Opportunity` | opportunities |
+| `QuotationLinkModel` | `CRM/Quotations/QuotationLinkModel.jsx` | `App\Models\CRM\Quotation` | quotations |
 | `AccountLinkModel` | `Finances/Accounts/AccountLinkModel.jsx` | `App\Models\Finances\Account` | accounts |
 | `TaxLinkModel` | `Finances/Taxes/TaxLinkModel.jsx` | `App\Models\Finances\Tax` | taxes |
 | `PaymentMethodLinkModel` | `Finances/PaymentMethods/PaymentMethodLinkModel.jsx` | `App\Models\Finances\PaymentMethod` | payment_methods |
@@ -255,6 +283,8 @@ Setiap entitas bisnis umumnya punya set file konsisten di `Pages/{Modul}/{Entita
 | `SalesInvoice/Form` | `SalesOrderLinkModel`, `CustomerLinkModel` | SI → SO + Customer |
 | `PurchaseInvoice/Form` | `PurchaseOrderLinkModel`, `SupplierLinkModel` | PI → PO + Supplier |
 | `Items/Form` | `CategoryLinkModel`, `UnitLinkModel`, `AttributeLinkModel` | Item → Category + Unit; Variant → Attribute |
+| `Opportunities/Form` | `LeadLinkModel` | Opportunity → Lead (opsional) |
+| `Quotations/Form` + `QuotationItems` | `OpportunityLinkModel`, `CustomerLinkModel`, `ItemVariantLinkModel` | Quotation → Opportunity + Customer, Quotation Item → ItemVariant |
 
 > **Penting:** baris item di SO/PO/DN/Invoice me-reference **`ItemVariant`** (kolom `item_id` → tabel `item_variants`), bukan `Item`. Konfirmasi di kode: `SalesOrderItem::item()` = `belongsTo(ItemVariant::class, 'item_id')`. Lihat [Database · Item & Variant](database.md#item--itemvariant).
 

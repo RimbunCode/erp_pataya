@@ -4,44 +4,36 @@
 
 ## Langkah 0 — Login & Onboarding
 
-1. Buka aplikasi (mis. `http://erp.test`), login.
-2. User baru diarahkan ke halaman **Setup** (`setup.show`) — middleware `onboarded` memaksa ini. Lengkapi profil awal.
-   - Route: `GET/PUT /setup` → `Auth\SetupUserController`. Lihat [Routes · Onboarding](../routes.md#3-onboarding--setup).
+1. Buka aplikasi, login.
+2. User baru diarahkan ke halaman **Setup** untuk melengkapi profil awal sebelum bisa mengakses fitur lain.
 
 ## Langkah 1 — Company
 
-Menu **Settings → Company**.
-
-| Aksi | Route |
-|---|---|
-| Lihat | `GET /settings/company` (`companies.index`) |
-| Simpan | `PUT /settings/company` (`companies.update`) |
-| Logo | `POST /settings/company/image` (`companies.image`) |
+Menu **Settings → Company** — lihat, simpan, dan upload logo perusahaan.
 
 ## Langkah 2 — Branch (Cabang)
 
-Menu **Settings → Branches**. Minimal satu branch utama (`is_main_branch = true`).
+Menu **Settings → Branches**. Minimal satu branch utama.
 
-- Halaman: `Pages/Settings/Branches/Index.jsx`, `Form.jsx`.
-- `code` branch dipakai di penomoran dokumen (`@[branch_code]`) — lihat [FormatingSeries](../modules/core.md#formatingseries-penomoran-dokumen).
-- Branch aktif diganti via switcher navbar (`PUT /switch_branch/{id}`).
+- Kode branch dipakai di penomoran dokumen — lihat [FormatingSeries](../modules/core.md#formatingseries-penomoran-dokumen).
+- Branch aktif bisa diganti lewat switcher di navbar.
 
-## Langkah 3 — Penomoran Dokumen (FormatingSeries)
+## Langkah 3 — Penomoran Dokumen
 
-Menu **Settings → Formating Series**. Tentukan format kode per dokumen, mis. SO:
+Menu **Settings → Formating Series**. Tentukan format kode otomatis per jenis dokumen, mis. untuk Sales Order:
 
 ```
 @[branch_code]/SO-@[iiii]/@[yy]   →   HO/SO-0001/25
 ```
 
-Detail token: [Core · FormatingSeries](../modules/core.md#formatingseries-penomoran-dokumen).
+Detail token yang tersedia: [Core · FormatingSeries](../modules/core.md#formatingseries-penomoran-dokumen).
 
 ## Langkah 4 — Data Master Inventory
 
 | Master | Menu | Catatan |
 |---|---|---|
 | **Unit** | Inventory → Units | Satuan + grup konversi |
-| **Category** | Inventory → Categories | Hierarki (TreeView) |
+| **Category** | Inventory → Categories | Bisa disusun berjenjang (parent-child) |
 | **Attribute** | Inventory → Attributes | Untuk variant (ukuran, warna) |
 | **Warehouse** | Inventory → Warehouses | Gudang per branch |
 
@@ -56,7 +48,7 @@ Detail token: [Core · FormatingSeries](../modules/core.md#formatingseries-penom
 ## Langkah 6 — Mitra Bisnis
 
 - **Customer**: Sales → Customers.
-- **Supplier**: Purchase → Suppliers (hierarki TreeView).
+- **Supplier**: Purchase → Suppliers (bisa disusun berjenjang).
 
 ## Berikutnya
 
