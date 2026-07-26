@@ -36,106 +36,76 @@ Modul Core berisi konfigurasi dan utilitas yang digunakan di seluruh sistem.
 
 ## Branch & Multi-Branch
 
-Branch adalah unit bisnis atau cabang perusahaan. Setiap dokumen transaksional di-assign ke branch.
+Branch adalah unit bisnis atau cabang perusahaan. Setiap dokumen transaksi (Sales Order, Invoice, Stock Entry, dst.) selalu tercatat di bawah satu branch.
 
 ### Fields
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `code` | string | Kode cabang (digunakan di FormatingSeries) |
-| `name` | string | Nama cabang |
-| `is_main_branch` | boolean | Apakah kantor pusat |
-| `is_disabled` | boolean | Status aktif |
-| `branchable_type/id` | polymorphic | Entitas terkait |
-| `shipping_street`, `shipping_city`, dll. | string | Alamat pengiriman |
-| `billing_address` | enum | `same_main` / `same_shipping` / `separate` |
+| Field | Deskripsi |
+|---|---|
+| Kode | Kode singkat cabang, dipakai di penomoran dokumen (mis. `HO` untuk kantor pusat) |
+| Nama | Nama cabang |
+| Kantor Pusat | Menandai apakah cabang ini adalah kantor pusat |
+| Status Aktif | Cabang bisa dinonaktifkan tanpa dihapus |
+| Alamat Pengiriman | Jalan, kota, provinsi, kode pos |
+| Alamat Penagihan | Sama dengan kantor pusat / sama dengan alamat pengiriman / alamat terpisah |
 
-### Branch Switcher
+### Ganti Cabang Aktif
 
-User bisa ganti branch aktif via `PUT /switch_branch/{id}`. Branch aktif tersimpan di session dan di-share ke frontend.
+User bisa berpindah cabang aktif lewat switcher di pojok navbar. Cabang aktif ini menentukan:
 
-**Routes — Branch** (`Core\BranchController`): 12 route dasar `branches.*` ([macro](../routes.md#konvensi-macro-routeresourcedetail)) → prefix `/settings/branches`, + tambahan branch switcher:
+- Cabang yang otomatis dipakai untuk dokumen baru yang dibuat
+- Penomoran kode dokumen (jika formatnya menyertakan kode cabang)
+- Data yang ditampilkan di beberapa laporan/filter
 
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| PUT | `/switch_branch/{id}` | `branch.switch` | `Core\BranchController@switch` |
+> Cabang aktif tersimpan selama sesi login berlangsung — begitu logout dan login lagi, cabang aktif kembali ke default.
 
 ---
 
 ## Approval
 
-Sistem approval terdiri dari **dua lapis**: _scheme_ (konfigurasi) dan _instance_ (runtime saat dokumen disubmit).
+Fitur untuk mengatur alur persetujuan berjenjang sebelum sebuah dokumen (Sales Order, Purchase Order, Invoice, dst.) resmi berjalan.
 
+```mermaid
+flowchart LR
+    S(["⚙️ Skema Approval<br/>(diatur di Settings)"]) -->|"dipicu saat submit"| I["✅ Proses Persetujuan<br/>(berjalan per dokumen)"]
+    I -->|"semua langkah setuju"| A(["🎉 Disetujui"])
+    I -->|"ada langkah menolak"| R(["❌ Ditolak"])
+
+    style S fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style A fill:#22c55e,stroke:#15803d,color:#fff
+    style R fill:#ef4444,stroke:#b91c1c,color:#fff
 ```
-ApprovalScheme (config) ──< ApprovalSchemeStep
-        │ trigger saat submit
-        ▼
-ApprovalInstance (runtime) ──< ApprovalInstanceStep ──> decision (approve/reject)
-```
 
-### Approval Scheme (Konfigurasi)
+### Skema Approval
 
-Konfigurasi skema approval per model dokumen.
+Skema adalah "cetakan aturan" yang diatur sekali di Settings, lalu berlaku otomatis setiap kali dokumen jenis tersebut disubmit.
 
-### Approval Scheme Fields
-
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `name` | string | Nama scheme |
-| `permission` | relation | Permission (model) yang menggunakan scheme ini |
-| `name_model` | string | Nama model |
-| `model` | string | FQCN model |
-| `is_active` | boolean | Scheme aktif |
-| `trigger_on` | string | Trigger event (`submit`, dll.) |
-| `config` | json | Konfigurasi tambahan (🚧 future) |
-| `steps` | hasMany | Langkah-langkah approval |
-
-### Approval Scheme Step Fields
-
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `sequence` | tinyint | Urutan step (0, 1, 2, ...) |
-| `approver_type` | string | `role` atau `user` |
-| `approverable_type` | string | Model class approver |
-| `approverable_id` | char(26) | ID role atau user |
-| `config` | json | Konfigurasi tambahan (🚧 future) |
-
-### Business Logic
-
-- Hanya satu scheme yang boleh `is_active = true` per model + trigger_on kombinasi
-- Jika scheme diaktifkan, scheme lain untuk model yang sama otomatis di-nonaktifkan
-
-**Routes — ApprovalScheme** (`Core\ApprovalSchemeController`): 12 route dasar `approvalSchemes.*` → prefix `/settings/approvalSchemes`.
-
-### Approval Instance (Runtime)
-
-Saat dokumen submitable di-submit, trait [`Submitable::checkApproval()`](#trait-submitable) memanggil `ApprovalInstanceController@checkApproval`. Jika ada scheme aktif → dibuat `ApprovalInstance` + `ApprovalInstanceStep` per langkah.
-
-| Field (ApprovalInstance) | Deskripsi |
+| Field | Deskripsi |
 |---|---|
-| `document_type/id` | Dokumen yang di-approve (morph) |
-| `scheme_id` | Scheme yang dipakai |
-| `status` | Status approval keseluruhan |
+| Nama Skema | Nama skema approval |
+| Jenis Dokumen | Dokumen mana yang memakai skema ini (mis. Sales Order, Purchase Order) |
+| Status Aktif | Hanya skema yang aktif yang benar-benar dijalankan |
+| Langkah Persetujuan | Daftar tahapan approval berurutan (lihat di bawah) |
 
-| Field (ApprovalInstanceStep) | Deskripsi |
+### Langkah Persetujuan
+
+Setiap skema terdiri dari satu atau lebih langkah berurutan. Tiap langkah menentukan siapa yang harus menyetujui pada tahap itu.
+
+| Field | Deskripsi |
 |---|---|
-| `sequence` | Urutan step |
-| `approverable_type/id` | Approver (role/user) |
-| `status` | `pending` / `approved` / `rejected` |
-| `decided_by` / `decided_at` | Pemutus & waktu |
+| Urutan | Posisi langkah ini dalam alur (langkah 1, 2, 3, dst.) |
+| Penyetuju | Bisa berupa satu Role tertentu (siapa pun yang punya role itu bisa menyetujui) atau satu User spesifik |
 
-**Routes Approval Instance:**
+> **Catatan**: hanya boleh ada **satu skema aktif** untuk satu jenis dokumen. Mengaktifkan skema baru untuk jenis dokumen yang sama akan otomatis menonaktifkan skema lama.
 
-| Method | URI | Route Name | Action |
-|---|---|---|---|
-| GET | `/approvals` | `approvalInstances.index` | `Core\ApprovalInstanceController@index` |
-| GET | `/approvals/{approvalInstance}` | `approvalInstances.show` | `@show` |
-| POST | `/approvals/{approvalInstanceStep}/decision` | `approvalInstances.decision` | `@decision` |
+### Bagaimana Approval Berjalan
 
-- Saat semua step `approved` → callback `onApproved()` di service dokumen (status lanjut ke TO_DELIVER/TO_RECEIVE/dll).
-- Saat salah satu step `rejected` → `onRejected()` (status REJECTED, dapat di-amend).
+Saat dokumen disubmit, sistem mengecek apakah ada skema aktif untuk jenis dokumen tersebut:
 
-> Frontend: [`ApprovalInstanceIndex.jsx`](../frontend.md#core--shared), `ApproverDecision.jsx`.
+- **Tidak ada skema aktif** → dokumen langsung dianggap disetujui, lanjut ke tahap berikutnya.
+- **Ada skema aktif** → dokumen menunggu persetujuan sesuai urutan langkah yang diatur. Setiap langkah harus disetujui oleh penyetuju yang berwenang sebelum lanjut ke langkah berikutnya.
+- Jika **semua langkah disetujui** → dokumen lanjut ke tahap proses berikutnya (mis. Siap Dikirim, Siap Ditagih).
+- Jika **salah satu langkah ditolak** → dokumen berstatus Ditolak. Dokumen yang ditolak bisa **diajukan ulang (revisi)** — sistem membuat salinan baru dokumen tersebut dengan kode baru untuk diperbaiki dan disubmit kembali.
 
 ---
 
@@ -167,113 +137,95 @@ Route `PUT /{plural}/{id}/{level?}` (lihat [Routes · macro submitable](../route
 
 ## FormatingSeries (Penomoran Dokumen)
 
-Konfigurasi auto-numbering untuk setiap dokumen submitable.
+Pengaturan format penomoran kode otomatis untuk setiap jenis dokumen (Sales Order, Purchase Order, Invoice, dst.) — jadi user tidak perlu mengetik kode dokumen secara manual.
 
 ### Fields
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `model` | string | FQCN model |
-| `name` | string | Nama seri |
-| `format` | string | Template format dengan token `@[...]` |
-| `logs` | json | Counter per periode |
+| Field | Deskripsi |
+|---|---|
+| Jenis Dokumen | Dokumen mana yang memakai format penomoran ini |
+| Nama Seri | Nama pengenal format ini |
+| Format | Pola penomoran, tersusun dari teks bebas + token yang otomatis terisi (lihat tabel Token) |
 
-### Token Format
+### Token yang Tersedia
 
-| Token | Deskripsi | Contoh |
+Token adalah kode singkat yang otomatis digantikan sistem dengan nilai aktual saat dokumen dibuat.
+
+| Token | Diganti dengan | Contoh |
 |---|---|---|
-| `@[i]` | Sequence 1+ digit | `1`, `10`, `100` |
-| `@[ii]` | Sequence 2+ digit | `01`, `10`, `100` |
-| `@[iiii]` | Sequence 4+ digit | `0001`, `0010`, `1000` |
+| `@[i]`, `@[ii]`, `@[iiii]` | Nomor urut (dengan padding angka 0 di depan sesuai jumlah `i`) | `1`, `01`, `0001` |
 | `@[yyyy]` | Tahun 4 digit | `2025` |
 | `@[yy]` | Tahun 2 digit | `25` |
-| `@[mmmm]` | Nama bulan lengkap | `January` |
-| `@[mmm]` | Nama bulan 3 huruf | `Jan` |
+| `@[mmmm]` | Nama bulan lengkap | `Januari` |
+| `@[mmm]` | Nama bulan singkat | `Jan` |
 | `@[mm]` | Bulan 2 digit | `01` |
-| `@[branch_code]` | Kode branch (dari codeRelations) | `HO` |
+| `@[branch_code]` | Kode cabang aktif | `HO` |
 
-### Counter Reset Logic
+### Kapan Nomor Urut Direset
 
-- Format dengan `@[mm]` + `@[yyyy]` → counter reset tiap bulan
-- Format dengan `@[yyyy]` saja → counter reset tiap tahun
-- Format tanpa token waktu → counter global tidak reset
-- DRAFT documents pakai counter terpisah (`"draft"` key)
+- Jika format menyertakan token bulan **dan** tahun → nomor urut reset tiap bulan.
+- Jika format hanya menyertakan token tahun → nomor urut reset tiap tahun.
+- Jika format tidak menyertakan token waktu sama sekali → nomor urut terus bertambah tanpa reset.
 
 ### Contoh
 
-`@[branch_code]/SO-@[iiii]/@[yy]` dengan branch_code=`HO`, bulan=Jan, tahun=2025, urutan=1 → `HO/SO-0001/25`
-
-**Routes — FormatingSeries** (`Core\FormatingSeriesController`): 12 route dasar `formatingSeries.*` → prefix `/settings/formatingSeries` (nama berakhiran "s" → plural tidak digandakan).
+Format `@[branch_code]/SO-@[iiii]/@[yy]` pada cabang berkode `HO`, bulan Januari, tahun 2025, dokumen pertama → menghasilkan kode `HO/SO-0001/25`.
 
 ---
 
 ## Print Templates
 
-Template cetak HTML/CSS untuk dokumen submitable. Editor berbasis GrapesJS.
+Desain tampilan cetak (PDF/print) untuk dokumen bisnis seperti Sales Order, Invoice, atau Delivery Note — dibuat dan diedit lewat editor visual seret-lepas, tanpa perlu menulis kode.
 
 ### Fields
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `name` | string | Nama template |
-| `permission` | relation | Permission (model) terkait |
-| `model` | string | FQCN model |
-| `is_default` | boolean | Template default untuk model ini |
-| `html` | longtext | Template HTML |
-| `css` | longtext | Style CSS |
-| `template` | json | Konfigurasi template (GrapesJS) |
-| `paper` | string | Ukuran kertas (A4, Letter, dll.) |
-| `orientation` | string | Portrait / Landscape |
-| `width`, `height` | double | Dimensi kustom |
-| `margin_top/bottom/left/right` | double | Margin |
-| `is_letter_head` | boolean | Menggunakan letter head |
-| `letter_head` | relation | File letter head |
-| `used_relations` | json | Relasi Eloquent yang diperlukan untuk render |
+| Field | Deskripsi |
+|---|---|
+| Nama Template | Nama pengenal template |
+| Jenis Dokumen | Dokumen mana yang bisa memakai template ini |
+| Default | Menandai template ini sebagai pilihan utama untuk jenis dokumen tersebut |
+| Ukuran Kertas | A4, Letter, dll. |
+| Orientasi | Potret atau Lanskap |
+| Margin | Jarak tepi atas/bawah/kiri/kanan |
+| Menggunakan Kop Surat | Aktifkan jika template memakai kop surat perusahaan |
 
-### Routes
+### Cara Kerja
 
-| Method | URI | Keterangan |
-|---|---|---|
-| *(resourceDetail)* | `/settings/printTemplates/...` | CRUD |
-| GET | `/settings/printTemplates/{id}/editor` | Editor GrapesJS |
-| POST | `/settings/printTemplates/{id}/preview` | Preview cetak |
-| POST | `/settings/printTemplates/{id}/generate-example-data` | Generate data contoh |
+1. Buka editor template, susun tampilan dengan seret-lepas elemen (teks, tabel item, logo, dsb.).
+2. Gunakan tombol **Preview** untuk melihat hasil cetak dengan data contoh sebelum disimpan.
+3. Tandai satu template sebagai **default** — ini yang otomatis dipakai saat user mencetak dokumen dari halaman manapun, kecuali user memilih template lain secara manual.
+
+> Bisa membuat lebih dari satu template untuk jenis dokumen yang sama (mis. versi ringkas dan versi lengkap) — user tinggal memilih saat akan mencetak.
 
 ---
 
 ## Dashboard & Widgets
 
-Setiap user bisa konfigurasi dashboard mereka sendiri dengan widget pilihan.
+Setiap user bisa menyusun dashboard sendiri dengan widget (grafik, tabel, angka ringkasan) yang menampilkan data yang relevan buat mereka.
 
 ### Dashboard
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `title` | string | Judul dashboard |
-| `created_by` | relation | Pemilik dashboard |
-| `widgets` | hasMany | Widget yang ada di dashboard |
+| Field | Deskripsi |
+|---|---|
+| Judul | Nama dashboard |
+| Widget | Daftar widget yang ditampilkan di dashboard ini |
 
 ### Widget
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `title` | string | Judul widget |
-| `type` | string | Tipe: `chart`, `table`, `metric`, dll. |
-| `calculation_type` | string | Cara kalkulasi data |
-| `model_class` | string | Model yang jadi sumber data |
-| `filters` | json | Filter data |
-| `config` | json | Konfigurasi display |
+| Field | Deskripsi |
+|---|---|
+| Judul | Nama widget |
+| Tipe Tampilan | Grafik, tabel, atau angka ringkasan |
+| Sumber Data | Data apa yang ditampilkan (mis. Sales Order, Invoice) |
+| Filter | Batasan data yang ditampilkan (mis. hanya bulan ini) |
 
-**Routes — Dashboard & Widget:**
+### Cara Kerja
 
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| GET | `/dashboard-view` | `dashboard` | `Core\DashboardController@view` |
-| POST | `/dashboard-update` | `dashboardForms.store` | `Core\DashboardController@storeUserDashboard` |
-| POST | `/dashboard-widget-order/{dashboard}` | `dashboard.widgets.reorder` | `Core\DashboardController@reorderWidgets` |
-| POST | `/get-chart/{widget}` | `get-chart` | `Core\WidgetController@getChartData` |
-| *(resourceDetail)* | `/settings/dashboards` | `dashboards.*` | `Core\DashboardController@*` |
-| *(resourceDetail)* | `/settings/widgets` | `widgets.*` | `Core\WidgetController@*` |
+1. Buka halaman Dashboard, klik tombol tambah widget.
+2. Pilih sumber data, tipe tampilan (grafik/tabel/angka), dan filter yang diinginkan.
+3. Widget bisa disusun ulang urutannya dengan seret-lepas.
+
+> Dashboard bersifat personal — susunan widget milik satu user tidak memengaruhi tampilan dashboard user lain.
 
 ---
 
@@ -281,168 +233,101 @@ Setiap user bisa konfigurasi dashboard mereka sendiri dengan widget pilihan.
 
 ### Tags
 
-Sistem tagging polimorfik. Semua model bisa di-tag.
+Label bebas yang bisa ditempelkan ke data atau dokumen apa pun (Item, Customer, Sales Order, dst.) untuk memudahkan pengelompokan dan pencarian.
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `name` | string | Nama tag |
-| `description` | text | Deskripsi |
+| Field | Deskripsi |
+|---|---|
+| Nama Tag | Nama tag yang tampil |
+| Deskripsi | Keterangan tambahan tentang tag ini |
 
-**Routes — Tag** (`Core\TagController`): 12 route dasar `tags.*` → prefix `/tags`.
-
-Tambah tag ke dokumen apa pun: `POST /{resource}/{id}/tag` → `{resource}.addTag` (di-generate macro untuk setiap resource).
+Tag bisa ditambahkan langsung dari halaman detail dokumen mana pun yang mendukungnya.
 
 ### Files
 
-Upload dan manajemen file. Mendukung hierarki folder (TreeView trait).
+Upload dan kelola file lampiran, tersusun dalam folder bertingkat seperti manajer file pada umumnya.
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `name` | string | Nama file |
-| `path` | text | Path storage |
-| `extension` | string | Ekstensi file |
-| `mime_type` | string | MIME type |
-| `is_public` | boolean | Apakah file public |
-| `created_by` | relation | Uploader |
-| `parent_id`, `lft`, `rgt`, `depth` | — | Hierarki folder (TreeView) |
+| Field | Deskripsi |
+|---|---|
+| Nama File | Nama file yang tampil |
+| Jenis File | Ekstensi/tipe file (PDF, gambar, dll.) |
+| Akses Publik | Menandai apakah file bisa diakses tanpa login (mis. untuk dibagikan lewat link) |
+| Diunggah Oleh | User yang mengunggah file |
+| Folder | Lokasi file dalam struktur folder bertingkat |
 
-**Routes — File** (`Core\FileController`): 12 route dasar `files.*` → prefix `/files`, + preview publik:
-
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| GET | `/files/{file}/preview` | `files.preview` | `Core\FileController@preview` |
-
-Tambah file ke dokumen apa pun: `POST /{resource}/{id}/file` → `{resource}.addFile`.
+File bisa dilampirkan langsung dari halaman detail dokumen mana pun yang mendukungnya, dan bisa dilihat pratinjaunya tanpa perlu diunduh terlebih dahulu.
 
 ---
 
 ## Todo
 
-Tugas generik yang bisa ditugaskan ke **User** atau **Role** — dipakai lintas modul untuk mencatat pekerjaan yang tidak terikat dokumen transaksi tertentu (mis. "follow up customer X", "siapkan laporan bulanan").
+Tugas umum yang bisa ditugaskan ke satu **User** tertentu atau ke seluruh anggota satu **Role** — dipakai untuk mencatat pekerjaan yang tidak terikat pada satu dokumen transaksi tertentu (mis. "follow up customer X", "siapkan laporan bulanan").
 
 ### Fields
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `code` | string | Kode todo (auto: FormatingSeries, format `TODO/@[yy]-@[mm]/@[iiii]`) |
-| `description` | text | Deskripsi tugas |
-| `reference` | morphTo | Dokumen konteks (opsional — mis. todo terkait sebuah Sales Order) |
-| `allocated_to` | morphTo | Penerima tugas — **User** atau **Role** (dibedakan lewat `allocated_to_type`) |
-| `assigned_by` | relation | User pemberi tugas |
-| `priority` | string | Prioritas todo |
-| `date` | date | Tanggal todo |
-| `due_date` | datetime | Batas waktu |
-| `status` | string | Status todo |
+| Field | Deskripsi |
+|---|---|
+| Kode | Kode todo (dibuat otomatis) |
+| Deskripsi | Uraian tugas |
+| Dokumen Terkait | Dokumen konteks, jika ada (mis. todo terkait sebuah Sales Order) |
+| Ditugaskan Kepada | Satu User tertentu, atau satu Role (berlaku untuk semua pemegang role itu) |
+| Ditugaskan Oleh | User pemberi tugas |
+| Prioritas | Tingkat prioritas todo |
+| Tanggal | Tanggal todo dibuat |
+| Batas Waktu | Tenggat penyelesaian |
+| Status | Status penyelesaian todo |
 
-### Business Logic — Assignment ke User atau Role
+### Cara Kerja Penugasan
 
-Jika `allocated_to_type = 'role'`, tugas berlaku untuk **semua user yang punya role tersebut** (bukan satu user spesifik). Method `allocatedUsers()` di model meresolusi daftar user penerima aktual:
+Jika tugas ditugaskan ke **Role** (bukan ke User tertentu), tugas itu berlaku untuk **semua user yang memegang role tersebut** — bukan hanya satu penerima tunggal. Siapa pun di antara mereka bisa menindaklanjuti dan menyelesaikannya.
 
-```php
-public function allocatedUsers(): Collection {
-    if ($this->allocated_to_type === 'role') {
-        return User::whereHas('roles', fn ($q) => $q->where('roles.id', $this->allocated_to_id))->get();
-    }
-    $user = User::find($this->allocated_to_id);
-    return $user ? collect([$user]) : collect();
-}
-```
+Saat todo dibuat, sistem otomatis mengirim notifikasi ke semua penerima tugas.
 
-Saat todo dibuat/di-assign, sistem mengirim notifikasi `TodoAssignedNotification` ke seluruh `allocatedUsers()`.
-
-Query listing todo memakai dua scope permission-aware:
-- `assignedToMe($user)` — todo yang di-assign langsung ke user tersebut, **atau** ke salah satu role yang dimiliki user tersebut.
-- `assignedByMe($userId)` — todo yang dibuat/di-assign oleh user tersebut.
-
-### Komponen UI — AssignDialog
-
-`Pages/Core/Components/AssignDialog.jsx` adalah dialog assign generik: memilih penerima (User atau Role), prioritas, rentang tanggal, dan deskripsi. Dipakai di form Todo (`AssignedToFields.jsx`) — komponen ini menggantikan inline-picker versi sebelumnya.
-
-### Routes — Todo
-
-`Core\TodoController`: 12 route dasar `todos.*` ([macro `resourceDetail`](../routes.md#konvensi-macro-routeresourcedetail), non-submitable) → prefix `/todos`.
+Halaman daftar todo terbagi dua tampilan: **Ditugaskan ke Saya** (todo yang ditujukan langsung ke user tersebut, atau ke salah satu role yang dimilikinya) dan **Saya yang Menugaskan** (todo yang dibuat oleh user tersebut untuk orang lain).
 
 ---
 
 ## Notification System
 
-Notifikasi in-app standar Laravel — dipakai untuk memberi tahu user soal event penting (mis. `TodoAssignedNotification`).
+Notifikasi dalam aplikasi untuk memberi tahu user soal kejadian penting — misalnya saat menerima tugas Todo baru.
 
-### Routes — Notification
-
-`Core\NotificationController` — murni JSON API (bukan halaman Inertia):
-
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| GET | `/notifications` | `notifications.index` | `Core\NotificationController@index` |
-| PUT | `/notifications/{id}/read` | `notifications.markAsRead` | `Core\NotificationController@markAsRead` |
-| PUT | `/notifications/mark-all-read` | `notifications.markAllRead` | `Core\NotificationController@markAllRead` |
-
-> UI ditampilkan via `Components/Navbar/Notifications.jsx` (dropdown lonceng notifikasi di navbar).
+Notifikasi ditampilkan lewat ikon lonceng di navbar, lengkap dengan tombol untuk menandai sudah dibaca (satu per satu atau sekaligus semua).
 
 ---
 
 ## Email Template
 
-Template email per model, dengan mekanisme `is_default` yang **otomatis eksklusif** per model — pola yang sama seperti [Print Templates](#print-templates).
+Template isi email otomatis per jenis dokumen (mis. email pengiriman Sales Order ke customer) — dibuat dan diedit dengan editor rich-text, tanpa perlu menulis kode.
 
 ### Fields
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `name` | string | Nama template |
-| `name_model` | string | Label model tujuan (tampilan) |
-| `model` | string | FQCN model target |
-| `permission` | relation | Permission terkait |
-| `is_default` | boolean | Default untuk model ini |
-| `body_json` | json | Isi template (rich-text editor) |
+| Field | Deskripsi |
+|---|---|
+| Nama Template | Nama pengenal template |
+| Jenis Dokumen | Dokumen tujuan template ini (mis. Sales Order, Invoice) |
+| Default | Menandai template ini sebagai pilihan utama untuk jenis dokumen tersebut |
+| Isi Email | Konten email, mendukung penyisipan data dokumen secara otomatis |
 
-### Business Logic
+### Cara Kerja
 
-- Saat template disimpan dengan `is_default = true`, semua template lain untuk `model` yang sama otomatis di-set `is_default = false` (eksklusivitas terjaga di level model, bukan hanya validasi form).
-- Jika ini adalah template pertama untuk suatu `model`, otomatis dijadikan default meski tidak dicentang manual.
-- Endpoint `fields()` menyediakan daftar merge-tag yang tersedia untuk suatu model (di-whitelist by `Permission::model` untuk mencegah eksekusi class arbitrary/RCE).
-- **Test Send**: mengirim email uji ke user yang sedang login, memakai data contoh (`HasExampleData`).
-
-### Komponen UI — EmailSendDialog
-
-`Pages/Core/Components/EmailSendDialog.jsx` — tombol kirim email manual dari halaman detail dokumen apa pun yang punya Email Template terkait modelnya.
-
-### Routes — Email Template
-
-`Core\EmailTemplateController`: 12 route dasar `emailTemplates.*` (macro `resourceDetail`) → prefix `/settings/emailTemplates`, + tambahan:
-
-| Method | URI | Keterangan |
-|---|---|---|
-| GET | `/settings/emailTemplates/{id}/fields` | Daftar merge-tag tersedia |
-| POST | `/settings/emailTemplates/{id}/testSend` | Kirim email uji |
+- Hanya boleh ada **satu template default** per jenis dokumen — menyimpan template baru sebagai default otomatis menonaktifkan status default template lama untuk jenis dokumen yang sama.
+- Jika ini adalah template pertama untuk suatu jenis dokumen, otomatis dijadikan default meski tidak dicentang manual.
+- Saat menyusun isi email, tersedia daftar data yang bisa disisipkan otomatis (mis. nomor dokumen, nama customer, total nilai) sesuai jenis dokumen yang dipilih.
+- Tombol **Test Send** mengirim email uji ke alamat email user yang sedang login, memakai data contoh — berguna untuk mengecek tampilan sebelum dipakai sungguhan.
+- Dari halaman detail dokumen (mis. Sales Order), tersedia tombol kirim email manual yang memakai template ini.
 
 ---
 
 ## Image Uploader (Generik)
 
-Pola upload/preview/hapus gambar yang konsisten dipakai di beberapa model — bukan fitur terpisah, melainkan pola berulang lewat kolom `image` (FK ke [File](#tags--files)).
+Pola upload/preview/hapus gambar yang konsisten dipakai di beberapa halaman: User, Item, ItemVariant, dan Company — bisa upload gambar baru atau menghapus gambar yang sudah ada.
 
-| Dipakai di | Endpoint upload | Endpoint hapus |
-|---|---|---|
-| User | `POST /users/{user}/image` | `DELETE /users/{user}/image` |
-| Item | `POST /items/{item}/image` | `DELETE /items/{item}/image` |
-| ItemVariant | `POST /itemVariants/{itemVariant}/image` | `DELETE /itemVariants/{itemVariant}/image` |
-| Company | `POST /settings/company/image` | `DELETE /settings/company/image` |
+### Foto Profil (khusus User)
 
-> **Catatan migrasi**: kolom ini sebelumnya bernama `image_id` pada Item/ItemVariant — sudah di-rename menjadi `image` agar konsisten dengan penamaan di `users.image`.
-
-### Picture Attribute (khusus User)
-
-Model `User` punya accessor tambahan `picture` yang menggabungkan dua sumber gambar:
-1. `image` — hasil upload manual (via endpoint di atas), diresolusi ke URL lewat `route('files.preview', id)`.
-2. `avatar_url` — fallback dari provider OAuth (Socialite) jika user belum upload gambar manual.
-
-Logic resolusi ada di util frontend `resolveImageSrc()`/`isImageUrl()` (`resources/js/lib/utils.js`) — otomatis mendeteksi apakah value adalah file-ID (perlu di-resolve ke route preview) atau URL langsung (dipakai apa adanya, termasuk URL protocol-relative `//host/path` dari provider OAuth).
+Foto profil user bisa berasal dari dua sumber: upload manual, atau otomatis dari akun social login (Google, dll.) jika user belum upload foto sendiri. Foto upload manual selalu diprioritaskan.
 
 ### Komponen UI
 
-Avatar (preview bulat) + `UploadDialog.jsx` (dialog pilih & upload file) — pola yang sama dipakai di ketiga tempat di atas.
+Preview foto berbentuk bulat (avatar) + dialog pilih & upload file — pola yang sama dipakai di semua halaman di atas.
 
 ---
 
@@ -505,26 +390,22 @@ Catatan rilis aplikasi — dibuat **otomatis** dari webhook deploy CI/CD, bukan 
 
 ## Preferences
 
-Key-value store untuk pengaturan aplikasi global.
+Pengaturan aplikasi yang berlaku secara global untuk seluruh perusahaan, dikelola dari satu halaman.
 
-| Key | Deskripsi |
+| Pengaturan | Deskripsi |
 |---|---|
-| `default_currency_id` | Mata uang default |
-| `timezone` | Timezone untuk penomoran dokumen |
-| `company_name` | Nama perusahaan |
-| Lainnya | Berbagai pengaturan aplikasi |
+| Mata Uang Default | Mata uang yang dipakai jika tidak ditentukan lain |
+| Zona Waktu | Zona waktu acuan untuk penomoran dokumen dan pencatatan tanggal |
+| Nama Perusahaan | Nama perusahaan yang tampil di dokumen |
+| Lainnya | Berbagai pengaturan aplikasi lain sesuai kebutuhan |
 
 ---
 
 ## Company Settings
 
-Pengaturan profil perusahaan (nama, alamat, logo).
+Profil perusahaan yang tampil di dokumen cetak dan header aplikasi — nama, alamat, dan logo perusahaan.
 
-| Method | URI | Keterangan |
-|---|---|---|
-| GET | `/settings/company` | Lihat pengaturan |
-| PUT | `/settings/company` | Update pengaturan |
-| POST | `/settings/company/image` | Upload logo |
+Halaman ini juga menyediakan upload logo perusahaan, yang otomatis dipakai di template cetak yang menyertakan kop surat.
 
 ---
 
@@ -545,22 +426,16 @@ System cross-document linking untuk traceability. Dibuat otomatis saat dokumen d
 
 ## Command Palette
 
-Global search dan navigasi via keyboard shortcut. Index di-rebuild via `commands:index`.
+Pencarian cepat global untuk berpindah ke halaman atau dokumen mana pun tanpa perlu klik menu satu per satu — cukup ketik kata kunci.
 
-### Tipe Command
+### Yang Bisa Dicari
 
-| Tipe | Deskripsi |
+| Jenis Hasil | Contoh |
 |---|---|
-| `navigation` | Link ke halaman (menu, settings, dll.) |
-| `record` | Link ke dokumen spesifik (SO, PO, Item, dll.) |
+| Halaman/Menu | "Sales Order", "Settings", "Dashboard" |
+| Dokumen Spesifik | Kode Sales Order, nama Item, kode Invoice, dst. |
 
-### Routes
-
-| Method | URI | Keterangan |
-|---|---|---|
-| GET | `/commands/search` | Search command palette |
-| POST | `/commands/recent` | Track recent command |
-| DELETE | `/commands/recent` | Hapus recent command |
+> Riwayat pencarian terakhir ikut tersimpan agar navigasi berikutnya lebih cepat, dan bisa dihapus kapan saja.
 
 ---
 

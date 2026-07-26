@@ -1,6 +1,6 @@
 # Modul Helpdesk
 
-> Dokumentasi modul tiket dukungan internal: Ticket, riwayat respons, dan integrasi otomatis dengan Changelog rilis.
+> Dokumentasi modul tiket dukungan internal: Ticket dan riwayat respons.
 
 ## Daftar Isi
 
@@ -15,29 +15,13 @@
 
 ## Gambaran Modul
 
-Modul Helpdesk adalah sistem tiket dukungan **internal** (bug report, permintaan tugas, pertanyaan) — bukan portal customer-facing. Dipakai tim untuk melacak masalah/permintaan dan otomatis terhubung ke rilis aplikasi lewat mekanisme deploy webhook.
+Modul Helpdesk adalah sistem tiket dukungan **internal** — dipakai tim untuk melacak bug, tugas, atau pertanyaan yang perlu ditindaklanjuti. Ini bukan portal untuk customer, melainkan alat bantu internal.
 
-**Model utama:**
+> **Beda dari dokumen bisnis lain**: Ticket **tidak** melalui alur persetujuan berjenjang seperti Sales Order/Purchase Order/Invoice. Statusnya diubah langsung oleh user yang menangani, tanpa proses approval.
 
-| Model | Tabel | Submitable |
-|---|---|---|
-| `Ticket` | `tickets` | **Tidak** |
-| `TicketResponse` | `ticket_responses` | — |
+### Siapa yang Bisa Membuka Ticket
 
-> **Penting — beda dari dokumen bisnis lain**: `Ticket` **bukan** model [Submitable](core.md#trait-submitable). Statusnya memakai `FormStatusCast` (nilai tunggal), bukan `FormStatusesCast` (array multi-status yang dipakai SO/PO/Invoice/dst). Artinya Ticket **tidak** melalui alur DRAFT → SUBMITTED → APPROVED, tidak dicek terhadap [ApprovalScheme](core.md#approval), dan tidak menghasilkan entri di General Ledger atau Stock Ledger.
-
-**Service:** `TicketService`
-
-### Catatan Permission — Ticket di luar sistem RBAC standar
-
-`Helpdesk\TicketController` men-set `protected bool $ignorePermission = true`. Ini berarti **semua user yang login bisa membuka dan membuat Ticket**, tanpa dicek terhadap matrix Role/Permission yang dijelaskan di [Auth · Roles & Permissions](../auth.md#roles--permissions). Pengecualian: dua aksi berikut tetap dijaga permission `write` secara eksplisit lewat override `enforcePermission()`:
-
-| Action | Permission yang dicek |
-|---|---|
-| `markDone` | `write` |
-| `updateTicket` | `write` |
-
-> Untuk maintainer: jika Ticket tidak muncul di daftar konfigurasi Role/Permission pada halaman Settings → Roles, ini **bukan bug** — modul ini memang didesain terbuka untuk semua user, kecuali dua aksi update di atas.
+Semua user yang login bisa membuka dan membuat Ticket — modul ini sengaja dibuat terbuka untuk semua orang, bukan dibatasi lewat pengaturan hak akses seperti modul bisnis lainnya. Hanya dua aksi yang tetap dijaga izin akses tertentu: **menandai selesai** dan **memperbarui/membalas ticket**.
 
 ---
 
@@ -45,74 +29,74 @@ Modul Helpdesk adalah sistem tiket dukungan **internal** (bug report, permintaan
 
 ```mermaid
 flowchart TD
-    T["Ticket<br/>(tickets)"]
-    TR["Ticket Response<br/>(ticket_responses)"]
-    CL["Changelog<br/>(changelogs)"]
-    CI["CI/CD Deploy"]
+    T(["🎫 Ticket"])
+    TR["📝 Riwayat / Respons"]
+    CL["📰 Catatan Rilis"]
+    RLS(["🚀 Rilis Aplikasi Baru"])
 
-    T -->|"1:N riwayat"| TR
-    CI -->|"POST /api/webhooks/deploy<br/>(Bearer token)"| CL
-    CI -->|"resolveFromDeploy() jika kode ticket disebut"| T
-    T -.->|"link balik via [#kode] di changelog"| CL
+    T -->|"tiap perubahan tercatat"| TR
+    RLS -->|"tercatat sebagai"| CL
+    RLS -.->|"tandai selesai otomatis"| T
+    T -.->|"tertaut ke catatan rilis"| CL
 
-    classDef ext fill:#fee2e2,stroke:#dc2626;
-    class CI ext;
+    style T fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style RLS fill:#f59e0b,stroke:#b45309,color:#fff
+    style CL fill:#22c55e,stroke:#15803d,color:#fff
 ```
 
 | Dari | Ke | Mekanisme |
 |---|---|---|
-| Ticket | TicketResponse | Setiap perubahan signifikan pada Ticket (create, markDone, updateTicket, resolve otomatis dari deploy) **selalu** membuat baris `TicketResponse` baru sebagai snapshot riwayat — bukan cuma komentar |
-| CI/CD Deploy | Changelog | Webhook eksternal mencatat rilis versi baru |
-| CI/CD Deploy | Ticket | Webhook bisa menyertakan daftar kode ticket yang "selesai" pada rilis tersebut → auto-resolve |
-| Changelog | Ticket | Teks changelog format `[#KODE-TICKET]` otomatis dikonversi jadi link ke halaman ticket terkait |
+| Ticket | Riwayat/Respons | Setiap perubahan berarti pada Ticket (dibuat, ditandai selesai, dibalas, atau diselesaikan otomatis) selalu menambah satu baris riwayat baru — bukan sekadar komentar, tapi snapshot kondisi lengkap saat itu |
+| Rilis Aplikasi | Catatan Rilis | Setiap rilis aplikasi baru otomatis tercatat sebagai catatan rilis yang bisa dilihat semua user |
+| Rilis Aplikasi | Ticket | Rilis bisa menyebutkan kode ticket yang sudah selesai dikerjakan pada rilis tersebut — ticket itu otomatis ditandai selesai |
+| Catatan Rilis | Ticket | Kode ticket yang disebut di teks catatan rilis otomatis menjadi tautan menuju halaman ticket terkait |
 
 ---
 
 ## Ticket
 
-Ticket adalah unit kerja/laporan tunggal — bug, tugas, atau pertanyaan yang perlu ditindaklanjuti.
+Ticket adalah satu laporan atau permintaan kerja — bug, tugas, atau pertanyaan yang perlu ditindaklanjuti.
 
 ### Fields
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `code` | string | Kode unik ticket (auto: FormatingSeries, format `#@[yy]/@[iiii]`) |
-| `type` | enum | Lihat tabel Tipe di bawah |
-| `priority` | enum | Lihat tabel Prioritas di bawah |
-| `subject` | string | Judul/ringkasan ticket |
-| `status` | enum | Lihat tabel Status di bawah |
-| `progress` | tinyint (0-100) | Persentase progres penyelesaian |
-| `assign_to` | relation | User yang ditugaskan |
-| `created_by` | relation | User pembuat ticket |
-| `branch` | relation | Cabang terkait (opsional) |
-| `start_date` | datetime | Tanggal mulai dikerjakan |
-| `due_date` | datetime | Batas waktu (opsional) |
-| `end_date` | datetime | Tanggal selesai (terisi otomatis saat `markDone`/resolve) |
-| `responses` | hasMany | Riwayat respons — lihat [Ticket Response](#ticket-response) |
+| Field | Deskripsi |
+|---|---|
+| Kode | Kode unik ticket (dibuat otomatis) |
+| Tipe | Lihat tabel Tipe di bawah |
+| Prioritas | Lihat tabel Prioritas di bawah |
+| Judul | Ringkasan singkat masalah/permintaan |
+| Status | Lihat tabel Status di bawah |
+| Progres | Persentase penyelesaian (0-100) |
+| Ditugaskan Kepada | User yang menangani |
+| Dibuat Oleh | User pelapor |
+| Cabang | Cabang terkait (opsional) |
+| Tanggal Mulai | Kapan mulai dikerjakan |
+| Batas Waktu | Tenggat penyelesaian (opsional) |
+| Tanggal Selesai | Terisi otomatis saat ticket ditandai selesai |
 
-> `canDelete = false` pada model — Ticket **tidak bisa dihapus** dari UI (menjaga riwayat/audit trail tetap utuh).
+> Ticket **tidak bisa dihapus** dari tampilan — ini disengaja agar riwayat penanganan tetap utuh dan bisa ditelusuri kapan pun.
 
-### Tipe (`type`)
+### Tipe
 
-| Value | Label UI |
+| Value | Label |
 |---|---|
 | `bug_problem` | Bug / Masalah |
 | `task` | Tugas |
 | `question` | Pertanyaan |
 | `other` | Lainnya |
 
-### Prioritas (`priority`)
+### Prioritas
 
-| Value | Label UI |
+| Value | Label |
 |---|---|
 | `low` | Rendah |
 | `medium` | Sedang (default) |
 | `high` | Tinggi |
 | `critical` | Kritis |
 
-### Status (`status`)
+### Status
 
-| Value | Label UI |
+| Value | Label |
 |---|---|
 | `new` | Baru (default) |
 | `in_progress` | Sedang Dikerjakan |
@@ -122,88 +106,54 @@ Ticket adalah unit kerja/laporan tunggal — bug, tugas, atau pertanyaan yang pe
 
 ### Business Logic
 
-- **Create**: saat Ticket dibuat, `TicketService::create()` otomatis membuat kode via FormatingSeries dan membuat baris `TicketResponse` pertama sebagai snapshot kondisi awal. Jika `status` diisi `done` tapi `progress` < 100, progress otomatis dipaksa ke 100.
-- **Update biasa** (`update`): mengubah field Ticket tanpa membuat TicketResponse baru — ini beda dari `updateTicket` di bawah.
-- **Mark Done** (`PUT /tickets/{ticket}/markDone`): set `status=done`, `progress=100`, `end_date=sekarang`, sekaligus mencatat `TicketResponse` baru. Aksi ini **tidak dapat dibatalkan** (sesuai pesan konfirmasi di UI).
-- **Update Ticket** (`PUT /tickets/{ticket}/updateTicket`): dipakai untuk menambah balasan/pembaruan sekaligus mengubah `assign_to`, `status`, dan `progress` — selalu menghasilkan `TicketResponse` baru berisi `content`/`content_json` (rich text).
-- **Resolve dari deploy** (otomatis, lihat [Integrasi Deploy](#integrasi-deploy---changelog---ticket)): jika ticket belum `resolved`/`done`, status di-set `resolved`, progress `90`, `assign_to` dialihkan kembali ke `created_by`, dan tercatat `TicketResponse` otomatis berisi catatan versi deploy.
-
-> **Sanitasi konten**: field `content` pada respons (rich text dari editor) selalu di-sanitasi lewat `HTMLSanitizerService` sebelum disimpan — mencegah XSS dari HTML berbahaya yang mungkin ter-paste ke editor.
-
-### Routes — Ticket
-
-`Helpdesk\TicketController` — 12 route dasar `tickets.*` ([macro `resourceDetail`](../routes.md#konvensi-macro-routeresourcedetail), non-submitable) → prefix `/tickets`, + tambahan:
-
-| Method | URI | Route Name | Controller@method |
-|---|---|---|---|
-| PUT | `/tickets/{ticket}/markDone` | `tickets.markDone` | `TicketController@markDone` |
-| PUT | `/tickets/{ticket}/updateTicket` | `tickets.updateTicket` | `TicketController@updateTicket` |
-
-### Frontend Pages
-
-| Entitas | File |
-|---|---|
-| Ticket | `Pages/Helpdesk/Tickets/` — `Index`, `Form`, `Show`, `ResponseForm` |
-
-Lihat juga [Frontend · Helpdesk](../frontend.md#helpdesk).
+- **Buat Ticket baru**: sistem otomatis membuat kode ticket dan mencatat baris riwayat pertama sebagai snapshot kondisi awal. Jika status langsung diisi "Selesai" tapi progres belum 100%, progres otomatis disesuaikan jadi 100%.
+- **Tandai Selesai**: status berubah jadi "Selesai", progres otomatis 100%, tanggal selesai tercatat, dan menambah satu baris riwayat baru. Aksi ini **tidak dapat dibatalkan**.
+- **Update/Balas Ticket**: dipakai untuk menambah balasan atau catatan progres, sekaligus bisa mengubah penerima tugas, status, dan progres — selalu menghasilkan baris riwayat baru berisi teks balasan.
+- **Diselesaikan otomatis dari rilis** (lihat [Integrasi Deploy](#integrasi-deploy---changelog---ticket)): jika ticket disebutkan dalam sebuah rilis dan belum selesai, statusnya otomatis berubah jadi "Terselesaikan", progres 90%, dan tugas dialihkan kembali ke pelapor untuk verifikasi.
 
 ---
 
 ## Ticket Response
 
-Baris riwayat/log Ticket — berfungsi ganda sebagai **snapshot status** (dibuat otomatis tiap perubahan signifikan) dan **thread balasan** (saat user menambah catatan manual via Update Ticket).
+Baris riwayat pada Ticket — berfungsi ganda sebagai **snapshot status** (dibuat otomatis tiap ada perubahan penting) dan **thread balasan** (saat user menambah catatan manual).
 
 ### Fields
 
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `ticket` | relation | Ticket induk |
-| `user` | relation | Pembuat respons (nullable — kosong bila dibuat otomatis dari deploy webhook) |
-| `assign_to` | relation | Assignee pada saat snapshot dibuat |
-| `type`, `priority`, `subject`, `status`, `progress` | — | Salinan kondisi Ticket pada saat snapshot |
-| `start_date`, `due_date`, `end_date` | datetime | Salinan tanggal Ticket pada saat snapshot |
-| `content` | longtext | Isi balasan (HTML, sudah disanitasi) |
-| `content_json` | longtext (json) | Isi balasan dalam format rich-text editor (Tiptap) |
+| Field | Deskripsi |
+|---|---|
+| Ticket | Ticket induk |
+| User | Pembuat respons (kosong bila dibuat otomatis oleh sistem) |
+| Ditugaskan Kepada | Penanggung jawab pada saat snapshot dibuat |
+| Tipe, Prioritas, Judul, Status, Progres | Salinan kondisi Ticket pada saat snapshot diambil |
+| Tanggal Mulai, Batas Waktu, Tanggal Selesai | Salinan tanggal Ticket pada saat snapshot |
+| Isi Balasan | Teks balasan (mendukung format kaya seperti bold, list, dsb.) |
 
-> Karena tiap baris menyimpan salinan penuh kondisi Ticket, tabel ini berfungsi sebagai **audit trail lengkap** — histori status/prioritas/assignee Ticket dari waktu ke waktu bisa direkonstruksi tanpa perlu tabel log terpisah.
+> Karena setiap baris menyimpan salinan penuh kondisi Ticket, riwayat ini berfungsi sebagai jejak audit lengkap — histori status/prioritas/penanggung jawab dari waktu ke waktu bisa ditelusuri kembali tanpa perlu tempat penyimpanan log terpisah.
 
 ---
 
 ## Integrasi Deploy - Changelog - Ticket
 
-Fitur ini menghubungkan proses rilis aplikasi (CI/CD) dengan tiket yang diselesaikan pada rilis tersebut, sekaligus mencatat changelog untuk dilihat user di aplikasi.
+Fitur ini menghubungkan proses rilis aplikasi dengan tiket yang sudah selesai dikerjakan pada rilis tersebut, sekaligus mencatat catatan rilis (changelog) untuk dilihat user di aplikasi.
 
 ### Alur
 
-1. Pipeline CI/CD memanggil `POST /api/webhooks/deploy` dengan header `Authorization: Bearer <token>` (token dikonfigurasi di `config('services.deploy.webhook_token')` — **bukan** otentikasi Sanctum/session biasa, murni untuk sistem eksternal).
-2. Payload berisi: `environment`, `version`, `changelog` (teks, mendukung format Markdown), dan opsional `tickets` (array kode ticket, maks. 50).
-3. `ChangelogService::store()` menyimpan/update entri `Changelog` (unik per `version`) — teks mentah (`content_raw`) dikonversi ke HTML (`content_html`) via Markdown parser dengan `html_input: strip` (mencegah HTML mentah/berbahaya dieksekusi).
-4. Format `[#KODE-TICKET]` di dalam teks changelog otomatis dikonversi jadi link menuju halaman ticket terkait.
-5. Untuk tiap kode ticket yang disertakan, `TicketService::resolveFromDeploy()` dipanggil — ticket yang belum `resolved`/`done` akan di-set `resolved` otomatis; ticket yang sudah selesai dilaporkan sebagai `already_resolved` di response, dan kode yang tidak ditemukan dilaporkan di `not_found`.
+1. Setiap kali ada rilis aplikasi baru, sistem mencatat versi, environment tujuan, dan teks catatan rilis (mendukung format Markdown yang otomatis dikonversi jadi tampilan rapi).
+2. Rilis bisa menyertakan daftar kode ticket yang sudah selesai dikerjakan pada rilis tersebut.
+3. Format `[#KODE-TICKET]` di dalam teks catatan rilis otomatis dikonversi jadi tautan menuju halaman ticket terkait.
+4. Untuk tiap kode ticket yang disertakan: ticket yang belum selesai akan otomatis ditandai "Terselesaikan"; ticket yang sudah selesai sebelumnya tetap dilaporkan sebagai sudah selesai; kode yang tidak ditemukan akan dilaporkan sebagai tidak ditemukan.
 
-### Response API
+### Catatan Rilis (Changelog) Terkait
 
-```json
-{
-  "resolved": ["TICKET-001"],
-  "not_found": ["TICKET-999"],
-  "already_resolved": ["TICKET-002"],
-  "changelog_id": "01..."
-}
-```
+| Field | Deskripsi |
+|---|---|
+| Versi | Versi rilis (unik) |
+| Environment | Tujuan deploy |
+| Isi Catatan | Teks catatan rilis, ditampilkan dalam format rapi |
+| Waktu Deploy | Kapan rilis tercatat |
+| Sudah Dibaca Oleh | Daftar user yang sudah membaca catatan rilis ini |
 
-### Model Changelog terkait
-
-| Field | Tipe | Deskripsi |
-|---|---|---|
-| `version` | string | Versi rilis (unik) |
-| `environment` | string | Environment tujuan deploy |
-| `content_raw` | text | Teks changelog asli (Markdown) |
-| `content_html` | text | Hasil konversi HTML (sudah disanitasi) |
-| `deployed_at` | datetime | Waktu deploy tercatat |
-| `readers` | belongsToMany | User yang sudah membaca (via pivot `changelog_reads`, kolom `read_at`) |
-
-> Detail lengkap model Changelog & halaman `/changelogs`: [Core · Changelog](core.md#changelog).
+> Detail lengkap halaman catatan rilis: [Core · Changelog](core.md#changelog).
 
 ---
 
@@ -211,18 +161,17 @@ Fitur ini menghubungkan proses rilis aplikasi (CI/CD) dengan tiket yang diselesa
 
 ```mermaid
 sequenceDiagram
-    participant U as User (pelapor)
-    participant Dev as Developer
-    participant CI as CI/CD Pipeline
+    actor U as 🙋 Pelapor
+    actor Dev as 🔧 Penanggung Jawab
+    participant Sys as ⚙️ Sistem
 
-    U->>U: Buat Ticket (type: bug_problem, status: new)
-    Dev->>Dev: assign_to diri sendiri, status → in_progress
+    U->>U: Buat Ticket (tipe: Bug/Masalah, status: Baru)
+    Dev->>Dev: Tugaskan ke diri sendiri, status → Sedang Dikerjakan
     Dev->>Dev: Tambah balasan progres via Update Ticket
     Dev->>Dev: Perbaikan selesai, siap rilis
-    CI->>CI: Deploy ke production, sertakan kode ticket di payload
-    CI->>CI: POST /api/webhooks/deploy (Bearer token)
-    CI->>U: Ticket otomatis → resolved, changelog tercatat
-    U->>U: Verifikasi perbaikan, klik "Tandai Selesai" (markDone) jika sudah oke
+    Sys->>Sys: Rilis baru dipublikasikan, menyebutkan kode ticket ini
+    Sys->>U: Ticket otomatis → Terselesaikan 🔔
+    U->>U: Verifikasi perbaikan, klik "Tandai Selesai" jika sudah oke ✅
 ```
 
 ---
@@ -231,9 +180,5 @@ sequenceDiagram
 
 | Topik | Dokumen |
 |---|---|
-| Changelog & halaman `/changelogs` | [Core · Changelog](core.md#changelog) |
-| Sistem permission RBAC standar (tidak berlaku penuh di modul ini) | [Auth · Roles & Permissions](../auth.md#roles--permissions) |
+| Catatan rilis & halaman changelog | [Core · Changelog](core.md#changelog) |
 | Penomoran kode Ticket | [Core · FormatingSeries](core.md#formatingseries-penomoran-dokumen) |
-| Tabel database | [Database · Domain Helpdesk](../database.md#domain-helpdesk) |
-| Daftar route + Controller@method | [Routes · Helpdesk](../routes.md#16-helpdesk) |
-| Halaman React | [Frontend · Helpdesk](../frontend.md#helpdesk) |

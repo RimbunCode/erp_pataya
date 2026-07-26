@@ -114,136 +114,80 @@ user_providers
 
 ## Roles & Permissions
 
-> Sistem otorisasi **custom berbasis session cache** — bukan Laravel Policies, Gates, Spatie, atau `can()` helper standard. (Anchor lama `#sistem-otorisasi-permission` diganti `#roles--permissions`.)
+Setiap user diberi satu atau lebih **Role** (peran), dan setiap Role punya daftar **hak akses** ke masing-masing fitur/modul — menentukan siapa boleh melihat, membuat, mengubah, menghapus, atau melakukan aksi khusus (submit, cancel, cetak, dst.) pada suatu jenis dokumen.
 
-### Struktur Data Permission
+### Jenis Hak Akses
 
-```
-permissions (definisi)
-  id, module, name, model (FQCN), permissions (JSON), is_submitable, allow_only_creator
+**Hak akses dasar** (berlaku untuk semua jenis data):
 
-roles
-  id, name, description, is_disabled
-
-role_permissions (assignment)
-  id, role_id, permission_id, level, only_creator, permissions (JSON boolean per action)
-
-user_role (pivot)
-  user_id, role_id
-```
-
-### Alur Pengecekan Permission
-
-```mermaid
-flowchart TD
-    A[HTTP Request masuk] --> B[AppMiddleware]
-    B --> C{Permission di session?}
-    C -->|Tidak / Versi berubah| D[resolvePermissions]
-    D --> E[Query role_permissions JOIN user_role JOIN roles]
-    E --> F[Group by model > level > only_creator]
-    F --> G[Merge OR logic semua roles]
-    G --> H[Simpan ke session]
-    C -->|Ya| I[Lanjut ke Controller]
-    H --> I
-    I --> J[Controller::__construct]
-    J --> K[Map method ke permission key]
-    K --> L{Model::_checkPermission}
-    L -->|Tidak ada permission| M[abort 403]
-    L -->|only_creator = true| N{created_by_id == user?}
-    N -->|Ya| O[Izin diberikan]
-    N -->|Tidak| M
-    L -->|Izin penuh| O
-```
-
-### Permission Keys
-
-**Model standard:**
-
-| Key | Controller Method | Deskripsi |
-|---|---|---|
-| `select` | `index` | Lihat daftar |
-| `read` | `show` | Buka detail |
-| `write` | `update` | Edit data |
-| `create` | `store` / `create` | Buat baru |
-| `delete` | `destroy` | Hapus |
-| `import` | `import` | Import data |
-| `export` | `export` | Export data |
-| `share` | `share` | Bagikan |
-
-**Tambahan untuk model Submitable:**
-
-| Key | Controller Method | Deskripsi |
-|---|---|---|
-| `submit` | `submit` | Submit dokumen |
-| `cancel` | `cancel` | Cancel dokumen |
-| `amend` | `amend` | Amend dokumen rejected |
-| `print` | `print` | Cetak dokumen |
-
-> **Pengecualian — Ticket (Helpdesk)**: `Helpdesk\TicketController` men-set `ignorePermission = true`, sehingga **semua user yang login** bisa melihat dan membuat Ticket tanpa dicek terhadap matrix Role/Permission di atas. Hanya aksi `markDone` dan `updateTicket` yang tetap dijaga permission `write` secara eksplisit. Detail: [Helpdesk · Ticket](modules/helpdesk.md#ticket).
-
-### Menggunakan Permission di Frontend (React)
-
-```jsx
-import usePermission from "@/Hooks/usePermission";
-
-// Dalam komponen:
-const { can } = usePermission("App\\Models\\Sales\\SalesOrder");
-
-// Cek permission
-if (can("create")) { /* tampilkan tombol create */ }
-if (can("write", { user_id: record.created_by_id })) { /* edit */ }
-
-// Cek model lain
-const { canGlobal } = usePermission("App\\Models\\Sales\\SalesOrder");
-canGlobal("App\\Models\\Purchase\\PurchaseOrder", "create")
-```
-
-### Daftar Roles
-
-| Role | Deskripsi |
+| Hak Akses | Artinya |
 |---|---|
-| **System Manager** | Full access ke semua modul dan pengaturan |
-| **Master Data Administrator** | Kelola semua master data |
-| **User & Access Administrator** | Kelola user, role, permission |
+| Lihat Daftar | Bisa melihat daftar/list data |
+| Buka Detail | Bisa membuka halaman detail satu data |
+| Ubah | Bisa mengedit data |
+| Buat Baru | Bisa membuat data baru |
+| Hapus | Bisa menghapus data |
+| Import | Bisa mengimpor data secara massal |
+| Export | Bisa mengekspor data |
+| Bagikan | Bisa membagikan data ke pihak lain |
+
+**Hak akses tambahan** (khusus dokumen bisnis seperti Sales Order, Invoice, dst.):
+
+| Hak Akses | Artinya |
+|---|---|
+| Submit | Bisa mengajukan/mengunci dokumen |
+| Cancel | Bisa membatalkan dokumen |
+| Amend | Bisa mengajukan revisi dokumen yang ditolak |
+| Print | Bisa mencetak dokumen |
+
+> **Pengecualian — Ticket (Helpdesk)**: modul Ticket sengaja dibuat terbuka untuk **semua user yang login**, tanpa dicek terhadap matrix hak akses di atas. Hanya aksi menandai selesai dan memperbarui ticket yang tetap dijaga hak akses "Ubah". Detail: [Helpdesk · Ticket](modules/helpdesk.md#ticket).
+
+### Daftar Role Bawaan
+
+| Role | Cakupan Akses |
+|---|---|
+| **System Manager** | Akses penuh ke semua modul dan pengaturan |
+| **Master Data Administrator** | Kelola semua data master (Item, Customer, Supplier, dll.) |
+| **User & Access Administrator** | Kelola user, role, dan hak akses |
 | **Sales Officer** | Buat dan kelola Sales Order, Customer |
 | **Purchasing Officer** | Buat dan kelola Purchase Request, Purchase Order |
-| **Finance Officer** | Kelola Invoice, Payment, Account, General Ledger |
+| **Finance Officer** | Kelola Invoice, Payment, Chart of Account, General Ledger |
 | **Warehouse Officer** | Kelola Stock Entry, Delivery Note, Warehouse |
-| **Item Master** | Kelola data Item, Variant, Category, Attribute |
-| **Approver** | Approve/Reject dokumen, read semua modul |
-| **Auditor** | Read-only + export semua modul |
+| **Item Master** | Kelola data Item, Variant, Kategori, Atribut |
+| **Approver** | Menyetujui/menolak dokumen, bisa melihat semua modul |
+| **Auditor** | Hanya bisa melihat dan mengekspor data di semua modul, tanpa bisa mengubah |
+
+> Satu user bisa memiliki lebih dari satu Role sekaligus — hak aksesnya adalah gabungan dari semua Role yang dimiliki.
 
 ---
 
 ## Workflow Dokumen
 
-Dokumen transaksi (model ber-[`Submitable`](modules/core.md#trait-submitable)) melewati lifecycle status. Status disimpan sebagai **JSON array** (`FormStatusesCast`) sehingga satu dokumen bisa multi-status (mis. `["to_deliver", "to_bill"]`).
+Setiap dokumen bisnis (Sales Order, Purchase Order, Invoice, Stock Entry, dst.) melewati alur status yang sama secara umum, dari draf sampai selesai:
 
 ```mermaid
 stateDiagram-v2
-    [*] --> DRAFT: create / save
-    DRAFT --> SUBMITTED: submit()
-    SUBMITTED --> NEED_APPROVAL: ada ApprovalScheme aktif
-    SUBMITTED --> APPROVED: tidak ada scheme / 0 step
-    NEED_APPROVAL --> APPROVED: semua step approved → onApproved()
-    NEED_APPROVAL --> REJECTED: salah satu step rejected → onRejected()
-    REJECTED --> DRAFT: amend() (dokumen baru -revision)
-    APPROVED --> WORKFLOW: status modul (TO_DELIVER/TO_RECEIVE/...)
-    WORKFLOW --> CANCELED: cancel() → reverse GL & Stock
-    WORKFLOW --> CLOSED: selesai
+    [*] --> Draft: Buat / Simpan
+    Draft --> Diajukan: Submit
+    Diajukan --> MenungguPersetujuan: Ada skema approval aktif
+    Diajukan --> Disetujui: Tidak ada skema approval
+    MenungguPersetujuan --> Disetujui: Semua langkah disetujui
+    MenungguPersetujuan --> Ditolak: Salah satu langkah menolak
+    Ditolak --> Draft: Ajukan revisi (amend)
+    Disetujui --> ProsesLanjutan: Status khusus tiap modul (mis. Siap Kirim/Siap Tagih)
+    ProsesLanjutan --> Dibatalkan: Cancel
+    ProsesLanjutan --> Selesai: Selesai diproses
 ```
 
-| Aksi | Permission key | Efek |
+| Aksi | Butuh Hak Akses | Efek |
 |---|---|---|
-| Save | `create`/`write` | Simpan sebagai `DRAFT` |
-| Submit | `submit` | Kunci + generate kode + cek approval + efek (reservasi/GL/stok) |
-| Cancel | `cancel` | Status `CANCELED` + **reverse** GeneralLedger & StockLedgerEntry |
-| Amend | `amend` | Replikasi dokumen rejected jadi revisi baru (`{code}-{n}`) |
-| Print | `print` | Cetak via [Print Template](modules/core.md#print-templates) |
+| Simpan | Buat/Ubah | Disimpan sebagai draf, masih bisa diedit bebas |
+| Submit | Submit | Dokumen dikunci, kode resmi dibuat, dicek apakah perlu persetujuan, efek bisnis mulai berjalan (mis. reservasi stok, jurnal akuntansi) |
+| Cancel | Cancel | Dokumen dibatalkan — efek stok dan jurnal akuntansi yang sudah tercatat otomatis **dibalik** |
+| Amend | Amend | Dokumen yang ditolak bisa diajukan ulang sebagai revisi baru |
+| Print | Print | Cetak dokumen sesuai [Print Template](modules/core.md#print-templates) yang berlaku |
 
-Status spesifik per modul: [Sales](modules/sales.md#status-workflow) · [Purchase](modules/purchase.md) · [Inventory](modules/inventory.md). Mesin approval: [Core · Approval](modules/core.md#approval). Mekanisme trait: [Core · Trait Submitable](modules/core.md#trait-submitable).
-
-> `{level?}` pada route update (`PUT /{plural}/{id}/{level?}`) menandakan level approval saat update di tengah proses. Lihat [Routes · macro submitable](routes.md#route-tambahan-issubmmitable-true).
+> Setiap modul bisnis punya status lanjutan yang lebih spesifik sesuai kebutuhannya — misalnya Sales Order punya status "Siap Dikirim"/"Siap Ditagih", sedangkan Purchase Order punya status "Siap Diterima". Lihat dokumentasi tiap modul untuk detail statusnya masing-masing.
 
 ---
 
@@ -261,29 +205,29 @@ Jika belum, user diarahkan ke halaman onboarding.
 
 ## Multi-Branch Access
 
-User dapat memiliki akses ke satu atau lebih branch. Data branch tersimpan di pivot `user_branch`.
+User bisa memiliki akses ke satu atau lebih cabang (branch) perusahaan.
 
-### Alur Branch Switching
+### Cara Berpindah Cabang
 
 ```mermaid
 sequenceDiagram
-    participant U as User
-    participant A as AppMiddleware
+    actor U as 🧑‍💼 User
+    participant Sys as ⚙️ Sistem
 
-    U->>A: PUT /switch_branch/{id}
-    A->>A: Validasi branch ada di user_branch
-    A->>A: Session::put('currentBranch', branchId)
-    A-->>U: Redirect / refresh
-    Note over A: Semua data selanjutnya difilter oleh branch aktif
+    U->>Sys: Pilih cabang lain di switcher navbar
+    Sys->>Sys: Cek user punya akses ke cabang tersebut
+    Sys->>Sys: Simpan sebagai cabang aktif
+    Sys-->>U: Halaman diperbarui dengan cabang aktif baru 🔄
+    Note over Sys: Semua data selanjutnya difilter mengikuti cabang aktif
 ```
 
-Branch aktif disimpan di session `currentBranch` dan di-share ke seluruh frontend via Inertia props `branchSettings.currentBranch`.
+Cabang aktif tersimpan selama sesi login berlangsung dan berlaku di seluruh halaman aplikasi.
 
-### Efek Branch pada Data
+### Pengaruh Cabang Aktif pada Data
 
-- Semua dokumen baru otomatis di-assign ke `branch_id` dari branch aktif (via `BaseFormRequest`)
-- Penomoran dokumen bisa berbeda per branch (via `@[branch_code]` token di FormatingSeries)
-- Warehouses, user assignments, dan reporting difilter per branch
+- Semua dokumen baru yang dibuat otomatis tercatat di bawah cabang yang sedang aktif.
+- Penomoran kode dokumen bisa berbeda per cabang (jika formatnya menyertakan kode cabang).
+- Data gudang, penugasan user, dan laporan bisa difilter berdasarkan cabang.
 
 ---
 
