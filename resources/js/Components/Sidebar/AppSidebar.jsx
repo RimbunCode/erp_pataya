@@ -319,6 +319,12 @@ const navList = [
         model: "App\\Models\\Core\\PrintTemplate",
       },
       {
+        title: "Email Templates",
+        url: "/settings/emailTemplates",
+        urlPattern: "/settings/emailTemplates/*",
+        model: "App\\Models\\Core\\EmailTemplate",
+      },
+      {
         title: "Widgets",
         url: "/settings/widgets",
         urlPattern: "/settings/widgets/*",

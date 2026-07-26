@@ -6,6 +6,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/Components/ui/dialog";
 import { Mention, MentionsInput } from "@/Components/Mention";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +19,7 @@ import { Input } from "@/Components/ui/input";
 import { Label } from "@/Components/ui/label";
 import LoadingIcon from "@/Components/LoadingIcon";
 import TiptapEditor from "@/Components/TiptapEditor";
+import UploadDialog from "@/Pages/Core/Components/UploadDialog";
 import axios from "axios";
 import { gooeyToast } from "@/lib/gooeyToast";
 import { router } from "@inertiajs/react";
@@ -58,7 +60,6 @@ export default function EmailSendDialog({
 }) {
   const { t } = useLaravelReactI18n();
   const editorRef = useRef();
-  const fileInputRef = useRef();
 
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -72,6 +73,8 @@ export default function EmailSendDialog({
   const [bodyHtml, setBodyHtml] = useState("");
   const [selectedFileIds, setSelectedFileIds] = useState([]);
   const [includePdf, setIncludePdf] = useState(false);
+  const [newFileIds, setNewFileIds] = useState([]);
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -95,6 +98,7 @@ export default function EmailSendDialog({
           .map((f) => f.id);
         setSelectedFileIds(preselected);
         setIncludePdf(false);
+        setNewFileIds([]);
       })
       .catch(() => {
         gooeyToast.error(t("core.errors.fetch_failed"));
@@ -138,46 +142,14 @@ export default function EmailSendDialog({
     );
   };
 
-  const handleUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("files[]", file);
-    formData.append("name[]", file.name);
-    formData.append("isPublic[]", "false");
-    const csrfToken =
-      document.querySelector('meta[name="csrf-token"]')?.content ?? "";
-    axios
-      .post(route(`${resourceNamePlural}.addFile`, documentId), formData, {
-        headers: {
-          "X-CSRF-TOKEN": csrfToken,
-          "Content-Type": "multipart/form-data",
-        },
-      })
-      .then(() => {
-        // Backend addFile() redirect back tanpa payload file baru — refresh
-        // daftar attachment via emailPreview lagi supaya file baru muncul.
-        return axios.get(
-          route(`${resourceNamePlural}.email.preview`, [
-            documentId,
-            emailTemplateId,
-          ]),
-        );
-      })
-      .then((res) => {
-        const data = res.data ?? EMPTY_PREVIEW;
-        setPreview((prev) => ({ ...prev, files: data.files }));
-        const newFile = (data.files ?? []).find(
-          (f) => !selectedFileIds.includes(f.id) && !f.isGeneratedPdf,
-        );
-        if (newFile) {
-          setSelectedFileIds((prev) => [...prev, newFile.id]);
-        }
-      })
-      .catch(() => gooeyToast.error(t("core.errors.fetch_failed")))
-      .finally(() => {
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      });
+  // items: hasil onBuffer dari UploadDialog (files.store), array {id, name, ...}.
+  const handleNewFiles = (items) => {
+    setPreview((prev) => ({
+      ...prev,
+      files: [...(prev.files ?? []), ...items],
+    }));
+    setSelectedFileIds((prev) => [...prev, ...items.map((f) => f.id)]);
+    setNewFileIds((prev) => [...prev, ...items.map((f) => f.id)]);
   };
 
   const handleSend = () => {
@@ -207,11 +179,18 @@ export default function EmailSendDialog({
     );
   };
 
-  const otherFiles = (preview.files ?? []).filter((f) => !f.isGeneratedPdf);
+  const allNonPdfFiles = (preview.files ?? []).filter((f) => !f.isGeneratedPdf);
+  const existingNonPdfFiles = allNonPdfFiles.filter(
+    (f) => !newFileIds.includes(f.id),
+  );
+  const newFiles = allNonPdfFiles.filter((f) => newFileIds.includes(f.id));
+  const existingPdfFiles = (preview.files ?? []).filter(
+    (f) => f.isGeneratedPdf,
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl flex flex-col max-h-[85vh] p-0 gap-0">
+      <DialogContent className="max-w-4xl flex flex-col max-h-[85vh] p-0 gap-0">
         <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
           <DialogTitle>{t("core.emailTemplate.send.title")}</DialogTitle>
         </DialogHeader>
@@ -222,77 +201,79 @@ export default function EmailSendDialog({
             {t("core.form.loading")}
           </div>
         ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto px-6 grid gap-y-4">
-            <FormInput label={t("core.emailTemplate.send.from")}>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {preview.fromAddress}
-                </span>
-                <Input
-                  value={fromNameValue}
-                  onValueChange={setFromNameValue}
-                  placeholder={t("core.emailTemplate.send.fromNamePlaceholder")}
-                  className="flex-1"
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 grid lg:grid-cols-[1fr_18rem] gap-6">
+            {/* Kolom kiri — form utama */}
+            <div className="min-w-0 grid gap-y-4">
+              <FormInput label={t("core.emailTemplate.send.from")}>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {preview.fromAddress}
+                  </span>
+                  <Input
+                    value={fromNameValue}
+                    onValueChange={setFromNameValue}
+                    placeholder={t(
+                      "core.emailTemplate.send.fromNamePlaceholder",
+                    )}
+                    className="flex-1"
+                  />
+                </div>
+              </FormInput>
+
+              <FormInput required label={t("core.emailTemplate.send.to")}>
+                <EmailChipInput value={to} onValueChange={setTo} />
+              </FormInput>
+
+              <FormInput label={t("core.emailTemplate.send.cc")}>
+                <EmailChipInput value={cc} onValueChange={setCc} />
+              </FormInput>
+
+              <FormInput label={t("core.emailTemplate.send.bcc")}>
+                <EmailChipInput value={bcc} onValueChange={setBcc} />
+              </FormInput>
+
+              <FormInput
+                required
+                label={t("core.emailTemplate.columns.subject")}
+              >
+                <MentionsInput
+                  singleLine
+                  value={subject}
+                  onChange={(_, value) => setSubject(value)}
+                  className="mentions"
+                  allowSuggestionsAboveCursor
+                  autoComplete="off"
+                >
+                  <Mention
+                    markup="__id__"
+                    trigger="@"
+                    data={fetchResolvedFieldsForSubject}
+                  />
+                </MentionsInput>
+              </FormInput>
+
+              <div>
+                <Label>{t("core.emailTemplate.columns.body")}</Label>
+                <TiptapEditor
+                  ref={editorRef}
+                  value={bodyJson ?? bodyHtml}
+                  onValueChange={(json, html) => {
+                    setBodyJson(json);
+                    setBodyHtml(html);
+                  }}
+                  mentionSource={mentionSourceForBody}
                 />
               </div>
-            </FormInput>
-
-            <FormInput required label={t("core.emailTemplate.send.to")}>
-              <EmailChipInput value={to} onValueChange={setTo} />
-            </FormInput>
-
-            <FormInput label={t("core.emailTemplate.send.cc")}>
-              <EmailChipInput value={cc} onValueChange={setCc} />
-            </FormInput>
-
-            <FormInput label={t("core.emailTemplate.send.bcc")}>
-              <EmailChipInput value={bcc} onValueChange={setBcc} />
-            </FormInput>
-
-            <FormInput required label={t("core.emailTemplate.columns.subject")}>
-              <MentionsInput
-                singleLine
-                value={subject}
-                onChange={(_, value) => setSubject(value)}
-                className="mentions"
-                allowSuggestionsAboveCursor
-                autoComplete="off"
-              >
-                <Mention
-                  markup="__id__"
-                  trigger="@"
-                  data={fetchResolvedFieldsForSubject}
-                />
-              </MentionsInput>
-            </FormInput>
-
-            <div>
-              <Label>{t("core.emailTemplate.columns.body")}</Label>
-              <TiptapEditor
-                ref={editorRef}
-                value={bodyJson ?? bodyHtml}
-                onValueChange={(json, html) => {
-                  setBodyJson(json);
-                  setBodyHtml(html);
-                }}
-                mentionSource={mentionSourceForBody}
-              />
             </div>
 
-            <div className="grid gap-y-2">
-              <Label>{t("core.emailTemplate.send.attachments")}</Label>
-              {otherFiles.map((file) => (
-                <FormCheckbox
-                  key={file.id}
-                  checked={selectedFileIds.includes(file.id)}
-                  onCheckedChange={() => toggleFile(file.id)}
-                  label={file.name}
-                />
-              ))}
-              {preview.hasGeneratedPdf &&
-                (preview.files ?? [])
-                  .filter((f) => f.isGeneratedPdf)
-                  .map((file) => (
+            {/* Sidebar kanan — attachments & opsi PDF */}
+            <div className="min-w-0 border-t pt-4 lg:border-t-0 lg:pt-0 lg:border-l lg:pl-4 grid gap-y-4 content-start">
+              {existingNonPdfFiles.length > 0 && (
+                <div className="grid gap-y-2">
+                  <Label>
+                    {t("core.emailTemplate.send.attachmentsExisting")}
+                  </Label>
+                  {existingNonPdfFiles.map((file) => (
                     <FormCheckbox
                       key={file.id}
                       checked={selectedFileIds.includes(file.id)}
@@ -300,6 +281,23 @@ export default function EmailSendDialog({
                       label={file.name}
                     />
                   ))}
+                </div>
+              )}
+
+              {preview.hasGeneratedPdf && (
+                <div className="grid gap-y-2">
+                  <Label>{t("core.emailTemplate.send.attachmentsPdf")}</Label>
+                  {existingPdfFiles.map((file) => (
+                    <FormCheckbox
+                      key={file.id}
+                      checked={selectedFileIds.includes(file.id)}
+                      onCheckedChange={() => toggleFile(file.id)}
+                      label={file.name}
+                    />
+                  ))}
+                </div>
+              )}
+
               {!preview.hasGeneratedPdf && preview.canOfferPdf && (
                 <FormCheckbox
                   checked={includePdf}
@@ -307,21 +305,38 @@ export default function EmailSendDialog({
                   label={t("core.emailTemplate.send.includePdf")}
                 />
               )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={handleUpload}
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="w-fit"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {t("core.emailTemplate.send.uploadFile")}
-              </Button>
+
+              {newFiles.length > 0 && (
+                <div className="grid gap-y-2">
+                  <Label>{t("core.emailTemplate.send.attachmentsNew")}</Label>
+                  {newFiles.map((file) => (
+                    <FormCheckbox
+                      key={file.id}
+                      checked={selectedFileIds.includes(file.id)}
+                      onCheckedChange={() => toggleFile(file.id)}
+                      label={file.name}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="w-fit"
+                  >
+                    {t("core.emailTemplate.send.uploadFile")}
+                  </Button>
+                </DialogTrigger>
+                <UploadDialog
+                  open={uploadOpen}
+                  onBuffer={handleNewFiles}
+                  onClose={() => setUploadOpen(false)}
+                />
+              </Dialog>
             </div>
           </div>
         )}
