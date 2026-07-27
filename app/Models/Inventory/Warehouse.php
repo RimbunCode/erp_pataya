@@ -6,12 +6,13 @@ use App\Models\Core\Branch;
 use App\Models\Model;
 use App\Models\User\User;
 use App\Traits\DataTable;
+use App\Traits\HasBranch;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Warehouse extends Model {
-    use DataTable, HasUlids, SoftDeletes;
+    use DataTable, HasBranch, HasUlids, SoftDeletes;
 
     protected $guarded = ['id'];
 

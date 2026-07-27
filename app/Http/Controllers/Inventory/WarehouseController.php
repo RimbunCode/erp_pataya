@@ -4,11 +4,9 @@ namespace App\Http\Controllers\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\WarehouseRequest;
-use App\Models\Core\Branch;
 use App\Models\Inventory\Warehouse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 
 class WarehouseController extends Controller {
@@ -21,24 +19,7 @@ class WarehouseController extends Controller {
      */
     public function index(Request $request) {
         $this->setBreadcrumbs();
-        $warehouse = Warehouse::query()
-            ->leftJoin('branches', 'branches.id', '=', 'warehouses.branch_id')
-            ->leftJoin('users', 'users.id', '=', 'warehouses.user_id')
-            ->select([
-                'branches.name as branch_name',
-                'users.name as user_name',
-                'users.username as user_username',
-                'users.email as user_email',
-                'users.phone as user_phone',
-            ]);
-
-        if (Session::has('currentBranch')) {
-            $branch = Branch::find(Session::get('currentBranch'));
-            if (! $branch->is_main_branch) {
-                $warehouse->where('warehouses.branch_id', $branch->id);
-            }
-        }
-        $warehouse->dataTable($request);
+        Warehouse::dataTable($request);
 
         return Inertia::render('Inventory/Warehouses/Index');
     }

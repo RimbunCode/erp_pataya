@@ -25,7 +25,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 trait Submitable {
-    use DataTable;
+    use DataTable, HasBranch;
 
     protected static bool $is_submitable = true;
 
