@@ -168,6 +168,7 @@ export default function Form() {
             setData("branches", val);
           }}
           form={<BranchForm />}
+          classNameDialog="max-w-(--breakpoint-2xl)!"
         />
       </FormPageContent>
     </>
