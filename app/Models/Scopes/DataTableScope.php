@@ -2,6 +2,7 @@
 
 namespace App\Models\Scopes;
 
+use App\Models\Core\Branch;
 use App\Models\Core\Preference;
 use App\Models\Core\SavedFilter;
 use App\Services\Core\DataTableColumnSelector;
@@ -46,8 +47,41 @@ class DataTableScope implements Scope {
         return $slug !== '' ? 'datatable_columns_' . $slug : 'datatable_columns';
     }
 
+    /**
+     * Filter listing berdasar branch aktif untuk model yang pakai trait HasBranch.
+     * Branch utama (session `currentBranch`) melihat semua baris; branch lain
+     * hanya melihat baris miliknya. Terpisah dari HasBranch::bootHasBranch()
+     * (aturan non-listing berbasis afiliasi user) karena macro ini dipakai baik
+     * oleh index resource maupun endpoint generic ModelController::datatable()/
+     * selectData() — keduanya sama-sama listing meski nama route-nya berbeda.
+     */
+    private function applyBranchFilter(Builder $query): void {
+        $model = $query->getModel();
+        if (! \method_exists($model, 'getBranchColumn')) {
+            return;
+        }
+
+        // Lepas aturan non-listing HasBranch (afiliasi user) — listing punya
+        // aturannya sendiri di bawah (currentBranch session), supaya tak
+        // tumpang tindih/konflik dengan filter afiliasi user.
+        $query->withoutGlobalScope('branch');
+
+        if (! session()->has('currentBranch')) {
+            return;
+        }
+
+        $branch = Branch::find(session('currentBranch'));
+        if (! $branch || $branch->is_main_branch) {
+            return;
+        }
+
+        $query->where($model->getTable() . '.' . $model::getBranchColumn(), $branch->id);
+    }
+
     protected function addDataTable(Builder $builder) {
         $builder->macro('dataTable', function (Builder $query, Request $request, ?array $showedColumns = null) {
+            $this->applyBranchFilter($query);
+
             $dataTableColumns = \get_class($query->getModel())::getColumns(1);
             // Kolom visible dari cookie (standar Laravel; plaintext krn dikecualikan
             // dari enkripsi di bootstrap/app.php). Nama cookie unik per-path (suffix

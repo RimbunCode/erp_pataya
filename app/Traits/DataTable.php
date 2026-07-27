@@ -297,7 +297,7 @@ trait DataTable {
         share,
      * @return string[]
      */
-    protected static function permissions(): array {
+    final protected static function permissions(): array {
         return [
             'select',
             'read',
@@ -308,6 +308,17 @@ trait DataTable {
             'export',
             'share',
         ];
+    }
+
+    /**
+     * Permission key tambahan khusus model ini, di luar key standar dari
+     * permissions(). Override di model, JANGAN override permissions()
+     * itu sendiri (final, agar key standar tidak bisa hilang tak sengaja).
+     *
+     * @return string[]
+     */
+    protected static function extraPermissions(): array {
+        return [];
     }
 
     private static function getShortName() {
@@ -333,7 +344,7 @@ trait DataTable {
         $nameModel = Str::afterLast(static::class, '\\');
         $alias     = static::$alias ??
             \ucwords(str_replace(['_', '-'], ' ', Str::snake($nameModel)));
-        $module = static::$module ?? Str::afterLast(Str::before(static::class, '\\' . $nameModel), '\\');
+        $module = static::$module ?? Str::afterLast(Str::beforeLast(static::class, '\\' . $nameModel), '\\');
         if (! $module) {
             \print_r("\e[39m" . static::class . " \e[91m(Module name not found) \e[39m" . \PHP_EOL);
 
@@ -523,10 +534,13 @@ trait DataTable {
             ->updateOrCreate([
                 'model' => static::class,
             ], [
-                'module'             => $module,
-                'name'               => Str::plural($alias),
-                'route'              => Str::plural(Str::camel($nameModel)),
-                'permissions'        => (static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions(),
+                'module'      => $module,
+                'name'        => Str::plural($alias),
+                'route'       => Str::plural(Str::camel($nameModel)),
+                'permissions' => [
+                    ...((static::$is_submitable ?? false) ? [...static::permissions(), 'submit', 'cancel', 'amend', 'print'] : static::permissions()),
+                    ...static::extraPermissions(),
+                ],
                 'is_submitable'      => (static::$is_submitable ?? false),
                 'allow_only_creator' => (static::$allow_only_creator ?? static::$is_submitable ?? false),
             ]);

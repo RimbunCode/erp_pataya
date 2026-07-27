@@ -19,7 +19,7 @@ class RoleController extends Controller {
 
     public function enforcePermission(string $method) {
         if ($method == 'permissions') {
-            return true;
+            return 'read';
         }
     }
 
