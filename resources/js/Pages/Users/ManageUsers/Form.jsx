@@ -447,6 +447,7 @@ function Form() {
           ref={addBranchDialogRef}
           title={t("core.branch.new")}
           name="branch"
+          className="max-w-(--breakpoint-2xl)!"
           onSuccess={() => router.reload({ only: ["branches"] })}
         >
           <BranchForm />
