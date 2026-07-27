@@ -27,6 +27,10 @@ class User extends Authenticatable {
     protected $guarded   = ['id'];
     protected $appends   = ['picture'];
 
+    protected static function extraPermissions(): array {
+        return ['manage_roles', 'manage_branches'];
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *

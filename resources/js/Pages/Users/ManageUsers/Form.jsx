@@ -1,9 +1,15 @@
 import { Dialog, DialogContent, DialogHeader } from "@/Components/ui/dialog";
 import { DialogDescription, DialogTitle } from "@radix-ui/react-dialog";
-import { ExternalLinkIcon, MailCheckIcon, ShieldCheckIcon } from "lucide-react";
+import {
+  ExternalLinkIcon,
+  MailCheckIcon,
+  PlusIcon,
+  ShieldCheckIcon,
+} from "lucide-react";
 import {
   FormPageContent,
   FormPageContentTitle,
+  FormPageDialog,
   useFormPage,
 } from "@/Pages/Core/FormPage";
 import {
@@ -11,14 +17,15 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/Components/ui/input-group";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/Components/ui/tooltip";
-import { WhenVisible, usePage } from "@inertiajs/react";
+import { WhenVisible, router, usePage } from "@inertiajs/react";
 
+import BranchForm from "@/Pages/Settings/Branches/Form";
 import { Button } from "@/Components/ui/button";
 import DatetimePicker from "@/Components/DatetimePicker";
 import { FormCheckbox } from "@/Components/ui/checkbox";
@@ -26,10 +33,12 @@ import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import LoadingIcon from "@/Components/LoadingIcon";
 import QueryString from "qs";
+import RoleForm from "@/Pages/Users/Roles/Form";
 import Select from "@/Components/Select";
 import axios from "axios";
 import { cn } from "@/lib/utils";
 import { useLaravelReactI18n } from "laravel-react-i18n";
+import usePermission from "@/Hooks/usePermission";
 
 function Form() {
   const { user: authUser } = usePage().props.auth;
@@ -40,6 +49,11 @@ function Form() {
   const [openDetailRole, setOpenDetailRole] = useState(false);
   const [detailsRole, setDetailsRole] = useState();
   const [isLoadingPermissions, setIsLoadingPermissions] = useState(false);
+  const addRoleDialogRef = useRef();
+  const addBranchDialogRef = useRef();
+  const { can: canRole } = usePermission("App\\Models\\User\\Role");
+  const { can: canBranch } = usePermission("App\\Models\\Core\\Branch");
+  const { can: canUser } = usePermission("App\\Models\\User\\User");
 
   const getDetailsRole = useCallback((id) => {
     setIsLoadingPermissions(true);
@@ -176,14 +190,24 @@ function Form() {
           </FormInput>
         </div>
       </FormPageContent>
-      {authUser.id != data?.id && (
-        <>
-          <FormPageContent
-            title={t("user.user.roles_and_permissions")}
-            value="roles_and_permissions"
-          >
-            <FormPageContentTitle className="flex justify-between gap-4">
-              {t("user.user.roles")}
+      {canUser("manage_roles") && (
+        <FormPageContent
+          title={t("user.user.roles_and_permissions")}
+          value="roles_and_permissions"
+        >
+          <FormPageContentTitle className="flex justify-between gap-4">
+            {t("user.user.roles")}
+            <div className="flex gap-2">
+              {canRole("create") && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addRoleDialogRef.current?.open()}
+                >
+                  <PlusIcon />
+                  {t("user.role.add")}
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="primary"
@@ -195,129 +219,141 @@ function Form() {
                 {isLoadingPermissions && <LoadingIcon className="size-4" />}{" "}
                 {t("user.user.show_permissions")}
               </Button>
-            </FormPageContentTitle>
+            </div>
+          </FormPageContentTitle>
 
-            <WhenVisible
-              data={["roles"]}
-              fallback={
-                <div className="text-base! font-normal text-foreground flex gap-x-4">
-                  <LoadingIcon className="size-4" />
-                  <span>{t("core.form.loading")} ...</span>
-                </div>
-              }
-            >
-              <div className="columns-[15rem] *:break-inside-avoid gap-x-2 space-y-4 mt-2">
-                {roles &&
-                  roles.map(
-                    (role) =>
-                      !role.is_disabled && (
-                        <FormCheckbox
-                          className="min-h-6 "
-                          key={role.id}
-                          disabled={isLoadingPermissions || role.is_disabled}
-                          checked={data.roles.includes(role.id)}
-                          onCheckedChange={(val) => {
-                            if (val) {
-                              setData("roles", [...data.roles, role.id]);
-                            } else {
-                              setData(
-                                "roles",
-                                data.roles.filter((x) => x !== role.id),
-                              );
-                            }
-                          }}
-                          classNameLabel="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70 group flex items-center"
-                        >
-                          <div>
-                            {isLoadingPermissions && (
-                              <LoadingIcon className="size-4 mr-2!" />
-                            )}{" "}
-                            <span onClick={() => getDetailsRole(role.id)}>
-                              {role.name}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={cn(
-                                " opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1! size-fit! [&>svg]:size-3",
-                              )}
-                              onClick={() => {
-                                window.open(
-                                  route("roles.show", role.id),
-                                  "_blank",
-                                );
-                              }}
-                            >
-                              <ExternalLinkIcon />
-                            </Button>
-                          </div>
-                        </FormCheckbox>
-                      ),
-                  )}
+          <WhenVisible
+            data={["roles"]}
+            fallback={
+              <div className="text-base! font-normal text-foreground flex gap-x-4">
+                <LoadingIcon className="size-4" />
+                <span>{t("core.form.loading")} ...</span>
               </div>
-            </WhenVisible>
-          </FormPageContent>
-          <FormPageContent
-            title={t("user.user.roles_and_permissions")}
-            value="roles_and_permissions"
+            }
           >
-            <FormPageContentTitle>
-              {t("user.user.branches")}
-            </FormPageContentTitle>
-            <WhenVisible
-              data={["branches"]}
-              fallback={
-                <div className="text-base! font-normal text-foreground flex gap-x-4">
-                  <LoadingIcon className="size-4" />
-                  <span>{t("core.form.loading")} ...</span>
-                </div>
-              }
-            >
-              <div className="columns-[15rem] gap-x-2 space-y-4 mt-2">
-                {branches &&
-                  branches.map((branch) => (
-                    <FormCheckbox
-                      key={branch.id}
-                      disabled={branch.is_disabled}
-                      checked={data.branches?.includes(branch.id)}
-                      onCheckedChange={(val) => {
-                        if (val) {
-                          setData("branches", [...data.branches, branch.id]);
-                        } else {
-                          setData(
-                            "branches",
-                            data.branches?.filter((x) => x !== branch.id),
-                          );
-                          if (branch.id == data.default_branch_id) {
-                            setData("default_branch_id", null);
+            <div className="columns-[15rem] *:break-inside-avoid gap-x-2 space-y-4 mt-2">
+              {roles &&
+                roles.map(
+                  (role) =>
+                    !role.is_disabled && (
+                      <FormCheckbox
+                        className="min-h-6 "
+                        key={role.id}
+                        disabled={isLoadingPermissions || role.is_disabled}
+                        checked={data.roles.includes(role.id)}
+                        onCheckedChange={(val) => {
+                          if (val) {
+                            setData("roles", [...data.roles, role.id]);
+                          } else {
+                            setData(
+                              "roles",
+                              data.roles.filter((x) => x !== role.id),
+                            );
                           }
-                        }
-                      }}
-                      classNameLabel="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      label={branch.name}
-                    />
-                  ))}
+                        }}
+                        classNameLabel="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70 group flex items-center"
+                      >
+                        <div>
+                          {isLoadingPermissions && (
+                            <LoadingIcon className="size-4 mr-2!" />
+                          )}{" "}
+                          <span onClick={() => getDetailsRole(role.id)}>
+                            {role.name}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={cn(
+                              " opacity-0 group-hover:opacity-100 transition-opacity ml-2 p-1! size-fit! [&>svg]:size-3",
+                            )}
+                            onClick={() => {
+                              window.open(
+                                route("roles.show", role.id),
+                                "_blank",
+                              );
+                            }}
+                          >
+                            <ExternalLinkIcon />
+                          </Button>
+                        </div>
+                      </FormCheckbox>
+                    ),
+                )}
+            </div>
+          </WhenVisible>
+        </FormPageContent>
+      )}
+      {canUser("manage_branches") && (
+        <FormPageContent
+          title={t("user.user.roles_and_permissions")}
+          value="roles_and_permissions"
+        >
+          <FormPageContentTitle className="flex justify-between gap-4">
+            {t("user.user.branches")}
+            {canBranch("create") && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => addBranchDialogRef.current?.open()}
+              >
+                <PlusIcon />
+                {t("core.branch.add_branch")}
+              </Button>
+            )}
+          </FormPageContentTitle>
+          <WhenVisible
+            data={["branches"]}
+            fallback={
+              <div className="text-base! font-normal text-foreground flex gap-x-4">
+                <LoadingIcon className="size-4" />
+                <span>{t("core.form.loading")} ...</span>
               </div>
-            </WhenVisible>
-            <FormInput
-              className="max-w-sm mt-4"
-              label={t("user.user.default_branch")}
-              required={true}
-            >
-              <Select
-                value={data.default_branch_id}
-                onValueChange={(val) => setData("default_branch_id", val)}
-                options={
-                  branches?.map((x) => ({
-                    value: x.id,
-                    label: x.name,
-                  })) ?? []
-                }
-              />
-            </FormInput>
-          </FormPageContent>
-        </>
+            }
+          >
+            <div className="columns-[15rem] gap-x-2 space-y-4 mt-2">
+              {branches &&
+                branches.map((branch) => (
+                  <FormCheckbox
+                    key={branch.id}
+                    disabled={branch.is_disabled}
+                    checked={data.branches?.includes(branch.id)}
+                    onCheckedChange={(val) => {
+                      if (val) {
+                        setData("branches", [...data.branches, branch.id]);
+                      } else {
+                        setData(
+                          "branches",
+                          data.branches?.filter((x) => x !== branch.id),
+                        );
+                        if (branch.id == data.default_branch_id) {
+                          setData("default_branch_id", null);
+                        }
+                      }
+                    }}
+                    classNameLabel="text-sm font-medium leading-none cursor-pointer hover:underline peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    label={branch.name}
+                  />
+                ))}
+            </div>
+          </WhenVisible>
+          <FormInput
+            className="max-w-sm mt-4"
+            label={t("user.user.default_branch")}
+            required={true}
+          >
+            <Select
+              value={data.default_branch_id}
+              onValueChange={(val) => setData("default_branch_id", val)}
+              options={
+                branches?.map((x) => ({
+                  value: x.id,
+                  label: x.name,
+                })) ?? []
+              }
+            />
+          </FormInput>
+        </FormPageContent>
       )}
       <Dialog open={openDetailRole} onOpenChange={setOpenDetailRole}>
         <DialogContent className="max-w-(--breakpoint-lg) max-h-[85vh] flex flex-col overflow-hidden border-muted-foreground/25">
@@ -395,6 +431,27 @@ function Form() {
           </div>
         </DialogContent>
       </Dialog>
+      {canUser("manage_roles") && canRole("create") && (
+        <FormPageDialog
+          ref={addRoleDialogRef}
+          title={t("user.role.new")}
+          name="role"
+          className="max-w-(--breakpoint-2xl)!"
+          onSuccess={() => router.reload({ only: ["roles"] })}
+        >
+          <RoleForm />
+        </FormPageDialog>
+      )}
+      {canUser("manage_branches") && canBranch("create") && (
+        <FormPageDialog
+          ref={addBranchDialogRef}
+          title={t("core.branch.new")}
+          name="branch"
+          onSuccess={() => router.reload({ only: ["branches"] })}
+        >
+          <BranchForm />
+        </FormPageDialog>
+      )}
     </>
   );
 }
