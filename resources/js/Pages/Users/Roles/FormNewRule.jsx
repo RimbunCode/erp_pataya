@@ -58,8 +58,9 @@ export default memo(
     );
 
     useEffect(() => {
-      if (!open);
-      setRule(defaultValue);
+      if (!open) {
+        setRule(defaultValue);
+      }
     }, [open]);
 
     return (

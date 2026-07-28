@@ -24,6 +24,15 @@ class Permission extends Model {
         'model' => [
             'linkable' => true,
         ],
+        'permissions' => [
+            'linkable' => true,
+        ],
+        'is_submitable' => [
+            'linkable' => true,
+        ],
+        'allow_only_creator' => [
+            'linkable' => true,
+        ],
     ];
 
     public static function templateLink() {
