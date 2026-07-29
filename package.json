@@ -29,7 +29,6 @@
     "eslint": "^9.39.3",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jsdoc": "^62.7.1",
-    "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -136,6 +135,20 @@
     "underscore": "1.13.8",
     "dompurify": "^3.4.8",
     "shell-quote": "^1.8.4",
+    "glob": {
+      "minimatch": {
+        "brace-expansion": "5.0.8"
+      }
+    },
+    "shadcn": {
+      "ts-morph": {
+        "@ts-morph/common": {
+          "minimatch": {
+            "brace-expansion": "5.0.8"
+          }
+        }
+      }
+    },
     "laravel-react-i18n": {
       "react": "19.2.4"
     }
