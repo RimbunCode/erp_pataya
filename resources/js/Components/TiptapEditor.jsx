@@ -308,6 +308,21 @@ export function dotPathToMergeTagToken(id) {
   return `{{ $${id.split(".").join("->")} }}`;
 }
 
+// Tiptap kadang menghasilkan/menerima text node dengan `text: null` (mis. saat
+// mention node disisipkan di posisi akhir dokumen) — node ini valid untuk
+// di-serialize ke JSON tapi invalid untuk schema ProseMirror saat dibaca ulang
+// (field `text` wajib string), membuat setContent() gagal parse & dokumen
+// tampil kosong. Bersihkan node semacam ini dari tree sebelum disimpan/dibaca.
+export function sanitizeProseMirrorJSON(node) {
+  if (!node || typeof node !== "object") return node;
+  if (Array.isArray(node.content)) {
+    node.content = node.content
+      .map(sanitizeProseMirrorJSON)
+      .filter((child) => !(child.type === "text" && !child.text));
+  }
+  return node;
+}
+
 function buildMentionSuggestion(mentionSourceRef) {
   return {
     char: "@",
@@ -436,7 +451,7 @@ const TiptapEditor = forwardRef(function TiptapEditor(
           ]
         : []),
     ],
-    content: value ?? "",
+    content: sanitizeProseMirrorJSON(value) ?? "",
     editorProps: {
       attributes: {
         class: "outline-none min-h-[100px] p-3",
@@ -445,7 +460,10 @@ const TiptapEditor = forwardRef(function TiptapEditor(
     },
     onUpdate({ editor }) {
       if (isUpdatingRef.current) return;
-      onValueChange?.(editor.getJSON(), editor.getHTML());
+      onValueChange?.(
+        sanitizeProseMirrorJSON(editor.getJSON()),
+        editor.getHTML(),
+      );
     },
   });
 
@@ -481,8 +499,16 @@ const TiptapEditor = forwardRef(function TiptapEditor(
     const incomingJson = JSON.stringify(value ?? {});
     if (currentJson === incomingJson) return;
     isUpdatingRef.current = true;
-    editor.commands.setContent(value ?? "", false);
-    isUpdatingRef.current = false;
+    try {
+      editor.commands.setContent(sanitizeProseMirrorJSON(value) ?? "", false);
+    } catch (e) {
+      console.error(
+        "TiptapEditor: gagal memuat content, kemungkinan data tersimpan tidak valid",
+        e,
+      );
+    } finally {
+      isUpdatingRef.current = false;
+    }
   }, [value, editor]);
 
   useImperativeHandle(ref, () => ({

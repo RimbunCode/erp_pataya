@@ -47,17 +47,23 @@ export default function Form() {
 
   // Body (TiptapEditor): id berupa dot-path ("doc.name"), dikonversi ke token
   // arrow oleh dotPathToMergeTagToken() saat renderHTML (lihat TiptapEditor.jsx).
+  // Filter dicocokkan terhadap label (teks yang user lihat), fallback ke nama
+  // kolom mentah untuk power-user yang mengetik nama field asli.
   const mentionSourceForBody = useMemo(
     () => (query) =>
       fetchFieldColumns().then((columns) =>
         columns
-          .filter((col) =>
-            query ? col.name.toLowerCase().includes(query.toLowerCase()) : true,
-          )
           .map((col) => ({
             id: `doc.${col.name}`,
             label: col.titleTrans ? t(col.titleTrans) : col.name,
-          })),
+            name: col.name,
+          }))
+          .filter((item) =>
+            query
+              ? item.label.toLowerCase().includes(query.toLowerCase()) ||
+                item.name.toLowerCase().includes(query.toLowerCase())
+              : true,
+          ),
       ),
     [fetchFieldColumns, t],
   );
