@@ -13,7 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class TicketController extends Controller {
-    protected bool $ignorePermission = true;
     private TicketService $service;
 
     public function __construct(Request $request, TicketService $service) {
@@ -24,7 +23,7 @@ class TicketController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'updateTicket' => 'write',
-            default                    => null,
+            default => null,
         };
     }
 
@@ -80,9 +79,15 @@ class TicketController extends Controller {
 
     public function destroy(Ticket $ticket) {
         DB::beginTransaction();
-        $ticket->delete();
-        $ticket->logForDeleted();
-        DB::commit();
+        try {
+            $ticket->delete();
+            $ticket->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('tickets.index');
     }

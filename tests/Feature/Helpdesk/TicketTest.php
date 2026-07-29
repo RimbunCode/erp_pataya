@@ -424,4 +424,14 @@ class TicketTest extends TestCase {
         $response->assertSessionHasErrors('delete');
         $this->assertNotSoftDeleted('tickets', ['id' => $ticket->id]);
     }
+
+    public function test_user_without_any_permission_can_still_crud_ticket(): void {
+        $ticket = Ticket::factory()->create();
+
+        $this->withSession(['permissions' => [], 'permissions_version' => '0|0|0|0', 'currentBranch' => null])
+            ->withCookie('lang', 'en')
+            ->actingAs($this->user)
+            ->get(route('tickets.show', $ticket))
+            ->assertOk();
+    }
 }

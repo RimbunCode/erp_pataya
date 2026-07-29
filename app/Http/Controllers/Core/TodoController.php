@@ -14,12 +14,28 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class TodoController extends Controller {
-    protected bool $ignorePermission = true;
     private TodoService $service;
 
     public function __construct(Request $request, TodoService $service) {
         $this->service = $service;
         parent::__construct($request, Todo::class);
+    }
+
+    private function authorizeOwnTodoOrPermission(Todo $todo, Permission $action): void {
+        $user = request()->user();
+
+        $isOwn = $todo->allocatedUsers()->contains('id', $user->id)
+            || $todo->assigned_by_id === $user->id;
+
+        if ($isOwn) {
+            return;
+        }
+
+        if (PermissionChecker::forUser(request())->can(Todo::class, $action)) {
+            return;
+        }
+
+        abort(403);
     }
 
     public function index(Request $request) {
@@ -74,6 +90,8 @@ class TodoController extends Controller {
     }
 
     public function update(TodoRequest $request, Todo $todo) {
+        $this->authorizeOwnTodoOrPermission($todo, Permission::Write);
+
         DB::beginTransaction();
         $this->service->update($todo, $request->validated());
         DB::commit();
@@ -82,10 +100,18 @@ class TodoController extends Controller {
     }
 
     public function destroy(Todo $todo) {
+        $this->authorizeOwnTodoOrPermission($todo, Permission::Delete);
+
         DB::beginTransaction();
-        $todo->delete();
-        $todo->logForDeleted();
-        DB::commit();
+        try {
+            $todo->delete();
+            $todo->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('todos.index');
     }

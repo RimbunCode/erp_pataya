@@ -496,9 +496,20 @@ export const getDataModel = async (model, filters, options = {}) => {
  * @param {string} model
  * @param {string} action
  * @param {number} [level] level akses (default 0)
+ * @param {string[]} [ignorePermissionModels] daftar FQCN model yang bypass gate permission
  * @returns {{ allowed: boolean, onlyCreator: boolean }}
  */
-export function checkPermission(permissions, model, action, level = 0) {
+export function checkPermission(
+  permissions,
+  model,
+  action,
+  level = 0,
+  ignorePermissionModels = [],
+) {
+  if (ignorePermissionModels.includes(model)) {
+    return { allowed: true, onlyCreator: false };
+  }
+
   const modelPermissions = permissions[model];
   const levelPermissions = modelPermissions ? modelPermissions[level] : null;
   if (!levelPermissions) return { allowed: false, onlyCreator: false };

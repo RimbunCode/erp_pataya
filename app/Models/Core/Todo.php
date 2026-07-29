@@ -29,6 +29,7 @@ class Todo extends Model {
     public bool $skipAttachmentOnCreate        = true;
     protected static string $defaultFormatCode = 'TODO/@[yy]-@[mm]/@[iiii]';
     protected static $generateCodeSeries       = true;
+    protected static bool $ignorePermission    = true;
     protected array $configColumns             = [
         'code' => [
             'isLink' => true,

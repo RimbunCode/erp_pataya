@@ -86,7 +86,11 @@ class TodoTest extends TestCase {
     }
 
     public function test_can_update_todo(): void {
-        $todo = Todo::factory()->create(['status' => 'open', 'priority' => 'low']);
+        $todo = Todo::factory()->create([
+            'status'          => 'open',
+            'priority'        => 'low',
+            'allocated_to_id' => $this->user->id,
+        ]);
 
         $response = $this->authenticatedRequest()
             ->put(route('todos.update', $todo), [
@@ -104,13 +108,76 @@ class TodoTest extends TestCase {
     }
 
     public function test_delete_todo(): void {
-        $todo = Todo::factory()->create();
+        $todo = Todo::factory()->create(['allocated_to_id' => $this->user->id]);
 
         $response = $this->authenticatedRequest()
             ->delete(route('todos.destroy', $todo));
 
         $response->assertRedirect(route('todos.index'));
         $this->assertSoftDeleted('todos', ['id' => $todo->id]);
+    }
+
+    public function test_owner_can_access_own_todo_without_any_permission(): void {
+        $todo = Todo::factory()->create(['assigned_by_id' => $this->user->id]);
+
+        $this->authenticatedRequest()
+            ->get(route('todos.show', $todo))
+            ->assertOk();
+    }
+
+    public function test_any_user_can_view_todo_regardless_of_ownership(): void {
+        $todo = Todo::factory()->create();
+
+        $this->authenticatedRequest()
+            ->get(route('todos.show', $todo))
+            ->assertOk();
+    }
+
+    public function test_non_owner_without_permission_gets_403_on_update_and_destroy(): void {
+        $todo = Todo::factory()->create();
+
+        $this->authenticatedRequest()->put(route('todos.update', $todo), [
+            'allocated_to' => ['id' => $todo->allocated_to_id, 'type' => $todo->allocated_to_type],
+            'description'  => $todo->description,
+            'priority'     => $todo->priority,
+            'status'       => $todo->status,
+        ])->assertForbidden();
+        $this->authenticatedRequest()->delete(route('todos.destroy', $todo))->assertForbidden();
+    }
+
+    public function test_non_owner_with_explicit_permission_can_update_todo(): void {
+        $todo = Todo::factory()->create();
+
+        $sessionData = [
+            'permissions' => [
+                Todo::class => [
+                    0 => [
+                        [
+                            'model'        => Todo::class,
+                            'level'        => 0,
+                            'only_creator' => false,
+                            'permissions'  => [
+                                'read'   => true,
+                                'write'  => true,
+                                'delete' => true,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+            'permissions_version' => '0|0|0|0',
+            'currentBranch'       => null,
+        ];
+
+        $this->authenticatedRequest()
+            ->withSession($sessionData)
+            ->put(route('todos.update', $todo), [
+                'allocated_to' => ['id' => $todo->allocated_to_id, 'type' => $todo->allocated_to_type],
+                'description'  => $todo->description,
+                'priority'     => 'high',
+                'status'       => $todo->status,
+            ])
+            ->assertRedirect();
     }
 
     public function test_create_page_defaults_assignee_to_logged_in_user(): void {

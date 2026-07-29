@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User\Permission;
 use App\Models\User\RolePermission;
 use Closure;
 use Illuminate\Http\Request;
@@ -37,8 +38,9 @@ class AppMiddleware extends Middleware {
                 ?? $branches->firstWhere('id', $user->default_branch_id);
 
             Inertia::share([
-                'permissions'    => $permissions,
-                'branchSettings' => [
+                'permissions'            => $permissions,
+                'ignorePermissionModels' => Permission::where('ignore_permission', true)->pluck('model'),
+                'branchSettings'         => [
                     'branches'      => $branches,
                     'currentBranch' => $activeBranch,
                 ],
