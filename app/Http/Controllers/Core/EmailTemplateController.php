@@ -126,7 +126,10 @@ class EmailTemplateController extends Controller {
             return response()->json([]);
         }
 
-        $columns = $modelClass::getColumns(2);
+        $columns = array_values(array_filter(
+            $modelClass::getColumns(2),
+            fn ($col) => ($col['name'] ?? null) !== ($col['primaryKey'] ?? null),
+        ));
 
         return response()->json($columns);
     }

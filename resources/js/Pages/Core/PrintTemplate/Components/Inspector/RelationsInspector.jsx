@@ -66,38 +66,43 @@ const SelectColumn = memo(function SelectColumn({
         </p>
         <div className="overflow-y-auto columns-[196px] space-y-4 space-x-4 [&_div]:break-inside-avoid">
           {columns &&
-            columns.map((col) => {
-              return (
-                <FormCheckbox
-                  key={col.name}
-                  label={
-                    <>
-                      {col.title ||
-                        (col.titleTrans
-                          ? t(col.titleTrans)
-                          : (col.title ?? col.name))}
-                      {col.required && (
-                        <span className="ml-1 text-red-500">*</span>
-                      )}
-                    </>
-                  }
-                  classNameCheckbox="pointer-events-auto!"
-                  disabled={col.required}
-                  checked={col.required || col.show}
-                  onCheckedChange={(val) => {
-                    setColumns((x) => {
-                      return x.map((y) => {
-                        if (y.required) return y;
-                        if (y.name === col.name) {
-                          return { ...y, show: val };
-                        }
-                        return y;
+            columns
+              .filter(
+                (col) =>
+                  !col.hidden && !col.ignore && col.name !== col.primaryKey,
+              )
+              .map((col) => {
+                return (
+                  <FormCheckbox
+                    key={col.name}
+                    label={
+                      <>
+                        {col.title ||
+                          (col.titleTrans
+                            ? t(col.titleTrans)
+                            : (col.title ?? col.name))}
+                        {col.required && (
+                          <span className="ml-1 text-red-500">*</span>
+                        )}
+                      </>
+                    }
+                    classNameCheckbox="pointer-events-auto!"
+                    disabled={col.required}
+                    checked={col.required || col.show}
+                    onCheckedChange={(val) => {
+                      setColumns((x) => {
+                        return x.map((y) => {
+                          if (y.required) return y;
+                          if (y.name === col.name) {
+                            return { ...y, show: val };
+                          }
+                          return y;
+                        });
                       });
-                    });
-                  }}
-                />
-              );
-            })}
+                    }}
+                  />
+                );
+              })}
         </div>
         <DialogFooter className="pt-2 -mb-2 border-t border-muted-foreground/25">
           <Button

@@ -145,6 +145,7 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
         col.searchable === false ||
         col.hidden ||
         col.ignore ||
+        col.name === col.primaryKey ||
         isMetaAppendColumn(col)
       )
         return null;
@@ -315,9 +316,11 @@ function FilterItem({ columns, id, onChanged, removeFilter, ...props }) {
           !col.parentCol &&
           col.searchable !== false &&
           !col.hidden &&
-          !col.ignore,
+          !col.ignore &&
+          col.name !== col.primaryKey,
       )
-      .map((col) => buildColumnNode(col));
+      .map((col) => buildColumnNode(col))
+      .filter((x) => x);
   }, [columns, buildColumnNode, toArrayColumns]);
   return (
     <div className="relative flex flex-col col-span-4 p-3 pr-10 border rounded-lg border-muted-foreground/30 gap-y-3 md:p-0 md:border-0 md:grid grid-cols-subgrid md:gap-x-2">
