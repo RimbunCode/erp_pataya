@@ -1,13 +1,14 @@
 <?php
 
 return [
-    'new'   => 'ToDo Baru',
-    'title' => 'ToDo',
-    'add'   => 'ToDo Baru',
-    'name'  => 'ToDo',
-    'edit'  => 'Edit ToDo',
+    'new'               => 'ToDo Baru',
+    'title'             => 'ToDo',
+    'add'               => 'ToDo Baru',
+    'name'              => 'ToDo',
+    'edit'              => 'Edit ToDo',
 
-    'columns' => [
+    'columns'           => [
+        'code'         => 'Kode',
         'description'  => 'Deskripsi',
         'reference'    => 'Referensi',
         'allocated_to' => 'Ditugaskan Ke',
@@ -18,7 +19,7 @@ return [
         'assigned_by'  => 'Ditugaskan Oleh',
     ],
 
-    'priority' => [
+    'priority'          => [
         'options' => [
             'low'    => 'Rendah',
             'medium' => 'Sedang',
@@ -28,7 +29,7 @@ return [
 
     'reference_deleted' => 'Referensi sudah tidak tersedia.',
 
-    'errors' => [
+    'errors'            => [
         'already_assigned' => 'User atau role ini sudah ditugaskan pada dokumen ini.',
     ],
 ];

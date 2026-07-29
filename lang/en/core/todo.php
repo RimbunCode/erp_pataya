@@ -1,13 +1,14 @@
 <?php
 
 return [
-    'new'   => 'New ToDo',
-    'title' => 'ToDo',
-    'add'   => 'New ToDo',
-    'name'  => 'ToDo',
-    'edit'  => 'Edit ToDo',
+    'new'               => 'New ToDo',
+    'title'             => 'ToDo',
+    'add'               => 'New ToDo',
+    'name'              => 'ToDo',
+    'edit'              => 'Edit ToDo',
 
-    'columns' => [
+    'columns'           => [
+        'code'         => 'Code',
         'description'  => 'Description',
         'reference'    => 'Reference',
         'allocated_to' => 'Allocated To',
@@ -18,7 +19,7 @@ return [
         'assigned_by'  => 'Assigned By',
     ],
 
-    'priority' => [
+    'priority'          => [
         'options' => [
             'low'    => 'Low',
             'medium' => 'Medium',
@@ -28,7 +29,7 @@ return [
 
     'reference_deleted' => 'Reference is no longer available.',
 
-    'errors' => [
+    'errors'            => [
         'already_assigned' => 'This user or role is already assigned to this document.',
     ],
 ];
