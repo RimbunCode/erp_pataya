@@ -15,6 +15,7 @@ class Permission extends Model {
         'permissions'        => Json::class,
         'is_submitable'      => 'boolean',
         'allow_only_creator' => 'boolean',
+        'ignore_permission'  => 'boolean',
     ];
     protected $appends             = ['translateKey'];
     protected array $configColumns = [
@@ -22,6 +23,18 @@ class Permission extends Model {
             'dependsOn' => ['model'],
         ],
         'model' => [
+            'linkable' => true,
+        ],
+        'permissions' => [
+            'linkable' => true,
+        ],
+        'is_submitable' => [
+            'linkable' => true,
+        ],
+        'allow_only_creator' => [
+            'linkable' => true,
+        ],
+        'ignore_permission' => [
             'linkable' => true,
         ],
     ];

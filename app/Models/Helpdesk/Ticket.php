@@ -77,7 +77,8 @@ class Ticket extends Model {
             'order' => 9,
         ],
     ];
-    public bool $canDelete = false;
+    public bool $canDelete                  = false;
+    protected static bool $ignorePermission = true;
 
     public static function templateLink(): string {
         return ':code - :subject';

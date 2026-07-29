@@ -11,6 +11,6 @@ class Assignable extends Model {
     protected $keyType   = 'string';
 
     public static function templateLink() {
-        return ':type : :name';
+        return '<title>:name (:type)</title><b>:name</b><br/><span>:type</span>';
     }
 }

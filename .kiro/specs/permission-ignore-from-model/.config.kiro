@@ -1,0 +1,6 @@
+{
+  "specId": "74e14d9a-1a2f-42e6-a8f2-ccae41711589",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Pindahkan source-of-truth flag ignorePermission dari property controller ke kolom baru di tabel permissions (dibaca via Model), agar FE tahu model mana yang tidak melalui gate permission. Tickets: bypass penuh. ToDo: bypass hanya untuk akses milik sendiri (allocated_to/assigned_by), akses ke ToDo orang lain tetap butuh permission eksplisit."
+}

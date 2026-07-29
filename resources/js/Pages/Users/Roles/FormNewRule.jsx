@@ -58,8 +58,9 @@ export default memo(
     );
 
     useEffect(() => {
-      if (!open);
-      setRule(defaultValue);
+      if (!open) {
+        setRule(defaultValue);
+      }
     }, [open]);
 
     return (
@@ -78,6 +79,14 @@ export default memo(
               <PermissionLinkModel
                 required={false}
                 placeholder={t("user.role.columns.model.placeholder")}
+                filters={{
+                  model: {
+                    notIn: [
+                      "App\\Models\\Helpdesk\\Ticket",
+                      "App\\Models\\Core\\Changelog",
+                    ],
+                  },
+                }}
                 value={rule.model}
                 onValueChange={(val) => {
                   if (val && !(val.allow_only_creator ?? val.is_submitable)) {

@@ -49,7 +49,7 @@ function Form() {
         return;
       }
       const permissionKeys =
-        level > 0 ? ["read", "write"] : rule.model.permissions;
+        level > 0 ? ["read", "write"] : (rule.model.permissions ?? []);
 
       setData("rules", [
         {

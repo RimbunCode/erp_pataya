@@ -543,6 +543,7 @@ trait DataTable {
                 ],
                 'is_submitable'      => (static::$is_submitable ?? false),
                 'allow_only_creator' => (static::$allow_only_creator ?? static::$is_submitable ?? false),
+                'ignore_permission'  => (static::$ignorePermission ?? false),
             ]);
         print_r("\e[39m" . static::class . " \e[92m(SUCCESS) \e[39m" . \PHP_EOL);
     }
@@ -706,6 +707,10 @@ trait DataTable {
      */
     public function checkPermission($action, int $level = 0) {
         return static::_checkPermission($action, $level);
+    }
+
+    public static function ignoresPermission(): bool {
+        return (bool) (static::$ignorePermission ?? false);
     }
 
     /**

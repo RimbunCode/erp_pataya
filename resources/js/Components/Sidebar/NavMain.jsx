@@ -28,7 +28,7 @@ import { useScreen } from "@/Hooks/useScreen";
 export function NavMain({ items: _items }) {
   const isMobile = useIsMobile();
   const isLargeDesktop = useScreen("108rem");
-  const { permissions } = usePage().props;
+  const { permissions, ignorePermissionModels = [] } = usePage().props;
   const { open, setOpen } = useSidebar();
 
   // Track initial mount to prevent overriding cookie state on navigation
@@ -48,7 +48,13 @@ export function NavMain({ items: _items }) {
           ...subItem,
           isActive: checkUrlPath(subItem.urlPattern),
           allowed: subItem.model
-            ? checkPermission(permissions, subItem.model, "select")?.allowed
+            ? checkPermission(
+                permissions,
+                subItem.model,
+                "select",
+                0,
+                ignorePermissionModels,
+              )?.allowed
             : true,
         }));
         const isActive = subItems.some((subItem) => subItem.isActive);
@@ -145,7 +151,13 @@ export function NavMain({ items: _items }) {
 
     const isActive = checkUrlPath(item.urlPattern);
     const allowed = item.model
-      ? checkPermission(permissions, item.model, "select")?.allowed
+      ? checkPermission(
+          permissions,
+          item.model,
+          "select",
+          0,
+          ignorePermissionModels,
+        )?.allowed
       : true;
     if (!allowed) {
       return false;

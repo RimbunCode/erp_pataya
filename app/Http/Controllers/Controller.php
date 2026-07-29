@@ -124,7 +124,11 @@ abstract class Controller {
             'translateKey' => (new $model)->translateKey ?? null,
         ]);
 
-        if (! $this->ignorePermission && ! $request->attributes->get('isApprovalCallback')) {
+        $ignorePermission = method_exists($this->model, 'ignoresPermission')
+            ? $this->model::ignoresPermission()
+            : $this->ignorePermission;
+
+        if (! $ignorePermission && ! $request->attributes->get('isApprovalCallback')) {
             $currentRoute = Route::getCurrentRoute();
             $method       = $currentRoute->getActionMethod();
 
