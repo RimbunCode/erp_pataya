@@ -1,10 +1,29 @@
 import React, { useEffect, useImperativeHandle, useState } from "react";
 
+// Highlight bagian text yang cocok dengan query, mengikuti pola highlight
+// LinkModel (lib/linkModelUtils.js::convertTemplateLink) — di sini label
+// selalu plain text (bukan HTML), jadi cukup React children biasa tanpa
+// dangerouslySetInnerHTML.
+function highlightMatch(text, query) {
+  if (!query) return text;
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+  return parts.map((part, index) =>
+    part.toLowerCase() === query.toLowerCase() ? (
+      <mark key={index} className="bg-yellow-500">
+        {part}
+      </mark>
+    ) : (
+      part
+    ),
+  );
+}
+
 // Suggestion dropdown for @mentions. Follows Tiptap's official React example:
 // `ref` arrives as a prop (React 19) and exposes onKeyDown via useImperativeHandle
 // so the editor can drive keyboard navigation.
 export default function TiptapMentionList(props) {
-  const { items, command, ref } = props;
+  const { items, command, query, ref } = props;
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const selectItem = (index) => {
@@ -47,7 +66,7 @@ export default function TiptapMentionList(props) {
   }));
 
   return (
-    <div className="bg-popover border border-border rounded-md shadow-md overflow-hidden min-w-[160px] py-1">
+    <div className="bg-popover border border-border rounded-md shadow-md min-w-[160px] py-1 max-h-[300px] overflow-y-auto overflow-x-hidden">
       {items.length ? (
         items.map((item, index) => (
           <button
@@ -63,7 +82,9 @@ export default function TiptapMentionList(props) {
               selectItem(index);
             }}
           >
-            <span className="truncate">{item.label}</span>
+            <span className="truncate">
+              {highlightMatch(item.label, query)}
+            </span>
           </button>
         ))
       ) : (

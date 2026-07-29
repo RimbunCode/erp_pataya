@@ -183,4 +183,30 @@ class EmailTemplateCrudTest extends TestCase {
             'recipient_path' => null,
         ]);
     }
+
+    public function test_store_accepts_body_json_with_mention_node_at_end(): void {
+        $user = $this->makeUser();
+
+        $bodyJson = [
+            'type'    => 'doc',
+            'content' => [
+                [
+                    'type'    => 'paragraph',
+                    'content' => [
+                        ['type' => 'text', 'text' => 'Halo '],
+                        ['type' => 'mention', 'attrs' => ['id' => 'doc.code', 'label' => 'Kode']],
+                    ],
+                ],
+            ],
+        ];
+
+        $this->actingAs($user)
+            ->withSession($this->permissions())
+            ->postJson(route('emailTemplates.store'), $this->payload(['body_json' => $bodyJson]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('email_templates', [
+            'name' => 'Notifikasi Sales Order',
+        ]);
+    }
 }
