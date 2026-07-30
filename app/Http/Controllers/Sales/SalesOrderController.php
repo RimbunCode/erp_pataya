@@ -24,7 +24,7 @@ class SalesOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default                 => null,
+            default => null,
         };
     }
 
@@ -181,9 +181,15 @@ class SalesOrderController extends Controller {
      */
     public function destroy(SalesOrder $salesOrder) {
         DB::beginTransaction();
-        $salesOrder->delete();
-        $salesOrder->logForDeleted();
-        DB::commit();
+        try {
+            $salesOrder->delete();
+            $salesOrder->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('salesOrders.index');
     }

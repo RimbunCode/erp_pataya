@@ -106,9 +106,15 @@ class ItemAlternativeController extends Controller {
      */
     public function destroy(ItemAlternative $itemAlternative) {
         DB::beginTransaction();
-        $itemAlternative->delete();
-        $itemAlternative->logForDeleted();
-        DB::commit();
+        try {
+            $itemAlternative->delete();
+            $itemAlternative->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('itemAlternatives.index');
     }

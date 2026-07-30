@@ -84,9 +84,15 @@ class TaxesController extends Controller {
      */
     public function destroy(Tax $tax) {
         DB::beginTransaction();
-        $tax->delete();
-        $tax->logForDeleted();
-        DB::commit();
+        try {
+            $tax->delete();
+            $tax->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('taxes.index');
     }

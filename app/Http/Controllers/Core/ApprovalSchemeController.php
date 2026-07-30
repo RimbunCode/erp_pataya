@@ -197,9 +197,15 @@ class ApprovalSchemeController extends Controller {
      */
     public function destroy(ApprovalScheme $approvalScheme) {
         DB::beginTransaction();
-        $approvalScheme->delete();
-        $approvalScheme->logForDeleted();
-        DB::commit();
+        try {
+            $approvalScheme->delete();
+            $approvalScheme->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('approvalSchemes.index');
     }

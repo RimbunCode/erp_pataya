@@ -213,9 +213,15 @@ class PurchaseInvoiceController extends Controller {
      */
     public function destroy(PurchaseInvoice $purchaseInvoice) {
         DB::beginTransaction();
-        $purchaseInvoice->delete();
-        $purchaseInvoice->logForDeleted();
-        DB::commit();
+        try {
+            $purchaseInvoice->delete();
+            $purchaseInvoice->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('purchaseInvoices.index');
     }

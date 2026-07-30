@@ -92,9 +92,15 @@ class PaymentTermTemplateController extends Controller {
      */
     public function destroy(PaymentTermTemplate $paymentTermTemplate) {
         DB::beginTransaction();
-        $paymentTermTemplate->delete();
-        $paymentTermTemplate->logForDeleted();
-        DB::commit();
+        try {
+            $paymentTermTemplate->delete();
+            $paymentTermTemplate->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('paymentTermTemplates.index');
     }

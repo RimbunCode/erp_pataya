@@ -103,9 +103,15 @@ class EmailTemplateController extends Controller {
      */
     public function destroy(EmailTemplate $emailTemplate) {
         DB::beginTransaction();
-        $emailTemplate->logForDeleted();
-        $emailTemplate->delete();
-        DB::commit();
+        try {
+            $emailTemplate->logForDeleted();
+            $emailTemplate->delete();
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('emailTemplates.index');
     }

@@ -138,9 +138,15 @@ class StockEntryController extends Controller {
      */
     public function destroy(StockEntry $stockEntry) {
         DB::beginTransaction();
-        $stockEntry->delete();
-        $stockEntry->logForDeleted();
-        DB::commit();
+        try {
+            $stockEntry->delete();
+            $stockEntry->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('stockEntries.index');
     }

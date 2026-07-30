@@ -231,9 +231,15 @@ class DashboardController extends Controller {
      */
     public function destroy(Dashboard $dashboard) {
         DB::beginTransaction();
-        $dashboard->logForDeleted();
-        $dashboard->delete();
-        DB::commit();
+        try {
+            $dashboard->logForDeleted();
+            $dashboard->delete();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->back();
     }

@@ -77,9 +77,15 @@ class SupplierController extends Controller {
 
     public function destroy(Supplier $supplier) {
         DB::beginTransaction();
-        $supplier->delete();
-        $supplier->logForDeleted();
-        DB::commit();
+        try {
+            $supplier->delete();
+            $supplier->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('suppliers.index');
     }

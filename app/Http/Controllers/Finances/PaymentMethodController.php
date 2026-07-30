@@ -91,9 +91,15 @@ class PaymentMethodController extends Controller {
      */
     public function destroy(PaymentMethod $paymentMethod) {
         DB::beginTransaction();
-        $paymentMethod->delete();
-        $paymentMethod->logForDeleted();
-        DB::commit();
+        try {
+            $paymentMethod->delete();
+            $paymentMethod->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('paymentMethods.index');
     }

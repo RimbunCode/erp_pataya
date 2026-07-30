@@ -222,9 +222,15 @@ class SalesInvoiceController extends Controller {
      */
     public function destroy(SalesInvoice $salesInvoice) {
         DB::beginTransaction();
-        $salesInvoice->delete();
-        $salesInvoice->logForDeleted();
-        DB::commit();
+        try {
+            $salesInvoice->delete();
+            $salesInvoice->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('salesInvoices.index');
     }

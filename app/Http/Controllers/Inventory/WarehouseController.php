@@ -97,9 +97,15 @@ class WarehouseController extends Controller {
      */
     public function destroy(Warehouse $warehouse) {
         DB::beginTransaction();
-        $warehouse->delete();
-        $warehouse->logForDeleted();
-        DB::commit();
+        try {
+            $warehouse->delete();
+            $warehouse->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('warehouses.index');
     }

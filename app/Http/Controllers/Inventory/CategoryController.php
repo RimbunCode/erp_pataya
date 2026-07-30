@@ -95,9 +95,15 @@ class CategoryController extends Controller {
      */
     public function destroy(Category $category) {
         DB::beginTransaction();
-        $category->delete();
-        $category->logForDeleted();
-        DB::commit();
+        try {
+            $category->delete();
+            $category->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('categories.index');
     }
