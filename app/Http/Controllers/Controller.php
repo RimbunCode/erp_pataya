@@ -19,6 +19,7 @@ use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Services\Core\EmailTemplate\EmailTemplateRenderService;
+use App\Services\Core\PrintTemplate\HTMLSanitizerService;
 use App\Services\Core\PrintTemplate\PdfAttachmentService;
 use App\Services\Core\PrintTemplate\PdfExportService;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
@@ -202,7 +203,7 @@ abstract class Controller {
         return $request->header('X-Inertia') == 'true' || $request->header('X-Inertia-Partial') == 'true';
     }
 
-    public function addComment(CommentRequest $request, $param) {
+    public function addComment(CommentRequest $request, $param, HTMLSanitizerService $sanitizer) {
         $request->validated();
 
         preg_match_all('/data-id="([^"]+)"/', $request->comment, $matches);
@@ -217,14 +218,14 @@ abstract class Controller {
             'loggable_id'   => $param,
             'loggable_type' => $this->model,
             'type'          => 'comment',
-            'activity'      => $request->comment,
+            'activity'      => $sanitizer->sanitize($request->comment)->sanitizedHTML,
             'comment_json'  => $request->comment_json,
         ]);
 
         return back();
     }
 
-    public function editComment(CommentRequest $request, $param, Log $id) {
+    public function editComment(CommentRequest $request, $param, Log $id, HTMLSanitizerService $sanitizer) {
         if ($id->user_id != $request->user()->id || $id->type != 'comment') {
             return back()->with('alert', [
                 'message' => 'Failed to edit comment',
@@ -232,7 +233,7 @@ abstract class Controller {
         }
 
         $id->update([
-            'activity'     => $request->comment,
+            'activity'     => $sanitizer->sanitize($request->comment)->sanitizedHTML,
             'comment_json' => $request->comment_json,
         ]);
 

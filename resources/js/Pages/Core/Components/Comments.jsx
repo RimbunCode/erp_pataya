@@ -28,6 +28,7 @@ import { TZDate } from "@date-fns/tz";
 import axios from "axios";
 import { format } from "date-fns";
 import { gooeyToast } from "@/lib/gooeyToast";
+import { sanitizeHTML } from "@/lib/htmlSanitizer";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 function CommentBody({ activity }) {
@@ -48,7 +49,9 @@ function CommentBody({ activity }) {
       <div
         ref={ref}
         className={expanded ? "tiptap" : "tiptap line-clamp-3"}
-        dangerouslySetInnerHTML={{ __html: activity }}
+        dangerouslySetInnerHTML={{
+          __html: sanitizeHTML(activity).sanitizedHTML,
+        }}
       />
       {(clamped || expanded) && (
         <button
@@ -309,12 +312,14 @@ export default memo(function Comments() {
                           <div
                             className="ql-editor p-0! hover:[&_*[role=noeditor]]:underline! [&_*[role=noeditor]]:no-underline! [&_*[role=noeditor]]:after:content-none! [&_*[role=noeditor]]:before:content-none!"
                             dangerouslySetInnerHTML={{
-                              __html: activity[lang].replace(
-                                ":user",
-                                user
-                                  ? `<a role="noeditor" href="${route("users.show", user.id)}" rel="noopener noreferrer" target="_blank" >${user.name}</a>`
-                                  : t("core.form.system"),
-                              ),
+                              __html: sanitizeHTML(
+                                activity[lang].replace(
+                                  ":user",
+                                  user
+                                    ? `<a role="noeditor" href="${route("users.show", user.id)}" rel="noopener noreferrer" target="_blank" >${user.name}</a>`
+                                    : t("core.form.system"),
+                                ),
+                              ).sanitizedHTML,
                             }}
                           />
                         </div>

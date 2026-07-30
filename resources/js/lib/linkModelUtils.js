@@ -184,6 +184,15 @@ export function validate(value, model) {
   if (!value || !model) return true;
   return value.thisModel === model;
 }
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export const convertTemplateLink = (value, search, asObject = false) => {
   if (!value) return "";
   const template = value.templateLink ?? "";
@@ -197,9 +206,9 @@ export const convertTemplateLink = (value, search, asObject = false) => {
       const firstVal = Object.values(newValue).find(
         (v) => typeof v === "string" || typeof v === "number",
       );
-      return firstVal != null ? String(firstVal) : match;
+      return firstVal != null ? escapeHtml(firstVal) : match;
     }
-    return newValue ?? match;
+    return newValue != null ? escapeHtml(newValue) : match;
   });
   if (!asObject && search == null) {
     const titleMatch = item.match(/<title(.*?)>(.*?)<\/title>/i);
