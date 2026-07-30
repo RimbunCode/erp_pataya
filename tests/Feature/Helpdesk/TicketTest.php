@@ -8,6 +8,7 @@ use App\Models\Core\Tag;
 use App\Models\Core\Todo;
 use App\Models\Helpdesk\Ticket;
 use App\Models\Helpdesk\TicketResponse;
+use App\Models\User\Role;
 use App\Models\User\User;
 use App\Services\Helpdesk\TicketService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,6 +45,19 @@ class TicketTest extends TestCase {
                 'name'   => 'ToDo',
                 'format' => 'TODO/@[yy]-@[mm]/@[iiii]',
                 'logs'   => ['imy' => []],
+            ]);
+        }
+
+        // Idem untuk Ticket — dibutuhkan test yang memanggil TicketService::create()
+        // langsung (bukan mock), karena create() memanggil FormatingSeries::generate().
+        // Format Ticket ('#@[yy]/@[iiii]') tak punya token bulan, jadi key log-nya
+        // 'iy' (bukan 'imy' spt Todo yang punya @[mm]) — lihat FormatingSeries::getKeyLogs().
+        if (! FormatingSeries::where('model', Ticket::class)->exists()) {
+            FormatingSeries::create([
+                'model'  => Ticket::class,
+                'name'   => 'Ticket',
+                'format' => '#@[yy]/@[iiii]',
+                'logs'   => ['iy' => []],
             ]);
         }
 
@@ -137,7 +151,7 @@ class TicketTest extends TestCase {
                 'subject'    => 'Something is broken',
                 'status'     => 'new',
                 'progress'   => 0,
-                'assign_to'  => ['id' => $this->user->id],
+                'assign_to'  => ['id' => $this->user->id, 'type' => 'user'],
                 'start_date' => now()->toDateTimeString(),
             ]);
 
@@ -166,7 +180,7 @@ class TicketTest extends TestCase {
                 'subject'    => 'Updated subject',
                 'status'     => 'in_progress',
                 'progress'   => 50,
-                'assign_to'  => ['id' => $this->user->id],
+                'assign_to'  => ['id' => $this->user->id, 'type' => 'user'],
                 'start_date' => now()->toDateTimeString(),
             ]);
 
@@ -238,32 +252,35 @@ class TicketTest extends TestCase {
             ->once()
             ->withArgs(fn ($arg) => $arg->id === $ticket->id)
             ->andReturnUsing(function (Ticket $model, array $data) {
-                $assignToId = $data['assign_to']['id'] ?? null;
+                $assignToId   = $data['assign_to']['id'] ?? null;
+                $assignToType = $data['assign_to']['type'] ?? null;
 
                 $model->update([
-                    'assign_to_id' => $assignToId,
-                    'type'         => $data['type'],
-                    'priority'     => $data['priority'],
-                    'subject'      => $data['subject'],
-                    'status'       => $data['status'],
-                    'progress'     => $data['progress'],
-                    'start_date'   => $data['start_date'],
-                    'due_date'     => $data['due_date'] ?? null,
+                    'assign_to_id'   => $assignToId,
+                    'assign_to_type' => $assignToType,
+                    'type'           => $data['type'],
+                    'priority'       => $data['priority'],
+                    'subject'        => $data['subject'],
+                    'status'         => $data['status'],
+                    'progress'       => $data['progress'],
+                    'start_date'     => $data['start_date'],
+                    'due_date'       => $data['due_date'] ?? null,
                 ]);
 
                 return TicketResponse::create([
-                    'ticket_id'    => $model->id,
-                    'user_id'      => $this->user->id,
-                    'assign_to_id' => $assignToId,
-                    'type'         => $data['type'],
-                    'priority'     => $data['priority'],
-                    'subject'      => $data['subject'],
-                    'status'       => $data['status'],
-                    'progress'     => $data['progress'],
-                    'start_date'   => $data['start_date'],
-                    'due_date'     => $data['due_date'] ?? null,
-                    'content'      => $data['content'] ?? null,
-                    'content_json' => $data['content_json'] ?? null,
+                    'ticket_id'      => $model->id,
+                    'user_id'        => $this->user->id,
+                    'assign_to_id'   => $assignToId,
+                    'assign_to_type' => $assignToType,
+                    'type'           => $data['type'],
+                    'priority'       => $data['priority'],
+                    'subject'        => $data['subject'],
+                    'status'         => $data['status'],
+                    'progress'       => $data['progress'],
+                    'start_date'     => $data['start_date'],
+                    'due_date'       => $data['due_date'] ?? null,
+                    'content'        => $data['content'] ?? null,
+                    'content_json'   => $data['content_json'] ?? null,
                 ]);
             });
 
@@ -275,7 +292,7 @@ class TicketTest extends TestCase {
                 'status'     => 'in_progress',
                 'progress'   => 30,
                 'content'    => '<p>Working on it.</p>',
-                'assign_to'  => ['id' => $this->user->id],
+                'assign_to'  => ['id' => $this->user->id, 'type' => 'user'],
                 'start_date' => now()->toDateTimeString(),
             ]);
 
@@ -303,7 +320,7 @@ class TicketTest extends TestCase {
                 'subject'       => 'Updated subject',
                 'status'        => 'in_progress',
                 'progress'      => 30,
-                'assign_to'     => ['id' => $this->user->id],
+                'assign_to'     => ['id' => $this->user->id, 'type' => 'user'],
                 'start_date'    => now()->toDateTimeString(),
                 'buffered_tags' => [
                     ['id' => $existing->id, 'name' => 'urgent'],
@@ -342,7 +359,7 @@ class TicketTest extends TestCase {
                 'subject'            => 'Updated subject',
                 'status'             => 'in_progress',
                 'progress'           => 30,
-                'assign_to'          => ['id' => $this->user->id],
+                'assign_to'          => ['id' => $this->user->id, 'type' => 'user'],
                 'start_date'         => now()->toDateTimeString(),
                 'buffered_assignees' => [
                     ['allocated_to_id' => $assignee->id, 'type' => 'user', 'name' => $assignee->name],
@@ -381,7 +398,7 @@ class TicketTest extends TestCase {
                 'subject'    => 'Updated subject',
                 'status'     => 'in_progress',
                 'progress'   => 30,
-                'assign_to'  => ['id' => $this->user->id],
+                'assign_to'  => ['id' => $this->user->id, 'type' => 'user'],
                 'start_date' => now()->toDateTimeString(),
                 'filesId'    => [$file->id],
             ]);
@@ -433,5 +450,101 @@ class TicketTest extends TestCase {
             ->actingAs($this->user)
             ->get(route('tickets.show', $ticket))
             ->assertOk();
+    }
+
+    public function test_can_create_ticket_assigned_to_role(): void {
+        $role   = Role::create(['name' => 'Support Team']);
+        $ticket = Ticket::factory()->assignedToRole($role->id)->create();
+
+        $mock = $this->mockService();
+        $mock->shouldReceive('create')
+            ->once()
+            ->andReturn($ticket);
+
+        $response = $this->authenticatedRequest()
+            ->post(route('tickets.store'), [
+                'type'       => 'bug_problem',
+                'priority'   => 'high',
+                'subject'    => 'Assigned to a role',
+                'status'     => 'new',
+                'progress'   => 0,
+                'assign_to'  => ['id' => $role->id, 'type' => 'role'],
+                'start_date' => now()->toDateTimeString(),
+            ]);
+
+        $response->assertRedirect(route('tickets.show', $ticket));
+    }
+
+    public function test_service_assigns_ticket_and_response_to_role(): void {
+        $this->actingAs($this->user);
+        $role = Role::create(['name' => 'Ops']);
+
+        $ticket = (new TicketService)->create([
+            'type'       => 'task',
+            'priority'   => 'medium',
+            'subject'    => 'Real service unwrap',
+            'status'     => 'new',
+            'progress'   => 0,
+            'assign_to'  => ['id' => $role->id, 'type' => 'role'],
+            'start_date' => now()->toDateTimeString(),
+        ]);
+
+        $this->assertSame($role->id, $ticket->assign_to_id);
+        $this->assertSame('role', $ticket->assign_to_type);
+
+        $response = TicketResponse::where('ticket_id', $ticket->id)->firstOrFail();
+        $this->assertSame($role->id, $response->assign_to_id);
+        $this->assertSame('role', $response->assign_to_type);
+    }
+
+    public function test_assigned_users_fans_out_role_to_its_members(): void {
+        $role     = Role::create(['name' => 'Reviewers']);
+        $memberA  = User::factory()->create();
+        $memberB  = User::factory()->create();
+        $outsider = User::factory()->create();
+        $memberA->roles()->attach($role->id);
+        $memberB->roles()->attach($role->id);
+
+        $ticket = Ticket::factory()->assignedToRole($role->id)->create();
+
+        $userIds = $ticket->assignedUsers()->pluck('id')->sort()->values();
+        $this->assertSame(
+            collect([$memberA->id, $memberB->id])->sort()->values()->all(),
+            $userIds->all(),
+        );
+        $this->assertFalse($userIds->contains($outsider->id));
+    }
+
+    public function test_assigned_users_returns_single_user_when_type_user(): void {
+        $ticket = Ticket::factory()->assignedToUser($this->user)->create();
+
+        $result = $ticket->assignedUsers();
+        $this->assertCount(1, $result);
+        $this->assertSame($this->user->id, $result->first()->id);
+    }
+
+    public function test_scope_assigned_to_me_matches_direct_user_and_role_membership(): void {
+        $role = Role::create(['name' => 'Field Agents']);
+        $this->user->roles()->attach($role->id);
+
+        $directTicket = Ticket::factory()->assignedToUser($this->user)->create();
+        $roleTicket   = Ticket::factory()->assignedToRole($role->id)->create();
+        $otherTicket  = Ticket::factory()->assignedToUser(User::factory()->create())->create();
+
+        $matched = Ticket::assignedToMe($this->user)->pluck('id')->sort()->values();
+
+        $this->assertTrue($matched->contains($directTicket->id));
+        $this->assertTrue($matched->contains($roleTicket->id));
+        $this->assertFalse($matched->contains($otherTicket->id));
+    }
+
+    public function test_assignee_name_still_resolves_after_soft_delete(): void {
+        $assignee = User::factory()->create(['name' => 'Soon To Be Deleted']);
+        $ticket   = Ticket::factory()->assignedToUser($assignee)->create();
+
+        $assignee->delete();
+        $ticket->refresh();
+
+        $this->assertSame('Soon To Be Deleted', $ticket->assignTo->name);
     }
 }

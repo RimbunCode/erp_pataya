@@ -2,6 +2,7 @@
 
 namespace App\Models\Helpdesk;
 
+use App\Models\User\Assignable;
 use App\Models\User\User;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,6 @@ class TicketResponse extends Model {
     }
 
     public function assignTo(): BelongsTo {
-        return $this->belongsTo(User::class, 'assign_to_id');
+        return $this->belongsTo(Assignable::class, 'assign_to_id');
     }
 }

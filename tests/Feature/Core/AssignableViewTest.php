@@ -47,14 +47,29 @@ class AssignableViewTest extends TestCase {
         $this->assertSame($before + 2, Assignable::count());
     }
 
-    public function test_soft_deleted_user_and_role_do_not_appear(): void {
+    public function test_soft_deleted_user_and_role_are_still_findable_by_id(): void {
+        // Lookup by-id (riwayat, mis. Ticket/Todo show) HARUS tetap resolve walau
+        // assignee sudah dihapus — beda dengan dropdown picker (scopeLinkModel).
         $user = User::factory()->create();
         $role = Role::create(['name' => 'Deletable Role']);
 
         $user->delete();
         $role->delete();
 
-        $this->assertNull(Assignable::find($user->id));
-        $this->assertNull(Assignable::find($role->id));
+        $this->assertNotNull(Assignable::find($user->id));
+        $this->assertNotNull(Assignable::find($role->id));
+    }
+
+    public function test_soft_deleted_user_and_role_do_not_appear_in_link_model_query(): void {
+        $user = User::factory()->create(['name' => 'Active Then Deleted']);
+        $role = Role::create(['name' => 'Active Role Then Deleted']);
+
+        $user->delete();
+        $role->delete();
+
+        $results = Assignable::linkModel('')->get();
+
+        $this->assertFalse($results->contains('id', $user->id));
+        $this->assertFalse($results->contains('id', $role->id));
     }
 }

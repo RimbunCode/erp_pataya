@@ -189,4 +189,29 @@ class TodoTest extends TestCase {
             ->where('defaultData.allocated_to.id', $this->user->id)
             ->where('defaultData.allocated_to.type', 'user'));
     }
+
+    public function test_allocated_to_name_still_resolves_after_soft_delete(): void {
+        // Regresi: view `assignables` diubah agar todo lama tetap menampilkan
+        // nama assignee walau user/role-nya sudah di-soft-delete.
+        $assignee = User::factory()->create(['name' => 'Soon To Be Deleted']);
+        $todo     = Todo::factory()->create(['allocated_to_id' => $assignee->id, 'allocated_to_type' => 'user']);
+
+        $assignee->delete();
+        $todo->refresh();
+
+        $this->assertSame('Soon To Be Deleted', $todo->allocatedTo->name);
+    }
+
+    public function test_allocated_users_returns_empty_when_role_soft_deleted(): void {
+        $role = Role::create(['name' => 'Disbanded Team']);
+        $user = User::factory()->create();
+        $user->roles()->attach($role->id);
+
+        $todo = Todo::factory()->create(['allocated_to_id' => $role->id, 'allocated_to_type' => 'role']);
+
+        $role->delete();
+        $todo->refresh();
+
+        $this->assertCount(0, $todo->allocatedUsers());
+    }
 }
