@@ -122,9 +122,15 @@ class AccountController extends Controller {
      */
     public function destroy(Account $account) {
         DB::beginTransaction();
-        $account->logForDeleted();
-        $account->delete();
-        DB::commit();
+        try {
+            $account->logForDeleted();
+            $account->delete();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('accounts.index');
     }

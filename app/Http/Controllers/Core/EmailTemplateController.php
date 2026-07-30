@@ -103,9 +103,15 @@ class EmailTemplateController extends Controller {
      */
     public function destroy(EmailTemplate $emailTemplate) {
         DB::beginTransaction();
-        $emailTemplate->logForDeleted();
-        $emailTemplate->delete();
-        DB::commit();
+        try {
+            $emailTemplate->logForDeleted();
+            $emailTemplate->delete();
+            DB::commit();
+        } catch (Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('emailTemplates.index');
     }
@@ -126,7 +132,10 @@ class EmailTemplateController extends Controller {
             return response()->json([]);
         }
 
-        $columns = $modelClass::getColumns(2);
+        $columns = array_values(array_filter(
+            $modelClass::getColumns(2),
+            fn ($col) => ($col['name'] ?? null) !== ($col['primaryKey'] ?? null),
+        ));
 
         return response()->json($columns);
     }

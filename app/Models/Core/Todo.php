@@ -67,6 +67,9 @@ class Todo extends Model {
             'show'  => true,
             'order' => 7,
         ],
+        'allocated_to_type' => [
+            'ignore' => true,
+        ],
     ];
 
     protected static function loadRelationsOnShow(): array {

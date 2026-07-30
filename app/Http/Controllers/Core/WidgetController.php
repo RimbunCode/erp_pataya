@@ -295,9 +295,15 @@ class WidgetController extends Controller {
      */
     public function destroy(Widget $widget) {
         DB::beginTransaction();
-        $widget->logForDeleted();
-        $widget->delete();
-        DB::commit();
+        try {
+            $widget->logForDeleted();
+            $widget->delete();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->back();
     }

@@ -252,9 +252,15 @@ class PrintTemplateController extends Controller {
      */
     public function destroy(PrintTemplate $printTemplate) {
         DB::beginTransaction();
-        $printTemplate->logForDeleted();
-        $printTemplate->delete();
-        DB::commit();
+        try {
+            $printTemplate->logForDeleted();
+            $printTemplate->delete();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('printTemplates.index');
     }

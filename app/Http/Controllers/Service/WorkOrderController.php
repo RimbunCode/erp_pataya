@@ -112,9 +112,15 @@ class WorkOrderController extends Controller {
      */
     public function destroy(WorkOrder $workOrder) {
         DB::beginTransaction();
-        $workOrder->delete();
-        $workOrder->logForDeleted();
-        DB::commit();
+        try {
+            $workOrder->delete();
+            $workOrder->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('workOrders.index');
     }

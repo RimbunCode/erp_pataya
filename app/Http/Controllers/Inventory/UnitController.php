@@ -142,9 +142,15 @@ class UnitController extends Controller {
      */
     public function destroy(Unit $unit) {
         DB::beginTransaction();
-        $unit->delete();
-        $unit->logForDeleted();
-        DB::commit();
+        try {
+            $unit->delete();
+            $unit->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('units.index');
     }

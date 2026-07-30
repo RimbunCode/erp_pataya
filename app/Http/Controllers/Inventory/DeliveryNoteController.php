@@ -235,10 +235,16 @@ class DeliveryNoteController extends Controller {
     public function destroy(DeliveryNote $deliveryNote) {
         DB::beginTransaction();
 
-        $deliveryNote->delete();
-        $deliveryNote->logForDeleted();
+        try {
+            $deliveryNote->delete();
+            $deliveryNote->logForDeleted();
 
-        DB::commit();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('deliveryNotes.index');
     }

@@ -179,9 +179,15 @@ class ItemController extends Controller {
      */
     public function destroy(Item $item) {
         DB::beginTransaction();
-        $item->delete();
-        $item->logForDeleted();
-        DB::commit();
+        try {
+            $item->delete();
+            $item->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('items.index');
     }

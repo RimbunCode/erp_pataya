@@ -58,7 +58,7 @@ class Ticket extends Model {
             'show'       => true,
             'order'      => 5,
         ],
-        'assign_to' => [
+        'assignTo' => [
             'show'  => true,
             'order' => 6,
         ],

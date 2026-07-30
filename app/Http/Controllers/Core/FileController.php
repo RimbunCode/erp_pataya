@@ -88,9 +88,15 @@ class FileController extends Controller {
      */
     public function destroy(File $file) {
         DB::beginTransaction();
-        $file->delete();
-        $file->logForDeleted();
-        DB::commit();
+        try {
+            $file->delete();
+            $file->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('files.index');
     }

@@ -8,6 +8,7 @@ return [
     'edit'  => 'Edit ToDo',
 
     'columns' => [
+        'code'         => 'Kode',
         'description'  => 'Deskripsi',
         'reference'    => 'Referensi',
         'allocated_to' => 'Ditugaskan Ke',

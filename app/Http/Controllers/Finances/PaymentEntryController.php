@@ -197,9 +197,15 @@ class PaymentEntryController extends Controller {
      */
     public function destroy(PaymentEntry $paymentEntry) {
         DB::beginTransaction();
-        $paymentEntry->delete();
-        $paymentEntry->logForDeleted();
-        DB::commit();
+        try {
+            $paymentEntry->delete();
+            $paymentEntry->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('paymentEntries.index');
     }

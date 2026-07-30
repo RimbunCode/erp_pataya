@@ -84,9 +84,15 @@ class CustomerController extends Controller {
      */
     public function destroy(Customer $customer) {
         DB::beginTransaction();
-        $customer->delete();
-        $customer->logForDeleted();
-        DB::commit();
+        try {
+            $customer->delete();
+            $customer->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('customers.index');
     }

@@ -164,9 +164,16 @@ class UserController extends Controller {
             'password' => ['required', 'current_password'],
         ]);
         DB::beginTransaction();
-        $user->delete();
-        $user->logForDeleted();
-        DB::commit();
+        try {
+            $user->delete();
+            $user->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
+
         if ($request->user()->id == $user->id) {
             Auth::logout();
 

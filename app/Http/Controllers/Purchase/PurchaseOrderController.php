@@ -201,9 +201,15 @@ class PurchaseOrderController extends Controller {
      */
     public function destroy(PurchaseOrder $purchaseOrder) {
         DB::beginTransaction();
-        $purchaseOrder->delete();
-        $purchaseOrder->logForDeleted();
-        DB::commit();
+        try {
+            $purchaseOrder->delete();
+            $purchaseOrder->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('purchaseOrders.index');
     }

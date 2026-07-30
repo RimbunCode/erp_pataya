@@ -179,10 +179,16 @@ class PurchaseReceiptController extends Controller {
     public function destroy(PurchaseReceipt $purchaseReceipt) {
         DB::beginTransaction();
 
-        $purchaseReceipt->delete();
-        $purchaseReceipt->logForDeleted();
+        try {
+            $purchaseReceipt->delete();
+            $purchaseReceipt->logForDeleted();
 
-        DB::commit();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('purchaseReceipts.index');
     }

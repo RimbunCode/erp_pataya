@@ -97,9 +97,15 @@ class AttributeController extends Controller {
      */
     public function destroy(Request $request, Attribute $attribute) {
         DB::beginTransaction();
-        $attribute->delete();
-        $attribute->logForDeleted();
-        DB::commit();
+        try {
+            $attribute->delete();
+            $attribute->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('attributes.index');
     }

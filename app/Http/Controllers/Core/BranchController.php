@@ -116,9 +116,15 @@ class BranchController extends Controller {
             abort(403);
         }
         DB::beginTransaction();
-        $branch->delete();
-        $branch->logForDeleted();
-        DB::commit();
+        try {
+            $branch->delete();
+            $branch->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('branches.index');
     }

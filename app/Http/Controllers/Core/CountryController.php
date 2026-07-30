@@ -62,9 +62,15 @@ class CountryController extends Controller {
 
     public function destroy(Country $country) {
         DB::beginTransaction();
-        $country->delete();
-        $country->logForDeleted();
-        DB::commit();
+        try {
+            $country->delete();
+            $country->logForDeleted();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
 
         return redirect()->route('countries.index');
     }
