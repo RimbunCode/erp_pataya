@@ -233,5 +233,6 @@
   "todo-tree.highlights.enabled": true,
   "todo-tree.tree.labelFormat": "${tag:uppercase} ${after} [${filename}]",
   "todo-tree.tree.tooltipFormat": "${filename}:[${line}] in ${filepath}",
-  "javascript.autoClosingTags": false
+  "javascript.autoClosingTags": false,
+  "markdown.validate.enabled": true
 }
