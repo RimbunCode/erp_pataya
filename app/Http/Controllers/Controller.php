@@ -19,6 +19,7 @@ use App\Models\Sales\SalesOrder;
 use App\Models\User\Permission;
 use App\Models\User\User;
 use App\Services\Core\EmailTemplate\EmailTemplateRenderService;
+use App\Services\Core\PrintTemplate\HTMLSanitizerService;
 use App\Services\Core\PrintTemplate\PdfAttachmentService;
 use App\Services\Core\PrintTemplate\PdfExportService;
 use App\Services\Core\PrintTemplate\RelationTrackerService;
@@ -32,7 +33,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log as LogFacade;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 abstract class Controller {
@@ -202,7 +202,7 @@ abstract class Controller {
         return $request->header('X-Inertia') == 'true' || $request->header('X-Inertia-Partial') == 'true';
     }
 
-    public function addComment(CommentRequest $request, $param) {
+    public function addComment(CommentRequest $request, $param, HTMLSanitizerService $sanitizer) {
         $request->validated();
 
         preg_match_all('/data-id="([^"]+)"/', $request->comment, $matches);
@@ -217,14 +217,14 @@ abstract class Controller {
             'loggable_id'   => $param,
             'loggable_type' => $this->model,
             'type'          => 'comment',
-            'activity'      => $request->comment,
+            'activity'      => $sanitizer->sanitize($request->comment)->sanitizedHTML,
             'comment_json'  => $request->comment_json,
         ]);
 
         return back();
     }
 
-    public function editComment(CommentRequest $request, $param, Log $id) {
+    public function editComment(CommentRequest $request, $param, Log $id, HTMLSanitizerService $sanitizer) {
         if ($id->user_id != $request->user()->id || $id->type != 'comment') {
             return back()->with('alert', [
                 'message' => 'Failed to edit comment',
@@ -232,7 +232,7 @@ abstract class Controller {
         }
 
         $id->update([
-            'activity'     => $request->comment,
+            'activity'     => $sanitizer->sanitize($request->comment)->sanitizedHTML,
             'comment_json' => $request->comment_json,
         ]);
 
@@ -329,35 +329,11 @@ abstract class Controller {
     }
 
     public function addAssignee(AssigneeRequest $request, $param) {
-        $data          = $request->validated();
-        $allocatedToId = $data['allocated_to']['id'];
+        $data                   = $request->validated();
+        $data['reference_id']   = $param;
+        $data['reference_type'] = $this->model;
 
-        $alreadyAssigned = Todo::where('reference_id', $param)
-            ->where('reference_type', $this->model)
-            ->where('allocated_to_id', $allocatedToId)
-            ->exists();
-
-        if ($alreadyAssigned) {
-            throw ValidationException::withMessages([
-                'allocated_to' => [__('core.todo.errors.already_assigned')],
-            ]);
-        }
-
-        $todo = Todo::create([
-            'reference_id'      => $param,
-            'reference_type'    => $this->model,
-            'allocated_to_id'   => $allocatedToId,
-            'code'              => TodoService::generateCode($data),
-            'allocated_to_type' => $data['allocated_to']['type'],
-            'assigned_by_id'    => $request->user()->id,
-            'status'            => 'open',
-            'priority'          => $data['priority'] ?? 'medium',
-            'description'       => $data['description'] ?? null,
-            'date'              => $data['date'] ?? null,
-            'due_date'          => $data['due_date'] ?? null,
-        ]);
-
-        app(TodoService::class)->notifyAssignee($todo);
+        app(TodoService::class)->createForReference($data);
 
         return back();
     }

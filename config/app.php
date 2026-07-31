@@ -69,6 +69,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Scheduler Timezone
+    |--------------------------------------------------------------------------
+    |
+    | Zona waktu yang dipakai scheduler (mis. sweep reminder ToDo) untuk
+    | menghitung "hari ini" — terpisah dari app.timezone (UTC) karena
+    | jadwal cron/Schedule::command di routes/console.php mengikuti waktu
+    | operasional Indonesia.
+    |
+    */
+
+    'schedule_timezone' => env('SCHEDULE_TIMEZONE', 'Asia/Jakarta'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
     |

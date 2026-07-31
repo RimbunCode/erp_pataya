@@ -1,451 +1,639 @@
 # Graph Report - .  (2026-07-30)
 
 ## Corpus Check
-- Large corpus: 1375 files · ~785,335 words. Semantic extraction will be expensive (many Claude tokens). Consider running on a subfolder.
+- cluster-only mode — file stats not available
 
 ## Summary
-- 7351 nodes · 15201 edges · 713 communities (511 shown, 202 thin omitted)
-- Extraction: 93% EXTRACTED · 7% INFERRED · 0% AMBIGUOUS · INFERRED: 992 edges (avg confidence: 0.79)
-- Token cost: 123,230 input · 0 output
+- 9454 nodes · 17214 edges · 903 communities (656 shown, 247 thin omitted)
+- Extraction: 94% EXTRACTED · 6% INFERRED · 0% AMBIGUOUS · INFERRED: 1006 edges (avg confidence: 0.79)
+- Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `c0cfc710`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- Notifications Notification Jobs
-- Inventory Finances Approvalschemestep
-- Approvalautoapprovetest Approvalnotificationtest Approvalpdfautoattachtest
-- Filecontroller Tagcontroller Finances
-- Requests Finances Rules
-- Loginrequesttest Auth Assignableviewtest
-- Helpdesk Assignedtosidebartest Tickettest
-- Error Lens Jquery
-- Emailtemplatecrudtest Emailtemplaterenderservicetest Emailtemplatecontroller
-- Error Lens Bootstrap
-- Savedfiltertest Console Commands
-- Commandsearchfeaturetest Localekeystest Document
-- User Legacyssocontrollertest Printtemplatestorerelationstest
-- Todotest Todo Todovisibilityscopetest
-- Modelselectdatatest Currencycontrollertest Currencycontroller
-- Sales Salesordercontroller Salesorderservice
-- Definition Inventory Datatablenonsubmitableseeder
-- Auth Authenticatedsessioncontroller Loginrequest
-- Commandsearchindexservice Services Commandsindexcommand
-- Laravel React Skill
-- Traits Linkmodel Services
-- Inventory Items Form
-- Opencode Ref Bash
-- Error Lens Bootstrap
-- Datatablecolumnselector Services Casts
-- Inventory Warehouse Purchase
-- Datatablecolumnselectortest Unit Services
-- Table Filter Filtervalidation
-- Printtemplate Utils Custommodeutils
-- Finances Form Purchaseinvoice
-- Agents Skills Laravel
-- Havetransactionssyncservice Services Havetransactionssynccommand
-- Error Lens Bootstrap
-- Savedfiltercontroller Commandsearchcontroller Storesavedfilterrequest
-- Finances Salesinvoice Salesinvoiceservice
-- Schema Accountrequest Additionaldiscountrules
-- Middleware Appmiddleware Ensureuserisonboarded
-- Printtemplate Utils Stylemanagerutils
-- Printtemplate Tokenconfighelpers Property
-- Inventory Deliverynotecontroller Deliverynote
-- Laravel Agents Skills
-- Table Table2 Dialog
-- Htmlsanitizerservicetest Unit Services
-- Lib Utils Buffer
-- Filterevaluatortest Services Column
-- Salesdualflowtest Utils Sales
-- Dashboardcontroller Dashboardpermissiontest Dashboard
-- Filterevaluator Services Savedfilter
-- Formtable Alert Dialog
-- Service Workordercontroller Workorderservice
-- Sales Salesorders Form
-- Finances Paymententrycontroller Paymententry
-- Sales Internalordercontroller Internalorderservice
-- Agents Skills Laravel
-- Handleinertiarequests Companycontroller Middleware
-- Traits Datatable Log
-- Unit Hasexampledatatest Relations
-- Paymentschedule Traits Submitable
-- Purchase Purchaserequestcontroller Purchaserequestservice
-- Printtemplate Utils Variabletokenutils
-- Numberinput Formatnumber Cleannumber
-- Printtemplate Stylefields Colorfield
-- Branchcontroller Branch Branchrequest
-- Widgetcontroller Widget Widgetrequest
-- Inventory Itemvariant Itemservices
-- Bufferedattachmentservicetest Unit Filedraftuploadtest
-- Rules Agents Skills
-- Command Button Loadingicon
-- Usenestedfilters Hooks Addnodetogroup
-- Printtemplate Utils Cssutils
-- Package Devdependencies Eslint
-- Finances Purchaseinvoice Purchaseinvoicecontroller
-- Administratorseeder Seeders Permissionlinkmodelfieldstest
-- Package Dependencies React
-- Docs Modules Finances
-- Printtemplate Utils Lib
-- Exampledataservicetest Unit Services
-- Sidebar Sidebarcontent Sidebarcontext
-- Purchasedualflowtest Unit Purchase
-- Countryseedertest Countrycontroller Country
-- Printtemplate Printtemplatecontroller Pdfexportservice
-- Inventory Item Itemcontroller
-- Modelcontroller Permissionchecker Services
-- Purchaseordercontroller Purchase Purchaseorder
-- Mail Tablemarkdownbuilder Mymailmessage
-- Changelogservicetest Changelog Changelogcontrollertest
-- Printtemplate Aliases Customlayermanager
-- Seeders Countryseeder Run
-- Docs Frontend Auth
-- Printtemplate Tokenconfigurationmanager Tokenconfighelpers
-- Purchase Purchaseorders Form
-- Printtemplate Utils Manualcssruleutils
-- Inventory Stockentrycontroller Stockentry
-- Purchasereceiptcontroller Purchase Purchasereceipt
-- Linkmodelfilterconvertertest Services Ticket
-- Error Lens Bootstrap
-- Input Select Datetimepicker
-- Formpage Emailsenddialog Approverdecision
-- Commandrecentservice Services Commandsearchcontroller
-- Finances Accountcontroller Account
-- Commandsearchindexservice Services Command
-- Stockentryservice Inventory Services
-- Timepicker Time Picker
-- Filtertreecleaner Services Clean
-- Error Lens Highlight
-- Printtemplate Utils Cssutils
-- Templateserializerservicetest Unit Services
-- Printtemplaterenderservice Services Printtemplate
-- Ref Composer Php
-- Eslint Config Buildimportstatement
-- Morphlookupfiltertest Templatelink Morph
-- Relationtrackerservicetest Unit Services
-- Templateparserservicetest Unit Services
-- Agents Skills Skill
-- Approvalschemecontroller Approvalscheme Approvalschemerequest
-- Sales Customercontroller Customer
-- Templateparserservice Services Printtemplate
-- Labelhelperservicetest Services Handlebar
-- Docs Modules Sales
-- Docs Frontend Table
-- Chart Card Separator
-- Date Selector Dateselector
-- Printtemplate Utils Variabledroputils
-- Datatableadaptivefetchtest Services Adaptiverecord
-- Generalledger Stockledgerentry Finances
-- Exampledataseeder Seeders Carbon
-- Diff Match Patch
-- Error Lens Bootstrap
-- Dropdown Menu Languageswitcher
-- Filtertreecleanertest Services Drops
-- Inventory Itemalternativecontroller Itemalternativerequest
-- Inventory Itemuombackendsynctest Itemunit
-- Relationtrackerservice Services Printtemplate
-- Finances Paymenttermtemplatecontroller Paymenttermtemplateservice
-- Arithmetichelperservicetest Services Handlebar
-- Basemigrator Services Migration
-- Composer Laravel Autoload
-- Package Overrides Morph
-- Unit Printtemplatetranslationparitytest Setup
-- Printtemplaterequesttest Printtemplaterequest Printtemplatecontroller
-- Formatingseries Formatingseriesservice Services
-- Purchaseorderservice Services Purchase
-- Composer Require Laravel
-- Docs Architecture Approval
-- Lib Gjsrelationstable Gjstable
-- Havetransactionssynctest Runtime When
-- Filtercolumnresolvertest Services Relation
-- Emailtemplatesendrequesttest Emailtemplatesendrequest Requests
-- Paymentmethodcontroller Finances Paymentmethod
-- Categorycontroller Inventory Category
-- Authenticatedsessioncontrollerprovidercallbacktest Auth User
-- Filtercolumnresolver Services Datatablecolumnselector
-- Relationtrackerservicevalidaterelationstest Printtemplate Relationtrackervalidaterelationsbranchmodel
-- Templateserializerservice Services Printtemplate
-- Purchaseinvoiceservice Services Finances
-- Tailwind Registries Iconlibrary
-- Layouts Globalcommandpalette Masterlayout
-- Form Printtemplate Emailtemplate
-- Relationtrackerservicetest Relation Doc
-- Itemvariantcontroller Inventory Itemvariantrequest
-- Linkmodelfilterconverter Services Flattenrelation
-- Error Lens Bootstrap
-- Emailpreviewcontrollertest Preview Pdf
-- Modelcontrollerfiltertest Filterendpointtestrecord Operators
-- Linkmodelcolumnsecuritytest Linkable Column
-- Getcolumnsincludehiddentest Traits Default
-- Agents Skills Graphify
-- Services Migration Migrators
-- Taxescontroller Finances Taxrequest
-- Attributecontroller Inventory Attributerequest
-- Unitcontroller Inventory Unitrequest
-- Rolecontroller User Rolerequest
-- Purchasereceiptservice Services Purchase
-- Docs Commands Artisan
-- Package Scripts Lint
-- Tiptapeditor Tiptapmentionlist Buildmentionsuggestion
-- Agents Skills Graphify
-- Htmlsanitizerservice Services Printtemplate
-- Usercontroller User Connecttoprovider
-- Modelconnection Traits Booted
-- Composer Require Dev
-- Customerrequesttest Sales Countryfactory
-- Purchaseorderpermissiontest Purchase Purchaseorderfactory
-- Salesorderpermissiontest Sales Salesorderfactory
-- Docs Table Modules
-- Docs Formpagedialog Sidebar
-- Navbar Notifications Link
-- Pagination Table Condensepages
-- Field Fieldcontent Fielddescription
-- Lib Gjsrelationstable Custommode
-- Helpdesk Tickets Form
-- Printtemplaterenderserviceformatdatatest Printtemplate Formats
-- Permissioncheckertest Unit Services
-- Anonymousemailnotifiable Notifications Printtemplate
-- Warehousecontroller Inventory Warehouserequest
-- Suppliercontroller Purchase Supplierrequest
-- File Traits Treeview
-- Exampledataservice Services Printtemplate
-- Warehousebranchscopetest Inventory Branch
-- Error Lens Img
-- Error Lens Bootstrap
-- Lib Htmlsanitizer Allowed
-- Lib Inithandlebar Linkmodelutils
-- Dashboard Company Dashboardform
-- Printtemplate Utils Templateformatutils
-- Emailtemplatesendcontrollertest Emailsendtestdocumentcontroller Send
-- Htmlsanitizeendpointtest Sanitize Endpoint
-- Purchaseorderitem Purchase Childitems
-- Todos Assignedtofields Form
-- Settings Approvalscheme Form
-- Countrycontrollertest Country Returns
-- Rolebasednotificationtest Notification Configured
-- Migrationcheckpointresumetest Testcheckpointmigrator Setup
-- Formathelperservicetest Unit Services
-- Browser Use Agents
-- Purchaseinvoiceitem Finances Item
-- Salesorderitem Sales Childitems
-- Traits Hasexampledata Boothasexampledata
-- Docs Architecture Layer
-- Jsconfig Compileroptions Ref
-- Input Group Inputgroup
-- Table Tablebody Tablecaption
-- Printpreview Print Collectcurrencycodes
-- Printtemplate Utils Variabletokenutils
-- Settings Countries Form
-- Backupcontroller
-- Settingcontroller
-- Requests Rules Finances
-- Salesinvoiceitem Finances Item
-- Datatablescope Scopes Adddatatable
-- Appserviceprovider Providers Vite
-- Ref Composer Install
-- Alert Alertcontent Alertdescription
-- Breadcrumb Breadcrumbellipsis Breadcrumbitem
-- Drawer Drawercontent Drawerdescription
-- Sheet Sheetcontent Sheetdescription
-- Previewmodal Printtemplate Buildprintabledocument
-- Mobileeditor Printtemplate Alignment
-- Profile Partials Deleteuserform
-- Purchase Purchaserequests Form
-- Sales Internalorders Form
-- Services Workorders Form
-- Users Manageusers Form
-- Agents Skills Graphify
-- Agents Skills Laravel
-- Rolepermission User Rolecontroller
-- Deliverynoteitem Inventory Deliverynote
-- Purchasereceiptitem Purchase Item
-- Sanitizationresult Services Printtemplate
-- Basemigrator Services Migration
-- Composer Config Allow
-- Mcp Server Command
-- Hooks Usedraftform Usedidmounteffect
-- Lib Inertiatoast Extracterror
-- Library Hooks Fileitems
-- Generalledger Stockledger Datatable2
-- Printtemplate Custommode Unit
-- Printtemplate Custommode Sidebar
-- Printtemplate Editor Gridcssfix
-- Settings Dashboard Form
-- Settings Widget Form
-- Users Roles Form
-- Agents Skills Graphify
-- Tailwind Agents Skills
-- Stockentryitem Inventory Item
-- Internalorderitem Sales Internalorder
-- Paymentmethodfactory Finances Paymenttermtemplatefactory
-- Error Lens Bootstrap
-- Dropdown Content Dropdowncontext
-- Useselectmodel Selectmodel Applycolumnalias
-- Printtemplate Editor Property
-- Printtemplate Utils Variableencodingutils
-- Printtemplate Utils Variableinsertutils
-- Branchcontrollertest Billing Address
-- Companynumberformattest Currency Number
-- Pdfexportservicetest Printtemplate Falls
-- Salesorderitemcaststest Unit Basic
-- Agents Skills Graphify
-- Agents Skills Graphify
-- Socialite Agents Skills
-- Makemigratorcommand Console Commands
-- Itembarcode Inventory Basicunit
-- Purchaserequestitem Purchase Item
-- Composer Psr Autoload
-- Userfactory User Php
-- Release Please Config
-- Accordion Accordioncontent Accordionitem
-- Button Group Buttongroup
-- Usedynamicrefs Hooks Getref
-- Assigndialog Assignedto Default
-- Fileitem Uploaddialog Attachments
-- Relationsinspector Printtemplate Inspector
-- Printtemplate Savestatusbadge Topbar
-- Sales Customers Form
-- Agents Skills Graphify
-- Workorderitem Service Item
-- Customermigrator Services Migration
-- Usermigrator Services Migration
-- Rolepermissionmigrator Services Migration
-- Traits Hasbranch Boothasbranch
-- Ref Php Artisan
-- Emailchipinput Isvalidemail
-- Tabs Tabscontent Tabslist
-- Usetheme Hooks Getinitialtheme
-- Gridlayoutcontrols Printtemplate Alignmentoptions
-- Printtemplate Utils Gridconstants
-- Zodgen Postprocess Jsschemapath
-- Dashboardservice Services
-- Widgetservice Services
-- Stockservice Services Inventory
-- Unitmigrator Services Migration
-- Rolemigrator Services Migration
-- Userrolemigrator Services Migration
-- Docs Branch Role
-- Calendar Calendardaybutton
-- Radio Group Radiogroup
-- Lib Gooeytoast Toastalert
-- Showgeneral Formpage
-- Printtemplate Variableitem Titletrans
-- Printtemplate Editor Labelresolutionprops
-- Error Statuses
-- Services Filtertreecleanertest Cleanercategorystub
-- Rules Rtk Agents
-- Approvalinstance Runautoapprovepass Php
-- Autoprefixer Package Devdependencies
-- Axios Package Devdependencies
-- Babel Eslint Parser
-- Base React Package
-- Baseline Browser Mapping
-- Change Case Package
-- Class Variance Authority
-- Clsx Package Dependencies
-- Cmdk Package Dependencies
-- Cross Env Package
-- Date Fns Package
-- Diff Fromdelta Todelta
-- Dnd Kit Package
-- Dnd Kit Sortable
-- Eslint Package Devdependencies
-- Eslint Plugin Jsdoc
-- Eslint Plugin React
-- Eslint Plugin React
-- Fast Check Package
-- Framer Motion Package
-- Goey Toast Package
-- Grapesjs Package Dependencies
-- Grapesjs Blocks Basic
-- Html React Parser
-- Inertiajs React Package
-- Laravel Echo Package
-- Laravel Echo React
-- Laravel Vite Plugin
-- Lucide React Package
-- Marcbachmann Cel Package
-- Monaco Editor React
-- Motion Package Dependencies
-- Next Themes Package
-- Package Composer Dependencies
-- Pluralize Package Dependencies
-- Package Dependencies
-- Radix React Accordion
-- Radix React Alert
-- Radix React Avatar
-- Radix React Checkbox
-- Radix React Collapsible
-- Radix React Dialog
-- Radix React Dropdown
-- Radix React Label
-- Radix React Popover
-- Radix React Progress
-- Radix React Radio
-- Radix React Scroll
-- Radix React Select
-- Radix React Separator
-- Radix React Slider
-- Radix React Slot
-- Radix React Tabs
-- React Click Away
-- React Currency Input
-- React Day Picker
-- React Easy Crop
-- React Window Package
-- Recharts Package Dependencies
-- Remixicon React Package
-- Tailwind Merge Package
-- Tailwindcss Animate Package
-- Tanstack React Table
-- Tiptap Extension Image
-- Tiptap Extension Link
-- Tiptap Extension Mention
-- Tiptap Package Dependencies
-- Tiptap React Package
-- Tiptap Starter Kit
-- Tiptap Suggestion Package
-- Vaul Package Dependencies
-- Zustand Package Dependencies
-- Postcss Package Devdependencies
-- Prettier Package Devdependencies
-- Prettier Plugin Tailwindcss
-- React Package Devdependencies
-- React Dom Package
-- Rimraf Package Devdependencies
-- Tailwindcss Package Devdependencies
-- Animate Css Package
-- Vitejs Plugin React
-- Sidebar Appsidebar Navlist
-- Hover Card Hovercardcontent
-- Progress
-- Textarea
-- Usedeletemodal Hooks
-- Diff Levenshtein
-- Diff Prettyhtml
-- Diff Xindex
+- Illuminate\Notifications\Notification
+- Model
+- ApprovalInstanceStep
+- Illuminate\Http\Request
+- BaseFormRequest
+- TestCase
+- Ticket
+- jquery.min.js
+- EmailTemplate
+- n
+- SavedFilterTest
+- CommandSearchFeatureTest
+- User
+- Todo
+- ModelSelectDataTest
+- SalesOrder
+- DataTableNonSubmitableSeeder.php
+- LoginRequest
+- CommandSearchIndexService
+- Laravel Boost Guidelines
+- LinkModel.php
+- Items/Form.jsx
+- bash
+- Be
+- Illuminate\Database\Eloquent\Model
+- FormStatus.php
+- DataTableColumnSelectorTest
+- filterValidation.js
+- customModeUtils.js
+- PurchaseInvoice/Form.jsx
+- Queue & Job Best Practices
+- HaveTransactionsSyncService
+- bootstrap.bundle.min.js
+- SavedFilter
+- SalesInvoice
+- schema.js
+- Correctness Properties
+- styleManagerUtils.js
+- tokenConfigHelpers.property.test.js
+- DeliveryNote
+- Database Performance Best Practices
+- Table2.jsx
+- HTMLSanitizerServiceTest
+- utils.js
+- FilterEvaluatorTest
+- SalesDualFlowTest
+- Dashboard
+- Illuminate\Database\Eloquent\Builder
+- FormTable.jsx
+- WorkOrder
+- .value
+- .parent
+- InternalOrder
+- Caching Best Practices Rules
+- SetupUserRequest
+- Log
+- PHPUnit\Framework\TestCase
+- Illuminate\Database\Eloquent\Casts\Attribute
+- PurchaseRequest
+- variableInsertUtils.js
+- index.jsx
+- index.js
+- Branch
+- Widget
+- ItemVariant
+- Unit
+- Security Best Practices
+- button.jsx
+- useNestedFilters.jsx
+- cssUtils.js
+- devDependencies
+- PurchaseInvoice
+- Permission
+- dependencies
+- Tutorial 4: Alur Pembelian PR->PO->GR->PI->Payment
+- Editor.jsx
+- ExampleDataServiceTest
+- sidebar.jsx
+- PurchaseDualFlowTest
+- Country
+- PrintTemplate
+- Item
+- ModelController
+- PurchaseOrder
+- TableMarkdownBuilder
+- Changelog
+- Sidebar.jsx
+- Illuminate\Database\Seeder
+- Frontend React/Inertia Catalog
+- TokenConfigurationManager.jsx
+- PurchaseReceipts/Form.jsx
+- CustomStyleManager.jsx
+- StockEntry
+- PurchaseReceipt
+- LinkModelFilterConverterTest
+- Y
+- input.jsx
+- FormPage.jsx
+- CommandRecentService
+- Account
+- Illuminate\Support\Collection
+- Stock
+- time-picker-utils.js
+- FilterTreeCleaner
+- o
+- CSSEditorModal.jsx
+- TemplateSerializerServiceTest
+- Design Document: Print Editor Style Manager - GrapeJS Layout
+- scripts
+- eslint.config.js
+- MorphLookupFilterTest.php
+- RelationTrackerServiceTest
+- TemplateParserServiceTest
+- echo-react-development Skill
+- ApprovalScheme
+- Customer
+- TemplateParserService
+- LabelHelperServiceTest
+- Modul Finances
+- ItemVariant Model
+- DashboardChart.jsx
+- date-selector.jsx
+- MockComponent
+- DataTableAdaptiveFetchTest
+- StockLedgerEntry
+- Documentation Scope
+- diff_match_patch.prototype.diff_main
+- _e
+- dropdown-menu.jsx
+- FilterTreeCleanerTest
+- ItemAlternative
+- ItemUnit
+- RelationTrackerService
+- PaymentTermTemplate
+- ArithmeticHelperService
+- BaseMigrator
+- composer.json
+- overrides
+- DashboardPermissionTest
+- PrintTemplateRequest
+- FormatingSeries
+- Requirements
+- require
+- Modul Core / Settings
+- gjsRelationsTable.js
+- HaveTransactionsSyncTest
+- FilterColumnResolverTest
+- EmailTemplateSendRequestTest
+- PaymentMethod
+- Category
+- Components and Interfaces
+- FilterColumnResolver
+- RelationTrackerServiceValidateRelationsTest.php
+- TemplateSerializerService
+- PurchaseInvoiceService
+- components.json
+- GlobalCommandPalette.jsx
+- PrintTemplate/Form.jsx
+- RelationTrackerServiceTest
+- Backend
+- LinkModelFilterConverter
+- x
+- LoginRequestTest
+- FilterEndpointTestRecord
+- LinkModelColumnSecurityTest
+- GetColumnsIncludeHiddenTest
+- graphify Extraction Subagent Prompt Spec
+- RunLegacyMigrationCommand.php
+- Tax
+- Requirements
+- FASE 1
+- RoleController
+- Correctness Properties
+- BaseMigrator class
+- scripts
+- TiptapEditor.jsx
+- /graphify Skill
+- HTMLSanitizerService
+- Requirements
+- ModelConnection
+- require-dev
+- CustomerRequestTest
+- PurchaseOrderPermissionTest
+- SalesOrderPermissionTest
+- Item & ItemVariant relation & usage note
+- FormPageDialog Right Sidebar Implementation Plan
+- Illuminate\Bus\Queueable
+- Pagination.jsx
+- field.jsx
+- gjsRelationsTable.customMode.property.test.js
+- Tickets/Form.jsx
+- PrintTemplateRenderService
+- PermissionCheckerTest
+- AnonymousEmailNotifiable
+- Design Document: Editor Label Resolution
+- Supplier
+- File
+- ExampleDataService
+- WarehouseBranchScopeTest
+- ErrorLens App Icon (192x192)
+- P
+- htmlSanitizer.js
+- linkModelUtils.js
+- Company.jsx
+- templateFormatUtils.js
+- EmailTemplateSendControllerTest
+- HtmlSanitizeEndpointTest
+- PurchaseOrderItem
+- Todos/Form.jsx
+- ApprovalScheme/Form.jsx
+- CountryControllerTest
+- RoleBasedNotificationTest
+- TestCheckpointMigrator
+- FormatHelperServiceTest
+- browser-use Skill
+- PurchaseInvoiceItem
+- SalesOrderItem
+- HasExampleData.php
+- Autentikasi & Otorisasi
+- compilerOptions
+- input-group.jsx
+- table.jsx
+- PrintPreview.jsx
+- variableTokenUtils.labelResolution.property.test.js
+- Countries/Form.jsx
+- Design Document: DataTable Adaptive Column & Relation Fetching
+- Requirements
+- PurchaseOrderRequest
+- SalesInvoiceItem
+- .addDataTable
+- AppServiceProvider.php
+- setup
+- alert.jsx
+- breadcrumb.jsx
+- drawer.jsx
+- sheet.jsx
+- PreviewModal.jsx
+- MobileEditor.jsx
+- Edit.jsx
+- PurchaseRequests/Form.jsx
+- InternalOrders/Form.jsx
+- WorkOrders/Form.jsx
+- ManageUsers/Show.jsx
+- graphify Query, Path, Explain Reference
+- Task Scheduling Best Practices
+- RolePermission
+- DeliveryNoteItem
+- PurchaseReceiptItem
+- 4. Arsitektur
+- .processChunkedWithCheckpoint
+- config
+- .mcp.json
+- useDraftForm.js
+- inertiaToast.jsx
+- hooks.js
+- DataTable2.jsx
+- CustomMode.components.unit.test.js
+- CustomMode.sidebar.drop.unit.test.js
+- Editor.gridCssFix.test.js
+- Dashboard/Form.jsx
+- Widget/Form.jsx
+- Roles/Form.jsx
+- Step 4 - Build Graph, Cluster, Analyze, Generate Outputs
+- Tailwind CSS Development Skill
+- Design: SelectModel Rewrite
+- InternalOrderItem
+- PaymentMethodFactory
+- Design — DataTable2 Filter Improvements
+- Dropdown.jsx
+- Requirements
+- _MultiContainerModel
+- variableEncodingUtils.js
+- variableInsertUtils.property.test.js
+- BranchControllerTest
+- CompanyNumberFormatTest
+- PdfExportServiceTest
+- PrintTemplateTest
+- graphify Exports and Benchmark Reference
+- graphify Incremental Update and Cluster-Only Reference
+- Socialite Authentication Skill
+- MakeMigratorCommand
+- Requirements
+- PurchaseRequestItem
+- psr-4
+- Illuminate\Database\Eloquent\Factories\Factory
+- release-please-config.json
+- accordion.jsx
+- button-group.jsx
+- useDynamicRefs.js
+- AssignedTo.jsx
+- UploadDialog.jsx
+- RelationsInspector.jsx
+- TopBar.jsx
+- Form
+- graphify GitHub Clone and Cross-Repo Merge Reference
+- CustomerMigrator
+- UserMigrator.php
+- RolePermissionMigrator
+- HasBranch.php
+- post-create-project-cmd
+- EmailChipInput.jsx
+- tabs.jsx
+- useTheme.js
+- GridLayoutControls.jsx
+- gridConstants.js
+- zodgen-postprocess.mjs
+- DashboardService
+- WidgetService
+- StockService
+- UnitMigrator.php
+- Illuminate\Database\Eloquent\Relations\BelongsTo
+- Currency
+- User Model
+- calendar.jsx
+- radio-group.jsx
+- gooeyToast.js
+- FormPage
+- VariableItem.titleTrans.test.js
+- Editor.labelResolutionProps.test.js
+- Error.jsx
+- FilterTreeCleanerTest.php
+- Antigravity RTK Rules
+- Design: Sales Dual Flow
+- autoprefixer
+- axios
+- @babel/eslint-parser
+- @base-ui/react
+- baseline-browser-mapping
+- WidgetPermissionTest
+- class-variance-authority
+- Requirements
+- cmdk
+- cross-env
+- @date-fns/tz
+- diff_match_patch.prototype.diff_fromDelta
+- @dnd-kit/core
+- @dnd-kit/sortable
+- eslint
+- eslint-plugin-jsdoc
+- eslint-plugin-react
+- eslint-plugin-react-hooks
+- fast-check
+- framer-motion
+- goey-toast
+- grapesjs
+- grapesjs-blocks-basic
+- html-react-parser
+- @inertiajs/react
+- laravel-echo
+- @laravel/echo-react
+- laravel-vite-plugin
+- lucide-react
+- @marcbachmann/cel-js
+- @monaco-editor/react
+- motion
+- next-themes
+- composer
+- pluralize
+- qs
+- @radix-ui/react-accordion
+- @radix-ui/react-alert-dialog
+- @radix-ui/react-avatar
+- @radix-ui/react-checkbox
+- @radix-ui/react-collapsible
+- @radix-ui/react-dialog
+- @radix-ui/react-dropdown-menu
+- @radix-ui/react-label
+- @radix-ui/react-popover
+- @radix-ui/react-progress
+- @radix-ui/react-radio-group
+- @radix-ui/react-scroll-area
+- @radix-ui/react-select
+- @radix-ui/react-separator
+- @radix-ui/react-slider
+- @radix-ui/react-slot
+- @radix-ui/react-tabs
+- react-click-away-listener
+- react-currency-input-field
+- react-day-picker
+- react-easy-crop
+- react-window
+- recharts
+- @remixicon/react
+- tailwind-merge
+- tailwindcss-animate
+- @tanstack/react-table
+- @tiptap/extension-image
+- @tiptap/extension-link
+- @tiptap/extension-mention
+- @tiptap/pm
+- @tiptap/react
+- @tiptap/starter-kit
+- @tiptap/suggestion
+- vaul
+- zustand
+- Requirements
+- prettier
+- prettier-plugin-tailwindcss
+- react
+- react-dom
+- rimraf
+- tailwindcss
+- tw-animate-css
+- @vitejs/plugin-react
+- AppSidebar.jsx
+- hover-card.jsx
+- progress.jsx
+- textarea.jsx
+- useDeleteModal.js
+- diff_match_patch.prototype.diff_levenshtein
+- diff_match_patch.prototype.diff_prettyHtml
+- diff_match_patch.prototype.diff_xIndex
+- Requirements
+- Requirements
+- Requirements
+- Requirements
+- Requirements
+- Requirements
+- Requirements
+- Print Editor Bugfixes Design
+- Requirements
+- Role
+- Design: Approval Auto-Approve & Multi-Approver
+- Design: fix-email-template-body-mention
+- Design Document: Helpdesk Ticket
+- Design Document: Lookup SELECT Pruning + DataTable2 Strict
+- Design Document: Print Template i18n
+- Components and Interfaces
+- ApprovalNotificationTest
+- Design Document: Country Seeder Revamp
+- Requirements
+- Requirements
+- Requirements
+- Requirements
+- Design Document: NumberInput
+- Requirements
+- DataTableConfigCache
+- Design Document: goey-toast-migration
+- Design Document: Notification Center
+- Requirements
+- Requirements
+- Design Document: DataTable Config Cache
+- Requirements
+- Requirements
+- Requirements
+- Components and Interfaces
+- ApprovalPdfAutoAttachTest
+- 2. Functional Requirements
+- 2. Functional Requirements
+- Illuminate\Console\Command
+- Requirements
+- Design Document: Email Template Trigger
+- Design Document: LinkModel Column Security
+- Design Document: number-input-total-migration
+- Fileable
+- Design Document: Email Template
+- Requirements
+- Design Document: Pindah ignorePermission ke Model + Kolom DB
+- Design Document: Server-Side PDF Render + Auto-Attach
+- Requirements
+- Design Document: Print Template PDF Export
+- Requirements
+- Utils
+- 2. Functional Requirements
+- Tasks: Approval Auto-Approve & Multi-Approver
+- Requirements — DataTable2 Filter Improvements
+- Design Document: email-features-fixes
+- Components and Interfaces
+- Design: Variable Drop Mode Selector
+- MyMailMessage
+- ItemServices
+- Tasks
+- Requirements: fix-email-template-body-mention
+- Design Document: FormPageDialog Right Sidebar
+- Design Document: LinkModel Filter Converter
+- Bug Condition (Formal)
+- Testing Strategy
+- Tasks: Purchase Dual Flow
+- Tasks: SelectModel Rewrite
+- LegacySsoControllerTest
+- Langkah:
+- Tasks
+- Data Models
+- linkModelToFilterTree.js
+- DeployWebhookTest
+- Tasks
+- Tasks: Sales Dual Flow
+- 1. Functional Requirements
+- PrintTemplateStoreRelationsTest
+- Assignable
+- NotificationControllerTest
+- Requirements
+- Data Models
+- Frontend Components
+- CountrySeederTest
+- PrintPdfControllerTest
+- ApprovalInstance
+- Langkah:
+- Implementation Plan: Deploy Ticket Sync & In-App Changelog
+- Tasks: number-input-total-migration
+- Design Document
+- ControllerPrintPreferencesDocInfoTest
+- Langkah yang harus kamu lakukan:
+- Langkah:
+- Langkah:
+- Langkah:
+- mcp.json
+- Implementation Plan: NumberInput
+- Test Categories
+- Design Document
+- Backend Services
+- Data Flow
+- Backend Error Handling
+- StoreSavedFilterRequest
+- PaymentTermTemplateRequest
+- ApprovalCanceledNotification
+- ApprovalDecidedNotification
+- ApprovalPendingNotification
+- DocumentSubmittedNotification
+- TicketFactory
+- Implementation Plan: DataTable Adaptive Column & Relation Fetching
+- Implementation Plan: Editor Label Resolution
+- Implementation Plan: email-features-fixes
+- Implementation Plan: Email Template
+- Implementation Plan: Email Template Trigger
+- Implementation Plan: filtertable-nested-saved
+- Implementation Plan: fix-email-template-body-mention
+- Implementation Plan: Custom Mode for gjsRelationsTable
+- Implementation Plan: goey-toast-migration
+- Implementation Plan: LinkModel Column Security
+- Implementation Plan: LinkModel Filter Converter
+- Implementation Plan: Lookup SELECT Pruning + DataTable2 Strict
+- Implementation Plan: Notification Center
+- Implementation Plan
+- Implementation Plan: Print Editor Improvements
+- Implementation Plan: Print Editor Style Manager - GrapeJS Layout
+- 13. Canvas Enhancements (Editor.jsx)
+- Implementation Plan: Print Editor UI Refinement
+- Implementation Plan: Server-Side PDF Render + Auto-Attach
+- Frontend Error Handling
+- Implementation Plan: Print Template Editor Enhancement
+- Implementation Plan: Print Template i18n
+- Implementation Plan: Print Template PDF Export
+- Implementation Plan: Print Template Refactoring
+- Implementation Plan: ToDo Feature + "Assigned To" Sidebar Widget
+- ApprovalTestDocument
+- FormatVariantValidation.php
+- BackupDatabaseJob
+- Error Handling
+- Overview
+- RTK - Rust Token Killer
+- ExampleTest
+- UnitGroupAttributeTest
+- BranchAddressFormattingTest
+- LogContent
+- ApprovalDecisionRequest
+- EncryptCookies
+- UpdateSavedFilterRequest
+- Implementation Plan: DataTable2 Filter Improvements
+- Implementation Plan: Pindah ignorePermission ke Model + Kolom DB
+- Requirements Document
+- Implementation Plan: Dialog Assign untuk Widget "Assigned To"
+- Tasks: Variable Drop Mode Selector
+- ItemMigrator.php
+- post-autoload-dump
+- security-scan.ts
+- DependsOnAuditTest
+- spec-list.md
+- eslint-plugin-prettier
+- grapesjs-table
+- datatable-config-cache/tasks.md
+- Requirement 7: Format Label Select pada Field Token
+- Requirement 8: Filter Opsi pada Field Token
+- Requirement 9: Format Token untuk Relasi Tunggal
+- Requirement 11: Deteksi Token Relation pada Konfigurasi Token
+- Requirement 12: Preview Token Relation pada Canvas
+- Requirement 14: Kirim Data Preferences dan DocInfo pada Print Controller
+- Requirement 15: Tambahkan Group DocInfo pada VariableItem
+- Requirement 16: Hilangkan Pengaturan Background pada Tab Style
+- Requirement 17: Ganti Block Column dengan Block Multi Fungsi
+- Requirement 18: Tambahkan Pengaturan Class pada Tab Style
+- Requirement 19: Gunakan Class Bootstrap pada Komponen Relations Table
+- Requirement 20: Gunakan Modal untuk Edit Manual CSS
+- Requirement 21: Format Penulisan Manual CSS
+- Requirement 22: Penanganan CSS pada Node Body
+- Requirement 23: Gunakan useLaravelReactI18n pada Editor
+- Requirement 24: Sembunyikan Outline dan Content pada Static HTML Wrapper saat Print
+- Requirement 3: Label Header Relation Table Sesuai Bahasa Aktif
+- Requirement 4: Pindahkan Pengaturan Kolom Relation Table ke Card Token Tabel Relasi
+- Requirement 5: Tampilkan Hanya Node Relation Table yang Aktif pada Panel Token Tabel Relasi
+- Requirement 6: Gunakan Komponen NestedSelect pada Field labelKey, token, dan relationPath
+- deploy.sh
+- deploy-production.sh
+- deploy-staging.sh
+- SupplierMigrator.php
+- clsx
 
 ## God Nodes (most connected - your core abstractions)
-1. `User` - 261 edges
+1. `User` - 273 edges
 2. `Model` - 250 edges
 3. `TestCase` - 176 edges
 4. `Controller` - 166 edges
 5. `BaseFormRequest` - 101 edges
 6. `CommandSearchIndexService` - 77 edges
-7. `SalesOrder` - 62 edges
-8. `Utils` - 62 edges
-9. `PrintTemplate` - 58 edges
-10. `Todo` - 58 edges
+7. `Ticket` - 63 edges
+8. `SalesOrder` - 62 edges
+9. `Utils` - 62 edges
+10. `Todo` - 60 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Tech Stack Table` --references--> `laravel-react-i18n`  [EXTRACTED]
   README.md → package.json
+- `MultiGrow()` --indirect_call--> `x()`  [INFERRED]
+  resources/js/Components/Table/Filter/ValueField.jsx → public/vendor/error-lens/assets/js/bootstrap.bundle.min.js
 - `Print()` --indirect_call--> `e()`  [INFERRED]
   resources/js/Pages/Core/Print.jsx → public/vendor/error-lens/assets/js/highlight.min.js
 - `MonthYearPicker()` --indirect_call--> `y()`  [INFERRED]
   resources/js/Components/ui/date-selector.jsx → public/vendor/error-lens/assets/js/highlight.min.js
 - `diff-match-patch` --implements--> `diff_match_patch.prototype.diff_main`  [EXTRACTED]
   package.json → index.html
-- `MultiGrow()` --indirect_call--> `x()`  [INFERRED]
-  resources/js/Components/Table/Filter/ValueField.jsx → public/vendor/error-lens/assets/js/bootstrap.bundle.min.js
 
 ## Import Cycles
 - None detected.
@@ -458,879 +646,1431 @@
 - **Submitable trait + ApprovalScheme/Instance drive document status lifecycle across all transactional modules** — docs_architecture_submitable_trait, docs_modules_core_approval, docs_auth_workflow_dokumen, docs_architecture_approval_flow [INFERRED 0.85]
 - **Procurement chain PR -> PO -> GR -> PI -> Payment** — docs_modules_purchase_request, docs_modules_purchase_order, docs_modules_purchase_receipt, docs_modules_finances_purchase_invoice, docs_modules_finances_payment_entry [EXTRACTED 0.90]
 - **Sales Order as hub spawning DN, SI, Payment Entry (SO->DN->SI->PE)** — docs_modules_sales_sales_order, docs_modules_inventory_delivery_note, docs_modules_finances_sales_invoice, docs_modules_finances_payment_entry [EXTRACTED 0.90]
-- **** — claude_md, agents_md, gemini_md [INFERRED 0.85]
+- **** — claude_claude, agents_md, gemini_md [INFERRED 0.85]
 - **** — diff_main, diff_compute_, diff_bisect_ [EXTRACTED 1.00]
 - **** — laravel_framework, inertia_laravel, react_pkg [INFERRED 0.90]
 
-## Communities (713 total, 202 thin omitted)
+## Communities (903 total, 247 thin omitted)
 
-### Community 0 - "Notifications Notification Jobs"
-Cohesion: 0.04
-Nodes (30): AttachGeneratedPdfJob, SendNotificationMailJob, ReplayHaveTransactionsSyncJob, SendEmailWithPdfJob, SendEmailNotificationJob, ApprovalCanceledNotification, ApprovalDecidedNotification, ApprovalPendingNotification (+22 more)
+### Community 0 - "Illuminate\Notifications\Notification"
+Cohesion: 0.08
+Nodes (11): EmailTemplateTestNotification, TodoAssignedNotification, UserInvitedNotification, NotifyUser, Illuminate\Notifications\Messages\BroadcastMessage, Illuminate\Notifications\Messages\MailMessage, Illuminate\Notifications\Notification, SendNotificationMailJobTestFailingNotification (+3 more)
 
-### Community 1 - "Inventory Finances Approvalschemestep"
-Cohesion: 0.05
-Nodes (20): ApprovalInstanceStepApprover, ApprovalSchemeStep, ApprovalSchemeStepApprover, DashboardWidget, AdditionalCost, PaymentTermTemplateItem, ItemAttribute, ItemVariantAttribute (+12 more)
+### Community 1 - "Model"
+Cohesion: 0.03
+Nodes (30): self, ApprovalInstanceStepApprover, ApprovalSchemeStep, ApprovalSchemeStepApprover, Tag, DashboardWidget, AdditionalCost, PaymentTermTemplateItem (+22 more)
 
-### Community 2 - "Approvalautoapprovetest Approvalnotificationtest Approvalpdfautoattachtest"
+### Community 2 - "ApprovalInstanceStep"
+Cohesion: 0.16
+Nodes (3): ApprovalInstanceController, FormStatus, ApprovalInstanceStep
+
+### Community 3 - "Illuminate\Http\Request"
+Cohesion: 0.03
+Nodes (29): AuthenticatedSessionController, ConfirmablePasswordController, EmailVerificationNotificationController, EmailVerificationPromptController, LegacySsoController, NewPasswordController, PasswordController, PasswordResetLinkController (+21 more)
+
+### Community 4 - "BaseFormRequest"
+Cohesion: 0.07
+Nodes (6): BaseFormRequest, TagRequest, ItemVariantRequest, ProfileUpdateRequest, UserRequest, Illuminate\Contracts\Validation\ValidationRule
+
+### Community 5 - "TestCase"
 Cohesion: 0.06
-Nodes (17): ApprovalInstanceController, FormStatus, ApprovalInstance, ApprovalInstanceStep, Fileable, Role, ApprovalAutoApproveTest, ApprovalTestDocument (+9 more)
+Nodes (16): AppMiddleware, EnsureUserIsOnboarded, HandleTheme, LanguageMiddleware, Closure, Illuminate\Foundation\Configuration\Middleware, Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Foundation\Testing\TestCase (+8 more)
 
-### Community 3 - "Filecontroller Tagcontroller Finances"
-Cohesion: 0.04
-Nodes (12): Controller, CompanyLogoController, FileController, FormatingSeriesController, LanguageController, LogController, TagController, GeneralLedgerController (+4 more)
-
-### Community 4 - "Requests Finances Rules"
-Cohesion: 0.04
-Nodes (12): BaseFormRequest, ApprovalDecisionRequest, CommentRequest, FormatingSeriesRequest, SanitizeHtmlRequest, TagRequest, PaymentTermTemplateRequest, UserRequest (+4 more)
-
-### Community 5 - "Loginrequesttest Auth Assignableviewtest"
-Cohesion: 0.04
-Nodes (17): Assignable, Illuminate\Foundation\Testing\RefreshDatabase, Illuminate\Foundation\Testing\TestCase, Illuminate\Support\Facades\Notification, LoginRequestTest, RegisteredUserControllerDuplicateEmailTest, CommandSearchScheduleTest, AssignableViewTest (+9 more)
-
-### Community 6 - "Helpdesk Assignedtosidebartest Tickettest"
+### Community 6 - "Ticket"
 Cohesion: 0.05
-Nodes (13): TicketController, TicketRequest, TicketResponseRequest, Ticket, TicketResponse, TicketService, DeployWebhookTest, AssignedToSidebarTest (+5 more)
+Nodes (12): TicketController, TicketRequest, TicketResponseRequest, Ticket, TicketResponse, TicketService, AssignedToSidebarTest, static (+4 more)
 
-### Community 7 - "Error Lens Jquery"
-Cohesion: 0.06
-Nodes (57): I, a(), b(), c(), d(), e(), f(), g() (+49 more)
+### Community 7 - "jquery.min.js"
+Cohesion: 0.05
+Nodes (61): I, j, trigger(), a(), b(), c(), d(), e() (+53 more)
 
-### Community 8 - "Emailtemplatecrudtest Emailtemplaterenderservicetest Emailtemplatecontroller"
+### Community 8 - "EmailTemplate"
 Cohesion: 0.05
 Nodes (12): EmailTemplateController, EmailTemplateRequest, EmailTemplate, EmailTemplateRenderService, EmailTemplateCrudTest, EmailTemplateDefaultEnforcementTest, EmailTemplateRenderServiceTest, RenderTestAddress (+4 more)
 
-### Community 9 - "Error Lens Bootstrap"
+### Community 9 - "n"
 Cohesion: 0.06
-Nodes (6): Oe, qe, remove(), ye, n, DashboardChart()
+Nodes (5): Oe, qe, remove(), ye, n
 
-### Community 10 - "Savedfiltertest Console Commands"
-Cohesion: 0.06
-Nodes (13): DevLogs, Feature, ModelCacheCommand, PruneEphemeralFilters, SyncChangelogCommand, SavedFilter, DataTableConfigCache, DataTableConfigValidator (+5 more)
-
-### Community 11 - "Commandsearchfeaturetest Localekeystest Document"
+### Community 11 - "CommandSearchFeatureTest"
 Cohesion: 0.08
-Nodes (14): Illuminate\Foundation\Auth\User, Illuminate\Support\Carbon, CommandSearchApprovalStep, CommandSearchAuthUser, CommandSearchFeatureTest, CommandSearchItem, CommandSearchItemAlternative, CommandSearchPaymentSchedule (+6 more)
+Nodes (14): Illuminate\Foundation\Auth\User, Illuminate\Support\Carbon, CommandSearchApprovalStep, CommandSearchAuthUser, CommandSearchFeatureTest, CommandSearchItem, CommandSearchItemAlternative, CommandSearchParent (+6 more)
 
-### Community 12 - "User Legacyssocontrollertest Printtemplatestorerelationstest"
-Cohesion: 0.06
-Nodes (13): BackupDatabaseJob, User, performBackup(), DatabaseNotification, Illuminate\Foundation\Queue\Queueable, Illuminate\Notifications\DatabaseNotification, LegacySsoControllerTest, NotificationControllerTest (+5 more)
-
-### Community 13 - "Todotest Todo Todovisibilityscopetest"
+### Community 12 - "User"
 Cohesion: 0.05
-Nodes (11): TodoController, AssigneeRequest, TodoRequest, Todo, TodoAssignedNotification, TodoService, TodoServiceTest, static (+3 more)
+Nodes (13): UserController, User, UserProvider, AuthenticatedSessionControllerProviderCallbackTest, EmailPreviewControllerTest, EmailPreviewTestDocument, SendNotificationMailJobTest, UserInvitedNotificationTest (+5 more)
 
-### Community 14 - "Modelselectdatatest Currencycontrollertest Currencycontroller"
-Cohesion: 0.07
-Nodes (12): CurrencyController, CurrencyRequest, Currency, Illuminate\Database\Eloquent\Relations\HasMany, CurrencyControllerTest, LinkStubChildTemplated, LinkStubGrandchild, LinkStubParent (+4 more)
-
-### Community 15 - "Sales Salesordercontroller Salesorderservice"
-Cohesion: 0.07
-Nodes (7): SalesOrderController, SalesOrderRequest, SalesOrder, SalesOrderService, ControllerPrintPreferencesDocInfoTest, PdfAttachmentServiceTest, PrintPdfControllerTest
-
-### Community 16 - "Definition Inventory Datatablenonsubmitableseeder"
-Cohesion: 0.05
-Nodes (19): CurrencyFactory, EmailTemplateFactory, PrintTemplateFactory, TagFactory, TodoFactory, WidgetFactory, PaymentTermTemplateFactory, TaxFactory (+11 more)
-
-### Community 17 - "Auth Authenticatedsessioncontroller Loginrequest"
+### Community 13 - "Todo"
 Cohesion: 0.06
-Nodes (16): AuthenticatedSessionController, ConfirmablePasswordController, EmailVerificationNotificationController, EmailVerificationPromptController, LegacySsoController, NewPasswordController, PasswordController, PasswordResetLinkController (+8 more)
+Nodes (10): TodoController, AssigneeRequest, TodoRequest, Todo, TodoService, TodoServiceTest, static, TodoTest (+2 more)
 
-### Community 18 - "Commandsearchindexservice Services Commandsindexcommand"
-Cohesion: 0.09
+### Community 14 - "ModelSelectDataTest"
+Cohesion: 0.10
+Nodes (8): Illuminate\Database\Eloquent\Relations\HasMany, LinkStubChildTemplated, LinkStubGrandchild, LinkStubParent, ModelSelectDataTest, SelectStubChild, SelectStubChildNoParent, SelectStubParent
+
+### Community 15 - "SalesOrder"
+Cohesion: 0.08
+Nodes (5): SalesOrderController, SalesOrderRequest, SalesOrder, SalesOrderService, PdfAttachmentServiceTest
+
+### Community 16 - "DataTableNonSubmitableSeeder.php"
+Cohesion: 0.10
+Nodes (9): TagFactory, TaxFactory, CategoryFactory, ItemAlternativeFactory, ItemFactory, ItemVariantFactory, static, DataTableNonSubmitableSeeder (+1 more)
+
+### Community 18 - "CommandSearchIndexService"
+Cohesion: 0.15
 Nodes (3): CommandsIndexCommand, CommandSearchIndexService, EloquentModel
 
-### Community 19 - "Laravel React Skill"
-Cohesion: 0.06
-Nodes (50): Business Modules (Sales, Purchase, Inventory, Finances, Service), composer run dev, composer run dev:debug, composer run dev:simple, Struktur Direktori (app/, resources/js/, routes/, lang/), @laravel/echo-react v2, ERP System, ESLint local/case-sensitive-import-paths (+42 more)
-
-### Community 20 - "Traits Linkmodel Services"
+### Community 19 - "Laravel Boost Guidelines"
 Cohesion: 0.05
-Nodes (16): Tag, Taggable, RoleProfileDetail, UserBranch, UserRole, UserDashboard, appendStatus(), computeColumnsFlat() (+8 more)
+Nodes (53): Business Modules (Sales, Purchase, Inventory, Finances, Service), graphify, composer run dev, composer run dev:debug, composer run dev:simple, Struktur Direktori (app/, resources/js/, routes/, lang/), @laravel/echo-react v2, ERP System (+45 more)
 
-### Community 21 - "Inventory Items Form"
+### Community 20 - "LinkModel.php"
+Cohesion: 0.06
+Nodes (14): Taggable, RoleProfileDetail, UserBranch, UserRole, UserDashboard, appendStatus(), computeColumnsFlat(), getAppends() (+6 more)
+
+### Community 21 - "Items/Form.jsx"
 Cohesion: 0.05
 Nodes (10): Form(), Form(), Form(), cell(), VariantsSummary, FormDetail(), FormVariant(), Form() (+2 more)
 
-### Community 22 - "Opencode Ref Bash"
+### Community 22 - "bash"
 Cohesion: 0.04
 Nodes (48): git config *, npm run *, npx --yes *, php artisan *, rtk gain *, rtk git *, rtk vitest *, vendor/bin/phpstan * (+40 more)
 
-### Community 24 - "Datatablecolumnselector Services Casts"
-Cohesion: 0.09
-Nodes (9): FormStatusCast, FormStatusesCast, FormTable, Json, LogContent, DataTableColumnSelector, Closure, Illuminate\Database\Eloquent\Model (+1 more)
-
-### Community 26 - "Datatablecolumnselectortest Unit Services"
+### Community 24 - "Illuminate\Database\Eloquent\Model"
 Cohesion: 0.11
-Nodes (7): Illuminate\Database\Eloquent\Relations\MorphTo, DataTableColumnSelectorTest, SelectorGrandchildStub, SelectorInstanceStub, SelectorParentStub, SelectorRelatedStub, SelectorRelatedTemplatedStub
+Nodes (8): FormStatusCast, FormStatusesCast, FormTable, Json, DataTableColumnSelector, Closure, Illuminate\Database\Eloquent\Model, Illuminate\Pagination\LengthAwarePaginator
 
-### Community 27 - "Table Filter Filtervalidation"
-Cohesion: 0.08
-Nodes (32): columnTypeCategory(), isColumnRef(), completeRange(), OPERATOR_SYMBOLS, subValue(), FilterItem2(), isDateParseable(), isFilledScalar() (+24 more)
+### Community 25 - "FormStatus.php"
+Cohesion: 0.10
+Nodes (3): WarehouseController, WarehouseRequest, Warehouse
 
-### Community 28 - "Printtemplate Utils Custommodeutils"
+### Community 26 - "DataTableColumnSelectorTest"
+Cohesion: 0.20
+Nodes (3): DataTableColumnSelectorTest, SelectorGrandchildStub, SelectorRelatedTemplatedStub
+
+### Community 27 - "filterValidation.js"
+Cohesion: 0.11
+Nodes (25): columnTypeCategory(), isColumnRef(), completeRange(), OPERATOR_SYMBOLS, subValue(), FilterItem2(), isDateParseable(), isFilledScalar() (+17 more)
+
+### Community 28 - "customModeUtils.js"
 Cohesion: 0.08
 Nodes (37): mockCell(), mockComponent(), mockRow(), mockTbody(), mockThead(), mockTokenSpan(), mockCell(), mockComponent() (+29 more)
 
-### Community 29 - "Finances Form Purchaseinvoice"
+### Community 29 - "PurchaseInvoice/Form.jsx"
 Cohesion: 0.07
 Nodes (11): accountTypes, Form(), AdditionalDiscount(), PaymentSchedule(), Form(), Form(), Form(), Form() (+3 more)
 
-### Community 30 - "Agents Skills Laravel"
+### Community 30 - "Queue & Job Best Practices"
 Cohesion: 0.05
 Nodes (43): Error Handling Best Practices, Add Context to Exception Classes, Exception Reporting and Rendering, Force JSON Error Rendering for API Routes, Use ShouldntReport for Exceptions That Should Never Log, Throttle High-Volume Exceptions, Events & Notifications Best Practices, Use afterCommit() on Notifications in Transactions (+35 more)
 
-### Community 31 - "Havetransactionssyncservice Services Havetransactionssynccommand"
+### Community 31 - "HaveTransactionsSyncService"
 Cohesion: 0.12
 Nodes (3): HaveTransactionsSyncCommand, HaveTransactionsSyncService, EloquentModel
 
-### Community 32 - "Error Lens Bootstrap"
+### Community 32 - "bootstrap.bundle.min.js"
 Cohesion: 0.13
 Nodes (37): at(), bt(), C(), D(), dt(), ft(), getDataAttributes(), gt() (+29 more)
 
-### Community 33 - "Savedfiltercontroller Commandsearchcontroller Storesavedfilterrequest"
-Cohesion: 0.07
-Nodes (10): DeployWebhookController, ChangelogController, CommandSearchController, NotificationController, SavedFilterController, Closure, StoreSavedFilterRequest, UpdateSavedFilterRequest (+2 more)
+### Community 33 - "SavedFilter"
+Cohesion: 0.22
+Nodes (4): CommandSearchController, SavedFilterController, SavedFilter, Illuminate\Http\JsonResponse
 
-### Community 34 - "Finances Salesinvoice Salesinvoiceservice"
+### Community 34 - "SalesInvoice"
 Cohesion: 0.09
 Nodes (4): SalesInvoiceController, SalesInvoiceRequest, SalesInvoice, SalesInvoiceService
 
-### Community 35 - "Schema Accountrequest Additionaldiscountrules"
+### Community 35 - "schema.js"
 Cohesion: 0.05
 Nodes (40): AccountRequest, AdditionalDiscountRules, ApprovalDecisionRequest, ApprovalSchemeRequest, AttributeRequest, BranchRequest, CategoryRequest, CommentRequest (+32 more)
 
-### Community 36 - "Middleware Appmiddleware Ensureuserisonboarded"
-Cohesion: 0.14
-Nodes (8): AppMiddleware, EnsureUserIsOnboarded, HandleTheme, LanguageMiddleware, Closure, Illuminate\Foundation\Configuration\Middleware, Inertia\Middleware, Symfony\Component\HttpFoundation\Response
+### Community 36 - "Correctness Properties"
+Cohesion: 0.04
+Nodes (45): 10. i18n Integration, 1. StaticHTMLComponent (Bug Fix + Modal Resize), 2. TokenConfigurationManager (Major Refactor), 3. VariableManager + VariableItem (DocInfo Group + Relations Collapse), 4. CustomStyleManager (Background Hidden + Class Manager + CSS Modal), 5. Sidebar (Inspector Cleanup), 6. gjsRelationsTable Plugin (Bootstrap Classes + Language Headers), 7. Editor.jsx (Block Replacement + i18n + DocInfo) (+37 more)
 
-### Community 37 - "Printtemplate Utils Stylemanagerutils"
+### Community 37 - "styleManagerUtils.js"
 Cohesion: 0.09
 Nodes (30): CompositeSpacingField(), DEFAULT_SIDE_LABELS, getSideProperties(), normalizePropertyId(), UnitInputField(), BACKGROUND_PROPERTY_IDS, combineValueUnit(), createEmptySections() (+22 more)
 
-### Community 38 - "Printtemplate Tokenconfighelpers Property"
+### Community 38 - "tokenConfigHelpers.property.test.js"
 Cohesion: 0.05
 Nodes (29): generateDocInfoToken(), collectRelationsFromInput(), columnNameArb, columnWithChildrenArb, countValidColumns(), dataLeafArb, deepColumnArb, deepNestedRelationArb (+21 more)
 
-### Community 39 - "Inventory Deliverynotecontroller Deliverynote"
+### Community 39 - "DeliveryNote"
 Cohesion: 0.10
 Nodes (4): DeliveryNoteController, DeliveryNoteRequest, DeliveryNote, DeliveryNoteService
 
-### Community 40 - "Laravel Agents Skills"
+### Community 40 - "Database Performance Best Practices"
 Cohesion: 0.06
 Nodes (37): Collection Best Practices, Use #[CollectedBy] for Custom Collection Classes, Choose cursor() vs lazy() Correctly, Use Higher-Order Messages for Simple Operations, Use lazyById() When Updating Records While Iterating, Use toQuery() for Bulk Operations on Collections, Database Performance Best Practices, Add Database Indexes (+29 more)
 
-### Community 41 - "Table Table2 Dialog"
-Cohesion: 0.11
-Nodes (24): BadgeStatus(), theme, ColumnsFilter(), defaultFilter, NoDataImg(), Cell, convertColWidth(), createHeaders() (+16 more)
+### Community 41 - "Table2.jsx"
+Cohesion: 0.09
+Nodes (29): BadgeStatus(), theme, applyColumnAlias(), buildColumnMap(), normalizeFrom(), PER_PAGE_OPTIONS, useSelectModel(), ColumnsFilter() (+21 more)
 
-### Community 43 - "Lib Utils Buffer"
+### Community 43 - "utils.js"
 Cohesion: 0.07
 Nodes (19): buffer, buffer, dedupeFonts(), DEFAULT_PRINT_FONTS, getFonts(), getFromLocalStorage(), getSafePrintFontFamily(), inArray() (+11 more)
 
-### Community 44 - "Filterevaluatortest Services Column"
+### Community 44 - "FilterEvaluatorTest"
 Cohesion: 0.15
 Nodes (4): FilterEvaluatorTest, FilterTestCategory, FilterTestRecord, Builder
 
-### Community 45 - "Salesdualflowtest Utils Sales"
-Cohesion: 0.07
-Nodes (3): Utils, FormStatus, SalesDualFlowTest
+### Community 46 - "Dashboard"
+Cohesion: 0.12
+Nodes (4): DashboardController, DashboardRequest, DashboardWidgetOrderRequest, Dashboard
 
-### Community 46 - "Dashboardcontroller Dashboardpermissiontest Dashboard"
-Cohesion: 0.09
-Nodes (7): DashboardController, DashboardRequest, DashboardWidgetOrderRequest, Dashboard, DashboardFactory, DashboardPermissionTest, static
+### Community 48 - "FormTable.jsx"
+Cohesion: 0.08
+Nodes (21): Cell, CellComponent, ColumnItem, ConfigureColumns, FormTableItem, SelectColumn, Wrapper, InputError() (+13 more)
 
-### Community 48 - "Formtable Alert Dialog"
-Cohesion: 0.09
-Nodes (19): Cell, CellComponent, ColumnItem, ConfigureColumns, FormTableItem, SelectColumn, Wrapper, InputError() (+11 more)
-
-### Community 49 - "Service Workordercontroller Workorderservice"
+### Community 49 - "WorkOrder"
 Cohesion: 0.11
 Nodes (4): WorkOrderController, WorkOrderRequest, WorkOrder, WorkOrderService
 
-### Community 50 - "Sales Salesorders Form"
+### Community 50 - ".value"
+Cohesion: 0.08
+Nodes (11): Combobox(), DashboardChart(), FilterTable(), RelationColumnDialog(), Form(), Form(), Show(), cell() (+3 more)
+
+### Community 51 - ".parent"
 Cohesion: 0.07
-Nodes (13): Combobox(), FilterBuilder(), FilterBuilderBody(), FilterGroup2(), FilterTable(), RelationColumnDialog(), Form(), Form() (+5 more)
+Nodes (7): CompanyController, PaymentEntryController, HandleInertiaRequests, PaymentEntryRequest, Preference, PaymentEntry, PaymentEntryService
 
-### Community 51 - "Finances Paymententrycontroller Paymententry"
-Cohesion: 0.11
-Nodes (4): PaymentEntryController, PaymentEntryRequest, PaymentEntry, PaymentEntryService
-
-### Community 52 - "Sales Internalordercontroller Internalorderservice"
+### Community 52 - "InternalOrder"
 Cohesion: 0.12
 Nodes (4): InternalOrderController, InternalOrderRequest, InternalOrder, InternalOrderService
 
-### Community 53 - "Agents Skills Laravel"
+### Community 53 - "Caching Best Practices Rules"
 Cohesion: 0.08
 Nodes (32): inertia-react-development Skill, Inertia v2 Deferred Props, Inertia <Form> Component, Inertia Polling Pattern, useForm Hook, WhenVisible Component, Advanced Query Patterns Rules, addSelect() Correlated Subquery Pattern (+24 more)
 
-### Community 54 - "Handleinertiarequests Companycontroller Middleware"
+### Community 55 - "Log"
+Cohesion: 0.06
+Nodes (19): CommentRequest, Log, performBackup(), files(), fillForUpdate(), getDefaultLogableField(), loadRelations(), logableFields() (+11 more)
+
+### Community 56 - "PHPUnit\Framework\TestCase"
+Cohesion: 0.06
+Nodes (6): PHPUnit\Framework\TestCase, PrintTemplateTranslationParityTest, ExampleTest, PrintTemplateRelationTrackingTest, SalesOrderItemCastsTest, HasExampleDataTest
+
+### Community 57 - "Illuminate\Database\Eloquent\Casts\Attribute"
 Cohesion: 0.08
-Nodes (7): SetupUserController, CompanyController, EncryptCookies, HandleInertiaRequests, SetupUserRequest, Preference, Illuminate\Cookie\Middleware\EncryptCookies
+Nodes (6): PaymentScheduleController, AttributeController, AttributeRequest, PaymentSchedule, Attribute, Illuminate\Database\Eloquent\Casts\Attribute
 
-### Community 55 - "Traits Datatable Log"
-Cohesion: 0.10
-Nodes (16): Log, files(), fillForUpdate(), getDefaultLogableField(), loadRelations(), logableFields(), logForAmended(), logForCancelled() (+8 more)
-
-### Community 56 - "Unit Hasexampledatatest Relations"
-Cohesion: 0.07
-Nodes (5): PHPUnit\Framework\TestCase, PrintTemplateTest, ExampleTest, PrintTemplateRelationTrackingTest, HasExampleDataTest
-
-### Community 57 - "Paymentschedule Traits Submitable"
-Cohesion: 0.07
-Nodes (3): PaymentSchedule, Illuminate\Database\Eloquent\Casts\Attribute, SubmitableSnapshotDocument
-
-### Community 58 - "Purchase Purchaserequestcontroller Purchaserequestservice"
+### Community 58 - "PurchaseRequest"
 Cohesion: 0.12
 Nodes (4): PurchaseRequestController, PurchaseRequestRequest, PurchaseRequest, PurchaseRequestService
 
-### Community 59 - "Printtemplate Utils Variabletokenutils"
+### Community 59 - "variableInsertUtils.js"
 Cohesion: 0.22
 Nodes (23): CustomModeVariablePanel(), VariableItem(), VariableManager(), filterRelationColumns(), isValidBodyDropTarget(), variableDropListener(), buildLabelComponent(), buildSubGridComponent() (+15 more)
 
-### Community 60 - "Numberinput Formatnumber Cleannumber"
+### Community 60 - "index.jsx"
 Cohesion: 0.14
 Nodes (16): cleanNumber(), escapeRegExp(), fetchExchangeRate(), formatNumber(), formatTyping(), normalizeSign(), roundHalfUp(), getCurrencyConfig() (+8 more)
 
-### Community 61 - "Printtemplate Stylefields Colorfield"
+### Community 61 - "index.js"
 Cohesion: 0.11
 Nodes (20): BorderField(), findSubProperty(), normalizePropertyId(), ColorField(), isValidHexColor(), normalizeHexColor(), rgbToHex(), toPickerColor() (+12 more)
 
-### Community 62 - "Branchcontroller Branch Branchrequest"
+### Community 62 - "Branch"
+Cohesion: 0.08
+Nodes (6): BranchController, BranchRequest, Branch, Carbon, static, ExampleDataSeeder
+
+### Community 63 - "Widget"
 Cohesion: 0.09
-Nodes (5): BranchController, BranchRequest, Branch, getTableName(), static
+Nodes (5): WidgetController, WidgetRequest, Widget, static, WidgetFactory
 
-### Community 63 - "Widgetcontroller Widget Widgetrequest"
-Cohesion: 0.10
-Nodes (4): WidgetController, WidgetRequest, Widget, static
+### Community 65 - "Unit"
+Cohesion: 0.08
+Nodes (7): UnitController, UnitRequest, Unit, BufferedAttachmentService, BufferedAttachmentServiceTest, FileDraftUploadTest, StockEntrySubmitTest
 
-### Community 64 - "Inventory Itemvariant Itemservices"
-Cohesion: 0.11
-Nodes (3): ItemVariant, ItemServices, ItemAlternativeFactory
-
-### Community 65 - "Bufferedattachmentservicetest Unit Filedraftuploadtest"
-Cohesion: 0.11
-Nodes (5): Unit, BufferedAttachmentService, BufferedAttachmentServiceTest, FileDraftUploadTest, StockEntrySubmitTest
-
-### Community 66 - "Rules Agents Skills"
+### Community 66 - "Security Best Practices"
 Cohesion: 0.08
 Nodes (28): Configuration Best Practices, Use App::environment() for Environment Checks, Use Constants and Language Files, Use Encrypted Env or External Secrets, env() Only in Config Files, Routing & Controllers Best Practices, Use Implicit Route Model Binding, Keep Controllers Thin (+20 more)
 
-### Community 67 - "Command Button Loadingicon"
-Cohesion: 0.23
-Nodes (15): LoadingIcon(), MultiSelect, NestedSelect, Button, ButtonArrow, buttonVariants, Command, CommandEmpty (+7 more)
+### Community 67 - "button.jsx"
+Cohesion: 0.21
+Nodes (16): LoadingIcon(), MultiSelect, NestedSelect, Button, ButtonArrow, buttonVariants, Command, CommandEmpty (+8 more)
 
-### Community 68 - "Usenestedfilters Hooks Addnodetogroup"
+### Community 68 - "useNestedFilters.jsx"
 Cohesion: 0.20
 Nodes (26): addNodeToGroup(), buildFromFlatFilters(), canWrapGroup(), collapseChildren(), collapseEntry(), collapseSingleChildGroups(), createFilterGroup(), createFilterItem() (+18 more)
 
-### Community 70 - "Printtemplate Utils Cssutils"
+### Community 70 - "cssUtils.js"
 Cohesion: 0.15
 Nodes (25): buildComponentSelectorTokens(), cleanupManualCss(), escapeRegExp(), extractAttributeName(), filterCssRulesByComponentTokens(), flattenSelectorMap(), isDeclarationMap(), mergeCssStyles() (+17 more)
 
-### Community 71 - "Package Devdependencies Eslint"
+### Community 71 - "devDependencies"
 Cohesion: 0.07
-Nodes (27): @7nohe/laravel-zodgen, concurrently, eslint-config-prettier, @eslint/js, eslint-plugin-prettier, glob, globals, @headlessui/react (+19 more)
+Nodes (27): @7nohe/laravel-zodgen, concurrently, eslint-config-prettier, @eslint/js, glob, globals, @headlessui/react, devDependencies (+19 more)
 
-### Community 72 - "Finances Purchaseinvoice Purchaseinvoicecontroller"
-Cohesion: 0.11
+### Community 72 - "PurchaseInvoice"
+Cohesion: 0.10
 Nodes (3): PurchaseInvoiceController, PurchaseInvoiceRequest, PurchaseInvoice
 
-### Community 73 - "Administratorseeder Seeders Permissionlinkmodelfieldstest"
+### Community 73 - "Permission"
 Cohesion: 0.15
 Nodes (3): Permission, AdministratorSeeder, PermissionLinkModelFieldsTest
 
-### Community 74 - "Package Dependencies React"
+### Community 74 - "dependencies"
 Cohesion: 0.07
-Nodes (27): date-fns, @grapesjs/react, grapesjs-table, lodash, dependencies, date-fns, @grapesjs/react, grapesjs-table (+19 more)
+Nodes (27): change-case, date-fns, @grapesjs/react, lodash, dependencies, change-case, date-fns, @grapesjs/react (+19 more)
 
-### Community 75 - "Docs Modules Finances"
-Cohesion: 0.15
-Nodes (27): accounts table (COA), general_ledgers table, FormatingSeries (Penomoran Dokumen), Modul Finances, Chart of Accounts, General Ledger, Payment Entry, Payment Entry FIFO allocation to Payment Schedules (+19 more)
+### Community 75 - "Tutorial 4: Alur Pembelian PR->PO->GR->PI->Payment"
+Cohesion: 0.16
+Nodes (24): stock_ledger_entries table, Payment Entry, Payment Entry FIFO allocation to Payment Schedules, Payment Schedules, Payment Term Templates, Purchase Invoice, Sales Invoice, Delivery Note (+16 more)
 
-### Community 76 - "Printtemplate Utils Lib"
+### Community 76 - "Editor.jsx"
 Cohesion: 0.14
 Nodes (16): handlebars, handlebars, flattenMediaPlugin(), gjsDocHeader(), gjsStaticHTML(), DropModeDialog(), PrintTemplate(), resolveGjsPlugin() (+8 more)
 
-### Community 77 - "Exampledataservicetest Unit Services"
-Cohesion: 0.14
+### Community 77 - "ExampleDataServiceTest"
+Cohesion: 0.10
 Nodes (6): Illuminate\Foundation\Testing\LazilyRefreshDatabase, ExampleDataServiceTest, TestExampleChild, TestExampleGrandchild, TestExampleModel, TestExampleParent
 
-### Community 78 - "Sidebar Sidebarcontent Sidebarcontext"
+### Community 78 - "sidebar.jsx"
 Cohesion: 0.07
 Nodes (25): Sidebar, SidebarContent, SidebarContext, SidebarFooter, SidebarGroup, SidebarGroupAction, SidebarGroupContent, SidebarGroupLabel (+17 more)
 
-### Community 80 - "Countryseedertest Countrycontroller Country"
-Cohesion: 0.13
-Nodes (4): CountryController, CountryRequest, Country, CountrySeederTest
-
-### Community 81 - "Printtemplate Printtemplatecontroller Pdfexportservice"
+### Community 80 - "Country"
 Cohesion: 0.14
-Nodes (3): PrintTemplateController, PrintTemplate, PdfExportService
+Nodes (4): CountryController, CountryRequest, Country, SupplierFactory
 
-### Community 82 - "Inventory Item Itemcontroller"
+### Community 81 - "PrintTemplate"
+Cohesion: 0.10
+Nodes (4): PrintTemplateController, PrintTemplate, PdfAttachmentService, PdfExportService
+
+### Community 82 - "Item"
 Cohesion: 0.11
 Nodes (3): ItemController, ItemRequest, Item
 
-### Community 83 - "Modelcontroller Permissionchecker Services"
-Cohesion: 0.16
+### Community 83 - "ModelController"
+Cohesion: 0.15
 Nodes (4): ModelController, PermissionChecker, self, Illuminate\Database\Query\JoinClause
 
-### Community 84 - "Purchaseordercontroller Purchase Purchaseorder"
+### Community 84 - "PurchaseOrder"
 Cohesion: 0.12
-Nodes (3): PurchaseOrderController, PurchaseOrderRequest, PurchaseOrder
+Nodes (3): PurchaseOrderController, PurchaseOrder, PurchaseOrderService
 
-### Community 85 - "Mail Tablemarkdownbuilder Mymailmessage"
-Cohesion: 0.11
-Nodes (3): MyMailMessage, TableMarkdownBuilder, Illuminate\Contracts\Support\Renderable
+### Community 86 - "Changelog"
+Cohesion: 0.07
+Nodes (8): SyncChangelogCommand, DeployWebhookController, Changelog, ChangelogRead, ChangelogService, Illuminate\Database\Eloquent\Relations\BelongsToMany, ChangelogControllerTest, ChangelogServiceTest
 
-### Community 86 - "Changelogservicetest Changelog Changelogcontrollertest"
-Cohesion: 0.09
-Nodes (5): Changelog, ChangelogRead, Illuminate\Database\Eloquent\Relations\BelongsToMany, ChangelogControllerTest, ChangelogServiceTest
-
-### Community 87 - "Printtemplate Aliases Customlayermanager"
+### Community 87 - "Sidebar.jsx"
 Cohesion: 0.10
 Nodes (19): aliases, components, hooks, lib, ui, utils, CustomBlockManager(), CustomLayerManager() (+11 more)
 
-### Community 88 - "Seeders Countryseeder Run"
-Cohesion: 0.11
-Nodes (8): CountrySeeder, DatabaseSeeder, ErrorLensConfigurationSeeder, PermissionSeeder, PreferenceSeeder, TestingSeeder, UnitSeeder, Illuminate\Database\Seeder
+### Community 88 - "Illuminate\Database\Seeder"
+Cohesion: 0.09
+Nodes (9): AccountSeeder, CountrySeeder, DatabaseSeeder, ErrorLensConfigurationSeeder, PermissionSeeder, PreferenceSeeder, TestingSeeder, UnitSeeder (+1 more)
 
-### Community 89 - "Docs Frontend Auth"
-Cohesion: 0.12
-Nodes (25): Arsitektur Sistem ERP, Inertia.js Shared Props, Queue & Scheduled Jobs, Autentikasi & Otorisasi, Email + Password (Laravel Breeze v2), Onboarding User Baru (EnsureUserIsOnboarded), API Token (Sanctum v4), OAuth / Social Login (Socialite v5) (+17 more)
+### Community 89 - "Frontend React/Inertia Catalog"
+Cohesion: 0.13
+Nodes (25): Arsitektur Sistem ERP, Inertia.js Shared Props, Queue & Scheduled Jobs, Artisan Commands Reference, commands:index command, dev:logs command, have-transactions:sync command, make:feature command (+17 more)
 
-### Community 90 - "Printtemplate Tokenconfigurationmanager Tokenconfighelpers"
+### Community 90 - "TokenConfigurationManager.jsx"
 Cohesion: 0.17
 Nodes (23): buildTreeOptions(), filterRelationPathOptions(), filterTokenOptions(), formatTokenLabel(), generateRelationToken(), hasRelationsDescendant(), simplifyTokenDisplay(), buildTokenFromOption() (+15 more)
 
-### Community 91 - "Purchase Purchaseorders Form"
+### Community 91 - "PurchaseReceipts/Form.jsx"
 Cohesion: 0.11
 Nodes (5): Form(), ItemForm(), Form(), ItemForm(), Form()
 
-### Community 92 - "Printtemplate Utils Manualcssruleutils"
+### Community 92 - "CustomStyleManager.jsx"
 Cohesion: 0.19
 Nodes (21): componentIdOf(), CustomStyleManager(), detectLayoutMode(), groupSectionProperties(), styleObjectToCssText(), alignOptions, FlexLayoutControls(), justifyOptions (+13 more)
 
-### Community 93 - "Inventory Stockentrycontroller Stockentry"
+### Community 93 - "StockEntry"
 Cohesion: 0.12
 Nodes (3): StockEntryController, StockEntryRequest, StockEntry
 
-### Community 94 - "Purchasereceiptcontroller Purchase Purchasereceipt"
-Cohesion: 0.12
-Nodes (3): PurchaseReceiptController, PurchaseReceiptRequest, PurchaseReceipt
+### Community 94 - "PurchaseReceipt"
+Cohesion: 0.11
+Nodes (4): PurchaseReceiptController, PurchaseReceiptRequest, PurchaseReceipt, PurchaseReceiptService
 
-### Community 95 - "Linkmodelfilterconvertertest Services Ticket"
-Cohesion: 0.16
-Nodes (4): Illuminate\Database\Eloquent\Relations\BelongsTo, ConverterTestCategory, ConverterTestRecord, LinkModelFilterConverterTest
+### Community 95 - "LinkModelFilterConverterTest"
+Cohesion: 0.27
+Nodes (3): ConverterTestCategory, ConverterTestRecord, LinkModelFilterConverterTest
 
-### Community 97 - "Input Select Datetimepicker"
+### Community 97 - "input.jsx"
 Cohesion: 0.12
 Nodes (19): DATE_INPUT_FORMATS, DATETIME_INPUT_FORMATS, InputAddon(), inputAddonVariants, InputGroup(), inputGroupVariants, inputVariants, InputWrapper() (+11 more)
 
-### Community 98 - "Formpage Emailsenddialog Approverdecision"
+### Community 98 - "FormPage.jsx"
 Cohesion: 0.09
 Nodes (15): EmailSendDialog(), EMPTY_PREVIEW, Tags(), ApprovalActedByDetail, ApprovalItem, Approvals, BottombarChildren, FormChildren (+7 more)
 
-### Community 99 - "Commandrecentservice Services Commandsearchcontroller"
-Cohesion: 0.19
+### Community 99 - "CommandRecentService"
+Cohesion: 0.20
 Nodes (3): CommandRecent, CommandRecentService, Illuminate\Database\QueryException
 
-### Community 100 - "Finances Accountcontroller Account"
-Cohesion: 0.12
-Nodes (4): AccountController, AccountRequest, Account, AccountSeeder
+### Community 100 - "Account"
+Cohesion: 0.15
+Nodes (3): AccountController, AccountRequest, Account
 
-### Community 103 - "Timepicker Time Picker"
+### Community 103 - "time-picker-utils.js"
 Cohesion: 0.21
 Nodes (21): TimePickerInput, convert12HourTo24Hour(), display12HourValue(), getArrowByType(), getDateByType(), getValid12Hour(), getValidArrow12Hour(), getValidArrowHour() (+13 more)
 
-### Community 105 - "Error Lens Highlight"
-Cohesion: 0.13
-Nodes (3): trigger(), l, o
-
-### Community 106 - "Printtemplate Utils Cssutils"
+### Community 106 - "CSSEditorModal.jsx"
 Cohesion: 0.16
 Nodes (15): CSSEditorModal(), MonacoCSSEditor(), resolveMonacoTheme(), MonacoHTMLEditor(), resolveMonacoTheme(), StaticHTMLComponent(), isValidSelector(), parseCssDeclarations() (+7 more)
 
-### Community 108 - "Printtemplaterenderservice Services Printtemplate"
-Cohesion: 0.16
-Nodes (3): PrintTemplateRenderService, FormatHelperService, Carbon\Carbon
+### Community 108 - "Design Document: Print Editor Style Manager - GrapeJS Layout"
+Cohesion: 0.04
+Nodes (42): Algorithmic Pseudocode, Architecture, Button Group Configuration, Component 1: SectionMapper (utility), Component 2: UnitInputField, Component 3: CompositeSpacingField, Component 4: TextAlignButtons, Component 5: TextDecorationButtons (+34 more)
 
-### Community 109 - "Ref Composer Php"
-Cohesion: 0.10
-Nodes (21): scripts, dev, dev:debug, dev:simple, pint, post-autoload-dump, post-update-cmd, pre-package-uninstall (+13 more)
+### Community 109 - "scripts"
+Cohesion: 0.12
+Nodes (18): scripts, dev, dev:debug, dev:simple, pint, post-update-cmd, pre-package-uninstall, test (+10 more)
 
-### Community 110 - "Eslint Config Buildimportstatement"
+### Community 110 - "eslint.config.js"
 Cohesion: 0.12
 Nodes (15): buildImportStatement(), buildUnusedImportFix(), caseSensitiveImportPathsRule, collectBindingNamesFromDeclaration(), collectBindingNamesFromPattern(), collectExportedBindingNames(), compat, __dirname (+7 more)
 
-### Community 111 - "Morphlookupfiltertest Templatelink Morph"
-Cohesion: 0.17
+### Community 111 - "MorphLookupFilterTest.php"
+Cohesion: 0.16
 Nodes (7): Illuminate\Database\Eloquent\Relations\MorphMany, MorphAlienStub, MorphBranchStub, MorphDocStub, MorphHolderStub, MorphLookupFilterTest, MorphOwnerStub
 
-### Community 114 - "Agents Skills Skill"
+### Community 114 - "echo-react-development Skill"
 Cohesion: 0.13
 Nodes (20): echo-development Skill, Broadcast::channel Authorization, BroadcastsEvents Trait (Model Broadcasting), Laravel Echo Client Configuration, PrivateChannel, Reverb Broadcasting Driver, ShouldBroadcast Interface, Whisper Client Events (+12 more)
 
-### Community 115 - "Approvalschemecontroller Approvalscheme Approvalschemerequest"
-Cohesion: 0.18
+### Community 115 - "ApprovalScheme"
+Cohesion: 0.17
 Nodes (3): ApprovalSchemeController, ApprovalSchemeRequest, ApprovalScheme
 
-### Community 116 - "Sales Customercontroller Customer"
+### Community 116 - "Customer"
 Cohesion: 0.15
 Nodes (4): CustomerController, CustomerRequest, Customer, CustomerService
 
-### Community 119 - "Docs Modules Sales"
-Cohesion: 0.14
-Nodes (20): Multi-Branch Access, Modul Core / Settings, Branch & Multi-Branch, Command Palette, Dashboard & Widgets, Print Templates (GrapesJS), Tags & Files (polymorphic), Modul Inventory (+12 more)
+### Community 119 - "Modul Finances"
+Cohesion: 0.15
+Nodes (19): accounts table (COA), general_ledgers table, Modul Finances, Chart of Accounts, General Ledger, Taxes, Modul Inventory, Flow Retur (returnAgainst) - Inventory (+11 more)
 
-### Community 120 - "Docs Frontend Table"
+### Community 120 - "ItemVariant Model"
 Cohesion: 0.12
 Nodes (20): customers table, sales_order_items table, sales_orders table, CustomerLinkModel, FormTable Component, ItemVariantLinkModel, LinkModel Component, Customer Model (+12 more)
 
-### Community 121 - "Chart Card Separator"
+### Community 121 - "DashboardChart.jsx"
 Cohesion: 0.13
 Nodes (13): Select, Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle, ChartContainer (+5 more)
 
-### Community 122 - "Date Selector Dateselector"
+### Community 122 - "date-selector.jsx"
 Cohesion: 0.12
 Nodes (14): DateSelector(), DateSelectorContext, DateSelectorDayPicker, DateSelectorFilterToggle, DateSelectorPeriodGrid, DateSelectorPeriodTabs, DateSelectorYearList, DEFAULT_DATE_SELECTOR_I18N (+6 more)
 
-### Community 123 - "Printtemplate Utils Variabledroputils"
+### Community 123 - "MockComponent"
 Cohesion: 0.13
 Nodes (4): labelArb, MockComponent, segmentArb, titleTransArb
 
-### Community 124 - "Datatableadaptivefetchtest Services Adaptiverecord"
+### Community 124 - "DataTableAdaptiveFetchTest"
 Cohesion: 0.24
 Nodes (4): AdaptiveCustomerStub, AdaptiveRecord, DataTableAdaptiveFetchTest, JoinedRecord
 
-### Community 125 - "Generalledger Stockledgerentry Finances"
+### Community 125 - "StockLedgerEntry"
 Cohesion: 0.11
 Nodes (3): GeneralLedger, StockLedgerEntry, bootSubmitable()
 
-### Community 127 - "Diff Match Patch"
+### Community 126 - "Documentation Scope"
+Cohesion: 0.05
+Nodes (40): 10\. `docs/tutorials/` — Usage Tutorials \& Example Code, 11\. `docs/core/approval-flow.md` — Approval Flow, 12\. `docs/business-flows.md` — End-to-End Cross-Module Flows, 13\. `docs/glossary.md` — Business & Technical Glossary, 14\. `docs/core/document-numbering.md` — Document Numbering System (FormatingSeries), 15\. `docs/core/module-anatomy.md` — Anatomy of a Module, 16\. `docs/core/i18n.md` — Internationalization (i18n) Reference, 1\. README.md (project root) (+32 more)
+
+### Community 127 - "diff_match_patch.prototype.diff_main"
 Cohesion: 0.14
 Nodes (18): diff_match_patch.prototype.diff_bisectSplit_, diff_match_patch.prototype.diff_bisect_, diff_match_patch.prototype.diff_charsToLines_, diff_match_patch.prototype.diff_cleanupEfficiency, diff_match_patch.prototype.diff_cleanupMerge, diff_match_patch.prototype.diff_cleanupSemantic, diff_match_patch.prototype.diff_cleanupSemanticLossless, diff_match_patch.prototype.diff_commonOverlap_ (+10 more)
 
-### Community 129 - "Dropdown Menu Languageswitcher"
-Cohesion: 0.16
-Nodes (13): LanguageSwitcher, LOCALES, ToggleTheme, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioItem (+5 more)
+### Community 129 - "dropdown-menu.jsx"
+Cohesion: 0.10
+Nodes (17): LanguageSwitcher, LOCALES, Link, DOCUMENT_TYPE_ROUTE_MAP, Notifications(), resolveNotificationUrl(), ToggleTheme, DropdownMenuCheckboxItem (+9 more)
 
-### Community 131 - "Inventory Itemalternativecontroller Itemalternativerequest"
-Cohesion: 0.16
+### Community 131 - "ItemAlternative"
+Cohesion: 0.18
 Nodes (3): ItemAlternativeController, ItemAlternativeRequest, ItemAlternative
 
-### Community 132 - "Inventory Itemuombackendsynctest Itemunit"
-Cohesion: 0.15
-Nodes (4): ItemUnit, ItemFactory, static, ItemUomBackendSyncTest
+### Community 132 - "ItemUnit"
+Cohesion: 0.18
+Nodes (3): ItemUnit, static, ItemUomBackendSyncTest
 
-### Community 134 - "Finances Paymenttermtemplatecontroller Paymenttermtemplateservice"
-Cohesion: 0.21
+### Community 134 - "PaymentTermTemplate"
+Cohesion: 0.19
 Nodes (3): PaymentTermTemplateController, PaymentTermTemplate, PaymentTermTemplateService
 
-### Community 137 - "Composer Laravel Autoload"
+### Community 137 - "composer.json"
 Cohesion: 0.12
 Nodes (16): autoload-dev, psr-4, description, extra, laravel, keywords, dont-discover, license (+8 more)
 
-### Community 138 - "Package Overrides Morph"
+### Community 138 - "overrides"
 Cohesion: 0.12
 Nodes (17): minimatch, react, brace-expansion, overrides, @babel/runtime, dompurify, flatted, glob (+9 more)
 
-### Community 141 - "Formatingseries Formatingseriesservice Services"
-Cohesion: 0.17
-Nodes (3): FormatingSeries, FormatingSeriesService, initPermissions()
+### Community 139 - "DashboardPermissionTest"
+Cohesion: 0.33
+Nodes (3): DashboardFactory, DashboardPermissionTest, static
 
-### Community 143 - "Composer Require Laravel"
+### Community 141 - "FormatingSeries"
+Cohesion: 0.10
+Nodes (6): FormatingSeriesController, FormatingSeriesRequest, FormatingSeries, FormatingSeriesService, initPermissions(), getTableName()
+
+### Community 142 - "Requirements"
+Cohesion: 0.05
+Nodes (36): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+28 more)
+
+### Community 143 - "require"
 Cohesion: 0.12
 Nodes (16): require, barryvdh/laravel-dompdf, ddzobov/laravel-pivot-softdeletes, inertiajs/inertia-laravel, itsgoingd/clockwork, laravel/breeze, laravel/framework, laravel/sanctum (+8 more)
 
-### Community 144 - "Docs Architecture Approval"
-Cohesion: 0.15
-Nodes (16): Approval Flow (DRAFT->SUBMITTED->NEED_APPROVAL->APPROVED/REJECTED), DataTable Trait, FormatingSeries Document Numbering, ModelConnection (cross-document linking), Route::resourceDetail Macro, Submitable Trait, Workflow Dokumen (status lifecycle), model_connections table (+8 more)
+### Community 144 - "Modul Core / Settings"
+Cohesion: 0.11
+Nodes (21): Approval Flow (DRAFT->SUBMITTED->NEED_APPROVAL->APPROVED/REJECTED), FormatingSeries Document Numbering, ModelConnection (cross-document linking), Route::resourceDetail Macro, Submitable Trait, Workflow Dokumen (status lifecycle), model_connections table, ApprovalInstance Model (+13 more)
 
-### Community 145 - "Lib Gjsrelationstable Gjstable"
+### Community 145 - "gjsRelationsTable.js"
 Cohesion: 0.22
 Nodes (11): buildExampleDataTable(), buildHandlebarTokenTable(), evaluateExpression(), formatCellValue(), getColumnLabel(), gjsRelationsTable(), resolveTitleTransKey(), resolveValue() (+3 more)
 
-### Community 146 - "Havetransactionssynctest Runtime When"
-Cohesion: 0.31
+### Community 146 - "HaveTransactionsSyncTest"
+Cohesion: 0.26
 Nodes (5): HaveTransactionsSyncTest, TestHaveTransactionsChild, TestHaveTransactionsParent, TestHaveTransactionsPlainModel, TestHaveTransactionsTarget
 
-### Community 147 - "Filtercolumnresolvertest Services Relation"
+### Community 147 - "FilterColumnResolverTest"
 Cohesion: 0.21
 Nodes (3): FilterColumnResolverTest, ResolverMorphStub, ResolverRelatedStub
 
-### Community 149 - "Paymentmethodcontroller Finances Paymentmethod"
+### Community 149 - "PaymentMethod"
 Cohesion: 0.19
 Nodes (3): PaymentMethodController, PaymentMethodRequest, PaymentMethod
 
-### Community 150 - "Categorycontroller Inventory Category"
-Cohesion: 0.19
+### Community 150 - "Category"
+Cohesion: 0.17
 Nodes (3): CategoryController, CategoryRequest, Category
 
-### Community 153 - "Relationtrackerservicevalidaterelationstest Printtemplate Relationtrackervalidaterelationsbranchmodel"
-Cohesion: 0.19
+### Community 151 - "Components and Interfaces"
+Cohesion: 0.05
+Nodes (36): Architecture, Backward Compatibility, Build Errors, Components and Interfaces, Correctness Properties, Data Models, Dependency Rules (No Circular Dependencies), Design Document: Print Template Refactoring (+28 more)
+
+### Community 153 - "RelationTrackerServiceValidateRelationsTest.php"
+Cohesion: 0.21
 Nodes (4): RelationTrackerServiceValidateRelationsTest, RelationTrackerValidateRelationsBranchModel, RelationTrackerValidateRelationsCountryModel, RelationTrackerValidateRelationsStockEntryModel
 
-### Community 156 - "Tailwind Registries Iconlibrary"
+### Community 156 - "components.json"
 Cohesion: 0.13
 Nodes (14): iconLibrary, registries, @acme, @reui, rsc, $schema, style, tailwind (+6 more)
 
-### Community 157 - "Layouts Globalcommandpalette Masterlayout"
+### Community 157 - "GlobalCommandPalette.jsx"
 Cohesion: 0.17
 Nodes (7): DeleteDialog(), DEFAULT_COMMAND_RESULTS, normalizeSearch(), scoreThemeCommand(), THEME_COMMANDS, AlertDialogs, MasterLayout
 
-### Community 158 - "Form Printtemplate Emailtemplate"
+### Community 158 - "PrintTemplate/Form.jsx"
 Cohesion: 0.17
 Nodes (4): Form(), Form(), paperSize, units
 
-### Community 162 - "Error Lens Bootstrap"
-Cohesion: 0.18
-Nodes (5): x(), V, FilterTableContent(), MultiGrow(), FilterItem()
+### Community 160 - "Backend"
+Cohesion: 0.06
+Nodes (34): Alur data (sequence), `App\Console\Commands\PruneEphemeralFilters` (baru) + schedule, `App\Http\Controllers\Core\SavedFilterController` (baru), `App\Http\Requests\Core\StoreSavedFilterRequest` / `UpdateSavedFilterRequest` (baru), `App\Models\Core\SavedFilter` (baru), `App\Models\Scopes\DataTableScope` (ubah), `App\Services\Core\FilterEvaluator` (baru — reusable, DI murni), Architecture (+26 more)
 
-### Community 163 - "Emailpreviewcontrollertest Preview Pdf"
-Cohesion: 0.36
-Nodes (3): EmailPreviewControllerTest, EmailPreviewTestDocument, EmailPreviewTestDocumentController
+### Community 162 - "x"
+Cohesion: 0.19
+Nodes (4): x(), V, FilterTableContent(), FilterItem()
 
-### Community 164 - "Modelcontrollerfiltertest Filterendpointtestrecord Operators"
+### Community 164 - "FilterEndpointTestRecord"
 Cohesion: 0.22
 Nodes (3): FilterEndpointTestCategory, FilterEndpointTestRecord, ModelControllerFilterTest
 
-### Community 166 - "Getcolumnsincludehiddentest Traits Default"
-Cohesion: 0.27
-Nodes (3): GetColumnsIncludeHiddenTest, IncludeHiddenCategory, IncludeHiddenRecord
-
-### Community 167 - "Agents Skills Graphify"
+### Community 167 - "graphify Extraction Subagent Prompt Spec"
 Cohesion: 0.18
 Nodes (12): graphify Extraction Subagent Prompt Spec, EXTRACTED/INFERRED/AMBIGUOUS Confidence Rubric, Hyperedges Extraction Rule, Node ID Format Rule ({stem}_{entity}), graphify Transcribe Video/Audio Reference, Whisper Domain-Hint Prompt Strategy, Part A - Structural (AST) Extraction, Part B - Semantic Extraction (Parallel Subagents) (+4 more)
 
-### Community 168 - "Services Migration Migrators"
-Cohesion: 0.17
-Nodes (4): RunLegacyMigrationCommand, CategoryMigrator, ItemMigrator, WarehouseMigrator
+### Community 168 - "RunLegacyMigrationCommand.php"
+Cohesion: 0.20
+Nodes (3): CategoryMigrator, RoleMigrator, UserRoleMigrator
 
-### Community 169 - "Taxescontroller Finances Taxrequest"
+### Community 169 - "Tax"
 Cohesion: 0.23
 Nodes (3): TaxesController, TaxRequest, Tax
 
-### Community 170 - "Attributecontroller Inventory Attributerequest"
-Cohesion: 0.23
-Nodes (3): AttributeController, AttributeRequest, Attribute
+### Community 170 - "Requirements"
+Cohesion: 0.06
+Nodes (34): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+26 more)
 
-### Community 174 - "Docs Commands Artisan"
-Cohesion: 0.19
-Nodes (13): Artisan Commands Reference, commands:index command, dev:logs command, have-transactions:sync command, make:feature command, make:migrator command, run-legacy-migration command, Scheduled Commands (routes/console.php) (+5 more)
+### Community 171 - "FASE 1"
+Cohesion: 0.06
+Nodes (32): 10. `bootstrap/app.php` (MODIFY), 11. `.github/workflows/deploy-cpanel.yml` (MODIFY), 12. `app/Http/Controllers/Core/ChangelogController.php` (NEW), 13. `resources/js/Pages/Core/Changelogs/Index.tsx` (NEW), 14. `routes/web.php` (MODIFY), 15. Shared prop / layout — unread count badge (MODIFY), 1. `routes/api.php` (NEW FILE), 2. `app/Http/Controllers/Api/DeployWebhookController.php` (NEW) (+24 more)
 
-### Community 175 - "Package Scripts Lint"
+### Community 173 - "Correctness Properties"
+Cohesion: 0.06
+Nodes (32): 1. CustomModeToggle (New Component), 2. CustomModePanel (New Component), 3. CustomModeVariablePanel (New Component), 4. CustomModeHeaderEditor (New Component), 5. customModeUtils.js (New Utility), 6. gjsRelationsTable Plugin Extension, Architecture, Column Filter Output (+24 more)
+
+### Community 174 - "BaseMigrator class"
+Cohesion: 0.33
+Nodes (7): make:migrator command, run-legacy-migration command, Planning: Migrator From Old Database, BaseMigrator class, migration_checkpoints resume mechanism, migration_mappings table (old_id -> new_ulid), erp:migrate-legacy command (RunLegacyMigrationCommand)
+
+### Community 175 - "scripts"
 Cohesion: 0.15
 Nodes (12): private, scripts, build, dev, docs, lint, lint:fix, postinstall (+4 more)
 
-### Community 176 - "Tiptapeditor Tiptapmentionlist Buildmentionsuggestion"
+### Community 176 - "TiptapEditor.jsx"
 Cohesion: 0.22
 Nodes (6): buildMentionSuggestion(), dotPathToMergeTagToken(), TiptapEditor, updateMentionPosition(), highlightMatch(), TiptapMentionList()
 
-### Community 177 - "Agents Skills Graphify"
+### Community 177 - "/graphify Skill"
 Cohesion: 0.18
 Nodes (11): graphify add and --watch Reference, graphify.watch Background Watcher, graphify Commit Hook and CLAUDE.md Integration Reference, graphify claude install (CLAUDE.md integration), graphify hook install (post-commit), /graphify Skill, Fast Path for Existing Graph, Graphify Honesty Rules (+3 more)
 
-### Community 178 - "Htmlsanitizerservice Services Printtemplate"
-Cohesion: 0.24
-Nodes (3): HtmlSanitizeController, HTMLSanitizerService, DOMNode
+### Community 178 - "HTMLSanitizerService"
+Cohesion: 0.11
+Nodes (6): HtmlSanitizeController, SanitizeHtmlRequest, HTMLSanitizerService, SanitizationResult, DOMNode, Illuminate\Foundation\Http\FormRequest
 
-### Community 180 - "Modelconnection Traits Booted"
-Cohesion: 0.18
-Nodes (5): ModelConnection, self, bootDataTable(), connections(), attachConnections()
+### Community 179 - "Requirements"
+Cohesion: 0.06
+Nodes (32): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+24 more)
 
-### Community 181 - "Composer Require Dev"
+### Community 180 - "ModelConnection"
+Cohesion: 0.20
+Nodes (4): ModelConnection, self, bootDataTable(), connections()
+
+### Community 181 - "require-dev"
 Cohesion: 0.17
 Nodes (12): require-dev, beyondcode/laravel-query-detector, fakerphp/faker, larastan/larastan, laravel/boost, laravel/pail, laravel/pint, laravel/sail (+4 more)
 
-### Community 182 - "Customerrequesttest Sales Countryfactory"
-Cohesion: 0.29
-Nodes (3): CountryFactory, CustomerFactory, CustomerRequestTest
-
-### Community 183 - "Purchaseorderpermissiontest Purchase Purchaseorderfactory"
-Cohesion: 0.26
+### Community 183 - "PurchaseOrderPermissionTest"
+Cohesion: 0.24
 Nodes (4): PurchaseOrderFactory, MockInterface, static, PurchaseOrderPermissionTest
 
-### Community 184 - "Salesorderpermissiontest Sales Salesorderfactory"
-Cohesion: 0.26
-Nodes (4): SalesOrderFactory, MockInterface, static, SalesOrderPermissionTest
+### Community 184 - "SalesOrderPermissionTest"
+Cohesion: 0.21
+Nodes (5): SalesOrderFactory, SalesOrderEmailPreviewTest, MockInterface, static, SalesOrderPermissionTest
 
-### Community 185 - "Docs Table Modules"
-Cohesion: 0.17
-Nodes (12): Item & ItemVariant relation & usage note, item_variants table, items table, purchase_order_items table, purchase_orders table, stock_ledger_entries table, stocks table, suppliers table (+4 more)
+### Community 185 - "Item & ItemVariant relation & usage note"
+Cohesion: 0.25
+Nodes (8): Item & ItemVariant relation & usage note, item_variants table, items table, purchase_order_items table, purchase_orders table, stocks table, suppliers table, Item & Variant concept
 
-### Community 186 - "Docs Formpagedialog Sidebar"
-Cohesion: 0.20
-Nodes (12): FormPage Component, useDraftForm hook, useFormPage hook, FormPageDialog Right Sidebar Implementation Plan, Attachments.jsx + UploadDialog dual-mode, BufferedAttachmentService (planned), DataTable trait created hook (buffer auto-attach), FormPageDialog collapsible sidebar UI (+4 more)
+### Community 186 - "FormPageDialog Right Sidebar Implementation Plan"
+Cohesion: 0.18
+Nodes (13): DataTable Trait, FormPage Component, useDraftForm hook, useFormPage hook, FormPageDialog Right Sidebar Implementation Plan, Attachments.jsx + UploadDialog dual-mode, BufferedAttachmentService (planned), DataTable trait created hook (buffer auto-attach) (+5 more)
 
-### Community 187 - "Navbar Notifications Link"
-Cohesion: 0.26
-Nodes (4): Link, DOCUMENT_TYPE_ROUTE_MAP, Notifications(), resolveNotificationUrl()
+### Community 187 - "Illuminate\Bus\Queueable"
+Cohesion: 0.18
+Nodes (12): AttachGeneratedPdfJob, SendNotificationMailJob, ReplayHaveTransactionsSyncJob, SendEmailWithPdfJob, SendEmailNotificationJob, EmailTemplateSendNotification, Illuminate\Bus\Queueable, Illuminate\Contracts\Queue\ShouldQueue (+4 more)
 
-### Community 188 - "Pagination Table Condensepages"
+### Community 188 - "Pagination.jsx"
 Cohesion: 0.26
 Nodes (7): condensePages(), Pagination(), Pagination(), PaginationButton(), PaginationContent, PaginationEllipsis(), PaginationItem
 
-### Community 190 - "Lib Gjsrelationstable Custommode"
+### Community 190 - "gjsRelationsTable.customMode.property.test.js"
 Cohesion: 0.26
 Nodes (11): basicBodyTokenArb, bodyTokenArb, identArb, mockCell(), mockComponent(), mockRow(), mockTbody(), _mockTextNode() (+3 more)
 
-### Community 191 - "Helpdesk Tickets Form"
+### Community 191 - "Tickets/Form.jsx"
 Cohesion: 0.21
 Nodes (4): Form(), PRIORITY_OPTIONS, STATUS_OPTIONS, TYPE_OPTIONS
 
-### Community 197 - "File Traits Treeview"
-Cohesion: 0.22
-Nodes (3): File, bootTreeView(), performMoveFromEvent()
+### Community 195 - "Design Document: Editor Label Resolution"
+Cohesion: 0.07
+Nodes (29): Architecture, Component Attributes (GrapeJS), Components and Interfaces, Correctness Properties, Data Flow, Data Models, Design Document: Editor Label Resolution, Drop Error Cases (+21 more)
 
-### Community 200 - "Error Lens Img"
+### Community 196 - "Supplier"
+Cohesion: 0.16
+Nodes (3): SupplierController, SupplierRequest, Supplier
+
+### Community 197 - "File"
+Cohesion: 0.13
+Nodes (4): FileController, File, bootTreeView(), performMoveFromEvent()
+
+### Community 200 - "ErrorLens App Icon (192x192)"
 Cohesion: 0.20
 Nodes (11): ErrorLens App Icon (192x192), ErrorLens App Icon (512x512), ErrorLens Apple Touch Icon, ErrorLens Logo (Wordmark with Mascot), ErrorLens Favicon, ErrorLens Favicon (32x32), ErrorLens README Banner, ErrorLens Config Screen Screenshot (+3 more)
 
-### Community 201 - "Error Lens Bootstrap"
-Cohesion: 0.27
+### Community 201 - "P"
+Cohesion: 0.31
 Nodes (3): P, mt(), yt()
 
-### Community 202 - "Lib Htmlsanitizer Allowed"
+### Community 202 - "htmlSanitizer.js"
 Cohesion: 0.35
 Nodes (9): ALLOWED_ATTRIBUTES, ALLOWED_TAGS, DANGEROUS_ATTRIBUTE_PATTERNS, DANGEROUS_TAGS, isDangerousAttribute(), isDangerousAttributeValue(), isValidUrl(), processNode() (+1 more)
 
-### Community 203 - "Lib Inithandlebar Linkmodelutils"
+### Community 203 - "linkModelUtils.js"
 Cohesion: 0.25
 Nodes (6): CURRENCY_SYMBOLS, initHandlebar(), convertTemplateLink(), cleanedQuillOutput(), getValueObject(), isNullOrWhitespace()
 
-### Community 204 - "Dashboard Company Dashboardform"
+### Community 204 - "Company.jsx"
 Cohesion: 0.25
 Nodes (4): FormPageContent, useFormPage(), DashboardForm(), Form()
 
-### Community 205 - "Printtemplate Utils Templateformatutils"
+### Community 205 - "templateFormatUtils.js"
 Cohesion: 0.38
 Nodes (7): getCurrentTemplateFromEditor(), stripEditorOnlyWrapperStyles(), decodeTokenFromBase64(), formatHandlebarTemplate(), normalizeInlineVariableTokenSpans(), readAttributeValue(), stripHtmlTags()
 
-### Community 206 - "Emailtemplatesendcontrollertest Emailsendtestdocumentcontroller Send"
+### Community 206 - "EmailTemplateSendControllerTest"
 Cohesion: 0.38
 Nodes (3): EmailSendTestDocument, EmailSendTestDocumentController, EmailTemplateSendControllerTest
 
-### Community 209 - "Todos Assignedtofields Form"
+### Community 209 - "Todos/Form.jsx"
 Cohesion: 0.27
 Nodes (4): AssignedToFields(), PRIORITY_OPTIONS, STATUS_OPTIONS, Form()
 
-### Community 215 - "Browser Use Agents"
+### Community 215 - "browser-use Skill"
 Cohesion: 0.25
 Nodes (9): Raw CDP & Python Session Reference, browser._run() Async Bridge, Chrome DevTools Protocol (CDP), Multiple Browser Sessions Reference, --session Flag Isolation, browser-use Skill, browser-use CLI, Background Daemon Session Persistence (+1 more)
 
-### Community 218 - "Traits Hasexampledata Boothasexampledata"
+### Community 218 - "HasExampleData.php"
 Cohesion: 0.25
 Nodes (4): scopeExampleData(), scopeOnlyExampleData(), scopeWithExampleData(), scopeWithoutExampleData()
 
-### Community 219 - "Docs Architecture Layer"
-Cohesion: 0.22
-Nodes (9): Controller Layer (base permission enforcement), FormRequest Layer / BaseFormRequest, Middleware Stack, Session-based Permission System (RBAC), Service Layer, Permission Caching (permissions_version), permissions table, role_permissions table (+1 more)
+### Community 219 - "Autentikasi & Otorisasi"
+Cohesion: 0.12
+Nodes (17): Controller Layer (base permission enforcement), FormRequest Layer / BaseFormRequest, Middleware Stack, Session-based Permission System (RBAC), Service Layer, Autentikasi & Otorisasi, Email + Password (Laravel Breeze v2), Multi-Branch Access (+9 more)
 
-### Community 220 - "Jsconfig Compileroptions Ref"
+### Community 220 - "compilerOptions"
 Cohesion: 0.22
 Nodes (8): compilerOptions, baseUrl, paths, exclude, ziggy-js, node_modules, public, ./vendor/tightenco/ziggy
 
-### Community 221 - "Input Group Inputgroup"
+### Community 221 - "input-group.jsx"
 Cohesion: 0.28
 Nodes (4): InputGroupAddon(), inputGroupAddonVariants, InputGroupButton(), inputGroupButtonVariants
 
-### Community 222 - "Table Tablebody Tablecaption"
+### Community 222 - "table.jsx"
 Cohesion: 0.22
 Nodes (8): Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow
 
-### Community 223 - "Printpreview Print Collectcurrencycodes"
+### Community 223 - "PrintPreview.jsx"
 Cohesion: 0.28
 Nodes (6): formatData(), resolveCurrencySymbol(), separatorsForLocale(), paperSize, Print(), units
 
-### Community 224 - "Printtemplate Utils Variabletokenutils"
+### Community 224 - "variableTokenUtils.labelResolution.property.test.js"
 Cohesion: 0.22
 Nodes (7): columnDefinitionArb, columnsArb, docPathArb, dotPathArb, modelKeyArb, prefixedPathArb, segmentArb
 
-### Community 231 - "Appserviceprovider Providers Vite"
+### Community 226 - "Design Document: DataTable Adaptive Column & Relation Fetching"
+Cohesion: 0.07
+Nodes (28): Aliran request, Alur perubahan kolom & `reload(val)`, Architecture, Aturan resolusi, Batasan & Tindak Lanjut, Components and Interfaces, Data Models, `DataTableColumnSelector` (+20 more)
+
+### Community 227 - "Requirements"
+Cohesion: 0.07
+Nodes (28): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+20 more)
+
+### Community 228 - "PurchaseOrderRequest"
+Cohesion: 0.22
+Nodes (3): AdditionalDiscountRules, PaymentSchedulesRules, PurchaseOrderRequest
+
+### Community 231 - "AppServiceProvider.php"
 Cohesion: 0.29
 Nodes (4): AppServiceProvider, Illuminate\Support\ServiceProvider, vite, vite
 
-### Community 232 - "Ref Composer Install"
+### Community 232 - "setup"
 Cohesion: 0.25
 Nodes (8): post-root-package-install, setup, composer install, npm install, npm run build, @php artisan key:generate, @php artisan migrate --force, @php -r \"file_exists('.env') || copy('.env.example', '.env');\
 
-### Community 234 - "Breadcrumb Breadcrumbellipsis Breadcrumbitem"
+### Community 234 - "breadcrumb.jsx"
 Cohesion: 0.25
 Nodes (5): Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage
 
-### Community 235 - "Drawer Drawercontent Drawerdescription"
+### Community 235 - "drawer.jsx"
 Cohesion: 0.25
 Nodes (5): Drawer(), DrawerContent, DrawerDescription, DrawerOverlay, DrawerTitle
 
-### Community 236 - "Sheet Sheetcontent Sheetdescription"
+### Community 236 - "sheet.jsx"
 Cohesion: 0.25
 Nodes (5): SheetContent, SheetDescription, SheetOverlay, SheetTitle, sheetVariants
 
-### Community 237 - "Previewmodal Printtemplate Buildprintabledocument"
+### Community 237 - "PreviewModal.jsx"
 Cohesion: 0.36
 Nodes (4): buildPrintableDocument(), parseNumericValue(), PreviewModal(), resolveTemplateUnitCode()
 
-### Community 238 - "Mobileeditor Printtemplate Alignment"
+### Community 238 - "MobileEditor.jsx"
 Cohesion: 0.43
 Nodes (7): ALIGNMENT_OPTIONS, EDITABLE_TAGS, isTextComponent(), MobileEditor(), normalizeFontSize(), normalizeHexColor(), resolveEditableComponent()
 
-### Community 239 - "Profile Partials Deleteuserform"
+### Community 239 - "Edit.jsx"
 Cohesion: 0.36
 Nodes (3): DeleteUserForm(), UpdatePasswordForm(), UpdateProfileInformation()
 
-### Community 244 - "Agents Skills Graphify"
+### Community 244 - "graphify Query, Path, Explain Reference"
 Cohesion: 0.38
 Nodes (7): graphify Query, Path, Explain Reference, BFS/DFS Graph Traversal Modes, graphify explain, graphify path, graphify reflect / LESSONS.md Work Memory, graphify save-result Feedback Loop, Constrained Query Vocab Expansion
 
-### Community 245 - "Agents Skills Laravel"
+### Community 245 - "Task Scheduling Best Practices"
 Cohesion: 0.38
 Nodes (7): Task Scheduling Best Practices, Use environments() to Restrict Tasks, Use onOneServer() on Multi-Server Deployments, Use runInBackground() for Concurrent Long Tasks, Use Schedule Groups for Shared Configuration, Use takeUntilTimeout() for Time-Bounded Processing, Use withoutOverlapping() on Variable-Duration Tasks
 
-### Community 251 - "Composer Config Allow"
+### Community 249 - "4. Arsitektur"
+Cohesion: 0.07
+Nodes (27): 1. Ringkasan, 2. Status Saat Ini, 3. Prinsip Desain, 4. Arsitektur, 4a. Alur Accounting, 4b. Deteksi Alur — Logika di Service, 4c-bis. stock_queue — Format Diperkaya, 4c. SLE Pending — Bagaimana Tracking SLE yang Belum Di-valuasi (+19 more)
+
+### Community 251 - "config"
 Cohesion: 0.29
 Nodes (7): pestphp/pest-plugin, php-http/discovery, config, allow-plugins, optimize-autoloader, preferred-install, sort-packages
 
-### Community 252 - "Mcp Server Command"
+### Community 252 - ".mcp.json"
 Cohesion: 0.33
 Nodes (6): SITE_PATH, npx, php, herd, laravel-boost, shadcn
 
-### Community 253 - "Hooks Usedraftform Usedidmounteffect"
+### Community 253 - "useDraftForm.js"
 Cohesion: 0.52
 Nodes (4): useDidMountEffect(), useAlertDraftForm, useDraftForm(), useIsDirtyForm
 
-### Community 254 - "Lib Inertiatoast Extracterror"
+### Community 254 - "inertiaToast.jsx"
 Cohesion: 0.43
 Nodes (6): extractError(), HTTP_ERROR_FALLBACK, httpErrorMessage(), makeTranslator(), setupInertiaToast(), TOAST_TYPE
 
-### Community 255 - "Library Hooks Fileitems"
+### Community 255 - "hooks.js"
 Cohesion: 0.52
 Nodes (3): LibraryContext, useLibrary(), Library
 
-### Community 257 - "Printtemplate Custommode Unit"
+### Community 257 - "CustomMode.components.unit.test.js"
 Cohesion: 0.29
 Nodes (6): componentsDir, headerEditorSource, panelSource, sidebarSource, toggleSource, variablePanelSource
 
-### Community 258 - "Printtemplate Custommode Sidebar"
+### Community 258 - "CustomMode.sidebar.drop.unit.test.js"
 Cohesion: 0.29
 Nodes (5): componentsDir, dropUtilsSource, sidebarSource, utilsDir, variableItemSource
 
-### Community 259 - "Printtemplate Editor Gridcssfix"
+### Community 259 - "Editor.gridCssFix.test.js"
 Cohesion: 0.29
 Nodes (6): editorSource, editorSourcePath, gridConstantsPath, gridConstantsSource, variableDropSource, variableDropUtilsPath
 
-### Community 263 - "Agents Skills Graphify"
+### Community 263 - "Step 4 - Build Graph, Cluster, Analyze, Generate Outputs"
 Cohesion: 0.33
 Nodes (6): Graph Shrink Guard (#479), Step 4.5 - Graph Health Check, Step 4 - Build Graph, Cluster, Analyze, Generate Outputs, Step 5 - Label Communities, Step 6 - Generate Obsidian Vault + HTML, Step 9 - Save Manifest, Update Cost Tracker, Cleanup
 
-### Community 264 - "Tailwind Agents Skills"
+### Community 264 - "Tailwind CSS Development Skill"
 Cohesion: 0.60
 Nodes (6): Tailwind CSS Development Skill, Tailwind Common Pitfalls, Dark Mode via dark: variant, Tailwind v4 CSS-First Configuration (@theme), Tailwind v4 Import Syntax (@import tailwindcss), Tailwind v4 Replaced Utilities Table
 
-### Community 270 - "Useselectmodel Selectmodel Applycolumnalias"
-Cohesion: 0.53
-Nodes (5): applyColumnAlias(), buildColumnMap(), normalizeFrom(), PER_PAGE_OPTIONS, useSelectModel()
+### Community 265 - "Design: SelectModel Rewrite"
+Cohesion: 0.07
+Nodes (27): 10. Testing Strategy, 11. Implementation Notes, 1. Overview, 2. Status Saat Ini (verified), 3.1 Grammar Tree LinkModel (untuk `baseFilters`), 3.2 Contoh Tree LinkModel, 3.3 JsDoc untuk prop `from.filters` (R8.7 — WAJIB di komponen), 3.4 Dua Kanal Filter (Default NON-EDITABLE + Ad-hoc FilterBuilder) (+19 more)
 
-### Community 272 - "Printtemplate Utils Variableencodingutils"
+### Community 267 - "PaymentMethodFactory"
+Cohesion: 0.25
+Nodes (3): PaymentMethodFactory, PaymentTermTemplateFactory, static
+
+### Community 268 - "Design — DataTable2 Filter Improvements"
+Cohesion: 0.07
+Nodes (26): Arsitektur & lapisan yang disentuh, Backend: `FilterEvaluator::applyColumnComparison()`, Bagian 1 — Fix `formStatuses` (JSON array), Bagian 2 — Bandingkan antar-kolom (mode column), Bagian 3 — Operator date/datetime per mode, Bagian 4 — Frontend, Cross-table (`applyCrossTable`), Design — DataTable2 Filter Improvements (+18 more)
+
+### Community 270 - "Requirements"
+Cohesion: 0.07
+Nodes (26): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+18 more)
+
+### Community 272 - "variableEncodingUtils.js"
 Cohesion: 0.67
 Nodes (4): encodeTokenToBase64(), escapeAttributeValue(), simplifyInlineDisplayToken(), tryInsertInlineVariableToken()
 
-### Community 273 - "Printtemplate Utils Variableinsertutils"
+### Community 273 - "variableInsertUtils.property.test.js"
 Cohesion: 0.33
 Nodes (5): keyNameArb, parentTypeArb, pathSegmentArb, variablePathArb, variableTypeArb
 
-### Community 279 - "Agents Skills Graphify"
+### Community 279 - "graphify Exports and Benchmark Reference"
 Cohesion: 0.50
 Nodes (5): graphify Exports and Benchmark Reference, FalkorDB Export/Push, graphify.serve MCP Server, Neo4j Export/Push, Token Reduction Benchmark
 
-### Community 280 - "Agents Skills Graphify"
+### Community 280 - "graphify Incremental Update and Cluster-Only Reference"
 Cohesion: 0.50
 Nodes (5): graphify Incremental Update and Cluster-Only Reference, graphify.build.build_merge(), graphify cluster-only, graphify.detect.detect_incremental(), Replace-on-Re-extract Reconciliation (#1344)
 
-### Community 281 - "Socialite Agents Skills"
+### Community 281 - "Socialite Authentication Skill"
 Cohesion: 0.60
 Nodes (5): Socialite Authentication Skill, Adding a Provider Workflow, Available Providers (Built-in and Community), Socialite Common Pitfalls, Socialite::fake() Testing
 
-### Community 285 - "Composer Psr Autoload"
+### Community 283 - "Requirements"
+Cohesion: 0.07
+Nodes (26): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+18 more)
+
+### Community 285 - "psr-4"
 Cohesion: 0.40
 Nodes (5): autoload, psr-4, App\\, Database\\Factories\\, Database\\Seeders\\
 
-### Community 287 - "Release Please Config"
+### Community 286 - "Illuminate\Database\Eloquent\Factories\Factory"
+Cohesion: 0.08
+Nodes (11): CountryFactory, CurrencyFactory, EmailTemplateFactory, PrintTemplateFactory, TodoFactory, AttributeFactory, static, SavedFilterFactory (+3 more)
+
+### Community 287 - "release-please-config.json"
 Cohesion: 0.40
 Nodes (4): changelog-sections, packages, release-type, $schema
 
-### Community 288 - "Accordion Accordioncontent Accordionitem"
+### Community 288 - "accordion.jsx"
 Cohesion: 0.40
 Nodes (4): AccordionContent, AccordionItem, AccordionTrigger, AccordionTriggerCustom
 
-### Community 290 - "Usedynamicrefs Hooks Getref"
+### Community 290 - "useDynamicRefs.js"
 Cohesion: 0.60
 Nodes (4): getRef(), map, setRef(), useDynamicRefs()
 
-### Community 291 - "Assigndialog Assignedto Default"
+### Community 291 - "AssignedTo.jsx"
 Cohesion: 0.50
 Nodes (3): AssignDialog(), DEFAULT_VALUE, AssignedTo()
 
-### Community 293 - "Relationsinspector Printtemplate Inspector"
+### Community 293 - "RelationsInspector.jsx"
 Cohesion: 0.40
 Nodes (3): ColumnItem, ComponentItem, SelectColumn
 
-### Community 294 - "Printtemplate Savestatusbadge Topbar"
+### Community 294 - "TopBar.jsx"
 Cohesion: 0.60
 Nodes (3): formatRelativeTime(), SaveStatusBadge(), TopBar
 
-### Community 297 - "Agents Skills Graphify"
+### Community 297 - "graphify GitHub Clone and Cross-Repo Merge Reference"
 Cohesion: 0.67
 Nodes (4): graphify GitHub Clone and Cross-Repo Merge Reference, graphify clone, graphify merge-graphs, Step 0 - GitHub Repos and Multi-Path Merge
 
-### Community 303 - "Ref Php Artisan"
+### Community 303 - "post-create-project-cmd"
 Cohesion: 0.50
 Nodes (4): post-create-project-cmd, @php artisan key:generate --ansi, @php artisan migrate --graceful --ansi, @php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\
 
-### Community 307 - "Tabs Tabscontent Tabslist"
+### Community 307 - "tabs.jsx"
 Cohesion: 0.50
 Nodes (3): TabsContent, TabsList, TabsTrigger
 
-### Community 308 - "Usetheme Hooks Getinitialtheme"
+### Community 308 - "useTheme.js"
 Cohesion: 0.67
 Nodes (3): getInitialTheme(), setCookieTheme(), useTheme
 
-### Community 309 - "Gridlayoutcontrols Printtemplate Alignmentoptions"
+### Community 309 - "GridLayoutControls.jsx"
 Cohesion: 0.67
 Nodes (3): alignmentOptions, GridLayoutControls(), splitTrackList()
 
-### Community 311 - "Zodgen Postprocess Jsschemapath"
+### Community 311 - "zodgen-postprocess.mjs"
 Cohesion: 0.50
 Nodes (3): jsSchemaPath, outputDirectory, tsSchemaPath
 
-### Community 421 - "Docs Branch Role"
+### Community 316 - "Illuminate\Database\Eloquent\Relations\BelongsTo"
+Cohesion: 0.11
+Nodes (5): Illuminate\Database\Eloquent\Relations\BelongsTo, Illuminate\Database\Eloquent\Relations\MorphTo, SelectorInstanceStub, SelectorParentStub, SelectorRelatedStub
+
+### Community 317 - "Currency"
+Cohesion: 0.16
+Nodes (4): CurrencyController, CurrencyRequest, Currency, CurrencyControllerTest
+
+### Community 421 - "User Model"
 Cohesion: 0.67
 Nodes (3): Branch Model, Role Model, User Model
+
+### Community 436 - "Design: Sales Dual Flow"
+Cohesion: 0.08
+Nodes (23): 1. Ringkasan, 2. Status Saat Ini, 3. Prinsip Desain, 4. Arsitektur, 4a. Alur Accounting, 4b. Deteksi Alur — Logika di Service, 4c. Tracking Quantity — Over/Under, 4d. Sync SO Items — Split per Source (Tombol Manual) (+15 more)
+
+### Community 444 - "Requirements"
+Cohesion: 0.08
+Nodes (23): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+15 more)
+
+### Community 509 - "Requirements"
+Cohesion: 0.09
+Nodes (22): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+14 more)
+
+### Community 713 - "Requirements"
+Cohesion: 0.09
+Nodes (22): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+14 more)
+
+### Community 714 - "Requirements"
+Cohesion: 0.09
+Nodes (22): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+14 more)
+
+### Community 715 - "Requirements"
+Cohesion: 0.09
+Nodes (21): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+13 more)
+
+### Community 716 - "Requirements"
+Cohesion: 0.10
+Nodes (20): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+12 more)
+
+### Community 717 - "Requirements"
+Cohesion: 0.10
+Nodes (20): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+12 more)
+
+### Community 718 - "Requirements"
+Cohesion: 0.10
+Nodes (20): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+12 more)
+
+### Community 719 - "Requirements"
+Cohesion: 0.10
+Nodes (20): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+12 more)
+
+### Community 720 - "Print Editor Bugfixes Design"
+Cohesion: 0.10
+Nodes (20): Bug Condition, Bug Details, Changes Required, Correctness Properties, Examples, Expected Behavior, Exploratory Bug Condition Checking, Fix Checking (+12 more)
+
+### Community 721 - "Requirements"
+Cohesion: 0.10
+Nodes (20): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria (+12 more)
+
+### Community 723 - "Design: Approval Auto-Approve & Multi-Approver"
+Cohesion: 0.10
+Nodes (19): 10. Frontend — Scheme Form (Advance Mode), 11. Frontend — Tab Approvals di Dokumen, 12. Edge Cases, 13. Testing (ringkas), 1. Ringkasan, 2. Status Saat Ini, 3. Prinsip Desain, 4. Arsitektur Data (+11 more)
+
+### Community 724 - "Design: fix-email-template-body-mention"
+Cohesion: 0.10
+Nodes (19): Alur data body (write path), Alur submit (write → server → reset), Bug #1 — Body hilang setelah submit, Bug #2 — Dropdown `@` tidak scrollable, tidak searchable, tidak ada highlight, Design: fix-email-template-body-mention, File yang Terlibat, Fix 1 — Scrollable, Fix 2 — Filter konsisten dengan label yang ditampilkan (+11 more)
+
+### Community 725 - "Design Document: Helpdesk Ticket"
+Cohesion: 0.10
+Nodes (19): AlertDialog Update Ticket, Architecture, Controller Design, Custom Routes, Database Schema, Design Document: Helpdesk Ticket, Frontend Design, i18n Key Structure (+11 more)
+
+### Community 726 - "Design Document: Lookup SELECT Pruning + DataTable2 Strict"
+Cohesion: 0.10
+Nodes (19): 1. `DataTableColumnSelector::resolveForSafe()` — mesin baru, 2. Strict — `collectAppend` + hapus `fallbackAll`, 3. templateLink nested rekursif (Arah A), 4. `DataTableScope` — pakai `resolveForSafe`, 5. `ModelController` — lookup pakai `resolveForSafe` + fix morph filter, 6. Audit `dependsOn` + meta global (~11 model), Architecture, Components and Interfaces (+11 more)
+
+### Community 727 - "Design Document: Print Template i18n"
+Cohesion: 0.10
+Nodes (19): Architecture, Components Already Using the Hook, Components and Interfaces, Components Requiring New Hook Import, Correctness Properties, Data Models, Design Decisions, Design Document: Print Template i18n (+11 more)
+
+### Community 728 - "Components and Interfaces"
+Cohesion: 0.10
+Nodes (19): Architecture, Backend — Model Assignable (baru), Backend — Model Todo, Backend — Modul standalone, Backend — Notifikasi, Backend — Wiring sidebar generik, Components and Interfaces, Create-mode buffering (assign saat dokumen baru dibuat) (+11 more)
+
+### Community 729 - "ApprovalNotificationTest"
+Cohesion: 0.33
+Nodes (3): ApprovalNotificationTest, ApprovalNotificationTestDocument, ApprovalNotificationTestDocumentController
+
+### Community 730 - "Design Document: Country Seeder Revamp"
+Cohesion: 0.11
+Nodes (18): API Integration, Architecture, Backend, Components and Interfaces, Configuration, countries table (tambah kolom), currencies table (tambah kolom), Database Schema Changes (+10 more)
+
+### Community 731 - "Requirements"
+Cohesion: 0.11
+Nodes (18): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary (+10 more)
+
+### Community 732 - "Requirements"
+Cohesion: 0.11
+Nodes (18): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary (+10 more)
+
+### Community 733 - "Requirements"
+Cohesion: 0.11
+Nodes (18): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary (+10 more)
+
+### Community 734 - "Requirements"
+Cohesion: 0.11
+Nodes (18): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary (+10 more)
+
+### Community 735 - "Design Document: NumberInput"
+Cohesion: 0.11
+Nodes (18): `app/Http/Controllers/Core/CompanyController.php` — `update()`, Architecture, Backend, Catatan implementasi (titik keputusan untuk pembuat), `cleanNumber.js`, Components and Interfaces, Data Models, `database/seeders/PreferenceSeeder.php` (+10 more)
+
+### Community 736 - "Requirements"
+Cohesion: 0.11
+Nodes (18): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary (+10 more)
+
+### Community 737 - "DataTableConfigCache"
+Cohesion: 0.12
+Nodes (5): ModelCacheCommand, DataTableConfigCache, DataTableConfigValidator, EloquentModel, getColumns()
+
+### Community 738 - "Design Document: goey-toast-migration"
+Cohesion: 0.11
+Nodes (17): 1. `Components/ui/goey-toaster.jsx` (BARU), 2. `lib/gooeyToast.js` (BARU) — shim + helper konversi, 3. `lib/inertiaToast.js` (BARU) — loading-promise layer, 4. `MasterLayout.jsx` (UBAH), 5. Konversi call site `toast.custom` → standard (R4), 6. Audit async — jenis toast per lokasi (R6), Architecture, Components and Interfaces (+9 more)
+
+### Community 739 - "Design Document: Notification Center"
+Cohesion: 0.11
+Nodes (17): 1. Infrastruktur dasar (Requirement 1), 2. `App\Services\Core\Notification\NotifyUser` (baru), 3. `App\Jobs\Core\Notification\SendNotificationMailJob` (baru, pengganti `MyMailChannel`/`SendEmailNotificationJob` lama), 4. Notification classes, 5. Titik penyisipan trigger, 6. Frontend — `Notifications.jsx`, Architecture, Components and Interfaces (+9 more)
+
+### Community 740 - "Requirements"
+Cohesion: 0.11
+Nodes (17): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Introduction (+9 more)
+
+### Community 741 - "Requirements"
+Cohesion: 0.12
+Nodes (16): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Introduction (+8 more)
+
+### Community 742 - "Design Document: DataTable Config Cache"
+Cohesion: 0.12
+Nodes (16): 1. `app/Services/Core/DataTableConfigCache.php` (baru), 2. `app/Traits/LinkModel.php` (edit — split flat vs rakit), 3. `app/Services/Core/DataTableConfigValidator.php` (baru), 4. `app/Console/Commands/ModelCacheCommand.php` (baru), 5. `config/datatable.php` (baru), 6. Deploy script (edit), Architecture, Components and Interfaces (+8 more)
+
+### Community 743 - "Requirements"
+Cohesion: 0.12
+Nodes (16): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Introduction (+8 more)
+
+### Community 744 - "Requirements"
+Cohesion: 0.12
+Nodes (16): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Infrastruktur PDF yang Sudah Tersedia, Introduction (+8 more)
+
+### Community 745 - "Requirements"
+Cohesion: 0.12
+Nodes (16): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Introduction (+8 more)
+
+### Community 746 - "Components and Interfaces"
+Cohesion: 0.12
+Nodes (16): 1. `resources/js/Pages/Core/Todos/AssignedToFields.jsx` (BARU), 2. `resources/js/Pages/Core/Todos/Form.jsx` (DIREFACTOR, bukan ditulis ulang), 3. `resources/js/Pages/Core/Components/AssignDialog.jsx` (BARU), 4. `resources/js/Pages/Core/Components/AssignedTo.jsx` (DIUBAH), 5. Backend — `app/Http/Requests/Core/AssigneeRequest.php`, 6. Backend — `app/Http/Controllers/Controller.php::addAssignee`, 7. Backend — `app/Services/Core/BufferedAttachmentService.php::attachAssignees`, 8. Backend — `app/Traits/DataTable.php::showDetail()` (+8 more)
+
+### Community 747 - "ApprovalPdfAutoAttachTest"
+Cohesion: 0.36
+Nodes (3): ApprovalPdfAutoAttachTest, PdfAttachTestDocument, PdfAttachTestDocumentController
+
+### Community 748 - "2. Functional Requirements"
+Cohesion: 0.12
+Nodes (15): 1. Ringkasan, 2. Functional Requirements, 3. Non-functional Requirements, 4. Acceptance Criteria, 5. Constraints, 6. stock_queue Enrichment, FR1: PurchaseReceipt Tanpa Harga, FR2: SLE Pending & Split Valuasi (+7 more)
+
+### Community 749 - "2. Functional Requirements"
+Cohesion: 0.12
+Nodes (15): 1. Ringkasan, 2. Functional Requirements, 3. Non-functional Requirements, 4. Acceptance Criteria, 5. Constraints, 6. Catatan Domain — Asimetri vs Purchase, FR1: Dua Alur Dokumen, FR2: SLE & GL Dipertahankan (+7 more)
+
+### Community 750 - "Illuminate\Console\Command"
+Cohesion: 0.17
+Nodes (5): DevLogs, Feature, PruneEphemeralFilters, RunLegacyMigrationCommand, Illuminate\Console\Command
+
+### Community 751 - "Requirements"
+Cohesion: 0.13
+Nodes (14): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Introduction, Requirement 1: Menu Email Templates muncul di sidebar (+6 more)
+
+### Community 752 - "Design Document: Email Template Trigger"
+Cohesion: 0.13
+Nodes (14): Architecture, Backend, Components and Interfaces, Correctness Properties, Data Flow — Trigger Manual, Data Models, Design Document: Email Template Trigger, Error Handling (+6 more)
+
+### Community 753 - "Design Document: LinkModel Column Security"
+Cohesion: 0.13
+Nodes (14): 1. `app/Enums/Permission.php` (BARU) — enum aksi (anti-typo verb), 2. `app/Services/Core/PermissionChecker.php` (BARU) — cek izin backend, 3. `configColumns` model — flag `linkable` & `visibleFor` (inline, type-safe), 5. `ModelController` — terapkan pembatasan, 6. Frontend — "kolom yang form butuh" (LinkModel `fields` vs SelectModel `columns`), Architecture, Components and Interfaces, Design Document: LinkModel Column Security (+6 more)
+
+### Community 754 - "Design Document: number-input-total-migration"
+Cohesion: 0.13
+Nodes (14): Architecture, Components and Interfaces, Design Document: number-input-total-migration, Enhancement Komponen — `currencyCode` terima string ATAU object, File Kritis, Inventory Terdampak, Kasus khusus: `PrintPreview.formatData` (pure function, tanpa hook), Komponen target: `NumberInput` (+6 more)
+
+### Community 755 - "Fileable"
+Cohesion: 0.36
+Nodes (3): Fileable, SendEmailPdfJobTestDocument, SendEmailWithPdfJobTest
+
+### Community 756 - "Design Document: Email Template"
+Cohesion: 0.14
+Nodes (13): Architecture, Backend, Components and Interfaces, Correctness Properties, Data Flow — Authoring, Data Flow — Test Send (dan nanti: trigger manual/otomatis), Data Models, Design Document: Email Template (+5 more)
+
+### Community 757 - "Requirements"
+Cohesion: 0.14
+Nodes (13): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Introduction, Out of Scope, Requirement 1: EmailTemplate CRUD dan asosiasi Model (+5 more)
+
+### Community 758 - "Design Document: Pindah ignorePermission ke Model + Kolom DB"
+Cohesion: 0.14
+Nodes (13): Architecture, Backend, Components and Interfaces, Correctness Properties, Data Models, Database, Design Document: Pindah ignorePermission ke Model + Kolom DB, Error Handling (+5 more)
+
+### Community 759 - "Design Document: Server-Side PDF Render + Auto-Attach"
+Cohesion: 0.14
+Nodes (13): 1. `App\Services\Core\PrintTemplate\PrintTemplateRenderService` (BARU), 2. `App\Services\Core\PrintTemplate\PdfAttachmentService` (BARU), 3. Integrasi di `ApprovalInstanceController::approve()`, 4. Integrasi di `Controller::printPdf()` (MODIFIKASI, existing), Alternatives Considered, Architecture, Components and Interfaces, Constraint Kunci — Kenapa Ini Bukan Sekadar "Tambah Panggilan Fungsi" (+5 more)
+
+### Community 760 - "Requirements"
+Cohesion: 0.14
+Nodes (13): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Introduction, Out of Scope, Requirement 1: Auto-attach PDF saat dokumen selesai approval (+5 more)
+
+### Community 761 - "Design Document: Print Template PDF Export"
+Cohesion: 0.14
+Nodes (13): 1. Binary wkhtmltopdf, 2. `App\Services\Core\PrintTemplate\PdfExportService`, 3. Endpoint baru, 4. Security, 5. Frontend (`resources/js/Pages/Core/Print.jsx`), Alternatives Considered, Architecture, Components and Interfaces (+5 more)
+
+### Community 762 - "Requirements"
+Cohesion: 0.14
+Nodes (13): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Introduction, Out of Scope, Requirement 1: Unduh dokumen print sebagai PDF (+5 more)
+
+### Community 764 - "2. Functional Requirements"
+Cohesion: 0.15
+Nodes (12): 1. Ringkasan, 2. Functional Requirements, 3. Non-Functional Requirements, 4. Out of Scope, FR1: Auto-Approve — Aturan Inti, FR2: Auto-Approve — Partial vs Full (acceptance dari contoh user), FR3: Multi-Approver — Penyimpanan, FR4: Multi-Approver — Race Approve/Reject (+4 more)
+
+### Community 765 - "Tasks: Approval Auto-Approve & Multi-Approver"
+Cohesion: 0.15
+Nodes (12): T01: Migration — Tabel Anak & Flag Step, T02: Model — Approver Anak & Relasi, T03: Backend — Snapshot Approver Anak + Auto-Approve (`makeInstance`), T04: Backend — Race Multi-Approver (`approve`/`reject`), T05: Backend — Inbox & Akses, T06: Backend — Scheme Controller & Request, T07: Frontend — Scheme Form (Advance Mode + Nested FormTable), T08: Frontend — Tab Approvals Dokumen (+4 more)
+
+### Community 766 - "Requirements — DataTable2 Filter Improvements"
+Cohesion: 0.15
+Nodes (12): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Glossary, Out of Scope, Pendahuluan, Requirement 1 — Fix filter `formStatuses` (JSON array) (+4 more)
+
+### Community 767 - "Design Document: email-features-fixes"
+Cohesion: 0.15
+Nodes (12): 1. `resources/js/Components/Sidebar/AppSidebar.jsx`, 2. `lang/php_id.json` & `lang/php_en.json`, 3. `app/Http/Controllers/Controller.php::emailPreview()`, 4. `resources/js/Pages/Core/Components/EmailSendDialog.jsx`, Architecture, Components and Interfaces, Correctness Properties, Data Models (+4 more)
+
+### Community 768 - "Components and Interfaces"
+Cohesion: 0.15
+Nodes (13): 10. Enhanced VariableItem, 11. Enhanced PreviewModal, 12. Enhanced StaticHTMLComponent, 1. TokenConfigurationManager (NEW), 2. SaveStatusBadge (NEW), 3. MonacoHTMLEditor (NEW), 4. MonacoCSSEditor (NEW), 5. GridLayoutControls (NEW) (+5 more)
+
+### Community 769 - "Design: Variable Drop Mode Selector"
+Cohesion: 0.15
+Nodes (12): 1. Drag & Drop Interception (`variableDropUtils.js`), 2. Click Insert Interception (`VariableItem.jsx`), 3. Builder Functions (`variableInsertUtils.js`), Architectural Flow, Component Design: `DropModeDialog`, Design: Variable Drop Mode Selector, Edge Cases, Integration Strategy (+4 more)
+
+### Community 772 - "Tasks"
+Cohesion: 0.17
+Nodes (11): Task 10: Tests & Verifikasi, Task 1: Konfigurasi API & Environment, Task 2: Migrasi Schema Countries, Task 3: Migrasi Schema Currencies, Task 4: Rewrite CountrySeeder, Task 5: Backend Countries CRUD, Task 6: Backend Currencies CRUD, Task 7: Frontend Pages Countries (+3 more)
+
+### Community 773 - "Requirements: fix-email-template-body-mention"
+Cohesion: 0.17
+Nodes (11): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Latar Belakang, Non-Goals (di luar scope), Requirement 1 — Body tidak hilang setelah submit, Requirement 2 — Dropdown variable scrollable (+3 more)
+
+### Community 774 - "Design Document: FormPageDialog Right Sidebar"
+Cohesion: 0.17
+Nodes (11): Architecture, Backend, Components and Interfaces, Data Models / Payload, Design Document: FormPageDialog Right Sidebar, Error Handling, Frontend, Out of Scope (YAGNI) (+3 more)
+
+### Community 775 - "Design Document: LinkModel Filter Converter"
+Cohesion: 0.17
+Nodes (11): 1. `app/Services/Core/LinkModelFilterConverter.php` (BARU), 2. `app/Http/Controllers/ModelController.php` (MODIFIKASI), 3. `resources/js/lib/linkModelToFilterTree.js` (BARU), Architecture, Components and Interfaces, Design Document: LinkModel Filter Converter, File yang Disentuh, Kendala Penting (terverifikasi) (+3 more)
+
+### Community 776 - "Bug Condition (Formal)"
+Cohesion: 0.17
+Nodes (11): Bug 1 & 2: Drag and Drop Tidak Berfungsi, Bug 3: Default CSS Template, Bug 4: CSS Kebab-Case Format, Bug 5 & 6: Ctrl+S Shortcut pada Modal, Bug Analysis, Bug Condition (Formal), Bugfix Requirements Document, Current Behavior (Defect) (+3 more)
+
+### Community 777 - "Testing Strategy"
+Cohesion: 0.17
+Nodes (12): 1. Component Tests, 1. Unit Tests, 2. Integration Tests, 2. Integration Tests, 3. Database Seeder Tests, 3. Snapshot Tests, Backend Testing, Frontend Testing (+4 more)
+
+### Community 778 - "Tasks: Purchase Dual Flow"
+Cohesion: 0.17
+Nodes (11): T01: Migration — Field Baru Database, T02: PurchaseReceiptService — onApproved Dual Flow, T03: PurchaseInvoiceService — onApproved Update SLE, T04: PurchaseOrderService — Sync Items, T05: PurchaseOrderService — Mark Done, T06: Controller & Routes, T07: Frontend — PurchaseOrder Show, T08: Frontend — PurchaseReceipt Form (+3 more)
+
+### Community 779 - "Tasks: SelectModel Rewrite"
+Cohesion: 0.17
+Nodes (11): Catatan Implementasi (anti-mismatch), T01: Backend — Endpoint `model.selectData`, T02: Frontend — JsDoc Filter (dua kanal), T03: Frontend — Hook `useSelectModel`, T04: Frontend — Rewrite `SelectModel.jsx`, T05: Frontend — `loadFromModel`, T06: Migrasi Consumer, T07: Testing Backend (+3 more)
+
+### Community 781 - "Langkah:"
+Cohesion: 0.18
+Nodes (10): 1. Parse input, 2. Deteksi format tasks.md, 3. Update tasks.md, 4. Update counter (format simple saja), 5. Konfirmasi perubahan, 6. Logika Checkpoint (format Kiro), 7. Jika semua task [x], Format ID Task (+2 more)
+
+### Community 782 - "Tasks"
+Cohesion: 0.18
+Nodes (10): Task 1: Setup Module Helpdesk — Model & Migration, Task 2: Backend — Request, Service, Controller, Task 3: i18n — File Translasi, Task 4: Frontend — Index Page (DataTable2), Task 5: Frontend — Form Component, Task 6: TiptapEditor — Image Upload Extension, Task 7: Frontend — Show Page + TicketResponseList, Task 8: Permission Seeder (+2 more)
+
+### Community 783 - "Data Models"
+Cohesion: 0.18
+Nodes (11): Data Models, Data Structures, Database Schema, DataTableColumns Configuration, Eloquent Models, Handlebar Token Structures, HasExampleData Trait (New), is_example Column Addition (New) (+3 more)
+
+### Community 784 - "linkModelToFilterTree.js"
+Cohesion: 0.31
+Nodes (8): createId(), filterTreeToLinkModel(), flattenRelation(), hasOperatorKeys(), linkModelToFilterTree(), mapBackOperator(), mapOperator(), columns
+
+### Community 786 - "Tasks"
+Cohesion: 0.20
+Nodes (9): Catatan, Task 1: BufferedAttachmentService — attach tags, Task 2: BufferedAttachmentService — attach files + DataTable hook, Task 3: Tags — dual-mode (create buffer), Task 4: Attachments + UploadDialog — dual-mode (create buffer), Task 5: SidebarChildren — verifikasi aman di create, Task 6: FormPageDialog — sidebar collapsible + kirim buffer, Task 7: Verifikasi end-to-end + full suite (CHECKPOINT) (+1 more)
+
+### Community 787 - "Tasks: Sales Dual Flow"
+Cohesion: 0.20
+Nodes (9): T01: Migration & Enum — Field/Status Baru, T02: SalesOrderService — Status Dua Dimensi, T03: SalesOrderService — Sync Items, T04: SalesOrderService — Mark Done, T05: Controller & Routes, T06: Frontend — SalesOrder Show, T07: Frontend — SalesOrder Form (verifikasi), T08: Testing (+1 more)
+
+### Community 788 - "1. Functional Requirements"
+Cohesion: 0.20
+Nodes (9): 1. Functional Requirements, 2. Non-Functional Requirements, 3. Acceptance Criteria, FR-1: Pemicu Dialog Pilihan Mode (Drop & Click), FR-2: Opsi Mode Berdasarkan Target Drop, FR-3: Spesifikasi Render Komponen, FR-4: Perilaku Auto-Wrapping (Both Mode), FR-5: Batalkan Operasi (Rollback) (+1 more)
+
+### Community 791 - "NotificationControllerTest"
+Cohesion: 0.44
+Nodes (3): DatabaseNotification, Illuminate\Notifications\DatabaseNotification, NotificationControllerTest
+
+### Community 792 - "Requirements"
+Cohesion: 0.22
+Nodes (9): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Requirement 10: Filter Opsi pada Field relationPath, Requirement 13: Sembunyikan Nested Column untuk Tipe Relations (Many), Requirement 1: Perbaikan Bug Slash Command pada Custom HTML Editor, Requirement 2: Perbesar Modal Custom HTML Editor (+1 more)
+
+### Community 793 - "Data Models"
+Cohesion: 0.22
+Nodes (9): Data Flow, Data Models, Inline Variable Insertion Flow, Monaco Editor CSS State, New Frontend State Models, No Database Changes Required, Save Status Flow, SaveStatus State (+1 more)
+
+### Community 794 - "Frontend Components"
+Cohesion: 0.22
+Nodes (9): 1. VariableItem Component (Enhanced), 2. TableRelation Component (Enhanced), 3. StaticHTMLComponent (New), 4. PreviewModal Component (New), 5. MobileEditor Component (New), API Endpoints, Components and Interfaces, Enhanced Endpoints (+1 more)
+
+### Community 798 - "Langkah:"
+Cohesion: 0.25
+Nodes (7): 1. Temukan spec, 2. Baca semua file yang tersedia, 3. Deteksi format tasks.md, 4. Tampilkan rangkuman terstruktur, 5. Berikan rekomendasi langkah selanjutnya, 6. Catatan penting saat implementasi dari spec Kiro, Langkah:
+
+### Community 799 - "Implementation Plan: Deploy Ticket Sync & In-App Changelog"
+Cohesion: 0.25
+Nodes (7): FASE 1 — Backend & Webhook, FASE 2 — Frontend & In-App Changelog, Implementation Plan: Deploy Ticket Sync & In-App Changelog, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 800 - "Tasks: number-input-total-migration"
+Cohesion: 0.25
+Nodes (7): Checkpoint, Fase 0 — Enhancement komponen (prasyarat), Fase 1 — Migrasi formatValue → formatNumber (paling berisiko, dahulukan), Fase 2 — Migrasi CurrencyInput → NumberInput (per modul), Fase 3 — Migrasi native type=number → NumberInput, Fase 4 — Cleanup & docs, Tasks: number-input-total-migration
+
+### Community 801 - "Design Document"
+Cohesion: 0.25
+Nodes (7): Architecture, Component Architecture, Correctness Properties, Design Document, Property 1: PBT Not Applicable for UI Feature, System Architecture, Technology Additions
+
+### Community 803 - "Langkah yang harus kamu lakukan:"
+Cohesion: 0.29
+Nodes (6): 1. Evaluasi Request, 2. Kumpulkan Informasi (tanyakan jika belum ada di $ARGUMENTS), 3. Buat folder dan `.config.kiro`, 4. Mulai dokumen pertama sesuai alur, 5. Setelah selesai, tampilkan summary, Langkah yang harus kamu lakukan:
+
+### Community 804 - "Langkah:"
+Cohesion: 0.29
+Nodes (6): 1. Temukan spec yang relevan, 2. Analisis codebase yang relevan, 3. Buat atau update `design.md`, 4. Setelah menulis, tanyakan user, 5. Jika ada revisi, Langkah:
+
+### Community 805 - "Langkah:"
+Cohesion: 0.29
+Nodes (6): 1. Temukan spec yang relevan, 2. Baca konteks yang ada, 3. Buat atau update `requirements.md`, 4. Setelah menulis, tanyakan user, 5. Jika ada revisi, Langkah:
+
+### Community 806 - "Langkah:"
+Cohesion: 0.29
+Nodes (6): 1. Temukan dan baca spec, 2. Format Kiro (jika .config.kiro ada atau user pilih Kiro), 3. Prinsip task yang baik, 4. Setelah menulis, tampilkan summary, 5. Saat user minta mulai implementasi, Langkah:
+
+### Community 807 - "mcp.json"
+Cohesion: 0.33
+Nodes (6): SITE_PATH, npx, php, herd, laravel-boost, shadcn
+
+### Community 808 - "Implementation Plan: NumberInput"
+Cohesion: 0.29
+Nodes (6): Backend — sumber format tunggal, Frontend — fungsi murni (testable), Frontend — komponen, Frontend — resolusi currency, Implementation Plan: NumberInput, Penyelesaian
+
+### Community 809 - "Test Categories"
+Cohesion: 0.29
+Nodes (7): Integration Tests, Manual Testing Checklist, Test Categories, Testing Approach, Testing Strategy, Unit Tests (Jest/Vitest), Why PBT Does Not Apply
+
+### Community 810 - "Design Document"
+Cohesion: 0.29
+Nodes (6): Design Document, Goals, Key Design Decisions, Overview, Purpose, Scope
+
+### Community 811 - "Backend Services"
+Cohesion: 0.29
+Nodes (7): 1. ExampleDataService, 2. TemplateParserService, 3. TemplateSerializerService, 4. HTMLSanitizerService, 5. LabelHelperService, 6. RelationTrackerService (New), Backend Services
+
+### Community 812 - "Data Flow"
+Cohesion: 0.29
+Nodes (7): 1. Template Editing Flow, 2. Preview Flow, 3. Relation Tracking and Optimized Loading Flow, Architecture, Backend Architecture, Data Flow, System Architecture
+
+### Community 813 - "Backend Error Handling"
+Cohesion: 0.29
+Nodes (7): 1. Validation Errors, 2. Database Errors, 3. Example Data Not Found, 4. Sanitization Errors, Backend Error Handling, Error Handling, Error Response Format
+
+### Community 822 - "Implementation Plan: DataTable Adaptive Column & Relation Fetching"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: DataTable Adaptive Column & Relation Fetching, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 823 - "Implementation Plan: Editor Label Resolution"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Editor Label Resolution, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 824 - "Implementation Plan: email-features-fixes"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: email-features-fixes, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 825 - "Implementation Plan: Email Template"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Email Template, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 826 - "Implementation Plan: Email Template Trigger"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Email Template Trigger, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 827 - "Implementation Plan: filtertable-nested-saved"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: filtertable-nested-saved, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 828 - "Implementation Plan: fix-email-template-body-mention"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: fix-email-template-body-mention, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 829 - "Implementation Plan: Custom Mode for gjsRelationsTable"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Custom Mode for gjsRelationsTable, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 830 - "Implementation Plan: goey-toast-migration"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: goey-toast-migration, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 831 - "Implementation Plan: LinkModel Column Security"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: LinkModel Column Security, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 832 - "Implementation Plan: LinkModel Filter Converter"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: LinkModel Filter Converter, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 833 - "Implementation Plan: Lookup SELECT Pruning + DataTable2 Strict"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Lookup SELECT Pruning + DataTable2 Strict, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 834 - "Implementation Plan: Notification Center"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Notification Center, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 835 - "Implementation Plan"
+Cohesion: 0.33
+Nodes (5): Implementation Plan, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 836 - "Implementation Plan: Print Editor Improvements"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Print Editor Improvements, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 837 - "Implementation Plan: Print Editor Style Manager - GrapeJS Layout"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Print Editor Style Manager - GrapeJS Layout, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 838 - "13. Canvas Enhancements (Editor.jsx)"
+Cohesion: 0.33
+Nodes (6): 13. Canvas Enhancements (Editor.jsx), Bootstrap CSS Injection, Inline Variable Insertion, Node Spacing (Editor-only), Token Display Simplification, Variable Value Wrapper
+
+### Community 839 - "Implementation Plan: Print Editor UI Refinement"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Print Editor UI Refinement, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 840 - "Implementation Plan: Server-Side PDF Render + Auto-Attach"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Server-Side PDF Render + Auto-Attach, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 841 - "Frontend Error Handling"
+Cohesion: 0.33
+Nodes (6): 1. Drag & Drop Errors, 2. Template Loading Errors, 3. Sanitization Warnings, 4. Example Data Missing, 5. Handlebar Compilation Errors, Frontend Error Handling
+
+### Community 842 - "Implementation Plan: Print Template Editor Enhancement"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Print Template Editor Enhancement, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 843 - "Implementation Plan: Print Template i18n"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Print Template i18n, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 844 - "Implementation Plan: Print Template PDF Export"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Print Template PDF Export, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 845 - "Implementation Plan: Print Template Refactoring"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: Print Template Refactoring, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 846 - "Implementation Plan: ToDo Feature + "Assigned To" Sidebar Widget"
+Cohesion: 0.33
+Nodes (5): Implementation Plan: ToDo Feature + "Assigned To" Sidebar Widget, Notes, Overview, Task Dependency Graph, Tasks
+
+### Community 850 - "Error Handling"
+Cohesion: 0.40
+Nodes (5): Bootstrap CSS Loading Failure, Component Selection Edge Cases, Error Handling, Monaco Editor Errors, Save Status Error Handling
+
+### Community 851 - "Overview"
+Cohesion: 0.40
+Nodes (5): Goals, Key Design Decisions, Overview, Purpose, Scope
+
+### Community 852 - "RTK - Rust Token Killer"
+Cohesion: 0.40
+Nodes (4): Hook-Based Usage, Installation Verification, Meta Commands (always use rtk directly), RTK - Rust Token Killer
+
+### Community 860 - "Implementation Plan: DataTable2 Filter Improvements"
+Cohesion: 0.50
+Nodes (3): Implementation Plan: DataTable2 Filter Improvements, Overview, Tasks
+
+### Community 861 - "Implementation Plan: Pindah ignorePermission ke Model + Kolom DB"
+Cohesion: 0.50
+Nodes (3): Implementation Plan: Pindah ignorePermission ke Model + Kolom DB, Overview, Tasks
+
+### Community 862 - "Requirements Document"
+Cohesion: 0.50
+Nodes (3): Glossary, Introduction, Requirements Document
+
+### Community 863 - "Implementation Plan: Dialog Assign untuk Widget "Assigned To""
+Cohesion: 0.50
+Nodes (3): Implementation Plan: Dialog Assign untuk Widget "Assigned To", Overview, Tasks
+
+### Community 864 - "Tasks: Variable Drop Mode Selector"
+Cohesion: 0.50
+Nodes (3): Pre-requisites & Codebase Analysis, Tasks, Tasks: Variable Drop Mode Selector
+
+### Community 867 - "post-autoload-dump"
+Cohesion: 0.67
+Nodes (3): post-autoload-dump, Illuminate\\Foundation\\ComposerScripts::postAutoloadDump, @php artisan package:discover --ansi
 
 ## Ambiguous Edges - Review These
 - `Docs Index` → `robots.txt`  [AMBIGUOUS]
   public/robots.txt · relation: semantically_similar_to
 
 ## Knowledge Gaps
-- **654 isolated node(s):** `SITE_PATH`, `npx`, `$schema`, `style`, `rsc` (+649 more)
+- **2012 isolated node(s):** `SITE_PATH`, `npx`, `SITE_PATH`, `npx`, `deploy-production.sh script` (+2007 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **202 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **247 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `Docs Index` and `robots.txt`?**
   _Edge tagged AMBIGUOUS (relation: semantically_similar_to) - confidence is low._
-- **Why does `dependencies` connect `Package Dependencies React` to `Laravel React Skill`, `Lib Utils Buffer`, `Package Scripts Lint`, `Base React Package`, `Change Case Package`, `Class Variance Authority`, `Clsx Package Dependencies`, `Cmdk Package Dependencies`, `Date Fns Package`, `Dnd Kit Package`, `Dnd Kit Sortable`, `Framer Motion Package`, `Goey Toast Package`, `Grapesjs Package Dependencies`, `Grapesjs Blocks Basic`, `Printtemplate Utils Lib`, `Html React Parser`, `Lucide React Package`, `Marcbachmann Cel Package`, `Monaco Editor React`, `Motion Package Dependencies`, `Next Themes Package`, `Package Composer Dependencies`, `Pluralize Package Dependencies`, `Package Dependencies`, `Radix React Accordion`, `Radix React Alert`, `Radix React Avatar`, `Radix React Checkbox`, `Radix React Collapsible`, `Radix React Dialog`, `Radix React Dropdown`, `Radix React Label`, `Radix React Popover`, `Radix React Progress`, `Radix React Radio`, `Radix React Scroll`, `Radix React Select`, `Radix React Separator`, `Radix React Slider`, `Radix React Slot`, `Radix React Tabs`, `React Click Away`, `React Currency Input`, `React Day Picker`, `React Easy Crop`, `React Window Package`, `Recharts Package Dependencies`, `Remixicon React Package`, `Tailwind Merge Package`, `Tailwindcss Animate Package`, `Tanstack React Table`, `Tiptap Extension Image`, `Tiptap Extension Link`, `Tiptap Extension Mention`, `Tiptap Package Dependencies`, `Tiptap React Package`, `Tiptap Starter Kit`, `Tiptap Suggestion Package`, `Vaul Package Dependencies`, `Zustand Package Dependencies`, `Diff Match Patch`?**
-  _High betweenness centrality (0.258) - this node is a cross-community bridge._
-- **Why does `tightenco/ziggy v2` connect `Laravel React Skill` to `Middleware Appmiddleware Ensureuserisonboarded`?**
-  _High betweenness centrality (0.179) - this node is a cross-community bridge._
+- **Why does `dependencies` connect `dependencies` to `clsx`, `@tiptap/react`, `Laravel Boost Guidelines`, `utils.js`, `scripts`, `@base-ui/react`, `class-variance-authority`, `cmdk`, `@date-fns/tz`, `@dnd-kit/core`, `@dnd-kit/sortable`, `framer-motion`, `goey-toast`, `grapesjs`, `grapesjs-blocks-basic`, `Editor.jsx`, `html-react-parser`, `lucide-react`, `@marcbachmann/cel-js`, `@monaco-editor/react`, `motion`, `next-themes`, `composer`, `pluralize`, `qs`, `@radix-ui/react-accordion`, `@radix-ui/react-alert-dialog`, `@radix-ui/react-avatar`, `@radix-ui/react-checkbox`, `@radix-ui/react-collapsible`, `@radix-ui/react-dialog`, `@radix-ui/react-dropdown-menu`, `@radix-ui/react-label`, `@radix-ui/react-popover`, `@radix-ui/react-progress`, `@radix-ui/react-radio-group`, `@radix-ui/react-scroll-area`, `@radix-ui/react-select`, `@radix-ui/react-separator`, `@radix-ui/react-slider`, `@radix-ui/react-slot`, `@radix-ui/react-tabs`, `grapesjs-table`, `react-click-away-listener`, `react-currency-input-field`, `react-day-picker`, `react-easy-crop`, `react-window`, `recharts`, `@remixicon/react`, `tailwind-merge`, `tailwindcss-animate`, `@tanstack/react-table`, `@tiptap/extension-image`, `@tiptap/extension-link`, `@tiptap/extension-mention`, `@tiptap/pm`, `@tiptap/starter-kit`, `@tiptap/suggestion`, `vaul`, `zustand`, `diff_match_patch.prototype.diff_main`?**
+  _High betweenness centrality (0.205) - this node is a cross-community bridge._
+- **Why does `handlebars` connect `Editor.jsx` to `dependencies`, `linkModelUtils.js`?**
+  _High betweenness centrality (0.123) - this node is a cross-community bridge._
 - **Are the 92 inferred relationships involving `User` (e.g. with `.login()` and `.store()`) actually correct?**
   _`User` has 92 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `SITE_PATH`, `npx`, `$schema` to the rest of the system?**
-  _654 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Notifications Notification Jobs` be split into smaller, more focused modules?**
-  _Cohesion score 0.04118404118404118 - nodes in this community are weakly interconnected._
-- **Should `Inventory Finances Approvalschemestep` be split into smaller, more focused modules?**
-  _Cohesion score 0.046890927624872576 - nodes in this community are weakly interconnected._
+- **What connects `SITE_PATH`, `npx`, `SITE_PATH` to the rest of the system?**
+  _2012 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **Should `Illuminate\Notifications\Notification` be split into smaller, more focused modules?**
+  _Cohesion score 0.08194905869324474 - nodes in this community are weakly interconnected._
+- **Should `Model` be split into smaller, more focused modules?**
+  _Cohesion score 0.030642434488588336 - nodes in this community are weakly interconnected._

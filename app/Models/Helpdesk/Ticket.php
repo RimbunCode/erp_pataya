@@ -5,13 +5,16 @@ namespace App\Models\Helpdesk;
 use App\Casts\FormStatusCast;
 use App\Models\Core\Branch;
 use App\Models\Model;
+use App\Models\User\Assignable;
 use App\Models\User\User;
 use App\Traits\DataTable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class Ticket extends Model {
     use DataTable, HasFactory, HasUlids, SoftDeletes;
@@ -59,8 +62,9 @@ class Ticket extends Model {
             'order'      => 5,
         ],
         'assignTo' => [
-            'show'  => true,
-            'order' => 6,
+            'show'               => true,
+            'order'              => 6,
+            'disabledNavigation' => true,
         ],
         'created_by' => [
             'show'  => true,
@@ -76,6 +80,9 @@ class Ticket extends Model {
             'show'  => false,
             'order' => 9,
         ],
+        'assign_to_type' => [
+            'ignore' => true,
+        ],
     ];
     public bool $canDelete                  = false;
     protected static bool $ignorePermission = true;
@@ -89,7 +96,7 @@ class Ticket extends Model {
     }
 
     public function assignTo(): BelongsTo {
-        return $this->belongsTo(User::class, 'assign_to_id');
+        return $this->belongsTo(Assignable::class, 'assign_to_id');
     }
 
     public function createdBy(): BelongsTo {
@@ -102,5 +109,30 @@ class Ticket extends Model {
 
     public function responses(): HasMany {
         return $this->hasMany(TicketResponse::class)->orderByDesc('created_at');
+    }
+
+    /**
+     * User yang benar-benar ter-assign: bila assign_to_type 'role', fan-out ke
+     * seluruh user pemegang role tersebut; bila 'user', kembalikan user itu saja.
+     */
+    public function assignedUsers(): Collection {
+        if ($this->assign_to_type === 'role') {
+            return User::whereHas('roles', fn ($q) => $q->where('roles.id', $this->assign_to_id))->get();
+        }
+
+        $user = User::find($this->assign_to_id);
+
+        return $user ? collect([$user]) : collect();
+    }
+
+    public function scopeAssignedToMe(Builder $query, User $user): Builder {
+        $roleIds = $user->roles()->pluck('roles.id');
+
+        return $query->where(function ($q) use ($user, $roleIds) {
+            $q->where(['assign_to_type' => 'user', 'assign_to_id' => $user->id])
+                ->orWhere(function ($q2) use ($roleIds) {
+                    $q2->where('assign_to_type', 'role')->whereIn('assign_to_id', $roleIds);
+                });
+        });
     }
 }

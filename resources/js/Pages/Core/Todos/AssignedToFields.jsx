@@ -1,13 +1,16 @@
 import AssignableLinkModel from "@/Pages/Users/ManageUsers/AssignableLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
+import MultiSelect from "@/Components/MultiSelect";
 import React from "react";
 import Select from "@/Components/Select";
 import TiptapEditor from "@/Components/TiptapEditor";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
+const TYPE_OPTIONS = ["task", "event", "meeting", "deadline"];
 const PRIORITY_OPTIONS = ["low", "medium", "high"];
 const STATUS_OPTIONS = ["open", "closed", "canceled"];
+const LEAD_DAY_OPTIONS = [1, 3, 7, 14, 30];
 
 function AssignedToFields({
   value,
@@ -24,9 +27,23 @@ function AssignedToFields({
     <div className={containerClass}>
       <div className="flex flex-col gap-4">
         <FormInput
+          label={t("core.todo.columns.type")}
+          name="type"
+          required
+          ignoreDisabled
+        >
+          <Select
+            value={value.type}
+            onValueChange={(val) => onChange("type", val)}
+            options={TYPE_OPTIONS}
+            optionTrans="core.todo.type.options"
+          />
+        </FormInput>
+
+        <FormInput
           label={t("core.todo.columns.allocated_to")}
           name="allocated_to"
-          required
+          description={t("core.todo.hints.allocated_to_self")}
           ignoreDisabled
         >
           <AssignableLinkModel
@@ -94,6 +111,20 @@ function AssignedToFields({
             type="datetime"
             value={value.due_date}
             onValueChange={(val) => onChange("due_date", val)}
+          />
+        </FormInput>
+
+        <FormInput
+          label={t("core.todo.columns.reminder_lead_days")}
+          name="reminder_lead_days"
+          description={t("core.todo.hints.reminder_lead_days")}
+          ignoreDisabled
+        >
+          <MultiSelect
+            value={value.reminder_lead_days}
+            onValueChange={(val) => onChange("reminder_lead_days", val)}
+            options={LEAD_DAY_OPTIONS}
+            optionTrans="core.todo.lead_days.options"
           />
         </FormInput>
       </div>

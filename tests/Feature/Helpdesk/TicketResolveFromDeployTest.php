@@ -43,6 +43,7 @@ class TicketResolveFromDeployTest extends TestCase {
         $this->assertEquals('resolved', $ticket->status->value);
         $this->assertEquals(90, $ticket->progress);
         $this->assertEquals($creator->id, $ticket->assign_to_id);
+        $this->assertEquals('user', $ticket->assign_to_type);
         $this->assertNotNull($ticket->end_date);
 
         $response = TicketResponse::where('ticket_id', $ticket->id)->latest()->first();
@@ -56,10 +57,11 @@ class TicketResolveFromDeployTest extends TestCase {
         $creator      = User::factory()->create();
         $assignedUser = User::factory()->create();
         $ticket       = Ticket::factory()->create([
-            'status'        => 'resolved',
-            'progress'      => 90,
-            'created_by_id' => $creator->id,
-            'assign_to_id'  => $assignedUser->id,
+            'status'         => 'resolved',
+            'progress'       => 90,
+            'created_by_id'  => $creator->id,
+            'assign_to_id'   => $assignedUser->id,
+            'assign_to_type' => 'user',
         ]);
 
         $responseCountBefore = TicketResponse::where('ticket_id', $ticket->id)->count();
@@ -70,6 +72,7 @@ class TicketResolveFromDeployTest extends TestCase {
         $ticket->refresh();
         $this->assertEquals('resolved', $ticket->status->value);
         $this->assertEquals($assignedUser->id, $ticket->assign_to_id);
+        $this->assertEquals('user', $ticket->assign_to_type);
 
         $responseCountAfter = TicketResponse::where('ticket_id', $ticket->id)->count();
         $this->assertEquals($responseCountBefore + 1, $responseCountAfter);

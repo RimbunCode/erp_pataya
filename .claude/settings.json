@@ -1,9 +1,5 @@
 {
-  "enabledMcpjsonServers": [
-    "laravel-boost",
-    "herd",
-    "shadcn"
-  ],
+  "enabledMcpjsonServers": ["laravel-boost", "herd", "shadcn"],
   "hooks": {
     "PostToolUse": [
       {
@@ -16,13 +12,23 @@
         ]
       }
     ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Users/RHD/.config/herd/bin/php.bat\" vendor/bin/pint --dirty --parallel --format agent 2>/dev/null || true; files=$(git diff --name-only --diff-filter=ACMR -- \"*.js\" \"*.jsx\" \"*.ts\" \"*.tsx\" 2>/dev/null); if [[ -n \"$files\" ]]; then npx eslint --cache --cache-location node_modules/.cache/eslint/ --fix $files 2>/dev/null || true; fi"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash|Grep",
         "hooks": [
           {
             "type": "command",
-            "command": "C:/Users/RHD/.local/bin/graphify.EXE hook-guard search"
+            "command": "graphify hook-guard search"
           }
         ]
       },
@@ -31,7 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "C:/Users/RHD/.local/bin/graphify.EXE hook-guard read"
+            "command": "graphify hook-guard read"
           }
         ]
       }

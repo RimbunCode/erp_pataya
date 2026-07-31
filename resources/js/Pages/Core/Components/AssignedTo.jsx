@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 
 import AssignDialog from "./AssignDialog";
 import BadgeStatus from "@/Components/BadgeStatus";
+import BadgeTodoType from "@/Components/BadgeTodoType";
 import { Button } from "@/Components/ui/button";
 import LoadingIcon from "@/Components/LoadingIcon";
 import { cn, generateRandom } from "@/lib/utils";
@@ -15,7 +16,7 @@ function AssignedTo() {
   const route = window.route;
   const { t } = useLaravelReactI18n();
   const [assignees, setAssignees] = useState([]);
-  const { assignees: _assignees } = usePage().props;
+  const { assignees: _assignees, auth } = usePage().props;
   // SidebarChildren bisa dirender di luar FormPageContext (sidebar FormPage),
   // jadi context bisa undefined → fallback ke edit-mode (isCreate falsy).
   const { isCreate, data, setData } = useFormPage() ?? {};
@@ -42,13 +43,25 @@ function AssignedTo() {
   };
 
   const handleDialogSubmit = (value) => {
+    // allocated_to bisa null (fallback ke diri sendiri diselesaikan server —
+    // lihat TodoService::normalize). Baris optimistic-UI/buffer di sini
+    // butuh nama+id untuk ditampilkan sebelum respons server datang, jadi
+    // pakai auth.user sebagai fallback tampilan SAJA. Payload yang di-POST
+    // (untuk mode edit) TETAP `value` apa adanya — JANGAN dimutasi, supaya
+    // server tetap satu-satunya sumber kebenaran resolusi assignee kosong.
+    const assignee = value.allocated_to ?? {
+      id: auth.user.id,
+      type: "user",
+      name: auth.user.name,
+    };
+
     if (isCreate) {
       const isEdit = !!dialogState?.id;
       const item = {
         ...value,
-        allocated_to_id: value.allocated_to.id,
-        name: value.allocated_to.name,
-        type: value.allocated_to.type,
+        allocated_to_id: assignee.id,
+        name: assignee.name,
+        type: value.type,
         id: isEdit ? dialogState.id : generateRandom(8),
       };
       const next = isEdit
@@ -60,9 +73,9 @@ function AssignedTo() {
       setAssignees([
         ...assignees,
         {
-          allocated_to_id: value.allocated_to.id,
-          name: value.allocated_to.name,
-          type: value.allocated_to.type,
+          allocated_to_id: assignee.id,
+          name: assignee.name,
+          type: value.type,
           status: "open",
           isLoading: true,
         },
@@ -116,9 +129,8 @@ function AssignedTo() {
                   className="flex items-center flex-1 overflow-hidden gap-x-2 text-left"
                   onClick={() => handleRowClick(item)}
                 >
-                  <p className="text-sm truncate flex-1">
-                    {type} : {name}
-                  </p>
+                  <p className="text-sm truncate flex-1">{name}</p>
+                  {type && <BadgeTodoType type={type} className="text-xs" />}
                   <BadgeStatus status={status ?? "open"} className="text-xs" />
                 </button>
                 {canRemove && (

@@ -1,5 +1,6 @@
 import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
+import AssignableLinkModel from "@/Pages/Users/ManageUsers/AssignableLinkModel";
 import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
@@ -7,7 +8,6 @@ import React from "react";
 import Select from "@/Components/Select";
 import { Slider } from "@/Components/ui/slider";
 import TiptapEditor from "@/Components/TiptapEditor";
-import UserLinkModel from "@/Pages/Users/ManageUsers/UserLinkModel";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 import { usePage } from "@inertiajs/react";
 
@@ -105,7 +105,7 @@ function Form() {
               name="assign_to"
               required
             >
-              <UserLinkModel
+              <AssignableLinkModel
                 value={data.assign_to}
                 onValueChange={(val) => setData("assign_to", val)}
               />

@@ -182,21 +182,23 @@ const Select = memo(
       }
     };
     const highlightItem = useCallback((item, search) => {
+      const escaped = String(item ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+
       let searchWords =
         search
           .split(/\s+/)
           ?.map((string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
           .filter((x) => !isNullOrWhitespace(x)) || [];
 
-      if (searchWords.length < 1) return item;
+      if (searchWords.length < 1) return escaped;
 
       let regex = new RegExp(`(${searchWords.join("|")})`, "gi");
-      item = item.replace(/(<[^>]+>)|([^<]+)/g, (_, tag, text) => {
-        if (tag) return tag; // Jika ini bagian dari tag HTML, jangan ubah
-        return text.replace(regex, `<mark class="bg-yellow-500">$1</mark>`); // Hanya ubah teks biasa
-      });
-
-      return item;
+      return escaped.replace(regex, `<mark class="bg-yellow-500">$1</mark>`);
     }, []);
     return (
       <ClickAwayListener onClickAway={() => setOpen(false)}>
