@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Core;
 
 use App\Enums\Permission;
+use App\Enums\TodoType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\TodoRequest;
 use App\Models\Core\Todo;
@@ -60,6 +61,8 @@ class TodoController extends Controller {
                     'type' => 'user',
                     'name' => $request->user()->name,
                 ],
+                'type'               => TodoType::TASK->value,
+                'reminder_lead_days' => [],
             ],
         ]);
     }
@@ -93,7 +96,13 @@ class TodoController extends Controller {
         $this->authorizeOwnTodoOrPermission($todo, Permission::Write);
 
         DB::beginTransaction();
-        $this->service->update($todo, $request->validated());
+        try {
+            $this->service->update($todo, $request->validated());
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
         DB::commit();
 
         return back();

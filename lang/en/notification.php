@@ -27,6 +27,24 @@ return [
         'title'   => 'New ToDo Assigned',
         'message' => ':assigner assigned you a ToDo: :document',
     ],
+    'todo_reminder' => [
+        'lead' => [
+            'title'   => 'ToDo Due Soon',
+            'message' => 'ToDo :document is due in :days day(s) — :due_date.',
+        ],
+        'day_of' => [
+            'title'   => 'ToDo Due Today',
+            'message' => 'ToDo :document is due today at :due_date.',
+        ],
+        'overdue' => [
+            'title'   => 'ToDo Overdue',
+            'message' => 'ToDo :document passed its due date :days day(s) ago (:due_date).',
+        ],
+    ],
+    'todo_auto_closed' => [
+        'title'   => 'ToDo Closed Automatically',
+        'message' => 'ToDo :document was automatically closed after its due date passed.',
+    ],
     'user_invited' => [
         'subject'  => 'You Have Been Invited',
         'greeting' => 'Hello :name,',

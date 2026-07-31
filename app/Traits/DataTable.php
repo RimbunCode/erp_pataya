@@ -626,11 +626,11 @@ trait DataTable {
                 fn () => Todo::where('reference_type', static::class)
                     ->where('reference_id', $this->id)
                     ->with('allocatedTo:id,type,name')
-                    ->get(['id', 'allocated_to_id', 'allocated_to_type', 'status'])
+                    ->get(['id', 'allocated_to_id', 'status', 'type'])
                     ->map(fn ($todo) => [
                         'id'              => $todo->id,
                         'allocated_to_id' => $todo->allocated_to_id,
-                        'type'            => $todo->allocated_to_type,
+                        'type'            => $todo->type?->value,
                         'name'            => $todo->allocatedTo?->name,
                         'status'          => $todo->status,
                     ]),

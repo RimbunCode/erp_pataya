@@ -23,6 +23,11 @@ Schedule::command('saved-filters:prune')
     ->dailyAt('02:00')
     ->withoutOverlapping();
 
+Schedule::command('todos:remind')
+    ->timezone('Asia/Jakarta')
+    ->dailyAt('07:00')
+    ->withoutOverlapping();
+
 Schedule::command('queue:work --stop-when-empty --tries=3 --max-time=50')
     ->everyMinute()
     ->withoutOverlapping();

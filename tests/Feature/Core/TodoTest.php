@@ -51,6 +51,7 @@ class TodoTest extends TestCase {
         $response = $this->authenticatedRequest()
             ->post(route('todos.store'), [
                 'allocated_to' => ['id' => $assignee->id, 'type' => 'user'],
+                'type'         => 'task',
                 'description'  => 'Follow up with supplier',
                 'priority'     => 'high',
                 'status'       => 'open',
@@ -72,6 +73,7 @@ class TodoTest extends TestCase {
         $response = $this->authenticatedRequest()
             ->post(route('todos.store'), [
                 'allocated_to' => ['id' => $role->id, 'type' => 'role'],
+                'type'         => 'task',
                 'description'  => 'Restock shelves',
                 'priority'     => 'medium',
                 'status'       => 'open',
@@ -95,6 +97,7 @@ class TodoTest extends TestCase {
         $response = $this->authenticatedRequest()
             ->put(route('todos.update', $todo), [
                 'allocated_to' => ['id' => $todo->allocated_to_id, 'type' => $todo->allocated_to_type],
+                'type'         => 'task',
                 'description'  => $todo->description,
                 'priority'     => 'high',
                 'status'       => 'closed',
@@ -138,6 +141,7 @@ class TodoTest extends TestCase {
 
         $this->authenticatedRequest()->put(route('todos.update', $todo), [
             'allocated_to' => ['id' => $todo->allocated_to_id, 'type' => $todo->allocated_to_type],
+            'type'         => 'task',
             'description'  => $todo->description,
             'priority'     => $todo->priority,
             'status'       => $todo->status,
@@ -173,6 +177,7 @@ class TodoTest extends TestCase {
             ->withSession($sessionData)
             ->put(route('todos.update', $todo), [
                 'allocated_to' => ['id' => $todo->allocated_to_id, 'type' => $todo->allocated_to_type],
+                'type'         => 'task',
                 'description'  => $todo->description,
                 'priority'     => 'high',
                 'status'       => $todo->status,
@@ -213,5 +218,77 @@ class TodoTest extends TestCase {
         $todo->refresh();
 
         $this->assertCount(0, $todo->allocatedUsers());
+    }
+
+    public function test_blanking_allocated_to_on_edit_without_confirmation_is_rejected(): void {
+        // assigned_by_id = $this->user agar editor lolos authorizeOwnTodoOrPermission
+        // (dia yang membuat ToDo, walau assignee-nya orang lain) — skenario realistis:
+        // meng-assign ke orang lain lalu ingin mengambilnya balik.
+        $otherAssignee = User::factory()->create();
+        $todo          = Todo::factory()->create([
+            'status'          => 'open',
+            'priority'        => 'low',
+            'allocated_to_id' => $otherAssignee->id,
+            'assigned_by_id'  => $this->user->id,
+        ]);
+
+        $this->authenticatedRequest()
+            ->put(route('todos.update', $todo), [
+                'allocated_to' => null,
+                'type'         => 'task',
+                'description'  => $todo->description,
+                'priority'     => $todo->priority,
+                'status'       => $todo->status,
+            ])
+            ->assertSessionHasErrors('allocated_to');
+
+        $todo->refresh();
+        $this->assertSame($otherAssignee->id, $todo->allocated_to_id);
+    }
+
+    public function test_blanking_allocated_to_on_edit_with_confirmation_reassigns_to_editor(): void {
+        $otherAssignee = User::factory()->create();
+        $todo          = Todo::factory()->create([
+            'status'          => 'open',
+            'priority'        => 'low',
+            'allocated_to_id' => $otherAssignee->id,
+            'assigned_by_id'  => $this->user->id,
+        ]);
+
+        $this->authenticatedRequest()
+            ->put(route('todos.update', $todo), [
+                'allocated_to'     => null,
+                'type'             => 'task',
+                'description'      => $todo->description,
+                'priority'         => $todo->priority,
+                'status'           => $todo->status,
+                'confirm_reassign' => true,
+            ])
+            ->assertRedirect();
+
+        $todo->refresh();
+        $this->assertSame($this->user->id, $todo->allocated_to_id);
+        $this->assertSame('user', $todo->allocated_to_type);
+    }
+
+    public function test_blanking_allocated_to_when_already_own_todo_skips_confirmation(): void {
+        $todo = Todo::factory()->create([
+            'status'          => 'open',
+            'priority'        => 'low',
+            'allocated_to_id' => $this->user->id,
+        ]);
+
+        $this->authenticatedRequest()
+            ->put(route('todos.update', $todo), [
+                'allocated_to' => null,
+                'type'         => 'task',
+                'description'  => $todo->description,
+                'priority'     => $todo->priority,
+                'status'       => $todo->status,
+            ])
+            ->assertRedirect();
+
+        $todo->refresh();
+        $this->assertSame($this->user->id, $todo->allocated_to_id);
     }
 }

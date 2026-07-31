@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Helpdesk;
 
+use App\Enums\TodoType;
 use App\Http\Requests\BaseFormRequest;
 use App\Services\Core\PrintTemplate\HTMLSanitizerService;
 use Illuminate\Validation\Rule;
@@ -50,12 +51,18 @@ class TicketResponseRequest extends BaseFormRequest {
             'buffered_assignees'                   => ['nullable', 'array'],
             'buffered_assignees.*.allocated_to_id' => ['nullable', 'string'],
             'buffered_assignees.*.id'              => ['nullable', 'string'],
-            'buffered_assignees.*.type'            => ['required_with:buffered_assignees.*', 'string'],
-            'buffered_assignees.*.name'            => ['nullable', 'string'],
-            'buffered_assignees.*.priority'        => ['nullable', 'string'],
-            'buffered_assignees.*.description'     => ['nullable', 'string'],
-            'buffered_assignees.*.date'            => ['nullable', 'date'],
-            'buffered_assignees.*.due_date'        => ['nullable', 'date'],
+            // 'type' di sini adalah assignee-kind (user/role) — BUKAN Todo::type
+            // (task/event/meeting/deadline). Todo::type dikirim lewat key
+            // 'todo_type' terpisah untuk menghindari tabrakan nama.
+            'buffered_assignees.*.type'                 => ['required_with:buffered_assignees.*', 'string'],
+            'buffered_assignees.*.name'                 => ['nullable', 'string'],
+            'buffered_assignees.*.todo_type'            => ['nullable', 'string', Rule::in(TodoType::values())],
+            'buffered_assignees.*.reminder_lead_days'   => ['nullable', 'array'],
+            'buffered_assignees.*.reminder_lead_days.*' => ['integer', 'min:1'],
+            'buffered_assignees.*.priority'             => ['nullable', 'string'],
+            'buffered_assignees.*.description'          => ['nullable', 'string'],
+            'buffered_assignees.*.date'                 => ['nullable', 'date'],
+            'buffered_assignees.*.due_date'             => ['nullable', 'date'],
 
             'filesId'   => ['nullable', 'array'],
             'filesId.*' => ['nullable', 'string'],

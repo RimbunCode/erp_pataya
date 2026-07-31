@@ -12,9 +12,11 @@ import { useLaravelReactI18n } from "laravel-react-i18n";
 
 const DEFAULT_VALUE = {
   allocated_to: null,
+  type: "task",
   priority: "medium",
   date: null,
   due_date: null,
+  reminder_lead_days: [],
   description: null,
 };
 
@@ -33,7 +35,6 @@ function AssignDialog({
 
   const handleChange = (key, val) =>
     setValue((prev) => ({ ...prev, [key]: val }));
-  const canSubmit = !!value.allocated_to;
 
   return (
     <DialogContent className="max-w-2xl">
@@ -53,9 +54,7 @@ function AssignDialog({
         <Button variant="secondary" onClick={onClose}>
           {t("core.form.cancel")}
         </Button>
-        <Button disabled={!canSubmit} onClick={() => onSubmit(value)}>
-          {t("core.form.assign")}
-        </Button>
+        <Button onClick={() => onSubmit(value)}>{t("core.form.assign")}</Button>
       </DialogFooter>
     </DialogContent>
   );

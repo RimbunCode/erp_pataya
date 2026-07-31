@@ -1,0 +1,6 @@
+{
+  "specId": "20955227-8562-45db-b0b6-7fed783c2b55",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Sistem reminder due_date ToDo berbasis scheduler (multi-lead H-x, hari-H, overdue escalating), field type (task/event/meeting/deadline) yang menentukan aturan overdue dan auto-close, plus allocated_to opsional dengan fallback ke diri sendiri di semua entry point pembuatan ToDo."
+}

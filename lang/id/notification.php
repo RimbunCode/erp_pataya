@@ -27,6 +27,24 @@ return [
         'title'   => 'ToDo Baru Ditugaskan',
         'message' => ':assigner menugaskan Anda sebuah ToDo: :document',
     ],
+    'todo_reminder' => [
+        'lead' => [
+            'title'   => 'ToDo Segera Jatuh Tempo',
+            'message' => 'ToDo :document jatuh tempo dalam :days hari — :due_date.',
+        ],
+        'day_of' => [
+            'title'   => 'ToDo Jatuh Tempo Hari Ini',
+            'message' => 'ToDo :document jatuh tempo hari ini pukul :due_date.',
+        ],
+        'overdue' => [
+            'title'   => 'ToDo Terlambat',
+            'message' => 'ToDo :document sudah lewat tenggat :days hari (:due_date).',
+        ],
+    ],
+    'todo_auto_closed' => [
+        'title'   => 'ToDo Ditutup Otomatis',
+        'message' => 'ToDo :document ditutup otomatis karena tenggatnya sudah lewat.',
+    ],
     'user_invited' => [
         'subject'  => 'Anda Diundang ke Sistem',
         'greeting' => 'Halo :name,',

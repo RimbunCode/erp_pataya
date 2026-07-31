@@ -6,11 +6,9 @@ use App\Models\Core\File;
 use App\Models\Core\Fileable;
 use App\Models\Core\Tag;
 use App\Models\Core\Taggable;
-use App\Models\Core\Todo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
 
 class BufferedAttachmentService {
     public static function attach(Model $model, Request $request): void {
@@ -67,10 +65,15 @@ class BufferedAttachmentService {
             return;
         }
         foreach ($assignees as $assignee) {
-            $allocatedToId = $assignee['allocated_to_id'] ?? $assignee['id'] ?? null;
-            if (! is_array($assignee) || empty($allocatedToId) || empty($assignee['type'])) {
+            // Item dengan 'type' (assignee-kind) terisi tapi allocated_to_id
+            // kosong TETAP diproses — TodoService::normalize() akan
+            // fallback ke diri sendiri (Requirement 7.3: konsisten di
+            // ketiga jalur). Hanya entry sampah (bukan array, atau tak
+            // punya 'type' sama sekali) yang di-skip di sini.
+            if (! is_array($assignee) || empty($assignee['type'])) {
                 continue;
             }
+            $allocatedToId = $assignee['allocated_to_id'] ?? $assignee['id'] ?? null;
 
             $validator = Validator::make($assignee, [
                 'description' => ['nullable', 'string'],
@@ -80,31 +83,32 @@ class BufferedAttachmentService {
             ]);
             $validator->validate();
 
-            $alreadyAssigned = Todo::where('reference_id', $model->getKey())
-                ->where('reference_type', get_class($model))
-                ->where('allocated_to_id', $allocatedToId)
-                ->exists();
-            if ($alreadyAssigned) {
-                throw ValidationException::withMessages([
-                    'buffered_assignees' => [__('core.todo.errors.already_assigned')],
-                ]);
+            $payload = [
+                'reference_id'   => $model->getKey(),
+                'reference_type' => get_class($model),
+                'allocated_to'   => [
+                    'id'   => $allocatedToId,
+                    'type' => $assignee['type'],
+                ],
+                'priority'    => $assignee['priority'] ?? 'medium',
+                'description' => $assignee['description'] ?? null,
+                'date'        => $assignee['date'] ?? null,
+                'due_date'    => $assignee['due_date'] ?? null,
+            ];
+
+            // 'todo_type'/'reminder_lead_days' (bukan 'type') — lihat catatan
+            // tabrakan nama di TicketResponseRequest::rules(). Key HANYA
+            // disertakan kalau ada nilainya — kolom `type` NOT NULL tanpa
+            // nullable(), jadi menyertakan null eksplisit akan melanggar
+            // constraint alih-alih jatuh ke default DB 'task'.
+            if (filled($assignee['todo_type'] ?? null)) {
+                $payload['type'] = $assignee['todo_type'];
+            }
+            if (filled($assignee['reminder_lead_days'] ?? null)) {
+                $payload['reminder_lead_days'] = $assignee['reminder_lead_days'];
             }
 
-            $todo = Todo::create([
-                'reference_id'      => $model->getKey(),
-                'reference_type'    => get_class($model),
-                'allocated_to_id'   => $allocatedToId,
-                'code'              => TodoService::generateCode($assignee),
-                'allocated_to_type' => $assignee['type'],
-                'assigned_by_id'    => $request->user()?->id,
-                'status'            => 'open',
-                'priority'          => $assignee['priority'] ?? 'medium',
-                'description'       => $assignee['description'] ?? null,
-                'date'              => $assignee['date'] ?? null,
-                'due_date'          => $assignee['due_date'] ?? null,
-            ]);
-
-            app(TodoService::class)->notifyAssignee($todo);
+            app(TodoService::class)->createForReference($payload);
         }
     }
 }
