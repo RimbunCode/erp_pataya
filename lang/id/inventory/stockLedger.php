@@ -5,6 +5,7 @@ return [
     'add'                          => 'Tambah Stok',
     'stocks'                       => 'Stok',
     'new'                          => 'Stok Baru',
+    'detail'                       => 'Detail',
     'delete'                       => 'Hapus Stok',
     'delete.description'           => 'Apakah Anda yakin ingin menghapus data ini?',
     'delete.confirm'               => 'Hapus',

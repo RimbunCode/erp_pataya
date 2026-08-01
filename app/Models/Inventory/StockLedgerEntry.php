@@ -79,6 +79,18 @@ class StockLedgerEntry extends Model {
         return ':referenceable';
     }
 
+    /**
+     * Nama kelas (`StockLedgerEntry`) tidak sama dengan nama route resource
+     * (`stockLedger`, lihat `Route::resourceDetail('stockLedger', ...)` di
+     * routes/web.php) — override ini supaya breadcrumb/link yang dibentuk
+     * dari attribute `route` (mis. `setBreadcrumbs()`) mengarah ke route yang
+     * benar-benar terdaftar, bukan `stockLedgerEntries` hasil pluralize nama
+     * kelas.
+     */
+    protected function getRouteAttribute() {
+        return 'stockLedgers';
+    }
+
     protected static function loadRelationsOnShow() {
         return [
             'item',

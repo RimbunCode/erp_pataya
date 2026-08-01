@@ -19,4 +19,17 @@ class GeneralLedgerController extends Controller {
         return Inertia::render('Finances/GeneralLedger', [
         ]);
     }
+
+    public function show(GeneralLedger $generalLedger) {
+        $this->setBreadcrumbs($generalLedger);
+        $generalLedger->showDetail();
+
+        return Inertia::render('Finances/GeneralLedgers/Show', [
+            'generalLedger' => function () use ($generalLedger) {
+                $generalLedger->loadRelations();
+
+                return $generalLedger;
+            },
+        ]);
+    }
 }

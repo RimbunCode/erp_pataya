@@ -4,6 +4,7 @@ return [
     'title'              => 'Buku Besar Umum',
     'add'                => 'Tambah Buku Besar',
     'new'                => 'Buku Besar Baru',
+    'detail'             => 'Detail',
     'delete'             => 'Hapus Buku Besar',
     'delete.description' => 'Apakah Anda yakin ingin menghapus data ini?',
     'delete.confirm'     => 'Hapus',
@@ -11,6 +12,8 @@ return [
     'filters'            => 'Filter',
     'category'           => 'Kategori',
     'columns'            => [
+        'code'                        => 'Kode',
+        'created_at'                  => 'Dibuat Pada',
         'date'                        => 'Tanggal',
         'account'                     => 'Akun',
         'account.placeholder'         => 'Pilih sebuah akun',

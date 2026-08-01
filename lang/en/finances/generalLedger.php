@@ -4,6 +4,7 @@ return [
     'title'              => 'General Ledgers',
     'add'                => 'Add General Ledger',
     'new'                => 'New General Ledger',
+    'detail'             => 'Detail',
     'delete'             => 'Delete General Ledger',
     'delete.description' => 'Are you sure you want to delete this data?',
     'delete.confirm'     => 'Delete',
@@ -11,6 +12,8 @@ return [
     'filters'            => 'Filters',
     'category'           => 'Category',
     'columns'            => [
+        'code'                        => 'Code',
+        'created_at'                  => 'Created At',
         'date'                        => 'Date',
         'account'                     => 'Account',
         'account.placeholder'         => 'Select an account',

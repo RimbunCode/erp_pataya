@@ -1,0 +1,6 @@
+{
+  "specId": "816849e8-2b55-41c7-a60c-dc0cad5d1999",
+  "workflowType": "requirements-first",
+  "specType": "bugfix",
+  "description": "GeneralLedgerController dan StockLedgerController tidak punya method show(), padahal route show sudah terdaftar via Route::resourceDetail() dan model (GeneralLedger, StockLedgerEntry) sudah siap pakai. Akibatnya General Ledger crash saat diklik dari index, dan Stock Ledger sama sekali belum punya halaman detail."
+}

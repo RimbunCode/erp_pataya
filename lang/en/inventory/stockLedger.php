@@ -5,6 +5,7 @@ return [
     'add'                          => 'Add Stock',
     'stocks'                       => 'Stocks',
     'new'                          => 'New Stock',
+    'detail'                       => 'Detail',
     'delete'                       => 'Delete Stock',
     'delete.description'           => 'Are you sure you want to delete this data?',
     'delete.confirm'               => 'Delete',
