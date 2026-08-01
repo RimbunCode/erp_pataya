@@ -11,7 +11,9 @@ use App\Services\Core\FilterEvaluator;
 use App\Utils;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\Scope;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cookie;
 use Inertia\Inertia;
@@ -30,6 +32,31 @@ class DataTableScope implements Scope {
 
     private function isTableIncluded($columnReference) {
         return preg_match('/^\w+\.\w+$/', $columnReference);
+    }
+
+    /**
+     * True bila method relasi (segmen pertama, sebelum "." pada relasi nested)
+     * sudah memanggil withTrashed() sendiri di source-nya — macro withTrashed()
+     * global TIDAK boleh ikut campur di relasi ini (lihat catatan di addDataTable()).
+     */
+    private function relationDefinesOwnWithTrashed(string $modelClass, string $relationKey): bool {
+        $method = \strtok($relationKey, '.');
+        if (! \method_exists($modelClass, $method)) {
+            return false;
+        }
+
+        try {
+            $reflection = new \ReflectionMethod($modelClass, $method);
+            $file       = $reflection->getFileName();
+            if ($file === false) {
+                return false;
+            }
+            $lines = \array_slice(\file($file), $reflection->getStartLine() - 1, $reflection->getEndLine() - $reflection->getStartLine() + 1);
+
+            return \str_contains(\implode('', $lines), 'withTrashed');
+        } catch (\ReflectionException) {
+            return false;
+        }
     }
 
     /**
@@ -143,6 +170,34 @@ class DataTableScope implements Scope {
                     }
                 }
             }
+            // withTrashed: relasi ber-SoftDeletes tetap dimuat walau record-nya sudah
+            // dihapus, agar List/DataTable tidak kehilangan nama relasi historis (mis.
+            // item/akun/customer yang di-soft-delete tapi masih dirujuk transaksi lama).
+            // Dilewati untuk relasi yang method-nya sendiri sudah memanggil withTrashed()
+            // (mis. PurchaseRequestItem::item() withTrashed($this->status != 'draft')) —
+            // withTrashed() tanpa syarat akan SELALU menimpa hasil constraint kondisional
+            // itu (withoutGlobalScope tidak bisa "dibatalkan" oleh pemanggilan kedua),
+            // jadi macro ini tidak boleh ikut campur di relasi yang sudah override sendiri.
+            $modelClassForWith = $modelClass;
+            $scopeSelf         = $this;
+            $with              = \collect($with)->mapWithKeys(function ($constraint, $key) use ($modelClassForWith, $scopeSelf) {
+                if ($scopeSelf->relationDefinesOwnWithTrashed($modelClassForWith, $key)) {
+                    return [$key => $constraint];
+                }
+
+                return [$key => function ($relationQuery) use ($constraint) {
+                    if ($constraint instanceof \Closure) {
+                        $constraint($relationQuery);
+                    }
+                    $relatedModel = $relationQuery instanceof Relation
+                        ? $relationQuery->getRelated()
+                        : $relationQuery->getModel();
+                    if (\in_array(SoftDeletes::class, class_uses_recursive($relatedModel))) {
+                        $relationQuery->withTrashed();
+                    }
+                }];
+            })->all();
+
             // null entries → eager-load apa adanya (numeric); closure no-op merusak morphTo.
             $query = $query->with(DataTableColumnSelector::withArray($with));
             if ($request->has('id')) {

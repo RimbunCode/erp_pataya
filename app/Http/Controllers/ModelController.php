@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Query\JoinClause;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -768,8 +769,11 @@ class ModelController extends Controller {
 
         // Single-item lookup by id: direlokasi ke sini agar $safe dan $columns sudah tersedia
         // untuk applyAppends. find() langsung via model (tanpa search constraints $query).
+        // withTrashed bila model ber-SoftDeletes: nilai relasi tersimpan (mis. Ticket/Todo show)
+        // harus tetap resolve walau record-nya sudah di-soft-delete.
         if ($request->has('id')) {
-            $dataModel = $model::find($request->id);
+            $usesSoftDeletes = \in_array(SoftDeletes::class, class_uses_recursive($model));
+            $dataModel       = $usesSoftDeletes ? $model::withTrashed()->find($request->id) : $model::find($request->id);
             if ($dataModel !== null) {
                 if ($request->has('with')) {
                     $dataModel->load($request->with);

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Core;
 
 use App\Enums\TodoType;
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Validation\Rule;
 
 class AssigneeRequest extends BaseFormRequest {
@@ -14,7 +15,7 @@ class AssigneeRequest extends BaseFormRequest {
     public function rules(): array {
         return [
             'allocated_to'         => ['nullable', 'array'],
-            'allocated_to.id'      => ['required_with:allocated_to', 'string', 'exists:assignables,id'],
+            'allocated_to.id'      => ['required_with:allocated_to', 'string', new ExistsExcludingTrashed('assignables')],
             'allocated_to.type'    => ['nullable', 'string', 'in:user,role'],
             'type'                 => ['nullable', 'string', Rule::in(TodoType::values())],
             'reminder_lead_days'   => ['nullable', 'array'],

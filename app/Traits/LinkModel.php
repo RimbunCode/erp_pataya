@@ -76,7 +76,8 @@ trait LinkModel {
                 'titleTrans' => 'core.form.updated_at',
             ],
             'deleted_at' => [
-                'titleTrans' => 'core.form.deleted_at',
+                'titleTrans'  => 'core.form.deleted_at',
+                'forceSelect' => true,
             ],
             'canceled_at' => [
                 'titleTrans' => 'core.form.canceled_at',

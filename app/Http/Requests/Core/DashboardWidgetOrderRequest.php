@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class DashboardWidgetOrderRequest extends BaseFormRequest {
@@ -21,7 +22,7 @@ class DashboardWidgetOrderRequest extends BaseFormRequest {
     public function rules(): array {
         return [
             'widgets'      => ['required', 'array', 'min:1'],
-            'widgets.*.id' => ['required', 'string', 'distinct', 'exists:dashboard_widgets,id'],
+            'widgets.*.id' => ['required', 'string', 'distinct', new ExistsExcludingTrashed('dashboard_widgets')],
         ];
     }
 }

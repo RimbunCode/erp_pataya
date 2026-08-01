@@ -144,7 +144,7 @@ class PaymentEntryController extends Controller {
 
         return Inertia::render('Finances/PaymentEntries/Show', [
             'paymentEntry' => function () use ($paymentEntry) {
-                $paymentEntry->loadRelations();
+                $paymentEntry->loadRelations([], withTrashed: true);
 
                 return $paymentEntry;
             },

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class RoleRequest extends BaseFormRequest {
@@ -25,7 +26,7 @@ class RoleRequest extends BaseFormRequest {
             'is_disabled'           => ['nullable', 'boolean'],
             'rules'                 => ['nullable', 'array', 'min:1'],
             'rules.*.id'            => ['required', 'string'],
-            'rules.*.permission_id' => ['required', 'string', 'exists:permissions,id'],
+            'rules.*.permission_id' => ['required', 'string', new ExistsExcludingTrashed('permissions')],
             'rules.*.level'         => ['required', 'integer'],
             'rules.*.only_creator'  => ['required', 'boolean'],
             'rules.*.permissions'   => ['required', 'array'],

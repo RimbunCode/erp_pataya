@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Finances;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class PaymentMethodRequest extends BaseFormRequest {
@@ -22,7 +23,7 @@ class PaymentMethodRequest extends BaseFormRequest {
         return [
             'name'               => ['required', 'string', 'min:3', 'max:255'],
             'description'        => ['nullable', 'string'],
-            'default_account.id' => ['nullable', 'string', 'exists:accounts,id'],
+            'default_account.id' => ['nullable', 'string', new ExistsExcludingTrashed('accounts')],
         ];
     }
 }

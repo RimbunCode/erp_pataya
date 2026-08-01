@@ -10,11 +10,7 @@ class Assignable extends Model {
     public $timestamps             = false;
     public $incrementing           = false;
     protected $keyType             = 'string';
-    protected array $configColumns = [
-        'deleted_at' => [
-            'ignore' => true,
-        ],
-    ];
+    protected array $configColumns = [];
 
     public static function templateLink() {
         return '<title>:name (:type)</title><b>:name</b><br/><span>:type</span>';

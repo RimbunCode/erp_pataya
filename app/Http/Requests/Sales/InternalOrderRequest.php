@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Sales;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 
 class InternalOrderRequest extends BaseFormRequest {
     /**
@@ -23,9 +24,9 @@ class InternalOrderRequest extends BaseFormRequest {
             'external_note'    => ['nullable', 'string'],
             'items'            => ['required', 'array', 'min:1'],
             'items.*.id'       => ['required', 'string'],
-            'items.*.item.id'  => ['required', 'exists:item_variants,id', 'distinct'],
+            'items.*.item.id'  => ['required', new ExistsExcludingTrashed('item_variants'), 'distinct'],
             'items.*.quantity' => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'  => ['required', 'exists:item_units,id'],
+            'items.*.unit.id'  => ['required', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'   => ['nullable'],
         ];
     }

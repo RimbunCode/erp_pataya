@@ -1,0 +1,6 @@
+{
+  "specId": "fab339b1-99f2-48d1-8bd9-34fa9dc484c5",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Strategi withTrashed context-aware untuk relasi model ber-SoftDeletes: List/DataTable selalu withTrashed (histori utuh), Show/form draft kondisional (validasi tidak boleh assign ke data terhapus), dan validasi submit menolak FK yang mengarah ke record soft-deleted."
+}
