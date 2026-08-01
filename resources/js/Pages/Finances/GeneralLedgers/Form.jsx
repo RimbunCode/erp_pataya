@@ -2,6 +2,7 @@ import { FormPageContent, useFormPage } from "@/Pages/Core/FormPage";
 
 import AccountLinkModel from "../Accounts/AccountLinkModel";
 import BranchLinkModel from "@/Pages/Settings/Branches/BranchLinkModel";
+import DatetimePicker from "@/Components/DatetimePicker";
 import FormInput from "@/Components/FormInput";
 import { Input } from "@/Components/ui/input";
 import NumberInput from "@/Components/NumberInput";
@@ -53,7 +54,7 @@ export default function Form() {
           name="created_at"
           label={t("finances.generalLedger.columns.created_at")}
         >
-          <Input value={data?.created_at} readOnly />
+          <DatetimePicker type="datetime" value={data?.created_at} readOnly />
         </FormInput>
       </div>
     </FormPageContent>

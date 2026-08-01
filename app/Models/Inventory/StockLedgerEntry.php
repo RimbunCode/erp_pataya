@@ -24,38 +24,43 @@ class StockLedgerEntry extends Model {
     }
 
     protected $configColumns = [
+        'code' => [
+            'show'   => true,
+            'order'  => 0,
+            'isLink' => true,
+        ],
         'item' => [
             'show'  => true,
-            'order' => 0,
+            'order' => 1,
         ],
         'quantity_change' => [
             'type'  => 'numeric',
             'show'  => true,
-            'order' => 1,
+            'order' => 2,
         ],
         'quantity_after_transaction' => [
             'type'  => 'numeric',
             'show'  => true,
-            'order' => 2,
+            'order' => 3,
         ],
         'valuation_rate' => [
             'type'  => 'numeric',
             'show'  => true,
-            'order' => 3,
+            'order' => 4,
         ],
         'balance_stock_value' => [
             'type'  => 'numeric',
             'show'  => true,
-            'order' => 4,
+            'order' => 5,
         ],
         'change_in_stock_value' => [
             'type'  => 'numeric',
             'show'  => true,
-            'order' => 5,
+            'order' => 6,
         ],
         'referenceable' => [
             'show'  => true,
-            'order' => 6,
+            'order' => 7,
         ],
         'stock_queue' => [
             'ignore' => true,
