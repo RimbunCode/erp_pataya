@@ -171,40 +171,8 @@ class PurchaseReceiptController extends Controller {
         return redirect()->back();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PurchaseReceipt $purchaseReceipt) {
-        DB::beginTransaction();
-
-        try {
-            $purchaseReceipt->delete();
-            $purchaseReceipt->logForDeleted();
-
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('purchaseReceipts.index');
-    }
-
     public function submit(PurchaseReceipt $purchaseReceipt) {
         $this->service->submit($purchaseReceipt);
-
-        return redirect()->back();
-    }
-
-    public function onApproved(PurchaseReceipt $purchaseReceipt) {
-        $this->service->onApproved($purchaseReceipt);
-
-        return redirect()->back();
-    }
-
-    public function onRejected(PurchaseReceipt $purchaseReceipt) {
-        $this->service->onRejected($purchaseReceipt);
 
         return redirect()->back();
     }

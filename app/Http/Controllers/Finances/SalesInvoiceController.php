@@ -218,34 +218,4 @@ class SalesInvoiceController extends Controller {
 
         return redirect()->back();
     }
-
-    public function onApproved(SalesInvoice $salesInvoice) {
-        $this->service->onApproved($salesInvoice);
-
-        return back();
-    }
-
-    public function onRejected(SalesInvoice $salesInvoice) {
-        $this->service->onRejected($salesInvoice);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(SalesInvoice $salesInvoice) {
-        DB::beginTransaction();
-        try {
-            $salesInvoice->delete();
-            $salesInvoice->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('salesInvoices.index');
-    }
 }

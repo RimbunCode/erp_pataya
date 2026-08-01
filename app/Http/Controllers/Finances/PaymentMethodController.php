@@ -85,22 +85,4 @@ class PaymentMethodController extends Controller {
 
         return redirect()->back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PaymentMethod $paymentMethod) {
-        DB::beginTransaction();
-        try {
-            $paymentMethod->delete();
-            $paymentMethod->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('paymentMethods.index');
-    }
 }

@@ -159,8 +159,9 @@ class UserController extends Controller {
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Request $request, User $user) {
-        $request->validate([
+    public function destroy(mixed $id) {
+        $user = User::findOrFail($id);
+        request()->validate([
             'password' => ['required', 'current_password'],
         ]);
         DB::beginTransaction();
@@ -174,11 +175,11 @@ class UserController extends Controller {
             throw $e;
         }
 
-        if ($request->user()->id == $user->id) {
+        if (request()->user()->id == $user->id) {
             Auth::logout();
 
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
 
             return redirect()->to('/');
         } else {

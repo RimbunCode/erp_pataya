@@ -78,22 +78,4 @@ class TaxesController extends Controller {
 
         return redirect()->back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Tax $tax) {
-        DB::beginTransaction();
-        try {
-            $tax->delete();
-            $tax->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('taxes.index');
-    }
 }

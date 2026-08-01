@@ -21,7 +21,7 @@ class TicketController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'updateTicket' => 'write',
-            default                    => null,
+            default => null,
         };
     }
 
@@ -73,21 +73,6 @@ class TicketController extends Controller {
         DB::commit();
 
         return back();
-    }
-
-    public function destroy(Ticket $ticket) {
-        DB::beginTransaction();
-        try {
-            $ticket->delete();
-            $ticket->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('tickets.index');
     }
 
     public function markDone(Ticket $ticket) {

@@ -9,12 +9,10 @@ use App\Services\Core\PrintTemplate\PdfExportService;
 use App\Services\Core\PrintTemplate\PrintTemplateRenderService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use ReflectionMethod;
 use Throwable;
 
 /**
@@ -38,8 +36,7 @@ class AttachGeneratedPdfJob implements ShouldQueue {
         PdfAttachmentService $attachmentService,
     ): void {
         try {
-            $controller = (string) ($this->approval->options['controller'] ?? '');
-            $document   = $this->resolveDocumentModel($controller, $this->approval->options['parameters'] ?? []);
+            $document = $this->approval->document;
 
             if ($document === null) {
                 return;
@@ -69,42 +66,5 @@ class AttachGeneratedPdfJob implements ShouldQueue {
                 'error'                => $e->getMessage(),
             ]);
         }
-    }
-
-    /**
-     * Resolve the document model instance the approval was created for,
-     * using the same route-model resolution as
-     * ApprovalInstanceController::callWithRouteModels(): inspect the
-     * target controller's `onApproved` method signature and find the
-     * first typed parameter that is a Model subclass present in the
-     * stored route parameters.
-     *
-     * @param  array<string, mixed>  $rawParams
-     */
-    protected function resolveDocumentModel(string $controller, array $rawParams): ?Model {
-        if ($controller === '' || ! method_exists($controller, 'onApproved')) {
-            return null;
-        }
-
-        $ref = new ReflectionMethod($controller, 'onApproved');
-
-        foreach ($ref->getParameters() as $param) {
-            $type = $param->getType();
-            if (! $type || $type->isBuiltin()) {
-                continue;
-            }
-
-            $className = $type->getName();
-            if (! is_subclass_of($className, Model::class)) {
-                continue;
-            }
-
-            $name = $param->getName();
-            if (isset($rawParams[$name])) {
-                return $className::find($rawParams[$name]);
-            }
-        }
-
-        return null;
     }
 }

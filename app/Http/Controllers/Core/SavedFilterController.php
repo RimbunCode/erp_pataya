@@ -131,8 +131,9 @@ class SavedFilterController extends Controller {
     /**
      * Hapus named filter milik user. Owner-only.
      */
-    public function destroy(Request $request, SavedFilter $savedFilter): JsonResponse {
-        abort_if($savedFilter->user_id !== $request->user()->id, 403);
+    public function destroy(mixed $id): JsonResponse {
+        $savedFilter = SavedFilter::findOrFail($id);
+        abort_if($savedFilter->user_id !== request()->user()->id, 403);
 
         $savedFilter->delete();
 

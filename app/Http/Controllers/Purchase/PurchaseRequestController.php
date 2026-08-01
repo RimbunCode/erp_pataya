@@ -118,34 +118,4 @@ class PurchaseRequestController extends Controller {
 
         return back();
     }
-
-    public function onApproved(PurchaseRequest $purchaseRequest) {
-        $this->service->onApproved($purchaseRequest);
-
-        return back();
-    }
-
-    public function onRejected(PurchaseRequest $purchaseRequest) {
-        $this->service->onRejected($purchaseRequest);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PurchaseRequest $purchaseRequest) {
-        DB::beginTransaction();
-        try {
-            $purchaseRequest->delete();
-            $purchaseRequest->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('purchaseRequests.index');
-    }
 }

@@ -7,7 +7,6 @@ use App\Models\Core\File;
 use App\Utils;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class FileController extends Controller {
@@ -81,23 +80,5 @@ class FileController extends Controller {
      */
     public function update(Request $request, File $file) {
         //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(File $file) {
-        DB::beginTransaction();
-        try {
-            $file->delete();
-            $file->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('files.index');
     }
 }

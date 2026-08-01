@@ -100,22 +100,4 @@ class ItemAlternativeController extends Controller {
 
         return back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ItemAlternative $itemAlternative) {
-        DB::beginTransaction();
-        try {
-            $itemAlternative->delete();
-            $itemAlternative->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('itemAlternatives.index');
-    }
 }

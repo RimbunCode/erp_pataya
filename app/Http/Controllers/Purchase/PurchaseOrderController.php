@@ -25,7 +25,7 @@ class PurchaseOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default                 => null,
+            default => null,
         };
     }
 
@@ -154,18 +154,6 @@ class PurchaseOrderController extends Controller {
         return redirect()->back();
     }
 
-    public function onApproved(PurchaseOrder $purchaseOrder) {
-        $this->service->onApproved($purchaseOrder);
-
-        return back();
-    }
-
-    public function onRejected(PurchaseOrder $purchaseOrder) {
-        $this->service->onRejected($purchaseOrder);
-
-        return back();
-    }
-
     /**
      * Sync PO items berdasarkan data Invoice & Receipt (split per rate/tax/warehouse).
      */
@@ -186,23 +174,5 @@ class PurchaseOrderController extends Controller {
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors());
         }
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PurchaseOrder $purchaseOrder) {
-        DB::beginTransaction();
-        try {
-            $purchaseOrder->delete();
-            $purchaseOrder->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('purchaseOrders.index');
     }
 }

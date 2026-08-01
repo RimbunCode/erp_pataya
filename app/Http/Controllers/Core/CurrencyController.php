@@ -59,19 +59,4 @@ class CurrencyController extends Controller {
 
         return back();
     }
-
-    public function destroy(Currency $currency) {
-        DB::beginTransaction();
-        try {
-            $currency->delete();
-            $currency->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('currencies.index');
-    }
 }

@@ -42,8 +42,8 @@ class PdfAttachTestDocumentController extends Controller {
         parent::__construct($request, PdfAttachTestDocument::class);
     }
 
-    public function onApproved(PdfAttachTestDocument $pdfAttachTestDocument) {
-        $pdfAttachTestDocument->update(['status' => 'approved']);
+    public function onApproved(mixed $id) {
+        PdfAttachTestDocument::findOrFail($id)->update(['status' => 'approved']);
 
         return back();
     }

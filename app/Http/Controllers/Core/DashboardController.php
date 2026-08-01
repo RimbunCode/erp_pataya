@@ -225,22 +225,4 @@ class DashboardController extends Controller {
 
         return redirect()->back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Dashboard $dashboard) {
-        DB::beginTransaction();
-        try {
-            $dashboard->logForDeleted();
-            $dashboard->delete();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->back();
-    }
 }

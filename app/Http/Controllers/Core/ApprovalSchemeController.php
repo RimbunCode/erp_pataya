@@ -191,22 +191,4 @@ class ApprovalSchemeController extends Controller {
 
         return redirect()->back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(ApprovalScheme $approvalScheme) {
-        DB::beginTransaction();
-        try {
-            $approvalScheme->delete();
-            $approvalScheme->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('approvalSchemes.index');
-    }
 }

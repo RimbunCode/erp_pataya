@@ -187,34 +187,4 @@ class PurchaseInvoiceController extends Controller {
 
         return redirect()->back();
     }
-
-    public function onApproved(PurchaseInvoice $purchaseInvoice) {
-        $this->service->onApproved($purchaseInvoice);
-
-        return back();
-    }
-
-    public function onRejected(PurchaseInvoice $purchaseInvoice) {
-        $this->service->onRejected($purchaseInvoice);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PurchaseInvoice $purchaseInvoice) {
-        DB::beginTransaction();
-        try {
-            $purchaseInvoice->delete();
-            $purchaseInvoice->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('purchaseInvoices.index');
-    }
 }

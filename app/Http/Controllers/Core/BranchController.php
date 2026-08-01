@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Core;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Core\BranchRequest;
 use App\Models\Core\Branch;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -108,24 +109,7 @@ class BranchController extends Controller {
         return back();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Branch $branch) {
-        if ($branch->is_main_branch) {
-            abort(403);
-        }
-        DB::beginTransaction();
-        try {
-            $branch->delete();
-            $branch->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('branches.index');
+    protected function beforeDestroy(Model $data): void {
+        abort_if($data->is_main_branch, 403);
     }
 }
