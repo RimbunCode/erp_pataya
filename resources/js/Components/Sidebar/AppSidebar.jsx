@@ -3,6 +3,7 @@ import * as React from "react";
 import {
   BookOpenIcon,
   HandCoins,
+  HistoryIcon,
   LayoutDashboard,
   ListTodo,
   PackageIcon,
@@ -296,6 +297,13 @@ const navList = [
     icon: <BookOpenIcon />,
     url: "/manual-book",
     urlPattern: "/manual-book*",
+  },
+  {
+    title: "Logs",
+    icon: <HistoryIcon />,
+    url: "/logs",
+    urlPattern: "/logs*",
+    model: "App\\Models\\Core\\Log",
   },
   {
     title: "Settings",

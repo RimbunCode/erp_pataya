@@ -199,6 +199,13 @@ const Cell = memo(
       case "relation":
         valueCell = convertTemplateLink(value);
         break;
+      case "html":
+        return (
+          <span
+            className="text-ellipsis truncate [&_p]:inline [&_p]:m-0"
+            dangerouslySetInnerHTML={{ __html: value ?? "" }}
+          />
+        );
       case "mixed":
       case "json":
       case "relations":
