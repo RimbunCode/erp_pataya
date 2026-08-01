@@ -181,4 +181,25 @@ class StockLedgerControllerTest extends TestCase {
 
         $response->assertOk();
     }
+
+    /**
+     * Regresi: `getNameClass()` bawaan trait mengembalikan `stockLedgerEntry`
+     * (dari nama kelas `StockLedgerEntry`), yang lalu di-pluralize frontend
+     * (`DataTable2.jsx`) menjadi route name `stockLedgerEntries.show` —
+     * tidak terdaftar, karena route resource aslinya bernama `stockLedger`
+     * (lihat `Route::resourceDetail('stockLedger', ...)`). Prop Inertia
+     * `name` (diisi dari `getNameClass()`, lihat `DataTableScope::addDataTable()`)
+     * harus match nama route asli supaya kolom `isLink` di index tidak
+     * membentuk URL ke route yang tidak ada.
+     */
+    public function test_index_shares_name_prop_matching_registered_route(): void {
+        $response = $this
+            ->withSession($this->sessionWithPermission(['select' => true, 'read' => true]))
+            ->withCookie('lang', 'en')
+            ->actingAs($this->user)
+            ->get(route('stockLedgers.index'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page->where('name', 'stockLedger'));
+    }
 }

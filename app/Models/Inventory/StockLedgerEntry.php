@@ -96,6 +96,21 @@ class StockLedgerEntry extends Model {
         return 'stockLedgers';
     }
 
+    /**
+     * Jalur terpisah dari `getRouteAttribute()` di atas: `getNameClass()`
+     * dipakai `DataTableScope::addDataTable()` untuk mengisi prop Inertia
+     * `name`, yang lalu dipakai `DataTable2.jsx` untuk membentuk nama route
+     * kolom `isLink` (`pluralize.plural(name) + '.show'`). Tanpa override
+     * ini, frontend mengarah ke `stockLedgerEntries.show` yang tidak
+     * terdaftar. `initPermissions()` (DataTable.php) TIDAK memakai method
+     * ini — pakai `Str::afterLast(static::class, '\\')` langsung — sehingga
+     * override ini tidak berdampak ke nama Permission/FormatingSeries yang
+     * sudah tersimpan.
+     */
+    public function getNameClass() {
+        return 'stockLedger';
+    }
+
     protected static function loadRelationsOnShow() {
         return [
             'item',
