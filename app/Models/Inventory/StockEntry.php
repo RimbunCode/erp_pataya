@@ -15,8 +15,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class StockEntry extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'Inventory/StockEntries/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'date'                 => 'datetime',
         'received_date'        => 'datetime',
         'using_transit'        => 'boolean',

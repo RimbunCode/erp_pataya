@@ -13,7 +13,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Lead extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
+    public string $formComponent = 'CRM/Leads/Form';
+    protected $guarded           = ['id'];
 
     public static function templateLink() {
         return ':company_name';

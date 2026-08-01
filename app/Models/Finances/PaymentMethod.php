@@ -10,7 +10,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PaymentMethod extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
+    public string $formComponent = 'Finances/PaymentMethods/Form';
+    protected $guarded           = ['id'];
 
     public static function templateLink() {
         return ':name';

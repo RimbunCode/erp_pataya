@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Country extends Model {
     use DataTable, HasFactory;
 
+    public string $formComponent   = 'Settings/Countries/Form';
     protected $primaryKey          = 'code';
     public $incrementing           = false;
     protected $keyType             = 'string';

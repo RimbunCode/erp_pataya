@@ -16,6 +16,7 @@ class Dashboard extends Model {
     protected $guarded           = ['id'];
     public $translateKey         = 'settings.dashboard';
     public string $keyBreadcrumb = 'title';
+    public string $formComponent = 'Settings/Dashboard/Form';
 
     public static function templateLink() {
         return ':title';

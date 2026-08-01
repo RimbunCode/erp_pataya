@@ -14,8 +14,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ApprovalScheme extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'Settings/ApprovalScheme/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'is_active' => 'boolean',
         'config'    => Json::class,
     ];

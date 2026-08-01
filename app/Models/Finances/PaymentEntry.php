@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PaymentEntry extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
+    public string $formComponent               = 'Finances/PaymentEntries/Form';
     protected static string $defaultFormatCode = 'PaymentEntry-@[iiii]/@[yy]';
     protected $casts                           = [
         'date'             => 'datetime',
