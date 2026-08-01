@@ -2,11 +2,8 @@
 
 namespace App\Providers;
 
-use App\Events\Core\DocumentCanceled;
-use App\Listeners\Core\Approval\CancelPendingApprovalSteps;
 use App\Services\Core\HaveTransactionsSyncService;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
-use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -29,7 +26,5 @@ class AppServiceProvider extends ServiceProvider {
         \collect(\glob(base_path('/database/macros/*.php')))->each(function ($file) {
             require $file;
         });
-
-        Event::listen(DocumentCanceled::class, CancelPendingApprovalSteps::class);
     }
 }

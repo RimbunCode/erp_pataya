@@ -48,6 +48,12 @@ Implementasi berjalan bottom-up: (1) computed attribute `canCancel` di `Submitab
     - `Event::listen(DocumentCanceled::class, CancelPendingApprovalSteps::class)` di `boot()`
     - _Requirements: 4.2_
 
+  - [x] 3.4b (REVISI, instruksi user setelah commit awal — "daftarkan Event Listener di ServiceProvider terpisah, jangan jadikan satu di AppServiceProvider") Pindah registrasi ke `EventServiceProvider` baru
+    - Buat `app/Providers/EventServiceProvider.php`, extends `Illuminate\Foundation\Support\Providers\EventServiceProvider`, property `$listen = [DocumentCanceled::class => [CancelPendingApprovalSteps::class]]` — pola Laravel klasik, bukan `Event::listen()` manual.
+    - Daftarkan di `bootstrap/providers.php` (array provider Laravel 12, bukan `config/app.php`).
+    - Hapus baris `Event::listen(...)` dan import terkait dari `AppServiceProvider::boot()` — dikembalikan ke isi semula (Vite prefetch + macro loader saja).
+    - Verifikasi: `tests/Feature/Core/Approval/CancelPendingApprovalStepsTest.php` (5 test) tetap lulus — listener terbukti masih ter-trigger lewat provider baru, bukan cuma dicek dari daftar `$listen` statis. Pint pass.
+
   - [x] 3.5 Write tests untuk cascade listener (Property 3, 4, 5)
     - **Property 3 — cascade lengkap tanpa sisa**: ApprovalInstance dengan N step PENDING/WAITING → setelah listener jalan, 0 step tersisa PENDING/WAITING
     - **Property 4 — idempotensi**: jalankan `handle()` 2-5 kali pada state sama → state akhir identik dengan 1 kali jalan, tidak ada exception

@@ -151,20 +151,38 @@ class CancelPendingApprovalSteps {
 
 Idempotensi (Requirement 4.3): query `whereIn('status', [PENDING, WAITING])` secara alami idempoten — pemanggilan kedua untuk dokumen yang sama tidak menemukan step berstatus PENDING/WAITING lagi (sudah CANCELED dari pemanggilan pertama), sehingga `$steps` kosong dan loop tidak melakukan apa-apa. Tidak perlu flag/lock tambahan.
 
-### 4. `app/Providers/AppServiceProvider.php` — registrasi listener
+### 4. `app/Providers/EventServiceProvider.php` — registrasi listener (REVISI)
 
-Tidak ada `EventServiceProvider` di codebase ini (dicek: hanya `AppServiceProvider.php` di `app/Providers/`). Registrasi ditambahkan di `boot()` memakai facade `Event`, konvensi Laravel 11/12 (menggantikan pola `$listen` array):
+**Keputusan final (revisi user setelah implementasi awal):** registrasi listener dipindah ke `EventServiceProvider` TERPISAH, bukan digabung ke `AppServiceProvider`. Draft awal sempat pakai `Event::listen()` manual di `AppServiceProvider::boot()` karena codebase belum punya `EventServiceProvider` sama sekali — tapi begitu ada Event/Listener pertama, provider khusus dibuat dari awal (bukan ditunda sampai daftarnya banyak), konsisten dengan pola Laravel klasik yang extend `Illuminate\Foundation\Support\Providers\EventServiceProvider` dan pakai property `$listen`:
 
 ```php
+// app/Providers/EventServiceProvider.php
+namespace App\Providers;
+
 use App\Events\Core\DocumentCanceled;
 use App\Listeners\Core\Approval\CancelPendingApprovalSteps;
-use Illuminate\Support\Facades\Event;
+use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
 
-public function boot(): void {
-    Vite::prefetch(concurrency: 3);
-    Event::listen(DocumentCanceled::class, CancelPendingApprovalSteps::class);
-    ...
+class EventServiceProvider extends ServiceProvider {
+    protected $listen = [
+        DocumentCanceled::class => [
+            CancelPendingApprovalSteps::class,
+        ],
+    ];
 }
+```
+
+Didaftarkan di `bootstrap/providers.php` (Laravel 12 tidak lagi pakai `config/app.php` untuk ini):
+
+```php
+return [
+    AppServiceProvider::class,
+    EventServiceProvider::class,
+    ClockworkServiceProvider::class,
+];
+```
+
+`AppServiceProvider::boot()` dikembalikan ke isi semula (tanpa baris `Event::listen(...)`) — pemisahan concern: `AppServiceProvider` untuk bootstrap generik (Vite, macro), `EventServiceProvider` khusus pemetaan event→listener. Provider baru ini menjadi TITIK PERTAMA — kalau ke depan ada Event/Listener lain (lihat [[feedback_prefer_event_listener_pattern]]), didaftarkan di property `$listen` yang sama, bukan bikin provider baru lagi per-event.
 ```
 
 ### 5. `app/Http/Controllers/Controller.php` — template method `cancel()` + property `$service`
