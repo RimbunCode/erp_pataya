@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Currency extends Model {
     use DataTable, HasFactory;
 
+    public string $formComponent   = 'Settings/Currencies/Form';
     protected $primaryKey          = 'code';
     public $incrementing           = false;
     protected $keyType             = 'string';

@@ -187,6 +187,7 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
             ]);
         });
     }
+    Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('/logs/{log}', [LogController::class, 'show'])->name('logs.show');
     // Branch Switcher
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');

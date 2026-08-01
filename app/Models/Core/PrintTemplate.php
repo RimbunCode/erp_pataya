@@ -16,8 +16,9 @@ use Illuminate\Support\Str;
 class PrintTemplate extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'Core/PrintTemplate/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'template'             => Json::class,
         'used_relations'       => 'array',
         'is_default'           => 'boolean',

@@ -12,8 +12,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Opportunity extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'CRM/Opportunities/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'expected_value'      => 'float',
         'probability'         => 'integer',
         'expected_close_date' => 'date',

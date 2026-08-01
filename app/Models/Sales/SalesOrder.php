@@ -17,10 +17,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class SalesOrder extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded    = ['id'];
-    public $keyBreadcrumb = 'code';
-    public $translateKey  = 'sales.salesOrder';
-    protected $casts      = [
+    public string $formComponent = 'Sales/SalesOrders/Form';
+    protected $guarded           = ['id'];
+    public $keyBreadcrumb        = 'code';
+    public $translateKey         = 'sales.salesOrder';
+    protected $casts             = [
         'date'                          => 'datetime',
         'is_rent'                       => 'boolean',
         'start_date'                    => 'datetime',

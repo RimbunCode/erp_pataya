@@ -12,10 +12,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Quotation extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded    = ['id'];
-    public $keyBreadcrumb = 'code';
-    public $translateKey  = 'crm.quotation';
-    protected $casts      = [
+    protected $guarded           = ['id'];
+    public $keyBreadcrumb        = 'code';
+    public $translateKey         = 'crm.quotation';
+    public string $formComponent = 'CRM/Quotations/Form';
+    protected $casts             = [
         'date'        => 'datetime',
         'valid_until' => 'date',
         'amount'      => 'float',

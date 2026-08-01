@@ -11,8 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseReceipt extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'Purchase/PurchaseReceipts/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'received_date' => 'datetime',
         'date'          => 'datetime',
     ];

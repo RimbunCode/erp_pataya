@@ -12,8 +12,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Customer extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'Sales/Customers/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'is_disabled' => 'boolean',
     ];
 

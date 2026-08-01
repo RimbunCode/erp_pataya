@@ -1,0 +1,6 @@
+{
+  "specId": "a0e4adf1-9c50-47c5-8305-b70626c23747",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Halaman index global (lintas modul) untuk menampilkan seluruh audit log (tabel logs) dengan filter modul, user, rentang tanggal, dan jenis aksi, dilindungi permission baru khusus model Log."
+}
