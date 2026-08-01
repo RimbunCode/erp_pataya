@@ -91,12 +91,12 @@ const navList = [
         urlPattern: "/deliveryNotes/*",
         model: "App\\Models\\Inventory\\DeliveryNote",
       },
-      // {
-      //   title: "Stock Ledgers",
-      //   url: "/stockLedgers",
-      //   urlPattern: "/stockLedgers/*",
-      //   model: "App\\Models\\Inventory\\StockLedger",
-      // },
+      {
+        title: "Stock Ledgers",
+        url: "/stockLedgers",
+        urlPattern: "/stockLedgers/*",
+        model: "App\\Models\\Inventory\\StockLedgerEntry",
+      },
     ],
   },
   {
