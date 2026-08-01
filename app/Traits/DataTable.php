@@ -12,6 +12,8 @@ use App\Models\Core\Tag;
 use App\Models\Core\Todo;
 use App\Models\User\Permission;
 use App\Services\Core\BufferedAttachmentService;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Schema;
@@ -266,9 +268,60 @@ trait DataTable {
      * @param  array|string  $relations
      * @return $this
      */
-    public function loadRelations($relations = []) {
+    public function loadRelations($relations = [], bool $withTrashed = false) {
         $toLoad = static::getRelationKeys(false, $relations);
-        $this->load($toLoad);
+
+        if (! $withTrashed) {
+            $this->load($toLoad);
+
+            return;
+        }
+
+        // withTrashed: relasi ber-SoftDeletes tetap dimuat walau record-nya sudah
+        // dihapus, agar Show/Edit tidak kehilangan nama relasi historis dan bisa
+        // menandai (via deleted_at) bahwa data terkait sudah tidak aktif. Dilewati
+        // untuk relasi yang method-nya sendiri sudah memanggil withTrashed() —
+        // pola sama seperti DataTableScope::relationDefinesOwnWithTrashed().
+        foreach ($toLoad as $key => $relation) {
+            $relationName = \is_int($key) ? $relation : $key;
+            if (! \method_exists($this, $relationName) || $this->relationDefinesOwnWithTrashed($relationName)) {
+                $this->load([$key => $relation]);
+
+                continue;
+            }
+
+            $this->load([$relationName => function ($relationQuery) {
+                $relatedModel = $relationQuery instanceof Relation
+                    ? $relationQuery->getRelated()
+                    : $relationQuery->getModel();
+                if (\in_array(SoftDeletes::class, class_uses_recursive($relatedModel))) {
+                    $relationQuery->withTrashed();
+                }
+            }]);
+        }
+    }
+
+    /**
+     * True bila method relasi sudah memanggil withTrashed() sendiri di source-nya
+     * — loadRelations(withTrashed: true) tidak boleh ikut campur di relasi ini.
+     */
+    private function relationDefinesOwnWithTrashed(string $relationName): bool {
+        if (! \method_exists($this, $relationName)) {
+            return false;
+        }
+
+        try {
+            $reflection = new \ReflectionMethod($this, $relationName);
+            $file       = $reflection->getFileName();
+            if ($file === false) {
+                return false;
+            }
+            $lines = \array_slice(\file($file), $reflection->getStartLine() - 1, $reflection->getEndLine() - $reflection->getStartLine() + 1);
+
+            return \str_contains(\implode('', $lines), 'withTrashed');
+        } catch (\ReflectionException) {
+            return false;
+        }
     }
 
     /**

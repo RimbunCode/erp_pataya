@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
@@ -28,10 +29,10 @@ class UserRequest extends BaseFormRequest {
             'birthdate'         => ['nullable', 'date'],
             'phone'             => ['nullable', 'string'],
             'roles'             => ['nullable', 'array', 'min:1'],
-            'roles.*'           => ['required', 'string', 'exists:roles,id'],
+            'roles.*'           => ['required', 'string', new ExistsExcludingTrashed('roles')],
             'branches'          => ['nullable', 'array', 'min:1'],
-            'branches.*'        => ['nullable', Rule::requiredIf(fn () => $this->id != $this->user()->id), 'string', 'exists:branches,id'],
-            'default_branch_id' => ['nullable', Rule::requiredIf(fn () => $this->id != $this->user()->id), 'string', 'exists:branches,id'],
+            'branches.*'        => ['nullable', Rule::requiredIf(fn () => $this->id != $this->user()->id), 'string', new ExistsExcludingTrashed('branches')],
+            'default_branch_id' => ['nullable', Rule::requiredIf(fn () => $this->id != $this->user()->id), 'string', new ExistsExcludingTrashed('branches')],
         ];
     }
 }

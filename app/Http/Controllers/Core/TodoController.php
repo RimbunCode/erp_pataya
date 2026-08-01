@@ -81,7 +81,7 @@ class TodoController extends Controller {
 
         return Inertia::render('Core/Todos/Show', [
             'todo' => function () use ($todo) {
-                $todo->loadRelations();
+                $todo->loadRelations([], withTrashed: true);
 
                 return $todo;
             },

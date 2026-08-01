@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class WidgetRequest extends BaseFormRequest {
@@ -31,7 +32,7 @@ class WidgetRequest extends BaseFormRequest {
             'group_by_base_on'            => ['nullable', 'string', 'max:48'],
             'aggregate_function_based_on' => ['nullable', 'string', 'max:48'],
             'description'                 => ['nullable', 'string', 'max:255'],
-            'model.id'                    => ['required', 'exists:permissions,id'],
+            'model.id'                    => ['required', new ExistsExcludingTrashed('permissions')],
             'model.model'                 => ['required', 'string'],
         ];
     }

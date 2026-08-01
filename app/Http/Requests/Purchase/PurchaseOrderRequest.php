@@ -5,6 +5,7 @@ namespace App\Http\Requests\Purchase;
 use App\Http\Requests\BaseFormRequest;
 use App\Http\Requests\Finances\Rules\AdditionalDiscountRules;
 use App\Http\Requests\Finances\Rules\PaymentSchedulesRules;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
@@ -26,25 +27,25 @@ class PurchaseOrderRequest extends BaseFormRequest {
             'date'                        => ['required', 'date'],
             'required_date'               => ['required', 'date', Rule::date()->afterOrEqual($this->date)],
             'external_note'               => ['nullable', 'string'],
-            'supplier.id'                 => ['required', 'exists:suppliers,id'],
+            'supplier.id'                 => ['required', new ExistsExcludingTrashed('suppliers')],
             'supplier.*'                  => ['nullable'],
             'exchange_rate'               => ['nullable', 'numeric'],
             'currency.code'               => ['nullable', 'exists:currencies,code'],
             'currency.*'                  => ['nullable'],
             'items'                       => ['required', 'array', 'min:1'],
             'items.*.id'                  => ['required', 'string'],
-            'items.*.item.id'             => ['required', 'exists:item_variants,id'],
+            'items.*.item.id'             => ['required', new ExistsExcludingTrashed('item_variants')],
             'items.*.item.*'              => ['nullable'],
             'items.*.description'         => ['nullable', 'string'],
             'items.*.referenceable_type'  => ['nullable', 'string'],
             'items.*.referenceable_id'    => ['nullable', 'string'],
             'items.*.required_date'       => ['required', 'date', Rule::date()->afterOrEqual($this->date)],
             'items.*.quantity'            => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'             => ['required', 'exists:item_units,id'],
+            'items.*.unit.id'             => ['required', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'              => ['nullable'],
-            'items.*.target_warehouse.id' => ['required', 'exists:warehouses,id'],
+            'items.*.target_warehouse.id' => ['required', new ExistsExcludingTrashed('warehouses')],
             'items.*.target_warehouse.*'  => ['nullable'],
-            'items.*.tax.id'              => ['nullable', 'exists:taxes,id'],
+            'items.*.tax.id'              => ['nullable', new ExistsExcludingTrashed('taxes')],
             'items.*.tax.*'               => ['nullable'],
             'items.*.rate'                => ['required', 'numeric', 'min:0'],
             ...AdditionalDiscountRules::make($this),

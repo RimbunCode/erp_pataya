@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
@@ -21,10 +22,10 @@ class WarehouseRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'branch.id' => ['nullable', 'string', 'exists:branches,id'],
+            'branch.id' => ['nullable', 'string', new ExistsExcludingTrashed('branches')],
             'code'      => ['required', 'string', 'min:2', 'max:20', 'regex:/^[\w\-\.\\\\\/]*$/', Rule::unique('warehouses')->whereNull('deleted_at')->ignore($this->id)],
             'name'      => ['required', 'string', 'min:3', 'max:255'],
-            'pic.id'    => ['nullable', 'string', 'exists:users,id'],
+            'pic.id'    => ['nullable', 'string', new ExistsExcludingTrashed('users')],
         ];
     }
 }

@@ -68,11 +68,11 @@ class PurchaseRequestItem extends Model {
     }
 
     public function item(): mixed {
-        return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')->withTrashed($this->status != 'draft')
+        return $this->belongsTo(ItemVariant::class, 'item_variant_id', 'id')
             ->with(['defaultUom']);
     }
 
     public function unit() {
-        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id')->withTrashed($this->status != 'draft');
+        return $this->belongsTo(ItemUnit::class, 'item_unit_id', 'id');
     }
 }

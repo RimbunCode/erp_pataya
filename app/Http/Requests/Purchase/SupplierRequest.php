@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Purchase;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class SupplierRequest extends BaseFormRequest {
@@ -20,7 +21,7 @@ class SupplierRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'branch_of.id'    => ['nullable', 'string', 'exists:suppliers,id'],
+            'branch_of.id'    => ['nullable', 'string', new ExistsExcludingTrashed('suppliers')],
             'name'            => ['required', 'string', 'min:3', 'max:255'],
             'phone'           => ['required', 'string', 'min:3', 'max:255'],
             'email'           => ['required', 'string', 'min:3', 'max:255', 'email:rfc'],

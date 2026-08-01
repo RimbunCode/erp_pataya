@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class EmailTemplateSendRequest extends BaseFormRequest {
@@ -29,7 +30,7 @@ class EmailTemplateSendRequest extends BaseFormRequest {
             'subject'     => ['required', 'string', 'max:255'],
             'body'        => ['required', 'string'],
             'fileIds'     => ['nullable', 'array'],
-            'fileIds.*'   => ['string', 'exists:files,id'],
+            'fileIds.*'   => ['string', new ExistsExcludingTrashed('files')],
             'include_pdf' => ['nullable', 'boolean'],
         ];
     }

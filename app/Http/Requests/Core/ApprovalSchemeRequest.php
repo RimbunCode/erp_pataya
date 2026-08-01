@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class ApprovalSchemeRequest extends BaseFormRequest {
@@ -22,7 +23,7 @@ class ApprovalSchemeRequest extends BaseFormRequest {
         return [
             'name'                              => ['required', 'string', 'min:3', 'max:255', "unique:approval_schemes,name,{$this->id}"],
             'permission.model'                  => ['required', 'string'],
-            'permission.id'                     => ['required', 'string', 'exists:permissions,id'],
+            'permission.id'                     => ['required', 'string', new ExistsExcludingTrashed('permissions')],
             'permission.*'                      => ['nullable'],
             'is_active'                         => ['nullable', 'boolean'],
             'steps'                             => ['required', 'array', 'min:1'],

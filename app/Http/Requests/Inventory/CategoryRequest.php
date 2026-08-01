@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class CategoryRequest extends BaseFormRequest {
@@ -22,7 +23,7 @@ class CategoryRequest extends BaseFormRequest {
         return [
             'name'            => ['required', 'string', 'min:3', 'max:255'],
             'type'            => ['required', 'string', 'min:3', 'max:255'],
-            'default_unit.id' => ['nullable', 'string', 'exists:units,id'],
+            'default_unit.id' => ['nullable', 'string', new ExistsExcludingTrashed('units')],
         ];
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Finances;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,7 @@ class AccountRequest extends BaseFormRequest {
         return [
             'account_name'      => ['required', 'string', 'max:255'],
             'account_number'    => ['required', 'string', 'max:255', Rule::unique('accounts', 'account_number')->whereNull('deleted_at')->ignore($this->id)],
-            'parent_account.id' => ['required', 'exists:accounts,id'],
+            'parent_account.id' => ['required', new ExistsExcludingTrashed('accounts')],
             'is_group'          => ['nullable', 'boolean'],
             'balance_type'      => ['nullable', 'string', 'in:debit,credit'],
             'account_type'      => ['nullable', 'string', 'max:255'],
