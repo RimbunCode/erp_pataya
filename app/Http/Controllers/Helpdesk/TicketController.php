@@ -21,7 +21,7 @@ class TicketController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'updateTicket' => 'write',
-            default => null,
+            default                    => null,
         };
     }
 
