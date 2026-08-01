@@ -49,7 +49,6 @@ import {
   generateRandom,
   getLocaleDate,
   inArray,
-  isCompletedStatus,
   removeFromLocalStorage,
   resolveImageSrc,
 } from "@/lib/utils";
@@ -1151,7 +1150,7 @@ const FormPage = memo(
                             {t("core.form.amend")}
                           </Button>
                         )
-                      : !isCompletedStatus(defaultData?.status) &&
+                      : defaultData?.canCancel &&
                         can(
                           "cancel",
                           submitable && { user_id: defaultData?.created_by_id },

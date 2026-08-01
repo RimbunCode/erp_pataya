@@ -17,8 +17,6 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class PurchaseOrderController extends Controller {
-    private PurchaseOrderService $service;
-
     public function __construct(Request $request, PurchaseOrderService $service) {
         $this->service = $service;
         parent::__construct($request, PurchaseOrder::class);
@@ -27,7 +25,7 @@ class PurchaseOrderController extends Controller {
     protected function enforcePermission(string $method): ?string {
         return match ($method) {
             'markDone', 'syncItems' => 'write',
-            default                 => null,
+            default => null,
         };
     }
 
@@ -164,12 +162,6 @@ class PurchaseOrderController extends Controller {
 
     public function onRejected(PurchaseOrder $purchaseOrder) {
         $this->service->onRejected($purchaseOrder);
-
-        return back();
-    }
-
-    public function cancel(PurchaseOrder $purchaseOrder) {
-        $this->service->cancel($purchaseOrder);
 
         return back();
     }

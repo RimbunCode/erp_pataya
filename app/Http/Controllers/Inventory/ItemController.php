@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ItemController extends Controller {
-    protected ItemServices $service;
-
     public function __construct(Request $request, ItemServices $service) {
         $this->service = $service;
         parent::__construct($request, Item::class);

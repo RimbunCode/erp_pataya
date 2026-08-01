@@ -205,6 +205,7 @@ trait LinkModel {
             ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel'],
             method_exists(static::class, 'templateLink') ? ['templateLink'] : [],
             method_exists(static::class, 'disabledOn') ? ['disabledOn'] : [],
+            (static::$is_submitable ?? false) ? ['canCancel'] : [],
         )));
     }
 
@@ -375,12 +376,12 @@ trait LinkModel {
         // Mapping pakai match
         $phpType = match ($type) {
             'int', 'tinyint', 'smallint', 'mediumint', 'bigint', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set'                    => 'string',
-            'date'                                                                                            => 'date',
-            'datetime', 'timestamp'                                                                           => 'datetime',
-            'time'                                                                                            => 'time',
-            'blob', 'binary', 'varbinary'                                                                     => 'binary',
-            default                                                                                           => 'mixed',
+            'varchar', 'char', 'text', 'tinytext', 'mediumtext', 'longtext', 'enum', 'set' => 'string',
+            'date' => 'date',
+            'datetime', 'timestamp' => 'datetime',
+            'time' => 'time',
+            'blob', 'binary', 'varbinary' => 'binary',
+            default => 'mixed',
         };
 
         $cast = $casts[$dataColumn['name']] ?? null;
@@ -414,14 +415,14 @@ trait LinkModel {
                 ])
             ) {
                 $phpType = match ($cast) {
-                    Json::class                                             => 'json',
-                    FormStatusCast::class                                   => 'formStatus',
-                    FormStatusesCast::class                                 => 'formStatuses',
+                    Json::class             => 'json',
+                    FormStatusCast::class   => 'formStatus',
+                    FormStatusesCast::class => 'formStatuses',
                     'integer', 'decimal', 'float', 'double', 'real', 'year' => 'number',
-                    'immutable_date', 'date'                                => 'date',
-                    'immutable_datetime', 'datetime', 'timestamp'           => 'datetime',
-                    'time'                                                  => 'time',
-                    default                                                 => $cast,
+                    'immutable_date', 'date' => 'date',
+                    'immutable_datetime', 'datetime', 'timestamp' => 'datetime',
+                    'time'  => 'time',
+                    default => $cast,
                 };
             }
         }
@@ -584,25 +585,39 @@ trait LinkModel {
                 continue;
             }
 
-            $baselineDepends = [];
-            if ($value === 'appendStatus' && ! isset($config['dependsOn'])) {
-                $baselineDepends = ['dependsOn' => $hasStatusCol ? ['status'] : $pkDepends];
-            } elseif ($value === 'canDelete' && ! isset($config['dependsOn'])) {
+            $baselineDependsOn = null;
+            if ($value === 'appendStatus') {
+                $baselineDependsOn = $hasStatusCol ? ['status'] : $pkDepends;
+            } elseif ($value === 'canDelete') {
                 $isSubmitable = static::$is_submitable ?? false;
                 if ($isSubmitable && $hasStatusCol) {
-                    $baselineDepends = ['dependsOn' => ['status']];
+                    $baselineDependsOn = ['status'];
                 } elseif (! $isSubmitable && $hasHtCol) {
-                    $baselineDepends = ['dependsOn' => ['have_transactions']];
+                    $baselineDependsOn = ['have_transactions'];
                 } else {
-                    $baselineDepends = ['dependsOn' => $pkDepends];
+                    $baselineDependsOn = $pkDepends;
                 }
+            } elseif ($value === 'canCancel') {
+                $baselineDependsOn = $hasStatusCol ? ['status'] : $pkDepends;
             } elseif (in_array($value, ['route', 'keyModel', 'thisModel', 'disabledOn'])) {
-                $baselineDepends = ['dependsOn' => $pkDepends];
+                $baselineDependsOn = $pkDepends;
             } elseif ($value === 'templateLink') {
-                $baselineDepends = ['dependsOn' => method_exists(static::class, 'templateLink')
+                $baselineDependsOn = method_exists(static::class, 'templateLink')
                     ? DataTableColumnSelector::templateLinkPlaceholders(static::templateLink()) ?: $pkDepends
-                    : $pkDepends];
+                    : $pkDepends;
             }
+
+            // dependsOn model (configColumns) DITAMBAHKAN ke baseline, bukan
+            // menimpa — mis. canDelete baseline butuh 'status', model bisa
+            // menambah kolom lain yang dibaca method canDelete() override-nya
+            // tanpa kehilangan dependency baseline.
+            $mergedDependsOn = array_values(array_unique([
+                ...($baselineDependsOn ?? []),
+                ...($config['dependsOn'] ?? []),
+            ]));
+            $baselineDepends = $baselineDependsOn !== null || isset($config['dependsOn'])
+                ? ['dependsOn' => $mergedDependsOn]
+                : [];
 
             $newColumns[$value] = [
                 'name'       => $value,
@@ -612,7 +627,7 @@ trait LinkModel {
                 'primaryKey' => $pkName,
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
                 ...$baselineDepends,
-                ...$config,
+                ...array_diff_key($config, ['dependsOn' => true]),
                 ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }

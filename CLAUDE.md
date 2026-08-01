@@ -63,6 +63,21 @@ git pull origin <nama-branch>
 
 Baru kemudian buat worktree. Melewati langkah ini menyebabkan worktree dibuat dari commit lama sehingga push akan ditolak (non-fast-forward) dan rebase menghasilkan banyak konflik.
 
+## Struktur Folder `{Domain}/{Feature}` (lintas layer)
+
+Berlaku untuk SEMUA layer app — bukan cuma Event/Listener: `Services`, `Models`, `Jobs`, `Events`, `Listeners`, `Controllers`, dan layer baru lainnya ke depan. Prinsip ini sudah eksis organik di codebase (lihat `app/Jobs/Core/Notification/SendNotificationMailJob.php` vs job Core lain yang flat) — di sini dituliskan eksplisit sebagai aturan.
+
+**Domain** mengikuti konvensi yang sudah ada: `Core`, `Sales`, `Purchase`, `Inventory`, `Finances`, `Service`, `Helpdesk`, `User`, `Migration`.
+
+**Kapan folder `{Feature}` di-nested — pemicunya JUMLAH FILE terkait, bukan sekadar "spesifik vs generik":**
+- Fitur hanya butuh **1 file** (mis. satu Controller atau satu Service per model) → `{Domain}/NamaFile.php`, **tanpa** nested Feature. Ini kenapa `Controllers`/`Services`/`Models` per-model saat ini semuanya flat — satu model = satu file per layer, tidak ada alasan untuk nested.
+- Fitur butuh **>1 file saling terkait** untuk berfungsi (mis. parser + sanitizer + renderer terpisah) → `{Domain}/{Feature}/`, **dengan** nested Feature. Contoh nyata: `app/Services/Core/PrintTemplate/` (9 file: `PdfExportService`, `TemplateParserService`, `HTMLSanitizerService`, dst).
+- **Boleh preemptif**: nested tidak wajib menunggu sampai file ke-2 baru dibuat lalu dipindah — kalau developer bisa menilai fitur itu KEMUNGKINAN BESAR akan tumbuh butuh file pendamping ke depan, nested boleh dibuat sejak file pertama. Contoh: `app/Jobs/Core/Notification/SendNotificationMailJob.php` — saat ini cuma 1 file, tapi domain notifikasi jelas akan tumbuh (job notifikasi lain), jadi nested dari awal masuk akal. Ini penilaian kontekstual, bukan hitungan mekanis "sudah 2 file baru nested".
+
+File-file yang berhubungan (mis. Event dan Listener pasangannya, atau Job dan Service yang men-trigger-nya) **tidak harus** berada di path `{Feature}` yang sama — evaluasi tiap file terpisah berdasar prediksi pertumbuhannya SENDIRI, karena bisa beda satu sama lain. Contoh dari spec `cancel-workflow-improvements`: `App\Events\Core\DocumentCanceled` (event generik untuk semua dokumen submitable yang dibatalkan, hanya 1 file dan tidak diprediksi butuh pendamping — berpotensi dikonsumsi banyak listener BEDA fitur, tapi event-nya sendiri tetap satu) TIDAK di-nest Feature, sedangkan listener-nya `App\Listeners\Core\Approval\CancelPendingApprovalSteps` (domain approval punya banyak aksi terkait — approve/reject/pending/cancel — diprediksi akan didampingi listener approval lain ke depan) DI-nest folder `Approval/`.
+
+`Services`, `Models`, dan `Controllers` per-model saat ini semuanya flat — BUKAN berarti prinsipnya tidak berlaku di situ, tapi karena satu model secara alami hanya butuh satu Controller/Service/Model, tidak ada dorongan untuk pecah jadi banyak file. Kalau ada model/fitur yang Controller atau Service-nya diprediksi perlu dipecah (mis. logic terlalu besar, butuh helper class terpisah), nested Feature berlaku sama.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

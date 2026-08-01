@@ -18,8 +18,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class DeliveryNoteController extends Controller {
-    private DeliveryNoteService $service;
-
     public function __construct(Request $request, DeliveryNoteService $service) {
         $this->service = $service;
         parent::__construct($request, DeliveryNote::class);
@@ -263,12 +261,6 @@ class DeliveryNoteController extends Controller {
 
     public function onRejected(DeliveryNote $deliveryNote) {
         $this->service->onRejected($deliveryNote);
-
-        return redirect()->back();
-    }
-
-    public function cancel(DeliveryNote $deliveryNote) {
-        $this->service->cancel($deliveryNote);
 
         return redirect()->back();
     }

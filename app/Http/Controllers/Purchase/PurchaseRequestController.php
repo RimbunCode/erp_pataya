@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseRequestController extends Controller {
-    private PurchaseRequestService $service;
-
     public function __construct(Request $request, PurchaseRequestService $service) {
         $this->service = $service;
         parent::__construct($request, PurchaseRequest::class);
@@ -117,12 +115,6 @@ class PurchaseRequestController extends Controller {
 
     public function submit(PurchaseRequest $purchaseRequest) {
         $this->service->submit($purchaseRequest);
-
-        return back();
-    }
-
-    public function cancel(PurchaseRequest $purchaseRequest) {
-        $this->service->cancel($purchaseRequest);
 
         return back();
     }

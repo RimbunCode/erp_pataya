@@ -15,8 +15,6 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class TodoController extends Controller {
-    private TodoService $service;
-
     public function __construct(Request $request, TodoService $service) {
         $this->service = $service;
         parent::__construct($request, Todo::class);

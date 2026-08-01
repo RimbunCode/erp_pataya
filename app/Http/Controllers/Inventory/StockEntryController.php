@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class StockEntryController extends Controller {
-    private StockEntryService $service;
-
     public function __construct(Request $request, StockEntryService $service) {
         $this->service = $service;
         parent::__construct($request, StockEntry::class);

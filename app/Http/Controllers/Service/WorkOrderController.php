@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class WorkOrderController extends Controller {
-    private WorkOrderService $service;
-
     public function __construct(Request $request, WorkOrderService $service) {
         $this->service = $service;
         parent::__construct($request, WorkOrder::class);
