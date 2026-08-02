@@ -11,7 +11,10 @@ return [
     'cancel'             => 'Batal',
     'filters'            => 'Filter',
     'category'           => 'Kategori',
-    'columns'            => [
+    'actions'            => [
+        'view_reference' => 'Lihat Dokumen Sumber',
+    ],
+    'columns' => [
         'code'                        => 'Kode',
         'created_at'                  => 'Dibuat Pada',
         'date'                        => 'Tanggal',

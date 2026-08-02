@@ -14,7 +14,10 @@ return [
     'playground.description'       => 'Select a stock to see its conversion factor',
     'playground.stock.placeholder' => 'Select a stock',
     'stock'                        => 'Stock',
-    'columns'                      => [
+    'actions'                      => [
+        'view_reference' => 'View Source Document',
+    ],
+    'columns' => [
         'code'                       => 'Code',
         'name'                       => 'Name',
         'group'                      => 'Group',

@@ -11,7 +11,10 @@ return [
     'cancel'             => 'Cancel',
     'filters'            => 'Filters',
     'category'           => 'Category',
-    'columns'            => [
+    'actions'            => [
+        'view_reference' => 'View Source Document',
+    ],
+    'columns' => [
         'code'                        => 'Code',
         'created_at'                  => 'Created At',
         'date'                        => 'Date',

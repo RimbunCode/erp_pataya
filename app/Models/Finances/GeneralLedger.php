@@ -86,7 +86,7 @@ class GeneralLedger extends Model {
     }
 
     public static function loadRelationsOnShow() {
-        return ['account', 'againstAccount', 'branch'];
+        return ['account', 'againstAccount', 'branch', 'referenceable'];
     }
 
     public function branch() {
@@ -103,5 +103,9 @@ class GeneralLedger extends Model {
 
     public function partyable() {
         return $this->morphTo('partyable');
+    }
+
+    public function referenceable() {
+        return $this->morphTo();
     }
 }

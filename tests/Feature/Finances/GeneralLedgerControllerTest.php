@@ -126,7 +126,8 @@ class GeneralLedgerControllerTest extends TestCase {
                 ->where('generalLedger.id', $this->generalLedger->id)
                 ->has('generalLedger.account')
                 ->has('generalLedger.against_account')
-                ->has('generalLedger.branch'),
+                ->has('generalLedger.branch')
+                ->has('generalLedger.referenceable'),
         );
     }
 

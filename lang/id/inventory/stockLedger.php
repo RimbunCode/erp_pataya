@@ -14,7 +14,10 @@ return [
     'playground.description'       => 'Pilih stok untuk melihat faktor konversinya',
     'playground.stock.placeholder' => 'Pilih stok',
     'stock'                        => 'Stok',
-    'columns'                      => [
+    'actions'                      => [
+        'view_reference' => 'Lihat Dokumen Sumber',
+    ],
+    'columns' => [
         'code'                       => 'Kode',
         'name'                       => 'Nama',
         'group'                      => 'Grup',
