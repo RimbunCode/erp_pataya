@@ -71,7 +71,6 @@ import { TZDate } from "@date-fns/tz";
 import Tags from "./Components/Tags";
 import { TooltipProvider } from "@/Components/ui/tooltip";
 import { convertTemplateLink } from "@/lib/linkModelUtils";
-import { evaluate } from "@marcbachmann/cel-js";
 import { format } from "date-fns";
 import pluralize from "pluralize";
 import { gooeyToast as toast } from "@/lib/gooeyToast";
@@ -737,10 +736,7 @@ const FormPage = memo(
       isDirty,
     } = form;
     const disabled = useMemo(() => {
-      if (!defaultData?.disabledOn) {
-        return !!_disabled;
-      }
-      return evaluate(defaultData?.disabledOn, defaultData);
+      return !!_disabled || !!defaultData?.disabledOn;
     }, [_disabled, defaultData?.disabledOn]);
     const onSubmit = useCallback(
       (e) => {
@@ -2230,6 +2226,7 @@ export {
   FormPageContentDescription,
   FormPageDialog,
   FormPageDiff,
+  FormPageContext,
   useFormPage,
   useFormPageMeta,
   // useFormPageContent,

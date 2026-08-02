@@ -26,7 +26,7 @@ class ModelController extends Controller {
      * Selalu lolos pembatasan kolom lookup.
      */
     private const ALWAYS_ALLOWED_ATTRIBUTES = [
-        'route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel', 'templateLink', 'disabledOn',
+        'route', 'canDelete', 'canUpdate', 'keyModel', 'appendStatus', 'thisModel', 'templateLink', 'disabledOn',
     ];
 
     private array $safeColumnsCache     = [];

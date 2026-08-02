@@ -609,6 +609,8 @@ trait DataTable {
     }
 
     public function showDetail() {
+        $this->markAsShowContext();
+
         if (static::$is_submitable ?? false) {
             Inertia::share([
                 'prints' => Inertia::defer(
