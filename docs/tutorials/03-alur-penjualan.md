@@ -2,38 +2,37 @@
 
 > Skenario lengkap penjualan: order, kirim barang, tagih, terima pembayaran.
 
-Diagram korelasi: [Sales · Korelasi](../modules/sales.md#korelasi-antar-feature).
-
 ```mermaid
 flowchart LR
-    SO[Sales Order] --> DN[Delivery Note] --> SI[Sales Invoice] --> PE[Payment Entry]
+    SO(["📋 1. Sales Order"]) --> DN["🚚 2. Delivery Note"] --> SI["🧾 3. Sales Invoice"] --> PE(["💰 4. Payment Entry"])
+
+    style SO fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style PE fill:#22c55e,stroke:#15803d,color:#fff
 ```
 
-> **Dua urutan didukung (dual flow).** Tutorial ini memakai urutan _deliver-first_ (Langkah 1-5). Untuk urutan _bill-first_ lihat [Variasi: Dual Flow](#variasi-dual-flow). Tahap Delivery Note (Langkah 2) dan Sales Invoice (Langkah 3) **independen** — keduanya menempel ke SO via `delivered_quantity` & `billed_quantity` terpisah, jadi boleh dibalik urutannya.
+> **Dua urutan didukung (dual flow).** Tutorial ini memakai urutan _kirim-dulu_ (Langkah 1-5). Untuk urutan _tagih-dulu_ lihat [Variasi: Dual Flow](#variasi-dual-flow). Langkah Delivery Note dan Sales Invoice **independen** — jumlah terkirim dan jumlah tertagih dicatat terpisah, jadi boleh dibalik urutannya.
 
 ## Langkah 1 — Buat Sales Order
 
 Menu **Sales → Sales Orders → Tambah**.
 
-1. Pilih `customer` ([CustomerLinkModel](../frontend.md#peta-linkmodel-relasi-ui)).
-2. Tambah baris item (`ItemForm.jsx`): pilih **Variant** ([ItemVariantLinkModel](../frontend.md#peta-linkmodel-relasi-ui)), `quantity`, `unit`, `price`, `tax`, `source_warehouse`.
-3. **Save** → status `DRAFT` (`POST /salesOrders`).
-4. **Submit** → `PUT /salesOrders/{id}/submit`:
-   - Generate kode final (FormatingSeries).
-   - Reservasi stok di source warehouse.
-   - Cek approval ([Tutorial 5](05-approval-scheme.md)). Jika tidak ada scheme → status `[TO_DELIVER, TO_BILL]`.
-
-Route lengkap: [Sales · Routes SO](../modules/sales.md#routes-so-submitable).
+1. Pilih customer.
+2. Tambah baris item: pilih **Variant**, jumlah, satuan, harga, pajak, dan gudang asal.
+3. **Save** → status Draft.
+4. **Submit**:
+   - Kode dokumen final dibuat otomatis.
+   - Stok direservasi di gudang asal.
+   - Sistem mengecek approval ([Tutorial 5](05-approval-scheme.md)). Jika tidak ada skema approval → status berubah menjadi Siap Dikirim & Siap Ditagih.
 
 ## Langkah 2 — Delivery Note (kirim barang)
 
-Dari SO yang sudah `TO_DELIVER`, buat **Delivery Note**.
+Dari SO yang sudah berstatus Siap Dikirim, buat **Delivery Note**.
 
 1. Sales/Warehouse → Delivery Notes → Tambah, referensikan SO (atau via tombol di SO).
-2. Submit DN (`PUT /deliveryNotes/{id}/submit`):
-   - Stok **keluar** dari `source_warehouse` → `StockLedgerEntry`.
-   - SO item `delivered_quantity` bertambah.
-   - SO status → `PARTIALLY_DELIVERED` / `DELIVERED`.
+2. Submit DN:
+   - Stok **keluar** dari gudang asal.
+   - Jumlah terkirim di SO bertambah.
+   - SO status → Sebagian Terkirim / Terkirim.
 
 Detail: [Inventory · Delivery Note](../modules/inventory.md#delivery-note).
 
@@ -41,63 +40,59 @@ Detail: [Inventory · Delivery Note](../modules/inventory.md#delivery-note).
 
 Buat **Sales Invoice** dari SO.
 
-1. Finances → Sales Invoices → Tambah, pilih SO ([SalesOrderLinkModel](../frontend.md#peta-linkmodel-relasi-ui)).
-2. Submit SI (`PUT /salesInvoices/{id}/submit`):
-   - GL: **debit** piutang (`debit_account`), **credit** pendapatan (`income_account`).
-   - SO item `billed_quantity` bertambah → SO `PARTIALLY_BILLED`/`BILLED`.
+1. Finances → Sales Invoices → Tambah, pilih SO.
+2. Submit SI:
+   - Piutang bertambah, pendapatan tercatat di buku besar.
+   - Jumlah tertagih di SO bertambah → SO status → Sebagian Ditagih / Ditagih.
 
 ## Langkah 4 — Payment Entry (terima bayar)
 
-1. Finances → Payment Entries → Tambah, `payment_type: receive`.
-2. `paymentable` → Sales Invoice; `partyable` → Customer.
-3. Submit (`PUT /paymentEntries/{id}/submit`):
-   - GL: **debit** kas/bank, **credit** piutang.
-   - SI `paid_amount` naik, `outstanding_amount` turun → status `PAID` saat lunas.
-   - **Payment Schedule** invoice diupdate: `paid_amount` dialokasikan FIFO per jatuh tempo → `outstanding_amount` jadwal turun. Lihat [Finances · Submit Flow PE](../modules/finances.md#submit-flow-pe).
+1. Finances → Payment Entries → Tambah, pilih tipe "Terima".
+2. Pilih Sales Invoice yang dibayar dan Customer sebagai pihak pembayar.
+3. Submit:
+   - Kas/bank bertambah, piutang berkurang di buku besar.
+   - Jumlah terbayar di SI naik, sisa tagihan turun → status Lunas saat sudah penuh.
+   - Jadwal pembayaran invoice ikut diperbarui (dialokasikan berurutan per jatuh tempo).
 
 ## Langkah 5 — SO Closed
 
-Saat semua terkirim & tertagih → SO `CLOSED`.
+Saat semua terkirim & tertagih → SO berstatus Selesai.
 
 ---
 
 ## Variasi: Dual Flow
 
-SO menyimpan progres kirim dan tagih di kolom **terpisah** per item (`delivered_quantity`/`undelivered_quantity` vs `billed_quantity`/`unbilled_quantity`). Karena itu DN dan SI tidak saling bergantung — dua urutan valid:
+SO mencatat progres kirim dan progres tagih secara **terpisah** per baris item. Karena itu DN dan SI tidak saling bergantung — dua urutan valid:
 
-### Flow A — Deliver-first (kirim dulu, default tutorial ini)
-
-```mermaid
-flowchart LR
-    SO[Sales Order] --> DN[Delivery Note] --> SI[Sales Invoice] --> PE[Payment Entry]
-```
-
-Urut: SO → **DN** (Langkah 2) → **SI** (Langkah 3) → PE. Cocok bila barang dikirim sebelum ditagih.
-
-### Flow B — Bill-first (tagih dulu)
+### Flow A — Kirim Dulu (default tutorial ini)
 
 ```mermaid
 flowchart LR
-    SO[Sales Order] --> SI[Sales Invoice] --> DN[Delivery Note]
-    SI --> PE[Payment Entry]
+    SO(["📋 Sales Order"]) --> DN["🚚 Delivery Note"] --> SI["🧾 Sales Invoice"] --> PE(["💰 Payment Entry"])
 ```
 
-Tukar urutan: setelah SO approved (`[TO_DELIVER, TO_BILL]`):
+Urut: SO → **Delivery Note** (Langkah 2) → **Sales Invoice** (Langkah 3) → Payment. Cocok bila barang dikirim sebelum ditagih.
 
-1. **Buat Sales Invoice dulu** (Langkah 3) → SO `BILLED`.
+### Flow B — Tagih Dulu
+
+```mermaid
+flowchart LR
+    SO(["📋 Sales Order"]) --> SI["🧾 Sales Invoice"] --> PE(["💰 Payment Entry"])
+    SO --> DN["🚚 Delivery Note"]
+```
+
+Tukar urutan: setelah SO disetujui (status Siap Dikirim & Siap Ditagih):
+
+1. **Buat Sales Invoice dulu** (Langkah 3) → SO status Ditagih.
 2. Boleh terima pembayaran (Langkah 4) sebelum barang keluar.
-3. **Baru buat Delivery Note** (Langkah 2) → SO `DELIVERED`.
-4. SO `CLOSED` saat dua-duanya tuntas.
+3. **Baru buat Delivery Note** (Langkah 2) → SO status Terkirim.
+4. SO Selesai saat dua-duanya tuntas.
 
 Cocok untuk penjualan dengan pembayaran di muka (DP/lunas sebelum kirim).
 
-> Keduanya berakhir di `CLOSED`. Yang menentukan status akhir bukan urutan, tapi apakah `delivered` & `billed` sudah penuh. Konsep: [Sales · Dual Flow](../modules/sales.md#dual-flow-so--dn--si-atau-so--si--dn).
+> Keduanya berakhir di status Selesai. Yang menentukan status akhir bukan urutan, tapi apakah pengiriman dan penagihan sudah tuntas semua.
 
 ## Catatan
 
-- **Cancel** dokumen mana pun → [`Submitable`](../modules/core.md#trait-submitable) mereverse GL & Stock Ledger terkait.
+- **Cancel** dokumen mana pun mengembalikan (reverse) efeknya di buku besar dan stok.
 - **Retur penjualan**: barang kembali → [Sales Return (DN retur)](retur.md#1-sales-return-dn-retur); koreksi tagihan → [Credit Note (SI retur)](retur.md#2-credit-note-sales-invoice-retur). Lihat [Tutorial Retur](retur.md).
-
----
-
-*Lihat: [Sales](../modules/sales.md) · [Finances](../modules/finances.md) · [Inventory](../modules/inventory.md)*

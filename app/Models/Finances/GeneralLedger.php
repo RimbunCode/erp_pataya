@@ -14,9 +14,18 @@ class GeneralLedger extends Model {
 
     protected $guarded                         = ['id'];
     protected $casts                           = ['debit' => 'float', 'credit' => 'float'];
-    public string $translateKey                = 'finances.generalLedger';
-    protected static $generateCodeSeries       = true;
     protected static string $defaultFormatCode = 'GL-@[iiii]/@[yy]';
+    protected static $generateCodeSeries       = true;
+    public string $translateKey                = 'finances.generalLedger';
+
+    protected static function permissions() {
+        return [
+            'select',
+            'read',
+            'export',
+            'print',
+        ];
+    }
 
     public static function boot() {
         parent::boot();
@@ -25,7 +34,7 @@ class GeneralLedger extends Model {
         });
     }
 
-    protected array $configColumns = [
+    protected $configColumns = [
         'code' => [
             'order'  => 0,
             'show'   => true,
@@ -77,7 +86,7 @@ class GeneralLedger extends Model {
     }
 
     public static function loadRelationsOnShow() {
-        return ['account', 'againstAccount', 'branch'];
+        return ['account', 'againstAccount', 'branch', 'referenceable'];
     }
 
     public function branch() {
@@ -94,5 +103,9 @@ class GeneralLedger extends Model {
 
     public function partyable() {
         return $this->morphTo('partyable');
+    }
+
+    public function referenceable() {
+        return $this->morphTo();
     }
 }

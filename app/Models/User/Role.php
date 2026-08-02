@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Role extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'Users/Roles/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'is_disabled' => 'boolean',
     ];
     protected array $configColumns = [

@@ -3,7 +3,9 @@
 namespace Tests\Unit\Sales;
 
 use App\Enums\FormStatus;
+use App\Models\Finances\Tax;
 use App\Models\Inventory\StockLedgerEntry;
+use App\Models\Sales\SalesOrder;
 use App\Models\Sales\SalesOrderItem;
 use App\Services\Finances\SalesInvoiceService;
 use App\Services\Sales\SalesOrderService;
@@ -327,5 +329,53 @@ class SalesDualFlowTest extends TestCase {
 
         $this->assertContains('over_billed', $statusValues);
         $this->assertNotContains('to_bill', $statusValues);
+    }
+
+    // =========================================================================
+    // Perbaikan 1: tax opsional (MoM 10 Juli 2026) — fillItemRelations tidak
+    // boleh crash saat item.tax kosong (Undefined array key "id").
+    // =========================================================================
+
+    #[Test]
+    public function sales_order_fill_item_relations_handles_missing_tax(): void {
+        $service    = new SalesOrderService;
+        $method     = new \ReflectionMethod(SalesOrderService::class, 'fillItemRelations');
+        $salesOrder = new SalesOrder([
+            'currency_code'      => 'IDR',
+            'base_currency_code' => 'IDR',
+            'exchange_rate'      => 1,
+        ]);
+
+        $result = $method->invoke($service, [
+            'item'     => ['id' => 'item-1'],
+            'unit'     => ['id' => 'unit-1'],
+            'tax'      => null,
+            'quantity' => 1,
+        ], $salesOrder, [], []);
+
+        $this->assertNull($result['tax_id'], 'tax_id harus null, bukan melempar error, saat tax tidak diisi');
+        $this->assertEquals(0, $result['tax_rate'], 'tax_rate harus default 0 saat tax tidak diisi');
+    }
+
+    #[Test]
+    public function sales_order_fill_item_relations_still_resolves_tax_when_present(): void {
+        $service    = new SalesOrderService;
+        $method     = new \ReflectionMethod(SalesOrderService::class, 'fillItemRelations');
+        $salesOrder = new SalesOrder([
+            'currency_code'      => 'IDR',
+            'base_currency_code' => 'IDR',
+            'exchange_rate'      => 1,
+        ]);
+        $tax = new Tax(['rate' => 11]);
+
+        $result = $method->invoke($service, [
+            'item'     => ['id' => 'item-1'],
+            'unit'     => ['id' => 'unit-1'],
+            'tax'      => ['id' => 'tax-1'],
+            'quantity' => 1,
+        ], $salesOrder, [], ['tax-1' => $tax]);
+
+        $this->assertEquals('tax-1', $result['tax_id']);
+        $this->assertEquals(11, $result['tax_rate']);
     }
 }

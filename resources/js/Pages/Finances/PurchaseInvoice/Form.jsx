@@ -61,6 +61,10 @@ export default function Form() {
     return calculateArray(data.items, "basic_amount", "+");
   }, [data.items]);
 
+  const dpp_amount = useMemo(() => {
+    return calculateArray(data.items, "dpp_amount", "+");
+  }, [data.items]);
+
   const tax_amount = useMemo(() => {
     return calculateArray(data.items, "tax_amount", "+");
   }, [data.items]);
@@ -549,6 +553,32 @@ export default function Form() {
               decimalScale={2}
               className="text-right"
               value={net_amount}
+              currencyCode={data?.currency?.code ?? "default"}
+            ></NumberInput>
+          </FormInput>
+          {data?.currency?.code &&
+            data?.currency?.code !== default_currency_id && (
+              <FormInput
+                readOnly
+                label={`${t("finances.purchaseInvoice.columns.dpp_amount")} (${default_currency_id.toUpperCase()})`}
+              >
+                <NumberInput
+                  className="text-right"
+                  decimalScale={2}
+                  value={dpp_amount * (data?.exchange_rate ?? 1)}
+                  currencyCode="default"
+                ></NumberInput>
+              </FormInput>
+            )}
+          <FormInput
+            readOnly
+            label={`${t("finances.purchaseInvoice.columns.dpp_amount")} (${(data?.currency?.code ?? default_currency_id).toUpperCase()})`}
+            className="col-start-2"
+          >
+            <NumberInput
+              decimalScale={2}
+              className="text-right"
+              value={dpp_amount}
               currencyCode={data?.currency?.code ?? "default"}
             ></NumberInput>
           </FormInput>

@@ -12,6 +12,8 @@
 - [Inventory](#inventory)
 - [Finances](#finances)
 - [Service](#service)
+- [CRM](#crm)
+- [Helpdesk](#helpdesk)
 - [Core](#core)
 - [User & Access](#user--access)
 
@@ -65,6 +67,9 @@ Relasi `morphTo` menerima banyak tipe target. Berikut peta target nyata di aplik
 | `taggable` | [Taggable](#core) | `taggable_type/id` | Semua model | Tagging polymorphic |
 | `fileable` | [Fileable](#core) | `fileable_type/id` | Semua model | Lampiran file polymorphic |
 | `referenceable` (AdditionalCost) | [AdditionalCost](#finances) | morph | StockEntry, dll. | Biaya tambahan dokumen |
+| `reference` (Todo) | [Todo](#core) | `reference_type/id` | Dokumen apa pun (opsional) | Konteks tambahan todo |
+| `allocatedTo` (Todo) | [Todo](#core) | `allocated_to_type/id` via `Assignable` | [User](#user--access) atau [Role](#user--access) | Penerima tugas todo |
+| `referenceable` (Quotation) | [Quotation](#crm) | `referenceable_type/id` | Dokumen sumber (opsional) | Traceability opsional Quotation |
 
 > Mekanisme `referenceable` + tabel [`model_connections`](database.md#model_connections) adalah inti traceability antar dokumen. Lihat [Korelasi](modules/sales.md#korelasi-antar-feature).
 
@@ -309,6 +314,69 @@ Relasi `morphTo` menerima banyak tipe target. Berikut peta target nyata di aplik
 
 ---
 
+## CRM
+
+### Lead
+| Relasi | Tipe | Target | Tujuan |
+|---|---|---|---|
+| `leadSource` | BT | LeadSource (`lead_source_id` → **key `code`**, bukan `id`) | Sumber lead |
+| `assignedTo` | BT | [User](#user--access) | Penanggung jawab |
+| `country` | BT | Country | Negara alamat |
+| `convertedCustomer` | BT | [Customer](#sales) | Hasil konversi (`converted_customer_id`) |
+| `activities` | HM | LeadActivity | Riwayat kontak (order by `scheduled_at`) |
+| `opportunities` | HM | Opportunity | Peluang yang berasal dari lead ini |
+
+### LeadActivity
+`lead` (BT), `assignedTo` (BT → User).
+
+### LeadSource
+Model lookup sederhana (master sumber lead) — primary key bisnisnya `code`, bukan ULID biasa. Tidak punya relasi Eloquent lain.
+
+### Opportunity
+| Relasi | Tipe | Target | Tujuan |
+|---|---|---|---|
+| `lead` | BT | Lead (nullable) | Asal opportunity |
+| `customer` | BT | [Customer](#sales) (nullable) | Repeat business dari customer existing |
+| `assignedTo` | BT | [User](#user--access) | Penanggung jawab |
+| `quotations` | HM | Quotation | Quotation yang dibuat dari opportunity ini |
+
+### Quotation
+| Relasi | Tipe | Target | Tujuan |
+|---|---|---|---|
+| `referenceable` | MT | Dokumen sumber (nullable) | Traceability opsional |
+| `opportunity` | BT | Opportunity (nullable) | Asal quotation |
+| `customer` | BT | [Customer](#sales) | Tujuan penawaran |
+| `items` | HM | QuotationItem | Baris item |
+| `branch` | BT | [Branch](#core) | Branch pemilik (via Submitable) |
+
+> **Submitable** — satu-satunya model CRM dengan workflow status. Lihat [CRM · Quotation](modules/crm.md#quotation).
+
+### QuotationItem
+`quotation` (BT), `item` (BT → **[ItemVariant](#inventory)**, `item_id`).
+
+Lihat [Modul CRM](modules/crm.md).
+
+---
+
+## Helpdesk
+
+### Ticket
+| Relasi | Tipe | Target | Tujuan |
+|---|---|---|---|
+| `assignTo` | BT | [User](#user--access) | Penanggung jawab (`assign_to_id`) |
+| `createdBy` | BT | [User](#user--access) | Pembuat ticket |
+| `branch` | BT | [Branch](#core) | Cabang terkait (opsional) |
+| `responses` | HM | TicketResponse | Riwayat/respons (order by `created_at` desc) |
+
+> **Bukan Submitable** — status tunggal (`FormStatusCast`), bukan array multi-status. Lihat [Helpdesk · Ticket](modules/helpdesk.md#ticket).
+
+### TicketResponse
+`ticket` (BT), `user` (BT → User, nullable), `assignTo` (BT → User).
+
+Lihat [Modul Helpdesk](modules/helpdesk.md).
+
+---
+
 ## Core
 
 ### Branch
@@ -329,6 +397,24 @@ Relasi `morphTo` menerima banyak tipe target. Berikut peta target nyata di aplik
 
 ### ApprovalInstanceStep
 `approvalInstance` (BT), `approver` (MT → Role/User), `actedBy` (BT → User).
+
+### Todo
+| Relasi | Tipe | Target | Tujuan |
+|---|---|---|---|
+| `reference` | MT | Dokumen terkait (opsional) | Konteks tambahan todo |
+| `allocatedTo` | BT | `Assignable` → User atau Role (`allocated_to_type`) | Ditugaskan ke user langsung atau ke seluruh role |
+| `assignedBy` | BT | [User](#user--access) | Pemberi tugas |
+
+> Lihat [Core · Todo](modules/core.md#todo).
+
+### EmailTemplate
+`permission` (BT → Permission).
+
+### SavedFilter
+`user` (BT → User).
+
+### Changelog
+`reads` (HM → ChangelogRead), `readers` (BTM → User via `changelog_reads`, pivot `read_at`).
 
 ### Lainnya
 - **PrintTemplate**: `permission` (BT → Permission), `letterHead` (BT self).

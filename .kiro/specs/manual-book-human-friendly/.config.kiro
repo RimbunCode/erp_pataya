@@ -1,0 +1,6 @@
+{
+  "specId": "5fa5970e-4381-4c75-b08d-00e03cb8bf58",
+  "workflowType": "design-first",
+  "specType": "feature",
+  "description": "Tulis ulang konten Manual Book (in-app help) menjadi bahasa awam/human-friendly untuk 8 section aktif, memakai sumber markdown baru yang terpisah dari docs teknis developer."
+}

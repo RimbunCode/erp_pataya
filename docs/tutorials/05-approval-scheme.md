@@ -1,61 +1,56 @@
-# Tutorial 5 — Menyiapkan Approval Scheme
+# Tutorial 5 — Menyiapkan Skema Persetujuan (Approval)
 
-> Mengaktifkan persetujuan berjenjang sebelum dokumen melanjutkan workflow.
+> Mengaktifkan persetujuan berjenjang sebelum dokumen melanjutkan alurnya.
 
-Konsep: [Core · Approval](../modules/core.md#approval).
+Konsep dasar: [Core · Approval](../modules/core.md#approval).
 
+```mermaid
+flowchart LR
+    S(["⚙️ Skema Approval<br/>(diatur sekali)"]) -->|"otomatis dipicu saat submit"| I["✅ Proses Persetujuan<br/>(berjalan per dokumen)"]
+    I --> D(["🎉 Keputusan Akhir"])
+
+    style S fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style D fill:#22c55e,stroke:#15803d,color:#fff
 ```
-ApprovalScheme (config) → saat submit → ApprovalInstance (runtime) → step decision
-```
 
-## Langkah 1 — Buat Scheme
+## Langkah 1 — Buat Skema
 
 Menu **Settings → Approval Schemes → Tambah**.
 
 | Field | Catatan |
 |---|---|
-| `name` | Nama scheme |
-| `model` | FQCN dokumen, mis. `App\Models\Sales\SalesOrder` |
-| `trigger_on` | `submit` |
-| `is_active` | Aktifkan (hanya 1 scheme aktif per model + trigger) |
+| Nama | Nama skema |
+| Jenis Dokumen | Dokumen yang dikenai skema ini (mis. Sales Order) |
+| Trigger | Kapan skema dijalankan (mis. saat submit) |
+| Aktif | Aktifkan skema (hanya boleh 1 skema aktif per jenis dokumen) |
 
-Route: `POST /settings/approvalSchemes` (`approvalSchemes.store`). Lihat [Core · ApprovalScheme](../modules/core.md#approval-scheme-konfigurasi).
+## Langkah 2 — Tambah Langkah Persetujuan
 
-## Langkah 2 — Tambah Steps
-
-Tiap step (`ApprovalSchemeStep`):
+Tiap langkah approval:
 
 | Field | Catatan |
 |---|---|
-| `sequence` | Urutan (0, 1, 2, ...) |
-| `approver_type` | `role` atau `user` |
-| `approverable` | Role/User penyetuju (polymorphic) |
-
-Halaman: `Pages/Settings/ApprovalScheme/Form.jsx`, `Show.jsx`.
+| Urutan | Urutan langkah (langkah 1, 2, 3, dst.) |
+| Tipe Penyetuju | Role tertentu atau User tertentu |
+| Penyetuju | Role/User yang dipilih untuk menyetujui langkah ini |
 
 ## Langkah 3 — Uji Submit
 
 1. Buat & submit dokumen target (mis. Sales Order).
-2. Karena ada scheme aktif → dokumen masuk `NEED_APPROVAL`, terbentuk `ApprovalInstance` + step.
+2. Karena ada scheme aktif → dokumen berstatus Menunggu Persetujuan, dan instance approval beserta langkahnya otomatis terbentuk.
 
 ## Langkah 4 — Proses Approval
 
-Menu **Approvals** (`/approvals`):
+Menu **Approvals** — daftar dokumen yang menunggu persetujuan Anda.
 
-| Aksi | Route |
-|---|---|
-| Daftar | `GET /approvals` (`approvalInstances.index`) |
-| Detail | `GET /approvals/{instance}` (`approvalInstances.show`) |
-| Keputusan | `POST /approvals/{step}/decision` (`approvalInstances.decision`) |
-
-- Approver klik **Approve/Reject** (`ApproverDecision.jsx`).
-- Semua step approved → callback `onApproved()` dokumen (status lanjut TO_DELIVER/TO_RECEIVE/dll).
-- Salah satu rejected → `onRejected()` → status `REJECTED` (dapat di-**amend**).
+- Approver membuka detail dokumen, klik **Approve** atau **Reject**.
+- Semua langkah disetujui → dokumen lanjut ke status berikutnya (mis. Siap Dikirim/Siap Diterima).
+- Salah satu langkah ditolak → dokumen berstatus Ditolak (bisa di-**amend** untuk revisi).
 
 ## Catatan
 
-- Tanpa scheme aktif / 0 step → dokumen langsung approved saat submit.
-- `{level?}` di route update = level approval saat update di tengah proses. Lihat [Core · Trait Submitable](../modules/core.md#arti-level-pada-route-update).
+- Tanpa scheme aktif → dokumen langsung disetujui otomatis saat submit.
+- Saat update dokumen di tengah proses approval, ada indikator level approval yang menandai tahap mana yang sedang diperbarui.
 
 ---
 

@@ -285,7 +285,6 @@ export default memo(function Form() {
     {
       name: "tax",
       titleTrans: "sales.salesOrder.columns.tax",
-      required: true,
       width: 2,
       cell({ data: value, setData, attributes, dataRow }) {
         return (

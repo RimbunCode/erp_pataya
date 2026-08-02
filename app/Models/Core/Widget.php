@@ -14,8 +14,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Widget extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-    public $casts      = [
+    public string $formComponent = 'Settings/Widget/Form';
+    protected $guarded           = ['id'];
+    public $casts                = [
         'config'  => Json::class,
         'filters' => Json::class,
     ];

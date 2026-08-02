@@ -5,6 +5,7 @@ return [
     'add'                          => 'Tambah Stok',
     'stocks'                       => 'Stok',
     'new'                          => 'Stok Baru',
+    'detail'                       => 'Detail',
     'delete'                       => 'Hapus Stok',
     'delete.description'           => 'Apakah Anda yakin ingin menghapus data ini?',
     'delete.confirm'               => 'Hapus',
@@ -13,7 +14,10 @@ return [
     'playground.description'       => 'Pilih stok untuk melihat faktor konversinya',
     'playground.stock.placeholder' => 'Pilih stok',
     'stock'                        => 'Stok',
-    'columns'                      => [
+    'actions'                      => [
+        'view_reference' => 'Lihat Dokumen Sumber',
+    ],
+    'columns' => [
         'code'                       => 'Kode',
         'name'                       => 'Nama',
         'group'                      => 'Grup',

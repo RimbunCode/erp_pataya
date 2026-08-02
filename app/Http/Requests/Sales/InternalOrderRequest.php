@@ -20,14 +20,16 @@ class InternalOrderRequest extends BaseFormRequest {
      */
     public function rules(): array {
         return [
-            'date'             => ['required', 'date'],
-            'external_note'    => ['nullable', 'string'],
-            'items'            => ['required', 'array', 'min:1'],
-            'items.*.id'       => ['required', 'string'],
-            'items.*.item.id'  => ['required', new ExistsExcludingTrashed('item_variants'), 'distinct'],
-            'items.*.quantity' => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'  => ['required', new ExistsExcludingTrashed('item_units')],
-            'items.*.unit.*'   => ['nullable'],
+            'date'                        => ['required', 'date'],
+            'external_note'               => ['nullable', 'string'],
+            'items'                       => ['required', 'array', 'min:1'],
+            'items.*.id'                  => ['required', 'string'],
+            'items.*.item.id'             => ['required', new ExistsExcludingTrashed('item_variants'), 'distinct'],
+            'items.*.quantity'            => ['required', 'numeric', 'min:1'],
+            'items.*.unit.id'             => ['required', new ExistsExcludingTrashed('item_units')],
+            'items.*.unit.*'              => ['nullable'],
+            'items.*.source_warehouse.id' => ['nullable', 'exists:warehouses,id'],
+            'items.*.source_warehouse.*'  => ['nullable'],
         ];
     }
 }

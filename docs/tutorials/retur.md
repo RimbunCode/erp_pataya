@@ -4,16 +4,16 @@
 
 ## Konsep Umum
 
-Retur **bukan** dokumen jenis baru — melainkan **dokumen bertipe sama** (DN / GR / Sales Invoice / Purchase Invoice) yang menunjuk dokumen asli via `return_against_id` (header) dan `return_against_item_id` (per baris). Pisahkan dua sisi:
+Retur **bukan** dokumen jenis baru — melainkan **dokumen bertipe sama** (DN / GR / Sales Invoice / Purchase Invoice) yang menunjuk balik ke dokumen aslinya. Pisahkan dua sisi:
 
 | Sisi | Pergerakan **barang** (stok) | Koreksi **tagihan** (akuntansi) |
 |---|---|---|
 | **Penjualan** ([Tutorial 3](03-alur-penjualan.md)) | [Sales Return](#1-sales-return-dn-retur) — DN retur, stok **+** | [Credit Note](#2-credit-note-sales-invoice-retur) — SI retur, piutang **−** |
 | **Pembelian** ([Tutorial 4](04-alur-pembelian.md)) | [Purchase Return](#3-purchase-return-gr-retur) — GR retur, stok **−** | [Debit Note](#4-debit-note-purchase-invoice-retur) — PI retur, hutang **−** |
 
-> **Tidak ada** dokumen "Credit Note"/"Debit Note" terpisah — istilah akuntansi untuk **invoice retur** (Sales/Purchase Invoice dengan `return_against`).
+> **Tidak ada** dokumen "Credit Note"/"Debit Note" terpisah — istilah akuntansi untuk **invoice retur** (Sales/Purchase Invoice yang menunjuk balik ke invoice asli).
 >
-> Saat dokumen retur di-**cancel**, [`Submitable`](../modules/core.md#trait-submitable) otomatis mereverse GL & Stock Ledger entri retur.
+> Saat dokumen retur di-**cancel**, efeknya di buku besar dan stok otomatis dikembalikan (reverse).
 
 ## Daftar Isi
 
@@ -30,26 +30,30 @@ Retur **bukan** dokumen jenis baru — melainkan **dokumen bertipe sama** (DN / 
 
 ```mermaid
 flowchart LR
-    SO[Sales Order] --> DN1["Delivery Note (asli)<br/>stok keluar"]
-    DN1 -->|"barang dikembalikan"| DN2["DN Retur<br/>return_against_id → DN1"]
-    DN2 -->|"submit → stok MASUK (+)"| SLE["Stock Ledger (+)"]
+    SO(["📋 Sales Order"]) --> DN1["🚚 Delivery Note (asli)<br/>stok keluar"]
+    DN1 -->|"barang dikembalikan"| DN2["↩️ DN Retur"]
+    DN2 -->|"submit"| SLE[("📦 Stok Gudang (+)")]
+
+    style SO fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style DN2 fill:#f59e0b,stroke:#b45309,color:#fff
+    style SLE fill:#22c55e,stroke:#15803d,color:#fff
 ```
 
 **Prasyarat:** DN asli sudah ter-submit.
 
 ### Langkah
 
-1. Buka **Delivery Note asli** → aksi **Retur** → DN baru, `return_against_id` terisi otomatis.
-2. Per baris: isi `quantity` yang dikembalikan (`return_against_item_id` → baris DN asli), pilih `source_warehouse` tujuan barang retur.
-3. **Save** (DRAFT) → **Submit** (`PUT /deliveryNotes/{id}/submit`).
+1. Buka **Delivery Note asli** → aksi **Retur** → DN baru otomatis menunjuk ke DN asli.
+2. Per baris: isi jumlah yang dikembalikan, pilih gudang tujuan barang retur.
+3. **Save** (Draft) → **Submit**.
 
-### Efek submit (setelah approve)
+### Efek submit (setelah disetujui)
 
-- Stok **masuk kembali** ke `source_warehouse` → `StockLedgerEntry` `quantity_change` positif.
-- `returnAgainstItem.returned_quantity` di DN asli bertambah.
-- Status SO di-recalculate; status DN retur → `RETURNED`.
+- Stok **masuk kembali** ke gudang tujuan.
+- Jumlah dikembalikan pada baris DN asli bertambah.
+- Status SO ikut diperbarui; status DN retur → Selesai.
 
-> Koreksi nilai tagihan dilakukan terpisah via [Credit Note](#2-credit-note-sales-invoice-retur). Relasi: [Model · DeliveryNote](../models.md#deliverynote).
+> Koreksi nilai tagihan dilakukan terpisah via [Credit Note](#2-credit-note-sales-invoice-retur).
 
 ---
 
@@ -59,25 +63,28 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    SI1["Sales Invoice (asli)<br/>piutang +"] -->|"koreksi tagihan"| SI2["Credit Note<br/>(SI retur, return_against_id → SI1)"]
-    SI2 -->|"submit → GL kontra"| GL["General Ledger (piutang −)"]
+    SI1["🧾 Sales Invoice (asli)<br/>piutang bertambah"] -->|"koreksi tagihan"| SI2["↩️ Credit Note<br/>(SI retur)"]
+    SI2 -->|"submit"| GL[("📚 Buku Besar<br/>piutang berkurang")]
+
+    style SI2 fill:#f59e0b,stroke:#b45309,color:#fff
+    style GL fill:#22c55e,stroke:#15803d,color:#fff
 ```
 
-**Prasyarat:** Sales Invoice asli ter-submit. `SalesInvoice::isReturn()` = `return_against_id != null`.
+**Prasyarat:** Sales Invoice asli sudah ter-submit.
 
 ### Langkah
 
-1. Buka **Sales Invoice asli** → aksi **Retur** → SI baru dengan `return_against_id`.
-2. Isi baris + `quantity` dikoreksi (`return_against_item_id` → baris SI asli).
-3. **Save** → **Submit** (`PUT /salesInvoices/{id}/submit`).
+1. Buka **Sales Invoice asli** → aksi **Retur** → SI baru otomatis menunjuk ke invoice asli.
+2. Isi baris dengan jumlah yang dikoreksi.
+3. **Save** → **Submit**.
 
-### Efek submit (`SalesInvoiceService::onApproved()`, cabang `returnAgainst`)
+### Efek submit
 
-1. Tiap baris: `returnAgainstItem.returned_quantity += qty`; `salesOrderItem.billed_quantity -= qty` (kebalikan invoice normal yang `+=`).
-2. **GL dibalik**: debit pendapatan, credit piutang → mengurangi piutang dagang.
-3. Status Credit Note → `RETURNED`; SI asli di-recalculate (`PAID`/`PARTIALLY_PAID`).
+1. Jumlah yang ditagih pada Sales Order terkait dikurangi sesuai baris yang diretur.
+2. **Buku besar dikoreksi**: piutang dagang berkurang.
+3. Status Credit Note → Selesai; SI asli ikut diperbarui statusnya (Lunas/Sebagian Lunas).
 
-> Pengembalian fisik barang lewat [Sales Return](#1-sales-return-dn-retur). Relasi: [Model · SalesInvoice](../models.md#salesinvoice).
+> Pengembalian fisik barang lewat [Sales Return](#1-sales-return-dn-retur).
 
 ---
 
@@ -87,28 +94,31 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    PO[Purchase Order] --> GR1["Purchase Receipt (asli)<br/>stok masuk"]
-    GR1 -->|"dikembalikan ke supplier"| GR2["GR Retur<br/>return_against_id → GR1"]
-    GR2 -->|"submit → stok KELUAR (−)"| SLE["Stock Ledger (−)"]
+    PO(["📋 Purchase Order"]) --> GR1["📥 Purchase Receipt (asli)<br/>stok masuk"]
+    GR1 -->|"dikembalikan ke supplier"| GR2["↩️ GR Retur"]
+    GR2 -->|"submit"| SLE[("📦 Stok Gudang (−)")]
+
+    style PO fill:#3b82f6,stroke:#1d4ed8,color:#fff
+    style GR2 fill:#f59e0b,stroke:#b45309,color:#fff
+    style SLE fill:#ef4444,stroke:#b91c1c,color:#fff
 ```
 
-**Prasyarat:** GR asli ter-submit.
+**Prasyarat:** GR asli sudah ter-submit.
 
 ### Langkah
 
-1. Buka **Purchase Receipt asli** → aksi **Retur** → GR baru dengan `return_against_id`.
-2. Per baris: isi `quantity` dikembalikan (`return_against_item_id` → baris GR asli), `target_warehouse` = gudang asal.
-3. **Save** → **Submit** (`PUT /purchaseReceipts/{id}/submit`).
+1. Buka **Purchase Receipt asli** → aksi **Retur** → GR baru otomatis menunjuk ke GR asli.
+2. Per baris: isi jumlah yang dikembalikan, gudang asal barang.
+3. **Save** → **Submit**.
 
-### Efek submit (`PurchaseReceiptService::onApproved()`, cabang `returnAgainst`)
+### Efek submit
 
-1. Stok **keluar**: FIFO queue di-rollback (cari entri `rate` cocok, kurangi qty), `stock.quantity -= qty`.
-2. `StockLedgerEntry` `quantity_change = -qty`, `change_in_stock_value = -(rate × qty)`.
-3. `returnAgainstItem.returned_quantity += qty`; PO item `received_quantity -= qty`.
-4. **GL kontra**: debit SRNB (Stock Received But Not Billed), credit akun stok.
-5. Status GR retur → `RETURNED`; status PO di-recalculate.
+1. Stok **keluar** dari gudang, dihitung ulang mengikuti metode FIFO.
+2. Jumlah dikembalikan pada baris GR asli bertambah; jumlah diterima di PO berkurang.
+3. **Buku besar dikoreksi**: akun persediaan berkurang.
+4. Status GR retur → Selesai; status PO ikut diperbarui.
 
-> Koreksi tagihan via [Debit Note](#4-debit-note-purchase-invoice-retur). Relasi: [Model · PurchaseReceipt](../models.md#purchasereceipt).
+> Koreksi tagihan via [Debit Note](#4-debit-note-purchase-invoice-retur).
 
 ---
 
@@ -118,26 +128,29 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    PI1["Purchase Invoice (asli)<br/>hutang +"] -->|"koreksi tagihan"| PI2["Debit Note<br/>(PI retur, return_against_id → PI1)"]
-    PI2 -->|"submit → GL kontra"| GL["General Ledger (hutang −)"]
+    PI1["🧾 Purchase Invoice (asli)<br/>hutang bertambah"] -->|"koreksi tagihan"| PI2["↩️ Debit Note<br/>(PI retur)"]
+    PI2 -->|"submit"| GL[("📚 Buku Besar<br/>hutang berkurang")]
+
+    style PI2 fill:#f59e0b,stroke:#b45309,color:#fff
+    style GL fill:#22c55e,stroke:#15803d,color:#fff
 ```
 
-**Prasyarat:** Purchase Invoice asli ter-submit.
+**Prasyarat:** Purchase Invoice asli sudah ter-submit.
 
 ### Langkah
 
-1. Buka **Purchase Invoice asli** → aksi **Retur** → PI baru dengan `return_against_id`.
-2. Isi baris + `quantity` dikoreksi (`return_against_item_id` → baris PI asli).
-3. **Save** → **Submit** (`PUT /purchaseInvoices/{id}/submit`).
+1. Buka **Purchase Invoice asli** → aksi **Retur** → PI baru otomatis menunjuk ke invoice asli.
+2. Isi baris dengan jumlah yang dikoreksi.
+3. **Save** → **Submit**.
 
-### Efek submit (cabang `returnAgainst`)
+### Efek submit
 
-1. Tiap baris: `returnAgainstItem.returned_quantity += qty`; PO item `billed_quantity` disesuaikan.
-2. **GL dibalik**: debit hutang (`credit_account`), credit persediaan/beban (`expanse_head_account`) → mengurangi hutang.
-3. Status Debit Note → `RETURNED`; PI asli & PO di-recalculate.
+1. Jumlah yang ditagih pada PO terkait disesuaikan.
+2. **Buku besar dikoreksi**: hutang berkurang, persediaan/beban berkurang.
+3. Status Debit Note → Selesai; PI asli & PO ikut diperbarui.
 
-> Pengembalian fisik barang lewat [Purchase Return](#3-purchase-return-gr-retur). Relasi: [Model · PurchaseInvoice](../models.md#purchaseinvoice).
+> Pengembalian fisik barang lewat [Purchase Return](#3-purchase-return-gr-retur).
 
 ---
 
-*Lihat: [Tutorial 3 — Alur Penjualan](03-alur-penjualan.md) · [Tutorial 4 — Alur Pembelian](04-alur-pembelian.md) · [Sales · Flow Retur](../modules/sales.md#flow-retur-returnagainst) · [Purchase · Flow Retur](../modules/purchase.md#flow-retur-returnagainst)*
+*Lihat: [Tutorial 3 — Alur Penjualan](03-alur-penjualan.md) · [Tutorial 4 — Alur Pembelian](04-alur-pembelian.md)*

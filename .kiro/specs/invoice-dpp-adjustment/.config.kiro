@@ -1,0 +1,6 @@
+{
+  "specId": "c455fae7-3c37-46bf-972e-5dcc1dff3972",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Tambahkan konsep DPP (Dasar Pengenaan Pajak) pada susunan Sales Invoice dan Purchase Invoice, dengan skema DPP Nilai Lain seragam (basic_amount x 11/12) untuk PPN 12%, dan sesuaikan tampilan Form/Show serta print template invoice agar urutan subtotal -> DPP -> PPN -> total tercermin dengan benar."
+}

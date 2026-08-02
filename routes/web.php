@@ -16,12 +16,16 @@ use App\Http\Controllers\Core\FormatingSeriesController;
 use App\Http\Controllers\Core\HtmlSanitizeController;
 use App\Http\Controllers\Core\LanguageController;
 use App\Http\Controllers\Core\LogController;
+use App\Http\Controllers\Core\ManualBookController;
 use App\Http\Controllers\Core\NotificationController;
 use App\Http\Controllers\Core\PrintTemplateController;
 use App\Http\Controllers\Core\SavedFilterController;
 use App\Http\Controllers\Core\TagController;
 use App\Http\Controllers\Core\TodoController;
 use App\Http\Controllers\Core\WidgetController;
+use App\Http\Controllers\CRM\LeadController;
+use App\Http\Controllers\CRM\OpportunityController;
+use App\Http\Controllers\CRM\QuotationController;
 use App\Http\Controllers\Finances\AccountController;
 use App\Http\Controllers\Finances\GeneralLedgerController;
 use App\Http\Controllers\Finances\PaymentEntryController;
@@ -183,6 +187,7 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
             ]);
         });
     }
+    Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('/logs/{log}', [LogController::class, 'show'])->name('logs.show');
     // Branch Switcher
     Route::put('/switch_branch/{id}', [BranchController::class, 'switch'])->name('branch.switch');
@@ -292,6 +297,13 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // Customer
     Route::resourceDetail('customer', CustomerController::class);
 
+    // / CRM Group
+    Route::resourceDetail('lead', LeadController::class);
+    Route::put('/leads/{lead}/convert', [LeadController::class, 'convert'])->name('leads.convert');
+    Route::resourceDetail('opportunity', OpportunityController::class);
+    Route::resourceDetail('quotation', QuotationController::class, isSubmmitable: true);
+    // / CRM Group End
+
     // / Service Group
     // Work Order
     Route::resourceDetail('workOrder', WorkOrderController::class, isSubmmitable: true);
@@ -305,6 +317,11 @@ Route::middleware(['auth', 'lang', 'onboarded', 'app'])->group(function () {
     // Changelog
     Route::get('/changelogs', [ChangelogController::class, 'index'])->name('changelogs.index');
     // / Helpdesk Group End
+
+    // / Manual Book Group
+    Route::get('/manual-book', [ManualBookController::class, 'index'])->name('manualBook.index');
+    Route::get('/manual-book/{section}', [ManualBookController::class, 'show'])->name('manualBook.show');
+    // / Manual Book Group End
 
     // / Sales Groups
     // Sales Orders

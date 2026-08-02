@@ -111,6 +111,7 @@ trait DataTable {
             'user_id'       => Auth::user()->id,
             'loggable_id'   => $this->getKey(),
             'loggable_type' => get_class($this),
+            'action'        => 'created',
             'activity'      => [
                 'en' => ':user created this',
                 'id' => ':user telah membuat ini',
@@ -142,6 +143,7 @@ trait DataTable {
             'user_id'       => Auth::user()->id,
             'loggable_id'   => $this->getKey(),
             'loggable_type' => get_class($this),
+            'action'        => 'updated',
             'activity'      => [
                 'en' => ':user updated this',
                 'id' => ':user memperbarui ini',
@@ -159,6 +161,7 @@ trait DataTable {
             'user_id'       => Auth::user()->id,
             'loggable_id'   => $this->getKey(),
             'loggable_type' => get_class($this),
+            'action'        => 'deleted',
             'activity'      => [
                 'en' => ':user deleted this',
                 'id' => ':user menghapus ini',
@@ -174,6 +177,7 @@ trait DataTable {
             'user_id'       => Auth::user()->id,
             'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
+            'action'        => 'restored',
             'activity'      => [
                 'en' => ':user restored this',
                 'id' => ':user mengembalikan ini',
@@ -190,6 +194,7 @@ trait DataTable {
             'user_id'       => Auth::user()->id,
             'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
+            'action'        => 'submitted',
             'activity'      => [
                 'en' => ':user submitted this',
                 'id' => ':user telah mengajukan ini',
@@ -205,6 +210,7 @@ trait DataTable {
             'user_id'       => Auth::user()->id,
             'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
+            'action'        => 'cancelled',
             'activity'      => [
                 'en' => ':user canceled this',
                 'id' => ':user telah membatalkan',
@@ -220,6 +226,7 @@ trait DataTable {
             'user_id'       => Auth::user()->id,
             'loggable_id'   => $this->id,
             'loggable_type' => get_class($this),
+            'action'        => 'amended',
             'activity'      => [
                 'en' => ':user amended this',
                 'id' => ':user telah mengembalikan ini',

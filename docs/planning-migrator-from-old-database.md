@@ -123,6 +123,30 @@ Karena ada perbedaan struktur, komponen *Frontend* (React) juga harus disesuaika
 
 ---
 
+## Koreksi Status Migrator (25 Juli 2026)
+
+> [!IMPORTANT]
+> Bagian "Update Implementasi (26 April 2026)" di atas — khususnya poin 6 — sudah **tidak akurat** dan diluruskan di sini berdasarkan isi aktual `app/Console/Commands/RunLegacyMigrationCommand.php` per tanggal koreksi ini. Histori di atas tetap dipertahankan sebagai catatan, bukan dihapus.
+
+**Yang keliru di poin 6 sebelumnya:**
+- Klaim *"Migrasi `roles` dan relasi `user_role` tetap tidak termasuk (dibuat terpisah sesuai arahan)"* — **sudah tidak berlaku**. `RoleMigrator`, `RolePermissionMigrator`, dan `UserRoleMigrator` sudah ditulis dan aktif terdaftar.
+- Klaim bahwa migrator operasional (WorkOrder, InternalOrder, PurchaseRequest, SalesOrder, PurchaseOrder, DeliveryNote, PurchaseReceipt, SalesInvoice, ModelConnection, dst.) *"sudah diterapkan ke model scope legacy"* — **belum benar**. File-file migrator tersebut belum ditulis sama sekali.
+
+**Status aktual (per isi `$migrators` di `RunLegacyMigrationCommand`):**
+
+| Tahap | Migrator | Status |
+|---|---|---|
+| Tahap 0 — Master Data Utama | `UserMigrator`, `RoleMigrator`, `RolePermissionMigrator`, `UserRoleMigrator`, `UnitMigrator`, `CategoryMigrator`, `WarehouseMigrator`, `CustomerMigrator`, `SupplierMigrator`, `ItemMigrator` | ✅ Aktif — 10 file sudah ditulis dan terdaftar, dijalankan berurutan |
+| Tahap 1 — Master Data Turunan | `InternalOrderMigrator`, `InternalOrderItemMigrator`, `PurchaseRequestMigrator`, `PurchaseRequestItemMigrator` | ⛔ Belum ditulis — hanya ter-comment sebagai rencana |
+| Tahap 2 — Transaksi Header+Item | `SalesOrderMigrator`, `SalesOrderItemMigrator`, `PurchaseOrderMigrator`, `PurchaseOrderItemMigrator`, `DeliveryNoteMigrator`, `DeliveryNoteItemMigrator`, `PurchaseReceiptMigrator`, `PurchaseReceiptItemMigrator` | ⛔ Belum ditulis |
+| Tahap 3 — Replay Approval Kronologis | (belum ada nama class spesifik) | ⛔ Belum ditulis |
+| Tahap 4 — Generate Invoice | `SalesInvoiceMigrator`, `SalesInvoiceItemMigrator` | ⛔ Belum ditulis |
+| Tahap 5 — Koneksi Antar Dokumen | `ModelConnectionMigrator` | ⛔ Belum ditulis |
+
+**Untuk maintainer**: jangan berasumsi migrator Tahap 1-5 bisa langsung dijalankan — cek dulu isi `RunLegacyMigrationCommand::$migrators` untuk daftar yang benar-benar aktif sebelum menjalankan `php artisan erp:migrate-legacy`. Detail command & opsi `--step`: [Artisan Commands · run-legacy-migration](artisan-commands.md#run-legacy-migration).
+
+---
+
 ## Rencana Verifikasi Akhir (Verification Plan)
 
 ### Pengujian Otomatis

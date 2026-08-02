@@ -11,6 +11,8 @@
 - [Domain: Inventory](#domain-inventory)
 - [Domain: Finances](#domain-finances)
 - [Domain: Service](#domain-service)
+- [Domain: CRM](#domain-crm)
+- [Domain: Helpdesk](#domain-helpdesk)
 - [Domain: Core / Settings](#domain-core--settings)
 - [Domain: User & Access](#domain-user--access)
 - [Referensi Tabel Lengkap](#referensi-tabel-lengkap)
@@ -74,6 +76,15 @@ erDiagram
     USERS ||--o{ USER_ROLE : "has roles"
     ROLES ||--o{ ROLE_PERMISSIONS : "has permissions"
     PERMISSIONS ||--o| ROLE_PERMISSIONS : "defined in"
+
+    LEADS ||--o{ LEAD_ACTIVITIES : "has activities"
+    LEADS ||--o{ OPPORTUNITIES : "generates"
+    LEADS }o--o| CUSTOMERS : "converts to"
+    OPPORTUNITIES ||--o{ QUOTATIONS : "generates"
+    QUOTATIONS ||--o{ QUOTATION_ITEMS : "has items"
+    QUOTATIONS }o--|| CUSTOMERS : "for customer"
+
+    TICKETS ||--o{ TICKET_RESPONSES : "has responses"
 ```
 
 ---
@@ -393,11 +404,13 @@ Buku besar. Setiap submit dokumen keuangan menghasilkan entri GL.
 
 Tagihan ke customer. Di-link ke Sales Order.
 
-Kolom penting: `customer_id`, `sales_order_id`, `amount`, `paid_amount`, `outstanding_amount`, `discount_on`, `currency_code`, `exchange_rate`.
+Kolom penting: `customer_id`, `sales_order_id`, `amount`, `paid_amount`, `outstanding_amount`, `discount_on`, `currency_code`, `exchange_rate`. Item: `basic_amount`, `dpp_amount` (**stored generated**: `basic_amount × 11/12`), `tax_amount` (**stored generated**: `dpp_amount × tax_rate/100`) — detail formula DPP: [Finances · SI Item Fields](modules/finances.md#si-item-fields).
 
 ### `purchase_invoices` & `purchase_invoice_items`
 
 Tagihan dari supplier. Di-link ke Purchase Order.
+
+Item: `basic_amount`, `dpp_amount` (**stored generated**: `basic_amount × 11/12`), `tax_amount`, `amount` (**stored generated**: `basic_amount + tax_amount`) — detail formula: [Finances · PI Item Fields](modules/finances.md#pi-item-fields).
 
 ### `payment_entries`
 
@@ -454,6 +467,102 @@ Komponen/bahan yang digunakan dalam work order.
 
 ---
 
+## Domain: CRM
+
+> Model & relasi: [Model · CRM](models.md#crm). Detail bisnis: [Modul CRM](modules/crm.md). Mapping tabel→model: [Referensi Tabel](#referensi-tabel-lengkap).
+
+### `lead_sources`
+
+Master sumber lead (Website, Referral, dll.). **Primary key bisnisnya `code`** — direferensikan oleh `leads.lead_source_id`.
+
+### `leads`
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `company_name` | string | Nama perusahaan |
+| `contact_name`, `email`, `phone` | string, nullable | Kontak |
+| `lead_source_id` | char(26), nullable | FK ke `lead_sources.code` |
+| `status` | string | `new`/`contacted`/`qualified`/`unqualified`/`converted` — bebas, bukan FormStatus |
+| `assigned_to_id` | char(26), nullable | FK ke `users` |
+| `street`, `city`, `province`, `zip_code` | string, nullable | Alamat |
+| `country_id` | char(26), nullable | FK ke `countries.code` |
+| `converted_customer_id` | char(26), nullable | FK ke `customers` — terisi otomatis saat convert |
+| `converted_at` | timestamp, nullable | Waktu konversi |
+
+### `lead_activities`
+
+Riwayat kontak per Lead (`type`: task/call/meeting/email; `status`: open/closed; `scheduled_at`, `assigned_to_id`).
+
+### `opportunities`
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `lead_id` | char(26), nullable | FK ke `leads` |
+| `customer_id` | char(26), nullable | FK ke `customers` (repeat business) |
+| `title` | string | Judul peluang |
+| `stage` | string | `identified`/`qualified`/`negotiation`/`won`/`lost` |
+| `expected_value` | double | Estimasi nilai |
+| `probability` | tinyint unsigned | 0-100 |
+| `expected_close_date` | date, nullable | Estimasi closing |
+| `assigned_to_id` | char(26), nullable | FK ke `users` |
+
+### `quotations`
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `referenceable_type/id` | polymorphic, nullable | Dokumen sumber opsional |
+| `opportunity_id` | char(26), nullable | FK ke `opportunities` |
+| `customer_id` | char(26) | FK ke `customers` |
+| `date` | timestamp | Tanggal quotation |
+| `valid_until` | date, nullable | Batas berlaku |
+| `amount` | double | Total nilai |
+| `status` | json | FormStatus (Submitable — satu-satunya di modul CRM) |
+
+### `quotation_items`
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `quotation_id` | char(26) | FK ke `quotations` |
+| `item_id` | char(26) | FK ke `item_variants` |
+| `description` | text, nullable | Deskripsi baris |
+| `quantity` | double | Jumlah |
+| `price` | double | Harga satuan |
+| `amount` | double | **Stored generated**: `quantity * price` |
+
+---
+
+## Domain: Helpdesk
+
+> Model & relasi: [Model · Helpdesk](models.md#helpdesk). Detail bisnis: [Modul Helpdesk](modules/helpdesk.md). Mapping tabel→model: [Referensi Tabel](#referensi-tabel-lengkap).
+
+### `tickets`
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `code` | string, unique | Kode ticket (`#@[yy]/@[iiii]`) |
+| `type` | string | `bug_problem`/`task`/`question`/`other` |
+| `priority` | string | `low`/`medium`/`high`/`critical` (default `medium`) |
+| `subject` | string | Judul ticket |
+| `status` | string | `new`/`in_progress`/`on_hold`/`resolved`/`done` — **status tunggal, bukan FormStatus array** |
+| `progress` | tinyint | 0-100 |
+| `assign_to_id` | char(26), nullable | FK ke `users` |
+| `created_by_id` | char(26) | FK ke `users` |
+| `branch_id` | char(26), nullable | FK ke `branches` |
+| `start_date`, `due_date`, `end_date` | datetime, nullable | Tanggal siklus ticket |
+
+### `ticket_responses`
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `ticket_id` | char(26) | FK ke `tickets` |
+| `user_id` | char(26), nullable | Pembuat respons (kosong jika otomatis dari deploy webhook) |
+| `assign_to_id` | char(26), nullable | Assignee pada saat snapshot |
+| `type`, `priority`, `subject`, `status`, `progress` | — | Salinan kondisi Ticket saat snapshot |
+| `content` | longtext, nullable | Isi balasan (HTML, disanitasi) |
+| `content_json` | longtext, nullable | Isi balasan format rich-text editor |
+
+---
+
 ## Domain: Core / Settings
 
 > Model & relasi: [Model · Core](models.md#core). Mapping tabel→model: [Referensi Tabel](#referensi-tabel-lengkap).
@@ -503,6 +612,69 @@ Template cetak HTML/CSS per model dokumen.
 | `is_default` | tinyint(1) | Template default |
 | `paper` | varchar(255) | Ukuran kertas |
 | `orientation` | varchar(255) | Portrait/Landscape |
+
+### `todos`
+
+Tugas generik yang bisa ditugaskan ke User atau Role. Lihat [Core · Todo](modules/core.md#todo).
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `code` | varchar(255) | Kode todo (`TODO/@[yy]-@[mm]/@[iiii]`) |
+| `description` | text, nullable | Deskripsi tugas |
+| `reference_type` / `reference_id` | polymorphic, nullable | Dokumen konteks (opsional) |
+| `allocated_to_type` / `allocated_to_id` | polymorphic | `user` atau `role` — penerima tugas |
+| `assigned_by_id` | char(26) | FK ke `users` — pemberi tugas |
+| `priority` | varchar(255) | Prioritas todo |
+| `date` | date, nullable | Tanggal todo |
+| `due_date` | datetime, nullable | Batas waktu |
+| `status` | varchar(255) | Status todo |
+
+### `saved_filters`
+
+Filter DataTable yang disimpan per user per model.
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `user_id` | char(26) | FK ke `users` |
+| `model` | varchar(255) | FQCN model target filter |
+| `name` | varchar(255), nullable | Nama filter (hanya jika `is_saved`) |
+| `filter` | json | Kondisi filter |
+| `is_saved` | tinyint(1) | `true` = filter tersimpan bernama; `false` = filter transient (dibersihkan job `saved-filters:prune`) |
+
+### `email_templates`
+
+Template email per model, dengan mekanisme `is_default` eksklusif (mirip `print_templates`).
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `name` | varchar(255) | Nama template |
+| `name_model` | varchar(255) | Label model tujuan |
+| `model` | varchar(255) | FQCN model target |
+| `permission_id` | char(26), nullable | FK ke `permissions` |
+| `is_default` | tinyint(1) | Default untuk model ini (otomatis eksklusif per model) |
+| `body_json` | json, nullable | Isi template (rich-text editor) |
+
+### `changelogs`
+
+Catatan rilis aplikasi, dibuat otomatis dari webhook deploy CI/CD. Lihat [Helpdesk · Integrasi Deploy](modules/helpdesk.md#integrasi-deploy---changelog---ticket).
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `version` | varchar(255), unique | Versi rilis |
+| `environment` | varchar(255) | Environment tujuan deploy |
+| `content_raw` | text | Teks changelog asli (Markdown) |
+| `content_html` | text | Hasil konversi HTML (disanitasi) |
+| `deployed_at` | timestamp | Waktu deploy tercatat |
+
+### `changelog_reads`
+
+Pivot tracking siapa sudah membaca changelog mana.
+
+| Kolom | Tipe | Keterangan |
+|---|---|---|
+| `changelog_id` | char(26) | FK ke `changelogs` |
+| `user_id` | char(26) | FK ke `users` |
+| `read_at` | timestamp | Waktu dibaca |
 
 ### `model_connections`
 
@@ -626,6 +798,8 @@ Pivot user ↔ branch — branch mana saja yang bisa diakses user.
 | `attributes` | Inventory | [`Inventory\Attribute`](models.md#pendukung-item) | Atribut item |
 | `branches` | Core | [`Core\Branch`](models.md#branch) | Cabang/unit bisnis |
 | `categories` | Inventory | [`Inventory\Category`](models.md#pendukung-item) | Kategori item |
+| `changelog_reads` | Core | [`Core\ChangelogRead`](models.md#changelog) | Pivot tracking pembaca changelog |
+| `changelogs` | Core | [`Core\Changelog`](models.md#changelog) | Catatan rilis aplikasi |
 | `commands` | Core | [`Core\Command`](models.md#core) | Search index Command Palette |
 | `command_recents` | Core | [`Core\CommandRecent`](models.md#lainnya) | Riwayat command palette user |
 | `countries` | Core | [`Core\Country`](models.md#core) | Master negara |
@@ -635,6 +809,7 @@ Pivot user ↔ branch — branch mana saja yang bisa diakses user.
 | `dashboards` | Core | [`Core\Dashboard`](models.md#lainnya) | Konfigurasi dashboard |
 | `delivery_note_items` | Inventory | [`Inventory\DeliveryNoteItem`](models.md#deliverynoteitem) | Item surat jalan |
 | `delivery_notes` | Inventory | [`Inventory\DeliveryNote`](models.md#deliverynote) | Surat jalan |
+| `email_templates` | Core | [`Core\EmailTemplate`](models.md#emailtemplate) | Template email per model |
 | `error_logs` | Core | [`Core\Log`](models.md#lainnya) | Log error aplikasi |
 | `fileables` | Core | [`Core\Fileable`](models.md#lainnya) | Pivot file polimorfik |
 | `files` | Core | [`Core\File`](models.md#lainnya) | File upload |
@@ -649,8 +824,12 @@ Pivot user ↔ branch — branch mana saja yang bisa diakses user.
 | `item_variant_attributes` | Inventory | [`Inventory\ItemVariantAttribute`](models.md#pendukung-item) | Atribut per variant |
 | `item_variants` | Inventory | [`Inventory\ItemVariant`](models.md#itemvariant) | Variant item (SKU) |
 | `items` | Inventory | [`Inventory\Item`](models.md#item) | Master item |
+| `lead_activities` | CRM | [`CRM\LeadActivity`](models.md#leadactivity) | Riwayat kontak lead |
+| `lead_sources` | CRM | [`CRM\LeadSource`](models.md#leadsource) | Master sumber lead |
+| `leads` | CRM | [`CRM\Lead`](models.md#lead) | Calon pelanggan |
 | `logs` | Core | [`Core\Log`](models.md#lainnya) | Activity log |
 | `model_connections` | Core | [`Core\ModelConnection`](models.md#lainnya) | Cross-document links |
+| `opportunities` | CRM | [`CRM\Opportunity`](models.md#opportunity) | Peluang bisnis |
 | `payment_entries` | Finances | [`Finances\PaymentEntry`](models.md#paymententry) | Pembayaran invoice |
 | `payment_methods` | Finances | [`Finances\PaymentMethod`](models.md#item--pendukung) | Metode pembayaran |
 | `payment_schedules` | Finances | [`Finances\PaymentSchedule`](models.md#item--pendukung) | Jadwal pembayaran |
@@ -668,6 +847,8 @@ Pivot user ↔ branch — branch mana saja yang bisa diakses user.
 | `purchase_receipts` | Purchase | [`Purchase\PurchaseReceipt`](models.md#purchasereceipt) | Penerimaan barang |
 | `purchase_request_items` | Purchase | [`Purchase\PurchaseRequestItem`](models.md#purchase) | Item purchase request |
 | `purchase_requests` | Purchase | [`Purchase\PurchaseRequest`](models.md#purchaserequest) | Purchase request |
+| `quotation_items` | CRM | [`CRM\QuotationItem`](models.md#quotationitem) | Item quotation |
+| `quotations` | CRM | [`CRM\Quotation`](models.md#quotation) | Penawaran harga (Submitable) |
 | `role_permissions` | User | [`User\RolePermission`](models.md#rolepermission) | Assignment permission ke role |
 | `role_profile_details` | User | [`User\RoleProfileDetail`](models.md#user--access) | Detail profil role |
 | `role_profiles` | User | [`User\RoleProfile`](models.md#roleprofile) | Profil role |
@@ -676,6 +857,7 @@ Pivot user ↔ branch — branch mana saja yang bisa diakses user.
 | `sales_invoices` | Finances | [`Finances\SalesInvoice`](models.md#salesinvoice) | Invoice penjualan |
 | `sales_order_items` | Sales | [`Sales\SalesOrderItem`](models.md#salesorderitem) | Item sales order |
 | `sales_orders` | Sales | [`Sales\SalesOrder`](models.md#salesorder) | Sales order |
+| `saved_filters` | Core | [`Core\SavedFilter`](models.md#savedfilter) | Filter DataTable tersimpan/transient per user |
 | `sessions` | Core | — | Laravel sessions |
 | `stock_entries` | Inventory | [`Inventory\StockEntry`](models.md#stockentry) | Pergerakan stok |
 | `stock_entry_items` | Inventory | [`Inventory\StockEntryItem`](models.md#stockentryitem) | Item pergerakan stok |
@@ -685,6 +867,9 @@ Pivot user ↔ branch — branch mana saja yang bisa diakses user.
 | `taggables` | Core | [`Core\Taggable`](models.md#lainnya) | Pivot tag polimorfik |
 | `tags` | Core | [`Core\Tag`](models.md#lainnya) | Master tag |
 | `taxes` | Finances | [`Finances\Tax`](models.md#finances) | Master pajak |
+| `ticket_responses` | Helpdesk | [`Helpdesk\TicketResponse`](models.md#ticketresponse) | Riwayat/respons ticket |
+| `tickets` | Helpdesk | [`Helpdesk\Ticket`](models.md#ticket) | Tiket dukungan internal |
+| `todos` | Core | [`Core\Todo`](models.md#todo) | Tugas generik (assign ke User/Role) |
 | `units` | Inventory | [`Inventory\Unit`](models.md#pendukung-item) | Master satuan |
 | `user_branch` | User | [`User\UserBranch`](models.md#user--access) | Pivot user-branch |
 | `user_providers` | User | [`User\UserProvider`](models.md#userprovider) | OAuth providers |
@@ -699,4 +884,4 @@ Pivot user ↔ branch — branch mana saja yang bisa diakses user.
 
 ---
 
-*Lihat juga: [Arsitektur](architecture.md) · [Model & Relasi](models.md) · [Routes](routes.md) · Modul: [Sales](modules/sales.md) · [Purchase](modules/purchase.md) · [Inventory](modules/inventory.md) · [Finances](modules/finances.md)*
+*Lihat juga: [Arsitektur](architecture.md) · [Model & Relasi](models.md) · [Routes](routes.md) · Modul: [Sales](modules/sales.md) · [Purchase](modules/purchase.md) · [Inventory](modules/inventory.md) · [Finances](modules/finances.md) · [CRM](modules/crm.md) · [Helpdesk](modules/helpdesk.md)*

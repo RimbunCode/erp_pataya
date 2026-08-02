@@ -1,4 +1,5 @@
 import { Children, cloneElement } from "react";
+import { differenceInCalendarDays } from "date-fns";
 import { enUS, id as idLocale } from "date-fns/locale";
 import {
   every,
@@ -372,6 +373,27 @@ export const calculateArray = (arr, keyColumn, operator) => {
   if (operator === "average") return length != 0 ? result / length : 0;
   return result;
 };
+
+// Port dari App\Services\Sales\RentalDurationService::diffInDaysInclusive() (PHP) --
+// kedua ujung tanggal dihitung penuh (inklusif), sesuai requirements rental-actual-duration.
+export const calculateDurationDays = (startDate, endDate) => {
+  return differenceInCalendarDays(new Date(endDate), new Date(startDate)) + 1;
+};
+
+// Port dari App\Services\Sales\RentalDurationService::calculateAmount() (PHP) --
+// wajib disinkronkan manual jika formula PHP berubah, lihat design.md rental-actual-duration
+// bagian "Konsistensi PHP<->JS".
+export const calculateRentalAmount = (monthlyRate, durationDays) => {
+  if (durationDays <= 30) {
+    return (monthlyRate / 30) * durationDays;
+  }
+
+  const fullMonths = Math.floor(durationDays / 30);
+  const remainingDays = durationDays % 30;
+
+  return fullMonths * monthlyRate + remainingDays * (monthlyRate / 30);
+};
+
 export const DEFAULT_PRINT_FONTS = Object.freeze([
   "Times New Roman",
   "Arial",

@@ -23,9 +23,10 @@ class User extends Authenticatable {
     /** @use HasFactory<UserFactory> */
     use DataTable, HasFactory, HasUlids, LinkModel, Notifiable, SoftDeletes;
 
-    public $translateKey = 'user.user';
-    protected $guarded   = ['id'];
-    protected $appends   = ['picture'];
+    public $translateKey         = 'user.user';
+    public string $formComponent = 'Users/ManageUsers/Form';
+    protected $guarded           = ['id'];
+    protected $appends           = ['picture'];
 
     protected static function extraPermissions(): array {
         return ['manage_roles', 'manage_branches'];

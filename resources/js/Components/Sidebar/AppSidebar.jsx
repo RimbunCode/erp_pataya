@@ -1,7 +1,9 @@
 import * as React from "react";
 
 import {
+  BookOpenIcon,
   HandCoins,
+  HistoryIcon,
   LayoutDashboard,
   ListTodo,
   PackageIcon,
@@ -89,12 +91,12 @@ const navList = [
         urlPattern: "/deliveryNotes/*",
         model: "App\\Models\\Inventory\\DeliveryNote",
       },
-      // {
-      //   title: "Stock Ledgers",
-      //   url: "/stockLedgers",
-      //   urlPattern: "/stockLedgers/*",
-      //   model: "App\\Models\\Inventory\\StockLedger",
-      // },
+      {
+        title: "Stock Ledgers",
+        url: "/stockLedgers",
+        urlPattern: "/stockLedgers/*",
+        model: "App\\Models\\Inventory\\StockLedgerEntry",
+      },
     ],
   },
   {
@@ -140,6 +142,30 @@ const navList = [
       },
     ],
   },
+  // {
+  //   title: "CRM",
+  //   icon: <Handshake />,
+  //   items: [
+  //     {
+  //       title: "Leads",
+  //       url: "/leads",
+  //       urlPattern: "/leads/*",
+  //       model: "App\\Models\\CRM\\Lead",
+  //     },
+  //     {
+  //       title: "Opportunities",
+  //       url: "/opportunities",
+  //       urlPattern: "/opportunities/*",
+  //       model: "App\\Models\\CRM\\Opportunity",
+  //     },
+  //     {
+  //       title: "Quotations",
+  //       url: "/quotations",
+  //       urlPattern: "/quotations/*",
+  //       model: "App\\Models\\CRM\\Quotation",
+  //     },
+  //   ],
+  // },
   {
     title: "Customers",
     url: "/customers",
@@ -265,6 +291,19 @@ const navList = [
     icon: <ListTodo />,
     url: "/todos",
     urlPattern: "/todos/*",
+  },
+  {
+    title: "Manual Book",
+    icon: <BookOpenIcon />,
+    url: "/manual-book",
+    urlPattern: "/manual-book*",
+  },
+  {
+    title: "Logs",
+    icon: <HistoryIcon />,
+    url: "/logs",
+    urlPattern: "/logs*",
+    model: "App\\Models\\Core\\Log",
   },
   {
     title: "Settings",

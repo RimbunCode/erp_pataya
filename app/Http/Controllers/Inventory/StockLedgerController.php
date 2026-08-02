@@ -19,4 +19,17 @@ class StockLedgerController extends Controller {
         return Inertia::render('Inventory/StockLedger', [
         ]);
     }
+
+    public function show(StockLedgerEntry $stockLedger) {
+        $this->setBreadcrumbs($stockLedger);
+        $stockLedger->showDetail();
+
+        return Inertia::render('Inventory/StockLedgers/Show', [
+            'stockLedger' => function () use ($stockLedger) {
+                $stockLedger->loadRelations();
+
+                return $stockLedger;
+            },
+        ]);
+    }
 }

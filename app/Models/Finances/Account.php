@@ -13,8 +13,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Account extends Model {
     use DataTable, HasUlids, SoftDeletes, TreeView;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'Finances/Accounts/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'is_group'       => 'boolean',
         'is_disabled'    => 'boolean',
         'is_contra'      => 'boolean',

@@ -10,8 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Tax extends Model {
     use DataTable, HasUlids, SoftDeletes;
 
-    protected $guarded = ['id'];
-    protected $casts   = ['rate' => 'float'];
+    public string $formComponent = 'Finances/Taxes/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = ['rate' => 'float'];
 
     public static function templateLink() {
         return ':name (:rate%)';

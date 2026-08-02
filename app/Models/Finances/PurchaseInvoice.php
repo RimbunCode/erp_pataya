@@ -16,8 +16,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class PurchaseInvoice extends Model {
     use DataTable, HasUlids, SoftDeletes, Submitable;
 
-    protected $guarded = ['id'];
-    protected $casts   = [
+    public string $formComponent = 'Finances/PurchaseInvoice/Form';
+    protected $guarded           = ['id'];
+    protected $casts             = [
         'date'                             => 'datetime',
         'exchange_rate'                    => 'float',
         'amount'                           => 'float',

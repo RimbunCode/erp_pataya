@@ -21,6 +21,7 @@ class EmailTemplate extends Model {
     protected $appends           = ['title'];
     public string $keyBreadcrumb = 'name';
     public string $translateKey  = 'core.emailTemplate';
+    public string $formComponent = 'Core/EmailTemplate/Form';
 
     public function title(): Attribute {
         return new Attribute(

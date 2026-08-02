@@ -15,12 +15,14 @@
 | [Artisan Commands](artisan-commands.md) | Custom CLI commands dan jadwal |
 | [Tutorial](tutorials/index.md) | Panduan langkah-demi-langkah per skenario |
 | **Modul Bisnis** | |
+| [CRM](modules/crm.md) | Lead, Opportunity, Quotation (pre-sales) |
 | [Sales](modules/sales.md) | Sales Orders, Internal Orders, Customers |
 | [Purchase](modules/purchase.md) | Purchase Requests, Orders, Receipts, Suppliers |
 | [Inventory](modules/inventory.md) | Items, Warehouses, Stock Entries, Delivery Notes |
 | [Finances](modules/finances.md) | Invoices, Payments, Accounts, General Ledger |
 | [Service](modules/service.md) | Work Orders |
-| [Core / Settings](modules/core.md) | Branches, Approval Schemes, FormatingSeries, Print Templates |
+| [Helpdesk](modules/helpdesk.md) | Ticket dukungan internal, integrasi Changelog |
+| [Core / Settings](modules/core.md) | Branches, Approval Schemes, FormatingSeries, Print Templates, Todo, Notification |
 
 ## Tech Stack
 
