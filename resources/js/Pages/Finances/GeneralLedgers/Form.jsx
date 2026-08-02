@@ -22,11 +22,7 @@ export default function Form() {
           name="account"
           label={t("finances.generalLedger.columns.account")}
         >
-          <AccountLinkModel
-            value={data?.account}
-            readOnly
-            disabledAddButton
-          />
+          <AccountLinkModel value={data?.account} readOnly disabledAddButton />
         </FormInput>
         <FormInput
           name="against_account"
@@ -44,10 +40,16 @@ export default function Form() {
         >
           <BranchLinkModel value={data?.branch} readOnly disabledAddButton />
         </FormInput>
-        <FormInput name="debit" label={t("finances.generalLedger.columns.debit")}>
+        <FormInput
+          name="debit"
+          label={t("finances.generalLedger.columns.debit")}
+        >
           <NumberInput value={data?.debit} readOnly decimalScale={2} />
         </FormInput>
-        <FormInput name="credit" label={t("finances.generalLedger.columns.credit")}>
+        <FormInput
+          name="credit"
+          label={t("finances.generalLedger.columns.credit")}
+        >
           <NumberInput value={data?.credit} readOnly decimalScale={2} />
         </FormInput>
         <FormInput
