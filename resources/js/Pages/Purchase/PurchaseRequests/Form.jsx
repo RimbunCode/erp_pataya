@@ -341,7 +341,7 @@ function Form() {
         defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
-          <FormInput>
+          <FormInput name="external_note">
             <Textarea
               rows={3}
               value={data.external_note ?? ""}
