@@ -10,7 +10,7 @@ import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
-  const { data, setData } = useFormPage();
+  const { data, setData, dataBefore } = useFormPage();
 
   const { t } = useLaravelReactI18n();
 
@@ -36,6 +36,7 @@ export default function Form() {
             required={true}
             label={t("inventory.attribute.columns.name")}
             className="col-span-full"
+            name="name"
           >
             <Input
               value={data.name}
@@ -45,6 +46,7 @@ export default function Form() {
           <FormInput
             label={t("inventory.attribute.columns.description")}
             className="col-span-full"
+            name="description"
           >
             <Textarea
               value={data.description ?? ""}
@@ -53,6 +55,7 @@ export default function Form() {
           </FormInput>
           <FormCheckbox
             checked={data.is_numeric ?? false}
+            valueBefore={dataBefore?.is_numeric}
             onCheckedChange={(val) => {
               setData("is_numeric", val);
             }}
@@ -66,6 +69,7 @@ export default function Form() {
               className="col-span-full"
               columns={valuesColumns}
               value={data.values ?? []}
+              valueBefore={dataBefore?.values}
               onValueChange={(val) => {
                 setData("values", val);
               }}
@@ -75,6 +79,7 @@ export default function Form() {
               <FormInput
                 required={true}
                 label={t("inventory.attribute.columns.range.from")}
+                name="from_range"
               >
                 <NumberInput
                   className="text-left"
@@ -85,6 +90,7 @@ export default function Form() {
               <FormInput
                 required={true}
                 label={t("inventory.attribute.columns.range.to")}
+                name="to_range"
               >
                 <NumberInput
                   className="text-left"
@@ -95,6 +101,7 @@ export default function Form() {
               <FormInput
                 required={true}
                 label={t("inventory.attribute.columns.range.increment")}
+                name="increment"
               >
                 <NumberInput
                   className="text-left"

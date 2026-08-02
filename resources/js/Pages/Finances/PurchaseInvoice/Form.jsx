@@ -48,7 +48,7 @@ export default function Form() {
     };
   }, []);
   const { t } = useLaravelReactI18n();
-  const { data, setData, disabled } = useFormPage(defaultValue, {
+  const { data, setData, disabled, dataBefore } = useFormPage(defaultValue, {
     notUseWhenCreate: true,
   });
 
@@ -364,6 +364,7 @@ export default function Form() {
               className="mt-8 mb-3"
               label={t("finances.purchaseInvoice.columns.is_return")}
               checked={data.is_return}
+              valueBefore={dataBefore?.is_return}
               onCheckedChange={(val) => {
                 setData((prev) => ({
                   ...prev,

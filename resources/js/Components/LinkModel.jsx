@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { camelize, cn } from "@/lib/utils";
 import { convertTemplateLink, validate } from "@/lib/linkModelUtils";
+import { DIFF_HIGHLIGHT, isChanged } from "@/lib/diffUtils";
 import {
   forwardRef,
   memo,
@@ -599,10 +600,11 @@ export default memo(
     const diff = useMemo(() => {
       const before = convertTemplateLink(valueBefore);
       const after = convertTemplateLink(value);
+      const changed = isChanged(valueBefore, value);
       return {
-        before: before != after && before,
+        before: changed && before,
         after,
-        same: before == after,
+        same: !changed,
       };
     }, [value, valueBefore]);
 
@@ -678,7 +680,7 @@ export default memo(
                       "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
                       valueBefore !== undefined &&
                         !diff?.same &&
-                        "bg-yellow-200 dark:bg-yellow-900",
+                        DIFF_HIGHLIGHT,
                       disabled && "cursor-not-allowed opacity-50",
                       className,
                     )}

@@ -588,8 +588,9 @@ const FormPageProvider = memo(function FormPageProvider({
       disabled,
       errors,
       fieldNameTrans,
+      dataBefore: stableDataBefore,
     }),
-    [disabled, errors, fieldNameTrans],
+    [disabled, errors, fieldNameTrans, stableDataBefore],
   );
   const contextValue = useMemo(
     () => ({

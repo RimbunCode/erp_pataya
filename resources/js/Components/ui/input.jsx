@@ -4,6 +4,7 @@ import { useEffect, useImperativeHandle, useRef } from "react";
 
 import { cn } from "@/lib/utils";
 import { cva } from "class-variance-authority";
+import { DIFF_HIGHLIGHT, isChanged } from "@/lib/diffUtils";
 
 // Define input size variants
 const inputVariants = cva(
@@ -167,6 +168,7 @@ const Input = React.forwardRef(function Input(
     type,
     variant,
     value,
+    valueBefore,
     onValueChange,
     onChange,
     isFocused = false,
@@ -189,12 +191,23 @@ const Input = React.forwardRef(function Input(
     <input
       data-slot="input"
       type={type}
-      className={cn(inputVariants({ variant }), className)}
+      className={cn(
+        inputVariants({ variant }),
+        valueBefore !== undefined &&
+          isChanged(valueBefore, value) &&
+          DIFF_HIGHLIGHT,
+        className,
+      )}
       onChange={(e) => {
         onValueChange?.(e.target.value);
         onChange?.(e);
       }}
       value={value}
+      title={
+        valueBefore !== undefined && isChanged(valueBefore, value)
+          ? `${valueBefore ?? ""} → ${value ?? ""}`
+          : undefined
+      }
       {...props}
     />
   );

@@ -24,7 +24,7 @@ import { gooeyToast as toast } from "@/lib/gooeyToast";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
-  const { data, setData } = useFormPage();
+  const { data, setData, dataBefore } = useFormPage();
   const { t } = useLaravelReactI18n();
   const route = window.route;
   const [units, setUnits] = useState([]);
@@ -165,7 +165,11 @@ export default function Form() {
     <>
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
-          <FormInput required={true} label={t("inventory.unit.columns.group")}>
+          <FormInput
+            required={true}
+            label={t("inventory.unit.columns.group")}
+            name="group"
+          >
             <div className="relative flex items-center">
               <Select
                 options={groups}
@@ -188,13 +192,21 @@ export default function Form() {
               )}
             </div>
           </FormInput>
-          <FormInput required={true} label={t("inventory.unit.columns.code")}>
+          <FormInput
+            required={true}
+            label={t("inventory.unit.columns.code")}
+            name="code"
+          >
             <Input
               value={data.code}
               onChange={(e) => setData("code", e.target.value)}
             />
           </FormInput>
-          <FormInput required={true} label={t("inventory.unit.columns.name")}>
+          <FormInput
+            required={true}
+            label={t("inventory.unit.columns.name")}
+            name="name"
+          >
             <Input
               value={data.name}
               onChange={(e) => setData("name", e.target.value)}
@@ -203,6 +215,7 @@ export default function Form() {
           <FormCheckbox
             disabled={data.group === "Others"}
             checked={data.customable ?? false}
+            valueBefore={dataBefore?.customable}
             onCheckedChange={(val) => {
               setData("customable", val);
             }}
@@ -212,6 +225,7 @@ export default function Form() {
             <FormInput
               required={true}
               label={t("inventory.unit.columns.conversion_factor")}
+              name="conversion_factor"
             >
               <Input
                 pattern="^\d*(\.\d+)?$"

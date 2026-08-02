@@ -19,7 +19,7 @@ export default memo(function Form() {
       <FormPageContent title="Detail" value="detail">
         <div className="grid pt-2 gap-x-8 gap-y-4">
           {branchSettings?.currentBranch?.is_main_branch && (
-            <FormInput label="Branch" required={true}>
+            <FormInput label="Branch" required={true} name="branch">
               <BranchLinkModel
                 placeholder={t(
                   "inventory.warehouse.columns.branch.placeholder",
@@ -33,19 +33,19 @@ export default memo(function Form() {
               />
             </FormInput>
           )}
-          <FormInput label="Code" required={true}>
+          <FormInput label="Code" required={true} name="code">
             <Input
               value={data.code}
               onChange={(e) => setData("code", e.target.value)}
             />
           </FormInput>
-          <FormInput label="Name" required={true}>
+          <FormInput label="Name" required={true} name="name">
             <Input
               value={data.name}
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
-          <FormInput label="PIC">
+          <FormInput label="PIC" name="pic">
             <UserLinkModel
               placeholder={t("inventory.warehouse.columns.pic.placeholder")}
               value={data.pic}

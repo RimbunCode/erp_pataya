@@ -136,7 +136,7 @@ function StepFormDialog({
 
 function Form() {
   const { t } = useLaravelReactI18n();
-  const { data, setData } = useFormPage();
+  const { data, setData, dataBefore } = useFormPage();
 
   const stepColumns = useMemo(() => {
     return [
@@ -269,6 +269,7 @@ function Form() {
           name="ApprovalSchemeSteps"
           columns={stepColumns}
           value={data.steps}
+          valueBefore={dataBefore?.steps}
           onValueChange={(val) => setData("steps", val)}
           form={<StepFormDialog />}
         />

@@ -11,7 +11,7 @@ import { Textarea } from "@/Components/ui/textarea";
 import { useLaravelReactI18n } from "laravel-react-i18n";
 
 export default function Form() {
-  const { data, setData } = useFormPage();
+  const { data, setData, dataBefore } = useFormPage();
   const { t } = useLaravelReactI18n();
   /**
    * @typedef {import('@/Components/FormTable').ColumnProps} ColumnProps
@@ -46,6 +46,7 @@ export default function Form() {
         <FormCheckbox
           label={t("purchase.supplier.columns.is_disabled")}
           checked={data?.is_disabled}
+          valueBefore={dataBefore?.is_disabled}
           onCheckedChange={(e) => setData("is_disabled", e)}
         />
         <FormInput
@@ -83,6 +84,7 @@ export default function Form() {
           <FormInput
             label={t("purchase.supplier.columns.email")}
             required={true}
+            name="email"
           >
             <Input
               type="email"
@@ -93,6 +95,7 @@ export default function Form() {
           <FormInput
             label={t("purchase.supplier.columns.phone")}
             required={true}
+            name="phone"
           >
             <Input
               value={data?.phone ?? ""}
@@ -106,6 +109,7 @@ export default function Form() {
           className="mt-4"
           columns={banksColumns}
           value={data.banks ?? []}
+          valueBefore={dataBefore?.banks}
           onValueChange={(val) => {
             setData("banks", val);
           }}
@@ -119,6 +123,7 @@ export default function Form() {
           label={t("purchase.supplier.columns.street")}
           required={true}
           className="col-span-full"
+          name="street"
         >
           <Textarea
             value={data?.street ?? ""}
@@ -130,6 +135,7 @@ export default function Form() {
           <FormInput
             label={t("purchase.supplier.columns.city")}
             required={true}
+            name="city"
           >
             <Input
               value={data?.city ?? ""}
@@ -139,6 +145,7 @@ export default function Form() {
           <FormInput
             label={t("purchase.supplier.columns.province")}
             required={true}
+            name="province"
           >
             <Input
               value={data?.province ?? ""}
@@ -148,6 +155,7 @@ export default function Form() {
           <FormInput
             label={t("purchase.supplier.columns.zip_code")}
             required={true}
+            name="zip_code"
           >
             <Input
               value={data?.zip_code ?? ""}
@@ -158,6 +166,7 @@ export default function Form() {
           <FormInput
             label={t("purchase.supplier.columns.country")}
             required={true}
+            name="country"
           >
             <CountryLinkModel
               placeholder={t("purchase.supplier.columns.country.placeholder")}

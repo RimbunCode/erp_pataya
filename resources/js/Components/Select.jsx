@@ -1,7 +1,8 @@
 import { Command, CommandEmpty, CommandItem, CommandList } from "./ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
-import { Tooltip, TooltipTrigger } from "./ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { cn, isNullOrWhitespace } from "@/lib/utils";
+import { DIFF_HIGHLIGHT, isChanged } from "@/lib/diffUtils";
 import {
   forwardRef,
   memo,
@@ -24,6 +25,7 @@ const Select = memo(
     {
       id,
       value,
+      valueBefore,
       onValueChange,
       defaultValue,
       placeholder,
@@ -68,6 +70,16 @@ const Select = memo(
       },
       [oriOptions],
     );
+    const diff = useMemo(() => {
+      const before = getOption(valueBefore)?.label ?? valueBefore;
+      const after = getOption(value)?.label ?? value;
+      const changed = isChanged(valueBefore, value);
+      return {
+        before: changed && before,
+        after,
+        same: !changed,
+      };
+    }, [value, valueBefore, getOption]);
     const [isDirty, setIsDirty] = useState(false);
     const [open, setOpen] = useState(false);
     const [_option, _setOption] = useState(getOption(value));
@@ -215,9 +227,9 @@ const Select = memo(
                     asChild
                     className={cn(
                       "flex h-full bg-muted items-center  overflow-hidden border rounded-md cursor-default group/model relative focus-within:border-0 border-input ring-offset-background  focus-within:outline-none focus-within:ring-1 focus-within:ring-ring focus-within:ring-offset-1",
-                      // valueBefore !== undefined &&
-                      // !diff?.same &&
-                      // "bg-yellow-200 dark:bg-yellow-900",
+                      valueBefore !== undefined &&
+                        !diff?.same &&
+                        DIFF_HIGHLIGHT,
                       disabled && "cursor-not-allowed opacity-50",
                       className,
                     )}
@@ -271,17 +283,17 @@ const Select = memo(
                     </div>
                   </PopoverTrigger>
                 </TooltipTrigger>
-                {/* {valueBefore && !diff?.same && (
-              <TooltipContent side="top" align="start">
-                {diff?.before && (
-                  <>
-                    <s>{diff?.before}</s>
-                    <br />
-                  </>
+                {valueBefore !== undefined && !diff?.same && (
+                  <TooltipContent side="top" align="start">
+                    {diff?.before && (
+                      <>
+                        <s>{diff?.before}</s>
+                        <br />
+                      </>
+                    )}
+                    <span>{diff?.after}</span>
+                  </TooltipContent>
                 )}
-                <span>{diff?.after}</span>
-              </TooltipContent>
-            )} */}
               </Tooltip>
               {!(disabled || readOnly) && (
                 <PopoverContent

@@ -18,6 +18,7 @@ export default function Form() {
           <FormInput
             required={true}
             label={t("inventory.category.columns.name")}
+            name="name"
           >
             <Input
               value={data?.name ?? ""}
@@ -27,6 +28,7 @@ export default function Form() {
           <FormInput
             required={true}
             label={t("inventory.category.columns.type")}
+            name="type"
           >
             <Select
               value={data?.type ?? ""}
@@ -36,7 +38,10 @@ export default function Form() {
               options={["inventory", "vehicle", "service"]}
             />
           </FormInput>
-          <FormInput label={t("inventory.category.columns.default_unit")}>
+          <FormInput
+            label={t("inventory.category.columns.default_unit")}
+            name="default_unit"
+          >
             <UnitLinkModel
               value={data?.default_unit ?? ""}
               onValueChange={(v) => setData("default_unit", v)}

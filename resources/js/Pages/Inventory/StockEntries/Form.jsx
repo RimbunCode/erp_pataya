@@ -34,7 +34,8 @@ export default function Form() {
     };
   }, []);
 
-  const { defaultData, data, setData, disabled } = useFormPage(defaultValue);
+  const { defaultData, data, setData, disabled, dataBefore } =
+    useFormPage(defaultValue);
   const { currentBranch } = usePage().props.branchSettings;
   const { t } = useLaravelReactI18n();
   const itemsTableRef = useRef();
@@ -467,6 +468,7 @@ export default function Form() {
               label={t("inventory.stockEntry.columns.using_transit")}
               name="using_transit"
               checked={data.using_transit}
+              valueBefore={dataBefore?.using_transit}
               onCheckedChange={(val) => setData("using_transit", val)}
             />
           )}
