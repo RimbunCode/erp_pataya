@@ -39,7 +39,11 @@ export default function Form() {
           name="quantity_change"
           label={t("inventory.stockLedger.columns.quantity_change")}
         >
-          <NumberInput value={data?.quantity_change} readOnly decimalScale={2} />
+          <NumberInput
+            value={data?.quantity_change}
+            readOnly
+            decimalScale={2}
+          />
         </FormInput>
         <FormInput
           name="quantity_after_transaction"
@@ -88,7 +92,10 @@ export default function Form() {
             customNavigation={
               data?.referenceable
                 ? (value) =>
-                    window.open(route(`${value.route}.show`, value.id), "_blank")
+                    window.open(
+                      route(`${value.route}.show`, value.id),
+                      "_blank",
+                    )
                 : undefined
             }
           />
