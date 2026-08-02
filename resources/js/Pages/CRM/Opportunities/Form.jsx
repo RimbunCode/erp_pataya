@@ -33,21 +33,28 @@ export default function Form() {
           />
         </FormInput>
         <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-3">
-          <FormInput label={t("crm.opportunity.columns.lead")}>
+          <FormInput name="lead" label={t("crm.opportunity.columns.lead")}>
             <LeadLinkModel
               placeholder={t("crm.opportunity.columns.lead.placeholder")}
               value={data?.lead}
               onValueChange={(val) => setData("lead", val)}
             />
           </FormInput>
-          <FormInput label={t("crm.opportunity.columns.customer")}>
+          <FormInput
+            name="customer"
+            label={t("crm.opportunity.columns.customer")}
+          >
             <CustomerLinkModel
               placeholder={t("crm.opportunity.columns.customer.placeholder")}
               value={data?.customer}
               onValueChange={(val) => setData("customer", val)}
             />
           </FormInput>
-          <FormInput label={t("crm.opportunity.columns.stage")} required={true}>
+          <FormInput
+            name="stage"
+            label={t("crm.opportunity.columns.stage")}
+            required={true}
+          >
             <Select
               value={data?.stage}
               onValueChange={(val) => setData("stage", val)}
@@ -63,14 +70,20 @@ export default function Form() {
               ]}
             />
           </FormInput>
-          <FormInput label={t("crm.opportunity.columns.expected_value")}>
+          <FormInput
+            name="expected_value"
+            label={t("crm.opportunity.columns.expected_value")}
+          >
             <NumberInput
               decimalScale={2}
               value={data?.expected_value}
               onValueChange={(val) => setData("expected_value", val)}
             />
           </FormInput>
-          <FormInput label={t("crm.opportunity.columns.probability")}>
+          <FormInput
+            name="probability"
+            label={t("crm.opportunity.columns.probability")}
+          >
             <NumberInput
               suffix="%"
               min={0}
@@ -79,14 +92,20 @@ export default function Form() {
               onValueChange={(val) => setData("probability", val)}
             />
           </FormInput>
-          <FormInput label={t("crm.opportunity.columns.expected_close_date")}>
+          <FormInput
+            name="expected_close_date"
+            label={t("crm.opportunity.columns.expected_close_date")}
+          >
             <DatetimePicker
               type="date"
               value={data?.expected_close_date}
               onValueChange={(val) => setData("expected_close_date", val)}
             />
           </FormInput>
-          <FormInput label={t("crm.opportunity.columns.assigned_to")}>
+          <FormInput
+            name="assigned_to"
+            label={t("crm.opportunity.columns.assigned_to")}
+          >
             <UserLinkModel
               placeholder={t("crm.opportunity.columns.assigned_to.placeholder")}
               value={data?.assigned_to}
@@ -95,6 +114,7 @@ export default function Form() {
           </FormInput>
         </div>
         <FormInput
+          name="notes"
           label={t("crm.opportunity.columns.notes")}
           className="col-span-full mt-4"
         >
