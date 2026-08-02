@@ -39,8 +39,8 @@ class ApprovalTestDocumentController extends Controller {
         parent::__construct($request, ApprovalTestDocument::class);
     }
 
-    public function onApproved(ApprovalTestDocument $approvalTestDocument) {
-        $approvalTestDocument->update(['status' => 'approved']);
+    public function onApproved(mixed $id) {
+        ApprovalTestDocument::findOrFail($id)->update(['status' => 'approved']);
 
         return back();
     }

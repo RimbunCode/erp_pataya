@@ -36,21 +36,33 @@ export default function Form() {
           />
         </FormInput>
         <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-3">
-          <FormInput label={t("sales.customer.columns.vat")} required={true}>
+          <FormInput
+            name="vat"
+            label={t("sales.customer.columns.vat")}
+            required={true}
+          >
             <Input
               type="string"
               value={data?.vat ?? ""}
               onChange={(e) => setData("vat", e.target.value)}
             />
           </FormInput>
-          <FormInput label={t("sales.customer.columns.email")} required={true}>
+          <FormInput
+            name="email"
+            label={t("sales.customer.columns.email")}
+            required={true}
+          >
             <Input
               type="email"
               value={data?.email ?? ""}
               onChange={(e) => setData("email", e.target.value)}
             />
           </FormInput>
-          <FormInput label={t("sales.customer.columns.phone")} required={true}>
+          <FormInput
+            name="phone"
+            label={t("sales.customer.columns.phone")}
+            required={true}
+          >
             <Input
               value={data?.phone ?? ""}
               onChange={(e) => setData("phone", e.target.value)}
@@ -71,6 +83,7 @@ export default function Form() {
           {t("sales.customer.address")}
         </FormPageContentTitle>
         <FormInput
+          name="street"
           label={t("sales.customer.columns.street")}
           required={true}
           className="col-span-full"
@@ -82,13 +95,18 @@ export default function Form() {
         </FormInput>
 
         <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-3">
-          <FormInput label={t("sales.customer.columns.city")} required={true}>
+          <FormInput
+            name="city"
+            label={t("sales.customer.columns.city")}
+            required={true}
+          >
             <Input
               value={data?.city ?? ""}
               onChange={(e) => setData("city", e.target.value)}
             />
           </FormInput>
           <FormInput
+            name="province"
             label={t("sales.customer.columns.province")}
             required={true}
           >
@@ -98,6 +116,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="zip_code"
             label={t("sales.customer.columns.zip_code")}
             required={true}
           >
@@ -108,6 +127,7 @@ export default function Form() {
           </FormInput>
 
           <FormInput
+            name="country"
             label={t("sales.customer.columns.country")}
             required={true}
           >

@@ -64,6 +64,7 @@ export default memo(function Form() {
       >
         <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
+            name="shipping_street"
             label={t("core.branch.columns.street")}
             required={true}
             className="col-span-full"
@@ -73,25 +74,41 @@ export default memo(function Form() {
               onChange={(e) => setData("shipping_street", e.target.value)}
             />
           </FormInput>
-          <FormInput label={t("core.branch.columns.city")} required={true}>
+          <FormInput
+            name="shipping_city"
+            label={t("core.branch.columns.city")}
+            required={true}
+          >
             <Input
               value={data.shipping_city ?? ""}
               onChange={(e) => setData("shipping_city", e.target.value)}
             />
           </FormInput>
-          <FormInput label={t("core.branch.columns.state")} required={true}>
+          <FormInput
+            name="shipping_state"
+            label={t("core.branch.columns.state")}
+            required={true}
+          >
             <Input
               value={data.shipping_state ?? ""}
               onChange={(e) => setData("shipping_state", e.target.value)}
             />
           </FormInput>
-          <FormInput label={t("core.branch.columns.zip_code")} required={true}>
+          <FormInput
+            name="shipping_zip_code"
+            label={t("core.branch.columns.zip_code")}
+            required={true}
+          >
             <Input
               value={data.shipping_zip_code ?? ""}
               onChange={(e) => setData("shipping_zip_code", e.target.value)}
             />
           </FormInput>
-          <FormInput label={t("core.branch.columns.country")} required={true}>
+          <FormInput
+            name="shipping_country"
+            label={t("core.branch.columns.country")}
+            required={true}
+          >
             <CountryLinkModel
               placeholder={t("core.branch.columns.country.placeholder")}
               value={data.shipping_country ?? ""}
@@ -125,6 +142,7 @@ export default memo(function Form() {
           {data?.billing_address == "separate" && (
             <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
               <FormInput
+                name="billing_street"
                 label={t("core.branch.columns.street")}
                 required={true}
                 className="col-span-full"
@@ -134,19 +152,28 @@ export default memo(function Form() {
                   onChange={(e) => setData("billing_street", e.target.value)}
                 />
               </FormInput>
-              <FormInput label={t("core.branch.columns.city")} required={true}>
+              <FormInput
+                name="billing_city"
+                label={t("core.branch.columns.city")}
+                required={true}
+              >
                 <Input
                   value={data.billing_city ?? ""}
                   onChange={(e) => setData("billing_city", e.target.value)}
                 />
               </FormInput>
-              <FormInput label={t("core.branch.columns.state")} required={true}>
+              <FormInput
+                name="billing_state"
+                label={t("core.branch.columns.state")}
+                required={true}
+              >
                 <Input
                   value={data.billing_state ?? ""}
                   onChange={(e) => setData("billing_state", e.target.value)}
                 />
               </FormInput>
               <FormInput
+                name="billing_zip_code"
                 label={t("core.branch.columns.zip_code")}
                 required={true}
               >
@@ -156,6 +183,7 @@ export default memo(function Form() {
                 />
               </FormInput>
               <FormInput
+                name="billing_country"
                 label={t("core.branch.columns.country")}
                 required={true}
               >

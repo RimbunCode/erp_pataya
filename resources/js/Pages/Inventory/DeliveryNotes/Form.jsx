@@ -433,53 +433,6 @@ export default function Form() {
       </FormPageContent>
       <FormPageContent value="detail" title={t("inventory.deliveryNote.items")}>
         <div className="grid grid-cols-2 gap-x-4 gap-y-4">
-          <FormInput
-            label={t("inventory.deliveryNote.columns.insert_item")}
-            disabled={!data.reference_to}
-          >
-            <LinkModel
-              model={(data.reference_to?.model ?? "") + "Item"}
-              disabledAddButton
-              with={[
-                "item",
-                "sourceWarehouse",
-                "sourceWarehouse.branch",
-                "unit",
-              ]}
-              filters={{
-                ...(data.reference_to?.model ===
-                "App\\Models\\Sales\\SalesOrder"
-                  ? { sales_order_id: data?.referenceable?.id }
-                  : { internal_order_id: data?.referenceable?.id }),
-                undelivered_quantity: {
-                  ">": 0,
-                },
-                id: {
-                  notIn: data?.items?.map((x) => x.referenceable_id),
-                },
-              }}
-              value={null}
-              onValueChange={(item) => {
-                if (!item) return;
-                setData((prev) => {
-                  return {
-                    ...prev,
-                    items: [
-                      ...prev.items,
-                      {
-                        ...item,
-                        id: generateRandom(8),
-                        referenceable_type: data.reference_to?.model + "Item",
-                        referenceable_id: item.id,
-                        quantity: item.undelivered_quantity ?? 0,
-                        required_quantity: item.undelivered_quantity ?? 0,
-                      },
-                    ],
-                  };
-                });
-              }}
-            />
-          </FormInput>
           <FormTable
             name="DeliveryNoteItems"
             className="col-start-1 col-span-2"
@@ -497,7 +450,7 @@ export default function Form() {
         defaultOpen={defaultData?.external_note}
       >
         <div className="px-1 py-1">
-          <FormInput>
+          <FormInput name="external_note">
             <Textarea
               rows={3}
               value={data.external_note ?? ""}

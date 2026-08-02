@@ -39,11 +39,11 @@ class CancelPendingApprovalStepsTestDocumentController extends Controller {
         parent::__construct($request, CancelPendingApprovalStepsTestDocument::class);
     }
 
-    public function onApproved(CancelPendingApprovalStepsTestDocument $cancelPendingApprovalStepsTestDocument) {
+    public function onApproved(mixed $id) {
         return back();
     }
 
-    public function onRejected(CancelPendingApprovalStepsTestDocument $cancelPendingApprovalStepsTestDocument) {
+    public function onRejected(mixed $id) {
         return back();
     }
 }

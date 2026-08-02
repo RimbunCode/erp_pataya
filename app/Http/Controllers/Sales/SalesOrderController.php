@@ -175,18 +175,6 @@ class SalesOrderController extends Controller {
         return redirect()->back();
     }
 
-    public function onApproved(SalesOrder $salesOrder) {
-        $this->service->onApproved($salesOrder);
-
-        return back();
-    }
-
-    public function onRejected(SalesOrder $salesOrder) {
-        $this->service->onRejected($salesOrder);
-
-        return back();
-    }
-
     public function syncItems(SalesOrder $salesOrder) {
         $this->service->syncItems($salesOrder);
 
@@ -197,23 +185,5 @@ class SalesOrderController extends Controller {
         $this->service->markDone($salesOrder);
 
         return redirect()->back()->with('success', true);
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(SalesOrder $salesOrder) {
-        DB::beginTransaction();
-        try {
-            $salesOrder->delete();
-            $salesOrder->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('salesOrders.index');
     }
 }

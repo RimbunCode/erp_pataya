@@ -70,6 +70,7 @@ import FormInput from "./FormInput";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { isEqual } from "lodash";
+import useCanUpdate from "@/Hooks/useCanUpdate";
 import useDidMountEffect from "@/Hooks/useDidMountEffect";
 import useDynamicRefs from "@/Hooks/useDynamicRefs";
 import { useIsMobile } from "@/Hooks/use-mobile";
@@ -124,6 +125,8 @@ const CellComponent = forwardRef(function Cell(
   },
   ref,
 ) {
+  const canUpdate = useCanUpdate(col.name, item);
+
   if (!item) {
     return null;
   }
@@ -135,7 +138,7 @@ const CellComponent = forwardRef(function Cell(
   const attributes = {
     ...props,
     ...col.props,
-    readOnly: readOnly || disabled || col.readOnly || false,
+    readOnly: readOnly || disabled || col.readOnly || !canUpdate || false,
     required: (!isRowEmpty || !isLast) && col.required,
     name: col.name,
     className: cn(!isDialog && "h-full", className, col.props?.className),

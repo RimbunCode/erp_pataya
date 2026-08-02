@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class QuotationController extends Controller {
-    private QuotationService $service;
-
     public function __construct(Request $request, QuotationService $service) {
         $this->service = $service;
         parent::__construct($request, Quotation::class);
@@ -113,23 +111,5 @@ class QuotationController extends Controller {
         $this->service->submit($quotation);
 
         return redirect()->back();
-    }
-
-    public function cancel(Quotation $quotation) {
-        $this->service->cancel($quotation);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Quotation $quotation) {
-        DB::beginTransaction();
-        $quotation->delete();
-        $quotation->logForDeleted();
-        DB::commit();
-
-        return redirect()->route('quotations.index');
     }
 }

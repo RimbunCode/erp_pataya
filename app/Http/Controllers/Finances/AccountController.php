@@ -120,18 +120,4 @@ class AccountController extends Controller {
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Account $account) {
-        DB::beginTransaction();
-        try {
-            $account->logForDeleted();
-            $account->delete();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('accounts.index');
-    }
 }

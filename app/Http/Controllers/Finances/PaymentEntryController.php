@@ -10,7 +10,6 @@ use App\Models\Finances\PurchaseInvoice;
 use App\Models\Finances\SalesInvoice;
 use App\Services\Finances\PaymentEntryService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PaymentEntryController extends Controller {
@@ -170,35 +169,5 @@ class PaymentEntryController extends Controller {
         $this->service->submit($paymentEntry);
 
         return back();
-    }
-
-    public function onApproved(PaymentEntry $paymentEntry) {
-        $this->service->onApproved($paymentEntry);
-
-        return back();
-    }
-
-    public function onRejected(PaymentEntry $paymentEntry) {
-        $this->service->onRejected($paymentEntry);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(PaymentEntry $paymentEntry) {
-        DB::beginTransaction();
-        try {
-            $paymentEntry->delete();
-            $paymentEntry->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('paymentEntries.index');
     }
 }

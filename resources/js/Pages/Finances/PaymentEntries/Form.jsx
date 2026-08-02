@@ -212,6 +212,7 @@ export default function Form() {
       <FormPageContent value="detail">
         <div className="grid md:grid-cols-2  gap-x-3 gap-y-4">
           <FormInput
+            name="date"
             required={true}
             label={t("finances.paymentEntry.columns.date")}
           >
@@ -222,6 +223,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="payment_type"
             required={true}
             label={t("finances.paymentEntry.columns.payment_type")}
           >
@@ -248,6 +250,7 @@ export default function Form() {
           </FormInput>
           {data?.payment_type && data?.payment_type !== "internal_transfer" && (
             <FormInput
+              name="payment_method"
               className="col-start-1"
               label={t("finances.paymentEntry.columns.payment_method")}
             >
@@ -306,6 +309,7 @@ export default function Form() {
               </FormInput>
               {data.party_type && (
                 <FormInput
+                  name="partyable"
                   required={true}
                   disabled={!data.party_type || !data.paymentable}
                   readOnly
@@ -431,6 +435,7 @@ export default function Form() {
       >
         <div className="grid md:grid-cols-2  gap-x-3 gap-y-4">
           <FormInput
+            name="account_paid_from"
             required={true}
             label={t("finances.paymentEntry.columns.account_paid_from")}
           >
@@ -447,6 +452,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="account_paid_to"
             required={true}
             label={t("finances.paymentEntry.columns.account_paid_to")}
           >
@@ -501,6 +507,7 @@ export default function Form() {
             </>
           )}
           <FormInput
+            name="paid_amount"
             required={true}
             className="col-start-1"
             label={t("finances.paymentEntry.columns.paid_amount")}

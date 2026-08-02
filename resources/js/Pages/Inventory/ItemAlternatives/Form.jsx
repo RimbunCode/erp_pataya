@@ -20,6 +20,7 @@ export default function Form() {
             label={t("inventory.itemAlternative.columns.two_way")}
           />
           <FormInput
+            name="item"
             required={true}
             label={t("inventory.itemAlternative.columns.item")}
           >
@@ -38,6 +39,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="alternative"
             required={true}
             label={t("inventory.itemAlternative.columns.alternative")}
           >

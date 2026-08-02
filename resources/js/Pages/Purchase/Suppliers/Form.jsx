@@ -81,6 +81,7 @@ export default function Form() {
         </FormInput>
         <div className="grid pt-2 mt-4 gap-x-4 gap-y-4 md:grid-cols-2">
           <FormInput
+            name="email"
             label={t("purchase.supplier.columns.email")}
             required={true}
           >
@@ -91,6 +92,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="phone"
             label={t("purchase.supplier.columns.phone")}
             required={true}
           >
@@ -116,6 +118,7 @@ export default function Form() {
         value="supplier_detail"
       >
         <FormInput
+          name="street"
           label={t("purchase.supplier.columns.street")}
           required={true}
           className="col-span-full"
@@ -128,6 +131,7 @@ export default function Form() {
 
         <div className="grid pt-2 gap-x-8 gap-y-4 md:grid-cols-3">
           <FormInput
+            name="city"
             label={t("purchase.supplier.columns.city")}
             required={true}
           >
@@ -137,6 +141,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="province"
             label={t("purchase.supplier.columns.province")}
             required={true}
           >
@@ -146,6 +151,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="zip_code"
             label={t("purchase.supplier.columns.zip_code")}
             required={true}
           >
@@ -156,6 +162,7 @@ export default function Form() {
           </FormInput>
 
           <FormInput
+            name="country"
             label={t("purchase.supplier.columns.country")}
             required={true}
           >

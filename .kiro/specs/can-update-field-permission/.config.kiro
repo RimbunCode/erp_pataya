@@ -1,0 +1,6 @@
+{
+  "specId": "41369e92-70c1-4c78-be88-648ca87fcd50",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Kontrak canUpdate: computed attribute field-level permission (bool|array, merge parent-child utk relasi many) berdampingan dgn disabledOn (whole-form kill-switch) yg sudah ada, dikonsumsi FE via hook/context terpusat di Input, FormTable, LinkModel dll."
+}

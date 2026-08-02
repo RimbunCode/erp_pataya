@@ -75,21 +75,6 @@ class TicketController extends Controller {
         return back();
     }
 
-    public function destroy(Ticket $ticket) {
-        DB::beginTransaction();
-        try {
-            $ticket->delete();
-            $ticket->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('tickets.index');
-    }
-
     public function markDone(Ticket $ticket) {
         DB::beginTransaction();
         $this->service->markDone($ticket);

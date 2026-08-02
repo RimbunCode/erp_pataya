@@ -1,0 +1,6 @@
+{
+  "specId": "3f6a1e2b-7c4d-4a8e-9b2f-1d5e6c7a8b90",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Invite User: form Create User dibatasi hanya Email, Nama, dan tab Roles and Permission (termasuk Branches). Reuse status FormStatus::INVITED yang sudah memicu UserInvitedNotification via User::booted()."
+}

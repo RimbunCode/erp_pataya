@@ -22,12 +22,27 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 trait LinkModel {
     protected $defaultConfigColumns = [];
+
+    /**
+     * Menandai instance ini sedang diserialize sbg model ROOT halaman show.
+     * Attribute canUpdate/disabledOn HANYA di-append (lih. getAppends())
+     * ketika flag ini true — di-set via markAsShowContext(), dipanggil dari
+     * DataTable::showDetail() (titik generic dilalui semua controller show()).
+     */
+    protected bool $isShowContext = false;
+
+    public function markAsShowContext(): static {
+        $this->isShowContext = true;
+
+        return $this;
+    }
 
     protected static function bootLinkModel() {
         static::addGlobalScope(new DataTableScope);
@@ -205,8 +220,8 @@ trait LinkModel {
             $this->appends,
             ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel'],
             method_exists(static::class, 'templateLink') ? ['templateLink'] : [],
-            method_exists(static::class, 'disabledOn') ? ['disabledOn'] : [],
             (static::$is_submitable ?? false) ? ['canCancel'] : [],
+            $this->isShowContext ? ['canUpdate', 'disabledOn'] : [],
         )));
     }
 
@@ -308,12 +323,108 @@ trait LinkModel {
         return static::templateLink();
     }
 
-    protected function getDisabledOnAttribute(): string {
-        if (! \method_exists(static::class, 'disabledOn')) {
-            return '';
+    /**
+     * Override canUpdate yang di-attach dari LUAR instance ini (oleh parent,
+     * lewat closure level-relasi — lihat getCanUpdateAttribute()). Property
+     * PHP biasa (BUKAN Eloquent attribute) — child yang juga memakai
+     * LinkModel punya getCanUpdateAttribute()-nya sendiri, sehingga
+     * setAttribute('canUpdate', ...) akan diabaikan magic getter (accessor
+     * SELALU menang atas raw attribute bernama sama). Property terpisah ini
+     * menghindari bentrok itu.
+     */
+    private bool|array|null $canUpdateOverride = null;
+
+    public function setCanUpdateOverride(bool|array $value): static {
+        $this->canUpdateOverride = $value;
+
+        return $this;
+    }
+
+    /**
+     * Field-level permission (canUpdate) — bool blanket, atau map
+     * {fieldName: bool|array|Closure}. Field yang tidak disebut dianggap
+     * allowed. Closure di dalam struktur (level-field maupun level-relasi
+     * many) dievaluasi di sini, HASIL AKHIR yang dikirim ke FE tidak pernah
+     * mengandung Closure. Hanya ter-append (dan hanya dipanggil sama sekali)
+     * ketika instance sedang dalam show context (lihat getAppends()).
+     */
+    protected function getCanUpdateAttribute(): bool|array {
+        if ($this->canUpdateOverride !== null) {
+            return $this->canUpdateOverride;
         }
 
-        return static::disabledOn();
+        $raw = \method_exists(static::class, 'canUpdate') ? $this->canUpdate() : true;
+        if (! \is_array($raw)) {
+            return $raw;
+        }
+
+        $resolved = [];
+        foreach ($raw as $key => $value) {
+            // canUpdate() ditulis snake_case (konsisten field data lain di
+            // response), TAPI Eloquent relationLoaded()/getRelation() butuh
+            // nama method PHP asli (camelCase). Normalisasi HANYA untuk cek
+            // ini — key di payload ($resolved) tetap pakai $key asli.
+            $relationMethod = Str::camel($key);
+            $relationValue  = $this->relationLoaded($relationMethod) ? $this->getRelation($relationMethod) : null;
+            $isManyRelation = $relationValue instanceof Collection
+                && ($value instanceof \Closure || \is_array($value));
+
+            if ($isManyRelation) {
+                $relationValue->each(function ($childRow) use ($value) {
+                    $childRow->setCanUpdateOverride($this->resolveCanUpdateValue($value, $childRow));
+                    $childRow->append('canUpdate');
+                });
+                $resolved[$key] = true;
+
+                continue;
+            }
+
+            $resolved[$key] = $this->resolveCanUpdateValue($value, $this);
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * Evaluasi rekursif satu node canUpdate terhadap $row (instance model
+     * yang relevan — parent utk field biasa, child utk closure level-relasi
+     * yang sudah di-dispatch per row oleh pemanggil).
+     */
+    private function resolveCanUpdateValue(bool|array|\Closure $value, EloquentModel $row): bool|array {
+        if ($value instanceof \Closure) {
+            $value = $value($row);
+        }
+        if (! \is_array($value)) {
+            return $value;
+        }
+
+        return \array_map(
+            fn ($v) => $this->resolveCanUpdateValue($v, $row),
+            $value,
+        );
+    }
+
+    /**
+     * disabledOn — boolean whole-form. Non-submitable: default false,
+     * override (bila ada) replace total. Submitable: draft → false;
+     * canceled/rejected → SELALU true, override TIDAK dipanggil
+     * (short-circuit mutlak); status lain → default true, override replace
+     * murni. Hanya ter-append (dan hanya dipanggil sama sekali) ketika
+     * instance sedang dalam show context (lihat getAppends()).
+     */
+    protected function getDisabledOnAttribute(): bool {
+        if (! (static::$is_submitable ?? false)) {
+            return \method_exists(static::class, 'disabledOn') ? $this->disabledOn() : false;
+        }
+
+        $status = (array) $this->status;
+        if (\in_array(FormStatus::CANCELED, $status, true) || \in_array(FormStatus::REJECTED, $status, true)) {
+            return true;
+        }
+
+        $baseline = ! \in_array(FormStatus::DRAFT, $status, true);
+
+        return \method_exists(static::class, 'disabledOn') ? $this->disabledOn() : $baseline;
     }
 
     protected function getRouteAttribute() {

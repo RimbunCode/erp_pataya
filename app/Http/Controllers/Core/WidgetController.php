@@ -289,22 +289,4 @@ class WidgetController extends Controller {
 
         return redirect()->back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Widget $widget) {
-        DB::beginTransaction();
-        try {
-            $widget->logForDeleted();
-            $widget->delete();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->back();
-    }
 }

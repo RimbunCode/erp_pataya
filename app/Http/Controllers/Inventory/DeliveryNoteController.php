@@ -227,40 +227,8 @@ class DeliveryNoteController extends Controller {
         return redirect()->back();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(DeliveryNote $deliveryNote) {
-        DB::beginTransaction();
-
-        try {
-            $deliveryNote->delete();
-            $deliveryNote->logForDeleted();
-
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('deliveryNotes.index');
-    }
-
     public function submit(DeliveryNote $deliveryNote) {
         $this->service->submit($deliveryNote);
-
-        return redirect()->back();
-    }
-
-    public function onApproved(DeliveryNote $deliveryNote) {
-        $this->service->onApproved($deliveryNote);
-
-        return redirect()->back();
-    }
-
-    public function onRejected(DeliveryNote $deliveryNote) {
-        $this->service->onRejected($deliveryNote);
 
         return redirect()->back();
     }

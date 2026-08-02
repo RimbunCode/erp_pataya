@@ -20,7 +20,6 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
-use ReflectionMethod;
 
 class ApprovalInstanceController extends Controller {
     public function __construct(Request $request) {
@@ -150,13 +149,9 @@ class ApprovalInstanceController extends Controller {
             ], $triggerOn);
 
             if (! $instanceApproval || $instanceApproval->status == FormStatus::APPROVED) {
-                $result = app()->call(\implode([$controller, '@', 'onApproved']), [
-                    ...$currentRoute->parameters(),
-                ]);
+                $result = app()->call("$controller@onApproved", ['id' => $data->id]);
             } elseif ($instanceApproval->status == FormStatus::REJECTED) {
-                $result = app()->call(\implode([$controller, '@', 'onRejected']), [
-                    ...$currentRoute->parameters(),
-                ]);
+                $result = app()->call("$controller@onRejected", ['id' => $data->id]);
             } else {
                 $data->update([
                     'status' => FormStatus::NEED_APPROVAL,
@@ -171,35 +166,24 @@ class ApprovalInstanceController extends Controller {
         });
     }
 
-    private function callWithRouteModels(string $controller, string $method, array $rawParams) {
-        $ref         = new ReflectionMethod($controller, $method);
-        $finalParams = [];
+    /**
+     * Panggil onApproved()/onRejected() controller dokumen. Resolusi dokumen
+     * lewat ApprovalInstance::document (morphOne) — bukan reflection atas
+     * signature controller — supaya kompatibel dengan base Controller yang
+     * memakai signature generik `mixed $id`.
+     */
+    private function callDocumentCallback(ApprovalInstance $approval, string $method) {
+        $controller = (string) ($approval->options['controller'] ?? '');
+        $documentId = $approval->document_id;
 
-        foreach ($ref->getParameters() as $param) {
-            $name = $param->getName();
-            $type = $param->getType();
-
-            if ($type && ! $type->isBuiltin()) {
-                $className = $type->getName();
-
-                // Kalau type-nya turunan Model dan ada ID-nya di $rawParams
-                if (is_subclass_of($className, Model::class) && isset($rawParams[$name])) {
-                    $finalParams[$name] = $className::findOrFail($rawParams[$name]);
-
-                    continue;
-                }
-            }
-
-            // fallback: pakai value apa adanya
-            if (array_key_exists($name, $rawParams)) {
-                $finalParams[$name] = $rawParams[$name];
-            }
+        if ($controller === '' || ! $documentId || ! method_exists($controller, $method)) {
+            return back();
         }
 
         request()->attributes->set('isApprovalCallback', true);
 
         try {
-            return app()->call("$controller@$method", $finalParams);
+            return app()->call("$controller@$method", ['id' => $documentId]);
         } finally {
             request()->attributes->remove('isApprovalCallback');
         }
@@ -263,11 +247,7 @@ class ApprovalInstanceController extends Controller {
                 app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'approved'));
             }
 
-            return $this->callWithRouteModels(
-                (string) ($approval->options['controller'] ?? ''),
-                'onApproved',
-                $approval->options['parameters'] ?? [],
-            );
+            return $this->callDocumentCallback($approval, 'onApproved');
         }
         $approval->save();
         DB::commit();
@@ -349,11 +329,7 @@ class ApprovalInstanceController extends Controller {
                 app(NotifyUser::class)->send($creator, new ApprovalDecidedNotification($approval, 'rejected', $notes));
             }
 
-            return $this->callWithRouteModels(
-                (string) ($approval->options['controller'] ?? ''),
-                'onRejected',
-                $approval->options['parameters'] ?? [],
-            );
+            return $this->callDocumentCallback($approval, 'onRejected');
         }
         $approval->save();
         DB::commit();

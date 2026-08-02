@@ -72,6 +72,7 @@ export default memo(
           </DialogHeader>
           <div className="w-full grid grid-cols-1 gap-4">
             <FormInput
+              name="model"
               label={t("user.role.columns.model")}
               required
               className="ml-1"
@@ -102,7 +103,7 @@ export default memo(
               />
             </FormInput>
             {(rule.model?.allow_only_creator ?? rule.model?.is_submitable) && (
-              <FormInput label={t("user.role.columns.level")}>
+              <FormInput name="level" label={t("user.role.columns.level")}>
                 <NumberInput
                   className="text-left"
                   allowDecimals={false}

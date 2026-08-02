@@ -82,18 +82,6 @@ class LeadController extends Controller {
         return back();
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Lead $lead) {
-        DB::beginTransaction();
-        $lead->delete();
-        $lead->logForDeleted();
-        DB::commit();
-
-        return redirect()->route('leads.index');
-    }
-
     public function convert(Lead $lead) {
         DB::beginTransaction();
         $customer = $this->leadService->convertToCustomer($lead);

@@ -27,6 +27,7 @@ export function cn(...inputs) {
 export const META_APPEND_COLUMN_NAMES = [
   "route",
   "canDelete",
+  "canUpdate",
   "keyModel",
   "appendStatus",
   "thisModel",

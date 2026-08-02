@@ -118,34 +118,4 @@ class StockEntryController extends Controller {
 
         return back();
     }
-
-    public function onApproved(StockEntry $stockEntry) {
-        $this->service->onApproved($stockEntry);
-
-        return back();
-    }
-
-    public function onRejected(StockEntry $stockEntry) {
-        $this->service->onRejected($stockEntry);
-
-        return back();
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(StockEntry $stockEntry) {
-        DB::beginTransaction();
-        try {
-            $stockEntry->delete();
-            $stockEntry->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('stockEntries.index');
-    }
 }

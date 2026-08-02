@@ -180,11 +180,4 @@ class RoleController extends Controller {
 
         return back();
     }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id) {
-        //
-    }
 }

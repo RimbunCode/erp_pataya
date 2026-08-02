@@ -9,6 +9,7 @@ use App\Http\Requests\Core\TodoRequest;
 use App\Models\Core\Todo;
 use App\Services\Core\PermissionChecker;
 use App\Services\Core\TodoService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -106,20 +107,8 @@ class TodoController extends Controller {
         return back();
     }
 
-    public function destroy(Todo $todo) {
-        $this->authorizeOwnTodoOrPermission($todo, Permission::Delete);
-
-        DB::beginTransaction();
-        try {
-            $todo->delete();
-            $todo->logForDeleted();
-            DB::commit();
-        } catch (\Throwable $e) {
-            DB::rollBack();
-
-            throw $e;
-        }
-
-        return redirect()->route('todos.index');
+    protected function beforeDestroy(Model $data): void {
+        \assert($data instanceof Todo);
+        $this->authorizeOwnTodoOrPermission($data, Permission::Delete);
     }
 }

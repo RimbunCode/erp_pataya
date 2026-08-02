@@ -43,7 +43,10 @@ export default function Form() {
               disabled={disabled}
             />
           </FormInput>
-          <FormInput label={t("crm.quotation.columns.valid_until")}>
+          <FormInput
+            name="valid_until"
+            label={t("crm.quotation.columns.valid_until")}
+          >
             <DatetimePicker
               type="date"
               value={data?.valid_until}
@@ -63,7 +66,10 @@ export default function Form() {
               disabled={disabled}
             />
           </FormInput>
-          <FormInput label={t("crm.quotation.columns.opportunity")}>
+          <FormInput
+            name="opportunity"
+            label={t("crm.quotation.columns.opportunity")}
+          >
             <OpportunityLinkModel
               placeholder={t("crm.quotation.columns.opportunity.placeholder")}
               value={data?.opportunity}
