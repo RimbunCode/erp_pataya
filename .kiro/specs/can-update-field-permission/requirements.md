@@ -68,6 +68,16 @@ granular per-field yang berlaku ketika form itu sendiri tidak di-disable.
   row boleh/tidak disentuh), `array` map statis (override field spesifik
   pada semua child row, mis. `items: {item: true, warehouse: false}`), atau
   `Closure` (lihat poin berikut).
+- **Konvensi penulisan key relasi**: key pada `canUpdate()` map — TERMASUK
+  key relasi many — SELALU ditulis **snake_case**, konsisten dengan
+  konvensi field data lain di response JSON (mis. `source_warehouse`,
+  BUKAN `sourceWarehouse`). Backend menormalisasi key tsb ke camelCase
+  (`Str::camel()`) HANYA secara internal untuk mendeteksi apakah key
+  tsb merujuk relasi Eloquent yang ter-load (`relationLoaded()`/
+  `getRelation()`, API Eloquent yang butuh nama method PHP asli/
+  camelCase) — key pada payload akhir yang dikirim ke FE TETAP snake_case
+  persis seperti yang ditulis developer di `canUpdate()`. Field non-relasi
+  (`customer`, `qty`, dst.) tidak terpengaruh normalisasi ini sama sekali.
 - **Closure value**: value pada `canUpdate` — di level field mana pun,
   termasuk di dalam array nested relasi many — boleh berupa `Closure`
   dengan signature `fn(Model $row): bool|array`. Dipakai ketika hasil
@@ -155,6 +165,14 @@ mekanisme model child terpisah atau merge implisit.
    adalah komputasi PARENT yang di-attach ke representasi child row pada
    payload, BUKAN attribute yang child model expose secara independen.
    Spec ini SHALL TIDAK memperkenalkan konsep merge parent-child.
+7. WHEN key relasi many pada map `canUpdate()` ditulis snake_case (mis.
+   `source_warehouse`, sesuai konvensi Glossary "Konvensi penulisan key
+   relasi"), THE backend SHALL tetap mendeteksinya sbg relasi many
+   (dengan menormalisasi key ke camelCase HANYA untuk pemanggilan
+   `relationLoaded()`/`getRelation()`) — closure/array pada key tsb
+   SHALL dievaluasi per child row (Kriteria 2-3), BUKAN diperlakukan sbg
+   field biasa. Key pada payload akhir SHALL TETAP snake_case (tidak
+   dikonversi balik).
 
 ### Requirement 3: `disabledOn` sebagai boolean whole-form dengan baseline status
 

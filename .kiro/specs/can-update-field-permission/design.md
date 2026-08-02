@@ -197,7 +197,12 @@ trait LinkModel {
 
         $resolved = [];
         foreach ($raw as $key => $value) {
-            $relationValue = $this->relationLoaded($key) ? $this->getRelation($key) : null;
+            // canUpdate() ditulis snake_case (konsisten field lain di
+            // response) — Eloquent relationLoaded()/getRelation() butuh
+            // nama method PHP asli (camelCase). Normalisasi HANYA utk cek
+            // ini; key di $resolved TETAP $key asli (snake_case).
+            $relationMethod = \Illuminate\Support\Str::camel($key);
+            $relationValue = $this->relationLoaded($relationMethod) ? $this->getRelation($relationMethod) : null;
             $isManyRelation = $relationValue instanceof \Illuminate\Support\Collection
                 && ($value instanceof \Closure || \is_array($value));
 
@@ -240,6 +245,24 @@ tidak override method tsb sama sekali, tetap konsisten Requirement 2
 Kriteria 6: satu-satunya SUMBER KEBENARAN kontrak permission tetap
 `canUpdate()` milik parent — child hanya jadi tempat penyimpanan/
 serialisasi hasil komputasi itu).
+
+**Kendala teknis kedua (juga ditemukan saat implementasi)**: key relasi
+many di `canUpdate()` ditulis snake_case (Requirement 2 Kriteria 7,
+konsisten field data lain di response), TAPI `relationLoaded($key)`/
+`getRelation($key)` adalah API Eloquent yang butuh nama METHOD PHP asli
+(camelCase — persis seperti memanggil `$model->paymentMethod()`). Tanpa
+normalisasi `Str::camel($key)` sebelum panggil kedua method itu, key
+snake_case (mis. `source_warehouse`) TIDAK PERNAH match nama relation
+cache Eloquent (yang selalu camelCase), sehingga `$isManyRelation` selalu
+`false` untuk relasi macam ini — closure level-relasi salah masuk jalur
+"field biasa" (`resolveCanUpdateValue($value, $this)`, `$row` = PARENT,
+BUKAN per child row). Bug ini SENYAP: tidak error, closure tetap
+terpanggil, hasilnya cuma salah secara semantik (evaluasi berbasis data
+parent, bukan data row masing-masing) — baru ketahuan saat menulis test
+dengan nama relasi multi-kata (`sourceItems()` → key `source_items`).
+Fix: normalisasi `Str::camel($key)` HANYA untuk argumen kedua method
+Eloquent tsb; `$key` asli (snake_case) tetap dipakai sbg key di
+`$resolved` maupun argumen `setCanUpdateOverride`/`append`.
 
 **Bila `value` bukan closure/array** (mis. `items: true` — whole-relation
 toggle tanpa detail per-field): TIDAK ada apa pun yang di-attach ke child
@@ -493,6 +516,15 @@ _For any_ struktur `canUpdate()` yang mengandung Closure di level manapun
 (termasuk level-relasi), `json_encode` hasil akhir (root DAN tiap child
 row `items[].canUpdate`) SHALL tidak melempar exception.
 **Validates: Requirement 2.4**
+
+**Property 3b — Deteksi relasi many tidak bergantung casing key.**
+_For any_ key K pada `canUpdate()` yang ditulis snake_case DAN merujuk
+relasi hasMany bernama method camelCase `Str::camel(K)` yang sudah
+ter-load, closure/array pada K SHALL dievaluasi PER CHILD ROW (bukan
+diperlakukan sbg field biasa dengan `$row` = parent) — DAN key pada
+`$resolved`/payload akhir SHALL tetap K (snake_case asli, tidak
+dikonversi).
+**Validates: Requirement 2.7**
 
 **Property 4 — Scope show-only ditegakkan di getAppends(), bukan response filtering.**
 _For any_ model M dengan `$isShowContext === false` (default),

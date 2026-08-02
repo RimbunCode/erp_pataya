@@ -360,7 +360,12 @@ trait LinkModel {
 
         $resolved = [];
         foreach ($raw as $key => $value) {
-            $relationValue  = $this->relationLoaded($key) ? $this->getRelation($key) : null;
+            // canUpdate() ditulis snake_case (konsisten field data lain di
+            // response), TAPI Eloquent relationLoaded()/getRelation() butuh
+            // nama method PHP asli (camelCase). Normalisasi HANYA untuk cek
+            // ini — key di payload ($resolved) tetap pakai $key asli.
+            $relationMethod = Str::camel($key);
+            $relationValue  = $this->relationLoaded($relationMethod) ? $this->getRelation($relationMethod) : null;
             $isManyRelation = $relationValue instanceof Collection
                 && ($value instanceof \Closure || \is_array($value));
 

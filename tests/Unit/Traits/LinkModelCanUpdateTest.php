@@ -24,6 +24,22 @@ class CanUpdateTestParent extends AppModel {
     public function items(): HasMany {
         return $this->hasMany(CanUpdateTestChild::class, 'parent_id');
     }
+
+    // Nama method camelCase multi-word — utk verifikasi normalisasi
+    // Str::camel($key) saat canUpdate() ditulis snake_case ('source_items').
+    public function sourceItems(): HasMany {
+        return $this->hasMany(CanUpdateTestChild::class, 'parent_id');
+    }
+}
+
+class CanUpdateTestParentSnakeCaseRelationOverride extends CanUpdateTestParent {
+    public function canUpdate(): bool|array {
+        return [
+            'source_items' => fn ($item) => [
+                'qty' => ! $item->locked,
+            ],
+        ];
+    }
 }
 
 class CanUpdateTestParentBoolOverride extends CanUpdateTestParent {
@@ -96,7 +112,7 @@ class LinkModelCanUpdateTest extends TestCase {
         }
     }
 
-    private function makeParent(string $class, array $childrenLocked = []): object {
+    private function makeParent(string $class, array $childrenLocked = [], string $relation = 'items'): object {
         $id = (string) Str::ulid();
         $class::query()->getConnection()->table('can_update_test_parents')->insert([
             'id'         => $id,
@@ -117,7 +133,7 @@ class LinkModelCanUpdateTest extends TestCase {
 
         $model = $class::find($id);
         $model->markAsShowContext();
-        $model->load('items');
+        $model->load($relation);
 
         return $model;
     }
@@ -160,6 +176,42 @@ class LinkModelCanUpdateTest extends TestCase {
 
         // root: field relasi many tetap true (whole-relation allowed).
         $this->assertTrue($rootCanUpdate['items']);
+    }
+
+    /**
+     * canUpdate() ditulis snake_case ('source_items', konsisten field data
+     * lain di response), padahal nama method relasi PHP asli camelCase
+     * (sourceItems()). getCanUpdateAttribute() HARUS normalisasi Str::camel()
+     * sebelum panggil relationLoaded()/getRelation() — tanpa ini, closure
+     * level-relasi TIDAK terdeteksi sbg relasi many (salah masuk jalur
+     * field biasa, closure dipanggil dgn $row=parent, bukan per child row).
+     */
+    public function test_relation_closure_detected_when_key_is_snake_case(): void {
+        $parent = $this->makeParent(
+            CanUpdateTestParentSnakeCaseRelationOverride::class,
+            [true, false],
+            relation: 'sourceItems',
+        );
+
+        $rootCanUpdate = $parent->canUpdate;
+
+        $items = $parent->sourceItems;
+        $this->assertCount(2, $items);
+
+        $lockedRow   = $items->firstWhere('locked', true);
+        $unlockedRow = $items->firstWhere('locked', false);
+
+        // Bila normalisasi TIDAK jalan, closure dipanggil dgn $row=parent
+        // (bukan child) — $item->locked pada parent selalu null/falsy,
+        // sehingga KEDUA row akan punya qty=true (gagal membedakan row).
+        $this->assertFalse($lockedRow->canUpdate['qty']);
+        $this->assertTrue($unlockedRow->canUpdate['qty']);
+
+        // Key payload TETAP snake_case (persis yg developer tulis) —
+        // normalisasi HANYA utk deteksi relasi, bukan utk key output.
+        $this->assertArrayHasKey('source_items', $rootCanUpdate);
+        $this->assertArrayNotHasKey('sourceItems', $rootCanUpdate);
+        $this->assertTrue($rootCanUpdate['source_items']);
     }
 
     public function test_to_array_does_not_contain_closure_instances(): void {

@@ -47,8 +47,9 @@ terpusat `useCanUpdate` di atas `FormPageContext` yang sudah ada.
     - Closure level-field biasa: panggil dengan `$this` (instance model saat ini)
     - Closure/array level-relasi many: iterasi `Collection` child row ter-load, panggil per row dengan `$row` = instance child
     - **Ditemukan saat implementasi**: `setAttribute('canUpdate', ...)` TIDAK bekerja — child (juga pakai `LinkModel`) punya `getCanUpdateAttribute()` sendiri, accessor Eloquent SELALU menang atas raw attribute bernama sama. Solusi: property terpisah `canUpdateOverride` (bukan Eloquent attribute) + `getCanUpdateAttribute()` cek property itu duluan sebelum logic normal, plus `$childRow->append('canUpdate')` (child tidak show-context, `getAppends()`-nya tidak otomatis include `canUpdate`)
+    - **Ditemukan saat review pasca-implementasi (2026-08-03)**: `relationLoaded($key)`/`getRelation($key)` butuh nama method PHP asli (camelCase) — kalau `canUpdate()` ditulis snake_case (Requirement 2.7, konsisten field data lain), key SNAKE_CASE multi-kata (mis. `source_warehouse`) TIDAK match relation cache Eloquent (selalu camelCase), closure level-relasi salah masuk jalur "field biasa" (`$row`=parent, bukan per child row) — bug senyap, tidak error, cuma salah semantik. Fix: `Str::camel($key)` HANYA utk argumen `relationLoaded()`/`getRelation()`, key di `$resolved`/payload TETAP `$key` asli snake_case. Test regresi: `test_relation_closure_detected_when_key_is_snake_case` (verified fail tanpa fix via `git stash`, pass dengan fix)
     - Field relasi many di struktur root tetap `true` (whole-relation allowed) kecuali eksplisit `false` non-closure
-    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.6_
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.6, 2.7_
 
   - [x] 3.3 Write unit tests for closure resolution (Property 1, 3)
     - **Property 1: default canUpdate === true tanpa override (show context)**
