@@ -50,6 +50,7 @@ function Form() {
       >
         <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-2">
           <FormInput
+            name="company_name"
             label={t("core.company.company_details.name")}
             required={true}
           >
@@ -59,6 +60,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="short_name"
             label={t("core.company.company_details.short_name")}
             required={true}
           >
@@ -68,6 +70,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="email"
             label={t("core.company.company_details.email")}
             required={true}
           >
@@ -78,6 +81,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="phone"
             label={t("core.company.company_details.phone")}
             required={true}
           >
@@ -87,6 +91,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="street"
             label={t("core.company.company_details.street")}
             required={true}
             className="col-span-full"
@@ -97,6 +102,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="city"
             label={t("core.company.company_details.city")}
             required={true}
           >
@@ -106,6 +112,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="state"
             label={t("core.company.company_details.state")}
             required={true}
           >
@@ -115,6 +122,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="zip_code"
             label={t("core.company.company_details.zip_code")}
             required={true}
           >
@@ -124,6 +132,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="country_id"
             label={t("core.company.company_details.country")}
             required={true}
           >
@@ -143,6 +152,7 @@ function Form() {
       >
         <div className="grid pt-2 gap-x-4 gap-y-4 md:grid-cols-3">
           <FormInput
+            name="mail_protocol"
             label={t("core.company.email_setup.protocol")}
             required={true}
             className=""
@@ -164,6 +174,7 @@ function Form() {
             </Select>
           </FormInput>
           <FormInput
+            name="mail_encryption"
             label={t("core.company.email_setup.encryption")}
             required={true}
             className=""
@@ -174,6 +185,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="mail_host"
             label={t("core.company.email_setup.host")}
             required={true}
             className=""
@@ -184,6 +196,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="mail_port"
             label={t("core.company.email_setup.port")}
             required={true}
             className=""
@@ -197,6 +210,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="mail_username"
             label={t("core.company.email_setup.username")}
             required={true}
             className=""
@@ -207,6 +221,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="mail_password"
             label={t("core.company.email_setup.password")}
             required={true}
             className=""
@@ -217,6 +232,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="mail_from_address"
             label={t("core.company.email_setup.from_address")}
             required={true}
             className=""
@@ -227,6 +243,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="mail_from_name"
             label={t("core.company.email_setup.from_name")}
             required={true}
             className=""
@@ -244,6 +261,7 @@ function Form() {
       >
         <div className="flex flex-col w-full max-w-lg gap-y-4">
           <FormInput
+            name="default_currency_id"
             label={t("core.company.preferences.default_currency")}
             required={true}
             className=""
@@ -259,6 +277,7 @@ function Form() {
             />
           </FormInput>
           <FormInput
+            name="timezone"
             label={t("core.company.preferences.timezone")}
             required={true}
             className=""

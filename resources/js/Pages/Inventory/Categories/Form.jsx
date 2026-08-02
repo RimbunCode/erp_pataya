@@ -16,6 +16,7 @@ export default function Form() {
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
           <FormInput
+            name="name"
             required={true}
             label={t("inventory.category.columns.name")}
           >
@@ -25,6 +26,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="type"
             required={true}
             label={t("inventory.category.columns.type")}
           >
@@ -36,7 +38,10 @@ export default function Form() {
               options={["inventory", "vehicle", "service"]}
             />
           </FormInput>
-          <FormInput label={t("inventory.category.columns.default_unit")}>
+          <FormInput
+            name="default_unit"
+            label={t("inventory.category.columns.default_unit")}
+          >
             <UnitLinkModel
               value={data?.default_unit ?? ""}
               onValueChange={(v) => setData("default_unit", v)}

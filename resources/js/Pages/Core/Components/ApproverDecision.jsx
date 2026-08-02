@@ -70,6 +70,7 @@ function ApproverDecision({ name, approval }) {
         </DialogHeader>
         <form className="grid grid-cols-1 gap-y-4" onSubmit={onSubmit}>
           <FormInput
+            name="decision"
             readOnly={processing}
             required
             label={t("core.form.approvalDecision.decision")}
@@ -82,6 +83,7 @@ function ApproverDecision({ name, approval }) {
             />
           </FormInput>
           <FormInput
+            name="notes"
             readOnly={processing}
             label={t("core.form.approvalDecision.notes")}
           >

@@ -90,7 +90,10 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
         defaultOpen
       >
         <div className="grid gap-x-4 gap-y-4 md:grid-cols-2">
-          <FormInput label={t("sales.salesOrder.columns.discount_on")}>
+          <FormInput
+            name="discount_on"
+            label={t("sales.salesOrder.columns.discount_on")}
+          >
             <Select
               value={data.discount_on}
               onValueChange={(val) => setDiscount("discount_on", val)}
@@ -102,6 +105,7 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
             />
           </FormInput>
           <FormInput
+            name="discount_rate"
             disabled={!data?.discount_on}
             label={`${t("sales.salesOrder.columns.additional_discount_rate")}`}
           >
@@ -117,6 +121,7 @@ function AdditionalDiscount({ data, setData, netAmount, taxAmount }) {
           </FormInput>
 
           <FormInput
+            name="discount_amount"
             className="col-start-2"
             disabled={!data?.discount_on}
             label={`${t("sales.salesOrder.columns.additional_discount_amount")}`}

@@ -43,6 +43,7 @@ export default function Form() {
             />
           </FormInput>
           <FormInput
+            name="description"
             label={t("inventory.attribute.columns.description")}
             className="col-span-full"
           >
@@ -73,6 +74,7 @@ export default function Form() {
           ) : (
             <>
               <FormInput
+                name="from_range"
                 required={true}
                 label={t("inventory.attribute.columns.range.from")}
               >
@@ -83,6 +85,7 @@ export default function Form() {
                 />
               </FormInput>
               <FormInput
+                name="to_range"
                 required={true}
                 label={t("inventory.attribute.columns.range.to")}
               >
@@ -93,6 +96,7 @@ export default function Form() {
                 />
               </FormInput>
               <FormInput
+                name="increment"
                 required={true}
                 label={t("inventory.attribute.columns.range.increment")}
               >

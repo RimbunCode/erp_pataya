@@ -165,7 +165,7 @@ function Form() {
           </FormInput>
           {!isCreate && (
             <>
-              <FormInput label={t("user.user.columns.gender")}>
+              <FormInput name="gender" label={t("user.user.columns.gender")}>
                 <Select
                   disabled={authUser.id != data?.id}
                   value={data.gender}
@@ -174,7 +174,7 @@ function Form() {
                   options={["male", "female"]}
                 />
               </FormInput>
-              <FormInput label={t("user.user.columns.phone")}>
+              <FormInput name="phone" label={t("user.user.columns.phone")}>
                 <Input
                   disabled={authUser.id != data?.id}
                   type="text"
@@ -182,7 +182,10 @@ function Form() {
                   onChange={(e) => setData("phone", e.target.value)}
                 />
               </FormInput>
-              <FormInput label={t("user.user.columns.birthdate")}>
+              <FormInput
+                name="birthdate"
+                label={t("user.user.columns.birthdate")}
+              >
                 <DatetimePicker
                   disabled={authUser.id != data?.id}
                   type="date"

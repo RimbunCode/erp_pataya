@@ -93,7 +93,11 @@ export default function Form() {
     <>
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
-          <FormInput required label={t("core.emailTemplate.columns.model")}>
+          <FormInput
+            name="model"
+            required
+            label={t("core.emailTemplate.columns.model")}
+          >
             <PermissionLinkModel
               required={true}
               placeholder={t("core.emailTemplate.columns.model.placeholder")}
@@ -107,7 +111,11 @@ export default function Form() {
               }
             />
           </FormInput>
-          <FormInput required label={t("core.emailTemplate.columns.name")}>
+          <FormInput
+            name="name"
+            required
+            label={t("core.emailTemplate.columns.name")}
+          >
             <Input
               value={data?.name ?? ""}
               onValueChange={(e) => setData("name", e)}
@@ -125,7 +133,11 @@ export default function Form() {
         title={t("core.emailTemplate.columns.subject")}
         value="detail"
       >
-        <FormInput required label={t("core.emailTemplate.columns.subject")}>
+        <FormInput
+          name="subject"
+          required
+          label={t("core.emailTemplate.columns.subject")}
+        >
           <MentionsInput
             singleLine
             value={data?.subject ?? ""}

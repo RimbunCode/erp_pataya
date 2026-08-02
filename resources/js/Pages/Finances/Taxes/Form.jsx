@@ -13,13 +13,21 @@ export default function Form() {
     <>
       <FormPageContent title={null} value="detail">
         <div className="grid gap-x-3 gap-y-4">
-          <FormInput required={true} label={t("finances.taxes.columns.name")}>
+          <FormInput
+            name="name"
+            required={true}
+            label={t("finances.taxes.columns.name")}
+          >
             <Input
               value={data?.name ?? ""}
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
-          <FormInput required={true} label={t("finances.taxes.columns.rate")}>
+          <FormInput
+            name="rate"
+            required={true}
+            label={t("finances.taxes.columns.rate")}
+          >
             <NumberInput
               className="text-left"
               value={data.rate}
