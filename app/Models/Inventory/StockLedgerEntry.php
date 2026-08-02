@@ -81,7 +81,7 @@ class StockLedgerEntry extends Model {
     ];
 
     public static function templateLink() {
-        return ':referenceable';
+        return ':code';
     }
 
     /**
