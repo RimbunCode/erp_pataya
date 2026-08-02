@@ -15,8 +15,6 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class TodoController extends Controller {
-    private TodoService $service;
-
     public function __construct(Request $request, TodoService $service) {
         $this->service = $service;
         parent::__construct($request, Todo::class);
@@ -81,7 +79,7 @@ class TodoController extends Controller {
 
         return Inertia::render('Core/Todos/Show', [
             'todo' => function () use ($todo) {
-                $todo->loadRelations();
+                $todo->loadRelations([], withTrashed: true);
 
                 return $todo;
             },

@@ -85,7 +85,7 @@ class AccountController extends Controller {
 
         return Inertia::render('Finances/Accounts/Show', [
             'account' => function () use ($account) {
-                $account->loadRelations();
+                $account->loadRelations([], withTrashed: true);
 
                 return $account;
             },

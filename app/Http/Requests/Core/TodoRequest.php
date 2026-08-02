@@ -4,6 +4,7 @@ namespace App\Http\Requests\Core;
 
 use App\Enums\TodoType;
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Validation\Rule;
 
 class TodoRequest extends BaseFormRequest {
@@ -16,7 +17,7 @@ class TodoRequest extends BaseFormRequest {
             'reference_type'       => ['nullable', 'string'],
             'reference_id'         => ['nullable', 'string', 'required_with:reference_type'],
             'allocated_to'         => ['nullable', 'array'],
-            'allocated_to.id'      => ['required_with:allocated_to', 'string', 'exists:assignables,id'],
+            'allocated_to.id'      => ['required_with:allocated_to', 'string', new ExistsExcludingTrashed('assignables')],
             'allocated_to.type'    => ['nullable', 'string', 'in:user,role'],
             'type'                 => ['required', 'string', Rule::in(TodoType::values())],
             'reminder_lead_days'   => ['nullable', 'array'],

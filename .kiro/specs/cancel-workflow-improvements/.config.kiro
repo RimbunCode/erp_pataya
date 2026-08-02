@@ -1,0 +1,6 @@
+{
+  "specId": "91075ba5-d717-4b74-b930-c31c2b0d2961",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Perbaikan alur cancel dokumen submitable: permission dinamis (canCancel pattern sama seperti canDelete), cascade update ApprovalInstanceStep via event saat dokumen dibatalkan, dan template method Controller::cancel() dengan override rollback tetap di Service layer."
+}

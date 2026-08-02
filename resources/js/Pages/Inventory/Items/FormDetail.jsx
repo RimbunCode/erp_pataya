@@ -176,6 +176,7 @@ export default function FormDetail({
                   }
                 : null
             }
+            requireReselectIfDeleted
           />
         </FormInput>
 
@@ -189,6 +190,7 @@ export default function FormDetail({
             disabled={isVariant}
             value={isVariant ? item.default_unit : data.default_unit}
             onValueChange={(val) => setData("default_unit", val)}
+            requireReselectIfDeleted
           />
         </FormInput>
       </div>

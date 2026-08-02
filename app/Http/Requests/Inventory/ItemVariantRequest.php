@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class ItemVariantRequest extends BaseFormRequest {
@@ -25,7 +26,7 @@ class ItemVariantRequest extends BaseFormRequest {
             'description'            => ['nullable', 'string'],
             'barcodes'               => ['nullable', 'array'],
             'barcodes.*.barcode'     => ['required', 'string', 'min:3', 'max:255'],
-            'barcodes.*.unit.id'     => ['required', 'string', 'exists:units,id'],
+            'barcodes.*.unit.id'     => ['required', 'string', new ExistsExcludingTrashed('units')],
         ];
     }
 }

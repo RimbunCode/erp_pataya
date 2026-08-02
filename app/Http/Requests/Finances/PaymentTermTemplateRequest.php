@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Finances;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Validation\Validator;
 
@@ -32,7 +33,7 @@ class PaymentTermTemplateRequest extends BaseFormRequest {
             'items.*.discount'          => ['nullable', 'numeric', 'required_with:items.*.discount_type'],
             'items.*.description'       => ['nullable', 'string'],
             'items.*.payment_method'    => ['nullable', 'array'],
-            'items.*.payment_method.id' => ['nullable', 'exists:payment_methods,id'],
+            'items.*.payment_method.id' => ['nullable', new ExistsExcludingTrashed('payment_methods')],
         ];
     }
 

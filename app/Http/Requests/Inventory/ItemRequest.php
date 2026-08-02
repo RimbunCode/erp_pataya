@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use App\Rules\FormatVariantValidation;
 use Illuminate\Validation\Rule;
 
@@ -31,12 +32,12 @@ class ItemRequest extends BaseFormRequest {
             ],
             'name'                          => ['required', 'string', 'min:3', 'max:255'],
             'description'                   => ['nullable', 'string'],
-            'category.id'                   => ['required', 'string', 'exists:categories,id'],
-            'default_unit.id'               => ['required', 'string', 'exists:units,id'],
+            'category.id'                   => ['required', 'string', new ExistsExcludingTrashed('categories')],
+            'default_unit.id'               => ['required', 'string', new ExistsExcludingTrashed('units')],
             'is_disabled'                   => ['nullable', 'boolean'],
             'allow_alternative_item'        => ['nullable', 'boolean'],
             'uoms'                          => ['required', 'array', 'min:1'],
-            'uoms.*.id'                     => ['required', 'string', 'exists:units,id'],
+            'uoms.*.id'                     => ['required', 'string', new ExistsExcludingTrashed('units')],
             'uoms.*.conversion_factor'      => ['nullable', 'numeric'],
             'uoms.*.isCustom'               => ['nullable', 'boolean'],
             'uoms.*.readOnly'               => ['nullable', 'boolean'],
@@ -46,7 +47,7 @@ class ItemRequest extends BaseFormRequest {
                 ['format_variant' => ['required', 'string', 'min:3', new FormatVariantValidation($this->get('attributes'))]] :
                 []),
             'attributes'                  => ['nullable', 'array'],
-            'attributes.*.attribute.id'   => ['required', 'string', 'exists:attributes,id'],
+            'attributes.*.attribute.id'   => ['required', 'string', new ExistsExcludingTrashed('attributes')],
             'attributes.*.attribute.name' => [
                 'required',
                 'string',
@@ -56,9 +57,9 @@ class ItemRequest extends BaseFormRequest {
             'attributes.*.values'      => ['required', 'array', 'min:1'],
             'barcodes'                 => ['nullable', 'array'],
             'barcodes.*.barcode'       => ['required', 'string', 'min:3', 'max:255'],
-            'barcodes.*.basic_unit.id' => ['required', 'string', 'exists:units,id'],
+            'barcodes.*.basic_unit.id' => ['required', 'string', new ExistsExcludingTrashed('units')],
             'image'                    => ['nullable', 'array'],
-            'image.*.id'               => ['required', 'string', 'exists:files,id'],
+            'image.*.id'               => ['required', 'string', new ExistsExcludingTrashed('files')],
         ];
     }
 }

@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PaymentEntryController extends Controller {
-    private PaymentEntryService $service;
-
     public function __construct(Request $request, PaymentEntryService $service) {
         $this->service = $service;
         parent::__construct($request, PaymentEntry::class);
@@ -146,7 +144,7 @@ class PaymentEntryController extends Controller {
 
         return Inertia::render('Finances/PaymentEntries/Show', [
             'paymentEntry' => function () use ($paymentEntry) {
-                $paymentEntry->loadRelations();
+                $paymentEntry->loadRelations([], withTrashed: true);
 
                 return $paymentEntry;
             },
@@ -182,12 +180,6 @@ class PaymentEntryController extends Controller {
 
     public function onRejected(PaymentEntry $paymentEntry) {
         $this->service->onRejected($paymentEntry);
-
-        return back();
-    }
-
-    public function cancel(PaymentEntry $paymentEntry) {
-        $this->service->cancel($paymentEntry);
 
         return back();
     }

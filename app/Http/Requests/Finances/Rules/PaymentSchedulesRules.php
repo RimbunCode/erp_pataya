@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Finances\Rules;
 
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Http\Request;
 
 class PaymentSchedulesRules {
@@ -14,7 +15,7 @@ class PaymentSchedulesRules {
         return [
             'payment_schedules'                     => ['nullable', 'array'],
             'payment_schedules.*.id'                => ['required', 'string'],
-            'payment_schedules.*.payment_method.id' => ['nullable', 'exists:payment_methods,id'],
+            'payment_schedules.*.payment_method.id' => ['nullable', new ExistsExcludingTrashed('payment_methods')],
             'payment_schedules.*.payment_method.*'  => ['nullable'],
             'payment_schedules.*.due_date'          => ['required', 'date'],
             'payment_schedules.*.discount_type'     => [

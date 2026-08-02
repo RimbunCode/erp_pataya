@@ -291,10 +291,6 @@ export function isValidStatus(status) {
   ]);
 }
 
-export function isCompletedStatus(status) {
-  return inArray(status, ["completed", "done", "delivered", "billed"]);
-}
-
 export function camelize(str) {
   return str
     .replace(/(?:^\w|[A-Z]|\b\w)/g, function (word, index) {

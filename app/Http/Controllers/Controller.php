@@ -37,6 +37,7 @@ use Inertia\Inertia;
 
 abstract class Controller {
     protected string $model;
+    protected $service;
     protected $permissions;
     protected $modelPermissions;
     protected $onlyCreator = false;
@@ -508,5 +509,23 @@ abstract class Controller {
         $route        = Str::before($currentRoute->getAction()['as'], '.') . '.show';
 
         return redirect()->route($route, $newData->id);
+    }
+
+    public function cancel(string $id) {
+        $data = $this->model::findOrFail($id);
+        abort_unless($data->canCancel ?? false, 422);
+
+        DB::beginTransaction();
+        try {
+            $this->service->cancel($data);
+            $data->logForCancelled();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
+
+        return back();
     }
 }

@@ -76,7 +76,8 @@ trait LinkModel {
                 'titleTrans' => 'core.form.updated_at',
             ],
             'deleted_at' => [
-                'titleTrans' => 'core.form.deleted_at',
+                'titleTrans'  => 'core.form.deleted_at',
+                'forceSelect' => true,
             ],
             'canceled_at' => [
                 'titleTrans' => 'core.form.canceled_at',
@@ -205,6 +206,7 @@ trait LinkModel {
             ['route', 'canDelete', 'keyModel', 'appendStatus', 'thisModel'],
             method_exists(static::class, 'templateLink') ? ['templateLink'] : [],
             method_exists(static::class, 'disabledOn') ? ['disabledOn'] : [],
+            (static::$is_submitable ?? false) ? ['canCancel'] : [],
         )));
     }
 
@@ -584,25 +586,39 @@ trait LinkModel {
                 continue;
             }
 
-            $baselineDepends = [];
-            if ($value === 'appendStatus' && ! isset($config['dependsOn'])) {
-                $baselineDepends = ['dependsOn' => $hasStatusCol ? ['status'] : $pkDepends];
-            } elseif ($value === 'canDelete' && ! isset($config['dependsOn'])) {
+            $baselineDependsOn = null;
+            if ($value === 'appendStatus') {
+                $baselineDependsOn = $hasStatusCol ? ['status'] : $pkDepends;
+            } elseif ($value === 'canDelete') {
                 $isSubmitable = static::$is_submitable ?? false;
                 if ($isSubmitable && $hasStatusCol) {
-                    $baselineDepends = ['dependsOn' => ['status']];
+                    $baselineDependsOn = ['status'];
                 } elseif (! $isSubmitable && $hasHtCol) {
-                    $baselineDepends = ['dependsOn' => ['have_transactions']];
+                    $baselineDependsOn = ['have_transactions'];
                 } else {
-                    $baselineDepends = ['dependsOn' => $pkDepends];
+                    $baselineDependsOn = $pkDepends;
                 }
+            } elseif ($value === 'canCancel') {
+                $baselineDependsOn = $hasStatusCol ? ['status'] : $pkDepends;
             } elseif (in_array($value, ['route', 'keyModel', 'thisModel', 'disabledOn'])) {
-                $baselineDepends = ['dependsOn' => $pkDepends];
+                $baselineDependsOn = $pkDepends;
             } elseif ($value === 'templateLink') {
-                $baselineDepends = ['dependsOn' => method_exists(static::class, 'templateLink')
+                $baselineDependsOn = method_exists(static::class, 'templateLink')
                     ? DataTableColumnSelector::templateLinkPlaceholders(static::templateLink()) ?: $pkDepends
-                    : $pkDepends];
+                    : $pkDepends;
             }
+
+            // dependsOn model (configColumns) DITAMBAHKAN ke baseline, bukan
+            // menimpa — mis. canDelete baseline butuh 'status', model bisa
+            // menambah kolom lain yang dibaca method canDelete() override-nya
+            // tanpa kehilangan dependency baseline.
+            $mergedDependsOn = array_values(array_unique([
+                ...($baselineDependsOn ?? []),
+                ...($config['dependsOn'] ?? []),
+            ]));
+            $baselineDepends = $baselineDependsOn !== null || isset($config['dependsOn'])
+                ? ['dependsOn' => $mergedDependsOn]
+                : [];
 
             $newColumns[$value] = [
                 'name'       => $value,
@@ -612,7 +628,7 @@ trait LinkModel {
                 'primaryKey' => $pkName,
                 'titleTrans' => $translateKey ? $translateKey . '.columns.' . $value : null,
                 ...$baselineDepends,
-                ...$config,
+                ...array_diff_key($config, ['dependsOn' => true]),
                 ...(($isIgnore || $isHidden) ? $ignoreFlags : []),
             ];
         }

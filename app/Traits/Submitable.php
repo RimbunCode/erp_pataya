@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Casts\FormStatusesCast;
 use App\Casts\Json;
 use App\Enums\FormStatus;
+use App\Events\Core\DocumentCanceled;
 use App\Http\Controllers\Core\ApprovalInstanceController;
 use App\Models\Core\ApprovalInstance;
 use App\Models\Core\Branch;
@@ -105,9 +106,10 @@ trait Submitable {
 
         // Notifikasi ke approver kandidat dari step yang masih PENDING/WAITING
         // dikirim setelah save() sukses (event saved, bukan saving) — supaya
-        // tidak terkirim untuk save yang gagal. Sengaja TIDAK melakukan
-        // cascade update status step ke CANCELED (gap terpisah, lihat
-        // design.md Requirement 3.9) — murni membaca status step apa adanya.
+        // tidak terkirim untuk save yang gagal. Cascade update status step ke
+        // CANCELED ditangani terpisah lewat event DocumentCanceled + listener
+        // CancelPendingApprovalSteps (lihat .kiro/specs/cancel-workflow-improvements) —
+        // dispatch di sini, PALING AWAL, sebelum notifikasi (guard identik).
         self::saved(function ($model) {
             if (! ($model->isSubmitable() ?? false) || ! $model->wasChanged('status')) {
                 return;
@@ -120,6 +122,8 @@ trait Submitable {
             if (! $approval) {
                 return;
             }
+
+            event(new DocumentCanceled($model, $approval));
 
             $pendingSteps = $approval->steps->whereIn('status', [FormStatus::PENDING, FormStatus::WAITING]);
             if ($pendingSteps->isEmpty()) {
@@ -178,6 +182,16 @@ trait Submitable {
 
     public function approvalable() {
         return $this->morphOne(ApprovalInstance::class, 'document', 'document_type', 'document_id');
+    }
+
+    protected function getCanCancelAttribute(): bool {
+        $condition = ! \in_array(FormStatus::DRAFT, (array) $this->status)
+            && ! \in_array(FormStatus::CANCELED, (array) $this->status);
+        if (! \method_exists(static::class, 'canCancel')) {
+            return $condition;
+        }
+
+        return $condition && $this->canCancel();
     }
 
     public function amendedFrom() {

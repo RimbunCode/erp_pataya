@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PurchaseReceiptController extends Controller {
-    private PurchaseReceiptService $service;
-
     public function __construct(Request $request, PurchaseReceiptService $service) {
         $this->service = $service;
         parent::__construct($request, PurchaseReceipt::class);
@@ -207,12 +205,6 @@ class PurchaseReceiptController extends Controller {
 
     public function onRejected(PurchaseReceipt $purchaseReceipt) {
         $this->service->onRejected($purchaseReceipt);
-
-        return redirect()->back();
-    }
-
-    public function cancel(PurchaseReceipt $purchaseReceipt) {
-        $this->service->cancel($purchaseReceipt);
 
         return redirect()->back();
     }

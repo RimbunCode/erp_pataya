@@ -13,8 +13,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class TicketController extends Controller {
-    private TicketService $service;
-
     public function __construct(Request $request, TicketService $service) {
         $this->service = $service;
         parent::__construct($request, Ticket::class);

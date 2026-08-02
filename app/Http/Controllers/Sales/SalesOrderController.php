@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SalesOrderController extends Controller {
-    private SalesOrderService $service;
-
     public function __construct(Request $request, SalesOrderService $service) {
         $this->service = $service;
         parent::__construct($request, SalesOrder::class);
@@ -185,12 +183,6 @@ class SalesOrderController extends Controller {
 
     public function onRejected(SalesOrder $salesOrder) {
         $this->service->onRejected($salesOrder);
-
-        return back();
-    }
-
-    public function cancel(SalesOrder $salesOrder) {
-        $this->service->cancel($salesOrder);
 
         return back();
     }

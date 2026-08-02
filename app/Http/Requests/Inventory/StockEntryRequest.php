@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Inventory;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class StockEntryRequest extends BaseFormRequest {
@@ -27,23 +28,23 @@ class StockEntryRequest extends BaseFormRequest {
             // 'received_date' => ['nullable', 'required_if:type,item_transfer', 'date'],
             'received_date'                         => ['nullable', 'date'],
             'notes'                                 => ['nullable', 'string'],
-            'difference_account.id'                 => ['required', 'exists:accounts,id'],
+            'difference_account.id'                 => ['required', new ExistsExcludingTrashed('accounts')],
             'items'                                 => ['required', 'array', 'min:1'],
             'items.*.id'                            => ['required'],
-            'items.*.item.id'                       => ['required', 'exists:item_variants,id'],
+            'items.*.item.id'                       => ['required', new ExistsExcludingTrashed('item_variants')],
             'items.*.item.*'                        => ['nullable'],
             'items.*.quantity'                      => ['required', 'numeric', 'min:1'],
-            'items.*.unit.id'                       => ['required', 'exists:item_units,id'],
+            'items.*.unit.id'                       => ['required', new ExistsExcludingTrashed('item_units')],
             'items.*.unit.*'                        => ['nullable'],
-            'items.*.source_warehouse.id'           => ['nullable', 'exists:warehouses,id'],
+            'items.*.source_warehouse.id'           => ['nullable', new ExistsExcludingTrashed('warehouses')],
             'items.*.source_warehouse.*'            => ['nullable'],
-            'items.*.target_warehouse.id'           => ['nullable', 'exists:warehouses,id'],
+            'items.*.target_warehouse.id'           => ['nullable', new ExistsExcludingTrashed('warehouses')],
             'items.*.target_warehouse.*'            => ['nullable'],
             'items.*.basic_rate'                    => ['nullable', 'required_if:type,item_receipt', 'numeric', 'min:0'],
             'items.*.conversion_factor'             => ['nullable', 'numeric', 'min:0'],
             'additional_costs'                      => ['nullable', 'array'],
             'additional_costs.*.id'                 => ['required'],
-            'additional_costs.*.expense_account.id' => ['required', 'exists:accounts,id'],
+            'additional_costs.*.expense_account.id' => ['required', new ExistsExcludingTrashed('accounts')],
             'additional_costs.*.purpose'            => ['required', 'string'],
             'additional_costs.*.amount'             => ['required', 'numeric'],
         ];

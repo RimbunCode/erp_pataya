@@ -149,4 +149,12 @@ class WorkOrderService {
 
         return $workOrder;
     }
+
+    public function cancel(WorkOrder $workOrder) {
+        $workOrder->fillForUpdate([
+            'status' => FormStatus::CANCELED,
+        ]);
+
+        return $workOrder;
+    }
 }

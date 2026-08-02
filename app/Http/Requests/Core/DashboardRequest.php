@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Core;
 
 use App\Http\Requests\BaseFormRequest;
+use App\Rules\ExistsExcludingTrashed;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 class DashboardRequest extends BaseFormRequest {
@@ -24,7 +25,7 @@ class DashboardRequest extends BaseFormRequest {
             'title'                => ['required', 'string'],
             'widgets'              => ['required', 'array', 'min:1'],
             'widgets.*.id'         => ['required', 'string'],
-            'widgets.*.widget.id'  => ['required', 'string', 'exists:widgets,id'],
+            'widgets.*.widget.id'  => ['required', 'string', new ExistsExcludingTrashed('widgets')],
             'widgets.*.width'      => ['required', 'string'],
             'widgets.*.is_visible' => ['nullable', 'boolean'],
 

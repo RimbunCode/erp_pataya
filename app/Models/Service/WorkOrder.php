@@ -2,6 +2,7 @@
 
 namespace App\Models\Service;
 
+use App\Enums\FormStatus;
 use App\Models\Core\Branch;
 use App\Models\Inventory\ItemVariant;
 use App\Models\Model;
@@ -122,5 +123,9 @@ class WorkOrder extends Model {
 
     public function itemService() {
         return $this->belongsTo(ItemVariant::class, 'item_service_id');
+    }
+
+    public function canCancel(): bool {
+        return ! \in_array(FormStatus::COMPLETED, (array) $this->status);
     }
 }

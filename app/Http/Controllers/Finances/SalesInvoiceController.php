@@ -16,8 +16,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class SalesInvoiceController extends Controller {
-    private SalesInvoiceService $service;
-
     public function __construct(Request $request, SalesInvoiceService $service) {
         $this->service = $service;
         parent::__construct($request, SalesInvoice::class);
@@ -229,12 +227,6 @@ class SalesInvoiceController extends Controller {
 
     public function onRejected(SalesInvoice $salesInvoice) {
         $this->service->onRejected($salesInvoice);
-
-        return back();
-    }
-
-    public function cancel(SalesInvoice $salesInvoice) {
-        $this->service->cancel($salesInvoice);
 
         return back();
     }

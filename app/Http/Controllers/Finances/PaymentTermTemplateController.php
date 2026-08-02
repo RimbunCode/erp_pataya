@@ -11,8 +11,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class PaymentTermTemplateController extends Controller {
-    private PaymentTermTemplateService $service;
-
     public function __construct(Request $request, PaymentTermTemplateService $service) {
         $this->service = $service;
         parent::__construct($request, PaymentTermTemplate::class);

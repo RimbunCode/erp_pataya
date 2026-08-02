@@ -14,8 +14,6 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class ItemController extends Controller {
-    protected ItemServices $service;
-
     public function __construct(Request $request, ItemServices $service) {
         $this->service = $service;
         parent::__construct($request, Item::class);
@@ -96,7 +94,7 @@ class ItemController extends Controller {
 
         return Inertia::render('Inventory/Items/Show', [
             'item' => function () use ($item) {
-                $item->loadRelations();
+                $item->loadRelations([], withTrashed: true);
                 $item->uoms = $item->uoms();
                 $itemArray  = $item->toArray();
 
