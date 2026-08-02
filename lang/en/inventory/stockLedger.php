@@ -5,6 +5,7 @@ return [
     'add'                          => 'Add Stock',
     'stocks'                       => 'Stocks',
     'new'                          => 'New Stock',
+    'detail'                       => 'Detail',
     'delete'                       => 'Delete Stock',
     'delete.description'           => 'Are you sure you want to delete this data?',
     'delete.confirm'               => 'Delete',
@@ -13,7 +14,10 @@ return [
     'playground.description'       => 'Select a stock to see its conversion factor',
     'playground.stock.placeholder' => 'Select a stock',
     'stock'                        => 'Stock',
-    'columns'                      => [
+    'actions'                      => [
+        'view_reference' => 'View Source Document',
+    ],
+    'columns' => [
         'code'                       => 'Code',
         'name'                       => 'Name',
         'group'                      => 'Group',

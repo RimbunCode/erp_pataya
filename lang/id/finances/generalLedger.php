@@ -4,13 +4,19 @@ return [
     'title'              => 'Buku Besar Umum',
     'add'                => 'Tambah Buku Besar',
     'new'                => 'Buku Besar Baru',
+    'detail'             => 'Detail',
     'delete'             => 'Hapus Buku Besar',
     'delete.description' => 'Apakah Anda yakin ingin menghapus data ini?',
     'delete.confirm'     => 'Hapus',
     'cancel'             => 'Batal',
     'filters'            => 'Filter',
     'category'           => 'Kategori',
-    'columns'            => [
+    'actions'            => [
+        'view_reference' => 'Lihat Dokumen Sumber',
+    ],
+    'columns' => [
+        'code'                        => 'Kode',
+        'created_at'                  => 'Dibuat Pada',
         'date'                        => 'Tanggal',
         'account'                     => 'Akun',
         'account.placeholder'         => 'Pilih sebuah akun',
