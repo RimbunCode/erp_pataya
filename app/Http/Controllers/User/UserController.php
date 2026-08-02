@@ -101,8 +101,31 @@ class UserController extends Controller {
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request) {
-        //
+    public function store(UserRequest $request) {
+        $data = $request->validated();
+        DB::beginTransaction();
+        try {
+            $user = User::create([
+                'name'              => $data['name'],
+                'email'             => $data['email'],
+                'status'            => FormStatus::INVITED,
+                'default_branch_id' => $data['default_branch_id'] ?? null,
+            ]);
+            if (! empty($data['roles'])) {
+                $user->roles()->sync($data['roles']);
+            }
+            if (! empty($data['branches'])) {
+                $user->branches()->sync($data['branches']);
+            }
+            $user->logForCreated();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            throw $e;
+        }
+
+        return redirect()->route('users.index');
     }
 
     /**

@@ -44,7 +44,7 @@ function Form() {
   const { user: authUser } = usePage().props.auth;
   const { t } = useLaravelReactI18n();
   const { roles, branches } = usePage().props;
-  const { data, setData } = useFormPage();
+  const { data, setData, isCreate } = useFormPage();
   const route = window.route;
   const [openDetailRole, setOpenDetailRole] = useState(false);
   const [detailsRole, setDetailsRole] = useState();
@@ -113,7 +113,7 @@ function Form() {
           >
             <InputGroup>
               <InputGroupInput
-                disabled={authUser.id != data?.id}
+                disabled={!isCreate && authUser.id != data?.id}
                 type="email"
                 value={data.email}
                 onChange={(e) => setData("email", e.target.value)}
@@ -147,47 +147,53 @@ function Form() {
               )}
             </InputGroup>
           </FormInput>
-          <FormInput label={t("user.user.columns.username")} required={true}>
-            <Input
-              disabled={authUser.id != data?.id}
-              value={data.username}
-              onChange={(e) => setData("username", e.target.value)}
-            />
-          </FormInput>
+          {!isCreate && (
+            <FormInput label={t("user.user.columns.username")} required={true}>
+              <Input
+                disabled={authUser.id != data?.id}
+                value={data.username}
+                onChange={(e) => setData("username", e.target.value)}
+              />
+            </FormInput>
+          )}
           <FormInput label={t("user.user.columns.name")} required={true}>
             <Input
-              disabled={authUser.id != data?.id}
+              disabled={!isCreate && authUser.id != data?.id}
               value={data.name}
               onChange={(e) => setData("name", e.target.value)}
             />
           </FormInput>
-          <FormInput label={t("user.user.columns.gender")}>
-            <Select
-              disabled={authUser.id != data?.id}
-              value={data.gender}
-              onValueChange={(val) => setData("gender", val)}
-              optionTrans="user.user.columns.gender.options"
-              options={["male", "female"]}
-            />
-          </FormInput>
-          <FormInput label={t("user.user.columns.phone")}>
-            <Input
-              disabled={authUser.id != data?.id}
-              type="text"
-              value={data.phone}
-              onChange={(e) => setData("phone", e.target.value)}
-            />
-          </FormInput>
-          <FormInput label={t("user.user.columns.birthdate")}>
-            <DatetimePicker
-              disabled={authUser.id != data?.id}
-              type="date"
-              value={data.birthdate}
-              maxYear={new Date().getFullYear() - 15}
-              yearRange={70}
-              onValueChange={(val) => setData("birthdate", val)}
-            />
-          </FormInput>
+          {!isCreate && (
+            <>
+              <FormInput label={t("user.user.columns.gender")}>
+                <Select
+                  disabled={authUser.id != data?.id}
+                  value={data.gender}
+                  onValueChange={(val) => setData("gender", val)}
+                  optionTrans="user.user.columns.gender.options"
+                  options={["male", "female"]}
+                />
+              </FormInput>
+              <FormInput label={t("user.user.columns.phone")}>
+                <Input
+                  disabled={authUser.id != data?.id}
+                  type="text"
+                  value={data.phone}
+                  onChange={(e) => setData("phone", e.target.value)}
+                />
+              </FormInput>
+              <FormInput label={t("user.user.columns.birthdate")}>
+                <DatetimePicker
+                  disabled={authUser.id != data?.id}
+                  type="date"
+                  value={data.birthdate}
+                  maxYear={new Date().getFullYear() - 15}
+                  yearRange={70}
+                  onValueChange={(val) => setData("birthdate", val)}
+                />
+              </FormInput>
+            </>
+          )}
         </div>
       </FormPageContent>
       {canUser("manage_roles") && (
@@ -340,7 +346,7 @@ function Form() {
           <FormInput
             className="max-w-sm mt-4"
             label={t("user.user.default_branch")}
-            required={true}
+            required={!isCreate}
           >
             <Select
               value={data.default_branch_id}

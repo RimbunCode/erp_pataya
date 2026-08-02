@@ -21,6 +21,18 @@ class UserRequest extends BaseFormRequest {
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array {
+        if ($this->isMethod('post')) {
+            return [
+                'name'              => ['required', 'string', 'min:3', 'max:255'],
+                'email'             => ['required', 'string', 'email:rfc', Rule::unique('users', 'email')->where(fn ($query) => $query->whereNull('deleted_at'))],
+                'roles'             => ['nullable', 'array', 'min:1'],
+                'roles.*'           => ['required', 'string', new ExistsExcludingTrashed('roles')],
+                'branches'          => ['nullable', 'array', 'min:1'],
+                'branches.*'        => ['required', 'string', new ExistsExcludingTrashed('branches')],
+                'default_branch_id' => ['nullable', 'string', new ExistsExcludingTrashed('branches')],
+            ];
+        }
+
         return [
             'name'              => ['required', 'string', 'min:3', 'max:255'],
             'email'             => ['required', 'string', 'email:rfc'],
