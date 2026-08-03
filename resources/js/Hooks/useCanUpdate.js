@@ -6,7 +6,6 @@ import { useContext } from "react";
  * Logic murni resolusi canUpdate — terpisah dari useContext supaya bisa
  * di-unit-test tanpa render environment (project ini tidak memakai
  * @testing-library/react-hooks / jsdom).
- *
  * @param {string} fieldPath nama field (top-level) atau path dot-notation
  *   di dalam struktur canUpdate (mis. "qty" saat dipanggil dgn row).
  * @param {object} [row] data row child (mis. item FormTable) — bila
@@ -37,7 +36,6 @@ export function resolveCanUpdate(fieldPath, row, ctx) {
  * Resolve status boleh-edit satu field, mengikuti kontrak backend canUpdate
  * (App\Traits\LinkModel::getCanUpdateAttribute) + disabledOn (whole-form
  * kill-switch, short-circuit lebih dulu).
- *
  * @param {string} fieldPath
  * @param {object} [row]
  * @returns {boolean}
