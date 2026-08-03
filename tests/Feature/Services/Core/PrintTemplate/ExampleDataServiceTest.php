@@ -1,6 +1,6 @@
 <?php
 
-namespace Tests\Unit\Services\Core\PrintTemplate;
+namespace Tests\Feature\Services\Core\PrintTemplate;
 
 use App\Models\Core\PrintTemplate;
 use App\Services\Core\PrintTemplate\ExampleDataService;
@@ -30,6 +30,12 @@ class ExampleDataServiceTest extends TestCase {
     }
 
     protected function createTestTables(): void {
+        if (Schema::hasTable('print_templates') && ! Schema::hasColumn('print_templates', 'is_example')) {
+            Schema::table('print_templates', function (Blueprint $table) {
+                $table->boolean('is_example')->default(false);
+            });
+        }
+
         Schema::dropIfExists('test_example_grandchildren');
         Schema::dropIfExists('test_example_children');
         Schema::dropIfExists('test_example_parents');

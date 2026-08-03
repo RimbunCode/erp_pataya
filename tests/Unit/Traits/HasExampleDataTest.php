@@ -87,7 +87,7 @@ class HasExampleDataTest extends TestCase {
     }
 
     /**
-     * Test isExampleData uses strict comparison
+     * Test isExampleData casts integer values to boolean
      */
     public function test_is_example_data_uses_strict_comparison(): void {
         $model = new class extends Model
@@ -97,9 +97,9 @@ class HasExampleDataTest extends TestCase {
             protected $guarded = [];
         };
 
-        // Test with integer 1 (should be false with strict comparison)
+        // Test with integer 1 (should be true with boolean casting)
         $model->is_example = 1;
-        $this->assertFalse($model->isExampleData());
+        $this->assertTrue($model->isExampleData());
 
         // Test with boolean true (should be true)
         $model->is_example = true;
