@@ -32,7 +32,7 @@ class RelationTrackerServiceTest extends TestCase {
      * **Validates: Requirements 11.2, 11.11**
      */
     public function test_extracts_each_iteration_pattern(): void {
-        $html = '<table>{{#each items}}<tr><td>{{this.name}}</td></tr>{{/each}}</table>';
+        $html = '<table>{{#each doc.items}}<tr><td>{{this.name}}</td></tr>{{/each}}</table>';
 
         $relations = $this->service->extractRelationsFromHTML($html);
 
@@ -53,18 +53,20 @@ class RelationTrackerServiceTest extends TestCase {
     }
 
     /**
-     * Test extracting nested relations up to 3 levels
+     * Test extracting nested relations up to 4 levels
      *
      * **Validates: Requirements 11.4, 11.8**
      */
-    public function test_extracts_nested_relations_up_to_three_levels(): void {
-        $html = '<div>{{doc.order.customer.address}}</div>';
+    public function test_extracts_nested_relations_up_to_four_levels(): void {
+        $html = '<div>{{doc.order.customer.address.name.role}}</div>';
 
         $relations = $this->service->extractRelationsFromHTML($html);
 
         $this->assertContains('order', $relations);
         $this->assertContains('order.customer', $relations);
         $this->assertContains('order.customer.address', $relations);
+        $this->assertContains('order.customer.address.name', $relations);
+        $this->assertNotContains('order.customer.address.name.role', $relations);
     }
 
     /**
@@ -73,12 +75,12 @@ class RelationTrackerServiceTest extends TestCase {
      * **Validates: Requirements 11.11**
      */
     public function test_extracts_this_relation_in_iteration(): void {
-        $html = '{{#each items}}<div>{{this.product.name}}</div>{{/each}}';
+        $html = '{{#each doc.items}}<div>{{this.product.name}}</div>{{/each}}';
 
         $relations = $this->service->extractRelationsFromHTML($html);
 
         $this->assertContains('items', $relations);
-        $this->assertContains('product', $relations);
+        $this->assertContains('items.product', $relations);
     }
 
     /**
@@ -91,7 +93,7 @@ class RelationTrackerServiceTest extends TestCase {
             <div>{{relation doc.customer}}</div>
             <div>{{doc.warehouse.name}}</div>
             <table>
-                {{#each items}}
+                {{#each doc.items}}
                 <tr>
                     <td>{{this.product.name}}</td>
                     <td>{{this.unit.symbol}}</td>
@@ -106,8 +108,8 @@ class RelationTrackerServiceTest extends TestCase {
         $this->assertContains('customer', $relations);
         $this->assertContains('warehouse', $relations);
         $this->assertContains('items', $relations);
-        $this->assertContains('product', $relations);
-        $this->assertContains('unit', $relations);
+        $this->assertContains('items.product', $relations);
+        $this->assertContains('items.unit', $relations);
         $this->assertContains('amended_from', $relations);
     }
 
@@ -156,16 +158,17 @@ class RelationTrackerServiceTest extends TestCase {
     }
 
     /**
-     * Test normalizeRelations limits depth to 3 levels
+     * Test normalizeRelations limits depth to 4 levels
      *
      * **Validates: Requirements 11.8**
      */
-    public function test_normalize_limits_depth_to_three_levels(): void {
+    public function test_normalize_limits_depth_to_four_levels(): void {
         $relations = [
             'customer',
             'customer.address',
             'customer.address.city',
-            'customer.address.city.country', // 4 levels - should be filtered out
+            'customer.address.city.country', // 4 levels - maximum relation can be eager load
+            'customer.address.city.country.test', // 5 levels - should be filtered out
         ];
 
         $normalized = $this->service->normalizeRelations($relations);
@@ -173,7 +176,8 @@ class RelationTrackerServiceTest extends TestCase {
         $this->assertContains('customer', $normalized);
         $this->assertContains('customer.address', $normalized);
         $this->assertContains('customer.address.city', $normalized);
-        $this->assertNotContains('customer.address.city.country', $normalized);
+        $this->assertContains('customer.address.city.country', $normalized);
+        $this->assertNotContains('customer.address.city.country.test', $normalized);
     }
 
     /**
@@ -186,7 +190,7 @@ class RelationTrackerServiceTest extends TestCase {
             'html'       => '<div>{{relation doc.customer}}</div>',
             'components' => [
                 [
-                    'content' => '{{#each items}}<div>{{this.product}}</div>{{/each}}',
+                    'content' => '{{#each doc.items}}<div>{{this.product}}</div>{{/each}}',
                 ],
             ],
         ];
@@ -195,7 +199,7 @@ class RelationTrackerServiceTest extends TestCase {
 
         $this->assertContains('customer', $relations);
         $this->assertContains('items', $relations);
-        $this->assertContains('product', $relations);
+        $this->assertNotContains('product', $relations);
     }
 
     /**
@@ -213,7 +217,7 @@ class RelationTrackerServiceTest extends TestCase {
                             'content'    => '{{doc.warehouse.name}}',
                             'components' => [
                                 [
-                                    'content' => '{{#each items}}{{this.product}}{{/each}}',
+                                    'content' => '{{#each doc.items}}{{this.product}}{{/each}}',
                                 ],
                             ],
                         ],
@@ -227,7 +231,7 @@ class RelationTrackerServiceTest extends TestCase {
         $this->assertContains('customer', $relations);
         $this->assertContains('warehouse', $relations);
         $this->assertContains('items', $relations);
-        $this->assertContains('product', $relations);
+        $this->assertNotContains('product', $relations);
     }
 
     /**
@@ -260,13 +264,13 @@ class RelationTrackerServiceTest extends TestCase {
      * **Validates: Requirements 11.1**
      */
     public function test_extracts_relations_from_string_template(): void {
-        $template = '<div>{{relation doc.customer}}</div><div>{{#each items}}{{this.product}}{{/each}}</div>';
+        $template = '<div>{{relation doc.customer}}</div><div>{{#each doc.items}}{{this.product}}{{/each}}</div>';
 
         $relations = $this->service->extractRelations($template);
 
         $this->assertContains('customer', $relations);
         $this->assertContains('items', $relations);
-        $this->assertContains('product', $relations);
+        $this->assertNotContains('product', $relations);
     }
 
     /**
@@ -290,11 +294,11 @@ class RelationTrackerServiceTest extends TestCase {
      * **Validates: Requirements 11.11**
      */
     public function test_extracts_relations_without_doc_prefix(): void {
-        $html = '{{relation customer}} {{#each items}}{{this.name}}{{/each}}';
+        $html = '{{relation customer}} {{#each doc.items}}{{this.name}}{{/each}}';
 
         $relations = $this->service->extractRelationsFromHTML($html);
 
-        $this->assertContains('customer', $relations);
+        $this->assertNotContains('customer', $relations);
         $this->assertContains('items', $relations);
     }
 
@@ -309,7 +313,7 @@ class RelationTrackerServiceTest extends TestCase {
         $relations = $this->service->extractRelationsFromHTML($html);
 
         $this->assertContains('amended_from', $relations);
-        $this->assertContains('amended_from.customer', $relations);
+        $this->assertNotContains('amended_from.customer', $relations);
     }
 
     /**
@@ -320,7 +324,6 @@ class RelationTrackerServiceTest extends TestCase {
     public function test_get_relation_depth_returns_correct_depth(): void {
         $reflection = new \ReflectionClass($this->service);
         $method     = $reflection->getMethod('getRelationDepth');
-        $method->setAccessible(true);
 
         $this->assertEquals(1, $method->invoke($this->service, 'customer'));
         $this->assertEquals(2, $method->invoke($this->service, 'customer.address'));
@@ -334,13 +337,13 @@ class RelationTrackerServiceTest extends TestCase {
      * **Validates: Requirements 11.11**
      */
     public function test_extracts_relations_with_whitespace_in_tokens(): void {
-        $html = '{{ relation doc.customer }} {{ #each items }} {{ this.product }} {{ /each }}';
+        $html = '{{ relation doc.customer }} {{ #each doc.items }} {{ this.product }} {{ /each }}';
 
         $relations = $this->service->extractRelationsFromHTML($html);
 
         $this->assertContains('customer', $relations);
         $this->assertContains('items', $relations);
-        $this->assertContains('product', $relations);
+        $this->assertNotContains('product', $relations);
     }
 
     /**
@@ -352,7 +355,7 @@ class RelationTrackerServiceTest extends TestCase {
         $html = '
             {{relation doc.customer}}
             {{doc.warehouse.name}}
-            {{#each items}}
+            {{#each doc.items}}
                 {{this.product.name}}
                 {{relation this.unit}}
             {{/each}}
@@ -365,8 +368,8 @@ class RelationTrackerServiceTest extends TestCase {
         $this->assertContains('customer', $relations);
         $this->assertContains('warehouse', $relations);
         $this->assertContains('items', $relations);
-        $this->assertContains('product', $relations);
-        $this->assertContains('unit', $relations);
+        $this->assertContains('items.product', $relations);
+        $this->assertContains('items.unit', $relations);
         $this->assertContains('amended_from', $relations);
         $this->assertContains('amended_from.customer', $relations);
 

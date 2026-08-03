@@ -117,7 +117,7 @@ class RelationTrackerService {
         }
 
         // Check for other attributes that might contain Handlebar tokens
-        foreach ($attributes as $key => $value) {
+        foreach ($attributes as $value) {
             if (is_string($value) && Str::contains($value, ['{{', '}}'])) {
                 $attrRelations = $this->parseHandlebarTokens($value);
                 $relations     = array_merge($relations, $attrRelations);
@@ -251,9 +251,9 @@ class RelationTrackerService {
                 }
             }
 
-            // {{this.X.Y...}} (2+ segments, NO relation keyword) inside this block
+            // {{this.X.Y...}} (1+ segments, NO relation keyword) inside this block
             // All segments except LAST are relations → build incremental prefixed with fullEachPath
-            preg_match_all('/\{\{\s*this\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)+)\s*\}\}/', $innerContent, $matches);
+            preg_match_all('/\{\{\s*this\.([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)*)\s*\}\}/', $innerContent, $matches);
             if (! empty($matches[1])) {
                 foreach ($matches[1] as $match) {
                     $relations = array_merge($relations, $this->buildIncrementalPaths($match, true, $fullEachPath));
@@ -283,7 +283,7 @@ class RelationTrackerService {
         $blocks = [];
         $offset = 0;
 
-        while (preg_match('/\{\{\s*#each\s+(?:(?:' . $prefixPattern . '|this)\.)?' . '([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}/s', $content, $match, PREG_OFFSET_CAPTURE, $offset)) {
+        while (preg_match('/\{\{\s*#each\s+(?:(?:' . $prefixPattern . '|this)\.)' . '([a-zA-Z_][a-zA-Z0-9_\.]*)\s*\}\}/s', $content, $match, PREG_OFFSET_CAPTURE, $offset)) {
             $startPos    = $match[0][1];
             $startTagEnd = $startPos + strlen($match[0][0]);
             $eachPath    = $match[1][0];
@@ -677,7 +677,7 @@ class RelationTrackerService {
 
                 // Get the related model for next iteration
                 $currentModel = $relationInstance->getRelated();
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 return false;
             }
         }
