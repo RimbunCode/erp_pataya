@@ -1,3 +1,5 @@
+@CLAUDE.md
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

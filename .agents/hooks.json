@@ -1,0 +1,30 @@
+{
+  "pint-reminder": {
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Program Files/Git/usr/bin/bash.exe\" -c \"FILE=\"${ANTIGRAVITY_TOOL_FILE_PATH:-}\"; if [[ \"$FILE\" == *.php ]]; then echo 'PHP file modified. Run: vendor/bin/pint --dirty --format agent before finalizing.'; fi\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ]
+  },
+  "composer-audit": {
+    "PostToolUse": [
+      {
+        "matcher": "write_to_file|replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"C:/Program Files/Git/usr/bin/bash.exe\" -c \"FILE=\"${ANTIGRAVITY_TOOL_FILE_PATH:-}\"; if [[ \"$FILE\" == *composer.json ]]; then echo 'composer.json modified — consider running: composer audit'; fi\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
