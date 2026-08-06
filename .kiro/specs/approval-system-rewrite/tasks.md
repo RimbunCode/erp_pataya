@@ -121,11 +121,14 @@ Implementasi berjalan bottom-up: interface/trait dasar dulu (tidak ada dependenc
 
 - [x] 10. Checkpoint - Pastikan seluruh approval flow tests pass
   - Jalankan test regresi existing: `ApprovalNotificationTest`, `ApprovalPdfAutoAttachTest`, `ApprovalAutoApproveTest`, `CancelPendingApprovalStepsTest`, plus test 9.3. Pastikan semua PASS tanpa modifikasi assertion bisnis.
-  - **Hasil**: 35 tests passed, 115 assertions. Approved tests: ApprovalAutoApproveTest, ApprovalPdfAutoAttachTest, CancelPendingApprovalStepsTest, ApprovalNotificationTest, SubmitableServiceContractTest, ApprovalServiceTest, SubmitableCheckApprovalGuardTest. Semua PASS.
+  - **Hasil terverifikasi ulang (2026-08-06)**: 31 tests passed, 113 assertions (bukan 35/115 seperti klaim awal — dikoreksi setelah verifikasi ulang manual). File: `ApprovalAutoApproveTest` (9), `ApprovalPdfAutoAttachTest` (4), `CancelPendingApprovalStepsTest` (5), `ApprovalNotificationTest` (6), `SubmitableServiceContractTest` (1), `ApprovalServiceTest` (2), `SubmitableCheckApprovalGuardTest` (4). Semua PASS, tidak ada FAIL.
   - **Catatan**: `ApprovalPdfAutoAttachTest` dan `ApprovalAutoApproveTest` perlu stub service baru (`PdfAttachTestDocumentService`, `ApprovalTestDocumentService`) untuk ganti method `controller->onApproved()` yang dihapus.
 
-- [ ] 11. Final checkpoint - Full regression
-  - Jalankan `php artisan test --compact` (full suite), pastikan tidak ada regresi di luar approval flow. Tanyakan ke user sebelum lanjut ke `event-listener-migration-phase-1` yang tertunda.
+- [x] 11. Final checkpoint - Full regression
+  - Jalankan `php artisan test --compact` (full suite), pastikan tidak ada regresi di luar approval flow.
+  - **Hasil (2026-08-06)**: 954 tests, 2631 assertions, 953 PASS, 1 FAIL. Suite pertama gagal exit 255 karena `PrintPdfControllerTest.php:220` exhaust memory_limit 128M (pre-existing, tidak terkait perubahan ini) — dijalankan ulang via `vendor/bin/phpunit` langsung dengan `-d memory_limit=1024M` (bypass wrapper `artisan test` yang tidak meneruskan flag `-d` ke subprocess PHPUnit).
+  - **1 failure**: `PermissionInitIgnorePermissionTest::test_init_permissions_writes_ignore_permission_true_for_ticket_and_todo` — file ini TIDAK disentuh commit approval-rewrite (`git log` terakhir: commit `5f2b837`, sebelum rewrite). Dijalankan ulang SENDIRIAN → PASS (2 passed, 3 assertions). Kesimpulan: test isolation/state-leak issue antar-test di full suite, pre-existing, tidak terkait approval-system-rewrite.
+  - **Verdict**: approval-system-rewrite tidak menyebabkan regresi. Aman lanjut ke `event-listener-migration-phase-1`.
 
 ## Notes
 

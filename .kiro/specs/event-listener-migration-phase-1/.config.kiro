@@ -1,0 +1,6 @@
+{
+  "specId": "765fb8ae-3cfb-4b86-8eb4-c5ae1ce7c86a",
+  "workflowType": "requirements-first",
+  "specType": "feature",
+  "description": "Fase 1 migrasi business logic side-effect ke pola Event/Listener Laravel: audit log generik, ApprovalInstanceController approve/reject, penyelesaian migrasi partial Submitable, dan cross-domain kecil (billed_quantity, ModelConnection submit)."
+}
